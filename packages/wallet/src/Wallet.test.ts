@@ -1,0 +1,633 @@
+import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
+import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
+import {
+  ClientController,
+  getDefaultClientControllerState,
+} from '@metamask/client-controller';
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import { LoggingController, LogType } from '@metamask/logging-controller';
+import { Messenger } from '@metamask/messenger';
+import {
+  PermissionController,
+  SubjectMetadataController,
+  SubjectType,
+} from '@metamask/permission-controller';
+import { SelectedNetworkController } from '@metamask/selected-network-controller';
+import {
+  getDefaultShieldControllerState,
+  ShieldController,
+} from '@metamask/shield-controller';
+import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+
+import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
+import * as initializationModule from './initialization/initialization.js';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+import type { WalletOptions } from './types.js';
+import { importSecretRecoveryPhrase } from './utilities.js';
+import { Wallet } from './Wallet.js';
+
+const TEST_SRP = 'test test test test test test test test test test test ball';
+const TEST_PASSWORD = 'testpass';
+
+const REMOTE_FEATURE_FLAG_OPTIONS = {
+  clientConfigApiService: {
+    fetchRemoteFeatureFlags: async (): Promise<{
+      remoteFeatureFlags: Record<string, boolean>;
+      cacheTimestamp: number;
+    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+  },
+};
+
+const TEST_ANALYTICS_ID = '11111111-1111-4111-8111-111111111111';
+
+function getInstanceOptions(): WalletOptions['instanceOptions'] {
+  return {
+    analyticsController: {
+      platformAdapter: {
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
+      },
+      analyticsId: TEST_ANALYTICS_ID,
+    },
+    connectivityController: {
+      connectivityAdapter: new AlwaysOnlineAdapter(),
+    },
+    gasFeeController: {
+      clientId: 'test',
+    },
+    networkController: {
+      infuraProjectId: 'fake-infura-project-id',
+    },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
+    },
+    storageService: {
+      storage: new InMemoryStorageAdapter(),
+    },
+    remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+  };
+}
+
+async function setupWallet(): Promise<Wallet> {
+  const wallet = new Wallet({
+    instanceOptions: getInstanceOptions(),
+  });
+
+  await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
+
+  return wallet;
+}
+
+describe('Wallet', () => {
+  it('exposes state', async () => {
+    const wallet = await setupWallet();
+    const { state } = wallet;
+
+    expect(state.KeyringController).toStrictEqual({
+      isUnlocked: true,
+      keyrings: expect.any(Array),
+      encryptionKey: expect.any(String),
+      encryptionSalt: expect.any(String),
+      vault: expect.any(String),
+    });
+  });
+
+  it('exposes instances', async () => {
+    const wallet = await setupWallet();
+
+    expect(wallet.getInstance('KeyringController').state).toStrictEqual({
+      isUnlocked: true,
+      keyrings: expect.any(Array),
+      encryptionKey: expect.any(String),
+      encryptionSalt: expect.any(String),
+      vault: expect.any(String),
+    });
+  });
+
+  it('supports passing instance options', async () => {
+    const wallet = new Wallet({
+      instanceOptions: {
+        ...getInstanceOptions(),
+        keyringController: {
+          encryptor: new MockEncryptor(),
+        },
+      },
+    });
+
+    await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
+
+    const { state } = wallet;
+
+    const vault = JSON.parse(state.KeyringController.vault as string);
+
+    expect(vault).toStrictEqual({
+      data: expect.any(String),
+      iv: 'iv',
+      salt: 'salt',
+    });
+  });
+
+  it('supports passing additional initialization configurations', async () => {
+    class DummyController {
+      state = { foo: 'bar' };
+    }
+
+    class DummyService {}
+
+    const wallet = new Wallet({
+      initializationConfigurations: [
+        {
+          name: 'KeyringController',
+          getMessenger: (): Messenger<string> =>
+            new Messenger({ namespace: 'KeyringController' }),
+          init: (): DummyController => new DummyController(),
+        },
+        {
+          name: 'TestService',
+          getMessenger: (): Messenger<string> =>
+            new Messenger({ namespace: 'TestService' }),
+          init: (): DummyService => new DummyService(),
+        },
+      ],
+      instanceOptions: getInstanceOptions(),
+    });
+    const { state } = wallet;
+
+    expect(state.KeyringController).toStrictEqual({
+      foo: 'bar',
+    });
+
+    expect((state as Record<string, Json>).TestService).toBeUndefined();
+  });
+
+  it('exposes controllerMetadata for each initialized controller', async () => {
+    const wallet = await setupWallet();
+
+    const names = Object.keys(wallet.controllerMetadata);
+    expect(names).toStrictEqual(Object.keys(wallet.state));
+    for (const name of names) {
+      expect(wallet.controllerMetadata[name]).toBeDefined();
+    }
+  });
+
+  it('omits instances without a metadata property from controllerMetadata', async () => {
+    const fakeMetadata = {
+      foo: { persist: true, includeInDebugSnapshot: false },
+    };
+    vi.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+      // @ts-expect-error Mock data.
+      WithMeta: { state: {}, metadata: fakeMetadata },
+      NoMeta: { state: {} },
+    });
+
+    const wallet = new Wallet({
+      instanceOptions: getInstanceOptions(),
+    });
+
+    expect(wallet.controllerMetadata).toStrictEqual({
+      WithMeta: fakeMetadata,
+    });
+    expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+  });
+
+  it('calls init on all instances and returns the results', async () => {
+    const wallet = await setupWallet();
+
+    const results = await wallet.init();
+
+    expect(results).toHaveLength(10);
+  });
+
+  it('disallows modifying the messenger', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.messenger = new Messenger({ namespace: 'Root' });
+    }).toThrow('The messenger cannot be directly mutated.');
+  });
+
+  it('disallows modifying the state', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.state = { KeyringController: { isUnlocked: false, keyrings: [] } };
+    }).toThrow('Wallet state cannot be directly mutated.');
+  });
+
+  it('disallows modifying the controller metadata', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.controllerMetadata = {};
+    }).toThrow('The controller metadata cannot be directly mutated.');
+  });
+
+  it('calls destroy on instances exactly once', async () => {
+    const wallet = await setupWallet();
+
+    const keyringController = wallet.getInstance('KeyringController');
+
+    const spy = vi.spyOn(keyringController, 'destroy');
+
+    await wallet.destroy();
+    await wallet.destroy();
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs controller state validation errors and continues', async () => {
+    const captureException = vi.fn();
+    const messenger = new Messenger({ namespace: 'Root', captureException });
+    const wallet = new Wallet({
+      messenger,
+      state: {
+        NetworkController: {
+          foo: 'bar',
+        },
+      },
+      instanceOptions: getInstanceOptions(),
+    });
+
+    expect(wallet.state.NetworkController).toStrictEqual(
+      expect.objectContaining({ foo: 'bar' }),
+    );
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          'Validation of "NetworkController" state failed. Not throwing because strict mode is not enabled. The reported error is: At path: selectedNetworkClientId -- Expected a string, but received: undefined',
+      }),
+    );
+  });
+
+  describe('AccountsController', () => {
+    it('tracks accounts created via KeyringController', async () => {
+      const wallet = await setupWallet();
+
+      const keyringAccounts = await wallet.messenger.call(
+        'KeyringController:getAccounts',
+      );
+      const trackedAddresses = Object.values(
+        wallet.state.AccountsController.internalAccounts.accounts,
+      ).map((account) => account.address);
+
+      // Sort both arrays so the assertion does not depend on account ordering.
+      expect([...trackedAddresses].sort()).toStrictEqual(
+        [...keyringAccounts].sort(),
+      );
+    });
+  });
+
+  describe('AddressBookController', () => {
+    const ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('AddressBookController:getState')).toStrictEqual(
+        getDefaultAddressBookControllerState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const entry = {
+        address: ADDRESS,
+        name: 'Alice',
+        chainId: '0x1' as const,
+        memo: '',
+        isEns: false,
+      };
+
+      const wallet = new Wallet({
+        state: {
+          AddressBookController: {
+            addressBook: { '0x1': { [ADDRESS]: entry } },
+          },
+        },
+        instanceOptions: getInstanceOptions(),
+      });
+
+      expect(
+        wallet.state.AddressBookController.addressBook['0x1'][ADDRESS],
+      ).toStrictEqual(entry);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('AddressBookController:set', ADDRESS, 'Alice');
+
+      expect(messenger.call('AddressBookController:list')).toHaveLength(1);
+    });
+  });
+
+  describe('ConnectivityController', () => {
+    it('reports online connectivity status', () => {
+      const wallet = new Wallet({
+        instanceOptions: getInstanceOptions(),
+      });
+
+      expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
+        CONNECTIVITY_STATUSES.Online,
+      );
+    });
+  });
+
+  describe('KeyringController', () => {
+    it('can unlock and populate accounts', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(
+        await messenger.call('KeyringController:getAccounts'),
+      ).toStrictEqual(['0xc6d5a3c98ec9073b54fa0969957bd582e8d874bf']);
+    });
+
+    it('can unlock a persisted vault', async () => {
+      const vault =
+        '{"data":"iOD5pIcPeRZYQ4WdEMsNYoZ3xBxWBafIU8Cr4nD0X4zBvrOA06tGen3sKQ/ValasXSweLnzH9Fk2frkPYmqeJWBtTNYFwdHPe7P970ThZwreSXN1Sqrx9Ad+YzmIN0y89Yg3KrUodPWaRgIZmgWbfDon6ADPgeEDkX0/GAEYET39O7Rx/gL+rcaTpxnpHPTgHiLbhRHWGsS3z+JVomSqoLAO5XVvrJWenO6R3Nzm62BaJaSPrf/pwstZqhSvxTq8hnQf7aR81hWfwYTxNBVG7TC/dniSQ8K5So6PvUN5nzAqvtzzHT2TagOuxQkX88Zi17P8os21jNmNdA90IGYroD+b/mppyRIgRYWtAUQZH9ji36atEuFupszbg8Qw1iaL3EQyUogC30Cpj9ko5bbqhYgqmFHF0J/kflhPHKuO6d4tgSmhYpTumydQRjxaPnlghIS5YI4W+7p9HVBpb+c6IPUz9y/x3Ngbp+ukJwOnXt2U/eZhXrJzi2z1x/nzPg4fzDJoM7k=","iv":"yrZsyC7dso/q7pQ48YX3vw==","keyMetadata":{"algorithm":"PBKDF2","params":{"iterations":600000}},"salt":"s7nIrMWK1lcZVjfdmES1DBML8Uz4ja2fpm8zUz1lWI0="}';
+
+      const wallet = new Wallet({
+        state: {
+          KeyringController: {
+            vault,
+          },
+        },
+        instanceOptions: getInstanceOptions(),
+      });
+
+      await wallet.messenger.call(
+        'KeyringController:submitPassword',
+        TEST_PASSWORD,
+      );
+
+      expect(wallet.state.KeyringController).toStrictEqual({
+        isUnlocked: true,
+        keyrings: expect.any(Array),
+        encryptionKey: expect.any(String),
+        encryptionSalt: expect.any(String),
+        vault: expect.any(String),
+      });
+    });
+
+    it('can lock', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      await messenger.call('KeyringController:setLocked');
+
+      expect(wallet.state.KeyringController).toStrictEqual({
+        isUnlocked: false,
+        keyrings: [],
+        vault: expect.any(String),
+      });
+    });
+  });
+
+  describe('StorageService', () => {
+    it('can set and get items', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TestNamespace',
+        'foo',
+        'bar',
+      );
+
+      expect(
+        (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
+          .result,
+      ).toBe('bar');
+    });
+  });
+
+  describe('TransactionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('TransactionController:getState'),
+      ).toStrictEqual(expect.objectContaining({ transactions: [] }));
+    });
+  });
+
+  describe('ShieldController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ShieldController')).toBeInstanceOf(
+        ShieldController,
+      );
+      expect(wallet.messenger.call('ShieldController:getState')).toStrictEqual(
+        getDefaultShieldControllerState(),
+      );
+    });
+  });
+
+  describe('RemoteFeatureFlagController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState'),
+      ).toStrictEqual({
+        remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      });
+    });
+
+    it('routes injected instanceOptions through to the controller', async () => {
+      const wallet = new Wallet({
+        instanceOptions: {
+          ...getInstanceOptions(),
+          keyringController: { encryptor: new MockEncryptor() },
+          remoteFeatureFlagController: {
+            clientConfigApiService: {
+              fetchRemoteFeatureFlags: async (): Promise<{
+                remoteFeatureFlags: Record<string, boolean>;
+                cacheTimestamp: number;
+              }> => ({
+                remoteFeatureFlags: { testFlag: true },
+                cacheTimestamp: Date.now(),
+              }),
+            },
+          },
+        },
+      });
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ).toStrictEqual({ testFlag: true });
+    });
+  });
+
+  describe('PermissionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('PermissionController')).toBeInstanceOf(
+        PermissionController,
+      );
+      expect(
+        wallet.messenger.call('PermissionController:getState'),
+      ).toStrictEqual({ subjects: {} });
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call(
+          'PermissionController:hasPermissions',
+          'https://example.com',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('SubjectMetadataController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SubjectMetadataController')).toBeInstanceOf(
+        SubjectMetadataController,
+      );
+      expect(
+        wallet.messenger.call('SubjectMetadataController:getState'),
+      ).toStrictEqual({ subjectMetadata: {} });
+    });
+
+    it('stores and returns subject metadata', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const metadata = {
+        origin: 'https://example.com',
+        name: 'Example',
+        subjectType: SubjectType.Website,
+        iconUrl: null,
+        extensionId: null,
+      };
+
+      messenger.call('SubjectMetadataController:addSubjectMetadata', metadata);
+
+      expect(
+        messenger.call(
+          'SubjectMetadataController:getSubjectMetadata',
+          metadata.origin,
+        ),
+      ).toStrictEqual(metadata);
+    });
+  });
+
+  describe('SelectedNetworkController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SelectedNetworkController')).toBeInstanceOf(
+        SelectedNetworkController,
+      );
+      expect(
+        wallet.messenger.call('SelectedNetworkController:getState'),
+      ).toStrictEqual({ domains: {} });
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const { selectedNetworkClientId } = messenger.call(
+        'NetworkController:getState',
+      );
+
+      expect(
+        messenger.call(
+          'SelectedNetworkController:getNetworkClientIdForDomain',
+          'https://example.com',
+        ),
+      ).toBe(selectedNetworkClientId);
+    });
+  });
+
+  describe('ClientController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ClientController')).toBeInstanceOf(
+        ClientController,
+      );
+      expect(wallet.messenger.call('ClientController:getState')).toStrictEqual(
+        getDefaultClientControllerState(),
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('ClientController:setUiOpen', true);
+
+      expect(messenger.call('ClientController:getState')).toStrictEqual({
+        isUiOpen: true,
+      });
+    });
+  });
+
+  describe('LoggingController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('LoggingController')).toBeInstanceOf(
+        LoggingController,
+      );
+      expect(wallet.messenger.call('LoggingController:getState')).toStrictEqual(
+        { logs: {} },
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('LoggingController:add', {
+        type: LogType.GenericLog,
+        data: 'test',
+      });
+
+      expect(
+        Object.values(messenger.call('LoggingController:getState').logs),
+      ).toHaveLength(1);
+
+      messenger.call('LoggingController:clear');
+
+      expect(messenger.call('LoggingController:getState').logs).toStrictEqual(
+        {},
+      );
+    });
+  });
+
+  describe('ClaimsController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('ClaimsController:getState')).toStrictEqual(
+        getDefaultClaimsControllerState(),
+      );
+    });
+  });
+});

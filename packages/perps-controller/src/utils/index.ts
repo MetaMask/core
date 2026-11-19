@@ -4,13 +4,28 @@
  * Note: hyperLiquidAdapter and orderCalculations both export calculatePositionSize.
  * We use selective exports to avoid the name collision.
  */
-export * from './accountUtils';
-export * from './errorUtils';
+export * from './accountUtils.js';
+export * from './advancedOrderLists.js';
+export * from './advancedOrders.js';
+export { getBatchOperationStatus } from './batchOperationStatus.js';
+export {
+  estimateCloseReceive,
+  calculateNetClosedPnl,
+} from './closeCalculations.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './closeCalculations.js';
+export * from './errorUtils.js';
 // hyperLiquidAdapter: selective export to avoid calculatePositionSize clash with orderCalculations
 export {
   adaptOrderToSDK,
   adaptPositionFromSDK,
   adaptOrderFromSDK,
+  adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
+  adaptTriggerOrderTypeFromSDK,
   adaptMarketFromSDK,
   adaptAccountStateFromSDK,
   buildAssetMapping,
@@ -19,25 +34,49 @@ export {
   calculateHip3AssetId,
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
-} from './hyperLiquidAdapter';
-export * from './hyperLiquidOrderBookProcessor';
-export * from './hyperLiquidValidation';
-export * from './idUtils';
-export * from './marketDataTransform';
-export * from './marketUtils';
-export * from './orderCalculations';
-export * from './perpsDiskPersistence';
-export * from './rewardsUtils';
-export * from './significantFigures';
-export * from './sortMarkets';
-export * from './standaloneInfoClient';
-export * from './stringParseUtils';
-export * from './transferData';
-export * from './wait';
+} from './hyperLiquidAdapter.js';
+export * from './hyperLiquidOrderBookProcessor.js';
+export * from './hyperLiquidPositionPreview.js';
+export * from './hyperLiquidValidation.js';
+export {
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
+} from './marginAdjustment.js';
+export type {
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
+} from './marginAdjustment.js';
+export * from './idUtils.js';
+export * from './marketDataTransform.js';
+export * from './marketSearch.js';
+export * from './marketUtils.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+} from './orderBookGrouping.js';
+export type { GroupedOrderBook } from './orderBookGrouping.js';
+export * from './orderCalculations.js';
+export * from './orderTypes.js';
+export {
+  getPerpsErrorCopy,
+  PERPS_ERROR_COPY,
+  PERPS_ORDER_TYPE_LABELS,
+} from './perpsClientCopy.js';
+export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
+export * from './perpsDiskPersistence.js';
+export * from './rewardsUtils.js';
+export * from './significantFigures.js';
+export * from './sortMarkets.js';
+export * from './standaloneInfoClient.js';
+export * from './stringParseUtils.js';
+export * from './subscriptionFeeWaiver.js';
+export * from './tpslCalculations.js';
+export * from './transferData.js';
+export * from './wait.js';
 
 // Inline from former utils.ts (getEnvironment was previously at perps/utils.ts root)
 export const getEnvironment = (): 'DEV' | 'PROD' => {
   const env = globalThis.process?.env?.NODE_ENV ?? 'production';
   return env === 'production' ? 'PROD' : 'DEV';
 };
-export * from './perpsFormatters';
+export * from './perpsFormatters.js';

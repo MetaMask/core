@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialController } from './SocialController';
+import type { SocialController } from './SocialController.js';
 
 /**
  * Fetches the leaderboard and persists the entries to state.
@@ -57,10 +57,47 @@ export type SocialControllerUpdateFollowingAction = {
 };
 
 /**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialControllerOptOutOfLeaderboardAction = {
+  type: `SocialController:optOutOfLeaderboard`;
+  handler: SocialController['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialControllerOptInToLeaderboardAction = {
+  type: `SocialController:optInToLeaderboard`;
+  handler: SocialController['optInToLeaderboard'];
+};
+
+/**
+ * Requests a translation of a swap comment (Call).
+ *
+ * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate` through
+ * SocialService. social-api does not expose this route yet: a 404 is logged
+ * and rethrown.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @param options.targetLanguage - AWS language code to translate into, for
+ * example `en`.
+ * @returns The detected source language and stored translations.
+ */
+export type SocialControllerTranslateCommentAction = {
+  type: `SocialController:translateComment`;
+  handler: SocialController['translateComment'];
+};
+
+/**
  * Union of all SocialController action types.
  */
 export type SocialControllerMethodActions =
   | SocialControllerUpdateLeaderboardAction
   | SocialControllerFollowTraderAction
   | SocialControllerUnfollowTraderAction
-  | SocialControllerUpdateFollowingAction;
+  | SocialControllerUpdateFollowingAction
+  | SocialControllerOptOutOfLeaderboardAction
+  | SocialControllerOptInToLeaderboardAction
+  | SocialControllerTranslateCommentAction;

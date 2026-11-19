@@ -2,8 +2,8 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
-import { deriveKeys } from './utils';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
+import { deriveKeys } from './utils.js';
 
 /**
  * Base selector to get the enabled network map from the controller state.

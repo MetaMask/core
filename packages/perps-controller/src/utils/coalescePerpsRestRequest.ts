@@ -1,4 +1,4 @@
-import { PERFORMANCE_CONFIG } from '../constants/perpsConfig';
+import { PERFORMANCE_CONFIG } from '../constants/perpsConfig.js';
 
 // Rapid perps market switching (candle bridge + activity tab burst) drives
 // duplicate REST calls against api.hyperliquid.xyz and occasionally trips 429.

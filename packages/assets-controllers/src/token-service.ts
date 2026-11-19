@@ -6,11 +6,108 @@ import {
 } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import { isTokenListSupportedForNetwork } from './assetsUtil';
+import { isTokenListSupportedForNetwork } from './assetsUtil.js';
 
 export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
+
+/**
+ * Per-chain suggested occurrence floors endpoint. Used as the `occurrenceFloor`
+ * query param when fetching token lists (aligned with assets-controller
+ * TokenDataSource / TokensApiClient).
+ */
+const SUGGESTED_OCCURRENCE_FLOORS_URL = `${TOKEN_END_POINT_API}/v1/suggestedOccurrenceFloors`;
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** How long to keep suggested occurrence floors cached (1 hour). */
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
+
+/** Decimal chain ID → suggested occurrence floor. */
+let suggestedOccurrenceFloorsCache: Record<string, number> | undefined;
+
+/** Timestamp of the last successful (or failed-open) floors fetch. */
+let suggestedOccurrenceFloorsCachedAt = 0;
+
+/** In-flight floors request shared across concurrent callers. */
+let suggestedOccurrenceFloorsRefreshPromise:
+  | Promise<Record<string, number>>
+  | undefined;
+
+/**
+ * Clears the suggested occurrence floors cache. Exported for unit tests only.
+ */
+export function resetSuggestedOccurrenceFloorsCacheForTesting(): void {
+  suggestedOccurrenceFloorsCache = undefined;
+  suggestedOccurrenceFloorsCachedAt = 0;
+  suggestedOccurrenceFloorsRefreshPromise = undefined;
+}
+
+/**
+ * Fetch `/v1/suggestedOccurrenceFloors` with a 1h in-memory cache. Failures
+ * return an empty map so callers fall back to {@link DEFAULT_OCCURRENCE_FLOOR}.
+ *
+ * @returns Map of decimal chain ID → suggested occurrence floor.
+ */
+async function getSuggestedOccurrenceFloors(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (
+    suggestedOccurrenceFloorsCache !== undefined &&
+    now - suggestedOccurrenceFloorsCachedAt <
+      SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS
+  ) {
+    return suggestedOccurrenceFloorsCache;
+  }
+
+  if (suggestedOccurrenceFloorsRefreshPromise !== undefined) {
+    return suggestedOccurrenceFloorsRefreshPromise;
+  }
+
+  suggestedOccurrenceFloorsRefreshPromise = (async (): Promise<
+    Record<string, number>
+  > => {
+    try {
+      const response = await fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
+      if (response.ok) {
+        const data = (await response.json()) as unknown;
+        suggestedOccurrenceFloorsCache =
+          data && typeof data === 'object' && !Array.isArray(data)
+            ? (data as Record<string, number>)
+            : {};
+      } else {
+        suggestedOccurrenceFloorsCache = {};
+      }
+    } catch {
+      suggestedOccurrenceFloorsCache = {};
+    } finally {
+      suggestedOccurrenceFloorsCachedAt = Date.now();
+      suggestedOccurrenceFloorsRefreshPromise = undefined;
+    }
+    return suggestedOccurrenceFloorsCache ?? {};
+  })();
+
+  return suggestedOccurrenceFloorsRefreshPromise;
+}
+
+/**
+ * Resolve the `occurrenceFloor` query param for a chain from Token API
+ * `/v1/suggestedOccurrenceFloors`. Falls back to
+ * {@link DEFAULT_OCCURRENCE_FLOOR} when the chain is missing or the request
+ * fails.
+ *
+ * @param chainId - Hex chain ID.
+ * @returns Occurrence floor to send to `/tokens/{chainId}`.
+ */
+async function getOccurrenceFloor(chainId: Hex): Promise<number> {
+  const floors = await getSuggestedOccurrenceFloors();
+  const decimalChainId = String(convertHexToDecimal(chainId));
+  return floors[decimalChainId] ?? DEFAULT_OCCURRENCE_FLOOR;
+}
 
 /**
  * Get the tokens URL for a specific network.
@@ -18,13 +115,8 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex): string {
-  const occurrenceFloor =
-    chainId === ChainId['linea-mainnet'] ||
-    chainId === ChainId['megaeth-mainnet'] ||
-    chainId === '0x1079' // Tempo Mainnet
-      ? 1
-      : 3;
+async function getTokensURL(chainId: Hex): Promise<string> {
+  const occurrenceFloor = await getOccurrenceFloor(chainId);
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
@@ -140,6 +232,57 @@ function getTokenAssetsURL(options: {
 }
 
 /**
+ * Get the RWAs URL for the given query params.
+ *
+ * @param options - Options for getting RWAs.
+ * @returns The RWAs URL.
+ */
+function getRwasURL(options: FetchRwasParams): string {
+  const {
+    chainIds,
+    query: searchQuery,
+    active,
+    custodian,
+    type,
+    industry,
+    sortBy,
+    limit = 100,
+    after,
+    ...additionalParams
+  } = options;
+  const trimmedSearchQuery = searchQuery?.trim();
+  const queryParams = new URLSearchParams();
+
+  Object.entries({
+    ...(chainIds?.length ? { chainIds } : {}),
+    ...(trimmedSearchQuery && { query: trimmedSearchQuery }),
+    ...(active === undefined ? {} : { active }),
+    ...(custodian && { custodian }),
+    ...(type && { type }),
+    ...(industry && { industry }),
+    ...(sortBy && { sortBy }),
+    limit,
+    ...(after && { after }),
+    ...additionalParams,
+  }).forEach(([key, value]) => {
+    if (value === undefined || value === '') {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        queryParams.append(key, value.join(','));
+      }
+      return;
+    }
+
+    queryParams.append(key, String(value));
+  });
+
+  return `${TOKEN_END_POINT_API}/v1/rwas?${queryParams.toString()}`;
+}
+
+/**
  * Shared query-parameter type for the v3 trending tokens endpoint.
  *
  * Known parameters are explicitly typed for autocomplete and documentation.
@@ -212,7 +355,7 @@ export async function fetchTokenListByChainId(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
+  const tokenURL = await getTokensURL(chainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     const result = await parseJsonResponse(response);
@@ -237,8 +380,90 @@ export type TokenRwaData = {
     start?: string;
     end?: string;
   };
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
   ticker?: string;
   instrumentType?: string;
+};
+
+export type RwaMarket = {
+  nextOpen?: string;
+  nextClose?: string;
+};
+
+export type RwaTokenData = {
+  price: string;
+  priceChange: string;
+  marketCap: number;
+  aggregatedUsdVolume: number;
+  active: boolean;
+  ticker: string;
+  instrumentType: string;
+  custodians: string[];
+  industry: string[];
+  market?: RwaMarket;
+  nextPause?: Record<string, unknown>;
+  offhours?: {
+    nextOpen?: string;
+    nextClose?: string;
+  };
+  sharesOutstanding?: number;
+  restrictedCountries?: string[];
+  updatedAt?: string;
+  addressType?: string;
+};
+
+export type RwaToken = {
+  id: string;
+  assetId: CaipAssetType;
+  symbol: string;
+  decimals: number;
+  name: string;
+  rwaData: RwaTokenData;
+  securityData?: TokenSecurityData;
+};
+
+export type RwasResponse = {
+  data: RwaToken[];
+  count: number;
+  totalCount: number;
+  pageInfo: {
+    nextCursor: string | null;
+    hasNextPage: boolean;
+  };
+};
+
+export type RwaSortBy =
+  | 'price_change_asc'
+  | 'price_change_desc'
+  | 'volume_asc'
+  | 'volume_desc'
+  | 'market_cap_asc'
+  | 'market_cap_desc';
+
+export type FetchRwasParams = {
+  chainIds?: CaipChainId[];
+  query?: string;
+  sortBy?: RwaSortBy;
+  limit?: number;
+  after?: string;
+  active?: boolean;
+  custodian?: 'ondo';
+  type?: 'stock' | 'etf';
+  industry?:
+    | 'industrials'
+    | 'technology'
+    | 'healthcare'
+    | 'consumer discretionary'
+    | 'financials'
+    | 'materials'
+    | 'utilities'
+    | 'energy'
+    | 'real estate';
+  includeTokenSecurityData?: boolean;
+  [key: string]: string | number | boolean | string[] | undefined;
 };
 
 export type TokenSecurityFeature = {
@@ -318,6 +543,8 @@ type SearchTokenOptions = {
   includeMarketData?: boolean;
   includeRwaData?: boolean;
   includeTokenSecurityData?: boolean;
+  /** Service profile sent as the `x-mm-service-profile` header. */
+  serviceProfile?: string;
 };
 
 /**
@@ -331,6 +558,7 @@ type SearchTokenOptions = {
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @param options.serviceProfile - Service profile sent as the `x-mm-service-profile` header (any string; defaults to `assets--trending-search`).
  * @returns Object containing count, totalCount, data array, optional pageInfo for pagination, and an optional error message if the request failed.
  */
 export async function searchTokens(
@@ -342,6 +570,7 @@ export async function searchTokens(
     includeMarketData = false,
     includeRwaData = true,
     includeTokenSecurityData,
+    serviceProfile = 'assets--trending-search',
   }: SearchTokenOptions = {},
 ): Promise<{
   count: number;
@@ -366,7 +595,9 @@ export async function searchTokens(
       totalCount?: number;
       data: TokenSearchItem[];
       pageInfo?: PageInfo;
-    } = await handleFetch(tokenSearchURL);
+    } = await handleFetch(tokenSearchURL, {
+      headers: { 'x-mm-service-profile': serviceProfile },
+    });
 
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
@@ -543,6 +774,18 @@ export async function fetchTokenAssets(
   } catch {
     return [];
   }
+}
+
+/**
+ * Fetch real-world asset tokens.
+ *
+ * @param params - Query params used to filter, sort, and paginate RWAs.
+ * @returns The paginated RWA response.
+ */
+export async function fetchRwas(
+  params: FetchRwasParams = {},
+): Promise<RwasResponse> {
+  return handleFetch(getRwasURL(params), { headers: { accept: '*/*' } });
 }
 
 /**

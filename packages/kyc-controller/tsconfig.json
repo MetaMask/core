@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../authenticated-user-storage"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../cryptography"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../geolocation-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./scripts"]
+}

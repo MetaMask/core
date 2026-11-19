@@ -16,9 +16,16 @@
 
 import type { CaipAccountId } from '@metamask/utils';
 
-import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer';
-import { ProviderRouter } from '../routing/ProviderRouter';
-import { WebSocketConnectionState } from '../types';
+import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  OrderDiscoveryError,
+} from '../errors.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { isProviderOnTestnet } from '../services/providerNetwork.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -28,9 +35,15 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
+  PerpsChaseOrderOwnership,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  ClosePositionsTarget,
   DepositParams,
   DisconnectResult,
   EditOrderParams,
@@ -38,11 +51,16 @@ import type {
   FeeCalculationResult,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
+  GetPublicTradesParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
   GetPositionsParams,
@@ -51,36 +69,104 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
+  PerpsProviderAccountStateEntry,
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
   OrderFill,
+  PublicTrade,
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsAccountSupport,
+  PerpsOrderCapabilities,
+  PerpsMarginModeLock,
+  PerpsScalePriceLadder,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
+  AttachedOrderGroup,
+  PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  SubscribePublicTradesParams,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
+  PerpsFeeResolution,
+} from '../types/index.js';
+import {
+  buildAggregatedAccountState,
+  getAccountAggregateMetadata,
+} from '../utils/accountAggregation.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
+import { carryProviderErrorCause } from '../utils/errorContext.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { hasFeeSetter } from '../utils/feeSupport.js';
+
+/** Error returned when only some providers suspend their Chase orders. */
+export class ChaseOrderSuspensionError extends Error {
+  readonly suspendedOrders: ChaseOrder[];
+
+  readonly failures: { providerId: PerpsProviderType; reason: unknown }[];
+
+  constructor(options: {
+    suspendedOrders: ChaseOrder[];
+    failures: { providerId: PerpsProviderType; reason: unknown }[];
+  }) {
+    const failedProviderIds = options.failures
+      .map(({ providerId }) => providerId)
+      .join(', ');
+    super(`Failed to suspend Chase orders for: ${failedProviderIds}`);
+    this.name = 'ChaseOrderSuspensionError';
+    this.suspendedOrders = options.suspendedOrders;
+    this.failures = options.failures;
+  }
+}
+
+/**
+ * A stream whose venue is chosen by the aggregated default.
+ *
+ * `setDefaultProvider` re-opens these on the new venue, so a stream started
+ * before a default change does not keep feeding the previous venue's data.
+ */
+type DefaultRoutedSubscription = {
+  /** Opens the stream on the given provider, returning its cleanup. */
+  open: (provider: PerpsProvider) => () => void;
+  /** Cleanup for the stream currently open. */
+  unsubscribe: () => void;
+  /** Invalidate a consumer's cached value before the stream moves. */
+  onInvalidate?: () => void;
+  /** Venue the stream is currently open on; undefined when not open. */
+  providerId: PerpsProviderType | undefined;
+  /** True when the last open attempt threw. */
+  failed: boolean;
+};
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
@@ -97,7 +183,7 @@ import type {
  * const aggregated = new AggregatedPerpsProvider({
  *   providers: new Map([
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ]),
  *   defaultProvider: 'hyperliquid',
  *   infrastructure: deps,
@@ -107,29 +193,38 @@ import type {
  * const positions = await aggregated.getPositions();
  *
  * // Write: routes to specific or default provider
- * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
+ * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'lighter', ... });
  * ```
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
   readonly protocolId = 'aggregated';
 
+  readonly routesOrdersByProviderId = true;
+
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
-  readonly #defaultProvider: PerpsProviderType;
+  /** Default provider used when an operation does not name a venue. */
+  #defaultProvider: PerpsProviderType;
 
   readonly #aggregationMode: AggregationMode;
 
   readonly #deps: PerpsPlatformDependencies;
 
+  readonly #isTestnet: boolean | undefined;
+
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
+
+  /** Streams that follow the routing default and must move with it. */
+  readonly #defaultRoutedSubscriptions = new Set<DefaultRoutedSubscription>();
 
   constructor(config: AggregatedProviderConfig) {
     this.#providers = config.providers;
     this.#defaultProvider = config.defaultProvider;
     this.#aggregationMode = config.aggregationMode ?? 'all';
     this.#deps = config.infrastructure;
+    this.#isTestnet = config.isTestnet;
 
     // Initialize router with default provider
     this.#router = new ProviderRouter({
@@ -179,23 +274,194 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Get provider by ID, falling back to default if not found.
+   * Which provider a write with this route actually reaches.
+   *
+   * `protocolId` is `aggregated` and `getPositions` spans every active
+   * provider, so a caller that needs to reason about one write — pricing the
+   * positions a close can actually touch, for instance — cannot infer the route
+   * from either. This reports it explicitly.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
+    return providerId ?? this.#defaultProvider;
+  }
+
+  /**
+   * Change the default provider used when an operation does not name a venue.
+   *
+   * Only the routing default changes: no provider is re-initialized and no
+   * stream is reconnected, so the call is synchronous.
+   *
+   * @param providerId - New default provider. Must be registered.
+   * @throws If the provider is not registered.
+   */
+  setDefaultProvider(providerId: PerpsProviderType): void {
+    if (!this.#providers.has(providerId)) {
+      throw new Error(
+        `[AggregatedPerpsProvider] Default provider '${providerId}' not available`,
+      );
+    }
+    const changed = providerId !== this.#defaultProvider;
+    if (changed) {
+      this.#defaultProvider = providerId;
+      this.#router.setDefaultProvider(providerId);
+    }
+
+    // Runs even when the default is unchanged so a stream that failed to
+    // re-open earlier is retried instead of staying detached.
+    this.#rerouteDefaultSubscriptions();
+
+    if (changed) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Default provider changed',
+        { defaultProvider: providerId },
+      );
+    }
+  }
+
+  /**
+   * Register a stream that follows the routing default.
+   *
+   * The returned cleanup detaches the stream from whichever venue it is
+   * currently open on, so it stays valid across a default change.
+   *
+   * @param options - Stream options.
+   * @param options.open - Opens the stream on a given provider.
+   * @param options.onInvalidate - Invalidates a consumer's cached value before
+   * the stream moves (for example, emits an unavailable account snapshot).
+   * @returns A cleanup function that closes the stream.
+   */
+  #trackDefaultRoutedSubscription(options: {
+    open: (provider: PerpsProvider) => () => void;
+    onInvalidate?: () => void;
+  }): () => void {
+    const subscription: DefaultRoutedSubscription = {
+      open: options.open,
+      onInvalidate: options.onInvalidate,
+      unsubscribe: () => undefined,
+      providerId: this.#defaultProvider,
+      failed: false,
+    };
+    // Initial open failures propagate to the caller, matching the previous
+    // contract for these subscribe methods.
+    subscription.unsubscribe = options.open(this.#getDefaultProvider());
+    this.#defaultRoutedSubscriptions.add(subscription);
+
+    return () => {
+      if (!this.#defaultRoutedSubscriptions.delete(subscription)) {
+        return;
+      }
+      subscription.unsubscribe();
+    };
+  }
+
+  /**
+   * Move every default-routed stream to the current default venue.
+   *
+   * Only the stream's subscription is torn down and re-opened; the venue
+   * transports stay connected. The caller's cleanup function keeps working.
+   */
+  #rerouteDefaultSubscriptions(): void {
+    if (this.#defaultRoutedSubscriptions.size === 0) {
+      return;
+    }
+    const target = this.#defaultProvider;
+    for (const subscription of this.#defaultRoutedSubscriptions) {
+      if (!subscription.failed && subscription.providerId === target) {
+        continue;
+      }
+      this.#rerouteSubscription(subscription);
+    }
+  }
+
+  /**
+   * Re-open one stream on the current default, isolating its failure from the
+   * other subscriptions. A stream that throws is marked failed and retried on
+   * the next `setDefaultProvider` call.
+   *
+   * @param subscription - The stream to move.
+   */
+  #rerouteSubscription(subscription: DefaultRoutedSubscription): void {
+    const providerId = this.#defaultProvider;
+    const { unsubscribe } = subscription;
+    subscription.unsubscribe = (): void => undefined;
+    try {
+      unsubscribe();
+    } catch (caughtError) {
+      this.#logSubscriptionRerouteError(caughtError, 'unsubscribe', providerId);
+    }
+    subscription.providerId = undefined;
+
+    if (subscription.onInvalidate) {
+      try {
+        subscription.onInvalidate();
+      } catch (caughtError) {
+        this.#logSubscriptionRerouteError(
+          caughtError,
+          'onInvalidate',
+          providerId,
+        );
+      }
+    }
+
+    try {
+      subscription.unsubscribe = subscription.open(this.#getDefaultProvider());
+      subscription.providerId = providerId;
+      subscription.failed = false;
+    } catch (caughtError) {
+      subscription.failed = true;
+      this.#logSubscriptionRerouteError(caughtError, 'open', providerId);
+    }
+  }
+
+  /**
+   * Report a default-routed subscription that could not be moved.
+   *
+   * @param caughtError - The thrown error.
+   * @param method - Which step failed.
+   * @param providerId - The venue the stream was moving to.
+   */
+  #logSubscriptionRerouteError(
+    caughtError: unknown,
+    method: string,
+    providerId: PerpsProviderType,
+  ): void {
+    this.#deps.logger.error(
+      ensureError(caughtError, 'AggregatedPerpsProvider.rerouteSubscription'),
+      {
+        tags: {
+          feature: PERPS_CONSTANTS.FeatureName,
+          provider: providerId,
+        },
+        context: {
+          name: 'AggregatedPerpsProvider',
+          data: { method: `subscription.${method}`, providerId },
+        },
+      },
+    );
+  }
+
+  /**
+   * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
-   * @returns The result of the operation.
+   * @returns The selected provider id and instance.
+   * @throws If an explicit provider is not registered.
    */
   #getProviderOrDefault(
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
-    const id = providerId ?? this.#defaultProvider;
-    const provider = this.#providers.get(id);
-    if (!provider) {
-      this.#deps.debugLogger.log(
-        `[AggregatedPerpsProvider] Provider '${id}' not found, using default`,
-      );
+    if (providerId === undefined) {
       return [this.#defaultProvider, this.#getDefaultProvider()];
     }
-    return [id, provider];
+
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return [providerId, provider];
   }
 
   /**
@@ -224,16 +490,214 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return successful;
   }
 
+  /**
+   * Values of a read across venues. A venue whose read failed leaves the
+   * merged list unknown, never shorter: the first failure is rethrown when it
+   * is already classified, else wrapped in `failureCode` with the cause.
+   *
+   * @param results - Results from Promise.allSettled
+   * @param failureCode - Error code for an unclassified venue failure.
+   * @returns Every venue's values
+   */
+  #requireAllVenueResults<TResult>(
+    results: PromiseSettledResult<TResult>[],
+    failureCode: string,
+  ): TResult[] {
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) {
+      const reason: unknown = failure.reason;
+      if (
+        reason instanceof Error &&
+        (reason.message === failureCode ||
+          reason.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
+        throw reason;
+      }
+      throw new Error(failureCode, { cause: reason });
+    }
+    return results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+  }
+
   // ============================================================================
   // Asset Routes (Synchronous - delegate to default provider)
   // ============================================================================
 
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    return this.#getDefaultProvider().getDepositRoutes(params);
+    // Routes name the venue that actually settles the movement: identical
+    // asset/chain routes from different venues are distinct entries and are
+    // never collapsed.
+    return this.#getActiveProviders().flatMap(([providerId, provider]) =>
+      provider
+        .getDepositRoutes(params)
+        .map((route) => ({ ...route, providerId })),
+    );
   }
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    return this.#getDefaultProvider().getWithdrawalRoutes(params);
+    return this.#getActiveProviders().flatMap(([providerId, provider]) =>
+      provider
+        .getWithdrawalRoutes(params)
+        .map((route) => ({ ...route, providerId })),
+    );
+  }
+
+  /**
+   * Route account support through the same explicit-provider/default-provider
+   * selection used by writes.
+   *
+   * @param params - Optional provider route.
+   * @returns The selected provider's account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const [, provider] = this.#getProviderOrDefault(params?.providerId);
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
+  }
+
+  /**
+   * Resolve capabilities with the same explicit-provider/default-provider
+   * selection used by order placement. Unknown routes return a typed
+   * unavailable result instead of throwing a placement error.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Capabilities from the selected provider.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getOrderCapabilities) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const capabilities = await provider.getOrderCapabilities({
+        ...params,
+        providerId,
+      });
+      if (
+        capabilities.providerId !== undefined &&
+        capabilities.providerId !== providerId
+      ) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...capabilities, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Resolve the margin-mode lock with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The lock reported by the selected provider.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getMarginModeLock) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const lock = await provider.getMarginModeLock({ ...params, providerId });
+      if (lock.providerId !== undefined && lock.providerId !== providerId) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...lock, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Normalize a Scale price ladder through the selected provider route.
+   *
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getScalePriceLadder) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    const result = await provider.getScalePriceLadder({
+      ...params,
+      providerId,
+    });
+    if (result.providerId !== undefined && result.providerId !== providerId) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_routable',
+      };
+    }
+    return { ...result, providerId };
   }
 
   // ============================================================================
@@ -241,21 +705,127 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(params?: GetPositionsParams): Promise<Position[]> {
+    const requests = this.#getActiveProviders().map(async ([id, provider]) => {
+      const positions = await provider.getPositions(params);
+      return positions.map((pos) => ({ ...pos, providerId: id }));
+    });
+    if (params?.throwOnUnavailable) {
+      return (await Promise.all(requests)).flat();
+    }
+    const results = await Promise.allSettled(requests);
+
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.POSITIONS_FAILED,
+    ).flat();
+  }
+
+  /**
+   * Read positions for batch-close fee pricing. Each venue supplies its own
+   * notional independently, so an unavailable venue cannot affect another.
+   *
+   * @internal
+   * @param providerIds - Venues targeted by the batch close.
+   * @returns Positions from the targeted venues that answered.
+   */
+  async getPositionsForBatchClose(
+    providerIds: ReadonlySet<PerpsProviderType>,
+  ): Promise<Position[]> {
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const positions = await provider.getPositions(params);
-        return positions.map((pos) => ({ ...pos, providerId: id }));
-      }),
+      this.#getActiveProviders()
+        .filter(([id]) => providerIds.has(id))
+        .map(async ([id, provider]) => {
+          const positions = await provider.getPositions({
+            throwOnUnavailable: true,
+            includeProtection: false,
+          });
+          return positions.map((position) => ({ ...position, providerId: id }));
+        }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getPositions').flat();
+    return this.#extractSuccessfulResults(
+      results,
+      'getPositionsForBatchClose',
+    ).flat();
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
-    // Return account state from default provider with providerId injected
-    const provider = this.#getDefaultProvider();
-    const state = await provider.getAccountState(params);
-    return { ...state, providerId: this.#defaultProvider };
+    // Single-venue aggregation (for example a fallback when one venue failed
+    // to load) keeps the direct result shape: there is nothing to combine and
+    // no completeness question to answer.
+    if (this.#providers.size === 1) {
+      const [[providerId, provider]] = this.#getActiveProviders();
+      const state = await provider.getAccountState(params);
+      return { ...state, providerId };
+    }
+
+    // Capture each entry's venue before awaiting: `setDefaultProvider` and
+    // `addProvider` can run while requests are in flight, and a response must
+    // stay attributed to the provider that actually served it.
+    // Aggregation opts into strict reads: a venue adapter that answers an
+    // infrastructure failure with a zero-valued state (Lighter's lenient
+    // default) would otherwise be classified here as `{ status: 'available' }`
+    // with confirmed zero balances. Only a genuine rejection becomes an
+    // `unavailable` entry. Direct and single-venue callers keep each adapter's
+    // own default.
+    const activeProviders = this.#getActiveProviders();
+    const results = await Promise.allSettled(
+      activeProviders.map(async ([providerId, provider]) => {
+        const state = await provider.getAccountState({
+          ...params,
+          throwOnUnavailable: true,
+        });
+        const entry: PerpsProviderAccountStateEntry = {
+          status: 'available',
+          state: { ...state, providerId },
+          providerId,
+        };
+        return entry;
+      }),
+    );
+
+    const entries: PerpsProviderAccountStateEntry[] = [];
+    const failures: { providerId: PerpsProviderType; reason: unknown }[] = [];
+    results.forEach((result, index) => {
+      const [providerId] = activeProviders[index];
+      if (result.status === 'fulfilled') {
+        entries.push(result.value);
+      } else {
+        failures.push({ providerId, reason: result.reason });
+        entries.push({
+          status: 'unavailable',
+          error: ensureError(result.reason).message,
+          providerId,
+        });
+      }
+    });
+
+    if (failures.length > 0) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] getAccountState partial failure',
+        {
+          failedProviders: failures.map((failure) => failure.providerId),
+        },
+      );
+    }
+
+    // No venue reported usable data: refuse to manufacture an all-zero
+    // successful total. The first failure is the most specific cause.
+    const account = buildAggregatedAccountState({ entries });
+    if (!account) {
+      const firstFailure = failures[0]?.reason;
+      throw firstFailure instanceof Error
+        ? firstFailure
+        : new Error(
+            failures
+              .map(
+                (failure) => `${failure.providerId}: ${String(failure.reason)}`,
+              )
+              .join('; ') || 'No perps provider reported an account state',
+          );
+    }
+
+    return account;
   }
 
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
@@ -334,18 +904,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getOrders').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
+    const providers = this.#getActiveProviders();
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
+      providers.map(async ([id, provider]) => {
         const orders = await provider.getOpenOrders(params);
         return orders.map((order) => ({ ...order, providerId: id }));
       }),
     );
+    if (params?.throwOnUnavailable) {
+      const orders: Order[] = [];
+      const failures: OrderDiscoveryError['failures'] = [];
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          orders.push(...result.value);
+        } else if (result.reason instanceof OrderDiscoveryError) {
+          // A venue may itself aggregate DEXs (e.g. HyperLiquid HIP-3) and
+          // report the orders it did fetch; keep them usable.
+          orders.push(
+            ...result.reason.orders.map((order) => ({
+              ...order,
+              providerId: providers[index][0],
+            })),
+          );
+          failures.push(...result.reason.failures);
+        } else {
+          failures.push({
+            providerId: providers[index][0],
+            error: ensureError(result.reason).message,
+          });
+        }
+      });
+      if (failures.length > 0) {
+        throw new OrderDiscoveryError({ orders, failures });
+      }
+      return orders;
+    }
 
-    return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getFunding(
@@ -439,7 +1044,167 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
 
     const result = await provider.placeOrder(params);
-    return { ...result, providerId };
+    return carryProviderErrorCause(result, { ...result, providerId });
+  }
+
+  /**
+   * Read TWAP lifecycle records from every active provider.
+   *
+   * @returns TWAP records with their provider route attached.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getTwapOrders
+          ? (await provider.getTwapOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getTwapOrders').flat();
+  }
+
+  /**
+   * Read all available snapshots, retaining successful providers on a partial failure.
+   *
+   * @returns Chase snapshots from every provider that responded successfully.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getChaseOrders
+          ? (await provider.getChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  /**
+   * Route a strict local ownership read once, without aggregating partial inventories.
+   *
+   * @param input - Exact stable handle and explicit provider route.
+   * @returns That provider's durable history or an explicit unsupported result.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (!params.providerId || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and explicit provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: PerpsChaseOrderOwnership = provider.getChaseOrderOwnership
+      ? await provider.getChaseOrderOwnership(params)
+      : {
+          status: 'unsupported',
+          providerId: params.providerId,
+          handle: params.handle,
+          reason: 'Durable Chase ownership is unavailable for this provider',
+        };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Route observation-only reconciliation to exactly one named provider.
+   *
+   * @param input - Original handle, owner, child and cancellation identity.
+   * @returns Exact owning-provider settlement or unsupported, never ordinary cancel.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      !params.providerId ||
+      !params.handle ||
+      !params.clientOrderId ||
+      params.owner.providerId !== params.providerId
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: ReconcileChaseOrderCancellationResult =
+      provider.reconcileChaseOrderCancellation
+        ? await provider.reconcileChaseOrderCancellation(params)
+        : {
+            status: 'unsupported',
+            providerId: params.providerId,
+            handle: params.handle,
+            reason:
+              'Chase cancellation reconciliation is unavailable for this provider',
+          };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Attempt to suspend every provider and reject after all attempts settle if
+   * any provider could not suspend safely. Successful providers remain
+   * suspended, so callers may retry to reconcile a partial failure.
+   *
+   * @returns Chase snapshots after every provider suspends successfully.
+   * @throws ChaseOrderSuspensionError if any active provider fails. The error
+   * includes successful snapshots and each failed provider ID.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const providers = this.#getActiveProviders();
+    const results = await Promise.allSettled(
+      providers.map(async ([providerId, provider]) =>
+        provider.suspendChaseOrders
+          ? (await provider.suspendChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    const snapshots: ChaseOrder[] = [];
+    const failures: {
+      providerId: PerpsProviderType;
+      reason: unknown;
+    }[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        snapshots.push(...result.value);
+      } else {
+        failures.push({
+          providerId: providers[index][0],
+          reason: result.reason,
+        });
+      }
+    });
+    if (failures.length > 0) {
+      throw new ChaseOrderSuspensionError({
+        suspendedOrders: snapshots,
+        failures,
+      });
+    }
+    return snapshots;
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
@@ -448,7 +1213,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.newOrder.providerId,
     );
     const result = await provider.editOrder(params);
-    return { ...result, providerId };
+    return carryProviderErrorCause(result, { ...result, providerId });
   }
 
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
@@ -456,28 +1221,183 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId,
     );
     const result = await provider.cancelOrder(params);
-    return { ...result, providerId };
+    return carryProviderErrorCause(result, { ...result, providerId });
   }
 
   async cancelOrders(
     params: BatchCancelOrdersParams,
   ): Promise<CancelOrdersResult> {
-    // Batch cancel delegates to default provider
-    const provider = this.#getDefaultProvider();
-    if (!provider.cancelOrders) {
-      return {
-        success: false,
-        successCount: 0,
-        failureCount: params.length,
-        results: params.map((param) => ({
-          orderId: param.orderId,
-          symbol: param.symbol,
+    // Single-venue aggregation keeps the direct passthrough for that venue's
+    // own targets, but venue identity is still execution identity: a target
+    // tagged for another venue is not forwardable to the one loaded provider
+    // (it could cancel a colliding local ID or be read as its own), and it is
+    // not silently dropped either. Foreign-venue targets fail on their own.
+    if (this.#providers.size <= 1) {
+      const [active] = this.#getActiveProviders();
+      const onlyProviderId = active?.[0];
+      const onlyProvider = active?.[1];
+      const routed: BatchCancelOrdersParams = [];
+      const misrouted: CancelOrdersResult['results'] = [];
+      for (const param of params) {
+        if (
+          param.providerId === undefined ||
+          param.providerId === onlyProviderId
+        ) {
+          routed.push(param);
+        } else {
+          // An unregistered venue was named explicitly: refuse that target
+          // rather than executing it on (or losing it to) another venue.
+          misrouted.push({
+            orderId: param.orderId,
+            symbol: param.symbol,
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            providerId: param.providerId,
+          });
+        }
+      }
+      if (routed.length === 0) {
+        return {
           success: false,
-          error: 'Batch cancel not supported',
-        })),
+          successCount: 0,
+          failureCount: misrouted.length,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          results: misrouted,
+        };
+      }
+      if (!onlyProvider) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      }
+      const result = await this.#cancelOrdersOnProvider(onlyProvider, routed);
+      return {
+        ...result,
+        failureCount: result.failureCount + misrouted.length,
+        results: [
+          ...result.results.map((item) => ({
+            ...item,
+            providerId: item.providerId ?? onlyProviderId,
+          })),
+          ...misrouted,
+        ],
       };
     }
-    return provider.cancelOrders(params);
+
+    // Venue identity is execution identity: a target without one is ambiguous
+    // the moment two venues are registered, and is refused rather than
+    // resolved against the default provider.
+    // Group targets by venue and use its batch or individual cancel API.
+    const byProvider = new Map<PerpsProviderType, BatchCancelOrdersParams>();
+    for (const param of params) {
+      const venue = param.providerId;
+      if (venue === undefined) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
+      }
+      const group = byProvider.get(venue);
+      if (group) {
+        group.push(param);
+      } else {
+        byProvider.set(venue, [param]);
+      }
+    }
+
+    const grouped = Array.from(byProvider.entries());
+    const results = await Promise.allSettled(
+      grouped.map(async ([providerId, targets]) => {
+        const provider = this.#providers.get(providerId);
+        if (!provider) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        }
+        const result = await this.#cancelOrdersOnProvider(provider, targets);
+        // Attach venue identity to every per-order outcome.
+        return {
+          ...result,
+          results: result.results.map((item) => ({
+            ...item,
+            providerId,
+          })),
+        };
+      }),
+    );
+
+    const merged: CancelOrdersResult = {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      results: [],
+    };
+    const failures: NonNullable<CancelOrdersResult['failures']> = [];
+    results.forEach((result, index) => {
+      const [providerId, targets] = grouped[index];
+      if (result.status === 'fulfilled') {
+        merged.successCount += result.value.successCount;
+        merged.failureCount += result.value.failureCount;
+        merged.results.push(...result.value.results);
+        if (result.value.error !== undefined) {
+          failures.push({ providerId, error: result.value.error });
+        }
+      } else {
+        // The venue's batch threw (or the venue is missing): its targets
+        // fail explicitly instead of silently disappearing from the outcome.
+        const { message } = ensureError(result.reason);
+        failures.push({ providerId, error: message });
+        merged.failureCount += targets.length;
+        merged.results.push(
+          ...targets.map((target) => ({
+            orderId: target.orderId,
+            symbol: target.symbol,
+            success: false,
+            error: message,
+            providerId,
+          })),
+        );
+      }
+    });
+    if (failures.length > 0) {
+      merged.error = PERPS_ERROR_CODES.BATCH_INCOMPLETE;
+      merged.failures = failures;
+    }
+    merged.success = merged.successCount > 0;
+    return merged;
+  }
+
+  /**
+   * Cancel on one venue, retaining per-order outcomes when it has no batch API.
+   *
+   * @param provider - The venue that owns every target.
+   * @param targets - Orders to cancel on that venue.
+   * @returns The batch or individual cancellation results.
+   */
+  async #cancelOrdersOnProvider(
+    provider: PerpsProvider,
+    targets: BatchCancelOrdersParams,
+  ): Promise<CancelOrdersResult> {
+    if (provider.cancelOrders) {
+      return provider.cancelOrders(targets);
+    }
+    const settled = await Promise.allSettled(
+      targets.map(async (target) => provider.cancelOrder(target)),
+    );
+    const results = settled.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return {
+          ...targets[index],
+          success: result.value.success,
+          error: result.value.error,
+        };
+      }
+      return {
+        ...targets[index],
+        success: false,
+        error: ensureError(result.reason).message,
+      };
+    });
+    const successCount = results.filter((result) => result.success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
@@ -485,23 +1405,302 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId,
     );
     const result = await provider.closePosition(params);
-    return { ...result, providerId };
+    return carryProviderErrorCause(result, { ...result, providerId });
   }
 
   async closePositions(
     params: ClosePositionsParams,
   ): Promise<ClosePositionsResult> {
-    // Batch close delegates to default provider
-    const provider = this.#getDefaultProvider();
-    if (!provider.closePositions) {
-      return {
-        success: false,
-        successCount: 0,
-        failureCount: 0,
-        results: [],
-      };
+    // Single-venue aggregation keeps the direct passthrough for legacy
+    // `symbols` / `closeAll` calls: there is no cross-venue ambiguity to
+    // resolve. Tagged targets are not part of that legacy contract — a venue
+    // that only reads `symbols` and `closeAll` would treat a missing symbol
+    // list as close-every-position.
+    const selection = resolveCloseSelection(params);
+    // An explicit empty target list closes nothing; it never falls through
+    // to the close-all fan-out below.
+    if (selection.kind === 'none') {
+      return { success: false, successCount: 0, failureCount: 0, results: [] };
     }
-    return provider.closePositions(params);
+    if (this.#providers.size <= 1) {
+      if (selection.kind === 'targets') {
+        const active = this.#getActiveProviders();
+        const only = active[0];
+        if (!only) {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: selection.targets.length,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            results: selection.targets.map((target) => ({
+              symbol: target.symbol,
+              success: false,
+              error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+              providerId: target.providerId,
+            })),
+          };
+        }
+        return this.#closeSingleVenueTargets(
+          only[0],
+          only[1],
+          selection.targets,
+        );
+      }
+      const [, provider] = this.#getProviderOrDefault();
+      if (!provider.closePositions) {
+        return {
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        };
+      }
+      return provider.closePositions(params);
+    }
+
+    // Group explicit targets by venue. Identical symbols on different venues
+    // are independent closes; each result keeps its venue identity.
+    if (selection.kind === 'targets') {
+      const byProvider = new Map<PerpsProviderType, string[]>();
+      for (const target of selection.targets) {
+        const group = byProvider.get(target.providerId);
+        if (group) {
+          group.push(target.symbol);
+        } else {
+          byProvider.set(target.providerId, [target.symbol]);
+        }
+      }
+      const batches = Array.from(byProvider.entries()).map(
+        ([providerId, symbols]) => ({ providerId, symbols }),
+      );
+      return this.#mergeCloseResults(
+        await Promise.allSettled(
+          batches.map(async ({ providerId, symbols }) => {
+            const provider = this.#providers.get(providerId);
+            if (!provider) {
+              throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+            }
+            const result = await this.#closePositionsOnProvider(provider, {
+              symbols,
+            });
+            return {
+              ...result,
+              results: result.results.map((item) => ({
+                ...item,
+                providerId,
+              })),
+            };
+          }),
+        ),
+        batches,
+      );
+    }
+
+    // `closeAll` outranks a legacy `symbols` list, matching the controller
+    // guard and the direct/HyperLiquid path: `{ closeAll: true, symbols:
+    // ['BTC'] }` closes every position on every venue. Only a symbols-only
+    // request (no `closeAll`) is ambiguous once two venues are registered,
+    // and is refused rather than resolved against the default.
+    if (selection.kind === 'symbols') {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
+    }
+
+    // `closeAll`, or an empty request, means every position, so it fans out
+    // to every enabled venue. Capture the venue list once so a thrown batch
+    // is attributed to the provider that was actually called.
+    const activeProviders = this.#getActiveProviders();
+    return this.#mergeCloseResults(
+      await Promise.allSettled(
+        activeProviders.map(async ([providerId, provider]) => {
+          const result = await this.#closePositionsOnProvider(provider, {
+            closeAll: true,
+          });
+          return {
+            ...result,
+            results: result.results.map((item) => ({
+              ...item,
+              providerId,
+            })),
+          };
+        }),
+      ),
+      activeProviders.map(([providerId]) => ({ providerId })),
+    );
+  }
+
+  /**
+   * Close tagged targets when only one venue is registered.
+   *
+   * Targets for that venue become a symbol list. Targets for any other venue
+   * fail on their own and are not forwarded, so they cannot be read as a
+   * request to close every position on the venue that is actually loaded.
+   *
+   * @param providerId - The only registered venue.
+   * @param provider - That venue's provider.
+   * @param targets - The caller's tagged close targets.
+   * @returns The close result, including per-target failures for other venues.
+   */
+  async #closeSingleVenueTargets(
+    providerId: PerpsProviderType,
+    provider: PerpsProvider,
+    targets: ClosePositionsTarget[],
+  ): Promise<ClosePositionsResult> {
+    const symbols: string[] = [];
+    const misrouted: ClosePositionsResult['results'] = [];
+    for (const target of targets) {
+      if (target.providerId === providerId) {
+        symbols.push(target.symbol);
+      } else {
+        misrouted.push({
+          symbol: target.symbol,
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: target.providerId,
+        });
+      }
+    }
+
+    const local =
+      symbols.length === 0
+        ? {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          }
+        : await this.#closePositionsOnProvider(provider, { symbols });
+
+    return {
+      success: local.successCount > 0,
+      successCount: local.successCount,
+      failureCount: local.failureCount + misrouted.length,
+      ...(local.error !== undefined && { error: local.error }),
+      results: [
+        ...local.results.map((item) => ({
+          ...item,
+          providerId: item.providerId ?? providerId,
+        })),
+        ...misrouted,
+      ],
+    };
+  }
+
+  /**
+   * Run one venue's optional batch close, falling back to that same venue's
+   * per-position close when it has no batch method. Never invents an
+   * execution strategy the venue does not expose.
+   *
+   * @param provider - The venue to close on.
+   * @param params - Venue-local close parameters (symbols or closeAll).
+   * @returns The venue's close result.
+   */
+  async #closePositionsOnProvider(
+    provider: PerpsProvider,
+    params: ClosePositionsParams,
+  ): Promise<ClosePositionsResult> {
+    if (provider.closePositions) {
+      return provider.closePositions(params);
+    }
+    let targets = (params.symbols ?? []).map((symbol) => ({ symbol }));
+    if (params.closeAll === true) {
+      targets = provider.getClosePositionTargets
+        ? await provider.getClosePositionTargets()
+        : (await provider.getPositions({ throwOnUnavailable: true })).map(
+            ({ symbol }) => ({ symbol }),
+          );
+    }
+    if (targets.length === 0) {
+      return { success: false, successCount: 0, failureCount: 0, results: [] };
+    }
+    const settled = await Promise.allSettled(
+      targets.map((target) => provider.closePosition(target)),
+    );
+    const results = settled.map((result, index) => {
+      const failed = result.status === 'rejected';
+      let success: boolean;
+      let error: string | undefined;
+      if (failed) {
+        success = false;
+        error = ensureError(result.reason).message;
+      } else {
+        success = result.value.success === true;
+        error = result.value.error;
+      }
+      return {
+        symbol: targets[index].symbol,
+        success,
+        error,
+      };
+    });
+    const successCount = results.filter((item) => item.success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
+  }
+
+  /**
+   * Merge per-venue close results into one batch outcome. Successful work on
+   * one venue is never hidden by another venue's rejection: a thrown venue
+   * batch contributes an explicit venue-attributed error, and when the caller
+   * named the symbols that batch was closing, each of them is a failed result
+   * so a partial close cannot look complete. `success` stays true when at
+   * least one close landed.
+   *
+   * @param results - Settled per-venue results.
+   * @param batches - The venues, in the same order as the settled results.
+   * `symbols` is set for a tagged close, where the failed positions are known
+   * without another read. A `closeAll` throw has no symbol list.
+   * @returns The merged close result.
+   */
+  #mergeCloseResults(
+    results: PromiseSettledResult<ClosePositionsResult>[],
+    batches: { providerId: PerpsProviderType; symbols?: string[] }[],
+  ): ClosePositionsResult {
+    const merged: ClosePositionsResult = {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      results: [],
+    };
+    const failures: NonNullable<ClosePositionsResult['failures']> = [];
+    results.forEach((result, index) => {
+      const batch = batches[index];
+      const { providerId } = batch;
+      if (result.status === 'fulfilled') {
+        merged.successCount += result.value.successCount;
+        merged.failureCount += result.value.failureCount;
+        merged.results.push(...result.value.results);
+        if (result.value.error !== undefined) {
+          failures.push({ providerId, error: result.value.error });
+        }
+      } else {
+        const { message } = ensureError(result.reason);
+        failures.push({ providerId, error: message });
+        const symbols = batch.symbols ?? [];
+        if (symbols.length > 0) {
+          merged.failureCount += symbols.length;
+          merged.results.push(
+            ...symbols.map((symbol) => ({
+              symbol,
+              success: false,
+              error: message,
+              providerId,
+            })),
+          );
+        } else {
+          merged.failureCount += 1;
+        }
+      }
+    });
+    if (failures.length > 0) {
+      merged.error = PERPS_ERROR_CODES.BATCH_INCOMPLETE;
+      merged.failures = failures;
+    }
+    merged.success = merged.successCount > 0;
+    return merged;
   }
 
   async updatePositionTPSL(
@@ -511,6 +1710,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId,
     );
     const result = await provider.updatePositionTPSL(params);
+    return carryProviderErrorCause(result, { ...result, providerId });
+  }
+
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.replacePositionTPSLLeg) {
+      throw createTpslLegReplaceUnsupportedError();
+    }
+    const result = await provider.replacePositionTPSLLeg(params);
     return { ...result, providerId };
   }
 
@@ -522,6 +1734,211 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.withdraw(params);
+  }
+
+  /**
+   * Aggregate parked manual TP/SL recoveries from every underlying
+   * provider implementing the durable-settlement contract. Storage
+   * errors PROPAGATE — a corrupt store degrading to "nothing pending"
+   * would hide an under-protected position.
+   *
+   * @returns Pending manual-recovery entries across providers.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getPendingManualRecoveries
+          ? (await provider.getPendingManualRecoveries()).map((row) => ({
+              ...row,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Review native attached groups on providers implementing that capability.
+   *
+   * @returns Provider-labelled venue observations without financial actions.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.reviewAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * List stored attached identities across active providers.
+   *
+   * @returns Provider-labelled groups without financial actions.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Aggregate recovered-dispatch outcomes from every underlying provider
+   * implementing the durable-settlement contract.
+   *
+   * @returns Pending recovered-dispatch outcomes across providers.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getRecoveredDispatches
+          ? (await provider.getRecoveredDispatches()).map((row) => ({
+              ...row,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * List durable Scale groups from providers that expose group ownership.
+   * @returns Owned groups with their provider routes.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    const groups = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getScaleOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return groups.flat();
+  }
+
+  /**
+   * Review one selected provider's Scale groups without replaying placement.
+   * @param params - Explicit provider route.
+   * @param params.providerId - Owning provider.
+   * @returns Reconciled durable groups.
+   */
+  async reviewScaleOrderGroups(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<ScaleOrderGroup[]> {
+    if (!params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    if (!provider.reviewScaleOrderGroups) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    return provider.reviewScaleOrderGroups(params);
+  }
+
+  /**
+   * Execute an explicit successor for one selected durable protection obligation.
+   *
+   * @param params - Owning provider, opaque source ID and new protection intent.
+   * @returns Settled, unresolved or unsupported recovery result.
+   */
+  async resolveRecoveryProtection(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult> {
+    if (!params.providerId) {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.resolveRecoveryProtection?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        success: false,
+        error: 'Selected protection recovery is unavailable for this provider',
+      }
+    );
+  }
+
+  /**
+   * Review only the selected recovery owner, never an aggregated account snapshot.
+   *
+   * @param params - Explicit owning-provider route.
+   * @param params.providerId - Provider to review.
+   * @returns That provider's strict snapshot or unsupported capability.
+   */
+  async reviewRecoveryVenue(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<PerpsRecoveryVenueReview> {
+    if (!params.providerId) {
+      throw new Error('Recovery review requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.reviewRecoveryVenue?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        reason:
+          'Authoritative recovery review is unavailable for this provider',
+      }
+    );
+  }
+
+  /**
+   * Reconcile every active provider without financial writes. Unsupported
+   * providers contribute their local listing, or an empty list. Any failure
+   * rejects the entire result, so partial evidence is never reported as complete.
+   *
+   * @returns Newly scoped pending and recovered dispatches across providers.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) => {
+        const rows = provider.reconcileRecoveredDispatches
+          ? await provider.reconcileRecoveredDispatches()
+          : ((await provider.getRecoveredDispatches?.()) ?? []);
+        return rows.map((row) => ({ ...row, providerId }));
+      }),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id on
+   * whichever underlying provider owns it.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const capable = this.#getActiveProviders().filter(
+      ([, provider]) =>
+        typeof provider.acknowledgeRecoveredDispatch === 'function',
+    );
+    if (capable.length === 0) {
+      throw new Error(
+        'No perps provider has recovered dispatches to acknowledge',
+      );
+    }
+    let lastError: Error | null = null;
+    for (const [, provider] of capable) {
+      try {
+        await provider.acknowledgeRecoveredDispatch?.(recoveryId);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    throw lastError as Error;
   }
 
   // ============================================================================
@@ -562,23 +1979,39 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    return this.#getDefaultProvider().calculateLiquidationPrice(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateLiquidationPrice(params);
   }
 
   async calculateMaintenanceMargin(
     params: MaintenanceMarginParams,
   ): Promise<number> {
-    return this.#getDefaultProvider().calculateMaintenanceMargin(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateMaintenanceMargin(params);
   }
 
-  async getMaxLeverage(asset: string): Promise<number> {
-    return this.#getDefaultProvider().getMaxLeverage(asset);
+  async getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault(providerId);
+    return provider.getMaxLeverage(asset);
   }
 
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    return this.#getDefaultProvider().calculateFees(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateFees(params);
+  }
+
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const [, provider] = this.#getProviderOrDefault(
+      params.providerId ?? params.position.providerId,
+    );
+    return provider.previewPositionModify(params);
   }
 
   // ============================================================================
@@ -614,26 +2047,300 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  /**
+   * Stream TWAP updates from the default provider only.
+   *
+   * Unlike `getTwapOrders`, this does not fan out: HyperLiquid is the sole
+   * venue with a native TWAP push channel today, so a mux would add
+   * multi-provider merge semantics with nothing to merge. Callers needing the
+   * aggregated view across providers keep using `getTwapOrders`.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function; a no-op when the default provider has no
+   * native TWAP push channel.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    return this.#trackDefaultRoutedSubscription({
+      // A full empty snapshot replaces the previous venue's cached schedules,
+      // including when the new venue exposes no native TWAP stream.
+      onInvalidate: () => params.callback([], true),
+      open: (provider) => {
+        if (!provider.subscribeToTwapOrders) {
+          return () => {
+            // No-op: default provider exposes no native TWAP push channel
+          };
+        }
+        // Capture each stream's route so late batches from the old venue keep
+        // their source identity during teardown or after a default change.
+        const providerId = this.#defaultProvider;
+        return provider.subscribeToTwapOrders({
+          ...params,
+          // Stamp the same way getTwapOrders does, so swapping a poll for this
+          // subscription does not silently drop providerId from every schedule.
+          callback: (twapOrders, isSnapshot) =>
+            params.callback(
+              twapOrders.map((order) => ({
+                ...order,
+                providerId,
+              })),
+              isSnapshot,
+            ),
+        });
+      },
+    });
+  }
+
+  /**
+   * Stream account updates from every enabled venue.
+   *
+   * With more than one venue registered, each venue is subscribed through
+   * the multiplexer, and every emission carries the same contract as a REST
+   * read: combined totals over the venues with data, one `providerStates`
+   * entry per enabled venue (available, pending or unavailable), and
+   * `aggregate` completeness metadata. Before a venue's first snapshot, even
+   * a `null` leaves it pending. A subsequent `null` makes it unavailable.
+   * When no venue has usable data, the consumer gets `null` plus completeness
+   * metadata — never an all-zero total.
+   *
+   * This is venue fan-out, not default routing: changing the routing default
+   * neither re-subscribes these streams nor invalidates the still-valid
+   * all-venue total.
+   *
+   * With a single venue registered, the direct stream is passed through
+   * unchanged (venue identity stamped), matching the one-provider read.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function covering every venue subscription.
+   */
   subscribeToAccount(params: SubscribeAccountParams): () => void {
-    // For account subscriptions, we emit as array for multi-provider
-    // but the callback expects single AccountState
-    // Delegate to default provider for now
-    return this.#getDefaultProvider().subscribeToAccount(params);
+    // Single-venue aggregation keeps the direct stream shape: the emission
+    // carries top-level `providerId` and venue-local fields, so a REST read
+    // and a stream update have the same contract when one venue is loaded
+    // (for example while the other recovers). Building an aggregate here
+    // would move `crossMarginSummary` and `subAccountBreakdown` under
+    // `providerStates` and strip the top-level venue identity.
+    if (this.#providers.size === 1) {
+      const [[providerId, provider]] = this.#getActiveProviders();
+      return provider.subscribeToAccount({
+        ...(params.accountId !== undefined && {
+          accountId: params.accountId,
+        }),
+        callback: (account) => {
+          if (account === null) {
+            // Same semantics as the read path: no venue data is no data,
+            // never a zero-valued total.
+            params.callback(null);
+            return;
+          }
+          params.callback({ ...account, providerId });
+        },
+      });
+    }
+    // A null before the first snapshot leaves the venue pending. After a
+    // snapshot (even an invalid one), a null means it became unavailable.
+    // Like the strict REST read, each venue must report its whole account or
+    // null: a partial venue snapshot would otherwise count as complete.
+    const lastReport = new Set<PerpsProviderType>();
+    const unavailable = new Set<PerpsProviderType>();
+    return this.#subscriptionMux.subscribeToAccount({
+      ...(params.accountId !== undefined && { accountId: params.accountId }),
+      requireCompleteAccount: true,
+      providers: this.#getActiveProviders(),
+      onError: (_error, providerId) => {
+        unavailable.add(providerId);
+      },
+      callback: (accounts) => {
+        const entries: PerpsProviderAccountStateEntry[] =
+          this.#getActiveProviders().map(([providerId]) => {
+            const state = accounts.find(
+              (account) => account.providerId === providerId,
+            );
+            if (state) {
+              lastReport.add(providerId);
+              return { status: 'available', state, providerId };
+            }
+            // Reported before and its latest update was null: no current
+            // balance is known for this venue. Never seen: it simply has
+            // not reported yet.
+            return unavailable.has(providerId) || lastReport.has(providerId)
+              ? { status: 'unavailable', providerId }
+              : { status: 'pending', providerId };
+          });
+        const account = buildAggregatedAccountState({ entries });
+        params.callback(
+          account,
+          account?.aggregate ?? getAccountAggregateMetadata(entries),
+        );
+      },
+    });
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOICaps(params);
+    // Explicit route: pinned to that venue. A venue without the stream never
+    // silently falls back to a different venue's data.
+    if (params.providerId !== undefined) {
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          undefined,
+        )?.subscribeToOICaps(params) ?? (() => undefined)
+      );
+    }
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOICaps(params),
+    });
   }
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToCandles(params);
+    // Explicit route: pinned to that venue — required when both venues list
+    // the same symbol and the data must come from a specific one. A pinned
+    // stream does not follow the routing default.
+    if (params.providerId !== undefined) {
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          params.onError,
+        )?.subscribeToCandles(params) ?? (() => undefined)
+      );
+    }
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToCandles(params),
+    });
   }
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOrderBook(params);
+    if (params.providerId !== undefined) {
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          params.onError,
+        )?.subscribeToOrderBook(params) ?? (() => undefined)
+      );
+    }
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOrderBook(params),
+    });
+  }
+
+  /**
+   * Read public trades from the explicit route, else the default provider.
+   * An unrouted read resolves to an empty list if the default changes before
+   * the venue answers.
+   *
+   * @param params - Market, optional limit and route.
+   * @returns The route's trades, newest first.
+   * @throws If the route is not registered or has no public trade feed.
+   */
+  async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.getPublicTrades) {
+      throw new Error(`Public trades not supported by provider ${providerId}`);
+    }
+    const trades = await provider.getPublicTrades({ ...params, providerId });
+    if (
+      params.providerId === undefined &&
+      providerId !== this.#defaultProvider
+    ) {
+      return [];
+    }
+    return trades;
+  }
+
+  /**
+   * Stream public trades from the explicit route, else the default provider.
+   * An unrouted stream follows the default and moves with it. A missing
+   * route or one without a public trade feed returns a no-op cleanup and
+   * never calls back.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (defaultProvider) =>
+          defaultProvider.subscribeToPublicTrades?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
+    if (!provider?.subscribeToPublicTrades) {
+      return () => {
+        // No-op: route missing or without a public trade feed
+      };
+    }
+    return provider.subscribeToPublicTrades(params);
+  }
+
+  /**
+   * Resolve an explicitly named stream venue.
+   *
+   * A route that is not registered is reported through the stream's
+   * `onError` (or thrown when it has none) and never silently subscribes to a
+   * different venue: no callback, no data, no fallback.
+   *
+   * @param providerId - The venue the caller named.
+   * @param onError - The stream's error handler, when it has one.
+   * @returns The provider, or undefined after reporting a missing route.
+   */
+  #resolveExplicitStreamRoute(
+    providerId: PerpsProviderType,
+    onError: ((error: Error) => void) | undefined,
+  ): PerpsProvider | undefined {
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      // A bare code, like every other refusal here, so clients can map it.
+      const error = new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      if (onError) {
+        onError(error);
+        return undefined;
+      }
+      throw error;
+    }
+    return provider;
+  }
+
+  /**
+   * Stream available to trade from the explicit route, else the default
+   * provider, as order placement routes. A route without support returns a
+   * no-op cleanup and never calls back, so the value stays unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToAvailableToTrade?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+        // As with a stopped stream, the old venue's value is now unknown.
+        // Notify before opening the new stream, which may emit immediately.
+        onInvalidate: () =>
+          params.onError?.(
+            new Error('Available-to-trade provider changed; value is unknown'),
+          ),
+      });
+    }
+
+    const { providerId } = params;
+    // Read the map directly: #getProviderOrDefault throws when the route is
+    // unavailable, and this method's contract is a no-op cleanup.
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToAvailableToTrade) {
+      return () => {
+        // No-op: route missing or without a venue value
+      };
+    }
+    return provider.subscribeToAvailableToTrade({ ...params, providerId });
   }
 
   // ============================================================================
@@ -656,6 +2363,49 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  supportsFeeResolution(providerId?: PerpsProviderType): boolean {
+    const provider = this.#providers.get(providerId ?? this.#defaultProvider);
+    return hasFeeSetter(provider);
+  }
+
+  setUserFeeResolution(
+    resolution: PerpsFeeResolution | undefined,
+    providerId?: PerpsProviderType,
+  ): void {
+    // A venue-scoped resolution reaches only that venue: a fan-out close
+    // prices each venue against its own positions and fee route, and one
+    // venue's resolution must not overwrite another's.
+    let targets: PerpsProvider[];
+    if (providerId === undefined) {
+      targets = Array.from(this.#providers.values());
+    } else {
+      const provider = this.#providers.get(providerId);
+      targets = provider ? [provider] : [];
+    }
+    targets.forEach((provider) => {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(resolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(resolution?.discountBips);
+      }
+    });
+  }
+
+  /**
+   * Approve the dedicated subscription builder on the HyperLiquid provider.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder; nothing on the order path reads this.
+   * @returns Whether the builder is approved.
+   */
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
+  }
+
   // ============================================================================
   // Lifecycle (Delegate to default provider)
   // ============================================================================
@@ -675,6 +2425,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     return this.#getDefaultProvider().isReadyToTrade();
+  }
+
+  /**
+   * Prepare every provider in turn, so a hardware wallet sees one prompt at a
+   * time. A provider that throws is logged with its provider ID and counts as
+   * not ready.
+   *
+   * @returns The not-ready result of the first provider, in registration
+   * order, that is not ready; else ready.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    let notReady: ReadyToTradeResult | undefined;
+    for (const [providerId, provider] of this.#getActiveProviders()) {
+      let result: ReadyToTradeResult | undefined;
+      try {
+        result = await provider.prepareTradingWallet?.();
+      } catch (caughtError) {
+        // Providers report their own failures, so a throw here is unexpected.
+        const error = ensureError(
+          caughtError,
+          'AggregatedPerpsProvider.prepareTradingWallet',
+        );
+        // The provider's own network: Lighter can be pinned to testnet.
+        const isProviderTestnet = isProviderOnTestnet(
+          providerId,
+          this.#isTestnet,
+        );
+        this.#deps.logger.error(error, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: providerId,
+            ...(isProviderTestnet !== undefined && {
+              network: isProviderTestnet ? 'testnet' : 'mainnet',
+            }),
+          },
+          context: {
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId },
+          },
+        });
+        result = { ready: false, error: error.message };
+      }
+      if (result && !result.ready) {
+        notReady ??= result;
+      }
+    }
+    return notReady ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {
@@ -714,14 +2511,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       reconnectionAttempt: number,
     ) => void,
   ): () => void {
-    const provider = this.#getDefaultProvider();
-    if (provider.subscribeToConnectionState) {
-      return provider.subscribeToConnectionState(listener);
-    }
-    listener(WebSocketConnectionState.Disconnected, 0);
-    return () => {
-      /* noop */
-    };
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => {
+        if (provider.subscribeToConnectionState) {
+          // Providers deliver their current state immediately on subscribe, so
+          // a re-route notifies the listener of the new venue's state.
+          return provider.subscribeToConnectionState(listener);
+        }
+        listener(WebSocketConnectionState.Disconnected, 0);
+        return () => {
+          /* noop */
+        };
+      },
+    });
   }
 
   async reconnect(): Promise<void> {

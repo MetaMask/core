@@ -1,12 +1,13 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
-import { makeRequest } from '../../tests/utils';
+import { makeRequest } from '../../tests/utils.js';
 import {
   createMethodMiddleware,
   MethodHandler,
-} from './createMethodMiddleware';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { JsonRpcRequest } from './utils';
+} from './createMethodMiddleware.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
+import { JsonRpcRequest } from './utils.js';
 
 type TestAction = {
   type: 'Example:TestAction';

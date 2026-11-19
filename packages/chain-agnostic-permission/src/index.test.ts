@@ -1,4 +1,6 @@
-import * as allExports from '.';
+import { describe, expect, it } from 'vitest';
+
+import * as allExports from './index.js';
 
 describe('@metamask/chain-agnostic-permission', () => {
   it('has expected JavaScript exports', () => {
@@ -11,6 +13,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getCaipAccountIdsFromCaip25CaveatValue",
         "isInternalAccountInPermittedAccountIds",
         "isCaipAccountIdInPermittedAccountIds",
+        "getEthAccountsForScope",
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
@@ -22,6 +25,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getAllScopesFromScopesObjects",
         "getInternalScopesObject",
         "getSessionScopes",
+        "getSessionProperties",
         "getPermittedAccountsForScopes",
         "validateAndNormalizeScopes",
         "bucketScopes",

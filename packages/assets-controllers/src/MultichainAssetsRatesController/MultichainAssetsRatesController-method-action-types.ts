@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainAssetsRatesController } from './MultichainAssetsRatesController';
+import type { MultichainAssetsRatesController } from './MultichainAssetsRatesController.js';
 
 /**
  * Updates token conversion rates for each non-EVM account.

@@ -1,0 +1,37 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["../../types", "./src"],
+  /**
+   * `exclude` replaces rather than extends, so the entries from
+   * `tsconfig.packages.build.json` are repeated here alongside the ones this
+   * package needs: type tests, fixtures and mocks are not published.
+   */
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test-d.ts",
+    "./src/**/__fixtures__/**/*",
+    "./src/**/__mocks__/**/*",
+    "./src/**/__snapshots__/**/*"
+  ],
+  "references": [
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../error-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../node-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../byte-utils/tsconfig.build.json"
+    }
+  ]
+}

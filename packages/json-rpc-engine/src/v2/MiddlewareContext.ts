@@ -1,5 +1,5 @@
-import { isInstance } from './utils';
-import type { UnionToIntersection } from './utils';
+import { isInstance } from './utils.js';
+import type { UnionToIntersection } from './utils.js';
 
 const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 

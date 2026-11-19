@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import type {
   AnnouncementControllerState,
@@ -9,8 +10,8 @@ import type {
   AnnouncementControllerEvents,
   AnnouncementControllerMessenger,
   AnnouncementMap,
-} from './AnnouncementController';
-import { AnnouncementController } from './AnnouncementController';
+} from './AnnouncementController.js';
+import { AnnouncementController } from './AnnouncementController.js';
 
 const name = 'AnnouncementController';
 

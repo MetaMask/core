@@ -1,0 +1,981 @@
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { BaseDataService } from '@metamask/base-data-service';
+import type {
+  CreateServicePolicyOptions,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import type { Struct } from '@metamask/superstruct';
+import { validate } from '@metamask/superstruct';
+import type { QueryClientConfig } from '@tanstack/query-core';
+
+import {
+  DEFAULT_STALE_TIME_MS,
+  Env,
+  MONEY_ACCOUNT_API_URL_MAP,
+  RATE_HISTORY_STALE_TIME_MS,
+  VAULT_RATE_STALE_TIME_MS,
+  VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS,
+  VAULT_SHARE_VALUATIONS_MAX_TX_HASHES,
+  VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
+} from './constants.js';
+import {
+  MoneyAccountApiHttpError,
+  MoneyAccountApiResponseValidationError,
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types.js';
+import type {
+  HistoryResponse,
+  InterestResponse,
+  PositionResponse,
+  RateHistoryResponse,
+  VaultRateResponse,
+  VaultShareValuationsResponse,
+  VbaSiweChallengeResponse,
+  VbaTransfersResponse,
+} from './response.types.js';
+import type { SiweMessageTemplate } from './siwe-message.js';
+import {
+  getSiweMessageTemplate,
+  validateSiweChallengeMessage,
+} from './siwe-message.js';
+import {
+  HistoryResponseStruct,
+  InterestResponseStruct,
+  PositionResponseStruct,
+  RateHistoryResponseStruct,
+  VaultRateResponseStruct,
+  VaultShareValuationsResponseStruct,
+  VbaSiweChallengeResponseStruct,
+  VbaSiweSessionResponseStruct,
+  VbaTransfersResponseStruct,
+} from './structs.js';
+import type {
+  HistoryOptions,
+  InterestOptions,
+  RateHistoryOptions,
+  FetchPositionsOptions,
+  VaultRateOptions,
+  VaultShareValuationsOptions,
+  FetchVbaTransfersOptions,
+} from './types.js';
+
+// === GENERAL ===
+
+/**
+ * The name of the {@link MoneyAccountApiDataService}, used to namespace the
+ * service's actions and events.
+ */
+export const serviceName = 'MoneyAccountApiDataService';
+
+const log = createModuleLogger(projectLogger, serviceName);
+const traceLogger = createModuleLogger(projectLogger, 'trace');
+
+class SiweSigningError extends Error {
+  constructor(cause: unknown) {
+    super('Failed to sign the SIWE message', { cause });
+    this.name = 'SiweSigningError';
+  }
+}
+
+export const TRACES = {
+  POSITIONS_API: 'Money Account API Fetch Positions',
+  INTEREST_API: 'Money Account API Fetch Interest',
+  HISTORY_API: 'Money Account API Fetch History',
+  RATE_HISTORY_API: 'Money Account API Fetch Rate History',
+  VAULT_RATE_API: 'Money Account API Fetch Vault Rate',
+  VAULT_SHARE_VALUATIONS_API: 'Money Account API Fetch Vault Share Valuations',
+} as const;
+
+export type MoneyAccountApiDataServiceTraceName =
+  (typeof TRACES)[keyof typeof TRACES];
+
+export type MoneyAccountApiDataServiceTraceRequest = Omit<
+  TraceRequest,
+  'name'
+> & {
+  name: MoneyAccountApiDataServiceTraceName;
+  startTime?: number;
+};
+
+export type MoneyAccountApiDataServiceTraceCallback = <ReturnType>(
+  request: MoneyAccountApiDataServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+) => Promise<ReturnType>;
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchPositions',
+  'fetchInterest',
+  'fetchHistory',
+  'fetchRateHistory',
+  'fetchVaultRate',
+  'fetchVaultShareValuations',
+  'fetchVbaTransfers',
+] as const;
+
+/**
+ * Invalidates cached queries for {@link MoneyAccountApiDataService}.
+ */
+export type MoneyAccountApiDataServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
+ * Actions that {@link MoneyAccountApiDataService} exposes to other consumers.
+ */
+export type MoneyAccountApiDataServiceActions =
+  | MoneyAccountApiDataServiceMethodActions
+  | MoneyAccountApiDataServiceInvalidateQueriesAction;
+
+/**
+ * Actions from other messengers that {@link MoneyAccountApiDataService} calls.
+ */
+type AuthenticationControllerGetBearerTokenAction = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
+
+type KeyringControllerSignPersonalMessageAction = {
+  type: 'KeyringController:signPersonalMessage';
+  handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+type AllowedActions =
+  | AuthenticationControllerGetBearerTokenAction
+  | KeyringControllerSignPersonalMessageAction;
+
+/**
+ * Published when {@link MoneyAccountApiDataService}'s cache is updated.
+ */
+export type MoneyAccountApiDataServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link MoneyAccountApiDataService}'s cache is
+ * updated.
+ */
+export type MoneyAccountApiDataServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link MoneyAccountApiDataService} exposes to other consumers.
+ */
+export type MoneyAccountApiDataServiceEvents =
+  | MoneyAccountApiDataServiceCacheUpdatedEvent
+  | MoneyAccountApiDataServiceGranularCacheUpdatedEvent;
+
+/**
+ * Events from other messengers that {@link MoneyAccountApiDataService}
+ * subscribes to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link MoneyAccountApiDataService}.
+ */
+export type MoneyAccountApiDataServiceMessenger = Messenger<
+  typeof serviceName,
+  MoneyAccountApiDataServiceActions | AllowedActions,
+  MoneyAccountApiDataServiceEvents | AllowedEvents
+>;
+
+// === SERVICE DEFINITION ===
+
+export type MoneyAccountApiDataServiceOptions = {
+  messenger: MoneyAccountApiDataServiceMessenger;
+  env?: Env;
+  queryClientConfig?: QueryClientConfig;
+  policyOptions?: CreateServicePolicyOptions;
+  trace?: MoneyAccountApiDataServiceTraceCallback;
+};
+
+/**
+ * Data service responsible for fetching positions, interest, cash-flow
+ * history, vault rate history, and the current vault exchange rate from the
+ * Money Account APY Tracking API.
+ */
+export class MoneyAccountApiDataService extends BaseDataService<
+  typeof serviceName,
+  MoneyAccountApiDataServiceMessenger
+> {
+  readonly #baseUrl: string;
+
+  readonly #siweTemplate: SiweMessageTemplate;
+
+  readonly #trace: MoneyAccountApiDataServiceTraceCallback;
+
+  readonly #siweSessions = new Map<
+    string,
+    { token: string; expiresAt: number }
+  >();
+
+  readonly #siweSessionRequests = new Map<string, Promise<string>>();
+
+  /**
+   * Constructs a new MoneyAccountApiDataService.
+   *
+   * @param options - The constructor arguments.
+   * @param options.messenger - The messenger suited for this service.
+   * @param options.env - The target environment. Defaults to production.
+   * @param options.queryClientConfig - Configuration for the underlying
+   * TanStack Query client.
+   * @param options.policyOptions - Options to pass to `createServicePolicy`.
+   * @param options.trace - Optional callback to trace network requests.
+   */
+  constructor({
+    messenger,
+    env = Env.PRD,
+    queryClientConfig = {},
+    policyOptions = {},
+    trace,
+  }: MoneyAccountApiDataServiceOptions) {
+    super({
+      name: serviceName,
+      messenger,
+      queryClientConfig,
+      policyOptions: {
+        retryFilterPolicy: handleWhen(
+          (error) =>
+            !(error instanceof MoneyAccountApiResponseValidationError) &&
+            !(error instanceof SiweSigningError) &&
+            !(
+              error instanceof HttpError &&
+              [401, 403].includes(error.httpStatus)
+            ),
+        ),
+        ...policyOptions,
+      },
+    });
+
+    this.#baseUrl = MONEY_ACCOUNT_API_URL_MAP[env];
+    this.#siweTemplate = getSiweMessageTemplate(this.#baseUrl);
+
+    this.#trace =
+      trace ??
+      (async <Result>(
+        _request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        return await Promise.resolve(fn?.() as Result);
+      });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
+    log('Initialized', { env, baseUrl: this.#baseUrl });
+  }
+
+  /**
+   * Builds best-effort authentication headers for a Money Account API request.
+   *
+   * Requests proceed without authentication when the wallet is locked, the
+   * user is signed out, or the token is otherwise unavailable. The API edge
+   * rate limiter falls back to IP-based limiting when the header is omitted.
+   *
+   * @returns The Authorization header when a profile token is available.
+   */
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch (error: unknown) {
+      log('Auth token unavailable, proceeding unauthenticated', error);
+      return {};
+    }
+  }
+
+  /**
+   * Fetches a URL with the best-effort profile bearer token and validates the
+   * response body.
+   *
+   * @param url - The request URL.
+   * @param responseStruct - The struct that defines the expected body.
+   * @param endpointLabel - Endpoint name used in error messages.
+   * @returns The validated response body.
+   */
+  async #fetchValidated<Response>(
+    url: URL,
+    responseStruct: Struct<Response>,
+    endpointLabel: string,
+  ): Promise<Response> {
+    const response = await fetch(url, {
+      headers: await this.#getRequestHeaders(),
+    });
+
+    if (!response.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        response,
+        `Money Account API ${endpointLabel} request failed with status '${response.status}'`,
+      );
+    }
+
+    const json: unknown = await response.json();
+
+    const [error, validated] = validate(json, responseStruct);
+    if (error) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from ${endpointLabel} endpoint: ${error.message}`,
+      );
+    }
+
+    return validated;
+  }
+
+  /**
+   * Fetches the current vault positions for a given user address.
+   *
+   * @param address - The user's Ethereum address.
+   * @param options - Optional fetch options.
+   * @param options.fresh - When true, cancels in-flight reads, fetches with a
+   * zero stale time, invalidates the result for subsequent reads, and asks the
+   * Money API to skip its Nest response cache with `Cache-Control: no-cache`.
+   * @returns The position response containing vault positions and an optional
+   * `balance` summary (`null` when the API balance path is unavailable).
+   */
+  async fetchPositions(
+    address: string,
+    { fresh = false }: FetchPositionsOptions = {},
+  ): Promise<PositionResponse> {
+    const normalizedAddress = address.toLowerCase();
+    const queryKey = [
+      `${this.name}:fetchPositions`,
+      normalizedAddress,
+    ] as const;
+
+    if (fresh) {
+      // Cancel any in-flight non-fresh fetch so it cannot win the shared
+      // queryKey and re-seed a response that omitted Cache-Control: no-cache.
+      await this.cancelQueries({ queryKey: [...queryKey] });
+    }
+
+    const result = await this.fetchQuery({
+      queryKey: [...queryKey],
+      staleTime: fresh ? 0 : DEFAULT_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#fetchPositionsFromNetwork(normalizedAddress, fresh);
+      },
+    });
+
+    if (fresh) {
+      // The balance service may reject this body using minBlock. Keep it
+      // available to this caller, but do not let a later steady-state request
+      // treat it as warm merely because that request has a non-zero staleTime.
+      await this.invalidateQueries({
+        queryKey: [...queryKey],
+        refetchType: 'none',
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Performs the HTTP GET for `/v1/positions/:address`.
+   *
+   * @param normalizedAddress - Lowercased account address.
+   * @param fresh - When true, send `Cache-Control: no-cache`.
+   * @returns Validated positions response.
+   */
+  async #fetchPositionsFromNetwork(
+    normalizedAddress: string,
+    fresh: boolean,
+  ): Promise<PositionResponse> {
+    const url = new URL(`/v1/positions/${normalizedAddress}`, this.#baseUrl);
+
+    return this.#traceNetworkRequest(
+      {
+        name: TRACES.POSITIONS_API,
+        data: {
+          operation: 'fetchPositions',
+          ...(fresh ? { fresh: true } : {}),
+        },
+      },
+      async () => {
+        const headers = {
+          ...(await this.#getRequestHeaders()),
+          ...(fresh ? { 'Cache-Control': 'no-cache' } : {}),
+        };
+
+        const response = await fetch(url, { headers });
+
+        if (!response.ok) {
+          throw await MoneyAccountApiHttpError.fromResponse(
+            response,
+            `Money Account API positions request failed with status '${response.status}'`,
+          );
+        }
+
+        const json: unknown = await response.json();
+
+        const [error, validated] = validate(json, PositionResponseStruct);
+        if (error) {
+          throw new MoneyAccountApiResponseValidationError(
+            `Malformed response from positions endpoint: ${error.message}`,
+          );
+        }
+
+        return validated;
+      },
+    );
+  }
+
+  /**
+   * Fetches the interest earned for a given address and vault over a
+   * specified time window.
+   *
+   * @param address - The user's Ethereum address.
+   * @param options - Options specifying vault, window, and optional chain ID.
+   * @returns The interest response.
+   */
+  async fetchInterest(
+    address: string,
+    options: InterestOptions,
+  ): Promise<InterestResponse> {
+    const url = new URL(
+      `/v1/positions/${address.toLowerCase()}/interest`,
+      this.#baseUrl,
+    );
+    url.searchParams.append(
+      'vault_address',
+      options.vaultAddress.toLowerCase(),
+    );
+    url.searchParams.append('window', options.window);
+    if (options.chainId !== undefined) {
+      url.searchParams.append('chain_id', String(options.chainId));
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchInterest`,
+        address.toLowerCase(),
+        options.vaultAddress.toLowerCase(),
+        options.window,
+        ...(options.chainId === undefined ? [] : [options.chainId]),
+      ],
+      staleTime: DEFAULT_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.INTEREST_API,
+            data: { operation: 'fetchInterest' },
+          },
+          async () =>
+            this.#fetchValidated(url, InterestResponseStruct, 'interest'),
+        );
+      },
+    });
+  }
+
+  /**
+   * Fetches cursor-paginated cash-flow history for a given address.
+   * Uses `fetchInfiniteQuery` for proper TanStack Query pagination semantics.
+   *
+   * When paginating, consumers must re-pass the same filter options
+   * (`vaultAddress`, `chainId`, `limit`) alongside `cursor` on every page
+   * request. This ensures the query key matches the original infinite query
+   * and that the HTTP request includes the correct filters.
+   *
+   * @param address - The user's Ethereum address.
+   * @param options - Optional filtering and pagination options.
+   * @returns The history response containing cash-flow entries for the requested page.
+   */
+  async fetchHistory(
+    address: string,
+    options?: HistoryOptions,
+  ): Promise<HistoryResponse> {
+    const normalizedAddress = address.toLowerCase();
+    const normalizedVault = options?.vaultAddress?.toLowerCase() ?? null;
+
+    return this.fetchInfiniteQuery<HistoryResponse>(
+      {
+        queryKey: [
+          `${this.name}:fetchHistory`,
+          normalizedAddress,
+          normalizedVault,
+          options?.chainId ?? null,
+          options?.limit ?? null,
+        ],
+        initialPageParam: null,
+        getNextPageParam: (result) => result.next_cursor,
+        staleTime: DEFAULT_STALE_TIME_MS,
+        queryFn: async (context) => {
+          const cursor = context.pageParam as string | null | undefined;
+
+          const url = new URL(
+            `/v1/positions/${normalizedAddress}/history`,
+            this.#baseUrl,
+          );
+          if (normalizedVault) {
+            url.searchParams.append('vault_address', normalizedVault);
+          }
+          if (options?.chainId !== undefined) {
+            url.searchParams.append('chain_id', String(options.chainId));
+          }
+          if (cursor) {
+            url.searchParams.append('cursor', cursor);
+          }
+          if (options?.limit !== undefined) {
+            url.searchParams.append('limit', String(options.limit));
+          }
+
+          return this.#traceNetworkRequest(
+            {
+              name: TRACES.HISTORY_API,
+              data: { operation: 'fetchHistory' },
+            },
+            async () =>
+              this.#fetchValidated(url, HistoryResponseStruct, 'history'),
+          );
+        },
+      },
+      options?.cursor ?? undefined,
+    );
+  }
+
+  /**
+   * Fetches the exchange-rate time series for a given vault.
+   *
+   * @param vaultAddress - The vault's Ethereum address.
+   * @param options - Optional range and chain ID filters.
+   * @returns The rate history response.
+   */
+  async fetchRateHistory(
+    vaultAddress: string,
+    options?: RateHistoryOptions,
+  ): Promise<RateHistoryResponse> {
+    const url = new URL(
+      `/v1/vaults/${vaultAddress.toLowerCase()}/rate-history`,
+      this.#baseUrl,
+    );
+    if (options?.chainId !== undefined) {
+      url.searchParams.append('chain_id', String(options.chainId));
+    }
+    if (options?.from) {
+      url.searchParams.append('from', options.from);
+    }
+    if (options?.to) {
+      url.searchParams.append('to', options.to);
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchRateHistory`,
+        vaultAddress.toLowerCase(),
+        ...(options?.chainId === undefined ? [null] : [options.chainId]),
+        ...(options?.from ? [options.from] : [null]),
+        ...(options?.to ? [options.to] : [null]),
+      ],
+      staleTime: RATE_HISTORY_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.RATE_HISTORY_API,
+            data: { operation: 'fetchRateHistory' },
+          },
+          async () =>
+            this.#fetchValidated(
+              url,
+              RateHistoryResponseStruct,
+              'rate-history',
+            ),
+        );
+      },
+    });
+  }
+
+  /**
+   * Fetches the current Accountant exchange rate for a vault.
+   *
+   * The server returns 404 when the vault is not in the deployment registry
+   * or has no indexed rate yet.
+   *
+   * @param vaultAddress - The vault's Ethereum address.
+   * @param options - Optional chain ID filter. Omitted requests use the API default.
+   * @returns The current vault rate response.
+   */
+  async fetchVaultRate(
+    vaultAddress: string,
+    options?: VaultRateOptions,
+  ): Promise<VaultRateResponse> {
+    const url = new URL(
+      `/v1/vaults/${vaultAddress.toLowerCase()}/rate`,
+      this.#baseUrl,
+    );
+    if (options?.chainId !== undefined) {
+      url.searchParams.append('chain_id', String(options.chainId));
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchVaultRate`,
+        vaultAddress.toLowerCase(),
+        options?.chainId ?? null,
+      ],
+      staleTime: VAULT_RATE_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULT_RATE_API,
+            data: { operation: 'fetchVaultRate' },
+          },
+          async () =>
+            this.#fetchValidated(url, VaultRateResponseStruct, 'vault rate'),
+        );
+      },
+    });
+  }
+
+  /**
+   * Batch-values vault share movements in past transactions. Each result
+   * reports the shares moved and what they were worth in the vault's
+   * underlying asset at that block. Unknown transactions come back with
+   * `found: false` instead of failing the batch.
+   *
+   * @param address - The user's Ethereum address.
+   * @param options - Transaction hashes to value and an optional chain ID.
+   * @param options.txHashes - Transaction hashes. At most 50 distinct hashes
+   * after lowercasing and de-duplication.
+   * @param options.chainId - Chain ID of the transactions. Omitted requests use
+   * the API default (Monad, 143).
+   * @returns One result per requested hash, in request order.
+   * @throws An `Error` before any request when `txHashes` is empty or contains
+   * more than 50 distinct hashes.
+   */
+  async fetchVaultShareValuations(
+    address: string,
+    { txHashes, chainId }: VaultShareValuationsOptions,
+  ): Promise<VaultShareValuationsResponse> {
+    const normalizedAddress = address.toLowerCase();
+    const distinctTxHashes = [
+      ...new Set(txHashes.map((hash) => hash.toLowerCase())),
+    ];
+
+    if (distinctTxHashes.length === 0) {
+      throw new Error('At least one transaction hash is required');
+    }
+    if (distinctTxHashes.length > VAULT_SHARE_VALUATIONS_MAX_TX_HASHES) {
+      throw new Error(
+        `At most ${VAULT_SHARE_VALUATIONS_MAX_TX_HASHES} distinct transaction hashes are supported`,
+      );
+    }
+
+    const txHashesParam = distinctTxHashes.join(',');
+    const url = new URL(
+      `/v1/positions/${normalizedAddress}/vault-share-valuations`,
+      this.#baseUrl,
+    );
+    url.searchParams.append('tx_hashes', txHashesParam);
+    if (chainId !== undefined) {
+      url.searchParams.append('chain_id', String(chainId));
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchVaultShareValuations`,
+        normalizedAddress,
+        txHashesParam,
+        chainId ?? null,
+      ],
+      staleTime: (query) =>
+        query.state.data?.results.every((result) => result.found)
+          ? VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS
+          : VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
+      gcTime: VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULT_SHARE_VALUATIONS_API,
+            data: { operation: 'fetchVaultShareValuations' },
+          },
+          async () =>
+            this.#fetchValidated(
+              url,
+              VaultShareValuationsResponseStruct,
+              'vault share valuations',
+            ),
+        );
+      },
+    });
+  }
+
+  /**
+   * Fetches current VBA transfers for the wallet authenticated via SIWE.
+   *
+   * @param options - Fetch options, including the wallet address to authenticate.
+   * @returns Current transfers belonging to the authenticated wallet.
+   */
+  async fetchVbaTransfers(
+    options: FetchVbaTransfersOptions,
+  ): Promise<VbaTransfersResponse> {
+    const normalizedAddress = options.address.toLowerCase();
+    const queryKey = [
+      `${this.name}:fetchVbaTransfers`,
+      normalizedAddress,
+    ] as const;
+
+    // Session signing is not retried by the service policy, while parallel
+    // calls for this wallet share the in-flight SIWE exchange below.
+    try {
+      return await this.fetchQuery({
+        queryKey,
+        staleTime: 0,
+        queryFn: async () => {
+          const token = await this.#getSiweToken(normalizedAddress);
+          const response = await this.#fetchVbaTransfersWithToken(token);
+          if (response.status !== 401) {
+            return this.#parseVbaTransfersResponse(response);
+          }
+
+          this.#siweSessions.delete(normalizedAddress);
+          const renewedToken = await this.#getSiweToken(normalizedAddress);
+          const retriedResponse =
+            await this.#fetchVbaTransfersWithToken(renewedToken);
+          return this.#parseVbaTransfersResponse(retriedResponse);
+        },
+      });
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 401) {
+        this.#siweSessions.delete(normalizedAddress);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Performs the HTTP GET for `/v1/vba/transfers` using a SIWE session token.
+   *
+   * @param siweToken - The SIWE session bearer token.
+   * @returns The raw transfers response.
+   */
+  async #fetchVbaTransfersWithToken(siweToken: string): Promise<Response> {
+    return await fetch(new URL('/v1/vba/transfers', this.#baseUrl), {
+      headers: { Authorization: `Bearer ${siweToken}` },
+    });
+  }
+
+  async #parseVbaTransfersResponse(
+    response: Response,
+  ): Promise<VbaTransfersResponse> {
+    if (!response.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        response,
+        `Money Account API VBA transfers request failed with status '${response.status}'`,
+      );
+    }
+
+    const json: unknown = await response.json();
+    const [error, validated] = validate(json, VbaTransfersResponseStruct);
+    if (error) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA transfers endpoint: ${error.message}`,
+      );
+    }
+
+    return validated;
+  }
+
+  async #getSiweToken(normalizedAddress: string): Promise<string> {
+    const cachedSession = this.#siweSessions.get(normalizedAddress);
+    if (cachedSession && cachedSession.expiresAt > Date.now()) {
+      return cachedSession.token;
+    }
+    this.#siweSessions.delete(normalizedAddress);
+
+    const requests = this.#siweSessionRequests;
+    const request = requests.get(normalizedAddress);
+    if (request !== undefined) {
+      return await request;
+    }
+
+    const newRequest = this.#createSiweSession(normalizedAddress);
+    requests.set(normalizedAddress, newRequest);
+    try {
+      return await newRequest;
+    } finally {
+      if (requests.get(normalizedAddress) === newRequest) {
+        requests.delete(normalizedAddress);
+      }
+    }
+  }
+
+  async #createSiweSession(normalizedAddress: string): Promise<string> {
+    const challenge = await this.#fetchSiweChallenge(normalizedAddress);
+    let signature: string;
+    try {
+      signature = await this.messenger.call(
+        'KeyringController:signPersonalMessage',
+        { data: challenge.message, from: normalizedAddress },
+      );
+    } catch (error) {
+      throw new SiweSigningError(error);
+    }
+    return await this.#verifySiweChallenge(
+      normalizedAddress,
+      challenge.message,
+      signature,
+    );
+  }
+
+  /**
+   * Fetches and validates a SIWE challenge for the given address.
+   *
+   * The challenge message is verified against the Money Account API's SIWE
+   * template before it is returned, so callers never sign a message the
+   * service did not expect.
+   *
+   * @param normalizedAddress - Lowercased account address to authenticate.
+   * @returns The validated challenge containing the message to sign.
+   */
+  async #fetchSiweChallenge(
+    normalizedAddress: string,
+  ): Promise<VbaSiweChallengeResponse> {
+    const challengeResponse = await fetch(
+      new URL('/v1/vba/auth/challenge', this.#baseUrl),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: normalizedAddress }),
+      },
+    );
+    if (!challengeResponse.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        challengeResponse,
+        `Money Account API VBA SIWE challenge failed with status '${challengeResponse.status}'`,
+      );
+    }
+
+    const challengeJson: unknown = await challengeResponse.json();
+    const [challengeError, challenge] = validate(
+      challengeJson,
+      VbaSiweChallengeResponseStruct,
+    );
+    if (challengeError) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA SIWE challenge endpoint: ${challengeError.message}`,
+      );
+    }
+
+    const invalidReason = validateSiweChallengeMessage({
+      template: this.#siweTemplate,
+      address: normalizedAddress,
+      nonce: challenge.nonce,
+      message: challenge.message,
+      now: Date.now(),
+    });
+    if (invalidReason) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Invalid VBA SIWE challenge message: ${invalidReason}`,
+      );
+    }
+
+    return challenge;
+  }
+
+  /**
+   * Verifies a SIWE signature and caches the resulting session.
+   *
+   * @param normalizedAddress - Lowercased account address being authenticated.
+   * @param message - The signed SIWE message.
+   * @param signature - The signature produced for the message.
+   * @returns The session's access token.
+   */
+  async #verifySiweChallenge(
+    normalizedAddress: string,
+    message: string,
+    signature: string,
+  ): Promise<string> {
+    const verifyResponse = await fetch(
+      new URL('/v1/vba/auth/verify', this.#baseUrl),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, signature }),
+      },
+    );
+    if (!verifyResponse.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        verifyResponse,
+        `Money Account API VBA SIWE verification failed with status '${verifyResponse.status}'`,
+      );
+    }
+
+    const sessionJson: unknown = await verifyResponse.json();
+    const [sessionError, session] = validate(
+      sessionJson,
+      VbaSiweSessionResponseStruct,
+    );
+    if (sessionError) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA SIWE verification endpoint: ${sessionError.message}`,
+      );
+    }
+
+    this.#siweSessions.set(normalizedAddress, {
+      token: session.access_token,
+      expiresAt: Date.now() + session.expires_in * 1000,
+    });
+    return session.access_token;
+  }
+
+  /**
+   * Runs a network request and emits a best-effort backdated trace.
+   *
+   * @param request - Trace metadata for the network request.
+   * @param fn - Network request to execute.
+   * @returns The network request result.
+   */
+  async #traceNetworkRequest<Result>(
+    request: MoneyAccountApiDataServiceTraceRequest,
+    fn: () => Promise<Result>,
+  ): Promise<Result> {
+    const startTime = Date.now();
+    let success = false;
+    let errorName: string | undefined;
+
+    try {
+      const result = await fn();
+      success = true;
+      return result;
+    } catch (error) {
+      errorName = error instanceof Error ? error.name : typeof error;
+      throw error;
+    } finally {
+      const traceRequest = {
+        ...request,
+        startTime,
+        data: {
+          ...request.data,
+          success,
+          ...(errorName ? { errorName } : {}),
+        },
+      };
+      const onTraceError = (traceError: unknown): void => {
+        traceLogger('Failed to emit trace', {
+          traceName: request.name,
+          traceError,
+        });
+      };
+
+      try {
+        Promise.resolve(this.#trace(traceRequest, () => undefined)).catch(
+          onTraceError,
+        );
+      } catch (traceError) {
+        onTraceError(traceError);
+      }
+    }
+  }
+}

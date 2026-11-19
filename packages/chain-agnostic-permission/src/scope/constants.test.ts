@@ -1,8 +1,10 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   KnownRpcMethods,
   KnownSessionProperties,
   isKnownSessionPropertyValue,
-} from './constants';
+} from './constants.js';
 
 describe('KnownRpcMethods', () => {
   it('should match the snapshot', () => {
@@ -16,6 +18,9 @@ describe('KnownRpcMethods', () => {
           "wallet_sendCalls",
           "wallet_getCallsStatus",
           "wallet_getCapabilities",
+          "wallet_requestExecutionPermissions",
+          "wallet_getGrantedExecutionPermissions",
+          "wallet_getSupportedExecutionPermissions",
           "eth_sendTransaction",
           "eth_decrypt",
           "eth_getEncryptionPublicKey",

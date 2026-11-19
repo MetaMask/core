@@ -7,6 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
+
+## [40.1.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/gator-permissions-controller` from `^6.1.1` to `^6.1.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/eth-sig-util` from `^9.0.0` to `^10.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [40.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^14.0.2` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/gator-permissions-controller` from `^6.0.0` to `^6.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423), [#11203](https://github.com/MetaMask/core/pull/11203), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [40.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/approval-controller` from `^9.0.2` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/gator-permissions-controller` from `^5.0.2` to `^6.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/logging-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [39.2.10]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/logging-controller` from `^8.0.2` to `^9.0.0` ([#9844](https://github.com/MetaMask/core/pull/9844))
+- Bump `@metamask/gator-permissions-controller` from `^5.0.1` to `^5.0.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [39.2.9]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gator-permissions-controller` from `^5.0.0` to `^5.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [39.2.8]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/gator-permissions-controller` from `^4.2.2` to `^5.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470), [#9721](https://github.com/MetaMask/core/pull/9721))
+
+## [39.2.7]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.4` ([#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gator-permissions-controller` from `^4.2.1` to `^4.2.2` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [39.2.6]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/gator-permissions-controller` from `^4.2.0` to `^4.2.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [39.2.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [39.2.4]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [39.2.3]
+
+### Changed
+
+- Bump `@metamask/gator-permissions-controller` from `^4.1.2` to `^4.2.0` ([#8867](https://github.com/MetaMask/core/pull/8867))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
 ## [39.2.2]
 
 ### Changed
@@ -764,7 +885,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.1.1...HEAD
+[40.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.1.0...@metamask/signature-controller@40.1.1
+[40.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.0.0...@metamask/signature-controller@40.1.0
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.10...@metamask/signature-controller@40.0.0
+[39.2.10]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.9...@metamask/signature-controller@39.2.10
+[39.2.9]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.8...@metamask/signature-controller@39.2.9
+[39.2.8]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.7...@metamask/signature-controller@39.2.8
+[39.2.7]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.6...@metamask/signature-controller@39.2.7
+[39.2.6]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.5...@metamask/signature-controller@39.2.6
+[39.2.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.4...@metamask/signature-controller@39.2.5
+[39.2.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.3...@metamask/signature-controller@39.2.4
+[39.2.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.2...@metamask/signature-controller@39.2.3
 [39.2.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.1...@metamask/signature-controller@39.2.2
 [39.2.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.0...@metamask/signature-controller@39.2.1
 [39.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...@metamask/signature-controller@39.2.0

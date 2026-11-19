@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -20,9 +17,6 @@
       "path": "../gator-permissions-controller"
     },
     {
-      "path": "../message-manager"
-    },
-    {
       "path": "../keyring-controller"
     },
     {
@@ -33,6 +27,12 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src"]

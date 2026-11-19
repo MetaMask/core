@@ -1,13 +1,16 @@
-import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
+import { DEFAULT_CHAIN_RANKING } from '../constants/bridge.js';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
-} from '../types';
+} from '../types.js';
 import {
   formatFeatureFlags,
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
-} from './feature-flags';
+} from './feature-flags.js';
 
 describe('feature-flags', () => {
   describe('formatFeatureFlags', () => {
@@ -189,10 +192,10 @@ describe('feature-flags', () => {
   });
   describe('getBridgeFeatureFlags', () => {
     const mockMessenger = {
-      call: jest.fn(),
-      publish: jest.fn(),
-      registerActionHandler: jest.fn(),
-      registerInitialEventPayload: jest.fn(),
+      call: vi.fn(),
+      publish: vi.fn(),
+      registerActionHandler: vi.fn(),
+      registerInitialEventPayload: vi.fn(),
     } as unknown as BridgeControllerMessenger;
 
     it('should fetch bridge feature flags successfully', async () => {
@@ -279,7 +282,7 @@ describe('feature-flags', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+      (mockMessenger.call as Mock).mockImplementation(() => {
         return remoteFeatureFlagControllerState;
       });
 
@@ -388,7 +391,7 @@ describe('feature-flags', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockResolvedValue(
+      (mockMessenger.call as Mock).mockResolvedValue(
         remoteFeatureFlagControllerState,
       );
 
@@ -447,7 +450,7 @@ describe('feature-flags', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+      (mockMessenger.call as Mock).mockImplementation(() => {
         return remoteFeatureFlagControllerState;
       });
 
@@ -497,7 +500,7 @@ describe('feature-flags', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+      (mockMessenger.call as Mock).mockImplementation(() => {
         return remoteFeatureFlagControllerState;
       });
 
@@ -547,7 +550,7 @@ describe('feature-flags', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+      (mockMessenger.call as Mock).mockImplementation(() => {
         return remoteFeatureFlagControllerState;
       });
 

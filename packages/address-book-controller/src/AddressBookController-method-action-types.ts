@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AddressBookController } from './AddressBookController';
+import type { AddressBookController } from './AddressBookController.js';
 
 /**
  * Returns all address book entries as an array.

@@ -1,10 +1,13 @@
 import { SolScope } from '@metamask/keyring-api';
-import type { CaipChainId } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import type { QuoteResponse } from '../../types';
-import { getNativeAssetForChainId } from '../bridge';
-import { formatChainIdToCaip } from '../caip-formatters';
-import { MetricsSwapType } from './constants';
+import { toQuoteResponseV2 } from '../../coercers/quote-response-v1-to-v2.js';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { getNativeAssetForChainId } from '../bridge.js';
+import { formatChainIdToCaip } from '../caip-formatters.js';
+import type { QuoteMetadata } from '../quote-metadata/types.js';
+import { MetricsSwapType } from './constants.js';
 import {
   getAccountHardwareType,
   isHardwareWallet,
@@ -14,13 +17,9 @@ import {
   formatProviderLabel,
   getRequestParams,
   getQuotesReceivedProperties,
-} from './properties';
+} from './properties.js';
 
 describe('properties', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('quoteRequestToInputChangedProperties', () => {
     it('should map quote request properties to input keys', () => {
       expect(toInputChangedPropertyKey.srcTokenAddress).toBe('token_source');
@@ -169,43 +168,8 @@ describe('properties', () => {
 
   describe('formatProviderLabel', () => {
     it('should format provider label correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse = {
         quote: {
-          requestId: 'request1',
-          srcChainId: 1,
-          srcAsset: {
-            chainId: 1,
-            address: '0x123',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            decimals: 18,
-            assetId: 'eip155:1/slip44:60',
-          },
-          srcTokenAmount: '1000000000000000000',
-          destChainId: 1,
-          destAsset: {
-            chainId: 1,
-            address: '0x456',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-            assetId: 'eip155:1/erc20:0x456',
-          },
-          destTokenAmount: '1000000',
-          minDestTokenAmount: '950000',
-          feeData: {
-            metabridge: {
-              amount: '10000000000000000',
-              asset: {
-                chainId: 1,
-                address: '0x123',
-                symbol: 'ETH',
-                name: 'Ethereum',
-                decimals: 18,
-                assetId: 'eip155:1/slip44:60',
-              },
-            },
-          },
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
           steps: [],
@@ -214,11 +178,23 @@ describe('properties', () => {
           chainId: 1,
           to: '0x789',
           from: '0xabc',
-          value: '0',
+          value: '0x0',
           data: '0x',
           gasLimit: 100000,
         },
-        estimatedProcessingTimeInSeconds: 60,
+      };
+
+      const result = formatProviderLabel(mockQuoteResponse.quote);
+
+      expect(result).toBe('bridge1_bridge1');
+    });
+
+    it('should format provider label correctly (V2)', () => {
+      const mockQuoteResponse = {
+        quote: {
+          aggregator: 'bridge1',
+          protocols: ['bridge1'],
+        },
       };
 
       const result = formatProviderLabel(mockQuoteResponse.quote);
@@ -261,10 +237,6 @@ describe('properties', () => {
   });
 
   describe('getRequestParams', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('should format request params correctly with all values provided', () => {
       const result = getRequestParams(
         {
@@ -308,7 +280,7 @@ describe('properties', () => {
     it('should use native asset when srcTokenAddress is not provided', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: undefined,
           destTokenAddress: '0x456',
@@ -328,7 +300,7 @@ describe('properties', () => {
     it('should use native asset when formatAddressToAssetId returns null', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: '123',
           destTokenAddress: '456',
@@ -361,8 +333,23 @@ describe('properties', () => {
   });
 
   describe('getQuotesReceivedProperties', () => {
+    const mockTokenAmount = { amount: '0', valueInCurrency: '0', usd: '0' };
+    const mockQuoteMetadata: QuoteMetadata = {
+      gasFee: {
+        total: mockTokenAmount,
+      },
+      totalNetworkFee: mockTokenAmount,
+      toTokenAmount: mockTokenAmount,
+      minToTokenAmount: mockTokenAmount,
+      adjustedReturn: { valueInCurrency: '0', usd: '0' },
+      sentAmount: mockTokenAmount,
+      swapRate: '0',
+      cost: { valueInCurrency: '0', usd: '0' },
+    };
+
     it('should return quotes received properties correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
         quote: {
           requestId: 'request1',
           srcChainId: 1,
@@ -405,39 +392,184 @@ describe('properties', () => {
         },
         trade: {
           chainId: 1,
-          to: '0x789',
-          from: '0xabc',
-          value: '0',
-          data: '0x',
+          to: '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+          from: '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+          value: '0x0',
+          data: '0x0',
           gasLimit: 100000,
+          effectiveGas: 100000,
         },
         estimatedProcessingTimeInSeconds: 60,
       };
+      validateQuoteResponseV1(mockQuoteResponse);
+      const mockQuoteResponseV2 = toQuoteResponseV2(mockQuoteResponse);
 
-      const result = getQuotesReceivedProperties(mockQuoteResponse, [], false, {
-        ...mockQuoteResponse,
-        quote: {
-          ...mockQuoteResponse.quote,
-          bridges: ['bridge2'],
-          bridgeId: 'bridge2',
+      const result = getQuotesReceivedProperties(
+        mockQuoteResponseV2,
+        [],
+        false,
+        {
+          ...mockQuoteResponseV2,
+          quote: {
+            ...mockQuoteResponseV2.quote,
+            aggregator: 'bridge2',
+            protocols: ['bridge2'],
+          },
         },
-      });
+      );
 
       expect(result).toMatchInlineSnapshot(`
         {
           "best_quote_provider": "bridge2_bridge2",
           "can_submit": false,
+          "feature_id": "unified_swap_bridge",
           "gas_included": false,
           "gas_included_7702": false,
           "price_impact": 0,
           "provider": "bridge1_bridge1",
           "quoted_time_minutes": 1,
+          "slippage_limit": 0,
+          "token_symbol_destination": "USDC",
+          "token_symbol_source": "ETH",
+          "usd_amount_source": 0,
           "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
           "warnings": [],
         }
       `);
+
+      const quoteWithSlippage = {
+        ...mockQuoteResponseV2,
+        quote: {
+          ...mockQuoteResponseV2.quote,
+          slippage: 0.5,
+        },
+      };
+
+      expect(
+        getQuotesReceivedProperties(
+          quoteWithSlippage,
+          [],
+          true,
+          undefined,
+          undefined,
+          undefined,
+          { slippage_limit: 3.5 },
+        ).slippage_limit,
+      ).toBe(3.5);
+      expect(
+        getQuotesReceivedProperties(
+          quoteWithSlippage,
+          [],
+          true,
+          undefined,
+          undefined,
+          undefined,
+          { custom_slippage: true, slippage_limit: undefined },
+        ).slippage_limit,
+      ).toBe(0.5);
+      expect(
+        getQuotesReceivedProperties(quoteWithSlippage).slippage_limit,
+      ).toBe(0.5);
+    });
+
+    it('should return empty source and null destination token symbols when activeQuote is null', () => {
+      const result = getQuotesReceivedProperties(null);
+
+      expect(result.token_symbol_source).toBe('');
+      expect(result.token_symbol_destination).toBeNull();
+      expect(result.slippage_limit).toBe(0);
+    });
+
+    it('should use client fallbacks and explicit slippage context', () => {
+      const result = getQuotesReceivedProperties(
+        null,
+        [],
+        true,
+        undefined,
+        undefined,
+        undefined,
+        {
+          custom_slippage: true,
+          slippage_limit: 3.5,
+          usd_amount_source: 100,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+        },
+      );
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          custom_slippage: true,
+          slippage_limit: 3.5,
+          token_symbol_source: 'ETH',
+          token_symbol_destination: 'USDC',
+          usd_amount_source: 100,
+        }),
+      );
+    });
+
+    it('should derive token symbols from the active quote asset metadata', () => {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
+        quote: {
+          requestId: 'request1',
+          srcChainId: 1,
+          srcAsset: {
+            chainId: 1,
+            address: '0x123',
+            symbol: 'WETH',
+            name: 'Wrapped Ether',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x123',
+          },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: 1,
+          destAsset: {
+            chainId: 1,
+            address: '0x456',
+            symbol: 'DAI',
+            name: 'Dai Stablecoin',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x456',
+          },
+          destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
+          feeData: {
+            metabridge: {
+              amount: '10000000000000000',
+              asset: {
+                chainId: 1,
+                address: '0x123',
+                symbol: 'WETH',
+                name: 'Wrapped Ether',
+                decimals: 18,
+                assetId: 'eip155:1/erc20:0x123',
+              },
+            },
+          },
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          steps: [],
+        },
+        trade: {
+          chainId: 1,
+          to: '0x789',
+          from: '0xabc',
+          value: '0x0',
+          data: '0x',
+          gasLimit: 100000,
+        },
+        estimatedProcessingTimeInSeconds: 60,
+      };
+
+      const result = getQuotesReceivedProperties(
+        toQuoteResponseV2(mockQuoteResponse),
+      );
+
+      expect(result.token_symbol_source).toBe('WETH');
+      expect(result.token_symbol_destination).toBe('DAI');
     });
   });
 });

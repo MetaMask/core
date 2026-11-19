@@ -1,7 +1,7 @@
 import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountsControllerState } from './AccountsController';
+import type { AccountsControllerState } from './AccountsController.js';
 
 /**
  * Type constraint to ensure a type is compatible with {@link AccountsControllerState}.

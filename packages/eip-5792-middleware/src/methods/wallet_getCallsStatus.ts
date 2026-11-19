@@ -1,9 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { GetCallsStatusStruct } from '../types';
-import type { GetCallsStatusHook } from '../types';
-import { validateParams } from '../utils';
+import { GetCallsStatusStruct } from '../types.js';
+import type { GetCallsStatusHook } from '../types.js';
+import { validateParams } from '../utils.js';
 
 /**
  * The RPC method handler middleware for `wallet_getCallStatus`

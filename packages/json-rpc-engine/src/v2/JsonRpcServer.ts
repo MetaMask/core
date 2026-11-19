@@ -8,16 +8,16 @@ import type {
 } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
 
-import { getUniqueId } from '../getUniqueId';
+import { getUniqueId } from '../getUniqueId.js';
 import type {
   HandleOptions,
   JsonRpcMiddleware,
   MergedContextOf,
   MiddlewareConstraint,
   RequestOf,
-} from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import type { JsonRpcCall } from './utils';
+} from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
+import type { JsonRpcCall } from './utils.js';
 
 type OnError = (error: unknown) => void;
 

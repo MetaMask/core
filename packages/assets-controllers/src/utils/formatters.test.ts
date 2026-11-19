@@ -1,4 +1,6 @@
-import { createFormatters } from './formatters';
+import { describe, expect, it } from 'vitest';
+
+import { createFormatters } from './formatters.js';
 
 const locale = 'en-US';
 

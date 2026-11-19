@@ -13,15 +13,17 @@ import type {
   CreateAccountOptions,
   DeleteAccountRequest,
   GetAccountRequest,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import { traceFallback } from '../analytics';
-import type { DeepPartial, RootMessenger } from '../tests';
+import type { DeepPartial, RootMessenger } from '../../tests/index.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -29,25 +31,25 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MockAccountBuilder,
-} from '../tests';
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BtcAccountProvider } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+} from '../../tests/index.js';
+import { traceFallback } from '../analytics/index.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { createSentryError } from '../utils.js';
+import { BtcAccountProvider } from './BtcAccountProvider.js';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
   isSnapAccountProvider,
   SnapAccountProvider,
-} from './SnapAccountProvider';
-import { SolAccountProvider } from './SolAccountProvider';
-import { TrxAccountProvider } from './TrxAccountProvider';
-import { TimeoutError } from './utils';
+} from './SnapAccountProvider.js';
+import { SolAccountProvider } from './SolAccountProvider.js';
+import { TrxAccountProvider } from './TrxAccountProvider.js';
+import { TimeoutError } from './utils.js';
+import { XlmAccountProvider } from './XlmAccountProvider.js';
 
-jest.mock('../analytics', () => {
-  const actual = jest.requireActual('../analytics');
-  return {
-    ...actual,
-    traceFallback: jest.fn(),
-  };
-});
+vi.mock(import('../analytics/index.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  traceFallback: vi.fn(),
+}));
 
 const THROTTLED_OPERATION_DELAY_MS = 10;
 const TEST_SNAP_ID = 'npm:@metamask/test-snap' as SnapId;
@@ -61,7 +63,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     maxActiveCount: number;
   };
 
-  readonly capabilities: KeyringCapabilities = {
+  capabilities: KeyringCapabilities = {
     scopes: [
       SolScope.Devnet,
       SolScope.Testnet,
@@ -72,6 +74,8 @@ class MockSnapAccountProvider extends SnapAccountProvider {
       deriveIndex: true,
     },
   };
+
+  protected readonly v1DiscoveryScopes = [];
 
   constructor(
     snapId: SnapId,
@@ -153,28 +157,36 @@ const setup = ({
   config: configOverride = {},
   messenger = getRootMessenger(),
   accounts = [],
+  keyring: keyringOverrides = {},
+  capabilities = { scopes: [] },
 }: {
   config?: DeepPartial<SnapAccountProviderConfig>;
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  keyring?: { type?: string; snapId?: SnapId };
+  capabilities?: KeyringCapabilities;
 } = {}) => {
   const mocks = {
     AccountsController: {
-      listMultichainAccounts: jest.fn(),
+      listMultichainAccounts: vi.fn(),
     },
     ErrorReportingService: {
-      captureException: jest.fn(),
+      captureException: vi.fn(),
+    },
+    KeyringController: {
+      withKeyringV2: vi.fn(),
     },
     SnapController: {
       handleKeyringRequest: {
-        getAccount: jest.fn(),
-        listAccounts: jest.fn(),
-        deleteAccount: jest.fn(),
+        getAccount: vi.fn(),
+        listAccounts: vi.fn(),
+        deleteAccount: vi.fn(),
       },
-      handleRequest: jest.fn(),
+      handleRequest: vi.fn(),
     },
     SnapAccountService: {
-      ensureReady: jest.fn(),
+      ensureReady: vi.fn(),
+      getCapabilities: vi.fn(),
     },
   };
 
@@ -190,6 +202,12 @@ const setup = ({
   );
   // Make the platform ready right away (having a resolved promise is enough).
   mocks.SnapAccountService.ensureReady.mockResolvedValue(undefined);
+
+  messenger.registerActionHandler(
+    'SnapAccountService:getCapabilities',
+    mocks.SnapAccountService.getCapabilities,
+  );
+  mocks.SnapAccountService.getCapabilities.mockResolvedValue(capabilities);
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -223,18 +241,29 @@ const setup = ({
   );
 
   const keyring = {
-    createAccount: jest.fn(),
-    createAccounts: jest.fn(),
-    removeAccount: jest.fn(),
-  };
-
-  messenger.registerActionHandler(
-    'KeyringController:withKeyring',
-    jest
+    type: keyringOverrides.type ?? 'snap',
+    snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
+    createAccounts: vi.fn(),
+    deleteAccount: vi.fn().mockResolvedValue(undefined),
+    lookupByAddress: vi
       .fn()
-      .mockImplementation(
-        async (_ /* selector */, operation) => await operation({ keyring }),
+      .mockImplementation((address: string) =>
+        accounts.map(asKeyringAccount).find((a) => a.address === address),
       ),
+  };
+  const metadata = { id: 'mock-keyring-id', name: '' };
+
+  mocks.KeyringController.withKeyringV2.mockImplementation(
+    async (selector, operation) => {
+      if (selector.filter && !selector.filter(keyring, metadata)) {
+        throw new Error('No keyring matches the selector');
+      }
+      return await operation({ keyring, metadata });
+    },
+  );
+  messenger.registerActionHandler(
+    'KeyringController:withKeyringV2',
+    mocks.KeyringController.withKeyringV2,
   );
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
@@ -283,7 +312,7 @@ describe('SnapAccountProvider', () => {
     it('creates SolAccountProvider with custom trace using 3 parameters', () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn();
+      const customTrace = vi.fn();
       const provider = new SolAccountProvider(
         getMultichainAccountServiceMessenger(messenger),
         undefined,
@@ -329,7 +358,7 @@ describe('SnapAccountProvider', () => {
     it('creates TrxAccountProvider with custom trace', () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn();
+      const customTrace = vi.fn();
 
       // Explicitly test with all three parameters
       const trxProvider = new TrxAccountProvider(
@@ -340,6 +369,18 @@ describe('SnapAccountProvider', () => {
 
       expect(trxProvider).toBeDefined();
       expect(isSnapAccountProvider(trxProvider)).toBe(true);
+    });
+
+    it('creates XlmAccountProvider with default trace', () => {
+      const { messenger } = setup();
+
+      const xlmProvider = new XlmAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
+
+      expect(xlmProvider).toBeDefined();
+      expect(isSnapAccountProvider(xlmProvider)).toBe(true);
+      expect(xlmProvider.snapId).toBe(XlmAccountProvider.XLM_SNAP_ID);
     });
 
     it('creates provider without trace parameter', () => {
@@ -369,7 +410,7 @@ describe('SnapAccountProvider', () => {
       const provider1 = new SolAccountProvider(...args);
 
       args.push(undefined);
-      args.push(jest.fn());
+      args.push(vi.fn<TraceCallback>() as MockedFunction<TraceCallback>);
       const provider2 = new SolAccountProvider(...args);
 
       expect(provider1).toBeDefined();
@@ -415,12 +456,12 @@ describe('SnapAccountProvider', () => {
   });
 
   describe('trace functionality', () => {
-    const traceFallbackMock = traceFallback as jest.MockedFunction<
+    const traceFallbackMock = traceFallback as MockedFunction<
       typeof traceFallback
     >;
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       traceFallbackMock.mockClear();
     });
 
@@ -446,7 +487,7 @@ describe('SnapAccountProvider', () => {
         defaultConfig,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue('defaultResult');
+      const fn = vi.fn().mockResolvedValue('defaultResult');
 
       await testProvider.trace(request, fn);
 
@@ -461,7 +502,7 @@ describe('SnapAccountProvider', () => {
     it('uses custom trace when explicitly provided with all parameters', async () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const customTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -482,7 +523,7 @@ describe('SnapAccountProvider', () => {
         customTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue('customResult');
+      const fn = vi.fn().mockResolvedValue('customResult');
 
       const result = await testProvider.trace(request, fn);
 
@@ -495,7 +536,7 @@ describe('SnapAccountProvider', () => {
     it('calls trace callback with the correct arguments', async () => {
       const { messenger } = setup();
 
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (request, fn) => {
         expect(request).toStrictEqual({
           name: 'Test Request',
           data: { test: 'data' },
@@ -520,7 +561,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: { test: 'data' } };
-      const fn = jest.fn().mockResolvedValue('testResult');
+      const fn = vi.fn().mockResolvedValue('testResult');
 
       const result = await testProvider.trace(request, fn);
 
@@ -533,7 +574,7 @@ describe('SnapAccountProvider', () => {
       const { messenger } = setup();
 
       const mockError = new Error('Test error');
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -554,7 +595,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockRejectedValue(mockError);
+      const fn = vi.fn().mockRejectedValue(mockError);
 
       await expect(testProvider.trace(request, fn)).rejects.toThrow(mockError);
 
@@ -565,7 +606,7 @@ describe('SnapAccountProvider', () => {
     it('handles trace callback returning undefined', async () => {
       const { messenger } = setup();
 
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -586,7 +627,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue(undefined);
+      const fn = vi.fn().mockResolvedValue(undefined);
 
       const result = await testProvider.trace(request, fn);
 
@@ -598,8 +639,8 @@ describe('SnapAccountProvider', () => {
 
   describe('withMaxConcurrency', () => {
     afterEach(() => {
-      jest.clearAllTimers();
-      jest.useRealTimers();
+      vi.clearAllTimers();
+      vi.useRealTimers();
     });
 
     it('throttles createAccounts when maxConcurrency is finite', async () => {
@@ -724,7 +765,7 @@ describe('SnapAccountProvider', () => {
     it('does not create any accounts if already in-sync', async () => {
       const { provider } = setup({ accounts: mockAccounts });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -736,7 +777,7 @@ describe('SnapAccountProvider', () => {
         accounts: [mockAccounts[0]],
       });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -772,7 +813,7 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const deleteError = new Error('Failed to delete account');
       mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
         deleteError,
@@ -801,9 +842,13 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
         new TimeoutError('Timed out after: 500ms'),
       );
@@ -850,7 +895,7 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -865,10 +910,8 @@ describe('SnapAccountProvider', () => {
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).toHaveBeenCalledWith(extraSnapAccount2.id);
 
-      // Should remove from keyring and recreate the missing account
-      expect(keyring.removeAccount).toHaveBeenCalledWith(
-        mockAccounts[1].address,
-      );
+      // Should delete the missing account from the keyring (by id) before recreating it.
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(mockAccounts[1].id);
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: mockAccounts[1].options.entropy.id,
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
@@ -909,8 +952,8 @@ describe('SnapAccountProvider', () => {
     it('does not throw errors if any provider is not able to re-sync', async () => {
       const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       const providerError = new Error('Unable to create accounts');
       createAccountsSpy.mockRejectedValue(providerError);
@@ -920,7 +963,10 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalled();
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to re-sync accounts'),
+        createSentryError('Unable to re-sync accounts', providerError, {
+          groupIndex: 0,
+          provider: 'Test Provider',
+        }),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
@@ -931,10 +977,14 @@ describe('SnapAccountProvider', () => {
     it('does not capture exception when re-sync times out', async () => {
       const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
       createAccountsSpy.mockRejectedValue(
         new TimeoutError('Timed out after: 500ms'),
       );
@@ -956,6 +1006,87 @@ describe('SnapAccountProvider', () => {
       await provider.ensureReady();
 
       expect(mocks.SnapAccountService.ensureReady).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('forwards to SnapKeyring.deleteAccount(id) using the tracked account id', async () => {
+      const account = MOCK_HD_ACCOUNT_1;
+      const { provider, keyring, messenger } = setup({ accounts: [account] });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        id === account.id ? (account as InternalAccount) : undefined,
+      );
+      provider.init([account.id]);
+
+      await provider.deleteAccount(account.id);
+
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(account.id);
+      // The provider should no longer track the deleted account.
+      expect(() => provider.getAccount(account.id)).toThrow(
+        `Unable to find account: ${account.id}`,
+      );
+    });
+
+    it('throws if the account is not tracked by the provider', async () => {
+      const { provider } = setup();
+
+      await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
+        'Unable to find account: unknown-id',
+      );
+    });
+  });
+
+  describe('deleteAccounts', () => {
+    it('deletes in the given order via deleteAccount', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({ ok: true });
+
+      expect(keyring.deleteAccount.mock.calls.flat()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1.id,
+        MOCK_HD_ACCOUNT_2.id,
+      ]);
+    });
+
+    it('continues after a per-account failure and returns ok: false', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+      keyring.deleteAccount
+        .mockRejectedValueOnce(new Error('snap is unavailable'))
+        .mockResolvedValueOnce(undefined);
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: MOCK_HD_ACCOUNT_1.id,
+            error: expect.objectContaining({ message: 'snap is unavailable' }),
+          },
+        ],
+      });
+
+      expect(keyring.deleteAccount).toHaveBeenCalledTimes(2);
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        1,
+        MOCK_HD_ACCOUNT_1.id,
+      );
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        2,
+        MOCK_HD_ACCOUNT_2.id,
+      );
     });
   });
 });

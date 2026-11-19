@@ -1,4 +1,6 @@
-import { MiddlewareContext } from './MiddlewareContext';
+import { describe, expect, it } from 'vitest';
+
+import { MiddlewareContext } from './MiddlewareContext.js';
 
 describe('MiddlewareContext', () => {
   it('can be constructed with entries', () => {

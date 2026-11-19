@@ -1,4 +1,6 @@
-import { isVersionInBounds } from './isVersionInBounds';
+import { describe, expect, it } from 'vitest';
+
+import { isVersionInBounds } from './isVersionInBounds.js';
 
 describe('isVersionInBounds', () => {
   const version = '7.57.0';

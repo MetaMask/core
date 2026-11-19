@@ -1,4 +1,4 @@
-import type { AnalyticsControllerState } from './AnalyticsController';
+import type { AnalyticsControllerState } from './AnalyticsController.js';
 
 /**
  * UUIDv4 format regex pattern.

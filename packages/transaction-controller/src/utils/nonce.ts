@@ -4,8 +4,9 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import type { TransactionMeta, TransactionStatus } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionMeta, TransactionStatus } from '../types.js';
+import { getAuthorizationAuthority } from './eip7702.js';
 
 const log = createModuleLogger(projectLogger, 'nonce');
 
@@ -55,6 +56,11 @@ export async function getNextNonce(
 /**
  * Filter and format transactions for the nonce tracker.
  *
+ * Includes the outer transaction nonce when `txParams.from` matches, and EIP-7702
+ * authorization nonces only when their recovered authority matches `fromAddress`.
+ * This keeps foreign authorizations (e.g. Money Account upgrades on a same-chain
+ * pay batch) out of the payer's nonce history.
+ *
  * @param currentChainId - Chain ID of the current network.
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
  * @param transactionStatuses - Status of the transactions for which to filter.
@@ -67,45 +73,59 @@ export function getAndFormatTransactionsForNonceTracker(
   transactionStatuses: TransactionStatus[],
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
+  const normalizedFromAddress = fromAddress.toLowerCase();
+
   return transactions
     .filter(
-      ({
-        chainId,
-        isTransfer,
-        isUserOperation,
-        status,
-        txParams: { from, nonce },
-      }) =>
+      ({ chainId, isTransfer, isUserOperation, status, txParams: { nonce } }) =>
         !isTransfer &&
         !isUserOperation &&
         chainId === currentChainId &&
         transactionStatuses.includes(status) &&
-        from.toLowerCase() === fromAddress.toLowerCase() &&
-        nonce,
+        Boolean(nonce),
     )
-    .flatMap(
-      ({
+    .flatMap(({ status, txParams }) => {
+      const { authorizationList, from, gas, value, nonce } = txParams;
+      // the only value we care about is the nonce
+      // but we need to return the other values to satisfy the type
+      // TODO: refactor nonceTracker to not require this
+      /* istanbul ignore next */
+      const toNonceTrackerTransaction = (
+        currentNonce: string,
+        authority: string,
+      ): NonceTrackerTransaction => ({
         status,
-        txParams: { authorizationList, from, gas, value, nonce },
-      }) => {
-        const authorizationNonces = (authorizationList ?? [])
-          .map((authorization) => authorization.nonce)
-          .filter((authorizationNonce) => authorizationNonce !== undefined);
+        history: [{}],
+        txParams: {
+          from: authority,
+          gas: gas ?? '',
+          value: value ?? '',
+          nonce: currentNonce,
+        },
+      });
 
-        // the only value we care about is the nonce
-        // but we need to return the other values to satisfy the type
-        // TODO: refactor nonceTracker to not require this
-        /* istanbul ignore next */
-        return [nonce, ...authorizationNonces].map((currentNonce) => ({
-          status,
-          history: [{}],
-          txParams: {
-            from: from ?? '',
-            gas: gas ?? '',
-            value: value ?? '',
-            nonce: currentNonce ?? '',
-          },
-        }));
-      },
-    );
+      const formatted: NonceTrackerTransaction[] = [];
+
+      if (from.toLowerCase() === normalizedFromAddress && nonce) {
+        formatted.push(toNonceTrackerTransaction(nonce, from));
+      }
+
+      for (const authorization of authorizationList ?? []) {
+        if (authorization.nonce === undefined) {
+          continue;
+        }
+
+        const authority = getAuthorizationAuthority(authorization, from);
+
+        if (authority?.toLowerCase() !== normalizedFromAddress) {
+          continue;
+        }
+
+        formatted.push(
+          toNonceTrackerTransaction(authorization.nonce, authority),
+        );
+      }
+
+      return formatted;
+    });
 }

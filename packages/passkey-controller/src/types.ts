@@ -1,3 +1,20 @@
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangedEvent,
+} from '@metamask/base-controller';
+import type {
+  KeyringControllerChangePasswordAction,
+  KeyringControllerExportAccountAction,
+  KeyringControllerExportEncryptionKeyAction,
+  KeyringControllerExportSeedPhraseAction,
+  KeyringControllerSubmitEncryptionKeyAction,
+  KeyringControllerVerifyPasswordAction,
+} from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import { controllerName } from './constants.js';
+import type { PasskeyControllerMethodActions } from './PasskeyController-method-action-types.js';
+
 export type Base64String = string;
 
 export type Base64URLString = string;
@@ -70,9 +87,10 @@ export type PasskeyRecord = {
 
 /**
  * In-memory state for one **in-flight** WebAuthn **registration** ceremony
- * (from `create()` options until `protectVaultKeyWithPasskey` completes). This is
- * not a user login session; it is keyed by challenge and distinct from the full
- * spec ceremony (which includes the authenticator round-trip).
+ * (from `create()` options until the enrollment or replacement completion
+ * method finishes). This is not a user login session; it is keyed by challenge
+ * and distinct from the full spec ceremony (which includes the authenticator
+ * round-trip).
  */
 export type PasskeyRegistrationCeremony = {
   userHandle: Base64URLString;
@@ -80,6 +98,14 @@ export type PasskeyRegistrationCeremony = {
   challenge: Base64URLString;
   /** When this ceremony was started (ms since epoch); used for TTL pruning. */
   createdAt: number;
+  /**
+   * Whether this ceremony is for replacing an existing passkey.
+   *
+   * Omitted or `false` for existing enrollment ceremonies.
+   */
+  isReplacement?: boolean;
+  /** Credential ID of the record being replaced. */
+  sourceCredentialId?: Base64URLString;
 };
 
 /**
@@ -88,6 +114,11 @@ export type PasskeyRegistrationCeremony = {
  */
 export type PasskeyAuthenticationCeremony = {
   challenge: Base64URLString;
+  /**
+   * Registration challenge when this authentication is the post-registration
+   * step of an enrollment or replacement ceremony.
+   */
+  registrationChallenge?: Base64URLString;
   /** When this ceremony was started (ms since epoch); used for TTL pruning. */
   createdAt: number;
 };
@@ -106,4 +137,63 @@ export type PrfClientExtensionResults = {
     enabled?: boolean;
     results?: { first?: Base64URLString };
   };
+};
+
+export type PasskeyControllerState = {
+  passkeyRecord: PasskeyRecord | null;
+};
+
+export type PasskeyControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  PasskeyControllerState
+>;
+
+/**
+ * KeyringController actions that {@link PasskeyController} may call during
+ * orchestrated passkey flows. The restricted messenger must allow these at init.
+ */
+export type PasskeyControllerAllowedActions =
+  | KeyringControllerVerifyPasswordAction
+  | KeyringControllerExportEncryptionKeyAction
+  | KeyringControllerSubmitEncryptionKeyAction
+  | KeyringControllerChangePasswordAction
+  | KeyringControllerExportSeedPhraseAction
+  | KeyringControllerExportAccountAction;
+
+/**
+ * Actions exposed by {@link PasskeyController} on its messenger, including
+ * `:getState`, enrollment/unlock ceremony methods, and lifecycle helpers.
+ */
+export type PasskeyControllerActions =
+  | PasskeyControllerGetStateAction
+  | PasskeyControllerMethodActions;
+
+export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof controllerName,
+  PasskeyControllerState
+>;
+
+export type PasskeyControllerEvents = PasskeyControllerStateChangedEvent;
+
+export type PasskeyControllerMessenger = Messenger<
+  typeof controllerName,
+  PasskeyControllerActions | PasskeyControllerAllowedActions,
+  PasskeyControllerEvents
+>;
+
+export type PasskeyControllerOptions = {
+  messenger: PasskeyControllerMessenger;
+  state?: Partial<PasskeyControllerState>;
+  rpId?: string;
+  expectedRPID: string | string[];
+  rpName: string;
+  expectedOrigin: string | string[];
+  userName?: string;
+  userDisplayName?: string;
+  /**
+   * Returns whether wallet onboarding is complete. When `true`, enrollment
+   * requires password step-up. The integrator typically supplies
+   * `() => onboardingController.state.completedOnboarding`.
+   */
+  getIsOnboardingCompleted: () => boolean;
 };

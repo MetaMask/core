@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
@@ -224,8 +225,12 @@ export type FungibleAssetPrice = BaseAssetPrice & {
   marketCapPercentChange1d?: number;
   /** 24h price change in USD */
   priceChange1d?: number;
+  /** 5m price change percentage */
+  pricePercentChange5m?: number;
   /** 1h price change percentage */
   pricePercentChange1h?: number;
+  /** 4h price change percentage */
+  pricePercentChange4h?: number;
   /** 24h price change percentage */
   pricePercentChange1d?: number;
   /** 7d price change percentage */
@@ -273,8 +278,14 @@ export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
  * Balance data for fungible tokens (native, ERC20, SPL).
  */
 export type FungibleAssetBalance = {
-  /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
+  /** Converted balance amount (e.g., "1000" for 1000 USDC) */
   amount: string;
+  /**
+   * Network-specific balance fields, when the source provides them. Stellar
+   * native rows carry `spendableBalance` / `minimumReserveBalance`, and
+   * trustlines carry `limit` / `authorized` / `sponsored`.
+   */
+  metadata?: Json;
 };
 
 /**
@@ -335,21 +346,26 @@ export type DataRequest = {
   assetTypes?: AssetType[];
   /** Which data to fetch */
   dataTypes: DataType[];
-  /** Specific CAIP-19 asset IDs */
-  customAssets?: Caip19AssetId[];
   /**
-   * When true, the data source should poll only the user's `customAssets`
-   * for the requested chains and skip refreshing the regular tracked
-   * balances. Used by the AssetsController to issue a supplemental RPC
-   * subscription on chains that another data source is already covering.
+   * Optional scoped CAIP-19 asset IDs for this fetch (not the full pin list).
+   * v5 force-update and v5 RPC fallback put pins here. v6 omits it: natives,
+   * pins, and default tracked assets are read from controller state as
+   * `includeAssetIds`; detected ERC-20 balances come back with the chain
+   * snapshot. RPC fallback additionally refetches existing balances.
    */
-  customAssetsOnly?: boolean;
+  customAssets?: Caip19AssetId[];
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
+  /**
+   * Bypass server-side HTTP caches in addition to the client-side ones that
+   * `forceUpdate` already skips. Data sources backed by cached HTTP APIs
+   * (e.g. the Accounts API with its 60s cache) append a random `bypassServerCache`
+   * query param so the server re-reads instead of replaying a stale snapshot.
+   * Use sparingly — e.g. right after a transaction confirms.
+   */
+  bypassServerCache?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
-  /** Specific CAIP-19 asset IDs for price update */
-  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**
@@ -362,26 +378,40 @@ export type DataResponse = {
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-  /** Errors encountered, keyed by chain ID */
+  /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
-  /** Detected assets (assets that do not have metadata) */
-  detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
    * How to apply this response to state. See {@link AssetsUpdateMode}.
    * Defaults to `'merge'` if omitted.
    */
   updateMode?: AssetsUpdateMode;
+  /**
+   * When set with `updateMode: 'merge'`, balances on chains present in
+   * `assetsBalance` replace the prior chain slice (stale tokens on those chains
+   * are dropped). Custom assets on covered chains are preserved. Used for
+   * Accounts API v5 `getAssets({ forceUpdate: true })`. Accounts API v6 uses
+   * `updateMode: 'full'` instead.
+   */
+  replaceCoveredChainBalances?: boolean;
 };
 
 /**
  * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
  *
- * - **full**: Response is the full set for the scope. Assets in state but not in the
- *   response are cleared (except custom assets). Use for initial fetch or full refresh.
- * - **merge**: Only assets present in the response are updated; nothing is removed.
- *   Use for event-driven or incremental updates.
+ * - **full**: Response is the full set for covered chains (those present in
+ *   `assetsBalance`). Assets in state on those chains but not in the response
+ *   are cleared, including custom assets (Accounts API v6 returns pins via
+ *   `includeAssetIds`). A chain the source could not answer in full is reported
+ *   in `errors` and left out of `assetsBalance` entirely, so it is never
+ *   covered. Use for Accounts API v6 and RpcDataSource v6 snapshots.
+ * - **merge**: Only assets present in the response are updated; nothing is
+ *   removed, unless {@link DataResponse.replaceCoveredChainBalances} is set
+ *   (Accounts API v5 force refresh). Metadata and prices from the response
+ *   are applied. Use for event-driven updates and Accounts API v5.
  */
 export type AssetsUpdateMode = 'full' | 'merge';
+
+export type AssetsLoadingStatus = 'loading' | 'loaded';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
@@ -433,11 +463,14 @@ export type MiddlewareDataSource = {
 };
 
 // ============================================================================
-// UNIFIED MIDDLEWARE TYPES
+// CONTROLLER STATE
 // ============================================================================
 
 /**
- * Internal state structure for AssetsController following normalized design.
+ * State structure for AssetsController following normalized design.
+ *
+ * All values must stay JSON-serializable. UI preferences (e.g. hidden) live in
+ * assetPreferences, not in metadata.
  *
  * Keys use CAIP identifiers:
  * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
@@ -448,7 +481,7 @@ export type MiddlewareDataSource = {
  * - customAssets inner values: CAIP-19 asset IDs array
  * - assetPreferences keys: CAIP-19 asset IDs
  */
-export type AssetsControllerStateInternal = {
+export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
   assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
@@ -459,7 +492,19 @@ export type AssetsControllerStateInternal = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
   /** UI preferences per asset (e.g. hidden) - separate from metadata */
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
+  assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
+  /**
+   * Per-account status of the background (Snap + RPC) fetch that runs after
+   * the initial balance has resolved. Tracked on every forced fetch.
+   */
+  assetsBackgroundLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
 };
+
+// ============================================================================
+// UNIFIED MIDDLEWARE TYPES
+// ============================================================================
 
 /**
  * Base context for all middleware operations.
@@ -470,8 +515,6 @@ export type Context = {
   request: DataRequest;
   /** The response data (mutated by middlewares) */
   response: DataResponse;
-  /** Get current assets state */
-  getAssetsState: () => AssetsControllerStateInternal;
   /**
    * Optional breakdown of latency (ms) per data source, e.g. from parallel
    * middlewares. Keys are source names (often "MiddlewareName.SourceName").
@@ -620,12 +663,4 @@ export type PriceChangeEvent = {
 export type MetadataChangeEvent = {
   assetId: Caip19AssetId;
   changes: Partial<AssetMetadata>;
-};
-
-/**
- * Event emitted when assets without metadata are detected
- */
-export type AssetsDetectedEvent = {
-  accountId: AccountId;
-  assetIds: Caip19AssetId[];
 };

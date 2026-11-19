@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { EarnController } from './EarnController';
+import type { EarnController } from './EarnController.js';
 
 /**
  * Refreshes the pooled stakes data for the current account.

@@ -1,0 +1,77 @@
+export type {
+  Profile,
+  XProfile,
+  ConnectXSession,
+  ProfileControllerState,
+  ProfileControllerGetStateAction,
+  ProfileControllerActions,
+  ProfileControllerChangeEvent,
+  ProfileControllerEvents,
+  ProfileControllerMessenger,
+} from './ProfileController.js';
+export {
+  ProfileController,
+  getDefaultProfileControllerState,
+} from './ProfileController.js';
+export type {
+  ProfileControllerCheckUsernameAvailabilityAction,
+  ProfileControllerConnectXAction,
+  ProfileControllerCreateProfileAction,
+  ProfileControllerDeleteProfileAction,
+  ProfileControllerDisconnectXAction,
+  ProfileControllerGetProfileAction,
+  ProfileControllerFetchAndUpdateXAccountAction,
+  ProfileControllerFetchAndUpdateProfileAction,
+  ProfileControllerGetXProfileAction,
+  ProfileControllerReplaceProfileAction,
+  ProfileControllerGetXAuthorizationUrlAction,
+  ProfileControllerUpdateProfileAction,
+  ProfileControllerClearStateAction,
+} from './ProfileController-method-action-types.js';
+export type {
+  ProfileApiResponse,
+  CreateProfileResponse,
+  CreateProfileParams,
+  ReplaceProfileParams,
+  UpdateProfileParams,
+  ConnectXParams,
+  UsernameAvailabilityResponse,
+  FieldValidityResponse,
+  EarlyAccessResponse,
+  XAuthUrlResponse,
+  ConnectXResponse,
+  XAccountResponse,
+  ProfileServiceActions,
+  ProfileServiceEvents,
+  ProfileServiceMessenger,
+} from './ProfileService.js';
+export {
+  ProfileService,
+  ProfileServiceErrorMessage,
+} from './ProfileService.js';
+export {
+  ProfileApiErrorCode,
+  ProfileServiceError,
+  findProfileServiceError,
+} from './errors/index.js';
+export type {
+  ProfileApiErrorCodeId,
+  ProfileServiceApiError,
+  ProfileServiceErrorCodeInfo,
+  ProfileServiceErrorDetail,
+} from './errors/index.js';
+export type {
+  ProfileServiceCheckUsernameAvailabilityAction,
+  ProfileServiceCheckDisplayNameValidityAction,
+  ProfileServiceCheckBioValidityAction,
+  ProfileServiceCheckEarlyAccessAction,
+  ProfileServiceConnectXAction,
+  ProfileServiceCreateProfileAction,
+  ProfileServiceDeleteProfileAction,
+  ProfileServiceDisconnectXAction,
+  ProfileServiceGetProfileAction,
+  ProfileServiceGetXAccountAction,
+  ProfileServiceGetXAuthUrlAction,
+  ProfileServiceReplaceProfileAction,
+  ProfileServiceUpdateProfileAction,
+} from './ProfileService-method-action-types.js';

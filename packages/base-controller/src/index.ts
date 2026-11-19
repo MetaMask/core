@@ -11,5 +11,10 @@ export type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   ControllerStateChangedEvent,
-} from './BaseController';
-export { BaseController, deriveStateFromMetadata } from './BaseController';
+  ValidatableController,
+} from './BaseController.js';
+export {
+  BaseController,
+  deriveStateFromMetadata,
+  validateControllerState,
+} from './BaseController.js';

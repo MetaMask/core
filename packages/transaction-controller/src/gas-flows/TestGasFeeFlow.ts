@@ -1,12 +1,12 @@
 import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { GasFeeEstimateType } from '../types';
+import { GasFeeEstimateType } from '../types.js';
 import type {
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
-} from '../types';
+} from '../types.js';
 
 const INCREMENT = 1e15; // 0.001 ETH
 const LEVEL_DIFFERENCE = 0.5;

@@ -1,15 +1,17 @@
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { rpcRequest } from './provider';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { rpcRequest } from './provider.js';
 import {
   decodeRevert,
   extractRevert,
   OnChainFailureError,
-} from './revert-reason';
+} from './revert-reason.js';
 
-jest.mock('./provider', () => ({
-  ...jest.requireActual('./provider'),
-  rpcRequest: jest.fn(),
+vi.mock(import('./provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  rpcRequest: vi.fn(),
 }));
 
 const ERROR_DATA_TRANSFER_EXCEEDS_BALANCE =
@@ -112,7 +114,7 @@ describe('decodeRevert', () => {
 });
 
 describe('extractRevert', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   beforeEach(() => {
     rpcRequestMock.mockReset();

@@ -1,6 +1,9 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 
-import type { ParsedAuthenticatorData, AuthenticatorDataFlags } from './types';
+import type {
+  ParsedAuthenticatorData,
+  AuthenticatorDataFlags,
+} from './types.js';
 
 /* eslint-disable no-bitwise */
 

@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
+import { vi } from 'vitest';
 
-import EMPTY_FUNCTION from './emptyFunction';
+import EMPTY_FUNCTION from './emptyFunction.js';
 
 type SetTimeoutCallback = () => unknown;
 
@@ -52,10 +53,6 @@ class SetTimeoutRecorder {
    * called.
    */
   async next(): Promise<void> {
-    // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
-    // callback in practice, so this better reflects a real scenario.
-    jest.runOnlyPendingTimers();
-
     await new Promise<void>((resolve) => {
       if (this.calls.length > 0) {
         const call = this.calls.shift() as SetTimeoutCall;
@@ -69,9 +66,6 @@ class SetTimeoutRecorder {
         });
       }
     });
-    // Resolve pending Promises before returning to better emulate a real scenario.
-    // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    jest.runOnlyPendingTimers();
   }
 
   /**
@@ -84,10 +78,6 @@ class SetTimeoutRecorder {
    * given duration is called.
    */
   async nextMatchingDuration(duration: number): Promise<void> {
-    // Resolve pending Promises first. Pending Promises always get resolved before a `setTimeout`
-    // callback in practice, so this better reflects a real scenario.
-    jest.runOnlyPendingTimers();
-
     await new Promise<void>((resolve) => {
       const index = this.calls.findIndex((call) => call.duration === duration);
 
@@ -108,9 +98,6 @@ class SetTimeoutRecorder {
         resolve();
       }
     });
-    // Resolve pending Promises before returning to better emulate a real scenario.
-    // This ensures tests can't accidentally insert synchronous code after a `setTimeout`.
-    jest.runOnlyPendingTimers();
   }
 
   findCallsMatchingDuration(duration: number): SetTimeoutCall[] {
@@ -223,13 +210,13 @@ export default function recordCallsToSetTimeout({
     interceptCallback,
   });
 
-  jest
-    .spyOn(globalThis, 'setTimeout')
-    .mockImplementation(setTimeoutRecorder._mockSetTimeoutImplementation);
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(
+    setTimeoutRecorder._mockSetTimeoutImplementation,
+  );
 
-  jest
-    .spyOn(globalThis, 'clearTimeout')
-    .mockImplementation(setTimeoutRecorder._mockClearTimeoutImplementation);
+  vi.spyOn(globalThis, 'clearTimeout').mockImplementation(
+    setTimeoutRecorder._mockClearTimeoutImplementation,
+  );
 
   return setTimeoutRecorder;
 }

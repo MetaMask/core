@@ -1,9 +1,13 @@
 import type { DeferredPromise, Hex } from '@metamask/utils';
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
-import { sortBy } from 'lodash';
+import { sortBy } from 'lodash-es';
 
-import { projectLogger } from '../logger';
-import type { PublishHook, PublishHookResult, TransactionMeta } from '../types';
+import { projectLogger } from '../logger.js';
+import type {
+  PublishHook,
+  PublishHookResult,
+  TransactionMeta,
+} from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'collect-publish-hook');
 

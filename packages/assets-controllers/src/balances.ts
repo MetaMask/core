@@ -13,15 +13,15 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import type { CurrencyRateState } from './CurrencyRateController';
-import type { MultichainAssetsControllerState } from './MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from './MultichainBalancesController';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
-import type { TokenBalancesControllerState } from './TokenBalancesController';
-import type { TokenRatesControllerState } from './TokenRatesController';
-import type { TokensControllerState } from './TokensController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
+import type { CurrencyRateState } from './CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from './MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from './MultichainBalancesController/index.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
+import type { TokenBalancesControllerState } from './TokenBalancesController.js';
+import type { TokenRatesControllerState } from './TokenRatesController.js';
+import type { TokensControllerState } from './TokensController.js';
 
 export type AccountGroupBalance = {
   walletId: string;
@@ -628,9 +628,9 @@ export function calculateBalanceChangeForAllWallets(
   const aggregatedTotals = getAggregatedTotals(flatAccountChanges);
   const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
   const percentChange =
-    aggregatedTotals.previous !== 0
-      ? (amountChange / aggregatedTotals.previous) * 100
-      : 0;
+    aggregatedTotals.previous === 0
+      ? 0
+      : (amountChange / aggregatedTotals.previous) * 100;
 
   return {
     period,
@@ -876,9 +876,9 @@ export function calculateBalanceChangeForAccountGroup(
 
   const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
   const percentChange =
-    aggregatedTotals.previous !== 0
-      ? (amountChange / aggregatedTotals.previous) * 100
-      : 0;
+    aggregatedTotals.previous === 0
+      ? 0
+      : (amountChange / aggregatedTotals.previous) * 100;
 
   return {
     period,

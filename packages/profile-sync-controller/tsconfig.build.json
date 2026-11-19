@@ -1,22 +1,39 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src",
     "skipLibCheck": true
   },
   "references": [
-    { "path": "../base-controller/tsconfig.build.json" },
-    { "path": "../keyring-controller/tsconfig.build.json" },
-    { "path": "../address-book-controller/tsconfig.build.json" },
-    { "path": "../messenger/tsconfig.build.json" }
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../seedless-onboarding-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../address-book-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../key-tree/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"],
-  "exclude": [
-    "./jest.config.packages.ts",
-    "**/*.test.ts",
-    "**/jest.config.ts",
-    "**/__fixtures__/"
-  ]
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }

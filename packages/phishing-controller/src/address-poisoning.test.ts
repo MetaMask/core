@@ -1,4 +1,6 @@
-import { findSimilarAddresses } from './address-poisoning';
+import { describe, expect, it } from 'vitest';
+
+import { findSimilarAddresses } from './address-poisoning.js';
 
 function getNumberRange(start: number, end: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);

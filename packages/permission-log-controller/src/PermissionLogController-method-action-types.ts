@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PermissionLogController } from './PermissionLogController';
+import type { PermissionLogController } from './PermissionLogController.js';
 
 /**
  * Updates the exposed account history for the given origin.

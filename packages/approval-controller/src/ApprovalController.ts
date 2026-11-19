@@ -10,14 +10,14 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import type { ApprovalControllerMethodActions } from './ApprovalController-method-action-types';
+import type { ApprovalControllerMethodActions } from './ApprovalController-method-action-types.js';
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
   NoApprovalFlowsError,
   MissingApprovalFlowError,
-} from './errors';
+} from './errors.js';
 
 // Constants
 
@@ -707,7 +707,9 @@ export class ApprovalController extends BaseController<
 
     this.update((draftState) => {
       draftState.pendingApprovals[opts.id].requestState =
+        /* oxlint-disable typescript/no-unnecessary-type-assertion */
         opts.requestState as never;
+      /* oxlint-enable typescript/no-unnecessary-type-assertion */
     });
   }
 

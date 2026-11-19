@@ -5,6 +5,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   handleMockListDelegations,
@@ -12,21 +14,57 @@ import {
   handleMockRevokeDelegation,
   handleMockGetNotificationPreferences,
   handleMockPutNotificationPreferences,
-} from '../tests/fixtures/authenticated-userstorage';
+  handleMockGetMarketingConsent,
+  handleMockPutMarketingConsent,
+  handleMockGetIdentitySharingConsent,
+  handleMockPutIdentitySharingConsent,
+  handleMockGetAssetsWatchlist,
+  handleMockSetAssetsWatchlist,
+  handleMockGetUserAssets,
+  handleMockSetUserAssets,
+} from '../tests/fixtures/authenticated-userstorage.js';
 import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
+  MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
+  MOCK_MARKETING_CONSENT,
+  MOCK_MARKETING_CONSENT_URL,
+  MOCK_IDENTITY_SHARING_CONSENT,
+  MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+  MOCK_IDENTITY_SHARING_CONSENT_URL,
   MOCK_NOTIFICATION_PREFERENCES,
-} from '../tests/mocks/authenticated-userstorage';
-import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
+  MOCK_ASSETS_WATCHLIST_BLOB,
+  MOCK_ASSETS_WATCHLIST_URL,
+  MOCK_USER_ASSETS_BLOB,
+  MOCK_USER_ASSETS_URL,
+  MOCK_INVALID_USER_ASSETS_BLOB,
+} from '../tests/mocks/authenticated-userstorage.js';
+import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage.js';
 import {
   getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
-} from './authenticated-user-storage';
-import type { Environment } from './env';
-import { getUserStorageApiUrl } from './env';
+} from './authenticated-user-storage.js';
+import type { Environment } from './env.js';
+import { getUserStorageApiUrl } from './env.js';
+import type { UserAssetsBlob } from './types.js';
+import {
+  ASSETS_WATCHLIST_MAX_ASSETS,
+  USER_ASSETS_MAX_ASSETS,
+  assertUserAssetsBlobNormalized,
+  normalizeUserAssetsBlob,
+} from './validators.js';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
+
+const MOCK_USDC_ETH_ASSET_ID =
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+const MOCK_USDC_BASE_ASSET_ID =
+  'eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
+const MOCK_USDC_OP_ASSET_ID =
+  'eip155:10/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce36000000';
+const MOCK_USDC_POLYGON_ASSET_ID =
+  'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359';
+const MOCK_INVALID_ASSET_ID = 'not-a-caip-19-asset-id';
 
 describe('getUserStorageApiUrl()', () => {
   it('returns the API URL for a valid environment', () => {
@@ -45,6 +83,87 @@ describe('getAuthenticatedStorageUrl()', () => {
   it('generates the base URL for a given environment', () => {
     const result = getAuthenticatedStorageUrl('prod');
     expect(result).toBe('https://user-storage.api.cx.metamask.io/api/v1');
+  });
+});
+
+describe('normalizeUserAssetsBlob()', () => {
+  it('de-duplicates entries, preserving first-occurrence order', () => {
+    const result = normalizeUserAssetsBlob({
+      version: 1,
+      importedAssets: [
+        MOCK_USDC_ETH_ASSET_ID,
+        MOCK_USDC_ETH_ASSET_ID,
+        MOCK_USDC_BASE_ASSET_ID,
+      ],
+      hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_OP_ASSET_ID],
+    });
+
+    expect(result).toStrictEqual({
+      version: 1,
+      importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_BASE_ASSET_ID],
+      hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+    });
+  });
+
+  it('resolves conflicts fail-open: an identifier in both lists stays imported and is removed from hidden', () => {
+    const result = normalizeUserAssetsBlob({
+      version: 1,
+      importedAssets: [MOCK_USDC_BASE_ASSET_ID],
+      hiddenAssets: [MOCK_USDC_BASE_ASSET_ID, MOCK_USDC_OP_ASSET_ID],
+    });
+
+    expect(result).toStrictEqual({
+      version: 1,
+      importedAssets: [MOCK_USDC_BASE_ASSET_ID],
+      hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+    });
+  });
+
+  it('does not mutate the input blob', () => {
+    const input = {
+      version: 1 as const,
+      importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_ETH_ASSET_ID],
+      hiddenAssets: [MOCK_USDC_ETH_ASSET_ID],
+    };
+
+    normalizeUserAssetsBlob(input);
+
+    expect(input).toStrictEqual({
+      version: 1,
+      importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_ETH_ASSET_ID],
+      hiddenAssets: [MOCK_USDC_ETH_ASSET_ID],
+    });
+  });
+});
+
+const generateAssetIds = (count: number, startIndex = 0): string[] =>
+  Array.from(
+    { length: count },
+    (_, index) =>
+      `eip155:1/erc20:0x${(startIndex + index).toString(16).padStart(40, '0')}`,
+  );
+
+describe('assertUserAssetsBlobNormalized', () => {
+  it('accepts a blob with no identifier in both lists', () => {
+    expect(() =>
+      assertUserAssetsBlobNormalized({
+        version: 1,
+        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a blob with an identifier in both lists', () => {
+    expect(() =>
+      assertUserAssetsBlobNormalized({
+        version: 1,
+        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_OP_ASSET_ID],
+      }),
+    ).toThrow(
+      'An identifier may not appear in both importedAssets and hiddenAssets',
+    );
   });
 });
 
@@ -125,12 +244,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockCreateDelegation(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual(MOCK_DELEGATION_SUBMISSION);
-      });
+      const mock = handleMockCreateDelegation(
+        undefined,
+        MOCK_DELEGATION_SUBMISSION,
+      );
       const { service } = createService();
 
       await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
+
+      expect(mock.isDone()).toBe(true);
     });
   });
 
@@ -218,15 +340,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockPutNotificationPreferences(
+      const mock = handleMockPutNotificationPreferences(
         undefined,
-        async (_, requestBody) => {
-          expect(requestBody).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
-        },
+        MOCK_NOTIFICATION_PREFERENCES,
       );
       const { service } = createService();
 
       await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
+
+      expect(mock.isDone()).toBe(true);
     });
 
     it('throws when the API returns a non-200 status', async () => {
@@ -239,12 +361,1005 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('AuthenticatedUserStorageService:getMarketingConsent', () => {
+    it('returns the marketing consent via the messenger', async () => {
+      handleMockGetMarketingConsent();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getMarketingConsent',
+      );
+
+      expect(result).toStrictEqual(MOCK_MARKETING_CONSENT);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:putMarketingConsent', () => {
+    it('puts the marketing consent via the messenger', async () => {
+      const mock = handleMockPutMarketingConsent();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:putMarketingConsent',
+        MOCK_MARKETING_CONSENT,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getMarketingConsent', () => {
+    it('returns marketing consent from the API', async () => {
+      const mock = handleMockGetMarketingConsent();
+      const { service } = createService();
+
+      const result = await service.getMarketingConsent();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_MARKETING_CONSENT);
+    });
+
+    it('returns null when marketing consent is not found', async () => {
+      handleMockGetMarketingConsent({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getMarketingConsent();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetMarketingConsent({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getMarketingConsent()).rejects.toThrow(
+        'Failed to get marketing consent: 500',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetMarketingConsent({
+        status: 200,
+        body: { unexpected: 'shape' },
+      });
+      const { service } = createService();
+
+      await expect(service.getMarketingConsent()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+  });
+
+  describe('putMarketingConsent', () => {
+    it('submits marketing consent to the API', async () => {
+      const mock = handleMockPutMarketingConsent();
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_MARKETING_CONSENT_URL, {
+        reqheaders: {
+          'x-client-type': 'mobile',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT, 'mobile');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      const mock = handleMockPutMarketingConsent(
+        undefined,
+        MOCK_MARKETING_CONSENT,
+      );
+      const { service } = createService();
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockPutMarketingConsent({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.putMarketingConsent(MOCK_MARKETING_CONSENT),
+      ).rejects.toThrow('Failed to put marketing consent: 400');
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:getIdentitySharingConsent', () => {
+    it('returns the identity-sharing consent via the messenger', async () => {
+      handleMockGetIdentitySharingConsent();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getIdentitySharingConsent',
+      );
+
+      expect(result).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:putIdentitySharingConsent', () => {
+    it('puts identity-sharing consent via the messenger', async () => {
+      const mock = handleMockPutIdentitySharingConsent();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:putIdentitySharingConsent',
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getIdentitySharingConsent', () => {
+    it('returns identity-sharing consent from the API', async () => {
+      const mock = handleMockGetIdentitySharingConsent();
+      const { service } = createService();
+
+      const result = await service.getIdentitySharingConsent();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
+    });
+
+    it('returns null when identity-sharing consent is not found', async () => {
+      handleMockGetIdentitySharingConsent({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getIdentitySharingConsent();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetIdentitySharingConsent({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getIdentitySharingConsent()).rejects.toThrow(
+        'Failed to get identity-sharing consent: 500',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetIdentitySharingConsent({
+        status: 200,
+        body: { kyc: 'yes' },
+      });
+      const { service } = createService();
+
+      await expect(service.getIdentitySharingConsent()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+  });
+
+  describe('putIdentitySharingConsent', () => {
+    it('submits identity-sharing consent to the API', async () => {
+      const mock = handleMockPutIdentitySharingConsent();
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_IDENTITY_SHARING_CONSENT_URL, {
+        reqheaders: {
+          'x-client-type': 'mobile',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+        'mobile',
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends the audience write body, not the granted-audience map', async () => {
+      const mock = handleMockPutIdentitySharingConsent(
+        undefined,
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+      const { service } = createService();
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockPutIdentitySharingConsent({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.putIdentitySharingConsent(MOCK_IDENTITY_SHARING_CONSENT_WRITE),
+      ).rejects.toThrow('Failed to put identity-sharing consent: 400');
+    });
+
+    it('throws before requesting when the audience is unknown', async () => {
+      const { service } = createService();
+
+      await expect(
+        service.putIdentitySharingConsent({
+          audience: 'kalshi',
+          granted: true,
+        } as never),
+      ).rejects.toThrow(/Expected.*"kyc"|"iron"/u);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:getAssetsWatchlist', () => {
+    it('returns the assets-watchlist via the messenger', async () => {
+      handleMockGetAssetsWatchlist();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getAssetsWatchlist',
+      );
+
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:setAssetsWatchlist', () => {
+    it('sets the assets-watchlist via the messenger', async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:setAssetsWatchlist',
+        MOCK_ASSETS_WATCHLIST_BLOB,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getAssetsWatchlist', () => {
+    it('returns the assets-watchlist from the API', async () => {
+      const mock = handleMockGetAssetsWatchlist();
+      const { service } = createService();
+
+      const result = await service.getAssetsWatchlist();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+
+    it('sends the Authorization header', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          authorization: 'Bearer mock-access-token',
+        },
+      })
+        .get('')
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB);
+
+      const { service } = createService();
+      const result = await service.getAssetsWatchlist();
+
+      expect(scope.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+
+    it('returns null when the assets-watchlist is not found', async () => {
+      handleMockGetAssetsWatchlist({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getAssetsWatchlist();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetAssetsWatchlist({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        'Failed to get assets watchlist: 500',
+      );
+    });
+
+    it('throws when the API returns a 401', async () => {
+      handleMockGetAssetsWatchlist({ status: 401 });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        'Failed to get assets watchlist: 401',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetAssetsWatchlist({
+        status: 200,
+        body: MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
+      });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+
+    it('caches the result so a second call within staleTime does not re-fetch', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL)
+        .get('')
+        .once()
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB);
+      const { service } = createService();
+
+      const first = await service.getAssetsWatchlist();
+      const second = await service.getAssetsWatchlist();
+
+      expect(scope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      expect(second).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+  });
+
+  describe('setAssetsWatchlist', () => {
+    it('submits the assets-watchlist to the API', async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      const mock = handleMockSetAssetsWatchlist(
+        undefined,
+        MOCK_ASSETS_WATCHLIST_BLOB,
+      );
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends Content-Type and Authorization headers but no X-Client-Type when clientType is omitted', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          'content-type': 'application/json',
+          authorization: 'Bearer mock-access-token',
+        },
+        badheaders: ['x-client-type'],
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          'x-client-type': 'extension',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB, 'extension');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockSetAssetsWatchlist({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB),
+      ).rejects.toThrow('Failed to put assets watchlist: 400');
+    });
+
+    it(`throws synchronously when the blob exceeds ${ASSETS_WATCHLIST_MAX_ASSETS} assets`, async () => {
+      const { service } = createService();
+      const oversized = {
+        version: 1 as const,
+        assets: Array.from(
+          { length: ASSETS_WATCHLIST_MAX_ASSETS + 1 },
+          (_, index) =>
+            `eip155:1/erc20:0x${index.toString(16).padStart(40, '0')}`,
+        ),
+      };
+
+      await expect(service.setAssetsWatchlist(oversized)).rejects.toThrow(
+        new RegExp(
+          `At path: assets -- Expected a array with a length between \`0\` and \`${ASSETS_WATCHLIST_MAX_ASSETS}\` but received one with a length of \`${ASSETS_WATCHLIST_MAX_ASSETS + 1}\``,
+          'u',
+        ),
+      );
+    });
+
+    it('throws a structural error before sending the request when the blob is malformed', async () => {
+      const { service } = createService();
+      const malformed = {
+        version: 2,
+        assets: ['eip155:1/slip44:60'],
+      } as unknown as Parameters<typeof service.setAssetsWatchlist>[0];
+
+      await expect(service.setAssetsWatchlist(malformed)).rejects.toThrow(
+        /At path: version -- Expected the literal/u,
+      );
+    });
+
+    it(`accepts a blob with exactly ${ASSETS_WATCHLIST_MAX_ASSETS} assets`, async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { service } = createService();
+      const maxBlob = {
+        version: 1 as const,
+        assets: Array.from(
+          { length: ASSETS_WATCHLIST_MAX_ASSETS },
+          (_, index) =>
+            `eip155:1/erc20:0x${index.toString(16).padStart(40, '0')}`,
+        ),
+      };
+
+      await service.setAssetsWatchlist(maxBlob);
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:getUserAssets', () => {
+    it('returns the user-assets blob via the messenger', async () => {
+      handleMockGetUserAssets();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getUserAssets',
+      );
+
+      expect(result).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:setUserAssets', () => {
+    it('sets the user-assets blob via the messenger', async () => {
+      const mock = handleMockSetUserAssets();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:setUserAssets',
+        MOCK_USER_ASSETS_BLOB,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:importTokens', () => {
+    it('imports tokens via the messenger', async () => {
+      handleMockGetUserAssets();
+      const mock = handleMockSetUserAssets();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:importTokens',
+        [MOCK_USDC_POLYGON_ASSET_ID],
+      );
+
+      expect(mock.isDone()).toBe(true);
+      expect(result?.importedAssets).toContain(MOCK_USDC_POLYGON_ASSET_ID);
+      expect(result?.hiddenAssets).toStrictEqual([MOCK_USDC_OP_ASSET_ID]);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:hideTokens', () => {
+    it('hides tokens via the messenger', async () => {
+      handleMockGetUserAssets();
+      const mock = handleMockSetUserAssets();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:hideTokens',
+        [MOCK_USDC_ETH_ASSET_ID],
+      );
+
+      expect(mock.isDone()).toBe(true);
+      expect(result?.hiddenAssets).toContain(MOCK_USDC_ETH_ASSET_ID);
+      expect(result?.importedAssets).toStrictEqual([MOCK_USDC_BASE_ASSET_ID]);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:clearUserAssets', () => {
+    it('wipes the blob via the messenger', async () => {
+      const mock = handleMockSetUserAssets(undefined, {
+        version: 1,
+        importedAssets: [],
+        hiddenAssets: [],
+      });
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:clearUserAssets',
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getUserAssets', () => {
+    it('returns the user-assets blob from the API', async () => {
+      const mock = handleMockGetUserAssets();
+      const { service } = createService();
+
+      const result = await service.getUserAssets();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+    });
+
+    it('sends the Authorization header', async () => {
+      const scope = nock(MOCK_USER_ASSETS_URL, {
+        reqheaders: {
+          authorization: 'Bearer mock-access-token',
+        },
+      })
+        .get('')
+        .reply(200, MOCK_USER_ASSETS_BLOB);
+
+      const { service } = createService();
+      const result = await service.getUserAssets();
+
+      expect(scope.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+    });
+
+    it('returns null when the user-assets blob is not found', async () => {
+      handleMockGetUserAssets({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getUserAssets();
+
+      expect(result).toBeNull();
+    });
+
+    it.each([401, 500])('throws when the API returns a %s', async (status) => {
+      handleMockGetUserAssets({ status });
+      const { service } = createService();
+
+      await expect(service.getUserAssets()).rejects.toThrow(
+        `Failed to get user assets: ${status}`,
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetUserAssets({
+        status: 200,
+        body: MOCK_INVALID_USER_ASSETS_BLOB,
+      });
+      const { service } = createService();
+
+      await expect(service.getUserAssets()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+
+    it('caches the result so a second call within staleTime does not re-fetch', async () => {
+      const scope = nock(MOCK_USER_ASSETS_URL)
+        .get('')
+        .once()
+        .reply(200, MOCK_USER_ASSETS_BLOB);
+      const { service } = createService();
+
+      const first = await service.getUserAssets();
+      const second = await service.getUserAssets();
+
+      expect(scope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+      expect(second).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+    });
+  });
+
+  describe('setUserAssets', () => {
+    it('submits the user-assets blob to the API', async () => {
+      const mock = handleMockSetUserAssets();
+      const { service } = createService();
+
+      await service.setUserAssets(MOCK_USER_ASSETS_BLOB);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      const mock = handleMockSetUserAssets(undefined, MOCK_USER_ASSETS_BLOB);
+      const { service } = createService();
+
+      await service.setUserAssets(MOCK_USER_ASSETS_BLOB);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends Content-Type and Authorization headers but no X-Client-Type when clientType is omitted', async () => {
+      const scope = nock(MOCK_USER_ASSETS_URL, {
+        reqheaders: {
+          'content-type': 'application/json',
+          authorization: 'Bearer mock-access-token',
+        },
+        badheaders: ['x-client-type'],
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setUserAssets(MOCK_USER_ASSETS_BLOB);
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_USER_ASSETS_URL, {
+        reqheaders: {
+          'x-client-type': 'extension',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setUserAssets(MOCK_USER_ASSETS_BLOB, 'extension');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockSetUserAssets({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.setUserAssets(MOCK_USER_ASSETS_BLOB),
+      ).rejects.toThrow('Failed to put user assets: 400');
+    });
+
+    it.each([
+      {
+        name: 'the blob version is not 1',
+        blob: {
+          version: 2,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+          hiddenAssets: [],
+        },
+        expectedError: /At path: version -- Expected the literal/u,
+      },
+      {
+        name: 'an importedAssets entry is not a CAIP-19 asset identifier',
+        blob: {
+          version: 1,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_INVALID_ASSET_ID],
+          hiddenAssets: [],
+        },
+        expectedError:
+          /At path: importedAssets\.1 -- Expected a value of type `CaipAssetType`/u,
+      },
+      {
+        name: 'a hiddenAssets entry is not a CAIP-19 asset identifier',
+        blob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: [MOCK_INVALID_ASSET_ID],
+        },
+        expectedError:
+          /At path: hiddenAssets\.0 -- Expected a value of type `CaipAssetType`/u,
+      },
+      {
+        name: 'importedAssets exceeds the per-list cap',
+        blob: {
+          version: 1,
+          importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS + 1),
+          hiddenAssets: [],
+        },
+        expectedError: new RegExp(
+          `At path: importedAssets -- Expected a array with a length between \`0\` and \`${USER_ASSETS_MAX_ASSETS}\``,
+          'u',
+        ),
+      },
+      {
+        name: 'hiddenAssets exceeds the per-list cap',
+        blob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS + 1),
+        },
+        expectedError: new RegExp(
+          `At path: hiddenAssets -- Expected a array with a length between \`0\` and \`${USER_ASSETS_MAX_ASSETS}\``,
+          'u',
+        ),
+      },
+    ])(
+      'throws a structural error before sending the request when $name',
+      async ({ blob, expectedError }) => {
+        const { service } = createService();
+
+        await expect(
+          service.setUserAssets(
+            blob as unknown as Parameters<typeof service.setUserAssets>[0],
+          ),
+        ).rejects.toThrow(expectedError);
+      },
+    );
+
+    it(`accepts a blob with exactly ${USER_ASSETS_MAX_ASSETS} entries per list`, async () => {
+      const mock = handleMockSetUserAssets();
+      const { service } = createService();
+
+      await service.setUserAssets({
+        version: 1 as const,
+        importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+        hiddenAssets: generateAssetIds(
+          USER_ASSETS_MAX_ASSETS,
+          USER_ASSETS_MAX_ASSETS,
+        ),
+      });
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('de-duplicates entries before sending the request', async () => {
+      const mock = handleMockSetUserAssets(undefined, {
+        version: 1,
+        importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_BASE_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+      });
+      const { service } = createService();
+
+      await service.setUserAssets({
+        version: 1 as const,
+        importedAssets: [
+          MOCK_USDC_ETH_ASSET_ID,
+          MOCK_USDC_ETH_ASSET_ID,
+          MOCK_USDC_BASE_ASSET_ID,
+        ],
+        hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_OP_ASSET_ID],
+      });
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('resolves conflicts fail-open (import wins) before sending the request', async () => {
+      const mock = handleMockSetUserAssets(undefined, {
+        version: 1,
+        importedAssets: [MOCK_USDC_BASE_ASSET_ID],
+        hiddenAssets: [],
+      });
+      const { service } = createService();
+
+      await service.setUserAssets({
+        version: 1 as const,
+        // Deliberately present in both lists: import must win.
+        importedAssets: [MOCK_USDC_BASE_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_BASE_ASSET_ID],
+      });
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('importTokens / hideTokens', () => {
+    it.each([
+      {
+        method: 'importTokens',
+        ids: [MOCK_USDC_ETH_ASSET_ID],
+        expectedBlob: {
+          version: 1,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+          hiddenAssets: [],
+        },
+      },
+      {
+        method: 'hideTokens',
+        ids: [MOCK_USDC_OP_ASSET_ID],
+        expectedBlob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+        },
+      },
+    ] as const)(
+      '$method creates a fresh blob when none exists (404)',
+      async ({ method, ids, expectedBlob }) => {
+        handleMockGetUserAssets({ status: 404 });
+        const mock = handleMockSetUserAssets(undefined, expectedBlob);
+        const { service } = createService();
+
+        const result = await service[method]([...ids]);
+
+        expect(result).toStrictEqual(expectedBlob);
+        expect(mock.isDone()).toBe(true);
+      },
+    );
+
+    it.each([
+      {
+        method: 'importTokens',
+        addedList: 'importedAssets',
+        ids: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedList: [
+          MOCK_USDC_ETH_ASSET_ID,
+          MOCK_USDC_BASE_ASSET_ID,
+          MOCK_USDC_POLYGON_ASSET_ID,
+        ],
+        expectedRequest: {
+          version: 1,
+          importedAssets: [
+            MOCK_USDC_ETH_ASSET_ID,
+            MOCK_USDC_BASE_ASSET_ID,
+            MOCK_USDC_POLYGON_ASSET_ID,
+          ],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+        },
+      },
+      {
+        method: 'hideTokens',
+        addedList: 'hiddenAssets',
+        ids: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedList: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedRequest: {
+          version: 1,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_BASE_ASSET_ID],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        },
+      },
+    ] as const)(
+      '$method merges into the existing list, de-duplicating entries',
+      async ({ method, addedList, ids, expectedList, expectedRequest }) => {
+        handleMockGetUserAssets();
+        const mock = handleMockSetUserAssets(undefined, expectedRequest);
+        const { service } = createService();
+
+        const result = await service[method]([...ids]);
+
+        expect(result[addedList]).toStrictEqual(expectedList);
+        expect(mock.isDone()).toBe(true);
+      },
+    );
+
+    it.each([
+      {
+        method: 'importTokens',
+        ids: [MOCK_USDC_OP_ASSET_ID],
+        expectedRequest: {
+          version: 1,
+          importedAssets: [
+            MOCK_USDC_ETH_ASSET_ID,
+            MOCK_USDC_BASE_ASSET_ID,
+            MOCK_USDC_OP_ASSET_ID,
+          ],
+          hiddenAssets: [],
+        },
+      },
+      {
+        method: 'hideTokens',
+        ids: [MOCK_USDC_ETH_ASSET_ID],
+        expectedRequest: {
+          version: 1,
+          importedAssets: [MOCK_USDC_BASE_ASSET_ID],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_ETH_ASSET_ID],
+        },
+      },
+    ] as const)(
+      '$method removes the tokens from the opposite list (mutual exclusivity)',
+      async ({ method, ids, expectedRequest }) => {
+        handleMockGetUserAssets();
+        const mock = handleMockSetUserAssets(undefined, expectedRequest);
+        const { service } = createService();
+
+        const result = await service[method]([...ids]);
+
+        expect(result.importedAssets).toStrictEqual(
+          expectedRequest.importedAssets,
+        );
+        expect(result.hiddenAssets).toStrictEqual(expectedRequest.hiddenAssets);
+        expect(mock.isDone()).toBe(true);
+      },
+    );
+
+    it.each(['importTokens', 'hideTokens'] as const)(
+      '%s throws before any request when an entry is not a CAIP-19 asset identifier',
+      async (method) => {
+        const getScope = nock(MOCK_USER_ASSETS_URL)
+          .get('')
+          .reply(200, MOCK_USER_ASSETS_BLOB);
+        const { service } = createService();
+
+        await expect(service[method]([MOCK_INVALID_ASSET_ID])).rejects.toThrow(
+          /At path: 0 -- Expected a value of type `CaipAssetType`/u,
+        );
+
+        expect(getScope.isDone()).toBe(false);
+      },
+    );
+
+    it.each([
+      {
+        method: 'importTokens',
+        seed: {
+          importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+          hiddenAssets: [],
+        },
+      },
+      {
+        method: 'hideTokens',
+        seed: {
+          importedAssets: [],
+          hiddenAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+        },
+      },
+    ] as const)(
+      '$method throws when the merged blob would exceed the per-list cap',
+      async ({ method, seed }) => {
+        handleMockGetUserAssets({
+          status: 200,
+          body: { version: 1, ...seed },
+        });
+        const { service } = createService();
+
+        await expect(service[method]([MOCK_USDC_ETH_ASSET_ID])).rejects.toThrow(
+          /Expected a array with a length between/u,
+        );
+      },
+    );
+
+    it.each([
+      { method: 'importTokens', clientType: 'extension' },
+      { method: 'hideTokens', clientType: 'mobile' },
+    ] as const)(
+      '$method includes the X-Client-Type header when clientType is provided',
+      async ({ method, clientType }) => {
+        handleMockGetUserAssets();
+        const scope = nock(MOCK_USER_ASSETS_URL, {
+          reqheaders: {
+            'x-client-type': clientType,
+          },
+        })
+          .put('')
+          .reply(200);
+        const { service } = createService();
+
+        await service[method]([MOCK_USDC_ETH_ASSET_ID], clientType);
+
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+  });
+
   describe('cache invalidation', () => {
     it('invalidates listDelegations cache after createDelegation', async () => {
       handleMockCreateDelegation();
       handleMockListDelegations();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
 
@@ -257,7 +1372,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockRevokeDelegation();
       handleMockListDelegations();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.revokeDelegation(
         MOCK_DELEGATION_SUBMISSION.metadata.delegationHash,
@@ -272,7 +1387,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockPutNotificationPreferences();
       handleMockGetNotificationPreferences();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
 
@@ -281,6 +1396,141 @@ describe('AuthenticatedUserStorageService', () => {
           'AuthenticatedUserStorageService:getNotificationPreferences',
         ],
       });
+    });
+
+    it('invalidates getMarketingConsent cache after putMarketingConsent', async () => {
+      handleMockPutMarketingConsent();
+      handleMockGetMarketingConsent();
+      const { service } = createService();
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
+
+      await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'],
+      });
+    });
+
+    it('invalidates getIdentitySharingConsent cache after putIdentitySharingConsent', async () => {
+      handleMockPutIdentitySharingConsent();
+      handleMockGetIdentitySharingConsent();
+      const { service } = createService();
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
+
+      await service.putIdentitySharingConsent(
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getIdentitySharingConsent'],
+      });
+    });
+
+    it('invalidates getAssetsWatchlist cache after setAssetsWatchlist', async () => {
+      handleMockSetAssetsWatchlist();
+      handleMockGetAssetsWatchlist();
+      const { service } = createService();
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getAssetsWatchlist'],
+      });
+    });
+
+    it('causes a subsequent getAssetsWatchlist to refetch after setAssetsWatchlist', async () => {
+      const updatedBlob = {
+        version: 1 as const,
+        assets: ['eip155:137/slip44:966'],
+      };
+      const getScope = nock(MOCK_ASSETS_WATCHLIST_URL)
+        .get('')
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB)
+        .put('')
+        .reply(200)
+        .get('')
+        .reply(200, updatedBlob);
+
+      const { service } = createService();
+      const first = await service.getAssetsWatchlist();
+      await service.setAssetsWatchlist(updatedBlob);
+      const second = await service.getAssetsWatchlist();
+
+      expect(getScope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      expect(second).toStrictEqual(updatedBlob);
+    });
+
+    it.each([
+      {
+        mutator: 'setUserAssets',
+        seedGet: false,
+        run: (service: AuthenticatedUserStorageService): Promise<void> =>
+          service.setUserAssets(MOCK_USER_ASSETS_BLOB),
+      },
+      {
+        mutator: 'importTokens',
+        seedGet: true,
+        run: (
+          service: AuthenticatedUserStorageService,
+        ): Promise<UserAssetsBlob> =>
+          service.importTokens([MOCK_USDC_POLYGON_ASSET_ID]),
+      },
+      {
+        mutator: 'hideTokens',
+        seedGet: true,
+        run: (
+          service: AuthenticatedUserStorageService,
+        ): Promise<UserAssetsBlob> =>
+          service.hideTokens([MOCK_USDC_ETH_ASSET_ID]),
+      },
+      {
+        mutator: 'clearUserAssets',
+        seedGet: false,
+        run: (service: AuthenticatedUserStorageService): Promise<void> =>
+          service.clearUserAssets(),
+      },
+    ])(
+      'invalidates the getUserAssets cache after $mutator',
+      async ({ seedGet, run }) => {
+        if (seedGet) {
+          handleMockGetUserAssets();
+        }
+        handleMockSetUserAssets();
+        const { service } = createService();
+        const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
+
+        await run(service);
+
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['AuthenticatedUserStorageService:getUserAssets'],
+        });
+      },
+    );
+
+    it('causes a subsequent getUserAssets to refetch after setUserAssets', async () => {
+      const updatedBlob = {
+        version: 1 as const,
+        importedAssets: [MOCK_USDC_POLYGON_ASSET_ID],
+        hiddenAssets: [],
+      };
+      const getScope = nock(MOCK_USER_ASSETS_URL)
+        .get('')
+        .reply(200, MOCK_USER_ASSETS_BLOB)
+        .put('')
+        .reply(200)
+        .get('')
+        .reply(200, updatedBlob);
+
+      const { service } = createService();
+      const first = await service.getUserAssets();
+      await service.setUserAssets(updatedBlob);
+      const second = await service.getUserAssets();
+
+      expect(getScope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_USER_ASSETS_BLOB);
+      expect(second).toStrictEqual(updatedBlob);
     });
   });
 
@@ -327,10 +1577,10 @@ function createService({
   service: AuthenticatedUserStorageService;
   rootMessenger: RootMessenger;
   messenger: AuthenticatedUserStorageMessenger;
-  mockGetBearerToken: jest.Mock;
+  mockGetBearerToken: Mock;
 } {
   const rootMessenger = createRootMessenger();
-  const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
+  const mockGetBearerToken = vi.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     mockGetBearerToken,

@@ -1,5 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
+import type { TradeType } from '../../utils/trade-type.js';
+
 export type RelayQuoteRequest = {
   amount: string;
   authorizationList?: {
@@ -19,7 +21,7 @@ export type RelayQuoteRequest = {
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
-  tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT' | 'EXPECTED_OUTPUT';
+  tradeType: TradeType;
   txs?: {
     to: Hex;
     data: Hex;
@@ -28,6 +30,9 @@ export type RelayQuoteRequest = {
   useDepositAddress?: boolean;
   strict?: boolean;
   user: Hex;
+  metamask?: {
+    executeVersion?: number;
+  };
 };
 
 export type RelayQuote = {
@@ -156,12 +161,19 @@ export type RelayHyperliquidDepositStep = {
 
 type RelayQuoteMetamaskBase = {
   isExecute?: boolean;
-  isMaxGasStation?: boolean;
+  isSubsidized?: boolean;
+  signature?: string;
 };
 
 export type RelayQuoteMetamask = RelayQuoteMetamaskBase & {
   gasLimits: number[];
   is7702: boolean;
+};
+
+export type RelayExecuteMetamask = {
+  isSubsidized: boolean;
+  quoteRequest: RelayQuoteRequest;
+  signature: string;
 };
 
 export type RelayExecuteRequest = {
@@ -185,6 +197,7 @@ export type RelayExecuteRequest = {
     subsidizeFees: boolean;
   };
   requestId?: string;
+  metamask: RelayExecuteMetamask;
 };
 
 export type RelayExecuteResponse = {
@@ -210,4 +223,9 @@ export type RelayStatusResponse = {
   updatedAt: number;
   originChainId: number;
   destinationChainId: number;
+};
+
+export type RelayCompletionOutcome = {
+  status: RelayStatus | 'timeout';
+  targetHash?: Hex;
 };

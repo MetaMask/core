@@ -39,9 +39,9 @@ import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
 
-import { projectLogger as log } from './logger';
-import type { SignatureControllerMethodActions } from './SignatureController-method-action-types';
-import { SignatureRequestStatus, SignatureRequestType } from './types';
+import { projectLogger as log } from './logger.js';
+import type { SignatureControllerMethodActions } from './SignatureController-method-action-types.js';
+import { SignatureRequestStatus, SignatureRequestType } from './types.js';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
@@ -52,21 +52,21 @@ import type {
   LegacyStateMessage,
   StateSIWEMessage,
   MessageParamsTypedData,
-} from './types';
-import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
+} from './types.js';
+import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api.js';
 import {
   decodePermissionFromRequest,
   isDelegationRequest,
   validateExecutionPermissionMetadata,
-} from './utils/delegations';
+} from './utils/delegations.js';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
-} from './utils/normalize';
+} from './utils/normalize.js';
 import {
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
-} from './utils/validation';
+} from './utils/validation.js';
 
 const controllerName = 'SignatureController';
 
@@ -521,8 +521,7 @@ export class SignatureController extends BaseController<
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.rawSig = signature;
-      draftMetadata.status =
-        SignatureRequestStatus.Signed as SignatureRequestStatus;
+      draftMetadata.status = SignatureRequestStatus.Signed;
     });
   }
 
@@ -950,6 +949,7 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(
@@ -966,10 +966,10 @@ export class SignatureController extends BaseController<
         SignatureRequestType.TypedSign,
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
       state.unapprovedPersonalMsgs = personalSignMessages as any;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion, typescript/no-explicit-any, typescript/no-unsafe-assignment
       state.unapprovedTypedMessages = typedSignMessages as any;
 
       state.unapprovedPersonalMsgCount =

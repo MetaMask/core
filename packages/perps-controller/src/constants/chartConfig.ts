@@ -62,6 +62,19 @@ export enum ChartInterval {
 export const MAX_CANDLE_COUNT = 500;
 
 /**
+ * Bounds and default for the user-controlled number of visible candles.
+ *
+ * This preference is shared by Lite and Pro charts. The maximum is lower than
+ * MAX_CANDLE_COUNT because the latter controls fetched history, not viewport
+ * density.
+ */
+export const VISIBLE_CANDLE_COUNT_CONFIG = {
+  Min: 10,
+  Default: 30,
+  Max: 250,
+} as const;
+
+/**
  * Available candle periods mapped to each time duration
  * This ensures users only see sensible candle periods for each duration
  * and keeps the chart readable on mobile screens (target: ~20-100 candles)

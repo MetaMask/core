@@ -1,0 +1,69 @@
+import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
+
+import { TransactionPayStrategy } from '../constants.js';
+import type { EvmPaymentToken } from '../types.js';
+import { buildNoOpQuote } from './no-op-quote.js';
+
+const FROM_MOCK = '0xabc' as Hex;
+
+const PAYMENT_TOKEN_MOCK: EvmPaymentToken = {
+  address: '0x123',
+  assetId: 'eip155:137/erc20:0x123',
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '2000000',
+  balanceUsd: '0',
+  chainId: '0x89',
+  decimals: 6,
+  symbol: 'pUSD',
+};
+
+describe('No-Op Quote Utils', () => {
+  describe('buildNoOpQuote', () => {
+    it('builds quote with none strategy', () => {
+      const quote = buildNoOpQuote(FROM_MOCK, PAYMENT_TOKEN_MOCK);
+
+      expect(quote.strategy).toBe(TransactionPayStrategy.None);
+      expect(quote.isInputBased).toBe(false);
+    });
+
+    it('builds quote with zero fees and amounts', () => {
+      const quote = buildNoOpQuote(FROM_MOCK, PAYMENT_TOKEN_MOCK);
+
+      expect(quote.estimatedDuration).toBe(0);
+      expect(quote.dust).toStrictEqual({ fiat: '0', usd: '0' });
+      expect(quote.targetAmount).toStrictEqual({ fiat: '0', usd: '0' });
+      expect(quote.sourceAmount).toStrictEqual({
+        fiat: '0',
+        usd: '0',
+        human: '0',
+        raw: '0',
+      });
+      expect(quote.fees).toStrictEqual({
+        metaMask: { fiat: '0', usd: '0' },
+        provider: { fiat: '0', usd: '0' },
+        sourceNetwork: {
+          estimate: { fiat: '0', usd: '0', human: '0', raw: '0' },
+          max: { fiat: '0', usd: '0', human: '0', raw: '0' },
+        },
+        targetNetwork: { fiat: '0', usd: '0' },
+      });
+    });
+
+    it('builds request targeting the payment token', () => {
+      const quote = buildNoOpQuote(FROM_MOCK, PAYMENT_TOKEN_MOCK);
+
+      expect(quote.request).toStrictEqual({
+        from: FROM_MOCK,
+        sourceAccountId: `eip155:137:${FROM_MOCK}`,
+        sourceAssetId: PAYMENT_TOKEN_MOCK.assetId,
+        sourceBalanceRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+        sourceTokenAmount: '0',
+        targetAmountMinimum: '0',
+        targetChainId: PAYMENT_TOKEN_MOCK.chainId,
+        targetTokenAddress: PAYMENT_TOKEN_MOCK.address,
+      });
+    });
+  });
+});

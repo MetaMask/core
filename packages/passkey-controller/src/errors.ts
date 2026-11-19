@@ -1,4 +1,4 @@
-import type { PasskeyControllerErrorCode as PasskeyControllerErrorCodeType } from './constants';
+import type { PasskeyControllerErrorCode as PasskeyControllerErrorCodeType } from './constants.js';
 
 /**
  * Options for creating a {@link PasskeyControllerError}.

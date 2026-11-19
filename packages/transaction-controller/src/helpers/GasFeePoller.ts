@@ -9,9 +9,9 @@ import { createModuleLogger } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
@@ -20,16 +20,16 @@ import type {
   TransactionMeta,
   TransactionParams,
   TransactionBatchMeta,
-} from '../types';
+} from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
   TransactionEnvelopeType,
-} from '../types';
-import { getGasFeeFlow } from '../utils/gas-flow';
-import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { getNetworkClientId } from '../utils/provider';
+} from '../types.js';
+import { getGasFeeFlow } from '../utils/gas-flow.js';
+import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow.js';
+import { getNetworkClientId } from '../utils/provider.js';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 

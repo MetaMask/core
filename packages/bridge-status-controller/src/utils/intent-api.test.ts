@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { FetchFunction } from '../types';
+import type { FetchFunction } from '../types.js';
 import {
   getIntentFromQuote,
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
   postSubmitOrder,
   translateIntentOrderToBridgeStatus,
-} from './intent-api';
-import type { IntentSubmissionParams } from './intent-api';
-import { IntentOrderStatus } from './validators';
+} from './intent-api.js';
+import type { IntentSubmissionParams } from './intent-api.js';
+import { IntentOrderStatus } from './validators.js';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
@@ -26,11 +27,10 @@ describe('IntentApiImpl', () => {
     aggregatorId: 'agg-1',
   });
 
-  const makeFetchMock = (): any =>
-    jest.fn<ReturnType<FetchFunction>, Parameters<FetchFunction>>();
+  const makeFetchMock = (): any => vi.fn<FetchFunction>();
 
   const makeGetJwtMock = (): (() => Promise<string | undefined>) =>
-    jest.fn().mockResolvedValue(undefined);
+    vi.fn().mockResolvedValue(undefined);
 
   const validIntentOrderResponse = {
     id: 'order-1',

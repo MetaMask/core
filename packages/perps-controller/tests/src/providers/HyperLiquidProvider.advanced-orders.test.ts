@@ -1,0 +1,3714 @@
+/* eslint-disable */
+vi.mock('@nktkas/hyperliquid', () => ({}));
+
+import type { MetaResponse } from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
+
+import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
+import type {
+  PerpsPlatformDependencies,
+  Order,
+  OrderParams,
+} from '../../../src/types/index.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import {
+  validateAssetSupport,
+  validateBalance,
+  validateCoinExists,
+  validateDepositParams,
+  validateOrderParams,
+  validateWithdrawalParams,
+} from '../../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
+import {
+  createMockInfrastructure,
+  createMockMessenger,
+} from '../../helpers/serviceMocks.js';
+
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidWalletService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
+// Mock stream manager - will be set up in test
+let mockStreamManagerInstance: any;
+const mockGetStreamManagerInstance = vi.fn(() => mockStreamManagerInstance);
+vi.mock('../../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: mockGetStreamManagerInstance,
+}));
+
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
+    .fn()
+    .mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]),
+  getBridgeInfo: vi.fn().mockReturnValue({
+    chainId: 'eip155:42161',
+    contractAddress: '0x1234567890123456789012345678901234567890',
+  }),
+  createErrorResult: vi.fn(),
+}));
+
+// Mock adapter functions
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >();
+  return {
+    ...actual,
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: vi.fn((updates) => {
+      // Return mock history items based on input
+      if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return [];
+      }
+      return updates.map((_update: unknown) => ({
+        type: 'deposit' as const,
+        amount: '100',
+        timestamp: Date.now(),
+        hash: '0x123',
+      }));
+    }),
+  };
+});
+
+// Mock TradingReadinessCache - global singleton for signing operation caching
+vi.mock('../../../src/services/TradingReadinessCache');
+
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
+const MockedHyperLiquidWalletService = HyperLiquidWalletService as MockedClass<
+  typeof HyperLiquidWalletService
+>;
+const MockedHyperLiquidSubscriptionService =
+  HyperLiquidSubscriptionService as MockedClass<
+    typeof HyperLiquidSubscriptionService
+  >;
+const mockValidateOrderParams = validateOrderParams as MockedFunction<
+  typeof validateOrderParams
+>;
+const mockValidateWithdrawalParams = validateWithdrawalParams as MockedFunction<
+  typeof validateWithdrawalParams
+>;
+const mockValidateDepositParams = validateDepositParams as MockedFunction<
+  typeof validateDepositParams
+>;
+const mockValidateCoinExists = validateCoinExists as MockedFunction<
+  typeof validateCoinExists
+>;
+const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
+  typeof validateAssetSupport
+>;
+const mockValidateBalance = validateBalance as MockedFunction<
+  typeof validateBalance
+>;
+
+// Mock factory functions - defined once, reused everywhere
+// These reduce duplication and make tests more maintainable
+const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
+  twapHistory: vi.fn().mockResolvedValue([]),
+  clearinghouseState: vi.fn().mockResolvedValue({
+    marginSummary: {
+      totalMarginUsed: '500',
+      accountValue: '10500',
+    },
+    withdrawable: '9500',
+    assetPositions: [
+      {
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '100',
+          marginUsed: '500',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '45000',
+          maxLeverage: 50,
+          returnOnEquity: '20',
+          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        },
+        type: 'oneWay',
+      },
+      {
+        position: {
+          coin: 'ETH',
+          szi: '1.5',
+          entryPx: '3000',
+          positionValue: '4500',
+          unrealizedPnl: '50',
+          marginUsed: '450',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '2700',
+          maxLeverage: 50,
+          returnOnEquity: '10',
+          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
+        },
+        type: 'oneWay',
+      },
+    ],
+    crossMarginSummary: {
+      accountValue: '10000',
+      totalMarginUsed: '5000',
+    },
+  }),
+  spotClearinghouseState: vi.fn().mockResolvedValue({
+    balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+  }),
+  // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
+  // so tests that predated the gate still see spot folded into spendable/withdrawable.
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
+    universe: [
+      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+    ],
+  }),
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
+    {
+      universe: [
+        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+      ],
+    },
+    [
+      {
+        funding: '0.0001',
+        openInterest: '1000',
+        prevDayPx: '49000',
+        dayNtlVlm: '1000000',
+        markPx: '50000',
+        midPx: '50000',
+        oraclePx: '50000',
+      },
+      {
+        funding: '0.0001',
+        openInterest: '500',
+        prevDayPx: '2900',
+        dayNtlVlm: '500000',
+        markPx: '3000',
+        midPx: '3000',
+        oraclePx: '3000',
+      },
+    ],
+  ]),
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  // editOrder verifies the resting order's placement type before modifying it,
+  // so the account lists the plain limit order the edit tests target.
+  frontendOpenOrders: vi.fn().mockResolvedValue([
+    {
+      coin: 'BTC',
+      side: 'B',
+      limitPx: '50000',
+      sz: '0.1',
+      origSz: '0.1',
+      oid: 123,
+      timestamp: 1_700_000_000_000,
+      isTrigger: false,
+      triggerCondition: 'N/A',
+      triggerPx: '0',
+      children: [],
+      isPositionTpsl: false,
+      reduceOnly: false,
+      orderType: 'Limit',
+    },
+  ]),
+  referral: vi.fn().mockResolvedValue({
+    referrerState: {
+      stage: 'ready',
+      data: { code: 'MMCSI' },
+    },
+  }),
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
+    feeSchedule: {
+      cross: '0.00030',
+      add: '0.00010',
+      spotCross: '0.00040',
+      spotAdd: '0.00020',
+    },
+    dailyUserVlm: [],
+  }),
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
+    {
+      delta: { type: 'deposit', usdc: '100' },
+      time: Date.now(),
+      hash: '0x123abc',
+    },
+    {
+      delta: { type: 'withdraw', usdc: '50' },
+      time: Date.now() - 3600000,
+      hash: '0x456def',
+    },
+  ]),
+  portfolio: vi.fn().mockResolvedValue([
+    null,
+    [
+      null,
+      {
+        accountValueHistory: [
+          [Date.now() - 86400000, '10000'], // 24h ago
+          [Date.now() - 172800000, '9500'], // 48h ago
+          [Date.now() - 259200000, '9000'], // 72h ago
+        ],
+      },
+    ],
+  ]),
+  spotMeta: vi.fn().mockResolvedValue({
+    tokens: [
+      { name: 'USDC', tokenId: '0xdef456', index: 0 },
+      { name: 'USDT', tokenId: '0x789abc', index: 1 },
+    ],
+    universe: [],
+  }),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
+  ...overrides,
+});
+
+const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
+  order: vi.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
+  modify: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: '123' } }] } },
+  }),
+  cancel: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: ['success'] } },
+  }),
+  withdraw3: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  updateLeverage: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  approveBuilderFee: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  setReferrer: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  sendAsset: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  agentSetAbstraction: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  ...overrides,
+});
+
+// Create shared mock platform dependencies for provider tests
+const mockPlatformDependencies: PerpsPlatformDependencies =
+  createMockInfrastructure();
+
+const mockMessenger = createMockMessenger();
+
+/**
+ * Helper to create HyperLiquidProvider with mock platform dependencies
+ * @param options
+ * @param options.isTestnet
+ * @param options.hip3Enabled
+ * @param options.allowlistMarkets
+ * @param options.blocklistMarkets
+ * @param options.useUnifiedAccount
+ */
+const createTestProvider = (
+  options: {
+    isTestnet?: boolean;
+    hip3Enabled?: boolean;
+    allowlistMarkets?: string[];
+    blocklistMarkets?: string[];
+    useUnifiedAccount?: boolean;
+    initialAssetMapping?: [string, number][];
+  } = {},
+): HyperLiquidProvider =>
+  new HyperLiquidProvider({
+    ...options,
+    platformDependencies: mockPlatformDependencies,
+    messenger: mockMessenger,
+  });
+
+// Tests that need the real validation rules share one copy loaded while the
+// file is collected. A vi.importActual inside a test waits on the module
+// loader, which on a busy machine with coverage can outlast the 5 s timeout.
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
+describe('HyperLiquidProvider', () => {
+  let provider: HyperLiquidProvider;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
+
+  beforeEach(() => {
+    // Reset all mocks
+    vi.clearAllMocks();
+    (
+      mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(0));
+    (
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(2));
+    (
+      mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
+    ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
+    (
+      mockPlatformDependencies.featureFlags.validateVersionGated as Mock
+    ).mockReturnValue(undefined);
+    (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
+
+    // Reset TradingReadinessCache mock state (using imported mocked module)
+    const mockedCache = TradingReadinessCache as Mocked<
+      typeof TradingReadinessCache
+    >;
+    mockedCache.get.mockReturnValue(undefined);
+    mockedCache.getBuilderFee.mockReturnValue(undefined);
+    mockedCache.getReferral.mockReturnValue(undefined);
+    mockedCache.isInFlight.mockReturnValue(undefined);
+    mockedCache.setInFlight.mockReturnValue(vi.fn());
+
+    // Initialize mock stream manager instance
+    mockStreamManagerInstance = {
+      clearAllChannels: vi.fn(),
+    };
+
+    // Create mocked service instances using factory functions
+    mockClientService = {
+      initialize: vi.fn(),
+      isInitialized: vi.fn().mockReturnValue(true),
+      isTestnetMode: vi.fn().mockReturnValue(false),
+      ensureInitialized: vi.fn(),
+      getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      toggleTestnet: vi.fn(),
+      setTestnetMode: vi.fn(),
+      getNetwork: vi.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(),
+      setOnReconnectCallback: vi.fn(),
+      setOnTerminateCallback: vi.fn(),
+      getConnectionState: vi.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
+
+    mockWalletService = {
+      setTestnetMode: vi.fn(),
+      getCurrentAccountId: vi
+        .fn()
+        .mockReturnValue(
+          'eip155:42161:0x1234567890123456789012345678901234567890',
+        ),
+      createWalletAdapter: vi.fn().mockReturnValue({
+        request: vi
+          .fn()
+          .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
+      }),
+      getUserAddress: vi
+        .fn()
+        .mockReturnValue('0x1234567890123456789012345678901234567890'),
+      getUserAddressWithDefault: vi
+        .fn()
+        .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+      isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
+
+    mockSubscriptionService = {
+      subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+      subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      clearAll: vi.fn(),
+      isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedPositions: vi.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+      getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
+      // Cache methods used by buildAssetMapping optimization
+      setDexMetaCache: vi.fn(),
+      setDexAssetCtxsCache: vi.fn(),
+      getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
+      // Price cache used by placeOrder, editOrder, closePosition optimizations
+      getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
+        const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
+        return prices[symbol];
+      }),
+      getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
+      // Orders cache used by updatePositionTPSL and getOpenOrders
+      isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedOrders: vi.fn().mockReturnValue([]),
+      // Atomic getter - returns null when cache not initialized (prevents race condition)
+      getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
+      // Abstraction-mode resolved-mode setter (unified account migration)
+      setUserAbstractionMode: vi.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
+
+    // Mock constructors
+    MockedHyperLiquidClientService.mockImplementation(function () {
+      return mockClientService;
+    });
+    MockedHyperLiquidWalletService.mockImplementation(function () {
+      return mockWalletService;
+    });
+    MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+      return mockSubscriptionService;
+    });
+
+    // Mock validation
+    mockValidateOrderParams.mockReturnValue({ isValid: true });
+    mockValidateWithdrawalParams.mockReturnValue({ isValid: true });
+    mockValidateDepositParams.mockReturnValue({ isValid: true });
+    mockValidateCoinExists.mockReturnValue({ isValid: true });
+    mockValidateAssetSupport.mockReturnValue({ isValid: true });
+    mockValidateBalance.mockReturnValue({ isValid: true });
+    const hyperLiquidValidation =
+      hyperLiquidValidationModule as unknown as Record<string, Mock>;
+    hyperLiquidValidation.getSupportedPaths.mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]);
+    hyperLiquidValidation.getBridgeInfo.mockReturnValue({
+      chainId: 'eip155:42161',
+      contractAddress: '0x1234567890123456789012345678901234567890',
+    });
+    hyperLiquidValidation.createErrorResult.mockImplementation(
+      actualValidation.createErrorResult,
+    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
+    hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
+      (updates: unknown[]) => {
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+          return [];
+        }
+        return updates.map(() => ({
+          type: 'deposit' as const,
+          amount: '100',
+          timestamp: Date.now(),
+          hash: '0x123',
+        }));
+      },
+    );
+
+    provider = createTestProvider({
+      initialAssetMapping: [
+        ['BTC', 0],
+        ['ETH', 1],
+      ],
+    });
+  });
+
+  describe('explicit margin mode', () => {
+    const order: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.1',
+      orderType: 'market',
+      currentPrice: 50000,
+      leverage: 5,
+    };
+
+    it.each(['cross', 'isolated', undefined] as const)(
+      'submits %s through updateLeverage',
+      async (marginMode) => {
+        const info = createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.placeOrder({ ...order, marginMode });
+
+        expect(result).toMatchObject({ success: true });
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).toHaveBeenCalledWith({
+          asset: 0,
+          isCross: marginMode === 'cross',
+          leverage: 5,
+        });
+      },
+    );
+
+    it('rejects an invalid runtime mode before signing', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'invalid' as OrderParams['marginMode'],
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, 0, 1.5])(
+      'rejects explicit mode with leverage %s',
+      async (leverage) => {
+        const result = await provider.validateOrder({
+          ...order,
+          marginMode: 'cross',
+          leverage,
+        });
+
+        expect(result).toEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
+      },
+    );
+
+    it.each([
+      { onlyIsolated: true },
+      { marginMode: 'strictIsolated' },
+      { marginMode: 'noCross' },
+    ] satisfies Partial<MetaResponse['universe'][number]>[])(
+      'rejects unsupported Cross capability %j',
+      async (capability) => {
+        const info = createMockInfoClient({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 50,
+                marginTableId: 1,
+                ...capability,
+              } satisfies MetaResponse['universe'][number],
+            ],
+          }),
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.placeOrder({
+          ...order,
+          marginMode: 'cross',
+        });
+
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        );
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('validates Cross on a main-DEX market with explicit normal margin mode', async () => {
+      const info = createMockInfoClient({
+        meta: vi.fn().mockResolvedValue({
+          universe: [
+            {
+              name: 'BTC',
+              szDecimals: 3,
+              maxLeverage: 50,
+              marginTableId: 1,
+              marginMode: 'normal',
+            },
+          ],
+        }),
+      });
+      mockClientService.getInfoClient.mockReturnValue(info as never);
+
+      const result = await provider.validateOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result).toEqual({ isValid: true });
+    });
+
+    it.each([
+      ['normal', { marginMode: 'normal' }, { isValid: true }],
+      ['unrestricted', {}, { isValid: true }],
+      [
+        'noCross',
+        { marginMode: 'noCross' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+      [
+        'strictIsolated',
+        { marginMode: 'strictIsolated' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+    ])(
+      'validates Cross on a %s HIP-3 market from its venue margin mode',
+      async (_, capability, expected) => {
+        const info = createMockInfoClient({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:XYZ100',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 1,
+                ...capability,
+              },
+            ],
+          }),
+        });
+        mockClientService.getInfoClient.mockReturnValue(info as never);
+
+        const result = await provider.validateOrder({
+          ...order,
+          symbol: 'xyz:XYZ100',
+          marginMode: 'cross',
+        });
+
+        expect(result).toEqual(expected);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a mode change with an open position', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('allows an order in the existing position mode', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 5 });
+    });
+
+    it('fails closed when fresh positions cannot be read', async () => {
+      const info = createMockInfoClient({
+        clearinghouseState: vi.fn().mockRejectedValue(new Error('offline')),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each(['cross', 'isolated'])(
+      'checks %s mode for a resting order',
+      async (existingMode) => {
+        const activeAssetData = vi
+          .fn()
+          .mockResolvedValue({ leverage: { type: existingMode, value: 5 } });
+        const info = createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'BTC' }]),
+          activeAssetData,
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.validateOrder({
+          ...order,
+          marginMode: 'cross',
+        });
+
+        expect(result.isValid).toBe(existingMode === 'cross');
+        if (existingMode === 'isolated')
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+          );
+        expect(activeAssetData).toHaveBeenCalled();
+      },
+    );
+
+    it('fails closed when the resting-order asset mode cannot be read', async () => {
+      const activeAssetData = vi
+        .fn()
+        .mockRejectedValue(new Error('asset mode offline'));
+      const info = createMockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(false);
+      expect(activeAssetData).toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rechecks the venue book at placement after a successful preview', async () => {
+      const clearinghouseState = vi
+        .fn()
+        .mockResolvedValue({ assetPositions: [] });
+      const info = createMockInfoClient({
+        clearinghouseState,
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+      const preview = await provider.validateOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+      expect(preview.isValid).toBe(true);
+      clearinghouseState.mockResolvedValue(
+        await createMockInfoClient().clearinghouseState(),
+      );
+
+      const placed = await provider.placeOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+
+      expect(placed.error).toBe(
+        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when fresh orders cannot be read', async () => {
+      const info = createMockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi
+          .fn()
+          .mockRejectedValue(new Error('orders offline')),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('omitted margin mode', () => {
+    // Mirrors TradingService.flipPosition, which sends leverage without a mode.
+    const order: OrderParams = {
+      symbol: 'BTC',
+      isBuy: false,
+      size: '0.2',
+      orderType: 'market',
+      currentPrice: 50000,
+      leverage: 10,
+    };
+
+    const mockInfoClient = (overrides: Record<string, unknown>): void => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient(overrides) as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+    };
+
+    it.each(['cross', 'isolated'] as const)(
+      'keeps the open %s position mode when updating leverage',
+      async (positionMode) => {
+        mockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '0',
+                  marginUsed: '500',
+                  leverage: { type: positionMode, value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '0',
+                  cumFunding: {
+                    allTime: '0',
+                    sinceOpen: '0',
+                    sinceChange: '0',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+        });
+
+        const result = await provider.placeOrder(order);
+
+        expect(result.success).toBe(true);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).toHaveBeenCalledWith({
+          asset: 0,
+          isCross: positionMode === 'cross',
+          leverage: 10,
+        });
+      },
+    );
+
+    it('reads the open position mode from fresh cached positions', async () => {
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ leverage: { type: 'cross', value: 10 } }),
+      ]);
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockSubscriptionService.getCachedPositionsForDex,
+      ).toHaveBeenCalledWith(
+        '',
+        await mockWalletService.getUserAddressWithDefault(),
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 10 });
+    });
+
+    it('defaults to isolated without an open position in the market', async () => {
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        createMockPosition({ symbol: 'ETH' }),
+      ]);
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+      });
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
+    });
+
+    it('defaults to isolated when positions cannot be read', async () => {
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockRejectedValue(new Error('offline')),
+      });
+
+      await provider.placeOrder(order);
+
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: false, leverage: 10 });
+    });
+  });
+
+  describe('getMarginModeLock', () => {
+    const mockInfoClient = (overrides: Record<string, unknown>): void => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient(overrides) as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+    };
+
+    it('reports the mode of an open position', async () => {
+      const activeAssetData = vi.fn();
+      mockInfoClient({ activeAssetData });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'cross',
+        reason: 'position',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports the asset mode of a resting order', async () => {
+      const activeAssetData = vi
+        .fn()
+        .mockResolvedValue({ leverage: { type: 'cross', value: 5 } });
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'cross',
+        reason: 'open_order',
+      });
+      expect(activeAssetData).toHaveBeenCalledWith(
+        expect.objectContaining({ coin: 'BTC' }),
+      );
+    });
+
+    it('reports the asset mode of an active TWAP with no resting order', async () => {
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        twapHistory: vi.fn().mockResolvedValue([
+          {
+            time: 1_700_000_030,
+            twapId: 987,
+            state: { coin: 'BTC' },
+            status: { status: 'activated' },
+          },
+        ]),
+        activeAssetData: vi
+          .fn()
+          .mockResolvedValue({ leverage: { type: 'isolated', value: 5 } }),
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'locked',
+        providerId: 'hyperliquid',
+        marginMode: 'isolated',
+        reason: 'open_order',
+      });
+    });
+
+    it('reports unlocked when nothing is open for the asset', async () => {
+      const activeAssetData = vi.fn();
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'ETH' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unlocked',
+        providerId: 'hyperliquid',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports unavailable when the selected account changes mid-read', async () => {
+      mockWalletService.getUserAddressWithDefault
+        .mockResolvedValueOnce('0x1234567890123456789012345678901234567890')
+        .mockResolvedValueOnce('0x1234567890123456789012345678901234567890')
+        .mockResolvedValue('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      const activeAssetData = vi.fn();
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('reports unavailable when the selected account changes while the asset mode is read', async () => {
+      let resolveAssetData: (value: unknown) => void = () => undefined;
+      const activeAssetData = vi.fn().mockReturnValue(
+        new Promise((resolve) => {
+          resolveAssetData = resolve;
+        }),
+      );
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+
+      const pendingLock = provider.getMarginModeLock({ symbol: 'BTC' });
+      await new Promise(process.nextTick);
+      await new Promise(process.nextTick);
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      resolveAssetData({ leverage: { type: 'cross', value: 5 } });
+      const lock = await pendingLock;
+
+      expect(activeAssetData).toHaveBeenCalled();
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('reports unavailable when positions cannot be read', async () => {
+      mockInfoClient({
+        clearinghouseState: vi.fn().mockRejectedValue(new Error('offline')),
+      });
+
+      const lock = await provider.getMarginModeLock({ symbol: 'BTC' });
+
+      expect(lock).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+  });
+
+  describe('Advanced order placement', () => {
+    const TPSL_SLIPPAGE = ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps / 10000;
+
+    /**
+     * Reads the orders payload submitted to the exchange client.
+     *
+     * @returns The submitted `order` request.
+     */
+    const getSubmittedOrderRequest = () =>
+      (mockClientService.getExchangeClient().order as Mock).mock.calls[0][0];
+
+    it('rejects an attached TP/SL size that rounds to zero before changing leverage', async () => {
+      // The leverage change is on-chain and not undone by a later rejection, so
+      // a size that disappears at szDecimals: 3 has to be caught before it.
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        leverage: 5,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a trigger price that rounds to zero before changing leverage', async () => {
+      // The SDK would reject triggerPx: '0' anyway, but only after the leverage
+      // change has already been written on-chain.
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '0.0004',
+        currentPrice: 50000,
+        leverage: 5,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('places a stop market order as a market-on-trigger stop', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      };
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.grouping).toBe('na');
+      expect(request.orders).toHaveLength(1);
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: true, triggerPx: '45000', tpsl: 'sl' },
+      });
+      // Market-on-trigger sells accept up to the TP/SL slippage below the trigger
+      expect(parseFloat(request.orders[0].p)).toBeCloseTo(
+        45000 * (1 - TPSL_SLIPPAGE),
+        0,
+      );
+    });
+
+    it('places a stop limit order at the requested limit price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: false, triggerPx: '45000', tpsl: 'sl' },
+      });
+      expect(request.orders[0].p).toBe('44500');
+    });
+
+    it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+    ] as const)(
+      'submits %s time in force to the exchange for a limit order',
+      async (timeInForce, tif) => {
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'limit',
+          price: '49000',
+          timeInForce,
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(true);
+        expect(getSubmittedOrderRequest().orders[0].t).toStrictEqual({
+          limit: { tif },
+        });
+      },
+    );
+
+    it.each([
+      [
+        'market',
+        {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market' as const,
+        },
+      ],
+      [
+        'stop_limit',
+        {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'stop_limit' as const,
+          price: '44500',
+          triggerPrice: '45000',
+        },
+      ],
+    ])(
+      'rejects time in force on a %s order before any on-chain side effect',
+      async (_label, orderParams) => {
+        // Real validation, so the rejection happens at step 1 of placeOrder
+        // rather than while the exchange payload is being built.
+        mockValidateOrderParams.mockImplementation(
+          actualValidation.validateOrderParams,
+        );
+
+        const result = await provider.placeOrder({
+          ...orderParams,
+          // Leverage is what makes the ordering matter: #prepareAssetForTrading
+          // sends updateLeverage on-chain, and there is no rollback for it.
+          leverage: 10,
+          timeInForce: 'IOC',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+        );
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects time in force on a trigger order', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        timeInForce: 'ALO',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('places a take profit market order as a market-on-trigger take profit', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'take_profit_market',
+        triggerPrice: '60000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: true, triggerPx: '60000', tpsl: 'tp' },
+      });
+    });
+
+    it('places a take profit limit order at the requested limit price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'take_profit_limit',
+        price: '60000',
+        triggerPrice: '59500',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.orders[0].t).toStrictEqual({
+        trigger: { isMarket: false, triggerPx: '59500', tpsl: 'tp' },
+      });
+      expect(request.orders[0].p).toBe('60000');
+    });
+
+    it('submits reduce-only as a first-class placement flag', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        reduceOnly: true,
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrderRequest().orders[0].r).toBe(true);
+    });
+
+    it('defaults reduce-only to false when not requested', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '55000',
+        currentPrice: 50000,
+      });
+
+      expect(getSubmittedOrderRequest().orders[0].r).toBe(false);
+    });
+
+    it('scopes attached TP/SL children to their partial sizes', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        stopLossPrice: '45000',
+        stopLossSize: '0.06',
+      });
+
+      expect(result.success).toBe(true);
+      const request = getSubmittedOrderRequest();
+      expect(request.grouping).toBe('normalTpsl');
+      expect(request.orders).toHaveLength(3);
+      // Main order keeps the full size; children carry the partial sizes
+      expect(request.orders[0].s).toBe('0.1');
+      expect(request.orders[1].s).toBe('0.04');
+      expect(request.orders[1].t.trigger.tpsl).toBe('tp');
+      expect(request.orders[2].s).toBe('0.06');
+      expect(request.orders[2].t.trigger.tpsl).toBe('sl');
+      // Partial TP/SL children always reduce the position
+      expect(request.orders[1].r).toBe(true);
+      expect(request.orders[2].r).toBe(true);
+    });
+
+    it('maps the provider-agnostic TP/SL linkage onto the exchange grouping', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        tpslLinkage: 'position',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
+    it('lets the linkage win over the deprecated grouping spelling', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        tpslLinkage: 'position',
+        // Deprecated spelling of the same option; validation rejects a genuine
+        // disagreement, so this only proves which field the mapping reads.
+        grouping: 'positionTpsl',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
+    it('still honours the deprecated grouping when no linkage is given', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+        takeProfitPrice: '60000',
+        grouping: 'positionTpsl',
+      });
+
+      expect(getSubmittedOrderRequest().grouping).toBe('positionTpsl');
+    });
+
+    it('returns a typed error when a trigger placement has no trigger price', async () => {
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns a typed error when a trigger placement fails validation', async () => {
+      mockValidateOrderParams.mockReturnValue({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_NOT_SUPPORTED,
+      );
+    });
+
+    it('forwards the new placement fields to validation', async () => {
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_limit',
+        price: '44500',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      expect(mockValidateOrderParams).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderType: 'stop_limit',
+          triggerPrice: '45000',
+          price: '44500',
+        }),
+      );
+    });
+
+    it('cancels a placed trigger order', async () => {
+      const placed = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.1',
+        orderType: 'stop_market',
+        triggerPrice: '45000',
+        currentPrice: 50000,
+      });
+
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId as string,
+        symbol: 'BTC',
+      });
+
+      expect(cancelled.success).toBe(true);
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 123 }],
+        },
+      );
+    });
+
+    it.each([
+      ['GTC', 'Gtc'],
+      ['IOC', 'Ioc'],
+      ['ALO', 'Alo'],
+    ] as const)(
+      'honours %s time in force when editing a limit order',
+      async (timeInForce, tif) => {
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'limit',
+            price: '49000',
+            timeInForce,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        const modifyCall = (
+          mockClientService.getExchangeClient().modify as Mock
+        ).mock.calls[0][0];
+        expect(modifyCall.order.t).toStrictEqual({ limit: { tif } });
+      },
+    );
+
+    // A venue `modify` REPLACES the resting order: the old oid is cancelled and
+    // the replacement rests under a new one, which the SDK modify response does
+    // not carry. Reporting the old oid back as OrderResult.orderId therefore
+    // names an order that no longer exists. These pin the contract: resolve the
+    // replacement from authoritative post-modify data when it is unambiguous,
+    // and otherwise omit the id rather than fabricate identity.
+    describe('replacement order id', () => {
+      const restingOrder = (overrides: Record<string, unknown> = {}) => ({
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '50000',
+        sz: '0.1',
+        origSz: '0.1',
+        oid: 123,
+        timestamp: 1_700_000_000_000,
+        isTrigger: false,
+        triggerCondition: 'N/A',
+        triggerPx: '0',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: false,
+        orderType: 'Limit',
+        ...overrides,
+      });
+
+      /**
+       * Point frontendOpenOrders at a pre-modify then post-modify snapshot.
+       *
+       * @param before - Orders resting before the edit.
+       * @param after - Orders resting after the edit.
+       * @returns The frontendOpenOrders mock.
+       */
+      const withSnapshots = (before: unknown[], after: unknown[]) => {
+        const frontendOpenOrders = vi
+          .fn()
+          .mockResolvedValueOnce(before)
+          .mockResolvedValue(after);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ frontendOpenOrders }) as never,
+        );
+        return frontendOpenOrders;
+      };
+
+      const edit = async () =>
+        provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'limit',
+            price: '49000',
+          },
+        });
+
+      it('reports the replacement order id, never the one that was replaced', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [restingOrder({ oid: 456, limitPx: '49000' })],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBe('456');
+        expect(result.orderId).not.toBe('123');
+      });
+
+      it('omits the order id when the edit filled instead of resting', async () => {
+        // A market edit leaves nothing to resolve. Success is still true — the
+        // modify was accepted — but there is no resting order to name.
+        withSnapshots([restingOrder()], []);
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('omits the order id when the replacement is not yet visible', async () => {
+        // Eventual consistency: the post-modify read still shows the old order.
+        // Guessing here would report an id the venue has already cancelled.
+        withSnapshots([restingOrder()], [restingOrder()]);
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('omits the order id when more than one new order could be the replacement', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [
+            restingOrder({ oid: 456, limitPx: '49000' }),
+            restingOrder({ oid: 457, limitPx: '49000' }),
+          ],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('does not mistake an order that was already resting for the replacement', async () => {
+        // The lookalike shares coin, side and size, so attributes alone would
+        // match it. It existed before the edit, so it cannot be the replacement.
+        withSnapshots(
+          [restingOrder(), restingOrder({ oid: 789 })],
+          [restingOrder({ oid: 789 })],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('does not mistake a different market or side for the replacement', async () => {
+        withSnapshots(
+          [restingOrder()],
+          [
+            restingOrder({ oid: 456, coin: 'ETH' }),
+            restingOrder({ oid: 457, side: 'A' }),
+          ],
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+
+      it('keeps the edit successful when the pre-edit baseline read fails', async () => {
+        // The cache already confirmed the order is safe to edit, so the baseline
+        // is wanted only to judge novelty afterwards. Losing it must not sink a
+        // modify that would otherwise succeed — the same soft failure the
+        // post-modify lookup already has.
+        mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+          {
+            orderId: '123',
+            symbol: 'BTC',
+            side: 'buy',
+            orderType: 'limit',
+            size: '0.1',
+            originalSize: '0.1',
+            price: '50000',
+            filledSize: '0',
+            remainingSize: '0.1',
+            status: 'open',
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            reduceOnly: false,
+          },
+        ] as never);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            frontendOpenOrders: vi
+              .fn()
+              .mockRejectedValue(new Error('network down')),
+          }) as never,
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+        expect(mockClientService.getExchangeClient().modify).toHaveBeenCalled();
+      });
+
+      it('keeps the edit successful when the post-modify read fails', async () => {
+        // The modify was accepted; only the identity lookup failed. Turning that
+        // into a failed edit would misreport an order that really was changed.
+        const frontendOpenOrders = vi
+          .fn()
+          .mockResolvedValueOnce([restingOrder()])
+          .mockRejectedValue(new Error('network down'));
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ frontendOpenOrders }) as never,
+        );
+
+        const result = await edit();
+
+        expect(result.success).toBe(true);
+        expect(result.orderId).toBeUndefined();
+      });
+    });
+
+    it('refuses an unverifiable edit before any trading setup runs', async () => {
+      // The cold-cache path fails closed, but the refusal is only free if it
+      // happens BEFORE ensureReadyForTrading: that prompts for signatures and
+      // writes builder-fee and referral approvals. Rejecting afterwards makes
+      // the caller pay for an edit that was never going to happen — the same
+      // ordering placeOrder and updatePositionTPSL already observe.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        }) as never,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'limit',
+          price: '49000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+      );
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().setReferrer,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects editing a resting trigger order into a plain one', async () => {
+      // The dangerous direction: `modify` would rebuild the protective stop as
+      // an immediately-resting limit order and report success.
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        {
+          orderId: '123',
+          symbol: 'BTC',
+          side: 'sell',
+          orderType: 'market',
+          size: '0.1',
+          originalSize: '0.1',
+          price: '40500',
+          filledSize: '0',
+          remainingSize: '0.1',
+          status: 'open',
+          timestamp: 1_700_000_000_000,
+          isTrigger: true,
+          triggerOrderType: 'stop_market',
+          triggerPrice: '44000',
+          reduceOnly: true,
+        },
+      ] as never);
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects editing a resting trigger order the cold cache cannot see', async () => {
+      // Cache is cold, so the placement type comes from REST instead. Without
+      // that lookup the edit would rebuild the protective stop as a plain order.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0.1',
+              origSz: '0.1',
+              oid: 123,
+              timestamp: 1_700_000_000_000,
+              isTrigger: true,
+              triggerCondition: 'Price below 44000',
+              triggerPx: '44000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects an edit when the resting order cannot be verified at all', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'limit',
+          price: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects editing a resting order into a trigger placement', async () => {
+      const result = await provider.editOrder({
+        orderId: '123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'stop_limit',
+          price: '44500',
+          triggerPrice: '45000',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+      );
+      expect(
+        mockClientService.getExchangeClient().modify,
+      ).not.toHaveBeenCalled();
+    });
+
+    // Regression coverage for the editOrder half of TAT-3252. The submitted
+    // size is formatted with formatHyperLiquidSize, which rounds half-up, so a
+    // reduce-only edit could be sent above the size the caller asked to keep —
+    // the same "Reduce only order would increase position" rejection the close
+    // and TP/SL paths were hardened against.
+    describe('reduce-only size formatting', () => {
+      /**
+       * Read the size submitted to the venue's modify action.
+       * @returns The formatted size string.
+       */
+      const getModifiedSize = () =>
+        (mockClientService.getExchangeClient().modify as Mock).mock.calls[0][0]
+          .order.s;
+
+      it('rounds a reduce-only edit size down to the size grid', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // one increment above the position the edit is meant to reduce.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.115');
+      });
+
+      it('leaves a non-reduce-only edit size on its existing rounding', async () => {
+        // An opening order has no position ceiling to breach, so rounding it
+        // down would shrink an order the caller asked for.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '49000',
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.116');
+      });
+
+      it('refuses a reduce-only edit smaller than one size increment', async () => {
+        // Flooring 0.0004 at szDecimals 3 yields 0, and a zero-size modify is
+        // rejected by the venue rather than being a no-op.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.0004',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('refuses a non-numeric edit size', async () => {
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: 'abc',
+            orderType: 'limit',
+            price: '51000',
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps a grid-aligned reduce-only edit size intact', async () => {
+        // 0.123 * 1000 === 122.99999999999999, so a naive truncation would
+        // drop a whole increment.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.123',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.123');
+      });
+    });
+  });
+
+  describe('Advanced orders in open-orders state', () => {
+    it('exposes trigger data for open stop and take profit orders', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 501,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price below 45000',
+              isTrigger: true,
+              triggerPx: '45000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.06',
+              origSz: '0.06',
+              oid: 502,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const orders = await provider.getOpenOrders({ skipCache: true });
+
+      const stopOrder = orders.find((order) => order.orderId === '501');
+      expect(stopOrder).toMatchObject({
+        symbol: 'BTC',
+        side: 'sell',
+        triggerOrderType: 'stop_market',
+        triggerPrice: '45000',
+        reduceOnly: true,
+        isTrigger: true,
+        size: '0.04',
+      });
+
+      const takeProfitOrder = orders.find((order) => order.orderId === '502');
+      expect(takeProfitOrder).toMatchObject({
+        triggerOrderType: 'take_profit_limit',
+        triggerPrice: '60000',
+        reduceOnly: true,
+        size: '0.06',
+      });
+    });
+
+    it('reports partial and full trigger orders on the position', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 601,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '40500',
+              sz: '0',
+              origSz: '0',
+              oid: 602,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price below 45000',
+              isTrigger: true,
+              triggerPx: '45000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Stop Market',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([
+        {
+          orderId: '601',
+          direction: 'take_profit',
+          orderType: 'take_profit_limit',
+          triggerPrice: '60000',
+          size: '0.04',
+          isPartial: true,
+          reduceOnly: true,
+        },
+      ]);
+      expect(position?.stopLossOrders).toStrictEqual([
+        {
+          orderId: '602',
+          direction: 'stop',
+          orderType: 'stop_market',
+          triggerPrice: '45000',
+          // Position-bound stop (size 0) resolves to the whole position
+          size: '0.1',
+          isPartial: false,
+          reduceOnly: true,
+        },
+      ]);
+      expect(position?.takeProfitCount).toBe(1);
+      expect(position?.stopLossCount).toBe(1);
+    });
+
+    it('excludes a pending order TP/SL child and never double-counts it', async () => {
+      // HyperLiquid lists a normalTpsl child both nested under its parent and as
+      // a top-level entry. It protects the pending order, not the position.
+      const takeProfitChild = {
+        coin: 'BTC',
+        side: 'A',
+        limitPx: '60000',
+        sz: '0.05',
+        origSz: '0.05',
+        oid: 802,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: 'Price above 60000',
+        isTrigger: true,
+        triggerPx: '60000',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      };
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              // Pending entry order carrying the TP child
+              coin: 'BTC',
+              side: 'B',
+              limitPx: '40000',
+              sz: '0.05',
+              origSz: '0.05',
+              oid: 801,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'N/A',
+              isTrigger: false,
+              triggerPx: '',
+              children: [takeProfitChild],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+            takeProfitChild,
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([]);
+      expect(position?.stopLossOrders).toStrictEqual([]);
+      expect(position?.takeProfitCount).toBe(0);
+      expect(position?.stopLossCount).toBe(0);
+    });
+
+    it('includes standalone partial triggers that are not position-bound', async () => {
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 701,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              // Partial TP/SL is placed with 'na' grouping, so it is a
+              // standalone reduce-only trigger rather than position-bound.
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      expect(position?.takeProfitOrders).toStrictEqual([
+        {
+          orderId: '701',
+          direction: 'take_profit',
+          orderType: 'take_profit_limit',
+          triggerPrice: '60000',
+          size: '0.04',
+          isPartial: true,
+          reduceOnly: true,
+        },
+      ]);
+      // A lone trigger is the position's take profit whether or not it is
+      // position-bound, so the scalar summary field reports its price.
+      expect(position?.takeProfitPrice).toBe('60000');
+      expect(position?.takeProfitCount).toBe(1);
+    });
+
+    it('leaves the summary price unset when two partial take profits share the position', async () => {
+      const partialTakeProfit = (oid: number, triggerPx: string) => ({
+        coin: 'BTC',
+        side: 'A',
+        limitPx: triggerPx,
+        sz: '0.04',
+        origSz: '0.04',
+        oid,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: `Price above ${triggerPx}`,
+        isTrigger: true,
+        triggerPx,
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      });
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: vi
+            .fn()
+            .mockResolvedValue([
+              partialTakeProfit(701, '60000'),
+              partialTakeProfit(702, '62000'),
+            ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      // No single price describes two triggers; the count is what a client shows.
+      expect(position?.takeProfitCount).toBe(2);
+      expect(position?.takeProfitPrice).toBeUndefined();
+    });
+  });
+
+  describe('replacePositionTPSLLeg', () => {
+    type Leg = 'tp' | 'sl';
+    const TP_OID = 701;
+    const SL_OID = 702;
+    const oidFor = (leg: Leg): number => (leg === 'tp' ? TP_OID : SL_OID);
+    const siblingOf = (leg: Leg): Leg => (leg === 'tp' ? 'sl' : 'tp');
+    const triggerFor = (leg: Leg): string => (leg === 'tp' ? '60000' : '45000');
+    const limitFor = (leg: Leg): string => (leg === 'tp' ? '59900' : '44900');
+
+    // Position-bound trigger as the exchange lists it (whole position, size 0)
+    const rawPositionTrigger = (leg: Leg) => ({
+      coin: 'BTC',
+      side: 'A',
+      limitPx: triggerFor(leg),
+      sz: '0.0',
+      origSz: '0.0',
+      oid: oidFor(leg),
+      timestamp: 1_700_000_000_000,
+      triggerCondition: `Price ${leg === 'tp' ? 'above' : 'below'} ${triggerFor(leg)}`,
+      isTrigger: true,
+      triggerPx: triggerFor(leg),
+      children: [],
+      isPositionTpsl: true,
+      reduceOnly: true,
+      orderType: leg === 'tp' ? 'Take Profit Market' : 'Stop Market',
+    });
+
+    const setOpenOrders = (orders: unknown[]): void => {
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockResolvedValue(orders);
+    };
+    beforeEach(() => {
+      // Answer every cancel in a batch, so multi-order cancels complete.
+      (mockClientService.getExchangeClient().cancel as Mock).mockImplementation(
+        (request: { cancels: unknown[] }) =>
+          Promise.resolve({
+            status: 'ok',
+            response: {
+              data: { statuses: request.cancels.map(() => 'success') },
+            },
+          }),
+      );
+    });
+
+    const cancelledOrderIds = (): number[] =>
+      vi
+        .mocked(mockClientService.getExchangeClient().cancel)
+        .mock.calls.flatMap(([request]) =>
+          request.cancels.map((cancel) => Number(cancel.o)),
+        );
+
+    const presences = [
+      'both legs',
+      'only this leg',
+      'only the sibling',
+    ] as const;
+    const cases = (['tp', 'sl'] as const).flatMap((leg) =>
+      presences.flatMap((presence) =>
+        (['market', 'limit'] as const).map(
+          (execution) => [leg, presence, execution] as const,
+        ),
+      ),
+    );
+
+    it.each(cases)(
+      'replaces the %s leg with %s present as a position-bound %s trigger',
+      async (leg, presence, execution) => {
+        const sibling = siblingOf(leg);
+        setOpenOrders([
+          ...(presence === 'only the sibling' ? [] : [rawPositionTrigger(leg)]),
+          ...(presence === 'only this leg'
+            ? []
+            : [rawPositionTrigger(sibling)]),
+        ]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg,
+          triggerPrice: leg === 'tp' ? '61000' : '44000',
+          ...(execution === 'limit' && { limitPrice: limitFor(leg) }),
+        });
+
+        expect(result.success).toBe(true);
+        // Only this leg's own order is cancelled; the sibling is never touched.
+        expect(cancelledOrderIds()).toStrictEqual(
+          presence === 'only the sibling' ? [] : [oidFor(leg)],
+        );
+        expect(cancelledOrderIds()).not.toContain(oidFor(sibling));
+
+        const placements = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls;
+        expect(placements).toHaveLength(1);
+        const [request] = placements[0];
+        expect(request.grouping).toBe('positionTpsl');
+        expect(request.orders).toHaveLength(1);
+        const [placed] = request.orders;
+        const trigger = leg === 'tp' ? '61000' : '44000';
+        expect(placed).toMatchObject({
+          a: 0,
+          b: false,
+          s: '0',
+          r: true,
+          // A market leg is capped 10% below its trigger: the long closes by selling.
+          p:
+            execution === 'limit'
+              ? limitFor(leg)
+              : { tp: '54900', sl: '39600' }[leg],
+          t: {
+            trigger: {
+              isMarket: execution === 'market',
+              triggerPx: trigger,
+              tpsl: leg,
+            },
+          },
+        });
+      },
+    );
+
+    it.each([
+      ['long', '0.1', 'sl', '44000', undefined, '39600'],
+      ['long', '0.1', 'tp', '61000', 300, '59170'],
+      ['short', '-0.1', 'sl', '61000', 300, '62830'],
+      ['short', '-0.1', 'tp', '44000', undefined, '48400'],
+    ] as const)(
+      'caps a %s %s-size market %s leg at its trigger %s with slippage %s',
+      async (_side, szi, leg, triggerPrice, maxSlippageBps, cappedPrice) => {
+        const info = mockClientService.getInfoClient();
+        const { assetPositions } =
+          await createMockInfoClient().clearinghouseState();
+        (info.clearinghouseState as Mock).mockResolvedValue({
+          ...(await createMockInfoClient().clearinghouseState()),
+          assetPositions: assetPositions.map(
+            (entry: { position: { coin: string } }) =>
+              entry.position.coin === 'BTC'
+                ? { ...entry, position: { ...entry.position, szi } }
+                : entry,
+          ),
+        });
+        setOpenOrders([rawPositionTrigger(leg)]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg,
+          triggerPrice,
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        expect(request.orders[0]).toMatchObject({
+          b: szi.startsWith('-'),
+          p: cappedPrice,
+          t: {
+            trigger: { isMarket: true, triggerPx: triggerPrice, tpsl: leg },
+          },
+        });
+      },
+    );
+
+    it('replaces only this side from the warm order cache', async () => {
+      const cachedTrigger = (leg: Leg): Order => ({
+        orderId: String(oidFor(leg)),
+        symbol: 'BTC',
+        side: 'sell',
+        orderType: 'market',
+        size: '0',
+        originalSize: '0',
+        price: triggerFor(leg),
+        filledSize: '0',
+        remainingSize: '0',
+        status: 'open',
+        timestamp: 1_700_000_000_000,
+        detailedOrderType: leg === 'tp' ? 'Take Profit Market' : 'Stop Market',
+        isTrigger: true,
+        reduceOnly: true,
+        isPositionTpsl: true,
+        triggerPrice: triggerFor(leg),
+        triggerOrderType: leg === 'tp' ? 'take_profit_market' : 'stop_market',
+      });
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        cachedTrigger('tp'),
+        cachedTrigger('sl'),
+      ]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getInfoClient().frontendOpenOrders,
+      ).not.toHaveBeenCalled();
+      expect(cancelledOrderIds()).toStrictEqual([SL_OID]);
+    });
+
+    it('also cancels a standalone trigger on the same side, but no other order child', async () => {
+      const standaloneTakeProfit = {
+        ...rawPositionTrigger('tp'),
+        oid: 801,
+        sz: '0.04',
+        origSz: '0.04',
+        isPositionTpsl: false,
+      };
+      const pendingOrderChild = {
+        ...rawPositionTrigger('tp'),
+        oid: 902,
+        sz: '0.05',
+        origSz: '0.05',
+        isPositionTpsl: false,
+      };
+      setOpenOrders([
+        rawPositionTrigger('tp'),
+        rawPositionTrigger('sl'),
+        standaloneTakeProfit,
+        {
+          coin: 'BTC',
+          side: 'B',
+          limitPx: '40000',
+          sz: '0.05',
+          origSz: '0.05',
+          oid: 903,
+          timestamp: 1_700_000_000_000,
+          triggerCondition: 'N/A',
+          isTrigger: false,
+          triggerPx: '',
+          children: [pendingOrderChild],
+          isPositionTpsl: false,
+          reduceOnly: false,
+          orderType: 'Limit',
+        },
+        pendingOrderChild,
+      ]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, 801]);
+    });
+
+    it('restores only its own leg when the new leg is rejected', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      const order = mockClientService.getExchangeClient().order as Mock;
+      order
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: { statuses: [{ error: 'Rejected take profit' }] },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: { statuses: [{ resting: { oid: 703 } }] },
+          },
+        });
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID]);
+      expect(order).toHaveBeenCalledTimes(2);
+      const [restoreRequest] = order.mock.calls[1];
+      expect(restoreRequest).toMatchObject({
+        grouping: 'positionTpsl',
+        orders: [{ t: { trigger: { triggerPx: '60000', tpsl: 'tp' } } }],
+      });
+      expect(restoreRequest.orders).toHaveLength(1);
+    });
+
+    it.each([
+      ['an empty trigger price', { triggerPrice: '' }],
+      ['a zero trigger price', { triggerPrice: '0' }],
+    ])(
+      'refuses %s instead of clearing the leg',
+      async (_label, { triggerPrice }) => {
+        setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+        });
+        expect(
+          mockClientService.getExchangeClient().cancel,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a non-positive limit price before touching the venue', async () => {
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '-1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      });
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a limit price below the price tick before the cancel', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '0.0000001',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown leg', async () => {
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        // @ts-expect-error: runtime callers can send a leg outside the type
+        leg: 'both',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps updatePositionTPSL sweeping both legs', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, SL_OID]);
+      const [request] = (mockClientService.getExchangeClient().order as Mock)
+        .mock.calls[0];
+      expect(request.orders).toHaveLength(1);
+      expect(request.orders[0].t.trigger.isMarket).toBe(false);
+    });
+
+    it('attributes a thrown leg-replace failure to replacePositionTPSLLeg in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'replacePositionTPSLLeg' }),
+          }),
+        }),
+      );
+    });
+
+    it('attributes a thrown whole-position failure to updatePositionTPSL in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'updatePositionTPSL' }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updatePositionTPSL with partial sizes', () => {
+    const position = {
+      symbol: 'BTC',
+      size: '0.1',
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '500',
+      leverage: { type: 'cross' as const, value: 10 },
+      liquidationPrice: '45000',
+      maxLeverage: 50,
+      returnOnEquity: '20',
+      cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    };
+
+    it.each([undefined, 'independent'] as const)(
+      'places partial TP/SL as standalone reduce-only triggers linkage=%s',
+      async (partialPairLinkage) => {
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          partialPairLinkage,
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          stopLossSize: '0.06',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        // A quantity cannot be expressed under positionTpsl grouping
+        expect(request.grouping).toBe('na');
+        expect(request.orders).toHaveLength(2);
+        expect(request.orders[0].s).toBe('0.04');
+        expect(request.orders[0].r).toBe(true);
+        expect(request.orders[1].s).toBe('0.06');
+        expect(request.orders[1].r).toBe(true);
+      },
+    );
+
+    it('rejects an explicit native OCO linkage before trading setup', async () => {
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        stopLossPrice: '45000',
+        takeProfitSize: '0.04',
+        stopLossSize: '0.04',
+        partialPairLinkage: 'equal-quantity-oco',
+      });
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps whole-position TP/SL on positionTpsl grouping with size 0', async () => {
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      expect(result.success).toBe(true);
+      const request = (mockClientService.getExchangeClient().order as Mock).mock
+        .calls[0][0];
+      expect(request.grouping).toBe('positionTpsl');
+      expect(request.orders[0].s).toBe('0');
+      expect(request.orders[1].s).toBe('0');
+    });
+
+    it('mixes a partial take profit with a whole-position stop loss', async () => {
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      const request = (mockClientService.getExchangeClient().order as Mock).mock
+        .calls[0][0];
+      expect(request.grouping).toBe('na');
+      expect(request.orders[0].s).toBe('0.04');
+      // The stop loss without an explicit size covers the full position size
+      expect(request.orders[1].s).toBe('0.1');
+    });
+
+    // TAT-3252: a partial TP/SL is a reduce-only trigger, so its size may never
+    // exceed the position it protects, and the position it is measured against
+    // must be the live one rather than the caller's throttled snapshot.
+    // Otherwise HyperLiquid rejects the order with "Order 0: Reduce only order
+    // would increase position".
+    describe('reduce-only safety', () => {
+      it('floors a partial size onto the size grid instead of rounding it up', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // more than the 0.1155 the caller asked to cover.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.1155',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        expect(request.orders[0].r).toBe(true);
+        expect(parseFloat(request.orders[0].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[0].s).toBe('0.115');
+      });
+
+      it('floors a whole-position TP/SL size onto the size grid', async () => {
+        // Position-bound TP/SL sends size '0', so the formatted whole-position
+        // size is only reachable alongside a partial trigger.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.01',
+          stopLossPrice: '45000',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        // The stop loss carries no size of its own, so it covers the position.
+        expect(parseFloat(request.orders[1].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[1].s).toBe('0.115');
+      });
+
+      it('re-reads the live position when the caller snapshot is stale', async () => {
+        // The snapshot says 0.1 but a concurrent fill left only 0.04 open. A
+        // whole-position stop loss must cover the live size, not the snapshot.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+        const infoClient = mockClientService.getInfoClient();
+        const clearinghouseState = infoClient.clearinghouseState as Mock;
+        clearinghouseState.mockClear();
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        // The stop loss carries no explicit size, so it covers the position —
+        // the live 0.04, not the snapshot's 0.1.
+        expect(request.orders[1].s).toBe('0.04');
+        expect(clearinghouseState).not.toHaveBeenCalled();
+      });
+
+      it('re-reads the live position while the aggregate flag is still false', async () => {
+        // isPositionsCacheInitialized() only flips once EVERY expected DEX has
+        // published, so during a staggered start or reconnect it reads false
+        // while this symbol's own slice is already live. Gating revalidation on
+        // it suppressed the fresher answer and built the trigger from the stale
+        // snapshot — the reduce-only rejection this revalidation exists to stop.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          false,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('takes the trigger side from the live position when the snapshot flipped', async () => {
+        // The snapshot is long but the position is now short. A trigger built
+        // from the stale side would sit on the wrong side of the position and
+        // increase it rather than reduce it.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([{ ...position, size: '-0.1' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '40000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        // Closing a short buys, so the reduce-only trigger is a buy.
+        expect(request.orders[0].b).toBe(true);
+      });
+
+      it('uses the target-DEX REST position when the WebSocket slice is unavailable', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
+      });
+
+      it('revalidates a current empty DEX slice before reporting no position', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('revalidates when the current DEX slice contains only another market', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([{ ...position, symbol: 'ETH' }]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '-0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '55000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '40000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        const request = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0][0];
+        expect(request.orders[0].b).toBe(true);
+      });
+
+      it('reports no position when target-DEX REST confirms the cache miss', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '0', accountValue: '10000' },
+              withdrawable: '10000',
+              assetPositions: [],
+            }),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('stops revalidating once the slice publishes the filled position', async () => {
+        // The post-fill window is transient: the first update runs before the
+        // subscription publishes the new position and pays for one HTTP read,
+        // and the next one must be served from the slice alone. Asserting the
+        // second call makes no request is what keeps this fix from becoming
+        // steady REST traffic on a hot path.
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValueOnce([])
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+        const clearinghouseState = vi.fn().mockResolvedValue({
+          marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+          withdrawable: '10000',
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.04',
+                entryPx: '50000',
+                positionValue: '2000',
+                unrealizedPnl: '20',
+                marginUsed: '200',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '45000',
+              },
+              type: 'oneWay',
+            },
+          ],
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ clearinghouseState }),
+        );
+
+        const duringWindow = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+        const revalidationCalls = clearinghouseState.mock.calls.length;
+
+        const afterWindow = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+
+        expect(duringWindow.success).toBe(true);
+        expect(revalidationCalls).toBe(1);
+        expect(afterWindow.success).toBe(true);
+        expect(clearinghouseState).toHaveBeenCalledTimes(1);
+      });
+
+      it('reports provider unavailable instead of trusting a snapshot when REST fails', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi
+              .fn()
+              .mockRejectedValue(new Error('REST unavailable')),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('cancels standalone partial triggers but never another order TP/SL child', async () => {
+      const takeProfitChild = {
+        coin: 'BTC',
+        side: 'A',
+        limitPx: '65000',
+        sz: '0.05',
+        origSz: '0.05',
+        oid: 902,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: 'Price above 65000',
+        isTrigger: true,
+        triggerPx: '65000',
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      };
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              // Standalone partial TP previously placed for this position
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '60000',
+              sz: '0.04',
+              origSz: '0.04',
+              oid: 901,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'Price above 60000',
+              isTrigger: true,
+              triggerPx: '60000',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+            {
+              // Unrelated pending entry order with its own TP child
+              coin: 'BTC',
+              side: 'B',
+              limitPx: '40000',
+              sz: '0.05',
+              origSz: '0.05',
+              oid: 903,
+              timestamp: 1_700_000_000_000,
+              triggerCondition: 'N/A',
+              isTrigger: false,
+              triggerPx: '',
+              children: [takeProfitChild],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+            takeProfitChild,
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+        takeProfitSize: '0.04',
+        position,
+      });
+
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 901 }],
+        },
+      );
+    });
+
+    it('uses the REST order payload for partial updates even with a warm cache', async () => {
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([]);
+      const infoClient = createMockInfoClient();
+      mockClientService.getInfoClient.mockReturnValue(
+        infoClient as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.04',
+        position,
+      });
+
+      // The cache cannot express the parent/child relationship a partial update
+      // needs, so the REST payload is fetched even though the cache is warm.
+      expect(infoClient.frontendOpenOrders).toHaveBeenCalled();
+    });
+
+    it('cancels standalone partial leftovers on a later whole-position update', async () => {
+      // Warm cache showing a standalone (not position-bound) reduce-only
+      // trigger left over from an earlier partial update.
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        {
+          orderId: '901',
+          symbol: 'BTC',
+          side: 'sell',
+          orderType: 'limit',
+          size: '0.04',
+          originalSize: '0.04',
+          price: '60000',
+          filledSize: '0',
+          remainingSize: '0.04',
+          status: 'open',
+          timestamp: 1_700_000_000_000,
+          detailedOrderType: 'Take Profit Limit',
+          isTrigger: true,
+          reduceOnly: true,
+          isPositionTpsl: false,
+          triggerPrice: '60000',
+        },
+      ]);
+      const infoClient = createMockInfoClient({
+        frontendOpenOrders: vi.fn().mockResolvedValue([
+          {
+            coin: 'BTC',
+            side: 'A',
+            limitPx: '60000',
+            sz: '0.04',
+            origSz: '0.04',
+            oid: 901,
+            timestamp: 1_700_000_000_000,
+            triggerCondition: 'Price above 60000',
+            isTrigger: true,
+            triggerPx: '60000',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: true,
+            orderType: 'Take Profit Limit',
+          },
+        ]),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        infoClient as unknown as ReturnType<
+          typeof mockClientService.getInfoClient
+        >,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+        stopLossPrice: '45000',
+        position,
+      });
+
+      expect(result.success).toBe(true);
+      // The leftover standalone trigger must not survive beside the new
+      // whole-position TP/SL orders — it would fire independently.
+      expect(mockClientService.getExchangeClient().cancel).toHaveBeenCalledWith(
+        {
+          cancels: [{ a: 0, o: 901 }],
+        },
+      );
+    });
+
+    it('returns a typed error when a partial size exceeds the position', async () => {
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.5',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns a typed error when a partial size rounds to zero', async () => {
+      // 0.0004 is positive and below the position, so validation passes, but it
+      // formats to '0' at szDecimals: 3 — which HyperLiquid reads as a
+      // whole-position trigger, silently closing the entire position.
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a size larger than the position', '0.5'],
+      ['a size that rounds to zero', '0.0004'],
+      // The pre-side-effect check formatted half-up while the size that is
+      // actually submitted is floored, so a size in [0.5, 1) increments passed
+      // validation and was only refused after trading setup and the pre-cancel
+      // sweep had already run. 0.0007 at szDecimals 3 rounds up to '0.001' but
+      // floors to 0.
+      ['a size below one full increment', '0.0007'],
+      ['a size on exactly half an increment', '0.0005'],
+      ['a non-positive size', '0'],
+    ])(
+      'rejects %s without running trading setup',
+      async (_label, takeProfitSize) => {
+        // Trading setup can prompt a hardware wallet and write the referral /
+        // builder-fee approvals on-chain. None of that should happen for an
+        // update that is rejected outright.
+        mockValidateOrderParams.mockImplementation(
+          actualValidation.validateOrderParams,
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize,
+          position,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+        expect(
+          mockClientService.getExchangeClient().setReferrer,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().approveBuilderFee,
+        ).not.toHaveBeenCalled();
+        // The pre-cancel sweep is the costly one: it clears the position's
+        // existing triggers, so a refusal after it runs leaves the position
+        // unprotected with nothing put back.
+        expect(
+          mockClientService.getExchangeClient().cancel,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a TP/SL price that rounds to zero before the pre-cancel sweep', async () => {
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '0.0004',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().setReferrer,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('leaves the position protected when a partial size rounds to zero', async () => {
+      // The position already has a whole-position TP/SL the sweep would cancel.
+      // Rejecting the update after that sweep would strip the protection and
+      // put nothing back, so the rejection has to come first.
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+      // A partial update always reads the REST payload for parent/child links,
+      // so that is where the sweep finds the trigger it would cancel.
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '58000',
+              sz: '0',
+              origSz: '0',
+              oid: 777,
+              timestamp: 1_700_000_000_000,
+              isTrigger: true,
+              triggerCondition: 'Price above 58000',
+              triggerPx: '58000',
+              children: [],
+              isPositionTpsl: true,
+              reduceOnly: true,
+              orderType: 'Take Profit Limit',
+            },
+          ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.0004',
+        position,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+  });
+});

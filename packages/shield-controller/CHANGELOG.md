@@ -9,9 +9,140 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/signature-controller` from `^39.2.1` to `^39.2.2` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/signature-controller` from `^40.1.0` to `^40.1.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [7.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/signature-controller` from `^40.0.0` to `^40.1.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^73.0.0` ([#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [7.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [7.0.5]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^35.0.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.1` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [7.0.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [7.0.3]
+
+### Changed
+
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [7.0.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.3.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^72.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/signature-controller` from `^39.2.10` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [6.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.6.1` ([#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+- Bump `@metamask/signature-controller` from `^39.2.9` to `^39.2.10` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [6.0.0]
+
+### Added
+
+- Add `ShieldApiService`, a `BaseDataService` that communicates with the Shield API and authenticates via `AuthenticationController:getBearerToken` on its own messenger ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Exposes `checkCoverage`, `checkSignatureCoverage`, `logSignature`, and `logTransaction` as `ShieldApiService:*` messenger actions.
+  - Also export `ShieldApiServiceMessenger`, related action/event types, and `serviceName`.
+  - `fetch` is optional and defaults to `globalThis.fetch`.
+- Add `Env` enum, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` for resolving the shield API URL per environment ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Add `@metamask/base-data-service` `^0.1.3` and `@metamask/profile-sync-controller` `^28.3.0` as dependencies ([#9616](https://github.com/MetaMask/core/pull/9616))
+
+### Changed
+
+- **BREAKING:** Replace `ShieldRemoteBackend` and `createShieldRemoteBackend` with `ShieldApiService` ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Consumers must instantiate `ShieldApiService` separately and delegate `AuthenticationController:getBearerToken` to its messenger.
+  - `ShieldController` now calls `ShieldApiService:*` actions instead of accepting an injected `backend`.
+- **BREAKING:** Remove `ShieldBackend`, `ShieldRemoteBackend`, `createShieldRemoteBackend`, and `CreateShieldRemoteBackendOptions` exports ([#9616](https://github.com/MetaMask/core/pull/9616))
+- **BREAKING:** Remove `backend` from `ShieldControllerOptions` ([#9616](https://github.com/MetaMask/core/pull/9616))
+- **BREAKING:** Replace `AuthenticationController:getBearerToken` on `ShieldControllerMessenger` with the four `ShieldApiService:*` actions ([#9616](https://github.com/MetaMask/core/pull/9616))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.5.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735), [#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/signature-controller` from `^39.2.7` to `^39.2.9` ([#9721](https://github.com/MetaMask/core/pull/9721), [#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [5.1.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/signature-controller` from `^39.2.1` to `^39.2.7` ([#8774](https://github.com/MetaMask/core/pull/8774), [#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999), [#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^69.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218), [#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [5.1.2]
 
@@ -135,13 +266,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added metrics in the Shield coverage response to track the latency ( [#7133](https://github.com/MetaMask/core/pull/7133))
+- Added metrics in the Shield coverage response to track the latency ([#7133](https://github.com/MetaMask/core/pull/7133))
 
 ## [2.0.0]
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/signature-controller` from `^35.0.0` to `^36.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^35.0.0` to `^36.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
 
 ## [1.2.0]
 
@@ -252,7 +383,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.1.2...HEAD
+[7.1.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.1.1...@metamask/shield-controller@7.1.2
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.1.0...@metamask/shield-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.5...@metamask/shield-controller@7.1.0
+[7.0.5]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.4...@metamask/shield-controller@7.0.5
+[7.0.4]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.3...@metamask/shield-controller@7.0.4
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.2...@metamask/shield-controller@7.0.3
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.1...@metamask/shield-controller@7.0.2
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.0...@metamask/shield-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.2...@metamask/shield-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...@metamask/shield-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.0...@metamask/shield-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.3...@metamask/shield-controller@6.0.0
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.2...@metamask/shield-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.1...@metamask/shield-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.0...@metamask/shield-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.2...@metamask/shield-controller@5.1.0

@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AddressBookEntry } from '@metamask/address-book-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import {
   MOCK_LOCAL_CONTACTS,
   MOCK_REMOTE_CONTACTS,
-} from './__fixtures__/mockContacts';
+} from './__fixtures__/mockContacts.js';
 import {
   mockUserStorageMessengerForContactSyncing,
   createMockUserStorageContacts,
-} from './__fixtures__/test-utils';
-import * as ContactSyncingControllerIntegrationModule from './controller-integration';
-import * as ContactSyncingUtils from './sync-utils';
-import type { ContactSyncingOptions } from './types';
+} from './__fixtures__/test-utils.js';
+import * as ContactSyncingControllerIntegrationModule from './controller-integration.js';
+import * as ContactSyncingUtils from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
 
 // Mock UserStorageController to avoid json-rpc-engine dependency issues
 class MockUserStorageController {
@@ -60,7 +61,7 @@ const baseState = {
 
 const arrangeMocks = async (
   {
-    stateOverrides = baseState as Partial<typeof baseState>,
+    stateOverrides = baseState,
     messengerMockOptions,
   }: {
     stateOverrides?: Partial<typeof baseState>;
@@ -68,7 +69,7 @@ const arrangeMocks = async (
       typeof mockUserStorageMessengerForContactSyncing
     >[0];
   } = {
-    stateOverrides: baseState as Partial<typeof baseState>,
+    stateOverrides: baseState,
     messengerMockOptions: undefined,
   },
 ) => {
@@ -97,13 +98,10 @@ const arrangeMocks = async (
 
 describe('user-storage/contact-syncing/controller-integration - syncContactsWithUserStorage() tests', () => {
   beforeEach(() => {
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => true);
   });
 
   it('returns void if contact syncing is not enabled', async () => {
@@ -114,11 +112,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
     });
 
     // Override the default mock
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => false);
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => false);
 
-    const mockList = jest.fn().mockReturnValue([]); // Return empty array instead of undefined
+    const mockList = vi.fn().mockReturnValue([]); // Return empty array instead of undefined
     options.getMessenger().call = mockList;
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
@@ -138,16 +137,16 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    const mockPerformGetStorageAllFeatureEntries = jest
+    const mockPerformGetStorageAllFeatureEntries = vi
       .spyOn(controller, 'performGetStorageAllFeatureEntries')
       .mockResolvedValue(null);
 
-    const mockPerformBatchSetStorage = jest
+    const mockPerformBatchSetStorage = vi
       .spyOn(controller, 'performBatchSetStorage')
       .mockResolvedValue(undefined);
 
-    const onContactUpdated = jest.fn();
-    const onContactDeleted = jest.fn();
+    const onContactUpdated = vi.fn();
+    const onContactDeleted = vi.fn();
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {
@@ -186,11 +185,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(controller, 'performGetStorageAllFeatureEntries')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+    vi.spyOn(
+      controller,
+      'performGetStorageAllFeatureEntries',
+    ).mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
-    const onContactUpdated = jest.fn();
+    const onContactUpdated = vi.fn();
 
     // Don't include onContactDeleted in this test since we don't expect any deletions
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
@@ -242,11 +242,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(controller, 'performGetStorageAllFeatureEntries')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+    vi.spyOn(
+      controller,
+      'performGetStorageAllFeatureEntries',
+    ).mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
-    const mockPerformBatchSetStorage = jest
+    const mockPerformBatchSetStorage = vi
       .spyOn(controller, 'performBatchSetStorage')
       .mockResolvedValue(undefined);
 
@@ -290,9 +291,10 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(controller, 'performGetStorageAllFeatureEntries')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+    vi.spyOn(
+      controller,
+      'performGetStorageAllFeatureEntries',
+    ).mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {},
@@ -328,11 +330,12 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(controller, 'performGetStorageAllFeatureEntries')
-      .mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
+    vi.spyOn(
+      controller,
+      'performGetStorageAllFeatureEntries',
+    ).mockResolvedValue(await createMockUserStorageContacts(remoteContacts));
 
-    const onContactDeleted = jest.fn();
+    const onContactDeleted = vi.fn();
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       { onContactDeleted },
@@ -374,14 +377,15 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       },
     });
 
-    jest
-      .spyOn(controller, 'performGetStorageAllFeatureEntries')
-      .mockResolvedValue(
-        await createMockUserStorageContacts([remoteUpdatedContact]),
-      );
+    vi.spyOn(
+      controller,
+      'performGetStorageAllFeatureEntries',
+    ).mockResolvedValue(
+      await createMockUserStorageContacts([remoteUpdatedContact]),
+    );
 
-    const onContactUpdated = jest.fn();
-    const onContactDeleted = jest.fn();
+    const onContactUpdated = vi.fn();
+    const onContactDeleted = vi.fn();
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(
       {
@@ -398,13 +402,10 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
 
 describe('user-storage/contact-syncing/controller-integration - updateContactInRemoteStorage() tests', () => {
   beforeEach(() => {
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => true);
   });
 
   it('returns void if contact syncing is not enabled', async () => {
@@ -415,11 +416,12 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
     });
 
     // Override the default mock
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => false);
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => false);
 
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformSetStorage = vi.spyOn(controller, 'performSetStorage');
 
     await ContactSyncingControllerIntegrationModule.updateContactInRemoteStorage(
       MOCK_LOCAL_CONTACTS.ONE[0],
@@ -434,7 +436,7 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
 
     const { options, controller } = await arrangeMocks();
 
-    const mockPerformSetStorage = jest
+    const mockPerformSetStorage = vi
       .spyOn(controller, 'performSetStorage')
       .mockResolvedValue(undefined);
 
@@ -455,7 +457,7 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
 
     const { options, controller } = await arrangeMocks();
 
-    const mockPerformSetStorage = jest
+    const mockPerformSetStorage = vi
       .spyOn(controller, 'performSetStorage')
       .mockResolvedValue(undefined);
 
@@ -480,7 +482,7 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
 
     const { options, controller } = await arrangeMocks();
 
-    const mockPerformSetStorage = jest
+    const mockPerformSetStorage = vi
       .spyOn(controller, 'performSetStorage')
       .mockResolvedValue(undefined);
 
@@ -500,13 +502,10 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
 
 describe('user-storage/contact-syncing/controller-integration - deleteContactInRemoteStorage() tests', () => {
   beforeEach(() => {
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => true);
   });
 
   it('returns void if contact syncing is not enabled', async () => {
@@ -517,12 +516,13 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
     });
 
     // Override the default mock
-    jest
-      .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => false);
+    vi.spyOn(
+      ContactSyncingUtils,
+      'canPerformContactSyncing',
+    ).mockImplementation(() => false);
 
-    const mockPerformGetStorage = jest.spyOn(controller, 'performGetStorage');
-    const mockPerformSetStorage = jest.spyOn(controller, 'performSetStorage');
+    const mockPerformGetStorage = vi.spyOn(controller, 'performGetStorage');
+    const mockPerformSetStorage = vi.spyOn(controller, 'performSetStorage');
 
     await ContactSyncingControllerIntegrationModule.deleteContactInRemoteStorage(
       MOCK_LOCAL_CONTACTS.ONE[0],
@@ -539,13 +539,11 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
 
     const { options, controller } = await arrangeMocks();
 
-    jest
-      .spyOn(controller, 'performGetStorage')
-      .mockResolvedValue(
-        (await createMockUserStorageContacts(remoteContacts))[0],
-      );
+    vi.spyOn(controller, 'performGetStorage').mockResolvedValue(
+      (await createMockUserStorageContacts(remoteContacts))[0],
+    );
 
-    const mockPerformSetStorage = jest
+    const mockPerformSetStorage = vi
       .spyOn(controller, 'performSetStorage')
       .mockResolvedValue(undefined);
 
@@ -570,9 +568,9 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
 
     const { options, controller } = await arrangeMocks();
 
-    jest.spyOn(controller, 'performGetStorage').mockResolvedValue(null); // Contact doesn't exist
+    vi.spyOn(controller, 'performGetStorage').mockResolvedValue(null); // Contact doesn't exist
 
-    const mockPerformSetStorage = jest
+    const mockPerformSetStorage = vi
       .spyOn(controller, 'performSetStorage')
       .mockResolvedValue(undefined);
 

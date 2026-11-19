@@ -2,20 +2,47 @@ import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { SortTrendingBy } from './token-service';
+import type { SortTrendingBy } from './token-service.js';
 import {
+  fetchRwas,
   fetchTokenAssets,
   fetchTokenListByChainId,
   fetchTokenMetadata,
   getTrendingTokens,
+  resetSuggestedOccurrenceFloorsCacheForTesting,
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
-} from './token-service';
+} from './token-service.js';
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;
+
+/**
+ * Default `/v1/suggestedOccurrenceFloors` payload for token-list tests.
+ * Mirrors production shape (decimal chain ID → floor).
+ */
+const DEFAULT_SUGGESTED_OCCURRENCE_FLOORS: Record<string, number> = {
+  '1': 3,
+  '59144': 1,
+};
+
+/**
+ * Persist a nock for suggested occurrence floors.
+ *
+ * @param floors - Override payload; defaults to {@link DEFAULT_SUGGESTED_OCCURRENCE_FLOORS}.
+ * @returns The nock scope for the floors endpoint.
+ */
+function nockSuggestedOccurrenceFloors(
+  floors: Record<string, number> = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
+): nock.Scope {
+  return nock(TOKEN_END_POINT_API)
+    .get('/v1/suggestedOccurrenceFloors')
+    .reply(200, floors)
+    .persist();
+}
 
 const sampleTokenList = [
   {
@@ -291,6 +318,16 @@ const polygonCaipChainId: CaipChainId = 'eip155:137';
 
 describe('Token service', () => {
   describe('fetchTokenListByChainId', () => {
+    beforeEach(() => {
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors();
+    });
+
+    afterEach(() => {
+      nock.cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+    });
+
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -320,6 +357,74 @@ describe('Token service', () => {
       const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
 
       expect(tokens).toStrictEqual(sampleTokenListLinea);
+    });
+
+    it('should use occurrenceFloor from suggestedOccurrenceFloors for the chain', async () => {
+      const { signal } = new AbortController();
+      nock.cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '1': 5 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=5&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when the chain is missing from suggestedOccurrenceFloors', async () => {
+      const { signal } = new AbortController();
+      nock.cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '59144': 1 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when suggestedOccurrenceFloors fails', async () => {
+      const { signal } = new AbortController();
+      nock.cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nock(TOKEN_END_POINT_API).get('/v1/suggestedOccurrenceFloors').reply(500);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should cache suggestedOccurrenceFloors across token list fetches', async () => {
+      const { signal } = new AbortController();
+      nock.cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      const floorsScope = nock(TOKEN_END_POINT_API)
+        .get('/v1/suggestedOccurrenceFloors')
+        .reply(200, DEFAULT_SUGGESTED_OCCURRENCE_FLOORS);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .times(2)
+        .reply(200, sampleTokenList);
+
+      await fetchTokenListByChainId(sampleChainId, signal);
+      await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(floorsScope.isDone()).toBe(true);
     });
 
     it('should correctly filter linea tokens: include if has lineaTeam OR >= 3 aggregators', async () => {
@@ -422,9 +527,8 @@ describe('Token service', () => {
         .get(
           `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const result = await fetchTokenListByChainId(sampleChainId, signal, {
@@ -509,9 +613,8 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${sampleDecimalChainId}`)
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
@@ -537,6 +640,38 @@ describe('Token service', () => {
   });
 
   describe('searchTokens', () => {
+    it('sends a custom serviceProfile string as-is in the x-mm-service-profile header', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API, {
+        reqheaders: { 'x-mm-service-profile': 'my-team--custom-profile' },
+      })
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, { count: 0, data: [] });
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        serviceProfile: 'my-team--custom-profile',
+      });
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('sends the default x-mm-service-profile header when serviceProfile is unset', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API, {
+        reqheaders: { 'x-mm-service-profile': 'assets--trending-search' },
+      })
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, { count: 0, data: [] });
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
     it('should call the search api and return the list of matching tokens for single chain', async () => {
       const searchQuery = 'USD';
       const mockResponse = {
@@ -657,7 +792,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: 0,
         data: [],
-        error: expect.stringContaining('Example network error'),
+        error: expect.stringMatching(/fetch failed/u),
       });
     });
 
@@ -1796,6 +1931,156 @@ describe('Token service', () => {
       setupNock();
       const result = await fetchTokenAssets([oneInchAssetId]);
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('fetchRwas', () => {
+    const sampleRwasResponse = {
+      data: [
+        {
+          id: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          assetId: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          symbol: 'TSLAx',
+          decimals: 18,
+          name: 'Tesla xStock',
+          rwaData: {
+            price: '342.13',
+            priceChange: '1.23',
+            marketCap: 1090000000000,
+            aggregatedUsdVolume: 1234567,
+            active: true,
+            ticker: 'TSLA',
+            instrumentType: 'stock',
+            custodians: ['ondo'],
+            industry: ['consumer discretionary'],
+            market: {
+              nextOpen: '2026-05-29T13:30:00.000Z',
+              nextClose: '2026-05-29T20:00:00.000Z',
+            },
+          },
+        },
+      ],
+      count: 1,
+      totalCount: 1,
+      pageInfo: {
+        nextCursor: null,
+        hasNextPage: false,
+      },
+    };
+
+    it('fetches RWAs with default params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('includes supported query params and trims the search query', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1%2Ceip155%3A137&query=Tesla&active=true&custodian=ondo&type=stock&industry=consumer+discretionary&sortBy=market_cap_desc&limit=25&after=cursor-1',
+        )
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1', 'eip155:137'],
+        query: '  Tesla  ',
+        sortBy: 'market_cap_desc',
+        limit: 25,
+        after: 'cursor-1',
+        active: true,
+        custodian: 'ondo',
+        type: 'stock',
+        industry: 'consumer discretionary',
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('omits blank and undefined query params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?active=false&limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        query: '   ',
+        active: false,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('passes unknown query params through to the URL', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1&limit=100&foo=bar&enabled=true&page=2',
+        )
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1'],
+        foo: 'bar',
+        enabled: true,
+        page: 2,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('passes through offhours field when present in the response', async () => {
+      const responseWithOffhours = {
+        ...sampleRwasResponse,
+        data: [
+          {
+            ...sampleRwasResponse.data[0],
+            rwaData: {
+              ...sampleRwasResponse.data[0].rwaData,
+              offhours: {
+                nextOpen: '2026-08-08T00:05:00Z',
+                nextClose: '2026-08-09T23:55:00Z',
+              },
+            },
+          },
+        ],
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, responseWithOffhours)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toStrictEqual({
+        nextOpen: '2026-08-08T00:05:00Z',
+        nextClose: '2026-08-09T23:55:00Z',
+      });
+    });
+
+    it('returns rwaData without offhours field when asset does not support off-hours trading', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toBeUndefined();
+    });
+
+    it('throws if the fetch fails', async () => {
+      nock(TOKEN_END_POINT_API).get('/v1/rwas?limit=100').reply(500);
+
+      await expect(fetchRwas()).rejects.toThrow(
+        "Fetch failed with status '500'",
+      );
     });
   });
 });

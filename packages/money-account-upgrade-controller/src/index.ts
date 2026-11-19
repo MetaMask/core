@@ -1,11 +1,30 @@
-export type { UpgradeConfig } from './types';
-export { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
+export type { UpgradeConfig, VaultDelegationType } from './types.js';
+export {
+  MissingMoneyAccountVaultConfigError,
+  MoneyAccountUpgradeStepError,
+  TerminalUpgradeError,
+  isMoneyAccountUpgradeStepError,
+  isTerminalMoneyAccountUpgradeError,
+} from './errors.js';
+export {
+  MoneyAccountUpgradeController,
+  getDefaultMoneyAccountUpgradeControllerState,
+} from './MoneyAccountUpgradeController.js';
 export type {
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerGetStateAction,
   MoneyAccountUpgradeControllerActions,
+  MoneyAccountUpgradeControllerHooks,
   MoneyAccountUpgradeControllerStateChangedEvent,
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,
-} from './MoneyAccountUpgradeController';
-export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types';
+  MoneyAccountRegistrationStatus,
+  MoneyAccountUpgradeStatus,
+} from './MoneyAccountUpgradeController.js';
+export type {
+  MoneyAccountUpgradeControllerUpgradeAccountAction,
+  MoneyAccountUpgradeControllerForceUpgradeAccountAction,
+  MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction,
+  MoneyAccountUpgradeControllerRegisterMigrationIntentsAction,
+  MoneyAccountUpgradeControllerGetRegistrationStatusAction,
+} from './MoneyAccountUpgradeController-method-action-types.js';

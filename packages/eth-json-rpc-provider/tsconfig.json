@@ -1,17 +1,18 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../..",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "target": "es2017"
+    "noUncheckedIndexedAccess": true
   },
   "references": [
     {
       "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

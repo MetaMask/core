@@ -2,9 +2,12 @@
  * OHLCV Service for real-time candlestick data streaming via WebSocket.
  *
  * Wraps {@link BackendWebSocketService} through the messenger pattern to
- * provide subscribe/unsubscribe semantics for OHLCV market-data channels.
- * Includes reference counting, grace-period unsubscribe, idempotency checks,
- * chain-status forwarding, and automatic resubscription on reconnect.
+ * provide subscribe/unsubscribe semantics for OHLCV channels.
+ * The per-channel subscription lifecycle (reference counting, grace-period
+ * unsubscribe, unsubscribe retry, resubscribe on reconnect) is delegated to a
+ * shared {@link ChannelSubscriptionManager} by composition; this service keeps
+ * only the OHLCV domain concerns (channel-string building, bar forwarding, and
+ * chain-status system notifications).
  */
 
 import type {
@@ -13,18 +16,22 @@ import type {
   TraceRequest,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { Mutex } from 'async-mutex';
 
-import { projectLogger, createModuleLogger } from '../../logger';
+import { projectLogger, createModuleLogger } from '../../logger.js';
+import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from '../BackendWebSocketService';
-import { WebSocketState } from '../BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types';
-import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types';
-import type { OHLCVBar, OHLCVSubscriptionOptions } from './types';
+} from '../BackendWebSocketService.js';
+import { WebSocketState } from '../BackendWebSocketService.js';
+import {
+  ChannelSubscriptionManager,
+  CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS,
+  CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_EVENTS,
+} from '../ChannelSubscriptionManager.js';
+import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types.js';
+import type { OHLCVBar, OHLCVSubscriptionOptions } from './types.js';
 
 // =============================================================================
 // Constants
@@ -36,28 +43,14 @@ const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
 const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
-const SUBSCRIPTION_NAMESPACE = 'market-data.v1';
-
-const SYSTEM_NOTIFICATIONS_CHANNEL = `system-notifications.v1.${SUBSCRIPTION_NAMESPACE}`;
-
-/** Delay before actually unsubscribing from a channel after refCount reaches 0. */
-const GRACE_PERIOD_MS = 3_000;
-
-// =============================================================================
-// Types — Channel Tracking
-// =============================================================================
-
-type ChannelEntry = {
-  refCount: number;
-  gracePeriodTimer?: ReturnType<typeof setTimeout>;
-};
+const DEFAULT_SUBSCRIPTION_NAMESPACE = 'ohlcv.v1';
 
 // =============================================================================
 // Types — System Notifications
 // =============================================================================
 
 /**
- * System notification data for chain status updates on market-data channels.
+ * System notification data for chain status updates on OHLCV channels.
  */
 export type OHLCVSystemNotificationData = {
   chainIds: string[];
@@ -73,6 +66,11 @@ export type OHLCVSystemNotificationData = {
  * Configuration options for the OHLCV service.
  */
 export type OHLCVServiceOptions = {
+  /**
+   * Channel namespace (default: 'ohlcv.v1').
+   * Pass 'market-data.v1' to feature-flag the previous stream.
+   */
+  subscriptionNamespace?: string;
   /** Optional callback to trace performance of OHLCV operations (default: no-op) */
   traceFn?: TraceCallback;
 };
@@ -84,19 +82,11 @@ export type OHLCVServiceOptions = {
 export type OHLCVServiceActions = OHLCVServiceMethodActions;
 
 export const OHLCV_SERVICE_ALLOWED_ACTIONS = [
-  'BackendWebSocketService:connect',
-  'BackendWebSocketService:forceReconnection',
-  'BackendWebSocketService:subscribe',
-  'BackendWebSocketService:getConnectionInfo',
-  'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionsByChannel',
-  'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-  'BackendWebSocketService:addChannelCallback',
-  'BackendWebSocketService:removeChannelCallback',
+  ...CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS,
 ] as const;
 
 export const OHLCV_SERVICE_ALLOWED_EVENTS = [
-  'BackendWebSocketService:connectionStateChanged',
+  ...CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_EVENTS,
 ] as const;
 
 export type AllowedActions = BackendWebSocketServiceMethodActions;
@@ -142,7 +132,9 @@ export type OHLCVServiceMessenger = Messenger<
  *
  * Features:
  * - Reference counting: multiple UI consumers share one WebSocket subscription
- * - Grace-period unsubscribe: avoids rapid unsub/resub during navigation
+ * - Grace-period unsubscribe: reuses same-channel subs on rapid back navigation
+ * - Grace-period flush: immediately unsubscribes other channels on navigation
+ * - Unsubscribe retry: retries failed unsubs with backoff before force reconnect
  * - Idempotency: duplicate subscribe calls for the same channel are no-ops
  * - Reconnect resilience: resubscribes all active channels on reconnect
  * - Chain-status forwarding: listens to system-notifications for chain up/down
@@ -153,11 +145,11 @@ export class OHLCVService {
 
   readonly #messenger: OHLCVServiceMessenger;
 
+  readonly #subscriptionNamespace: string;
+
   readonly #trace: TraceCallback;
 
-  readonly #channels = new Map<string, ChannelEntry>();
-
-  readonly #mutex = new Mutex();
+  readonly #manager: ChannelSubscriptionManager;
 
   readonly #chainsUp = new Set<string>();
 
@@ -169,6 +161,8 @@ export class OHLCVService {
     options: OHLCVServiceOptions & { messenger: OHLCVServiceMessenger },
   ) {
     this.#messenger = options.messenger;
+    this.#subscriptionNamespace =
+      options.subscriptionNamespace ?? DEFAULT_SUBSCRIPTION_NAMESPACE;
 
     this.#trace =
       options.traceFn ??
@@ -177,16 +171,28 @@ export class OHLCVService {
         fn?: (context?: TraceContext) => Result,
       ) => fn?.()) as TraceCallback);
 
+    this.#manager = new ChannelSubscriptionManager({
+      messenger: this.#messenger,
+      channelType: this.#subscriptionNamespace,
+      logPrefix: 'OHLCV-WS',
+      onMessage: (channel, notification): void =>
+        this.#handleBarUpdate(channel, notification),
+      onSubscriptionError: (channel, error, operation): void =>
+        this.#messenger.publish('OHLCVService:subscriptionError', {
+          channel,
+          error,
+          operation,
+        }),
+      systemNotificationsChannel: `system-notifications.v1.${this.#subscriptionNamespace}`,
+      onSystemNotification: (notification): void =>
+        this.#handleSystemNotification(notification),
+      onConnectionStateChange: (connectionInfo): void =>
+        this.#handleConnectionStateChange(connectionInfo),
+    });
+
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
-    );
-
-    this.#messenger.subscribe(
-      'BackendWebSocketService:connectionStateChanged',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      (connectionInfo: WebSocketConnectionInfo) =>
-        this.#handleWebSocketStateChange(connectionInfo),
     );
   }
 
@@ -194,12 +200,7 @@ export class OHLCVService {
    * Register the system-notifications channel callback.
    */
   init(): void {
-    log('OHLCV-WS: Initializing — registering system-notifications callback');
-    this.#messenger.call('BackendWebSocketService:addChannelCallback', {
-      channelName: SYSTEM_NOTIFICATIONS_CHANNEL,
-      callback: (notification: ServerNotificationMessage) =>
-        this.#handleSystemNotification(notification),
-    });
+    this.#manager.init();
   }
 
   // =============================================================================
@@ -216,84 +217,7 @@ export class OHLCVService {
    * @returns A promise that resolves once the subscription is established.
    */
   async subscribe(options: OHLCVSubscriptionOptions): Promise<void> {
-    const channel = this.#buildChannel(options);
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      await this.#subscribeInner(channel);
-    } finally {
-      releaseLock();
-    }
-  }
-
-  async #subscribeInner(channel: string): Promise<void> {
-    const entry = this.#channels.get(channel);
-
-    if (entry?.gracePeriodTimer) {
-      clearTimeout(entry.gracePeriodTimer);
-      entry.gracePeriodTimer = undefined;
-      log('OHLCV-WS: Cancelled grace-period unsubscribe', {
-        channel,
-      });
-
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          channel,
-        )
-      ) {
-        entry.refCount += 1;
-        log('OHLCV-WS: WS subscription still alive, bumped refCount', {
-          channel,
-          refCount: entry.refCount,
-        });
-        return;
-      }
-      // WS subscription was lost (e.g. after disconnect/reconnect) — fall
-      // through to recreate it. refCount is bumped only after success below.
-    } else if (entry && entry.refCount > 0) {
-      entry.refCount += 1;
-      return;
-    }
-    try {
-      await this.#messenger.call('BackendWebSocketService:connect');
-
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          channel,
-        )
-      ) {
-        log(
-          'OHLCV-WS: Channel already has WS subscription (idempotency), skipping',
-          {
-            channel,
-          },
-        );
-        this.#channels.set(channel, { refCount: 1 });
-        return;
-      }
-
-      await this.#messenger.call('BackendWebSocketService:subscribe', {
-        channels: [channel],
-        channelType: SUBSCRIPTION_NAMESPACE,
-        callback: (notification: ServerNotificationMessage) => {
-          this.#handleBarUpdate(channel, notification);
-        },
-      });
-
-      this.#channels.set(channel, { refCount: 1 });
-      log('OHLCV-WS: Subscribe succeeded — new WS subscription created', {
-        channel,
-      });
-    } catch (error) {
-      log('OHLCV-WS: Subscription failed', { channel, error });
-      this.#channels.delete(channel);
-      this.#messenger.publish('OHLCVService:subscriptionError', {
-        channel,
-        error: String(error),
-        operation: 'subscribe',
-      });
-    }
+    await this.#manager.subscribe(this.#buildChannel(options));
   }
 
   /**
@@ -305,131 +229,7 @@ export class OHLCVService {
    * @returns A promise that resolves once the unsubscription is processed.
    */
   async unsubscribe(options: OHLCVSubscriptionOptions): Promise<void> {
-    const channel = this.#buildChannel(options);
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      await this.#unsubscribeInner(channel);
-    } finally {
-      releaseLock();
-    }
-  }
-
-  async #unsubscribeInner(channel: string): Promise<void> {
-    const entry = this.#channels.get(channel);
-
-    if (!entry || entry.refCount <= 0) {
-      return;
-    }
-
-    entry.refCount -= 1;
-
-    if (entry.refCount > 0) {
-      return;
-    }
-
-    entry.gracePeriodTimer = setTimeout(() => {
-      entry.gracePeriodTimer = undefined;
-      this.#performUnsubscribe(channel).catch(() => {
-        // no-op
-      });
-    }, GRACE_PERIOD_MS);
-  }
-
-  // =============================================================================
-  // Private — WebSocket Subscription Helpers
-  // =============================================================================
-
-  async #performUnsubscribe(channel: string): Promise<void> {
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      const entry = this.#channels.get(channel);
-      if (entry && entry.refCount > 0) {
-        log(
-          'OHLCV-WS: Skipping unsubscribe — new subscriber arrived while queued',
-          { channel, refCount: entry.refCount },
-        );
-        return;
-      }
-
-      log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', {
-        channel,
-      });
-      this.#channels.delete(channel);
-
-      try {
-        const subscriptions = this.#messenger.call(
-          'BackendWebSocketService:getSubscriptionsByChannel',
-          channel,
-        );
-
-        for (const sub of subscriptions) {
-          await sub.unsubscribe();
-        }
-        log('OHLCV-WS: WS unsubscribe completed', { channel });
-      } catch (error) {
-        log('OHLCV-WS: Unsubscription failed', { channel, error });
-        this.#messenger.publish('OHLCVService:subscriptionError', {
-          channel,
-          error: String(error),
-          operation: 'unsubscribe',
-        });
-      }
-    } finally {
-      releaseLock();
-    }
-  }
-
-  /**
-   * Resubscribe all channels that were active before a disconnect.
-   * Called when WebSocket transitions to CONNECTED.
-   */
-  async #resubscribeActiveChannels(): Promise<void> {
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      const channelCount = this.#channels.size;
-      log('OHLCV-WS: Resubscribing active channels after reconnect', {
-        count: channelCount,
-      });
-
-      for (const [channel, entry] of this.#channels.entries()) {
-        if (entry.refCount === 0) {
-          continue;
-        }
-
-        try {
-          if (
-            this.#messenger.call(
-              'BackendWebSocketService:channelHasSubscription',
-              channel,
-            )
-          ) {
-            log(
-              'OHLCV-WS: Channel already subscribed on server, skipping resubscribe',
-              {
-                channel,
-              },
-            );
-            continue;
-          }
-
-          await this.#messenger.call('BackendWebSocketService:subscribe', {
-            channels: [channel],
-            channelType: SUBSCRIPTION_NAMESPACE,
-            callback: (notification: ServerNotificationMessage) => {
-              this.#handleBarUpdate(channel, notification);
-            },
-          });
-          log('OHLCV-WS: Resubscription succeeded', { channel });
-        } catch (error) {
-          log('OHLCV-WS: Resubscription failed for channel', {
-            channel,
-            error,
-          });
-        }
-      }
-    } finally {
-      releaseLock();
-    }
+    await this.#manager.unsubscribe(this.#buildChannel(options));
   }
 
   // =============================================================================
@@ -487,33 +287,26 @@ export class OHLCVService {
     });
   }
 
-  async #handleWebSocketStateChange(
-    connectionInfo: WebSocketConnectionInfo,
-  ): Promise<void> {
-    const { state } = connectionInfo;
+  #handleConnectionStateChange(connectionInfo: WebSocketConnectionInfo): void {
+    if (connectionInfo.state !== WebSocketState.DISCONNECTED) {
+      return;
+    }
 
-    if (state === WebSocketState.CONNECTED) {
-      await this.#resubscribeActiveChannels();
-    } else if (state === WebSocketState.DISCONNECTED) {
-      const chainsToMarkDown = Array.from(this.#chainsUp);
+    const chainsToMarkDown = Array.from(this.#chainsUp);
 
-      if (chainsToMarkDown.length > 0) {
-        this.#messenger.publish('OHLCVService:chainStatusChanged', {
-          chainIds: chainsToMarkDown,
-          status: 'down',
-          timestamp: Date.now(),
-        });
+    if (chainsToMarkDown.length > 0) {
+      this.#messenger.publish('OHLCVService:chainStatusChanged', {
+        chainIds: chainsToMarkDown,
+        status: 'down',
+        timestamp: Date.now(),
+      });
 
-        log(
-          'OHLCV-WS: WebSocket disconnection — marked tracked chains as down',
-          {
-            count: chainsToMarkDown.length,
-            chains: chainsToMarkDown,
-          },
-        );
+      log('OHLCV-WS: WebSocket disconnection — marked tracked chains as down', {
+        count: chainsToMarkDown.length,
+        chains: chainsToMarkDown,
+      });
 
-        this.#chainsUp.clear();
-      }
+      this.#chainsUp.clear();
     }
   }
 
@@ -522,7 +315,7 @@ export class OHLCVService {
   // =============================================================================
 
   #buildChannel(options: OHLCVSubscriptionOptions): string {
-    return `${SUBSCRIPTION_NAMESPACE}.${options.assetId}.${options.interval}.${options.currency}`;
+    return `${this.#subscriptionNamespace}.${options.assetId}.${options.interval}.${options.currency}`;
   }
 
   // =============================================================================
@@ -533,17 +326,7 @@ export class OHLCVService {
    * Destroy the service and clean up all resources.
    */
   destroy(): void {
-    for (const entry of this.#channels.values()) {
-      if (entry.gracePeriodTimer) {
-        clearTimeout(entry.gracePeriodTimer);
-      }
-    }
-    this.#channels.clear();
     this.#chainsUp.clear();
-
-    this.#messenger.call(
-      'BackendWebSocketService:removeChannelCallback',
-      SYSTEM_NOTIFICATIONS_CHANNEL,
-    );
+    this.#manager.destroy();
   }
 }

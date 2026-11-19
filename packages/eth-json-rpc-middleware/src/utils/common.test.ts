@@ -1,4 +1,6 @@
-import { stripArrayTypeIfPresent } from './common';
+import { describe, expect, it } from 'vitest';
+
+import { stripArrayTypeIfPresent } from './common.js';
 
 describe('CommonUtils', () => {
   describe('stripArrayTypeIfPresent', () => {

@@ -1,11 +1,15 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
+  timeoutFetch,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import {
+  base64ToBytes,
+  bytesToString,
   hexToNumber,
+  isObject,
   KnownCaipNamespace,
   remove0x,
   toCaipChainId,
@@ -13,11 +17,14 @@ import {
 import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
-import { getNativeTokenAddress } from './token-prices-service';
-import type { AbstractTokenPricesService } from './token-prices-service';
-import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
-import type { ContractExchangeRates } from './TokenRatesController';
+import type { Nft, NftMetadata } from './NftController.js';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/index.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
+import type {
+  ContractExchangeRates,
+  ContractMarketData,
+} from './TokenRatesController.js';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -160,6 +167,8 @@ export enum SupportedTokenDetectionNetworks {
   Sei = '0x531', // decimal: 1329
   MonadMainnet = '0x8f', // decimal: 143
   Hyperevm = '0x3e7', // decimal: 999
+  Arc = '0x13b2', // decimal: 5042
+  Robinhood = '0x1237', // decimal: 4663
 }
 
 /**
@@ -224,8 +233,8 @@ export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
   const index = url.indexOf('/');
-  const cid = index !== -1 ? url.substring(0, index) : url;
-  const path = index !== -1 ? url.substring(index) : undefined;
+  const cid = index === -1 ? url : url.substring(0, index);
+  const path = index === -1 ? undefined : url.substring(index);
 
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains
@@ -268,6 +277,92 @@ export function addUrlProtocolPrefix(urlString: string): string {
     return `https://${urlString}`;
   }
   return urlString;
+}
+
+/**
+ * Checks whether a URI is a `data:` URL.
+ *
+ * @param uri - The URI to check.
+ * @returns True if the URI uses the `data:` scheme.
+ */
+export function isDataUri(uri: string): boolean {
+  return uri.trimStart().toLowerCase().startsWith('data:');
+}
+
+/**
+ * Decodes JSON NFT metadata embedded in a `data:` URL, such as
+ * `data:application/json;base64,eyJuYW1lIjoiLi4uIn0=` or
+ * `data:application/json;charset=utf-8,%7B%22name%22%3A%22...%22%7D`.
+ *
+ * @param uri - The `data:` URL to decode.
+ * @returns The decoded JSON object, or `null` if the URL does not contain a
+ * JSON object.
+ */
+export function parseJsonDataUri(uri: string): Record<string, unknown> | null {
+  // `data:application/json[;charset=utf-8][;base64],<payload>`. The payload
+  // itself may contain commas, so everything after the first one is rejoined.
+  const [header, ...payloadParts] = uri.split(',');
+  const [mediaType, ...params] = header.trim().toLowerCase().split(';');
+  if (mediaType !== 'data:application/json' || payloadParts.length === 0) {
+    return null;
+  }
+  const payload = payloadParts.join(',');
+
+  try {
+    const json = params.includes('base64')
+      ? bytesToString(base64ToBytes(payload))
+      : decodeURIComponent(payload);
+    const metadata: unknown = JSON.parse(json);
+    return isObject(metadata) ? metadata : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the JSON metadata a token URI points to. `data:` URLs are decoded
+ * inline and never passed to `fetch`, since not every client's `fetch` can
+ * decode them (e.g. it crashes MetaMask Mobile).
+ *
+ * @param tokenURI - The token URI (an HTTP(S) URL or a `data:` URL).
+ * @returns The JSON metadata, or `null` for a `data:` URL that is not JSON.
+ * @throws If fetching or parsing a non-`data:` token URI fails.
+ */
+export async function getTokenUriJson(
+  tokenURI: string,
+): Promise<Record<string, unknown> | null> {
+  if (isDataUri(tokenURI)) {
+    return parseJsonDataUri(tokenURI);
+  }
+  const response = await timeoutFetch(tokenURI);
+  const json: unknown = await response.json();
+  return isObject(json) ? json : null;
+}
+
+/**
+ * Resolves the image of the NFT metadata a token URI points to, converting
+ * `ipfs://` images to gateway URLs. Never throws.
+ *
+ * @param tokenURI - The token URI (an HTTP(S) URL or a `data:` URL).
+ * @param ipfsGateway - The IPFS gateway to use for `ipfs://` images.
+ * @returns The image URL, or `undefined` if it cannot be resolved.
+ */
+export async function getTokenUriImage(
+  tokenURI: string,
+  ipfsGateway: string,
+): Promise<string | undefined> {
+  try {
+    const metadata = await getTokenUriJson(tokenURI);
+    const image = metadata?.image;
+    if (typeof image !== 'string') {
+      return undefined;
+    }
+    return image.startsWith('ipfs://')
+      ? await getFormattedIpfsUrl(ipfsGateway, image, true)
+      : image;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -341,6 +436,13 @@ export async function reduceInBatchesSerially<Value, Result>({
   return finalResult;
 }
 
+type FetchTokenContractExchangeRatesArgs = {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+};
+
 /**
  * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
  *
@@ -349,19 +451,27 @@ export async function reduceInBatchesSerially<Value, Result>({
  * @param args.nativeCurrency - The native currency to request price in.
  * @param args.tokenAddresses - The list of contract addresses.
  * @param args.chainId - The chainId of the tokens.
- * @returns The prices for the requested tokens.
+ * @param args.includeMarketData - When true, returns full market data (price,
+ * percentage changes, market cap, etc.) per token instead of just the price.
+ * @returns The prices (or full market data) for the requested tokens.
  */
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData: true },
+): Promise<ContractMarketData>;
+
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData?: false },
+): Promise<ContractExchangeRates>;
+
 export async function fetchTokenContractExchangeRates({
   tokenPricesService,
   nativeCurrency,
   tokenAddresses,
   chainId,
-}: {
-  tokenPricesService: AbstractTokenPricesService;
-  nativeCurrency: string;
-  tokenAddresses: Hex[];
-  chainId: Hex;
-}): Promise<ContractExchangeRates> {
+  includeMarketData = false,
+}: FetchTokenContractExchangeRatesArgs & {
+  includeMarketData?: boolean;
+}): Promise<ContractExchangeRates | ContractMarketData> {
   const isChainIdSupported =
     tokenPricesService.validateChainIdSupported(chainId);
   const isCurrencySupported =
@@ -398,6 +508,25 @@ export async function fetchTokenContractExchangeRates({
     },
     initialResult: {},
   });
+
+  if (includeMarketData) {
+    return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
+      (obj, [tokenAddress, tokenPrice]) => {
+        if (tokenPrice) {
+          const checksummedAddress = toChecksumHexAddress(tokenAddress);
+          return {
+            ...obj,
+            [checksummedAddress]: {
+              ...tokenPrice,
+              tokenAddress: checksummedAddress,
+            },
+          };
+        }
+        return obj;
+      },
+      {},
+    );
+  }
 
   return Object.entries(tokenPricesByTokenAddress).reduce(
     (obj, [tokenAddress, tokenPrice]) => {

@@ -16,21 +16,22 @@ import type { NetworkState } from '@metamask/network-controller';
 import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import * as tokenService from './token-service';
+} from '../../network-controller/tests/helpers.js';
+import * as tokenService from './token-service.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
   DataCache,
-} from './TokenListController';
-import { TokenListController } from './TokenListController';
+} from './TokenListController.js';
+import { TokenListController } from './TokenListController.js';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -558,10 +559,17 @@ describe('TokenListController', () => {
   beforeEach(() => {
     // Clear mock storage between tests
     mockStorage.clear();
+    tokenService.resetSuggestedOccurrenceFloorsCacheForTesting();
+    nock(tokenService.TOKEN_END_POINT_API)
+      .get('/v1/suggestedOccurrenceFloors')
+      .reply(200, { '1': 3, '59144': 1 })
+      .persist();
   });
 
   afterEach(() => {
-    jest.clearAllTimers();
+    vi.clearAllTimers();
+    nock.cleanAll();
+    tokenService.resetSuggestedOccurrenceFloorsCacheForTesting();
   });
 
   it('should set default state', async () => {
@@ -646,7 +654,7 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
 
-    jest.spyOn(Date, 'now').mockImplementation(() => 100);
+    vi.spyOn(Date, 'now').mockImplementation(() => 100);
     const selectedNetworkClientId = 'selectedNetworkClientId';
     const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
@@ -758,9 +766,9 @@ describe('TokenListController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const tokenListMock = jest
+    const tokenListMock = vi
       .spyOn(TokenListController.prototype, 'fetchTokenList')
-      .mockImplementation();
+      .mockImplementation(async () => undefined);
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -781,9 +789,9 @@ describe('TokenListController', () => {
   });
 
   it('should not poll after being stopped', async () => {
-    const tokenListMock = jest
+    const tokenListMock = vi
       .spyOn(TokenListController.prototype, 'fetchTokenList')
-      .mockImplementation();
+      .mockImplementation(async () => undefined);
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -806,9 +814,9 @@ describe('TokenListController', () => {
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const tokenListMock = jest
+    const tokenListMock = vi
       .spyOn(TokenListController.prototype, 'fetchTokenList')
-      .mockImplementation();
+      .mockImplementation(async () => undefined);
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -835,9 +843,9 @@ describe('TokenListController', () => {
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
-    const tokenListMock = jest
+    const tokenListMock = vi
       .spyOn(TokenListController.prototype, 'fetchTokenList')
-      .mockImplementation();
+      .mockImplementation(async () => undefined);
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -855,9 +863,9 @@ describe('TokenListController', () => {
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
-    const tokenListMock = jest
+    const tokenListMock = vi
       .spyOn(TokenListController.prototype, 'fetchTokenList')
-      .mockImplementation();
+      .mockImplementation(async () => undefined);
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -1081,11 +1089,11 @@ describe('TokenListController', () => {
 
   describe('_executePoll', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     const arrange = ({
@@ -1094,7 +1102,7 @@ describe('TokenListController', () => {
       initializationDelayMs?: number;
     } = {}): {
       controller: TokenListController;
-      fetchTokenListByChainIdSpy: jest.SpyInstance;
+      fetchTokenListByChainIdSpy: MockInstance;
       resolveMockWaitForInit: () => Promise<void>;
     } => {
       const messenger = getMessenger();
@@ -1110,7 +1118,7 @@ describe('TokenListController', () => {
       );
 
       const restrictedMessenger = getRestrictedMessenger(messenger);
-      const fetchTokenListByChainIdSpy = jest
+      const fetchTokenListByChainIdSpy = vi
         .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockResolvedValue(sampleMainnetTokenList);
       const controller = new TokenListController({
@@ -1119,7 +1127,7 @@ describe('TokenListController', () => {
       });
 
       const resolveMockWaitForInit = async (): Promise<void> => {
-        await jestAdvanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
       };
 
       return {
@@ -1160,11 +1168,11 @@ describe('TokenListController', () => {
   describe('startPolling', () => {
     const pollingIntervalTime = 1000;
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
@@ -1173,14 +1181,14 @@ describe('TokenListController', () => {
         .reply(200, sampleSepoliaTokenList)
         .persist();
 
-      const fetchTokenListByChainIdSpy = jest.spyOn(
+      const fetchTokenListByChainIdSpy = vi.spyOn(
         tokenService,
         'fetchTokenListByChainId',
       );
       const messenger = getMessenger();
       messenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: {
             type: NetworkType.sepolia,
             chainId: ChainId.sepolia,
@@ -1196,7 +1204,7 @@ describe('TokenListController', () => {
       });
 
       controller.startPolling({ chainId: ChainId.sepolia });
-      await jestAdvanceTime({ duration: 0 });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
@@ -1208,7 +1216,7 @@ describe('TokenListController', () => {
         tokensChainsCache: {},
       };
 
-      const fetchTokenListByChainIdSpy = jest
+      const fetchTokenListByChainIdSpy = vi
         .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockImplementation(async (chainId) => {
           switch (chainId) {
@@ -1224,7 +1232,7 @@ describe('TokenListController', () => {
       const messenger = getMessenger();
       messenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockImplementation((networkClientId) => {
+        vi.fn().mockImplementation((networkClientId) => {
           switch (networkClientId) {
             case 'sepolia':
               return {
@@ -1261,7 +1269,7 @@ describe('TokenListController', () => {
       });
 
       // wait a polling interval
-      await jestAdvanceTime({ duration: pollingIntervalTime });
+      await vi.advanceTimersByTimeAsync(pollingIntervalTime);
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
@@ -1277,7 +1285,7 @@ describe('TokenListController', () => {
       controller.startPolling({
         chainId: '0x38',
       });
-      await jestAdvanceTime({ duration: pollingIntervalTime });
+      await vi.advanceTimersByTimeAsync(pollingIntervalTime);
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid
@@ -1726,7 +1734,9 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
       // Mock console.error to verify it's called for the error case
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
@@ -1773,7 +1783,9 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
       // Mock console.error to verify it's called for save errors
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
@@ -1822,7 +1834,9 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
 
       // Mock console.error to verify it's called for persistence errors
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
@@ -2095,6 +2109,363 @@ describe('TokenListController', () => {
       controller.destroy();
     });
   });
+  describe('isDeprecated', () => {
+    it('resets tokensChainsCache to {} at construction when isDeprecated() returns true', () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('preserves initial state when isDeprecated() returns false', () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => false,
+      });
+
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      controller.destroy();
+    });
+
+    it('overwrites all persisted cache keys with empty data on initialize() when disabled', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate StorageService with cached data for two chains
+      const persistedMainnet: DataCache = {
+        timestamp: 123,
+        data: sampleMainnetTokensChainsCache,
+      };
+      const persistedBinance: DataCache = {
+        timestamp: 456,
+        data: sampleBinanceTokensChainsCache,
+      };
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        persistedMainnet,
+      );
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${toHex(56)}`,
+        persistedBinance,
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.initialize();
+
+      const { result: mainnetResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      const { result: binanceResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${toHex(56)}`,
+      );
+
+      expect(mainnetResult).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(binanceResult).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('does not load persisted cache into state on initialize() when disabled', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 123, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.initialize();
+
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('returns early from start() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListMock = vi
+        .spyOn(TokenListController.prototype, 'fetchTokenList')
+        .mockImplementation(async () => undefined);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.start();
+
+      expect(fetchTokenListMock).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListMock.mockRestore();
+    });
+
+    it('returns early from _executePoll() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListByChainIdSpy = vi
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller._executePoll({ chainId: ChainId.mainnet });
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('re-evaluates isDeprecated() on each polling entry so it can be toggled at runtime', async () => {
+      let disabled = false;
+      const fetchTokenListByChainIdSpy = vi
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      await controller.initialize();
+
+      // First poll: enabled — should fetch and populate state
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle to disabled and poll again — should skip fetch and clear state
+      disabled = true;
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('skips the HTTP call and state write when fetchTokenList() is called directly while disabled', async () => {
+      const fetchTokenListByChainIdSpy = vi
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('stops fetching when isDeprecated toggles to true after polling already started', async () => {
+      let disabled = false;
+      const fetchTokenListByChainIdSpy = vi
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+
+      // First call: enabled — should fetch and write state
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle to disabled — a subsequent fetchTokenList must not hit the API
+      // and must clear the existing in-memory data.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('returns early from restart() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListMock = vi
+        .spyOn(TokenListController.prototype, 'fetchTokenList')
+        .mockImplementation(async () => undefined);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.restart();
+
+      expect(fetchTokenListMock).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListMock.mockRestore();
+    });
+
+    it('clears persisted storage at runtime when isDeprecated toggles to true after initialize ran enabled', async () => {
+      let disabled = false;
+
+      // Pre-populate storage as if a prior session had fetched mainnet tokens.
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 123, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      // initialize() runs enabled — loads from storage and wires the persistence subscription.
+      await controller.initialize();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle disabled and hit any fetching entry point.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // In-memory cleared AND persisted entry overwritten with the empty placeholder.
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      expect(result).toStrictEqual({ data: {}, timestamp: 0 });
+
+      controller.destroy();
+    });
+
+    it('does not let a pending debounced persist write old data after isDeprecated toggles to true', async () => {
+      const fetchTokenListByChainIdSpy = vi
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      let disabled = false;
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate storage so we can verify the disabled path overwrites it.
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 999, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      await controller.initialize();
+
+      // Enabled fetch — populates state and schedules a debounced persist (500ms).
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Flip disabled BEFORE the debounce timer fires, then hit a polling entry.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait well past the 500ms debounce window — any stale persist would
+      // have fired by now.
+      await new Promise((resolve) => setTimeout(resolve, 700));
+
+      // Storage entry must be the empty placeholder — not the stale fetched data.
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      expect(result).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+  });
+
   describe('deprecated methods', () => {
     it('should restart polling when restart() is called', async () => {
       const messenger = getMessenger();

@@ -1,8 +1,9 @@
 import { JsonRpcRequest } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import { makeRequest } from '../tests/utils';
-import { createOriginMiddleware } from './createOriginMiddleware';
-import { JsonRpcEngine } from './JsonRpcEngine';
+import { makeRequest } from '../tests/utils.js';
+import { createOriginMiddleware } from './createOriginMiddleware.js';
+import { JsonRpcEngine } from './JsonRpcEngine.js';
 
 describe('createOriginMiddleware', () => {
   it('adds the origin property to the request', async () => {

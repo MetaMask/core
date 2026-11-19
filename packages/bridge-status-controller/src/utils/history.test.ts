@@ -1,17 +1,29 @@
-import { StatusTypes } from '@metamask/bridge-controller';
+import {
+  BatchSellTransactionType,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import { describe, expect, it } from 'vitest';
 
 import type {
   BridgeStatusControllerState,
   BridgeHistoryItem,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   StatusResponse,
-} from '../types';
+} from '../types.js';
 import {
   getHistoryKey,
+  getHistoryOverridesFromTxMeta,
   getInitialHistoryItem,
+  getMatchingHistoryEntryForApprovalTxMeta,
+  getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
-} from './history';
+} from './history.js';
 
 describe('History Utils', () => {
   describe('rekeyHistoryItemInState', () => {
@@ -25,9 +37,13 @@ describe('History Utils', () => {
 
     it('returns false when history item missing', () => {
       const state = makeState();
-      const result = rekeyHistoryItemInState(state, 'missing', {
-        id: 'tx1',
-        hash: '0xhash',
+      const result = rekeyHistoryItemInState(state, 'missing', 'tx1', {
+        txMetaId: 'tx1',
+        status: {
+          srcChain: {
+            txHash: '0xhash',
+          },
+        },
       });
       expect(result).toBe(false);
     });
@@ -52,9 +68,13 @@ describe('History Utils', () => {
         },
       });
 
-      const result = rekeyHistoryItemInState(state, 'action1', {
-        id: 'tx1',
-        hash: '0xnew',
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        status: {
+          srcChain: {
+            txHash: '0xnew',
+          },
+        },
+        txMetaId: 'tx1',
       });
 
       expect(result).toBe(true);
@@ -82,10 +102,115 @@ describe('History Utils', () => {
         },
       });
 
-      const result = rekeyHistoryItemInState(state, 'action1', { id: 'tx1' });
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        txMetaId: 'tx1',
+      });
 
       expect(result).toBe(true);
       expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xold');
+    });
+
+    it('keeps COMPLETE when rekeying with an unmapped TransactionStatus', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.COMPLETE,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(
+        state,
+        'action1',
+        'tx1',
+        getHistoryOverridesFromTxMeta(false, 1, {
+          id: 'tx1',
+          status: TransactionStatus.unapproved,
+        }),
+      );
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.status.status).toBe(StatusTypes.COMPLETE);
+    });
+
+    it('keeps FAILED when rekeying with an unmapped TransactionStatus', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.FAILED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(
+        state,
+        'action1',
+        'tx1',
+        getHistoryOverridesFromTxMeta(false, 1, {
+          id: 'tx1',
+          status: TransactionStatus.signed,
+        }),
+      );
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.status.status).toBe(StatusTypes.FAILED);
+    });
+  });
+
+  describe('getHistoryOverridesFromTxMeta', () => {
+    it('maps known TransactionStatus values', () => {
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.submitted,
+        }).status.status,
+      ).toBe(StatusTypes.PENDING);
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.confirmed,
+        }).status.status,
+      ).toBe(StatusTypes.COMPLETE);
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.failed,
+        }).status.status,
+      ).toBe(StatusTypes.FAILED);
+    });
+
+    it('omits status.status for TransactionStatus values not in the map', () => {
+      for (const status of [
+        TransactionStatus.unapproved,
+        TransactionStatus.approved,
+        TransactionStatus.signed,
+        TransactionStatus.dropped,
+        TransactionStatus.rejected,
+        TransactionStatus.cancelled,
+      ]) {
+        expect(
+          getHistoryOverridesFromTxMeta(false, 1, { status }).status.status,
+        ).toBeUndefined();
+      }
     });
   });
 
@@ -113,20 +238,30 @@ describe('History Utils', () => {
     const baseArgs = {
       bridgeTxMeta: { id: 'tx1', hash: '0xhash' },
       quoteResponse: {
-        quote: { srcChainId: 1, destChainId: 10 },
-        estimatedProcessingTimeInSeconds: 60,
-        sentAmount: { amount: '1', usd: '2' },
-        gasFee: { effective: { amount: '0.001', usd: '3' } },
-        toTokenAmount: { amount: '1', usd: '4' },
+        ...{
+          quote: { srcChainId: 1, destChainId: 10 },
+          estimatedProcessingTimeInSeconds: 60,
+        },
+        ...{
+          sentAmount: { amount: '1', usd: '2' },
+          gasFee: { effective: { amount: '0.001', usd: '3' } },
+          toTokenAmount: { amount: '1', usd: '4' },
+        },
       },
       startTime: 1,
       slippagePercentage: 0,
       accountAddress: '0xaccount',
       isStxEnabled: false,
-    } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
+    } as unknown as StartPollingForBridgeTxStatusArgs;
+
+    it('defaults isStxEnabled when omitted', () => {
+      const { isStxEnabled: _ignored, ...argsWithoutStx } = baseArgs;
+      const txHistoryItem = getInitialHistoryItem(argsWithoutStx);
+      expect(txHistoryItem.isStxEnabled).toBe(false);
+    });
 
     it('omits tokenSecurityTypeDestination when not provided', () => {
-      const { txHistoryItem } = getInitialHistoryItem(baseArgs);
+      const txHistoryItem = getInitialHistoryItem(baseArgs);
       expect(
         Object.prototype.hasOwnProperty.call(
           txHistoryItem,
@@ -136,7 +271,7 @@ describe('History Utils', () => {
     });
 
     it('persists a non-null tokenSecurityTypeDestination', () => {
-      const { txHistoryItem } = getInitialHistoryItem({
+      const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,
         tokenSecurityTypeDestination: 'Malicious',
       });
@@ -144,11 +279,195 @@ describe('History Utils', () => {
     });
 
     it('persists a null tokenSecurityTypeDestination', () => {
-      const { txHistoryItem } = getInitialHistoryItem({
+      const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,
         tokenSecurityTypeDestination: null,
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
+    });
+
+    it('persists customSlippage when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        customSlippage: true,
+      });
+      expect(txHistoryItem.customSlippage).toBe(true);
+    });
+
+    it('persists inputPrimaryDenomination when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        inputPrimaryDenomination: 'fiat_value',
+      });
+      expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
+    });
+
+    it('defaults status to PENDING when txMeta status is unmapped', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        bridgeTxMeta: {
+          id: 'tx1',
+          hash: '0xhash',
+          status: TransactionStatus.unapproved,
+        },
+      });
+      expect(txHistoryItem.status.status).toBe(StatusTypes.PENDING);
+    });
+  });
+
+  describe('getMatchingHistoryEntryForTxMeta', () => {
+    const batchId = '0xbatch1';
+    const firstTradeData = '0xaaa';
+    const siblingData = '0xbbb';
+
+    const stxParent = {
+      txMetaId: undefined,
+      batchId,
+      batchSellData: {
+        transactions: [
+          { type: BatchSellTransactionType.TRADE, data: firstTradeData },
+          { type: BatchSellTransactionType.TRADE, data: siblingData },
+        ],
+      },
+      quote: { srcChainId: 1, destChainId: 10 },
+      status: {
+        status: StatusTypes.PENDING,
+        srcChain: { chainId: 1 },
+      },
+      account: '0xaccount',
+      estimatedProcessingTimeInSeconds: 1,
+      slippagePercentage: 0,
+      hasApprovalTx: false,
+      startTime: 1,
+    } as unknown as BridgeHistoryItem;
+
+    const makeTxMeta = (
+      overrides: Partial<TransactionMeta> & {
+        txParams?: TransactionMeta['txParams'];
+      },
+    ): TransactionMeta => ({
+      id: 'tx-1',
+      batchId,
+      status: TransactionStatus.failed,
+      type: TransactionType.swap,
+      chainId: '0xa',
+      time: 1,
+      networkClientId: 'n',
+      txParams: { from: '0xfrom', data: firstTradeData },
+      ...overrides,
+    });
+
+    it('does not match STX pre-submit parent by batchId for the first trade', () => {
+      const match = getMatchingHistoryEntryForTxMeta(
+        { [batchId]: stxParent },
+        makeTxMeta({ id: 'first' }),
+      );
+      expect(match).toMatchInlineSnapshot(`undefined`);
+    });
+
+    it('does not match STX pre-submit parent by batchId for a sibling trade', () => {
+      const match = getMatchingHistoryEntryForTxMeta(
+        { [batchId]: stxParent },
+        makeTxMeta({
+          id: 'sibling',
+          txParams: { from: '0xfrom', data: siblingData },
+        }),
+      );
+      expect(match).toBeUndefined();
+    });
+
+    it('matches STX history by txMeta.id after rekey', () => {
+      const match = getMatchingHistoryEntryForTxMeta(
+        {
+          tx1: { ...stxParent, txMetaId: 'tx1' },
+        },
+        makeTxMeta({
+          id: 'tx1',
+          txParams: { from: '0xfrom', data: siblingData },
+        }),
+      );
+      expect(match?.[0]).toBe('tx1');
+    });
+
+    it('does not match pre-submit history as the trade when the tx is an approval sharing actionId', () => {
+      const actionId = 'pre-submit-action-id';
+      const historyItem = {
+        txMetaId: undefined,
+        actionId,
+        quote: { srcChainId: 1, destChainId: 10 },
+        status: {
+          status: StatusTypes.PENDING,
+          srcChain: { chainId: 1 },
+        },
+        account: '0xaccount',
+        estimatedProcessingTimeInSeconds: 1,
+        slippagePercentage: 0,
+        hasApprovalTx: true,
+        startTime: 1,
+      } as unknown as BridgeHistoryItem;
+
+      const approvalTx = makeTxMeta({
+        id: 'approval-tx-id',
+        actionId,
+        hash: '0xapproval',
+        type: TransactionType.swapApproval,
+        batchId: undefined,
+      });
+
+      expect(
+        getMatchingHistoryEntryForTxMeta(
+          { [actionId]: historyItem },
+          approvalTx,
+        ),
+      ).toBeUndefined();
+      expect(
+        getMatchingHistoryEntryForApprovalTxMeta(
+          { [actionId]: historyItem },
+          approvalTx,
+        )?.[0],
+      ).toBe(actionId);
+    });
+
+    it('still matches pre-submit history as the trade when the tx shares actionId', () => {
+      const actionId = 'pre-submit-action-id';
+      const historyItem = {
+        txMetaId: undefined,
+        actionId,
+        quote: { srcChainId: 1, destChainId: 10 },
+        status: {
+          status: StatusTypes.PENDING,
+          srcChain: { chainId: 1 },
+        },
+        account: '0xaccount',
+        estimatedProcessingTimeInSeconds: 1,
+        slippagePercentage: 0,
+        hasApprovalTx: false,
+        startTime: 1,
+      } as unknown as BridgeHistoryItem;
+
+      const match = getMatchingHistoryEntryForTxMeta(
+        { [actionId]: historyItem },
+        makeTxMeta({
+          id: 'trade-tx-id',
+          actionId,
+          type: TransactionType.swap,
+          batchId: undefined,
+        }),
+      );
+
+      expect(match?.[0]).toBe(actionId);
+    });
+
+    it('matches 7702 batch-sell parent by batchId', () => {
+      const match = getMatchingHistoryEntryForTxMeta(
+        { [batchId]: stxParent },
+        makeTxMeta({
+          id: '7702-batch',
+          type: TransactionType.batch,
+          txParams: { from: '0xfrom', data: '0xother' },
+        }),
+      );
+      expect(match?.[0]).toBe(batchId);
     });
   });
 });

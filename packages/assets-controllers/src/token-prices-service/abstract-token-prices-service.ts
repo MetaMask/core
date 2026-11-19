@@ -1,7 +1,7 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import type { MarketDataDetails } from '../TokenRatesController';
+import type { MarketDataDetails } from '../TokenRatesController.js';
 
 /**
  * A map of CAIP-2 chain IDs to their native asset identifiers (CAIP-19 format).

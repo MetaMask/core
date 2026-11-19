@@ -185,3 +185,22 @@ export type PendingRevocationParams = {
  * Permission type identifier: the `type` field of standard ERC-7715 permissions.
  */
 export type SupportedPermissionType = PermissionTypes['type'];
+
+/**
+ * Narrower typing for the delegator contract address mapping exported from @metamask/delegation-deployments.
+ */
+export type DelegationDeploymentsEnforcerAddressesByName = Record<
+  | 'ERC20StreamingEnforcer'
+  | 'ERC20PeriodTransferEnforcer'
+  | 'NativeTokenStreamingEnforcer'
+  | 'NativeTokenPeriodTransferEnforcer'
+  | 'ApprovalRevocationEnforcer'
+  | 'ExactCalldataEnforcer'
+  | 'ValueLteEnforcer'
+  | 'TimestampEnforcer'
+  | 'NonceEnforcer'
+  | 'AllowedCalldataEnforcer'
+  | 'AllowedTargetsEnforcer'
+  | 'RedeemerEnforcer',
+  Hex
+>;

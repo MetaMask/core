@@ -1,7 +1,9 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   CaveatMergeTypeMismatchError,
   EndowmentPermissionDoesNotExistError,
-} from './errors';
+} from './errors.js';
 
 describe('error', () => {
   describe('CaveatMergeTypeMismatchError', () => {

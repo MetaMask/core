@@ -2,13 +2,13 @@ import { Interface } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
-import type { Address, AccountId, ChainId } from '../types';
+import type { Address, AccountId, ChainId } from '../types/index.js';
 import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
   isStakingContractAssetId,
   weiToHumanReadable,
-} from '../utils';
+} from '../utils/index.js';
 
 export {
   getStakingContractAddress,
@@ -70,13 +70,13 @@ export const STAKING_INTERFACE = new Interface(STAKING_CONTRACT_ABI);
 const STAKING_DECIMALS = 18;
 
 export type StakedBalanceFetcherConfig = {
-  /** Polling interval in ms (default: 180s) */
+  /** Polling interval in ms (default: 1 hour) */
   pollingInterval?: number;
   /** Returns the network provider for the given chain. Required for fetchStakedBalance. */
   getNetworkProvider?: (chainId: ChainId) => Web3Provider | undefined;
 };
 
-const DEFAULT_STAKED_BALANCE_INTERVAL = 180_000; // 3 minutes
+const DEFAULT_STAKED_BALANCE_INTERVAL = 3_600_000; // 1 hour
 
 export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<StakedBalancePollingInput>() {
   readonly #providerGetter?: (chainId: ChainId) => Web3Provider | undefined;

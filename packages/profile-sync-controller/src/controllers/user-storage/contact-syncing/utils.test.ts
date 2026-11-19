@@ -1,12 +1,13 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
-import type { UserStorageContactEntry } from './types';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
+import type { UserStorageContactEntry } from './types.js';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-} from './utils';
-import type { SyncAddressBookEntry } from './utils';
+} from './utils.js';
+import type { SyncAddressBookEntry } from './utils.js';
 
 describe('user-storage/contact-syncing/utils', () => {
   // Use checksum address format for consistent testing
@@ -19,11 +20,7 @@ describe('user-storage/contact-syncing/utils', () => {
 
   beforeEach(() => {
     // Mock Date.now() to return a fixed timestamp for consistent testing
-    jest.spyOn(Date, 'now').mockImplementation(() => mockTimestamp);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    vi.spyOn(Date, 'now').mockImplementation(() => mockTimestamp);
   });
 
   describe('mapAddressBookEntryToUserStorageEntry', () => {

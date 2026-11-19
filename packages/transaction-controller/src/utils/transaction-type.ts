@@ -8,11 +8,15 @@ import {
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { InferTransactionTypeResult, TransactionParams } from '../types';
-import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
-import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type {
+  InferTransactionTypeResult,
+  TransactionMeta,
+  TransactionParams,
+} from '../types.js';
+import { TransactionType } from '../types.js';
+import { DELEGATION_PREFIX } from './eip7702.js';
+import { rpcRequest } from './provider.js';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -20,6 +24,10 @@ const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
+// Only `approve`, so other Permit2 methods are not typed as token methods.
+const Permit2Interface = new Interface([
+  'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+]);
 
 /**
  * Determines the type of the transaction by analyzing the txParams.
@@ -100,9 +108,9 @@ export async function determineTransactionType(
 }
 
 /**
- * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155 and USDC.
+ * Parses transaction data using the ERC20, ERC721, ERC1155, USDC and Permit2 `approve` ABIs.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
- * contract standards
+ * ABIs.
  *
  * @param data - Encoded transaction data.
  * @param options - Options bag.
@@ -126,6 +134,7 @@ export function decodeTransactionData(
     ERC721Interface,
     ERC1155Interface,
     USDCInterface,
+    Permit2Interface,
   ]) {
     try {
       if (options?.getMethodName) {
@@ -188,4 +197,29 @@ async function readAddressAsContract(
       !contractCode.startsWith(DELEGATION_PREFIX)
     : false;
   return { contractCode, isContractAddress };
+}
+
+/**
+ * Check whether a transaction (or any of its nested transactions) has one of
+ * the given types.
+ *
+ * @param transactionMeta - Transaction metadata.
+ * @param types - Transaction types to match against.
+ * @returns `true` when the transaction or a nested transaction has one of the given types.
+ */
+export function hasTransactionType(
+  transactionMeta: TransactionMeta | undefined,
+  types: readonly TransactionType[],
+): boolean {
+  const { nestedTransactions, type } = transactionMeta ?? {};
+
+  if (types.includes(type as TransactionType)) {
+    return true;
+  }
+
+  return (
+    nestedTransactions?.some((tx) =>
+      types.includes(tx.type as TransactionType),
+    ) ?? false
+  );
 }

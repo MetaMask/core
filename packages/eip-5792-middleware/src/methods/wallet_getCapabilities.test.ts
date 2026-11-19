@@ -1,12 +1,14 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type {
   GetCapabilitiesHook,
   GetCapabilitiesParams,
   GetCapabilitiesResult,
-} from '../types';
-import { walletGetCapabilities } from './wallet_getCapabilities';
+} from '../types.js';
+import { walletGetCapabilities } from './wallet_getCapabilities.js';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 
@@ -30,8 +32,8 @@ describe('wallet_getCapabilities', () => {
   let request: JsonRpcRequest & { origin: string };
   let params: GetCapabilitiesParams;
   let response: PendingJsonRpcResponse<GetCapabilitiesResult>;
-  let getPermittedAccountsForOriginMock: jest.MockedFn<GetPermittedAccountsForOrigin>;
-  let getCapabilitiesMock: jest.MockedFunction<GetCapabilitiesHook>;
+  let getPermittedAccountsForOriginMock: MockedFunction<GetPermittedAccountsForOrigin>;
+  let getCapabilitiesMock: MockedFunction<GetCapabilitiesHook>;
 
   /**
    *
@@ -45,16 +47,16 @@ describe('wallet_getCapabilities', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK) as JsonRpcRequest & { origin: string };
     params = request.params as GetCapabilitiesParams;
     response = {} as PendingJsonRpcResponse<GetCapabilitiesResult>;
 
-    getPermittedAccountsForOriginMock = jest
+    getPermittedAccountsForOriginMock = vi
       .fn()
       .mockResolvedValue([ADDRESS_MOCK]);
-    getCapabilitiesMock = jest.fn().mockResolvedValue(RESULT_MOCK);
+    getCapabilitiesMock = vi.fn().mockResolvedValue(RESULT_MOCK);
   });
 
   it('calls hook', async () => {
@@ -122,7 +124,7 @@ describe('wallet_getCapabilities', () => {
   });
 
   it('throws if wrong length', async () => {
-    params[0] = '0x123' as never;
+    params[0] = '0x123';
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params

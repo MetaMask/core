@@ -1,8 +1,10 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { ZERO_ADDRESS } from '../../../utils/constants';
-import type { MulticallClient } from '../clients';
+import type { ChainId as Caip2ChainId } from '../../../types.js';
+import type { GetAssetVisibility } from '../../../utils/assetVisibility.js';
+import { ZERO_ADDRESS } from '../../../utils/constants.js';
+import type { MulticallClient } from '../clients/index.js';
 import type {
   AccountId,
   Address,
@@ -14,25 +16,25 @@ import type {
   BalanceOfResponse,
   CaipAssetType,
   ChainId,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from '../utils/index.js';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
-
-/**
- * Minimal messenger interface for BalanceFetcher.
- */
-export type BalanceFetcherMessenger = {
-  call: (action: 'AssetsController:getState') => AssetsBalanceState;
-};
 
 export type BalanceFetcherConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
+  /** Current AssetsController balance/custom-asset state. */
+  getAssetsState: () => AssetsBalanceState;
   /** Determines whether a CAIP-19 asset ID represents a native asset. */
   isNativeAsset: (assetId: CaipAssetType) => boolean;
+  /** Returns shared visible/hidden assets for an account/chain scope. */
+  getAssetVisibility: GetAssetVisibility;
 };
 
 /**
@@ -45,13 +47,6 @@ export type BalancePollingInput = {
   accountId: AccountId;
   /** Account address */
   accountAddress: Address;
-  /**
-   * When true, only fetch balances for entries in `state.customAssets`,
-   * skipping `state.assetsBalance`. Used by the supplemental RPC
-   * subscription on chains that another data source is already covering
-   * for regular balance refreshes.
-   */
-  customAssetsOnly?: boolean;
 };
 
 /**
@@ -73,29 +68,34 @@ export type OnBalanceUpdateCallback = (
 export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalancePollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #messenger: BalanceFetcherMessenger;
-
   readonly #config: Required<
-    Omit<BalanceFetcherConfig, 'pollingInterval' | 'isNativeAsset'>
+    Omit<
+      BalanceFetcherConfig,
+      | 'pollingInterval'
+      | 'getAssetsState'
+      | 'isNativeAsset'
+      | 'getAssetVisibility'
+    >
   >;
+
+  readonly #getAssetsState: () => AssetsBalanceState;
 
   readonly #isNativeAsset: (assetId: CaipAssetType) => boolean;
 
+  readonly #getAssetVisibility: GetAssetVisibility;
+
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
-  constructor(
-    multicallClient: MulticallClient,
-    messenger: BalanceFetcherMessenger,
-    config: BalanceFetcherConfig,
-  ) {
+  constructor(multicallClient: MulticallClient, config: BalanceFetcherConfig) {
     super();
     this.#multicallClient = multicallClient;
-    this.#messenger = messenger;
     this.#config = {
       defaultBatchSize: config.defaultBatchSize ?? 300,
       defaultTimeoutMs: config.defaultTimeoutMs ?? 30000,
     };
+    this.#getAssetsState = config.getAssetsState;
     this.#isNativeAsset = config.isNativeAsset;
+    this.#getAssetVisibility = config.getAssetVisibility;
 
     // Set the polling interval
     this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
@@ -121,7 +121,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       input.chainId,
       input.accountId,
       input.accountAddress,
-      input.customAssetsOnly === true,
     );
 
     if (this.#onBalanceUpdate && result.balances.length > 0) {
@@ -130,71 +129,56 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
   }
 
   /**
-   * Return asset fetch entries tracked in state for the given account and
-   * chain. Both native (`slip44:`) and ERC-20 (`erc20:`) entries are included.
+   * Visible assets (native, pins, default tracked) plus anything already
+   * tracked with a balance entry, minus hidden assets and staking vault share
+   * tokens. Share-token `balanceOf` is not the converted staked amount;
+   * publishing it as `updateMode: 'full'` would overwrite the value from
+   * StakedBalanceFetcher.
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
-   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
-   * @returns Array of asset fetch entries from state for the requested chain.
+   * @returns Array of asset fetch entries for the requested chain.
    */
-  #getAssetsToFetch(
-    chainId: ChainId,
-    accountId: AccountId,
-    customAssetsOnly: boolean,
-  ): AssetFetchEntry[] {
-    const state = this.#messenger.call('AssetsController:getState');
-
-    // Convert hex chainId to decimal for CAIP-2 matching
-    // This is safe because we are filtring with an accountId that is for evm balances only
+  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
+    const state = this.#getAssetsState();
     const chainIdDecimal = parseInt(chainId, 16).toString();
+
+    const { visibleAssetIds, hiddenAssetIds } = this.#getAssetVisibility(
+      [accountId],
+      [`eip155:${chainIdDecimal}` as Caip2ChainId],
+    );
+    const hidden = new Set(
+      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
+    );
+    const tracked = Object.keys(
+      state?.assetsBalance?.[accountId] ?? {},
+    ) as CaipAssetType[];
 
     const assetsToFetch = new Map<string, AssetFetchEntry>();
 
-    const collect = (assetId: CaipAssetType): void => {
+    for (const assetId of [...visibleAssetIds, ...tracked]) {
+      const normalizedAssetId = assetId.toLowerCase();
+
+      if (
+        assetsToFetch.has(normalizedAssetId) ||
+        hidden.has(normalizedAssetId) ||
+        isStakingContractAssetId(assetId)
+      ) {
+        continue;
+      }
+
       const parsed = parseCaipAssetType(assetId);
 
       if (parsed.chain.reference !== chainIdDecimal) {
-        return;
+        continue;
       }
-
-      const normalizedAssetId = assetId.toLowerCase();
-
-      if (assetsToFetch.has(normalizedAssetId)) {
-        return;
-      }
-
-      const isNative = this.#isNativeAsset(assetId);
 
       assetsToFetch.set(normalizedAssetId, {
         assetId,
-        address: isNative
+        address: this.#isNativeAsset(assetId)
           ? ZERO_ADDRESS
           : (parsed.assetReference.toLowerCase() as Address),
       });
-    };
-
-    // 1. Assets already tracked with a balance entry — only when not in
-    //    "customAssetsOnly" mode (otherwise another data source is already
-    //    refreshing them and we'd double-poll).
-    if (!customAssetsOnly) {
-      const accountBalances = state?.assetsBalance?.[accountId];
-      if (accountBalances) {
-        for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
-          collect(assetId);
-        }
-      }
-    }
-
-    // 2. User-added custom assets — RPC is the sole balance fetcher for
-    //    these, so they must be polled even if they have no balance entry
-    //    yet (e.g. zero balance, first fetch failed, or state was hydrated
-    //    from disk before any successful fetch).
-    const customAssets = state?.customAssets?.[accountId];
-    if (customAssets) {
-      for (const assetId of customAssets as CaipAssetType[]) {
-        collect(assetId);
-      }
     }
 
     return Array.from(assetsToFetch.values());
@@ -207,16 +191,14 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
-   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
    * @returns Balance fetch result.
    */
   async #fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
-    customAssetsOnly: boolean,
   ): Promise<BalanceFetchResult> {
-    const assets = this.#getAssetsToFetch(chainId, accountId, customAssetsOnly);
+    const assets = this.#getAssetsToFetch(chainId, accountId);
 
     return this.fetchBalancesForAssets(
       chainId,
@@ -291,6 +273,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         const responses = await this.#multicallClient.batchBalanceOf(
           chainId,
           batch,
+          { fallbackToSingleCalls: true },
         );
 
         return this.#processBalanceResponses(

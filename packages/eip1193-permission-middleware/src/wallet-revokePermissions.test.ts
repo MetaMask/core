@@ -5,9 +5,10 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
-import { EndowmentTypes, RestrictedMethods } from './types';
-import { revokePermissionsHandler } from './wallet-revokePermissions';
+import { EndowmentTypes, RestrictedMethods } from './types.js';
+import { revokePermissionsHandler } from './wallet-revokePermissions.js';
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -22,9 +23,9 @@ const baseRequest = {
 };
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const revokePermissionsForOrigin = jest.fn();
+  const next = vi.fn();
+  const end = vi.fn();
+  const revokePermissionsForOrigin = vi.fn();
 
   const response: PendingJsonRpcResponse = {
     jsonrpc: '2.0' as const,

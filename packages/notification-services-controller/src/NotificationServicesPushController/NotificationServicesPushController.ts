@@ -8,18 +8,20 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import type { Types } from '../NotificationServicesController';
-import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types';
-import type { ENV } from './services/endpoints';
-import type { RegToken } from './services/services';
+import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types.js';
+import type { ENV } from './services/endpoints.js';
+import type { RegToken } from './services/services.js';
 import {
   activatePushNotifications,
   deleteLinksAPI,
   deactivatePushNotifications,
   updateLinksAPI,
-} from './services/services';
-import type { PushNotificationEnv } from './types';
-import type { PushService } from './types/push-service-interface';
+} from './services/services.js';
+import type {
+  PushAnalyticsPayload,
+  PushNotificationEnv,
+} from './types/index.js';
+import type { PushService } from './types/push-service-interface.js';
 
 const controllerName = 'NotificationServicesPushController';
 
@@ -59,12 +61,12 @@ export type NotificationServicesPushControllerStateChangeEvent =
 
 export type NotificationServicesPushControllerOnNewNotificationEvent = {
   type: `${typeof controllerName}:onNewNotifications`;
-  payload: [Types.INotification];
+  payload: [PushAnalyticsPayload];
 };
 
 export type NotificationServicesPushControllerPushNotificationClickedEvent = {
   type: `${typeof controllerName}:pushNotificationClicked`;
-  payload: [Types.INotification];
+  payload: [PushAnalyticsPayload];
 };
 
 export type Events =

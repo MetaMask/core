@@ -11,9 +11,9 @@ import type { Hex } from '@metamask/utils';
 import { add0x, remove0x } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
-import { UserOperationStatus } from '../types';
-import type { UserOperationMetadata } from '../types';
+import { EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
+import { UserOperationStatus } from '../types.js';
+import type { UserOperationMetadata } from '../types.js';
 
 /**
  * Converts a user operation metadata object into a transaction metadata object.

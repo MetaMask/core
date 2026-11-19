@@ -1,2 +1,2 @@
-export type * from './notification-api';
-export type * as Schema from './schema';
+export type * from './notification-api.js';
+export type * as Schema from './schema.js';

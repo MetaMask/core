@@ -1,4 +1,4 @@
-import type { ChainId } from './core';
+import type { ChainId } from './core.js';
 
 /**
  * Single token entry from token list.

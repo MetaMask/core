@@ -1,36 +1,34 @@
-import determineGasFeeCalculations from './determineGasFeeCalculations';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
+} from './gas-util.js';
 import type {
   unknownString,
   GasFeeEstimates,
   LegacyGasPriceEstimate,
   EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
-jest.mock('./gas-util');
+vi.mock(import('./gas-util.js'));
 
-const mockedFetchGasEstimates = fetchGasEstimates as jest.Mock<
-  ReturnType<typeof fetchGasEstimates>,
-  Parameters<typeof fetchGasEstimates>
+const mockedFetchGasEstimates = fetchGasEstimates as Mock<
+  typeof fetchGasEstimates
 >;
-const mockedFetchLegacyGasPriceEstimates =
-  fetchLegacyGasPriceEstimates as jest.Mock<
-    ReturnType<typeof fetchLegacyGasPriceEstimates>,
-    Parameters<typeof fetchLegacyGasPriceEstimates>
-  >;
-const mockedFetchEthGasPriceEstimate = fetchEthGasPriceEstimate as jest.Mock<
-  ReturnType<typeof fetchEthGasPriceEstimate>,
-  Parameters<typeof fetchEthGasPriceEstimate>
+const mockedFetchLegacyGasPriceEstimates = fetchLegacyGasPriceEstimates as Mock<
+  typeof fetchLegacyGasPriceEstimates
 >;
-const mockedCalculateTimeEstimate = calculateTimeEstimate as jest.Mock<
-  ReturnType<typeof calculateTimeEstimate>,
-  Parameters<typeof calculateTimeEstimate>
+const mockedFetchEthGasPriceEstimate = fetchEthGasPriceEstimate as Mock<
+  typeof fetchEthGasPriceEstimate
+>;
+const mockedCalculateTimeEstimate = calculateTimeEstimate as Mock<
+  typeof calculateTimeEstimate
 >;
 
 /**
@@ -108,7 +106,7 @@ function buildMockDataForFetchEthGasPriceEstimate(): EthGasPriceEstimate {
 function buildMockDataForCalculateTimeEstimate(): EstimatedGasFeeTimeBounds {
   return {
     lowerTimeBound: null,
-    upperTimeBound: 'unknown' as unknownString,
+    upperTimeBound: 'unknown',
   };
 }
 

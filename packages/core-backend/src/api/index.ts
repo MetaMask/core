@@ -9,57 +9,81 @@ export type {
   SupportedCurrency,
   MarketDataDetails,
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
-} from './shared-types';
+} from './shared-types.js';
 export {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  DEFAULT_AUTH_TOKEN_TIMEOUT,
   RETRY_CONFIG,
   calculateRetryDelay,
   getQueryOptionsOverrides,
   shouldRetry,
   HttpError,
-} from './shared-types';
+} from './shared-types.js';
 
 // Accounts API
-export { AccountsApiClient } from './accounts';
+export { AccountsApiClient, V6_DEFI_POSITION_TYPES } from './accounts/index.js';
 export type {
   V5BalanceItem,
   V5BalancesResponse,
   V2BalanceItem,
   V2BalancesResponse,
   V4BalancesResponse,
+  V6VsCurrency,
+  V6DeFiPositionType,
+  V6BalanceMetadata,
+  V6StellarTokenBalanceMetadata,
+  V6TokenBalanceMetadata,
+  V6BalanceItem,
+  V6BalancesResponse,
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
   V2ActiveNetworksResponse,
   V1TransactionByHashResponse,
   V1AccountTransactionsResponse,
   V4MultiAccountTransactionsResponse,
+  V5Transaction,
+  V5TransactionValueTransfer,
+  V5TransactionMiscOperation,
+  V5TransactionFeeAsset,
+  V5TransactionFee,
+  V5TransactionLog,
+  V5TransactionRecord,
+  V5TransactionByIdResponse,
+  V5TransactionByIdQueryOptions,
+  V5MultiAccountTransactionsResponse,
+  V5MultiAccountTransactionsQueryOptions,
   ValueTransfer,
   V1AccountRelationshipResult,
   NftItem,
   V2NftsResponse,
   TokenDiscoveryItem,
   V2TokensResponse,
-} from './accounts';
+} from './accounts/index.js';
 
 // Prices API
-export { PricesApiClient } from './prices';
+export { PricesApiClient } from './prices/index.js';
 export type {
   V3SpotPricesResponse,
   CoinGeckoSpotPrice,
   ExchangeRateInfo,
   V1ExchangeRatesResponse,
   PriceSupportedNetworksResponse,
+  PriceV1SupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   V1HistoricalPricesResponse,
   V3HistoricalPricesResponse,
-} from './prices';
+} from './prices/index.js';
 
 // Token API
-export { TokenApiClient } from './token';
+export { TokenApiClient } from './token/index.js';
 export type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   TokenSearchResult,
   TokenSearchPageInfo,
@@ -72,22 +96,24 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
-} from './token';
+  V2AssetResponse,
+  V2AssetsQueryOptions,
+} from './token/index.js';
 
 // Tokens API
-export { TokensApiClient } from './tokens';
+export { TokensApiClient } from './tokens/index.js';
 export type {
   V1TokenSupportedNetworksResponse,
   V2TokenSupportedNetworksResponse,
   V3AssetResponse,
-} from './tokens';
+} from './tokens/index.js';
 
 // Base client
-export { BaseApiClient } from './base-client';
-export type { InternalFetchOptions } from './base-client';
+export { BaseApiClient } from './base-client.js';
+export type { InternalFetchOptions } from './base-client.js';
 
 // API Platform Client (unified client)
 export {
   ApiPlatformClient,
   createApiPlatformClient,
-} from './ApiPlatformClient';
+} from './ApiPlatformClient.js';

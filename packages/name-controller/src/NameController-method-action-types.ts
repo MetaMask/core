@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NameController } from './NameController';
+import type { NameController } from './NameController.js';
 
 /**
  * Set the user specified name for a value.

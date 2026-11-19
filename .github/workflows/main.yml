@@ -10,10 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
+permissions:
+  contents: read
+
 jobs:
   check-skip-merge-queue:
     name: Check if pull request can skip merge queue
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
     steps:
@@ -28,15 +34,22 @@ jobs:
       - check-skip-merge-queue
     if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Download actionlint
         id: download-actionlint
         run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
         shell: bash
       - name: Check workflow files
-        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        run: |
+          "$ACTIONLINT" -color
         shell: bash
+        env:
+          ACTIONLINT: ${{ steps.download-actionlint.outputs.executable }}
 
   analyse-code:
     name: Analyse code
@@ -54,8 +67,6 @@ jobs:
         **/*.test.js*
         **/*.test.ts*
         **/fixtures/
-        **/jest.config.js
-        **/jest.environment.js
         **/mocks/
         **/test*/
         docs/
@@ -77,6 +88,15 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  deploy-platform-api-docs:
+    name: Deploy Platform API Docs
+    needs: lint-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-platform-api-docs.yml
+
   check-release:
     name: Check release
     needs: check-workflows
@@ -86,7 +106,10 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Check release
         if: github.event_name != 'push'
         uses: ./.github/actions/check-release
@@ -112,6 +135,7 @@ jobs:
     if: needs.is-release.outputs.IS_RELEASE == 'true'
     permissions:
       contents: write
+      id-token: write
     uses: ./.github/workflows/publish-release.yml
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -121,36 +145,28 @@ jobs:
     name: Create update issues
     needs: [is-release, publish-release]
     if: needs.is-release.outputs.IS_RELEASE == 'true'
-    uses: ./.github/workflows/create-update-issues.yaml
-    secrets:
-      CORE_CREATE_UPDATE_ISSUES_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
-
-  all-jobs-complete:
-    name: All jobs complete
-    runs-on: ubuntu-latest
-    needs:
-      - analyse-code
-      - check-release
-      - lint-build-test
-    outputs:
-      passed: ${{ steps.set-output.outputs.passed }}
-    steps:
-      - name: Set passed output
-        id: set-output
-        run: echo "passed=true" >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/create-update-issues.yml
+    permissions:
+      contents: read
+      id-token: write
 
   all-jobs-pass:
     name: All jobs pass
     if: ${{ always() }}
     runs-on: ubuntu-latest
     needs:
-      - all-jobs-complete
+      - analyse-code
+      - check-release
+      - lint-build-test
       - check-skip-merge-queue
     env:
-      PASSED: ${{ needs.all-jobs-complete.outputs.passed == 'true' || needs.check-skip-merge-queue.outputs.skip-merge-queue == 'true' }}
+      RESULTS: ${{ toJSON(needs.*.result) }}
+      SKIP_MERGE_QUEUE: ${{ needs.check-skip-merge-queue.outputs.skip-merge-queue }}
     steps:
-      - name: Check that all jobs have passed
+      - name: Check the results of the other jobs
         run: |
-          if [[ "$PASSED" != "true" ]]; then
-            exit 1
+          if [[ "$SKIP_MERGE_QUEUE" == "true" ]]; then
+            exit 0
           fi
+
+          echo "$RESULTS" | jq -e 'all(. == "success")'

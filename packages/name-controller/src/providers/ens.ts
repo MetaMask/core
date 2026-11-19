@@ -1,11 +1,11 @@
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
+} from '../types.js';
+import { NameType } from '../types.js';
 
 export type ReverseLookupCallback = (
   address: string,

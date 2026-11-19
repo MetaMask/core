@@ -16,8 +16,8 @@ import type {
   TransactionError,
   TransactionMeta,
   TransactionParams,
-} from '../types';
-import { TransactionEnvelopeType, TransactionStatus } from '../types';
+} from '../types.js';
+import { TransactionEnvelopeType, TransactionStatus } from '../types.js';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 

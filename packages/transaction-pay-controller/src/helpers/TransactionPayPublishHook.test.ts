@@ -2,17 +2,18 @@ import type {
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TransactionPayStrategy } from '..';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { TransactionPayStrategy } from '../index.js';
 import type {
   TransactionPayControllerState,
   TransactionPayQuote,
-} from '../types';
-import { getStrategyByName } from '../utils/strategy';
-import { TransactionPayPublishHook } from './TransactionPayPublishHook';
+} from '../types.js';
+import { getStrategyByName } from '../utils/strategy.js';
+import { TransactionPayPublishHook } from './TransactionPayPublishHook.js';
 
-jest.mock('../utils/strategy');
+vi.mock(import('../utils/strategy.js'));
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -22,13 +23,14 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
-  strategy: TransactionPayStrategy.Test,
-} as TransactionPayQuote<unknown>;
+  request: { sourceAssetId: 'eip155:1/slip44:60' },
+  strategy: TransactionPayStrategy.Across,
+} as unknown as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
-  const isSmartTransactionMock = jest.fn();
-  const executeMock = jest.fn();
-  const getStrategyByNameMock = jest.mocked(getStrategyByName);
+  const isSmartTransactionMock = vi.fn();
+  const executeMock = vi.fn();
+  const getStrategyByNameMock = vi.mocked(getStrategyByName);
 
   const {
     messenger,
@@ -50,7 +52,7 @@ describe('TransactionPayPublishHook', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -70,8 +72,8 @@ describe('TransactionPayPublishHook', () => {
 
     getStrategyByNameMock.mockReturnValue({
       execute: executeMock,
-      getQuotes: jest.fn(),
-    } as never);
+      getQuotes: vi.fn(),
+    });
 
     isSmartTransactionMock.mockReturnValue(false);
 
@@ -81,7 +83,7 @@ describe('TransactionPayPublishHook', () => {
           quotes: [QUOTE_MOCK, QUOTE_MOCK],
         },
       },
-    } as TransactionPayControllerState);
+    });
 
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
@@ -113,6 +115,63 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing if transaction data has no quotes', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          tokens: [],
+        },
+      },
+    });
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing if only a no-op quote is present', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          quotes: [{ strategy: TransactionPayStrategy.None }],
+          tokens: [],
+        },
+      },
+    });
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('throws if fiat payment is selected but no quotes are in state', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          fiatPayment: {
+            selectedPaymentMethodId: 'debit-card',
+          },
+          isLoading: false,
+          tokens: [],
+        },
+      },
+    });
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Fiat: Missing quote',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
   it('sets submittedTime on the transaction before executing strategy', async () => {
@@ -212,18 +271,20 @@ describe('TransactionPayPublishHook', () => {
   });
 
   it('throws errors from submit prefixed with MetaMask Pay', async () => {
-    executeMock.mockRejectedValue(new Error('Test error'));
+    const error = new Error('Test error');
+    executeMock.mockRejectedValue(error);
 
-    await expect(runHook()).rejects.toThrow('MetaMask Pay: Test error');
+    const thrown = await runHook().catch((caught) => caught);
+
+    expect(thrown).toBe(error);
+    expect(thrown.message).toBe('MetaMask Pay: Test error');
   });
 
   it('cascades MetaMask Pay prefix on top of strategy-level prefixes', async () => {
-    executeMock.mockRejectedValue(
-      new Error('Relay submit: Relay execute: backend boom'),
-    );
+    executeMock.mockRejectedValue(new Error('Relay: Execute: backend boom'));
 
     await expect(runHook()).rejects.toThrow(
-      'MetaMask Pay: Relay submit: Relay execute: backend boom',
+      'MetaMask Pay: Relay: Execute: backend boom',
     );
   });
 

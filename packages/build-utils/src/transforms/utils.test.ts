@@ -1,11 +1,13 @@
-import { lintTransformedFile } from '..';
+import { describe, expect, it, vi } from 'vitest';
+
+import { lintTransformedFile } from '../index.js';
 
 describe('transform utils', () => {
   describe('lintTransformedFile', () => {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockESLint: any = {
-      lintText: jest.fn(),
+      lintText: vi.fn(),
     };
 
     it('returns if linting passes with no errors', async () => {

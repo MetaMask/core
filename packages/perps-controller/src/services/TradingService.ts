@@ -1,19 +1,31 @@
+import { assertExhaustive } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../constants/eventNames';
-import { isTPSLOrder } from '../constants/orderTypes';
-import { PerpsMeasurementName } from '../constants/performanceMetrics';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+} from '../constants/eventNames.js';
+import { isTPSLOrder } from '../constants/orderTypes.js';
+import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  OrderDiscoveryError,
+  PerpsControllerError,
+} from '../errors.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
   PerpsTraceOperations,
-} from '../types';
+} from '../types/index.js';
 import type {
+  Order,
   PerpsProvider,
+  PerpsProviderType,
   OrderParams,
   OrderResult,
   EditOrderParams,
@@ -25,13 +37,42 @@ import type {
   ClosePositionsParams,
   ClosePositionsResult,
   Position,
+  TrackingData,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
-} from '../types';
-import { ensureError } from '../utils/errorUtils';
-import type { RewardsIntegrationService } from './RewardsIntegrationService';
-import type { ServiceContext } from './ServiceContext';
+  PerpsFeeResolution,
+  PerpsTraceStatus,
+} from '../types/index.js';
+import {
+  getUnroutedCancelOrdersRefusal,
+  resolveCancelSelection,
+} from '../utils/cancelOrders.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
+import type { CloseSelection } from '../utils/closePositions.js';
+import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+  getProviderErrorCause,
+  wasProviderErrorReported,
+} from '../utils/errorContext.js';
+import type {
+  PerpsErrorTags,
+  PerpsLoggerOptions,
+} from '../utils/errorContext.js';
+import { ensureError } from '../utils/errorUtils.js';
+import { hasFeeSetter } from '../utils/feeSupport.js';
+import { captureScaleOrderParams } from '../utils/lighterScaleOrders.js';
+import {
+  isLimitExecutionOrderType,
+  SCALE_ORDER_COUNT,
+} from '../utils/orderTypes.js';
+import { toPositionTpslLegPrices } from '../utils/positionProtection.js';
+import { environmentTypeProperty } from './environmentTypeProperty.js';
+import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * Controller-level dependencies for TradingService.
@@ -40,6 +81,61 @@ import type { ServiceContext } from './ServiceContext';
 export type TradingServiceControllerDeps = {
   rewardsIntegrationService: RewardsIntegrationService;
 };
+
+/**
+ * Subset of tracking data carrying discovery attribution, hl_fee_rate, and the
+ * optional UI surface shared across trade/close/cancel/risk events. Both
+ * {@link TrackingData} and {@link TPSLTrackingData} satisfy this shape.
+ */
+type AttributionTrackingData = Pick<
+  TrackingData,
+  | 'entryPoint'
+  | 'discoverySource'
+  | 'perpDiscoverySource'
+  | 'hlFeeRate'
+  | 'environmentType'
+>;
+
+/** A close selection that reaches at least one venue or position. */
+type NonEmptyCloseSelection = Exclude<CloseSelection, { kind: 'none' }>;
+
+/**
+ * Whether a write failed because the signer could not sign it (a locked
+ * keyring or account signer, or an unavailable or rejected agent). The user
+ * retries it; it is not an error to report.
+ *
+ * @param error - The provider result error.
+ * @returns True for `KEYRING_LOCKED`.
+ */
+function isSignerUnavailable(error: string | undefined): boolean {
+  return error === PERPS_ERROR_CODES.KEYRING_LOCKED;
+}
+
+/**
+ * Flip results that are expected account or signer states, not defects.
+ * A locked keyring is retried by the user. A missing exchange account is the
+ * pre-account state already kept out of error reporting by the provider.
+ *
+ * @param error - The provider result error.
+ * @returns True for `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND`.
+ */
+function isSilentFlipResult(error: string | undefined): boolean {
+  return (
+    isSignerUnavailable(error) ||
+    error === PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
+  );
+}
+
+/**
+ * Convert an operation result into the bounded terminal trace status that
+ * platform adapters map to their tracing SDK.
+ *
+ * @param success - Whether the traced operation completed successfully.
+ * @returns The terminal trace status.
+ */
+function getTraceStatus(success: boolean | undefined): PerpsTraceStatus {
+  return success === true ? 'ok' : 'error';
+}
 
 /**
  * TradingService
@@ -62,6 +158,9 @@ export class TradingService {
    * Set via setControllerDependencies() after construction.
    */
   #controllerDeps: TradingServiceControllerDeps | null = null;
+
+  /** Serializes provider fee context so concurrent orders cannot share it. */
+  #feeContextTail: Promise<void> = Promise.resolve();
 
   /**
    * Create a new TradingService instance
@@ -87,19 +186,141 @@ export class TradingService {
   /**
    * Error context helper for consistent logging
    *
+   * @param context - The active service context.
    * @param method - The method name.
+   * @param errorTags - Bounded tags used by error dashboards.
    * @param additionalContext - The additional context value.
    * @returns The resulting string value.
    */
   #getErrorContext(
+    context: ServiceContext,
     method: string,
+    errorTags: PerpsErrorTags,
     additionalContext?: Record<string, unknown>,
-  ): Record<string, unknown> {
-    return {
-      controller: 'TradingService',
+  ): PerpsLoggerOptions {
+    return createPerpsErrorContext({
+      contextName: 'TradingService',
       method,
-      ...additionalContext,
+      provider: context.tracingContext.provider,
+      network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+      errorTags,
+      data: additionalContext,
+    });
+  }
+
+  /**
+   * Build discovery/attribution properties shared across trade/close/cancel/risk
+   * events. Each property is only included when present so
+   * that, in particular, hl_fee_rate is omitted entirely when unavailable.
+   *
+   * @param trackingData - Optional tracking data carried on the operation params.
+   * @returns The attribution properties to merge into an analytics event.
+   */
+  #buildAttributionProperties(
+    trackingData?: AttributionTrackingData,
+  ): PerpsAnalyticsProperties {
+    const properties: PerpsAnalyticsProperties = {};
+    if (trackingData?.entryPoint !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.ENTRY_POINT] = trackingData.entryPoint;
+    }
+    if (trackingData?.discoverySource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.DISCOVERY_SOURCE] =
+        trackingData.discoverySource;
+    }
+    if (trackingData?.perpDiscoverySource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.PERP_DISCOVERY_SOURCE] =
+        trackingData.perpDiscoverySource;
+    }
+    if (trackingData?.hlFeeRate !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.HL_FEE_RATE] = trackingData.hlFeeRate;
+    }
+    Object.assign(
+      properties,
+      environmentTypeProperty(trackingData?.environmentType),
+    );
+    return properties;
+  }
+
+  /**
+   * Build normalized slippage and failure properties without removing the
+   * existing raw error message used by current analytics dashboards.
+   *
+   * @param trackingData - Optional caller-provided slippage context.
+   * @param result - Provider result, when available.
+   * @param error - Thrown provider error, when available.
+   * @returns Slippage and normalized failure properties.
+   */
+  #buildSlippageProperties(
+    trackingData?: TrackingData,
+    result?: OrderResult | null,
+    error?: Error,
+  ): PerpsAnalyticsProperties {
+    const properties: PerpsAnalyticsProperties = {};
+
+    if (trackingData?.maxSlippageBps !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.MAX_SLIPPAGE_PCT] =
+        trackingData.maxSlippageBps / 100;
+    }
+    if (trackingData?.maxSlippageSource !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.MAX_SLIPPAGE_SOURCE] =
+        trackingData.maxSlippageSource;
+    }
+    if (trackingData?.estimatedSlippageBps !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.ESTIMATED_SLIPPAGE_PCT] =
+        trackingData.estimatedSlippageBps / 100;
+    }
+
+    const errorCode =
+      result?.errorCode ??
+      (error instanceof PerpsControllerError ? error.errorCode : undefined);
+    const errorDetails =
+      result?.errorDetails ??
+      (error instanceof PerpsControllerError ? error.errorDetails : undefined);
+
+    if (errorCode !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.FAILURE_REASON] = errorCode;
+    }
+    if (
+      errorDetails?.code === PERPS_ERROR_CODES.PRICE_MOVED &&
+      Number.isFinite(errorDetails.priceDeltaBps)
+    ) {
+      properties[PERPS_EVENT_PROPERTY.PRICE_DELTA_BPS] =
+        errorDetails.priceDeltaBps;
+    }
+
+    return properties;
+  }
+
+  /**
+   * Build properties that identify the submitted order intent.
+   *
+   * @param params - Order parameters containing placement type and reduce-only intent.
+   * @returns Properties shared by every trade lifecycle event.
+   */
+  #buildTradeIntentProperties(
+    params: Pick<OrderParams, 'orderType' | 'reduceOnly'>,
+  ): PerpsAnalyticsProperties {
+    return {
+      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      [PERPS_EVENT_PROPERTY.REDUCE_ONLY]: params.reduceOnly === true,
     };
+  }
+
+  /**
+   * Emit a transaction event with status=submitted before the provider round-trip.
+   * Fired for trade, close, cancel and risk-management operations.
+   *
+   * @param event - The analytics event name to emit.
+   * @param properties - Additional event properties (asset, attribution, etc.).
+   */
+  #trackSubmitted(
+    event: PerpsAnalyticsEvent,
+    properties: PerpsAnalyticsProperties,
+  ): void {
+    this.#deps.metrics.trackPerpsEvent(event, {
+      [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.SUBMITTED,
+      ...properties,
+    });
   }
 
   /**
@@ -125,6 +346,19 @@ export class TradingService {
       result?.success === true
         ? PERPS_EVENT_VALUE.STATUS.EXECUTED
         : PERPS_EVENT_VALUE.STATUS.FAILED;
+    // A known zero fill can still represent accepted resting exposure.
+    // Keep execution quantities intact on the receipt and partial-fill event.
+    const trackedFillSize =
+      result?.filledSize !== undefined &&
+      new BigNumber(result.filledSize).isZero()
+        ? (result.acceptedSize ?? result.filledSize)
+        : result?.filledSize;
+    const trackedOrderSize = parseFloat(
+      trackedFillSize ??
+        result?.acceptedSize ??
+        result?.submittedSize ??
+        params.size,
+    );
 
     // Build base properties
     const properties: PerpsAnalyticsProperties = {
@@ -133,11 +367,10 @@ export class TradingService {
       [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
         ? PERPS_EVENT_VALUE.DIRECTION.LONG
         : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      ...this.#buildTradeIntentProperties(params),
+      ...this.#buildSlippageProperties(params.trackingData, result, error),
       [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(String(params.leverage ?? 1)),
-      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: parseFloat(
-        result?.filledSize ?? params.size,
-      ),
+      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: trackedOrderSize,
       [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
     };
 
@@ -154,11 +387,22 @@ export class TradingService {
         ? parseFloat(result.averagePrice)
         : params.trackingData?.marketPrice;
     }
-    if (params.orderType === 'limit' && params.price) {
-      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(params.price);
+    // Trigger limit placements carry a real limit price too, so the companion
+    // property must not go missing when order_type is stop_limit/take_profit_limit.
+    const limitPrice = result?.weightedAverageLimitPrice ?? params.price;
+    if (
+      limitPrice &&
+      (result?.weightedAverageLimitPrice ||
+        isLimitExecutionOrderType(params.orderType))
+    ) {
+      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(limitPrice);
     }
     if (params.trackingData?.source) {
       properties[PERPS_EVENT_PROPERTY.SOURCE] = params.trackingData.source;
+    }
+    if (params.trackingData?.chartLibrary) {
+      properties[PERPS_EVENT_PROPERTY.CHART_LIBRARY] =
+        params.trackingData.chartLibrary;
     }
     if (params.trackingData?.tradeAction) {
       properties[PERPS_EVENT_PROPERTY.ACTION] = params.trackingData.tradeAction;
@@ -181,12 +425,16 @@ export class TradingService {
     }
 
     // Calculate order value in USD (size * price)
-    const orderSize = parseFloat(result?.filledSize ?? params.size);
     const assetPrice = result?.averagePrice
       ? parseFloat(result.averagePrice)
       : params.trackingData?.marketPrice;
-    if (assetPrice && orderSize) {
-      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] = orderSize * assetPrice;
+    let orderValuePrice = assetPrice;
+    if (!result?.averagePrice && result?.weightedAverageLimitPrice) {
+      orderValuePrice = parseFloat(result.weightedAverageLimitPrice);
+    }
+    if (orderValuePrice && trackedOrderSize) {
+      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+        trackedOrderSize * orderValuePrice;
     }
 
     // Add success-specific properties
@@ -223,11 +471,83 @@ export class TradingService {
         error?.message ?? result?.error ?? 'Unknown error';
     }
 
+    if (params.trackingData?.vipTier !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.VIP_TIER] = params.trackingData.vipTier;
+    }
+    if (params.trackingData?.vipDiscount !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.VIP_DISCOUNT] =
+        params.trackingData.vipDiscount;
+    }
+
     if (
       params.trackingData?.abTests &&
       Object.keys(params.trackingData.abTests).length > 0
     ) {
       properties[PERPS_EVENT_PROPERTY.AB_TESTS] = params.trackingData.abTests;
+    }
+
+    // Propagate discovery attribution + hl_fee_rate
+    Object.assign(
+      properties,
+      this.#buildAttributionProperties(params.trackingData),
+    );
+
+    // Emit an additional partially filled trade event when the fill is partial,
+    // mirroring the close path so the fill's partiality is visible in analytics
+    // rather than hidden behind a status=executed event. Classification is based
+    // on the provider's accepted size, falling back to its final submitted size
+    // when no accepted-size distinction applies. This avoids counting rejected
+    // Scale rungs as unfilled exposure. Both values are post-normalization, so a
+    // complete fill of the normalized size must not look partial. When the
+    // provider reports neither value we do not classify rather than guess from
+    // params.size. The partial event mirrors the close schema: order_size =
+    // accepted size, amount_filled = filled, remaining = the rest.
+    // Compare and subtract the decimal size strings with arbitrary-precision
+    // math (BigNumber): routing them through parseFloat can introduce
+    // binary-float artifacts that collapse distinct values (misclassifying the
+    // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
+    // the emitted analytics values, after the exact decimal subtraction.
+    const acceptedSizeString = result?.acceptedSize ?? result?.submittedSize;
+    const acceptedSize =
+      acceptedSizeString === undefined
+        ? undefined
+        : new BigNumber(acceptedSizeString);
+    const filledSize =
+      result?.filledSize === undefined
+        ? undefined
+        : new BigNumber(result.filledSize);
+    if (
+      result?.success === true &&
+      acceptedSize !== undefined &&
+      filledSize !== undefined &&
+      acceptedSize.isFinite() &&
+      filledSize.isFinite() &&
+      filledSize.gt(0) &&
+      filledSize.lt(acceptedSize)
+    ) {
+      const partialProperties: PerpsAnalyticsProperties = {
+        ...properties,
+        [PERPS_EVENT_PROPERTY.STATUS]:
+          PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: acceptedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: acceptedSize
+          .minus(filledSize)
+          .toNumber(),
+      };
+      if (result.weightedAverageLimitPrice !== undefined) {
+        const acceptedOrderValue = acceptedSize.times(
+          result.weightedAverageLimitPrice,
+        );
+        if (acceptedOrderValue.isFinite()) {
+          partialProperties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+            acceptedOrderValue.toNumber();
+        }
+      }
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.TradeTransaction,
+        partialProperties,
+      );
     }
 
     this.#deps.metrics.trackPerpsEvent(
@@ -263,9 +583,14 @@ export class TradingService {
       });
     }
 
-    // Save executed trade configuration for this market
+    // Save executed trade configuration for this market, keyed by the venue
+    // the placement was routed to
     if (params.leverage && context.saveTradeConfiguration) {
-      context.saveTradeConfiguration(params.symbol, params.leverage);
+      context.saveTradeConfiguration(
+        params.symbol,
+        params.leverage,
+        params.providerId,
+      );
     }
 
     // Report to data lake (fire-and-forget with retry)
@@ -281,21 +606,18 @@ export class TradingService {
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleOrderSuccess'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              operation: 'reportOrderToDataLake',
-              symbol: params.symbol,
-            },
+          {
+            operation: 'reportOrderToDataLake',
+            symbol: params.symbol,
           },
-        },
+        ),
       );
     });
   }
@@ -306,39 +628,96 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeDiscountBips - The fee discount bips value.
+   * @param options.resolveFee - Resolves the fee after this operation acquires
+   * the fee context, so an expiring candidate cannot go stale in the queue.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeDiscountBips?: number;
+    resolveFee: () => Promise<PerpsFeeResolution | undefined>;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeDiscountBips, operation } = options;
+    const { provider, resolveFee, operation } = options;
+    return this.#withFeeResolutions({
+      provider,
+      resolveFees: async () => [{ resolution: await resolveFee() }],
+      operation,
+    });
+  }
+
+  /**
+   * Execute a trading operation with one or more venue fee resolutions set.
+   *
+   * A write that reaches one venue sets a single, unscoped resolution. A
+   * fan-out write through an aggregating provider sets one per venue, so each
+   * venue charges the fee priced for its own part of the write. Every
+   * resolution is cleared after the operation, success or failure.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.resolveFees - Resolves the fees after this operation
+   * acquires the fee context, so an expiring candidate cannot go stale in the
+   * queue. An entry without a `providerId` applies to the whole provider.
+   * @param options.operation - The operation value.
+   * @returns The result of the operation.
+   */
+  async #withFeeResolutions<TResult>(options: {
+    provider: PerpsProvider;
+    resolveFees: () => Promise<
+      {
+        providerId?: PerpsProviderType;
+        resolution: PerpsFeeResolution | undefined;
+      }[]
+    >;
+    operation: () => Promise<TResult>;
+  }): Promise<TResult> {
+    const { provider, resolveFees, operation } = options;
+    const previous = this.#feeContextTail;
+    let release: () => void = () => undefined;
+    this.#feeContextTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
 
     try {
-      // Set discount context in provider for this operation
-      if (feeDiscountBips !== undefined && provider.setUserFeeDiscount) {
-        provider.setUserFeeDiscount(feeDiscountBips);
-        this.#deps.debugLogger.log(
-          'TradingService: Fee discount set in provider',
-          {
-            feeDiscountBips,
-          },
-        );
+      const feeResolutions = await resolveFees();
+      for (const { providerId, resolution } of feeResolutions) {
+        if (provider.setUserFeeResolution) {
+          if (providerId === undefined) {
+            provider.setUserFeeResolution(resolution);
+          } else {
+            provider.setUserFeeResolution(resolution, providerId);
+          }
+        } else if (provider.setUserFeeDiscount) {
+          provider.setUserFeeDiscount(resolution?.discountBips);
+        }
+        if (resolution) {
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution set in provider',
+            {
+              providerId,
+              feeDiscountBips: resolution.discountBips,
+              feeSource: resolution.source,
+            },
+          );
+        }
       }
 
       // Execute the operation
       return await operation();
     } finally {
-      // Always clear discount context, even on exception
-      if (provider.setUserFeeDiscount) {
+      // Always clear discount context, even on exception. An unscoped clear
+      // reaches every venue a scoped resolution was set on.
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(undefined);
+      } else if (provider.setUserFeeDiscount) {
         provider.setUserFeeDiscount(undefined);
-        this.#deps.debugLogger.log(
-          'TradingService: Fee discount cleared from provider',
-        );
       }
+      this.#deps.debugLogger.log(
+        'TradingService: Fee resolution cleared from provider',
+      );
+      release();
     }
   }
 
@@ -364,12 +743,36 @@ export class TradingService {
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
   }): Promise<OrderResult> {
-    const { provider, params, context, reportOrderToDataLake } = options;
+    const { provider, context, reportOrderToDataLake } = options;
+    let params = { ...options.params };
+    try {
+      params = captureScaleOrderParams(params);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE
+      ) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
+      throw error;
+    }
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:
-      | { success: boolean; error?: string; orderId?: string }
+      | {
+          success: boolean;
+          error?: string;
+          orderId?: string;
+          reason?: 'error' | 'late_success' | 'late_error';
+        }
       | undefined;
+    let orderSubmissionThresholdTimeoutId:
+      | ReturnType<typeof setTimeout>
+      | undefined;
+    let didExceedOrderSubmissionThreshold = false;
 
     const paymentToken =
       params.trackingData?.tradeWithToken === true
@@ -382,7 +785,7 @@ export class TradingService {
         message: 'Order execution started',
         level: 'info',
         data: {
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
           market: params.symbol,
           orderType: params.orderType,
         },
@@ -399,21 +802,13 @@ export class TradingService {
           market: params.symbol,
           leverage: String(params.leverage ?? 1),
           isTestnet: String(context.tracingContext.isTestnet),
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
         },
         data: {
           isBuy: params.isBuy,
           orderPrice: params.price ?? '',
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
         },
-      });
-
-      // Calculate fee discount at execution time (fresh, secure)
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
-
-      this.#deps.debugLogger.log('TradingService: Fee discount calculated', {
-        feeDiscountBips,
-        hasDiscount: feeDiscountBips !== undefined,
       });
 
       this.#deps.debugLogger.log(
@@ -429,17 +824,81 @@ export class TradingService {
         },
       );
 
-      // Execute order with fee discount management
+      // Emit submitted event before the provider round-trip
+      this.#trackSubmitted(PerpsAnalyticsEvent.TradeTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
+          ? PERPS_EVENT_VALUE.DIRECTION.LONG
+          : PERPS_EVENT_VALUE.DIRECTION.SHORT,
+        ...this.#buildTradeIntentProperties(params),
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(
+          String(params.leverage ?? 1),
+        ),
+        ...this.#buildSlippageProperties(params.trackingData),
+        ...this.#buildAttributionProperties(params.trackingData),
+      });
+
+      // Observational threshold: when the provider round-trip exceeds
+      // PlaceOrderTimeoutMs we tag the trace and emit a breadcrumb, but we
+      // intentionally do NOT cancel the in-flight order. Cancelling client-side
+      // (e.g. Promise.race rejection) does not stop the provider request, so a
+      // race-based timeout would let the UI mark an order as failed while
+      // HyperLiquid could still accept it. Instead, we always await
+      // provider.placeOrder(params) to terminal completion and surface
+      // late completions via trace `reason: 'late_success' | 'late_error'`.
+      orderSubmissionThresholdTimeoutId = setTimeout(() => {
+        didExceedOrderSubmissionThreshold = true;
+        this.#deps.tracer.addBreadcrumb({
+          category: 'perps',
+          message: 'Order submission exceeded threshold (still pending)',
+          level: 'warning',
+          data: {
+            thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
+            pay_token_symbol: paymentToken,
+            market: params.symbol,
+            orderType: params.orderType,
+          },
+        });
+        this.#deps.debugLogger.log(
+          'TradingService: Order submission exceeded threshold (still pending)',
+          {
+            thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
+            symbol: params.symbol,
+            orderType: params.orderType,
+          },
+        );
+      }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        resolveFee: async () => {
+          const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params),
+            provider,
+            context,
+            params.providerId,
+          );
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution calculated',
+            {
+              feeDiscountBips: feeResolution?.discountBips,
+              feeSource: feeResolution?.source,
+              hasDiscount: feeResolution?.discountBips !== undefined,
+            },
+          );
+          return feeResolution;
+        },
         operation: () => provider.placeOrder(params),
       });
+      if (orderSubmissionThresholdTimeoutId !== undefined) {
+        clearTimeout(orderSubmissionThresholdTimeoutId);
+        orderSubmissionThresholdTimeoutId = undefined;
+      }
 
       this.#deps.debugLogger.log('TradingService: Provider response received', {
         success: result.success,
         orderId: result.orderId,
         error: result.error,
+        didExceedOrderSubmissionThreshold,
       });
 
       // Update state and handle success/failure
@@ -452,13 +911,23 @@ export class TradingService {
           context,
           reportOrderToDataLake,
         });
-        traceData = { success: true, orderId: result.orderId ?? '' };
+        traceData = {
+          success: true,
+          orderId: result.orderId ?? '',
+          ...(didExceedOrderSubmissionThreshold
+            ? { reason: 'late_success' as const }
+            : {}),
+        };
 
         // Invalidate standalone caches so external hooks (e.g., usePerpsPositionForAsset) refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
       } else {
-        traceData = { success: false, error: result.error ?? 'Unknown error' };
+        traceData = {
+          success: false,
+          reason: didExceedOrderSubmissionThreshold ? 'late_error' : 'error',
+          error: result.error ?? 'Unknown error',
+        };
       }
 
       // Track analytics (success or failure)
@@ -484,32 +953,37 @@ export class TradingService {
 
       // withFeeDiscount handles fee discount cleanup automatically
 
-      this.#deps.logger.error(ensureError(error, 'TradingService.placeOrder'), {
-        tags: {
-          feature: PERPS_CONSTANTS.FeatureName,
-          provider: context.tracingContext.provider,
-          network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
-        },
-        context: {
-          name: context.errorContext.controller,
-          data: {
-            method: context.errorContext.method,
+      this.#deps.logger.error(
+        ensureError(error, 'TradingService.placeOrder'),
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
+          },
+          {
             symbol: params.symbol,
             orderType: params.orderType,
           },
-        },
-      });
+        ),
+      );
 
       traceData = {
         success: false,
+        reason: didExceedOrderSubmissionThreshold ? 'late_error' : 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
       throw error;
     } finally {
+      if (orderSubmissionThresholdTimeoutId !== undefined) {
+        clearTimeout(orderSubmissionThresholdTimeoutId);
+      }
       // Always end trace on exit (success or failure)
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.PlaceOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -521,20 +995,31 @@ export class TradingService {
    * @param options - The configuration options.
    * @param options.symbol - The trading pair symbol.
    * @param options.context - The service context for dependencies.
+   * @param options.provider - The provider the write will be submitted through,
+   * used to narrow the read to positions that route can reach. Omit for a
+   * read-only lookup that does not precede a write.
+   * @param options.providerId - Explicit route, when the caller supplied one.
    * @returns The result of the operation.
    */
   async #loadPositionData(options: {
     symbol: string;
     context: ServiceContext;
+    provider?: PerpsProvider;
+    providerId?: PerpsProviderType;
   }): Promise<Position | undefined> {
-    const { symbol, context } = options;
+    const { symbol, context, provider, providerId } = options;
 
     const positionLoadStart = this.#deps.performance.now();
     try {
       const positions = context.getPositions
         ? await context.getPositions()
         : [];
-      const position = positions.find((pos) => pos.symbol === symbol);
+      // Matching on symbol alone can pick another provider's position when two
+      // providers list the same market, so a routed write narrows first.
+      const candidates = provider
+        ? this.#positionsForWriteRoute({ positions, provider, providerId })
+        : positions;
+      const position = candidates.find((pos) => pos.symbol === symbol);
 
       this.#deps.tracer.setMeasurement(
         PerpsMeasurementName.PerpsGetPositionsOperation,
@@ -632,14 +1117,27 @@ export class TradingService {
     },
     result: OrderResult | null,
     status: string,
-    error?: string,
+    error?: Error | string,
   ): Record<string, unknown> {
+    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place.
+    // Computed from the live position rather than the configured leverage so it's
+    // populated for every close, including TP/SL triggers.
+    const positionUSD = Math.abs(parseFloat(position.positionValue));
+    const marginUSD = parseFloat(position.marginUsed);
+    const effectiveLeverage =
+      Number.isFinite(positionUSD) &&
+      Number.isFinite(marginUSD) &&
+      marginUSD > 0
+        ? Math.round((positionUSD / marginUSD) * 10) / 10
+        : undefined;
+
     const baseProperties = {
       [PERPS_EVENT_PROPERTY.STATUS]: status,
       [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
       [PERPS_EVENT_PROPERTY.DIRECTION]: metrics.direction,
       [PERPS_EVENT_PROPERTY.ORDER_TYPE]: metrics.orderType,
       [PERPS_EVENT_PROPERTY.ORDER_SIZE]: metrics.requestedSize,
+      [PERPS_EVENT_PROPERTY.CLOSE_TYPE]: metrics.closeType,
       [PERPS_EVENT_PROPERTY.OPEN_POSITION_SIZE]: Math.abs(
         parseFloat(position.size),
       ),
@@ -674,7 +1172,8 @@ export class TradingService {
           ? parseFloat(result.averagePrice)
           : params.trackingData?.marketPrice,
       }),
-      ...(params.orderType === 'limit' &&
+      ...(params.orderType &&
+        isLimitExecutionOrderType(params.orderType) &&
         params.price && {
           [PERPS_EVENT_PROPERTY.LIMIT_PRICE]: parseFloat(params.price),
         }),
@@ -685,6 +1184,23 @@ export class TradingService {
       ...(params.trackingData?.source && {
         [PERPS_EVENT_PROPERTY.SOURCE]: params.trackingData.source,
       }),
+      ...(params.trackingData?.vipTier !== undefined && {
+        [PERPS_EVENT_PROPERTY.VIP_TIER]: params.trackingData.vipTier,
+      }),
+      ...(params.trackingData?.vipDiscount !== undefined && {
+        [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
+      }),
+      ...this.#buildSlippageProperties(
+        params.trackingData,
+        result,
+        error instanceof Error ? error : undefined,
+      ),
+      // Effective leverage on close events
+      ...(effectiveLeverage !== undefined && {
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
+      }),
+      // Discovery attribution + hl_fee_rate
+      ...this.#buildAttributionProperties(params.trackingData),
     };
 
     // Calculate and add order value in USD (size * price)
@@ -700,7 +1216,6 @@ export class TradingService {
     if (status === PERPS_EVENT_VALUE.STATUS.EXECUTED) {
       return {
         ...baseProperties,
-        [PERPS_EVENT_PROPERTY.CLOSE_TYPE]: metrics.closeType,
         ...(orderValue !== undefined && {
           [PERPS_EVENT_PROPERTY.ORDER_VALUE]: orderValue,
         }),
@@ -710,7 +1225,10 @@ export class TradingService {
     // Add error for failures
     return {
       ...baseProperties,
-      ...(error && { [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: error }),
+      ...(error && {
+        [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
+          error instanceof Error ? error.message : error,
+      }),
       ...(orderValue !== undefined && {
         [PERPS_EVENT_PROPERTY.ORDER_VALUE]: orderValue,
       }),
@@ -727,6 +1245,7 @@ export class TradingService {
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
    * @param options.duration - Optional time duration.
+   * @param options.bulkActionId - Optional batch correlation id.
    */
   #trackPositionCloseResult(options: {
     position: Position | undefined;
@@ -735,32 +1254,53 @@ export class TradingService {
     params: ClosePositionParams;
     context: ServiceContext;
     duration: number;
+    bulkActionId?: string;
   }): void {
-    const { position, result, error, params, duration } = options;
+    const { position, result, error, params, duration, bulkActionId } = options;
+
+    // Bulk action correlation id for batch close events
+    const bulkActionProps: PerpsAnalyticsProperties = bulkActionId
+      ? { [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId }
+      : {};
 
     if (!position) {
+      // No local position record, yet closePosition already emitted a
+      // submitted event and the close may still complete at the provider.
+      // Emit a terminal (executed/failed) event so every submitted close has a
+      // matching outcome, even without position-derived metrics.
+      const status =
+        result?.success === true
+          ? PERPS_EVENT_VALUE.STATUS.EXECUTED
+          : PERPS_EVENT_VALUE.STATUS.FAILED;
+      const errorMessage = error?.message ?? result?.error;
+
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        {
+          [PERPS_EVENT_PROPERTY.STATUS]: status,
+          [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+          [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
+            params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+          ...(errorMessage && {
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+          }),
+          ...this.#buildSlippageProperties(params.trackingData, result, error),
+          ...this.#buildAttributionProperties(params.trackingData),
+          ...bulkActionProps,
+        },
+      );
       return;
     }
 
-    const metrics = result
-      ? this.#calculateCloseMetrics(position, params, result)
-      : {
-          direction:
-            parseFloat(position.size) > 0
-              ? PERPS_EVENT_VALUE.DIRECTION.LONG
-              : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-          closePercentage: params.size
-            ? (parseFloat(params.size) / Math.abs(parseFloat(position.size))) *
-              100
-            : 100,
-          closeType: PERPS_EVENT_VALUE.CLOSE_TYPE.FULL,
-          orderType: params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
-          requestedSize: params.size
-            ? parseFloat(params.size)
-            : Math.abs(parseFloat(position.size)),
-          filledSize: 0,
-          isPartiallyFilled: false,
-        };
+    // A thrown close has no OrderResult. Classify it from the requested size
+    // the same way a returned failure is classified, so a partial request is
+    // not reported as a full close.
+    const metrics = this.#calculateCloseMetrics(
+      position,
+      params,
+      result ?? { success: false },
+    );
 
     // Track partially filled event if applicable
     if (result?.success && metrics.isPartiallyFilled) {
@@ -780,6 +1320,7 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]:
             metrics.requestedSize - metrics.filledSize,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+          ...bulkActionProps,
         },
       );
     }
@@ -799,7 +1340,7 @@ export class TradingService {
       metrics,
       result,
       status,
-      errorMessage,
+      error ?? errorMessage,
     );
 
     this.#deps.metrics.trackPerpsEvent(
@@ -807,6 +1348,7 @@ export class TradingService {
       {
         ...eventProperties,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+        ...bulkActionProps,
       },
     );
   }
@@ -832,33 +1374,357 @@ export class TradingService {
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleDataLakeReporting'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              operation: 'reportOrderToDataLake',
-              symbol,
-            },
+          {
+            operation: 'reportOrderToDataLake',
+            symbol,
           },
-        },
+        ),
       );
     });
   }
 
   /**
-   * Calculate fee discount with performance measurement
-   * Uses controller dependencies injected via setControllerDependencies()
-   * Helper method for placeOrder orchestration
+   * Resolve the USD notional a batch close submits on each venue it reaches.
    *
-   * @returns The result of the operation.
+   * A venue takes one builder context for its whole batch, so its fee is
+   * resolved once against everything it closes rather than per position. The
+   * selection mirrors execution: `targets` win and name exact
+   * `(symbol, venue)` positions; otherwise `closeAll` or an empty request fans
+   * out to every venue; a legacy `symbols` list is a single write through the
+   * default route. Each venue is priced against only its own positions, since
+   * each applies its own fee to its own batch.
+   *
+   * Execution destinations are captured before reading positions. An unreadable
+   * or unmatched venue keeps its own route with no notional, which the resolver
+   * reads as "no notional to blend against", never another venue's fee scope.
+   *
+   * @param options - The configuration options.
+   * @param options.selection - Which positions the batch will close.
+   * @param options.provider - The provider that will submit the batch.
+   * @returns One entry per venue the batch reaches. `providerId` is omitted
+   * only when the provider is not an aggregator.
    */
-  async #calculateFeeDiscountWithMeasurement(): Promise<number | undefined> {
+  async #resolveBatchCloseFeeRoutes(options: {
+    selection: NonEmptyCloseSelection;
+    provider: PerpsProvider;
+  }): Promise<
+    { providerId?: PerpsProviderType; notionalUsd: number | undefined }[]
+  > {
+    const { selection, provider } = options;
+    const writeRoute = provider.getWriteProviderId?.();
+    let venues: (PerpsProviderType | undefined)[];
+    if (writeRoute === undefined) {
+      venues = [undefined];
+    } else {
+      switch (selection.kind) {
+        case 'targets':
+          venues = selection.targets.map((target) => target.providerId);
+          break;
+        case 'all':
+          venues = provider.getProviderIds?.() ?? [writeRoute];
+          break;
+        case 'symbols':
+          venues = [writeRoute];
+          break;
+        default:
+          assertExhaustive(selection);
+      }
+    }
+    const notionalByVenue = new Map<PerpsProviderType | undefined, number>(
+      venues.map((venue) => [venue, 0]),
+    );
+
+    try {
+      const positions =
+        provider instanceof AggregatedPerpsProvider
+          ? await provider.getPositionsForBatchClose(
+              new Set(venues.filter(isPerpsProviderType)),
+            )
+          : await provider.getPositions({
+              throwOnUnavailable: true,
+              includeProtection: false,
+            });
+      // A direct provider's positions are untagged and all its own; an
+      // aggregator tags each position with the venue that holds it.
+      const venueOf = (position: Position): string =>
+        position.providerId ?? writeRoute ?? provider.protocolId;
+
+      let selected: Position[];
+      switch (selection.kind) {
+        case 'targets':
+          selected = positions.filter((position) =>
+            selection.targets.some(
+              (target) =>
+                target.symbol === position.symbol &&
+                target.providerId === venueOf(position),
+            ),
+          );
+          break;
+        case 'all':
+          selected = positions;
+          break;
+        case 'symbols':
+          // A symbol list names no venue, so it is one write through the
+          // default route: another venue's same-symbol position is not part of it.
+          selected = this.#positionsForWriteRoute({
+            positions,
+            provider,
+          }).filter((position) => selection.symbols.includes(position.symbol));
+          break;
+        default:
+          assertExhaustive(selection);
+      }
+
+      for (const position of selected) {
+        // Only an aggregator can apply a venue-scoped resolution.
+        const venue =
+          writeRoute === undefined
+            ? undefined
+            : (position.providerId ?? writeRoute);
+        const value = Math.abs(Number.parseFloat(position.positionValue));
+        notionalByVenue.set(venue, (notionalByVenue.get(venue) ?? 0) + value);
+      }
+    } catch (error) {
+      // Pricing the batch must never fail the close. Without a notional the
+      // resolver withholds bounded waivers rather than spending an unknown amount.
+      this.#deps.debugLogger.log(
+        'TradingService: Could not price batch close for the fee resolver',
+        {
+          error: ensureError(error, 'TradingService.resolveBatchCloseFeeRoutes')
+            .message,
+        },
+      );
+    }
+    return Array.from(notionalByVenue, ([providerId, total]) => ({
+      ...(providerId === undefined ? {} : { providerId }),
+      notionalUsd: Number.isFinite(total) && total > 0 ? total : undefined,
+    }));
+  }
+
+  /**
+   * Keep only the positions a write through this route can actually touch.
+   *
+   * An aggregating provider reads positions from every active provider while a
+   * write goes to one, so pricing a close against the unfiltered list can bill
+   * against positions the call cannot close — and, when two providers list the
+   * same symbol, can price one provider's position for a write submitted to
+   * another. A provider that does not aggregate reports no write route and its
+   * positions are all its own.
+   *
+   * @param options - The configuration options.
+   * @param options.positions - Positions as read, possibly across providers.
+   * @param options.provider - The provider the write will be submitted through.
+   * @param options.providerId - Explicit route, when the caller supplied one.
+   * @returns The positions that route can reach.
+   */
+  #positionsForWriteRoute(options: {
+    positions: Position[];
+    provider: PerpsProvider;
+    providerId?: PerpsProviderType;
+  }): Position[] {
+    const { positions, provider, providerId } = options;
+    const route = provider.getWriteProviderId?.(providerId);
+    if (route === undefined) {
+      return positions;
+    }
+    // A position carries its provider only when an aggregator injected one;
+    // without that attribution there is nothing to filter on.
+    return positions.filter(
+      (position) =>
+        position.providerId === undefined || position.providerId === route,
+    );
+  }
+
+  /**
+   * The position's USD value per unit of size.
+   *
+   * Used to price a partial close, which names a size but usually no price.
+   *
+   * @param position - The loaded position, when one was found.
+   * @returns The per-unit price, or undefined when it cannot be derived.
+   */
+  #resolvePositionUnitPrice(
+    position: Position | undefined,
+  ): number | undefined {
+    if (!position) {
+      return undefined;
+    }
+    const value = Math.abs(Number.parseFloat(position.positionValue));
+    const size = Math.abs(Number.parseFloat(position.size));
+    if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 0) {
+      return undefined;
+    }
+    return value / size;
+  }
+
+  /**
+   * Resolve an order's USD notional for the fee resolver.
+   *
+   * `usdAmount` is the hybrid model's source of truth and is preferred whenever
+   * the caller supplied it. Otherwise the notional is `size × price`, taking the
+   * best price available: an explicit limit price, then the caller's price
+   * snapshot, then the live market price it was quoted against.
+   *
+   * Returns undefined when no price is available rather than guessing. The
+   * resolver reads that as "no notional to blend against" and quotes the full
+   * waiver rate — the same answer it gave before the notional was threaded
+   * through, so an unpriceable order is no worse off than it was.
+   *
+   * @param params - The order-shaped parameters in scope at the call site.
+   * @param params.size - Order size in base units, when known.
+   * @param params.usdAmount - Order notional in USD, when the caller supplied it.
+   * @param params.price - Limit price, when the placement carries one.
+   * @param params.triggerPrice - Trigger level, for a placement that has no
+   * limit price of its own.
+   * @param params.currentPrice - Live market price the order was quoted against.
+   * @param params.priceAtCalculation - Price snapshot taken when size was derived.
+   * @param params.scaleMinPrice - Lowest rung of a Scale ladder, when the
+   * placement is one.
+   * @param params.scaleMaxPrice - Highest rung of a Scale ladder, when the
+   * placement is one.
+   * @param params.scaleNumOrders - Number of rungs in a Scale ladder, when
+   * the placement supplies it.
+   * @param params.scaleSkew - Optional linear size weighting across a Scale
+   * ladder. A value above 1 puts more size on the highest-price rungs.
+   * @returns The order notional in USD, or undefined when it cannot be priced.
+   */
+  #resolveOrderNotionalUsd(params: {
+    size?: string;
+    usdAmount?: string;
+    price?: string;
+    triggerPrice?: string;
+    currentPrice?: number;
+    priceAtCalculation?: number;
+    scaleMinPrice?: string;
+    scaleMaxPrice?: string;
+    scaleNumOrders?: number;
+    scaleSkew?: number;
+  }): number | undefined {
+    const usdAmount =
+      params.usdAmount === undefined
+        ? undefined
+        : Number.parseFloat(params.usdAmount);
+    if (
+      usdAmount !== undefined &&
+      Number.isFinite(usdAmount) &&
+      usdAmount > 0
+    ) {
+      return usdAmount;
+    }
+
+    const size =
+      params.size === undefined ? undefined : Number.parseFloat(params.size);
+    if (size === undefined || !Number.isFinite(size) || size <= 0) {
+      return undefined;
+    }
+
+    const limitPrice =
+      params.price === undefined ? undefined : Number.parseFloat(params.price);
+    // A trigger placement carries no limit price; the level it activates at is
+    // the only price it states, so it prices the order.
+    const triggerPrice =
+      params.triggerPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.triggerPrice);
+    // A Scale ladder states no single price. For an even ladder the midpoint
+    // is its average price, but a skew weights the rung sizes, so the midpoint
+    // is no longer the ladder's notional price. Use the same linear weights as
+    // `splitScaleSizes` when the caller supplies the rung count. The provider
+    // rounds each rung onto its venue size grid later; this is the equivalent
+    // weighted calculation before that bounded rounding, without making the
+    // service depend on provider-specific market metadata.
+    const scaleMinPrice =
+      params.scaleMinPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMinPrice);
+    const scaleMaxPrice =
+      params.scaleMaxPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.scaleMaxPrice);
+    const scaleWeightedPrice =
+      scaleMinPrice !== undefined &&
+      scaleMaxPrice !== undefined &&
+      Number.isFinite(scaleMinPrice) &&
+      Number.isFinite(scaleMaxPrice) &&
+      scaleMinPrice > 0 &&
+      scaleMaxPrice > 0
+        ? ((): number => {
+            const count = params.scaleNumOrders;
+            const skew = params.scaleSkew;
+            if (
+              count === undefined ||
+              !Number.isInteger(count) ||
+              count < SCALE_ORDER_COUNT.min ||
+              count > SCALE_ORDER_COUNT.max ||
+              (skew !== undefined && (!Number.isFinite(skew) || skew <= 0))
+            ) {
+              return (scaleMinPrice + scaleMaxPrice) / 2;
+            }
+
+            let weightedPrice = 0;
+            let weightSum = 0;
+            for (let index = 0; index < count; index++) {
+              const weight = 1 + (((skew ?? 1) - 1) * index) / (count - 1);
+              const price =
+                scaleMinPrice +
+                ((scaleMaxPrice - scaleMinPrice) * index) / (count - 1);
+              weightedPrice += price * weight;
+              weightSum += weight;
+            }
+            return weightedPrice / weightSum;
+          })()
+        : undefined;
+
+    const price = [
+      limitPrice,
+      triggerPrice,
+      scaleWeightedPrice,
+      params.priceAtCalculation,
+      params.currentPrice,
+    ]
+      .filter(
+        (candidate): candidate is number =>
+          candidate !== undefined &&
+          Number.isFinite(candidate) &&
+          candidate > 0,
+      )
+      .at(0);
+
+    return price === undefined ? undefined : size * price;
+  }
+
+  /**
+   * Resolve the fee discount for a submission, measuring the call.
+   *
+   * Uses controller dependencies injected via `setControllerDependencies()`;
+   * without them there is no resolver to ask and the caller pays the
+   * undiscounted fee. Helper method for the placement orchestration paths.
+   *
+   * @param orderNotionalUsd - The order's notional in USD, when it can be
+   * priced. This is what lets the subscription source resolve to a blended
+   * rate: omitting it resolves every bounded allowance as a full waiver,
+   * charging 0 bips on an order the preview quoted a blend for.
+   * @param provider - The actual provider receiving this submission.
+   * @param context - The submission context, including its network.
+   * @param providerId - Explicit route, when the caller supplied one.
+   * @param reservedSubscriptionNotionalUsd - Allowance already allocated to earlier venues in this batch.
+   * @returns The resolved fee, or undefined when controller dependencies are
+   * unavailable.
+   */
+  async #calculateFeeDiscountWithMeasurement(
+    orderNotionalUsd: number | undefined,
+    provider: PerpsProvider,
+    context: ServiceContext,
+    providerId?: PerpsProviderType,
+    reservedSubscriptionNotionalUsd = 0,
+  ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
       this.#deps.debugLogger.log(
@@ -871,9 +1737,18 @@ export class TradingService {
 
     const orderExecutionFeeDiscountStartTime = this.#deps.performance.now();
 
-    // Calculate fee discount using messenger pattern (service handles controller access internally)
-    const discountBips =
-      await rewardsIntegrationService.calculateUserFeeDiscount();
+    // The notional is what lets the subscription source resolve to a blended
+    // rate. Without it a bounded allowance cannot safely cover the batch.
+    const scope = {
+      providerId:
+        provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
+      isTestnet: context.tracingContext.isTestnet,
+    };
+    const resolution = await rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      scope,
+      reservedSubscriptionNotionalUsd,
+    );
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -888,12 +1763,15 @@ export class TradingService {
     this.#deps.debugLogger.log(
       'TradingService: Fee discount API call completed',
       {
-        discountBips,
+        discountBips: resolution.discountBips,
+        source: resolution.source,
+        orderNotionalUsd,
+        subscriptionWaiverKind: resolution.subscriptionWaiverKind,
         duration: `${orderExecutionFeeDiscountDuration.toFixed(0)}ms`,
       },
     );
 
-    return discountBips;
+    return resolution;
   }
 
   /**
@@ -936,13 +1814,16 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount only if required dependencies are available
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
-
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params.newOrder),
+            provider,
+            context,
+            params.newOrder.providerId,
+          ),
         operation: () => provider.editOrder(params),
       });
 
@@ -963,10 +1844,13 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
             ? PERPS_EVENT_VALUE.DIRECTION.LONG
             : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-          [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+          ...this.#buildTradeIntentProperties(params.newOrder),
           [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
           [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          ...environmentTypeProperty(
+            params.newOrder.trackingData?.environmentType,
+          ),
         };
         if (params.newOrder.price) {
           editExecutedProps[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(
@@ -989,12 +1873,15 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+            ...this.#buildTradeIntentProperties(params.newOrder),
             [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
               result.error ?? 'Unknown error',
+            ...environmentTypeProperty(
+              params.newOrder.trackingData?.environmentType,
+            ),
           },
         );
 
@@ -1012,28 +1899,31 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+        ...this.#buildTradeIntentProperties(params.newOrder),
         [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
           error instanceof Error ? error.message : 'Unknown error',
+        ...environmentTypeProperty(
+          params.newOrder.trackingData?.environmentType,
+        ),
       });
 
-      this.#deps.logger.error(ensureError(error, 'TradingService.editOrder'), {
-        tags: {
-          feature: PERPS_CONSTANTS.FeatureName,
-          provider: context.tracingContext.provider,
-          network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
-        },
-        context: {
-          name: context.errorContext.controller,
-          data: {
-            method: context.errorContext.method,
+      this.#deps.logger.error(
+        ensureError(error, 'TradingService.editOrder'),
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.EditOrder,
+          },
+          {
             orderId: params.orderId,
           },
-        },
-      });
+        ),
+      );
 
       traceData = {
         success: false,
@@ -1044,6 +1934,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.EditOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1057,19 +1948,29 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.bulkActionId - Optional batch correlation id.
    * @returns The result of the operation.
    */
   async cancelOrder(options: {
     provider: PerpsProvider;
     params: CancelOrderParams;
     context: ServiceContext;
+    bulkActionId?: string;
   }): Promise<CancelOrderResult> {
-    const { provider, params, context } = options;
+    const { provider, params, context, bulkActionId } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:
       | { success: boolean; error?: string; orderId?: string }
       | undefined;
+
+    // Shared attribution + bulk correlation props
+    const cancelExtraProps: PerpsAnalyticsProperties = {
+      ...this.#buildAttributionProperties(params.trackingData),
+      ...(bulkActionId && {
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+      }),
+    };
 
     try {
       // Start trace for the entire operation
@@ -1085,6 +1986,12 @@ export class TradingService {
         data: {
           orderId: params.orderId,
         },
+      });
+
+      // Emit submitted event before the provider round-trip
+      this.#trackSubmitted(PerpsAnalyticsEvent.OrderCancelTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        ...cancelExtraProps,
       });
 
       // Execute order cancellation
@@ -1106,6 +2013,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
             [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            ...cancelExtraProps,
           },
         );
 
@@ -1120,17 +2028,29 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
               result.error ?? 'Unknown error',
+            ...cancelExtraProps,
           },
         );
 
-        this.#deps.logger.error(
-          ensureError(result.error, 'TradingService.cancelOrder'),
-          this.#getErrorContext('cancelOrder', {
-            symbol: params.symbol,
-            orderId: params.orderId,
-            providerError: result.error ?? 'Unknown error',
-          }),
-        );
+        if (!isSignerUnavailable(result.error)) {
+          this.#deps.logger.error(
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.cancelOrder'),
+            this.#getErrorContext(
+              context,
+              'cancelOrder',
+              {
+                operation: PERPS_ERROR_OPERATION.OrderManagement,
+                action: PERPS_ERROR_ACTION.CancelOrder,
+              },
+              {
+                symbol: params.symbol,
+                orderId: params.orderId,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
+          );
+        }
 
         traceData = { success: false, error: result.error ?? 'Unknown error' };
       }
@@ -1148,12 +2068,21 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
             error instanceof Error ? error.message : 'Unknown error',
+          ...cancelExtraProps,
         },
       );
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.cancelOrder'),
-        this.#getErrorContext('cancelOrder', { symbol: params.symbol }),
+        this.#getErrorContext(
+          context,
+          'cancelOrder',
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.CancelOrder,
+          },
+          { symbol: params.symbol },
+        ),
       );
 
       traceData = {
@@ -1165,6 +2094,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.CancelOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1191,7 +2121,15 @@ export class TradingService {
     ) => Promise<TResult>;
   }): Promise<CancelOrdersResult> {
     const { provider, params, context, withStreamPause } = options;
+    const selection = resolveCancelSelection(params);
+    const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
+    if (refusal) {
+      return refusal;
+    }
+
     const traceId = uuidv4();
+    // Correlation id linking every per-item event to the batch summary
+    const bulkActionId = uuidv4();
     const startTime = this.#deps.performance.now();
     let operationResult: CancelOrdersResult | null = null;
     let operationError: Error | null = null;
@@ -1210,38 +2148,118 @@ export class TradingService {
         data: {
           cancelAll: params.cancelAll ? 'true' : 'false',
           symbolCount: params.symbols?.length ?? 0,
-          orderIdCount: params.orderIds?.length ?? 0,
+          orderIdCount: params.orders?.length ?? params.orderIds?.length ?? 0,
         },
       });
 
+      const discoveryFailures: NonNullable<
+        CancelOrdersResult['discoveryFailures']
+      > = [];
       // Pause orders stream to prevent WebSocket updates during cancellation
       operationResult = await withStreamPause(async () => {
+        if (selection.kind === 'none') {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          };
+        }
         // Get all open orders
         if (!context.getOpenOrders) {
           throw new Error('getOpenOrders callback not provided in context');
         }
-        const orders = await context.getOpenOrders();
+        let orders: Order[];
+        try {
+          orders = await context.getOpenOrders({ throwOnUnavailable: true });
+        } catch (error) {
+          let failures: OrderDiscoveryError['failures'];
+          if (error instanceof OrderDiscoveryError) {
+            orders = error.orders;
+            failures = error.failures;
+          } else if (isPerpsProviderType(provider.protocolId)) {
+            // Total direct-venue failures use the same unresolved-target
+            // accounting as partial discovery, without trusting tracing tags.
+            orders = [];
+            failures = [
+              {
+                providerId: provider.protocolId,
+                error: ensureError(error).message,
+              },
+            ];
+          } else {
+            // An unknown protocol cannot be relabeled as an execution venue.
+            return {
+              success: false,
+              successCount: 0,
+              failureCount: 1,
+              error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
+              results: [],
+            };
+          }
+          for (const failure of failures) {
+            let requestedOrderIds: string[] | undefined;
+            if (selection.kind === 'orders') {
+              requestedOrderIds = selection.orders
+                .filter((target) => target.providerId === failure.providerId)
+                .map((target) => target.orderId);
+            } else if (selection.kind === 'orderIds') {
+              requestedOrderIds = selection.orderIds;
+            }
+            // Discovery can fail within a venue while still returning the
+            // requested order from another DEX on that same venue.
+            const orderIds = requestedOrderIds?.filter(
+              (orderId) =>
+                !orders.some(
+                  (order) =>
+                    order.orderId === orderId &&
+                    (order.providerId ?? provider.protocolId) ===
+                      failure.providerId,
+                ),
+            );
+            // A scoped request on another venue is unaffected by this failure.
+            if (orderIds?.length === 0) {
+              continue;
+            }
+            discoveryFailures.push({
+              ...failure,
+              ...(orderIds !== undefined && {
+                orderIds: [...new Set(orderIds)],
+              }),
+            });
+          }
+        }
 
-        // Filter orders based on params
-        let ordersToCancel = orders;
-        if (
-          params.cancelAll === true ||
-          (!params.symbols && !params.orderIds)
-        ) {
-          // Cancel all orders (excluding TP/SL orders for positions)
-          ordersToCancel = orders.filter(
-            (order) => !isTPSLOrder(order.detailedOrderType),
-          );
-        } else if (params.orderIds && params.orderIds.length > 0) {
-          // Cancel specific order IDs
-          ordersToCancel = orders.filter((order) =>
-            params.orderIds?.includes(order.orderId),
-          );
-        } else if (params.symbols && params.symbols.length > 0) {
-          // Cancel orders for specific symbols
-          ordersToCancel = orders.filter((order) =>
-            params.symbols?.includes(order.symbol),
-          );
+        // Execute the same normalized selector used by both route guards.
+        let ordersToCancel: Order[];
+        switch (selection.kind) {
+          case 'all':
+            ordersToCancel = orders.filter(
+              (order) => !isTPSLOrder(order.detailedOrderType),
+            );
+            break;
+          case 'orders':
+            ordersToCancel = orders.filter((order) =>
+              selection.orders.some(
+                (target) =>
+                  target.orderId === order.orderId &&
+                  target.providerId ===
+                    (order.providerId ?? provider.protocolId),
+              ),
+            );
+            break;
+          case 'orderIds':
+            ordersToCancel = orders.filter((order) =>
+              selection.orderIds.includes(order.orderId),
+            );
+            break;
+          case 'symbols':
+            ordersToCancel = orders.filter((order) =>
+              selection.symbols.includes(order.symbol),
+            );
+            break;
+          default:
+            assertExhaustive(selection);
         }
 
         if (ordersToCancel.length === 0) {
@@ -1253,12 +2271,17 @@ export class TradingService {
           };
         }
 
-        // Use batch cancel if provider supports it
+        // Use batch cancel if provider supports it. Each target keeps the
+        // venue identity of the order it came from, so a mixed-venue batch is
+        // executed on the venue that actually holds each order.
         if (provider.cancelOrders) {
           return await provider.cancelOrders(
             ordersToCancel.map((order) => ({
               symbol: order.symbol,
               orderId: order.orderId,
+              ...(order.providerId !== undefined && {
+                providerId: order.providerId,
+              }),
             })),
           );
         }
@@ -1268,8 +2291,16 @@ export class TradingService {
           ordersToCancel.map((order) =>
             this.cancelOrder({
               provider,
-              params: { symbol: order.symbol, orderId: order.orderId },
+              params: {
+                symbol: order.symbol,
+                orderId: order.orderId,
+                // Keep each order's venue identity in the fallback path too.
+                ...(order.providerId !== undefined && {
+                  providerId: order.providerId,
+                }),
+              },
               context,
+              bulkActionId,
             }),
           ),
         );
@@ -1298,6 +2329,9 @@ export class TradingService {
             return {
               orderId: ordersToCancel[index].orderId,
               symbol: ordersToCancel[index].symbol,
+              ...(ordersToCancel[index].providerId !== undefined && {
+                providerId: ordersToCancel[index].providerId,
+              }),
               success: Boolean(
                 result.status === 'fulfilled' && result.value.success,
               ),
@@ -1307,13 +2341,26 @@ export class TradingService {
         };
       }, ['orders']); // Disconnect orders stream during operation
 
-      if (
-        provider.cancelOrders &&
-        operationResult &&
-        operationResult.failureCount > 0
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      if (discoveryFailures.length > 0) {
+        operationResult = {
+          ...operationResult,
+          failureCount:
+            operationResult.failureCount +
+            discoveryFailures.reduce(
+              (count, failure) => count + (failure.orderIds?.length ?? 1),
+              0,
+            ),
+          discoveryFailures,
+          error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
+        };
+      }
+
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.cancelOrders && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) =>
               `${result.symbol}/${result.orderId}: ${result.error ?? 'Unknown error'}`,
@@ -1322,13 +2369,22 @@ export class TradingService {
 
         this.#deps.logger.error(
           new Error(
-            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+            `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
-          this.#getErrorContext('cancelOrders', {
-            successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
-            cancelAll: params.cancelAll,
-          }),
+          this.#getErrorContext(
+            context,
+            'cancelOrders',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.CancelOrder,
+            },
+            {
+              successCount: operationResult.successCount,
+              failureCount: operationResult.failureCount,
+              reportedFailureCount: reportedFailures.length,
+              cancelAll: params.cancelAll,
+            },
+          ),
         );
       }
 
@@ -1338,7 +2394,10 @@ export class TradingService {
         error instanceof Error ? error : new Error(String(error));
       this.#deps.logger.error(
         ensureError(error, 'TradingService.cancelOrders'),
-        this.#getErrorContext('cancelOrders'),
+        this.#getErrorContext(context, 'cancelOrders', {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        }),
       );
       throw error;
     } finally {
@@ -1351,6 +2410,9 @@ export class TradingService {
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_ORDERS_CANCELED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCancelProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -1364,6 +2426,11 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.CancelOrder,
         id: traceId,
+        status: getTraceStatus(operationResult?.success),
+        data: {
+          success: operationResult?.success === true,
+          ...(operationError ? { error: operationError.message } : {}),
+        },
       });
     }
   }
@@ -1377,6 +2444,7 @@ export class TradingService {
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
    * @param options.reportOrderToDataLake - The report order to data lake value.
+   * @param options.bulkActionId - Optional batch correlation id.
    * @returns The result of the operation.
    */
   async closePosition(options: {
@@ -1387,8 +2455,10 @@ export class TradingService {
       action: 'open' | 'close';
       symbol: string;
     }) => Promise<{ success: boolean; error?: string }>;
+    bulkActionId?: string;
   }): Promise<OrderResult> {
-    const { provider, params, context, reportOrderToDataLake } = options;
+    const { provider, params, context, reportOrderToDataLake, bulkActionId } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let position: Position | undefined;
@@ -1414,15 +2484,49 @@ export class TradingService {
       position = await this.#loadPositionData({
         symbol: params.symbol,
         context,
+        provider,
+        providerId: params.providerId,
       });
 
-      // Calculate fee discount with measurement
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      // Emit submitted event before the provider round-trip
+      this.#trackSubmitted(PerpsAnalyticsEvent.PositionCloseTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
+          params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+        ...this.#buildSlippageProperties(params.trackingData),
+        ...this.#buildAttributionProperties(params.trackingData),
+        ...(bulkActionId && {
+          [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        }),
+      });
+
+      // Calculate fee discount with measurement. A full close commonly carries
+      // only a symbol, so `params` alone prices it as undefined and the resolver
+      // would quote a full waiver on an order the preview blended. The position
+      // loaded above is the authoritative notional for exactly that case.
+      const closeNotionalUsd =
+        this.#resolveOrderNotionalUsd({
+          ...params,
+          // A partial close names a size but often no price; the position's own
+          // value per unit prices it. A full close names neither, and falls back
+          // to the whole position value below.
+          currentPrice:
+            params.currentPrice ?? this.#resolvePositionUnitPrice(position),
+        }) ??
+        this.#resolveOrderNotionalUsd({
+          usdAmount: position?.positionValue,
+        });
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            closeNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.closePosition(params),
       });
 
@@ -1451,13 +2555,24 @@ export class TradingService {
       } else {
         traceData = { success: false, error: result.error ?? 'Unknown error' };
 
-        this.#deps.logger.error(
-          ensureError(result.error, 'TradingService.closePosition'),
-          this.#getErrorContext('closePosition', {
-            symbol: params.symbol,
-            providerError: result.error ?? 'Unknown error',
-          }),
-        );
+        if (!isSignerUnavailable(result.error)) {
+          this.#deps.logger.error(
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.closePosition'),
+            this.#getErrorContext(
+              context,
+              'closePosition',
+              {
+                operation: PERPS_ERROR_OPERATION.PositionManagement,
+                action: PERPS_ERROR_ACTION.ClosePosition,
+              },
+              {
+                symbol: params.symbol,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
+          );
+        }
       }
 
       // Track analytics (success or failure, includes partial fills)
@@ -1467,6 +2582,7 @@ export class TradingService {
         params,
         context,
         duration: completionDuration,
+        bulkActionId,
       });
 
       return result;
@@ -1486,24 +2602,22 @@ export class TradingService {
         params,
         context,
         duration: completionDuration,
+        bulkActionId,
       });
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.closePosition'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              symbol: params.symbol,
-            },
+          {
+            symbol: params.symbol,
           },
-        },
+        ),
       );
 
       throw error;
@@ -1512,6 +2626,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.ClosePosition,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1534,6 +2649,8 @@ export class TradingService {
   }): Promise<ClosePositionsResult> {
     const { provider, params, context } = options;
     const traceId = uuidv4();
+    // Correlation id linking every per-item event to the batch summary
+    const bulkActionId = uuidv4();
     const startTime = this.#deps.performance.now();
     let operationResult: ClosePositionsResult | null = null;
     let operationError: Error | null = null;
@@ -1562,14 +2679,57 @@ export class TradingService {
         ),
       });
 
+      // An explicit empty target list closes nothing, on every path.
+      const selection = resolveCloseSelection(params);
+      if (selection.kind === 'none') {
+        operationResult = {
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        };
+        return operationResult;
+      }
+
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
-        const feeDiscountBips =
-          await this.#calculateFeeDiscountWithMeasurement();
-
-        operationResult = await this.#withFeeDiscount({
+        // Each venue submits its batch under one builder context, so its fee
+        // is priced against the sum of the positions it will close — and only
+        // those: a fan-out reaches several venues, each with its own fee.
+        const feeRoutes = await this.#resolveBatchCloseFeeRoutes({
+          selection,
           provider,
-          feeDiscountBips,
+        });
+
+        operationResult = await this.#withFeeResolutions({
+          provider,
+          resolveFees: async () => {
+            const resolutions: {
+              providerId?: PerpsProviderType;
+              resolution: PerpsFeeResolution | undefined;
+            }[] = [];
+            let reservedSubscriptionNotionalUsd = 0;
+            for (const { providerId, notionalUsd } of feeRoutes) {
+              const supportsFees =
+                provider.supportsFeeResolution?.(providerId) ??
+                hasFeeSetter(provider);
+              if (!supportsFees) {
+                continue;
+              }
+              const resolution =
+                await this.#calculateFeeDiscountWithMeasurement(
+                  notionalUsd,
+                  provider,
+                  context,
+                  providerId,
+                  reservedSubscriptionNotionalUsd,
+                );
+              reservedSubscriptionNotionalUsd +=
+                resolution?.subscriptionCoveredNotionalUsd ?? 0;
+              resolutions.push({ providerId, resolution });
+            }
+            return resolutions;
+          },
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -1579,17 +2739,52 @@ export class TradingService {
         });
       } else {
         // Fallback: Get positions, filter, and close in parallel
-        if (!context.getPositions) {
-          throw new Error('getPositions callback not provided in context');
+        let positions: Pick<
+          ClosePositionParams,
+          'symbol' | 'providerId' | 'expectedAccountId'
+        >[];
+        if (provider.getClosePositionTargets) {
+          positions = await provider.getClosePositionTargets();
+        } else {
+          if (!context.getPositions) {
+            throw new Error('getPositions callback not provided in context');
+          }
+          positions = await context.getPositions({
+            throwOnUnavailable: true,
+          });
         }
-        const positions = await context.getPositions();
 
-        const positionsToClose =
-          params.closeAll === true ||
-          !params.symbols ||
-          params.symbols.length === 0
-            ? positions
-            : positions.filter((pos) => params.symbols?.includes(pos.symbol));
+        // Tagged targets name the positions to close. A provider without a
+        // batch method must not treat a target list as close-all just because
+        // `symbols` was omitted.
+        let positionsToClose: typeof positions;
+        switch (selection.kind) {
+          case 'targets':
+            positionsToClose = positions.filter((position) =>
+              selection.targets.some((target) => {
+                if (target.symbol !== position.symbol) {
+                  return false;
+                }
+                if (position.providerId !== undefined) {
+                  return target.providerId === position.providerId;
+                }
+                // Direct-provider positions are unlabeled. They belong to this
+                // provider, so a target for a different venue does not match.
+                return target.providerId === provider.protocolId;
+              }),
+            );
+            break;
+          case 'all':
+            positionsToClose = positions;
+            break;
+          case 'symbols':
+            positionsToClose = positions.filter((pos) =>
+              selection.symbols.includes(pos.symbol),
+            );
+            break;
+          default:
+            assertExhaustive(selection);
+        }
 
         if (positionsToClose.length === 0) {
           operationResult = {
@@ -1605,9 +2800,15 @@ export class TradingService {
           positionsToClose.map((position) =>
             this.closePosition({
               provider,
-              params: { symbol: position.symbol },
+              params: {
+                symbol: position.symbol,
+                ...(position.expectedAccountId !== undefined && {
+                  expectedAccountId: position.expectedAccountId,
+                }),
+              },
               context,
               reportOrderToDataLake: () => Promise.resolve({ success: true }), // No-op for batch fallback
+              bulkActionId,
             }),
           ),
         );
@@ -1644,28 +2845,49 @@ export class TradingService {
         };
       }
 
-      if (
-        provider.closePositions &&
-        operationResult &&
-        operationResult.failureCount > 0
-      ) {
-        const failureSummary = operationResult.results
-          .filter((result) => !result.success)
+      // Signer failures are retryable, so only the other failures are reported.
+      const reportedFailures = operationResult.results.filter(
+        (result) => !result.success && !isSignerUnavailable(result.error),
+      );
+      if (provider.closePositions && reportedFailures.length > 0) {
+        const failureSummary = reportedFailures
           .map(
             (result) => `${result.symbol}: ${result.error ?? 'Unknown error'}`,
           )
           .join('; ');
+        const batchError = new Error(
+          `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
+        );
+        const reportedCauses = reportedFailures.flatMap((result) => {
+          const cause = getProviderErrorCause(result);
+          return cause ? [cause] : [];
+        });
+        if (reportedCauses.length === 1) {
+          batchError.cause = reportedCauses[0];
+        } else if (reportedCauses.length > 1) {
+          batchError.cause = new AggregateError(
+            reportedCauses,
+            'closePositions per-position failures',
+          );
+        }
 
         this.#deps.logger.error(
-          new Error(
-            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed - ${failureSummary}`,
+          batchError,
+          this.#getErrorContext(
+            context,
+            'closePositions',
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.ClosePosition,
+            },
+            {
+              successCount: operationResult.successCount,
+              failureCount: operationResult.failureCount,
+              reportedFailureCount: reportedFailures.length,
+              symbols: params.symbols?.length ?? 0,
+              closeAll: params.closeAll,
+            },
           ),
-          this.#getErrorContext('closePositions', {
-            successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
-            symbols: params.symbols?.length ?? 0,
-            closeAll: params.closeAll,
-          }),
         );
       }
 
@@ -1675,22 +2897,35 @@ export class TradingService {
         error instanceof Error ? error : new Error(String(error));
       this.#deps.logger.error(
         ensureError(error, 'TradingService.closePositions'),
-        this.#getErrorContext('closePositions', {
-          symbols: params.symbols?.length ?? 0,
-          closeAll: params.closeAll,
-        }),
+        this.#getErrorContext(
+          context,
+          'closePositions',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.ClosePosition,
+          },
+          {
+            symbols: params.symbols?.length ?? 0,
+            closeAll: params.closeAll,
+          },
+        ),
       );
       throw error;
     } finally {
       const completionDuration = this.#deps.performance.now() - startTime;
 
-      // Track batch close event (success or failure)
+      // Track batch close event (success or failure). A batch close always
+      // submits market orders, on both the provider and fallback paths.
       const batchCloseProps: PerpsAnalyticsProperties = {
         [PERPS_EVENT_PROPERTY.STATUS]:
           operationResult?.success && operationResult.successCount > 0
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+        [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCloseProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -1710,6 +2945,11 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.ClosePosition,
         id: traceId,
+        status: getTraceStatus(operationResult?.success),
+        data: {
+          success: operationResult?.success === true,
+          ...(operationError ? { error: operationError.message } : {}),
+        },
       });
     }
   }
@@ -1729,7 +2969,76 @@ export class TradingService {
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
+    const { provider, params } = options;
+    return this.#writePositionTpsl({
+      ...options,
+      operationName: 'updatePositionTPSL',
+      operation: () => provider.updatePositionTPSL(params),
+    });
+  }
+
+  /**
+   * Replace one TP/SL leg of an existing position, leaving the other leg as
+   * it is. Tracing, fee discounts, state and analytics match
+   * {@link updatePositionTPSL}, reported for the replaced leg only.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The leg replacement parameters.
+   * @param options.context - The service context for dependencies.
+   * @returns The result of the operation.
+   */
+  async replacePositionTPSLLeg(options: {
+    provider: PerpsProvider;
+    params: ReplacePositionTPSLLegParams;
+    context: ServiceContext;
+  }): Promise<OrderResult> {
     const { provider, params, context } = options;
+    const { symbol, leg, triggerPrice, limitPrice, trackingData, providerId } =
+      params;
+    return this.#writePositionTpsl({
+      provider,
+      context,
+      params: {
+        symbol,
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
+        ...(trackingData && { trackingData }),
+        ...(providerId && { providerId }),
+      },
+      limitPrice,
+      operationName: 'replacePositionTPSLLeg',
+      operation: async () => {
+        if (!provider.replacePositionTPSLLeg) {
+          throw createTpslLegReplaceUnsupportedError();
+        }
+        return provider.replacePositionTPSLLeg(params);
+      },
+    });
+  }
+
+  /**
+   * Shared orchestration for position TP/SL writes.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The TP/SL being written, used for fees, tracing and analytics.
+   * @param options.context - The service context for dependencies.
+   * @param options.limitPrice - Fill price of a single replaced leg. The fee
+   * notional uses it instead of the trigger, as the venue fills at it.
+   * @param options.operationName - Method name reported in error context.
+   * @param options.operation - The provider write to run.
+   * @returns The result of the operation.
+   */
+  async #writePositionTpsl(options: {
+    provider: PerpsProvider;
+    params: UpdatePositionTPSLParams;
+    context: ServiceContext;
+    limitPrice?: string;
+    operationName: 'updatePositionTPSL' | 'replacePositionTPSLLeg';
+    operation: () => Promise<OrderResult>;
+  }): Promise<OrderResult> {
+    const { provider, params, context, limitPrice, operationName, operation } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -1762,14 +3071,71 @@ export class TradingService {
         },
       });
 
-      // Get fee discount from rewards
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      // Emit submitted event before the provider round-trip
+      this.#trackSubmitted(PerpsAnalyticsEvent.RiskManagement, {
+        [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+        [PERPS_EVENT_PROPERTY.SOURCE]: source,
+        ...this.#buildAttributionProperties(params.trackingData),
+      });
 
+      // The batch shares one builder fee. Price each included trigger at its
+      // own level and size, then use the largest notional. An omitted size
+      // covers the absolute position size, including for short positions.
+      let positionPromise: Promise<Position | undefined> | undefined;
+      const getPosition = (): Promise<Position | undefined> =>
+        (positionPromise ??= params.position
+          ? Promise.resolve(params.position)
+          : this.#loadPositionData({
+              symbol: params.symbol,
+              context,
+              provider,
+              providerId: params.providerId,
+            }));
+
+      const triggerNotionalsUsd = await Promise.all(
+        [
+          { price: params.takeProfitPrice, size: params.takeProfitSize },
+          { price: params.stopLossPrice, size: params.stopLossSize },
+        ]
+          .filter(
+            (trigger): trigger is { price: string; size: string | undefined } =>
+              trigger.price !== undefined,
+          )
+          .map(async ({ price, size }) => {
+            const triggerSize = size ?? (await getPosition())?.size;
+            return this.#resolveOrderNotionalUsd({
+              size:
+                triggerSize === undefined
+                  ? undefined
+                  : Math.abs(Number.parseFloat(triggerSize)).toString(),
+              price: limitPrice,
+              triggerPrice: price,
+            });
+          }),
+      );
+
+      // A known sibling cannot stand in for a trigger whose size is unknown.
+      // Passing undefined withholds a bounded waiver for the entire batch.
+      const pricedTriggerNotionalsUsd = triggerNotionalsUsd.filter(
+        (notional): notional is number =>
+          notional !== undefined && Number.isFinite(notional) && notional > 0,
+      );
+      const tpslNotionalUsd =
+        pricedTriggerNotionalsUsd.length > 0 &&
+        pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
+          ? Math.max(...pricedTriggerNotionalsUsd)
+          : undefined;
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
-        operation: () => provider.updatePositionTPSL(params),
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            tpslNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
+        operation,
       });
 
       if (result.success) {
@@ -1791,12 +3157,20 @@ export class TradingService {
       traceData = { success: false, error: errorMessage };
 
       this.#deps.logger.error(
-        ensureError(error, 'TradingService.updatePositionTPSL'),
-        this.#getErrorContext('updatePositionTPSL', {
-          symbol: params.symbol,
-          hasTakeProfit: Boolean(params.takeProfitPrice),
-          hasStopLoss: Boolean(params.stopLossPrice),
-        }),
+        ensureError(error, `TradingService.${operationName}`),
+        this.#getErrorContext(
+          context,
+          operationName,
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+          },
+          {
+            symbol: params.symbol,
+            hasTakeProfit: Boolean(params.takeProfitPrice),
+            hasStopLoss: Boolean(params.stopLossPrice),
+          },
+        ),
       );
 
       throw error;
@@ -1864,6 +3238,8 @@ export class TradingService {
         ...(errorMessage && {
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
         }),
+        // Discovery attribution
+        ...this.#buildAttributionProperties(params.trackingData),
       };
 
       // Track event once with all properties
@@ -1875,6 +3251,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateTpsl,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1894,11 +3271,22 @@ export class TradingService {
     provider: PerpsProvider;
     symbol: string;
     amount: string;
+    /** Explicit venue route, forwarded so aggregated routing reaches it. */
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<{ success: boolean; error?: string }> {
-    const { provider, symbol, amount, context } = options;
+    const { provider, symbol, amount, providerId, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
+    // Shared by the executed and failed Risk Management events below.
+    const marginProperties = {
+      [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+      [PERPS_EVENT_PROPERTY.ACTION]:
+        parseFloat(amount) > 0
+          ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
+          : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
+      [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+    };
 
     try {
       this.#deps.tracer.trace({
@@ -1914,7 +3302,11 @@ export class TradingService {
       });
 
       // Call provider method
-      const result = await provider.updateMargin?.({ symbol, amount });
+      const result = await provider.updateMargin?.({
+        symbol,
+        amount,
+        providerId,
+      });
 
       if (!result) {
         throw new Error('Provider does not support margin adjustment');
@@ -1933,21 +3325,29 @@ export class TradingService {
         // Track success analytics
         this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
           [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
-          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
-          [PERPS_EVENT_PROPERTY.ACTION]:
-            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
-          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          ...marginProperties,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         });
 
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Track failure analytics for a non-throwing provider failure so the
+        // terminal Risk Management event is emitted exactly once here (the
+        // thrown path below handles exceptions).
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
+          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+          ...marginProperties,
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
+        });
       }
 
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateMargin,
         id: traceId,
+        status: getTraceStatus(result.success),
         data: { success: result.success, error: result.error ?? '' },
       });
 
@@ -1959,16 +3359,21 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.updateMargin'),
-        this.#getErrorContext('updateMargin', { symbol, amount }),
+        this.#getErrorContext(
+          context,
+          'updateMargin',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.UpdateMargin,
+          },
+          { symbol, amount },
+        ),
       );
 
       // Track failure analytics
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-        [PERPS_EVENT_PROPERTY.ASSET]: symbol,
-        [PERPS_EVENT_PROPERTY.ACTION]:
-          parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
-        [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+        ...marginProperties,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
       });
@@ -1976,6 +3381,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateMargin,
         id: traceId,
+        status: 'error',
         data: { success: false, error: errorMessage },
       });
 
@@ -1989,17 +3395,22 @@ export class TradingService {
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.position - The position data.
+   * @param options.trackingData - Optional tracking data for analytics events.
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
   async flipPosition(options: {
     provider: PerpsProvider;
     position: Position;
+    trackingData?: TrackingData;
     context: ServiceContext;
   }): Promise<OrderResult> {
-    const { provider, position, context } = options;
+    const { provider, position, trackingData, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
+    const flipIntentProperties = this.#buildTradeIntentProperties({
+      orderType: 'market',
+    });
 
     try {
       this.#deps.tracer.trace({
@@ -2020,20 +3431,66 @@ export class TradingService {
 
       const flipSize = positionSize * 2;
 
+      // Direction-specific flip action, shared by the submitted and terminal events
+      const flipAction = isCurrentlyLong
+        ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
+        : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
+
       // Create order params for flip
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
       // live market data for validation and IOC pricing.
+      // Carry the position venue so aggregated placeOrder reaches the same
+      // provider the fee grant below is scoped to.
       const orderParams: OrderParams = {
         symbol: position.symbol,
         isBuy: oppositeDirection,
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
+        ...(position.providerId === undefined
+          ? {}
+          : { providerId: position.providerId }),
+        // Lighter placeOrder otherwise logs order_management/place_order and
+        // marks the result reported, which drops this flip from flip filters.
+        // Close already suppresses that provider report. One Sentry event remains.
+        deferProviderErrorReport: true,
       };
 
+      // Emit submitted event before the provider round-trip, keeping flip
+      // trades aligned with the consolidated placeOrder pipeline.
+      this.#trackSubmitted(PerpsAnalyticsEvent.TradeTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
+          ? PERPS_EVENT_VALUE.DIRECTION.LONG
+          : PERPS_EVENT_VALUE.DIRECTION.SHORT,
+        ...flipIntentProperties,
+        ...(orderParams.leverage !== undefined && {
+          [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+        }),
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
+        [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+        ...this.#buildAttributionProperties(trackingData),
+      });
+
+      // The flip order is 2x the position: one leg closes it, one opens the
+      // opposite. `orderParams` deliberately carries no price, so the notional
+      // comes from the position's own reported USD value.
+      const flipNotionalUsd = this.#resolveOrderNotionalUsd({
+        usdAmount: position.positionValue,
+      });
       // Place flip order (HyperLiquid handles margin transfer automatically)
-      const result = await provider.placeOrder(orderParams);
+      const result = await this.#withFeeDiscount({
+        provider,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+            provider,
+            context,
+            position.providerId,
+          ),
+        operation: () => provider.placeOrder(orderParams),
+      });
 
       const completionDuration = this.#deps.performance.now() - startTime;
 
@@ -2050,10 +3507,6 @@ export class TradingService {
         }
 
         // Track success analytics with direction-specific flip action
-        const flipAction = isCurrentlyLong
-          ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
-          : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
-
         this.#deps.metrics.trackPerpsEvent(
           PerpsAnalyticsEvent.TradeTransaction,
           {
@@ -2062,23 +3515,81 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
-            [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+            ...flipIntentProperties,
+            ...(orderParams.leverage !== undefined && {
+              [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+            }),
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
             [PERPS_EVENT_PROPERTY.ORDER_VALUE]: positionSize * executedPrice,
+            // MetaMask fee on flip trades
+            ...(trackingData?.metamaskFee !== undefined && {
+              [PERPS_EVENT_PROPERTY.METAMASK_FEE]: trackingData.metamaskFee,
+            }),
+            ...(trackingData?.vipTier !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+            }),
+            ...(trackingData?.vipDiscount !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+            }),
+            ...this.#buildAttributionProperties(trackingData),
           },
         );
 
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Provider rejected the flip without throwing: emit a terminal failed
+        // event so every submitted flip is paired with executed or failed.
+        this.#deps.metrics.trackPerpsEvent(
+          PerpsAnalyticsEvent.TradeTransaction,
+          {
+            [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+            [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+            ...flipIntentProperties,
+            [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+            [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
+              result.error ?? 'Unknown error',
+            ...(trackingData?.vipTier !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+            }),
+            ...(trackingData?.vipDiscount !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+            }),
+            ...this.#buildAttributionProperties(trackingData),
+          },
+        );
+
+        if (
+          !isSilentFlipResult(result.error) &&
+          !wasProviderErrorReported(result)
+        ) {
+          this.#deps.logger.error(
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.flipPosition'),
+            this.#getErrorContext(
+              context,
+              'flipPosition',
+              {
+                operation: PERPS_ERROR_OPERATION.PositionManagement,
+                action: PERPS_ERROR_ACTION.FlipPosition,
+              },
+              {
+                symbol: position.symbol,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
+          );
+        }
       }
 
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.FlipPosition,
         id: traceId,
+        status: getTraceStatus(result.success),
         data: { success: result.success ?? false, error: result.error ?? '' },
       });
 
@@ -2090,7 +3601,15 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.flipPosition'),
-        this.#getErrorContext('flipPosition', { symbol: position.symbol }),
+        this.#getErrorContext(
+          context,
+          'flipPosition',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.FlipPosition,
+          },
+          { symbol: position.symbol },
+        ),
       );
 
       // Track failure analytics with direction-specific flip action
@@ -2102,14 +3621,23 @@ export class TradingService {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        ...flipIntentProperties,
         [PERPS_EVENT_PROPERTY.ACTION]: failFlipAction,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+        ...(trackingData?.vipTier !== undefined && {
+          [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+        }),
+        ...(trackingData?.vipDiscount !== undefined && {
+          [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+        }),
+        ...this.#buildAttributionProperties(trackingData),
       });
 
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.FlipPosition,
         id: traceId,
+        status: 'error',
         data: { success: false, error: errorMessage },
       });
 

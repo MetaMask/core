@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../eth-block-tracker"
@@ -14,10 +11,13 @@
       "path": "../json-rpc-engine"
     },
     {
-      "path": "../network-controller"
+      "path": "../message-manager"
     },
     {
-      "path": "../message-manager"
+      "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src", "./test"]

@@ -1,15 +1,16 @@
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import { TransactionEnvelopeType, TransactionType } from '../types';
-import type { TransactionParams } from '../types';
+import { TransactionEnvelopeType, TransactionType } from '../types.js';
+import type { TransactionParams } from '../types.js';
 import {
+  ErrorCode,
   validateBatchRequest,
   validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
-} from './validation';
+} from './validation.js';
 
 const DATA_MOCK = '0x12345678';
 const FROM_MOCK: Hex = '0x1678a085c290ebd122dc42cba69373b5953b831d';
@@ -508,7 +509,7 @@ describe('validation', () => {
             maxFeePerGas: '0x01',
             gas: 'zzzzz',
             // TODO: Replace `any` with type
-          } as unknown as TransactionParams),
+          }),
         ).toThrow(
           rpcErrors.invalidParams(
             'Invalid transaction params: gas is not a valid hexadecimal string. got: (zzzzz)',
@@ -521,7 +522,7 @@ describe('validation', () => {
             maxFeePerGas: '0x01',
             gas: '0x0',
             // TODO: Replace `any` with type
-          } as unknown as TransactionParams),
+          }),
         ).not.toThrow();
       });
     });
@@ -643,7 +644,7 @@ describe('validation', () => {
             authorizationList: [
               {
                 address: FROM_MOCK,
-                yParity: '0x2' as never,
+                yParity: '0x2',
               },
             ],
             from: FROM_MOCK,
@@ -744,9 +745,7 @@ describe('validation', () => {
           txParams: {} as TransactionParams,
         }),
       ).rejects.toThrow(
-        rpcErrors.invalidParams(
-          'The requested account and/or method has not been authorized by the user.',
-        ),
+        providerErrors.unauthorized({ data: { origin: ORIGIN_MOCK } }),
       );
     });
 
@@ -790,7 +789,7 @@ describe('validation', () => {
           txParams: {
             authorizationList: [],
             from: TO_MOCK,
-          } as TransactionParams,
+          },
         }),
       ).rejects.toThrow(
         rpcErrors.invalidParams(
@@ -854,6 +853,25 @@ describe('validation', () => {
         }),
       ).toBeUndefined();
     });
+
+    it('does not throw if isInternal is true regardless of origin', async () => {
+      expect(
+        await validateTransactionOrigin({
+          data: DATA_MOCK,
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          isInternal: true,
+          origin: ORIGIN_MOCK,
+          permittedAddresses: ['0x123'],
+          selectedAddress: '0x123',
+          txParams: {
+            authorizationList: [],
+            to: TO_MOCK,
+            type: TransactionEnvelopeType.setCode,
+          } as TransactionParams,
+        }),
+      ).toBeUndefined();
+    });
   });
 
   describe('validateParamTo', () => {
@@ -904,7 +922,7 @@ describe('validation', () => {
       ).not.toThrow();
     });
 
-    it('does not throw if no origin and any transaction target is internal account with data', () => {
+    it('throws if no origin and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
@@ -914,18 +932,19 @@ describe('validation', () => {
             origin: undefined,
           },
         }),
-      ).not.toThrow();
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'External calls to internal accounts cannot include data',
+        ),
+      );
     });
 
-    it('does not throw if internal origin and any transaction target is internal account with data', () => {
+    it('does not throw if internal and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
-          request: {
-            ...VALIDATE_BATCH_REQUEST_MOCK.request,
-            origin: ORIGIN_METAMASK,
-          },
+          isInternal: true,
         }),
       ).not.toThrow();
     });
@@ -936,17 +955,19 @@ describe('validation', () => {
           ...VALIDATE_BATCH_REQUEST_MOCK,
           sizeLimit: 1,
         }),
-      ).toThrow(rpcErrors.invalidParams('Batch size cannot exceed 1. got: 2'));
+      ).toThrow(
+        new JsonRpcError(
+          ErrorCode.BundleTooLarge,
+          'Batch size cannot exceed 1. got: 2',
+        ),
+      );
     });
 
-    it('does not throw if transaction count is internal and greater than limit', () => {
+    it('does not throw if internal and transaction count is greater than limit', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
-          request: {
-            ...VALIDATE_BATCH_REQUEST_MOCK.request,
-            origin: ORIGIN_METAMASK,
-          },
+          isInternal: true,
           sizeLimit: 1,
         }),
       ).not.toThrow();

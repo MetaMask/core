@@ -60,11 +60,12 @@ run-create-issue-command() {
   local title="$3"
   local body="$4"
   local labels="$5"
+  local token="$6"
 
   if [[ $dry_run -eq 1 ]]; then
     echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels\""
   else
-    gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
+    GH_TOKEN="$token" gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
   fi
 }
 
@@ -74,6 +75,7 @@ create-issue() {
   local package_name="$3"
   local version="$4"
   local team_labels="$5"
+  local token="$6"
 
   local title="Upgrade ${package_name} to version ${version}"
   local body="A new major version of \`${package_name}\`, ${version}, is now available. This issue has been assigned to you and your team because you code-own this package in the \`core\` repo. If this package is present in this project, please prioritize upgrading it soon to unblock new features and bugfixes."
@@ -89,7 +91,7 @@ create-issue() {
 
   echo "----------------------------------------"
   set +e
-  run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
+  run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels" "$token"
   exitcode=$?
   set -e
   echo "----------------------------------------"
@@ -196,7 +198,7 @@ main() {
 
   local all_issues_extension
   echo "Fetching issues on $EXTENSION_REPO with label $DEFAULT_LABEL..."
-  if ! all_issues_extension="$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
+  if ! all_issues_extension="$(GH_TOKEN="${EXTENSION_GITHUB_TOKEN:-}" gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
     echo "❌ Failed to fetch issues from ${EXTENSION_REPO}"
     echo "$all_issues_extension"
     exit 1
@@ -204,7 +206,7 @@ main() {
 
   local all_issues_mobile
   echo "Fetching issues on $MOBILE_REPO with label $DEFAULT_LABEL..."
-  if ! all_issues_mobile="$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
+  if ! all_issues_mobile="$(GH_TOKEN="${MOBILE_GITHUB_TOKEN:-}" gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
     echo "❌ Failed to fetch issues from ${MOBILE_REPO}"
     echo "$all_issues_mobile"
     exit 1
@@ -241,7 +243,7 @@ main() {
       else
         echo "⏭️ Not creating issue because it already exists"
       fi
-    elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels"; then
+    elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels" "${EXTENSION_GITHUB_TOKEN:-}"; then
       exitcode=1
     fi
 
@@ -254,7 +256,7 @@ main() {
       else
         echo "⏭️ Not creating issue because it already exists"
       fi
-    elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels"; then
+    elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels" "${MOBILE_GITHUB_TOKEN:-}"; then
       exitcode=1
     fi
   done

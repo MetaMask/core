@@ -1,4 +1,4 @@
-import type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController';
+import type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController.js';
 
 /**
  * Selects the data recorded flag from the controller state.

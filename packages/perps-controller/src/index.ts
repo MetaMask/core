@@ -12,7 +12,7 @@
  *
  * Usage:
  * ```typescript
- * import { usePerpsController } from './controllers';
+ * import { usePerpsController } from './controllers.js';
  *
  * const { placeOrder, getPositions } = usePerpsController();
  * // Live prices hooks removed with Live Market Prices component
@@ -32,19 +32,37 @@ export {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-} from './PerpsController';
+  PerpsMode,
+  DEFAULT_ORDER_BOOK_PREFERENCES,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+  DEFAULT_SELECTED_ORDER_TYPE,
+} from './PerpsController.js';
 export type {
+  OrderBookListCurrency,
+  OrderBookListMetric,
+  OrderBookPreferences,
   PerpsControllerState,
   PerpsControllerOptions,
   PerpsControllerMessenger,
   PerpsControllerGetStateAction,
   PerpsControllerActions,
+  PerpsControllerChaseOrderMaxDistanceReachedEvent,
   PerpsControllerEvents,
-} from './PerpsController';
+  ProLayoutPreferences,
+  ProOrdersSideFilter,
+  ProOrdersSortDirection,
+  ProOrdersSortField,
+  ProPositionsSideFilter,
+  ProPositionsSortDirection,
+  ProPositionsSortField,
+} from './PerpsController.js';
 export type {
+  PerpsControllerApproveSubscriptionBuilderFeeAction,
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,
+  PerpsControllerPreviewPositionModifyAction,
   PerpsControllerCancelOrderAction,
   PerpsControllerCancelOrdersAction,
   PerpsControllerClearDepositResultAction,
@@ -53,6 +71,8 @@ export type {
   PerpsControllerClearWithdrawResultAction,
   PerpsControllerClosePositionAction,
   PerpsControllerClosePositionsAction,
+  PerpsControllerClearAgentSignersAction,
+  PerpsControllerClearAttributionContextAction,
   PerpsControllerCompleteWithdrawalFromHistoryAction,
   PerpsControllerDepositWithConfirmationAction,
   PerpsControllerDepositWithOrderAction,
@@ -61,61 +81,110 @@ export type {
   PerpsControllerFetchHistoricalCandlesAction,
   PerpsControllerFlipPositionAction,
   PerpsControllerGetAccountStateAction,
+  PerpsControllerGetAccountSupportAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
+  PerpsControllerGetAttributionContextAction,
   PerpsControllerGetAvailableDexsAction,
   PerpsControllerGetBlockExplorerUrlAction,
   PerpsControllerGetCachedMarketDataForActiveProviderAction,
   PerpsControllerGetCachedUserDataForActiveProviderAction,
+  PerpsControllerGetUserDataSnapshotAction,
   PerpsControllerGetCurrentNetworkAction,
   PerpsControllerGetFundingAction,
+  PerpsControllerGetChaseOrdersAction,
+  PerpsControllerGetChaseOrderOwnershipAction,
+  PerpsControllerReconcileChaseOrderCancellationAction,
+  PerpsControllerGetTwapOrdersAction,
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
   PerpsControllerGetMarketsAction,
+  PerpsControllerGetMarginModeAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
   PerpsControllerGetOrderBookGroupingAction,
+  PerpsControllerGetOrderBookPreferencesAction,
+  PerpsControllerGetOrderCapabilitiesAction,
+  PerpsControllerGetMarginModeLockAction,
+  PerpsControllerGetScalePriceLadderAction,
   PerpsControllerGetOrderFillsAction,
   PerpsControllerGetOrdersAction,
+  PerpsControllerGetPendingManualRecoveriesAction,
   PerpsControllerGetPendingTradeConfigurationAction,
   PerpsControllerGetPositionsAction,
+  PerpsControllerGetProviderHealthAction,
+  PerpsControllerGetPublicTradesAction,
+  PerpsControllerGetSelectedOrderTypeAction,
+  PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerGetAttachedOrderGroupsAction,
+  PerpsControllerReviewAttachedOrderGroupsAction,
+  PerpsControllerGetScaleOrderGroupsAction,
+  PerpsControllerReviewScaleOrderGroupsAction,
+  PerpsControllerReconcileRecoveredDispatchesAction,
+  PerpsControllerReviewRecoveryVenueAction,
+  PerpsControllerResolveRecoveryProtectionAction,
+  PerpsControllerAcknowledgeRecoveredDispatchAction,
   PerpsControllerGetTradeConfigurationAction,
+  PerpsControllerGetRecentlyViewedMarketsAction,
   PerpsControllerGetWatchlistMarketsAction,
+  PerpsControllerGetVisibleCandleCountAction,
   PerpsControllerGetWebSocketConnectionStateAction,
   PerpsControllerGetWithdrawalProgressAction,
   PerpsControllerGetWithdrawalRoutesAction,
   PerpsControllerInitAction,
+  PerpsControllerInvalidateSubscriptionBenefitsAction,
   PerpsControllerIsCurrentlyReinitializingAction,
   PerpsControllerIsFirstTimeUserOnCurrentNetworkAction,
   PerpsControllerIsWatchlistMarketAction,
   PerpsControllerMarkFirstOrderCompletedAction,
   PerpsControllerMarkTutorialCompletedAction,
   PerpsControllerPlaceOrderAction,
+  PerpsControllerPrepareTradingWalletAction,
   PerpsControllerReconnectAction,
+  PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
+  PerpsControllerSaveMarginModeAction,
   PerpsControllerSaveMarketFilterPreferencesAction,
+  PerpsControllerGetProLayoutPreferencesAction,
+  PerpsControllerSetProLayoutPreferencesAction,
+  PerpsControllerSetPerpsModeAction,
+  PerpsControllerSetOrderBookPreferencesAction,
+  PerpsControllerSetSelectedOrderTypeAction,
   PerpsControllerSaveOrderBookGroupingAction,
   PerpsControllerSavePendingTradeConfigurationAction,
   PerpsControllerSaveTradeConfigurationAction,
+  PerpsControllerSetAgentSignerAction,
+  PerpsControllerSetAttributionContextAction,
   PerpsControllerSetLiveDataConfigAction,
   PerpsControllerSetSelectedPaymentTokenAction,
+  PerpsControllerSetVisibleCandleCountAction,
   PerpsControllerStartEligibilityMonitoringAction,
   PerpsControllerStartMarketDataPreloadAction,
+  PerpsControllerSuspendChaseOrdersAction,
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
+  PerpsControllerSubscribeToAvailableToTradeAction,
   PerpsControllerSubscribeToCandlesAction,
   PerpsControllerSubscribeToConnectionStateAction,
   PerpsControllerSubscribeToOICapsAction,
   PerpsControllerSubscribeToOrderBookAction,
   PerpsControllerSubscribeToOrderFillsAction,
   PerpsControllerSubscribeToOrdersAction,
+  PerpsControllerSubscribeToTwapOrdersAction,
+  PerpsControllerSubscribeToLiveTwapOrdersAction,
+  PerpsControllerSubscribeToChaseOrderListsAction,
   PerpsControllerSubscribeToPositionsAction,
   PerpsControllerSubscribeToPricesAction,
+  PerpsControllerSubscribeToProviderHealthAction,
+  PerpsControllerSubscribeToPublicTradesAction,
   PerpsControllerSwitchProviderAction,
+  PerpsControllerSetDefaultProviderAction,
   PerpsControllerToggleTestnetAction,
   PerpsControllerToggleWatchlistMarketAction,
   PerpsControllerUpdateMarginAction,
@@ -126,19 +195,32 @@ export type {
   PerpsControllerValidateOrderAction,
   PerpsControllerValidateWithdrawalAction,
   PerpsControllerWithdrawAction,
-} from './PerpsController-method-action-types';
+} from './PerpsController-method-action-types.js';
 
 // Provider interfaces and implementations
-export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
+export { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+export { ChaseOrderSuspensionError } from './providers/AggregatedPerpsProvider.js';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export {
+  WebSocketConnectionState,
+  PerpsAnalyticsEvent,
+  MARKET_CATEGORIES,
+  MarketCategory,
+} from './types/index.js';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
   GetUserHistoryParams,
   TradeConfiguration,
   OrderType,
+  TriggerOrderType,
+  StrategyOrderType,
+  OrdinaryOrderType,
+  OrderExecution,
+  TriggerDirection,
+  TpslLinkage,
+  PositionTriggerOrder,
   MarketType,
   MarketTypeFilter,
   InputMethod,
@@ -146,12 +228,53 @@ export type {
   TrackingData,
   TPSLTrackingData,
   OrderParams,
+  ExpectedScaleLadder,
+  MarginMode,
   OrderResult,
+  PositionProtectionReceipt,
+  LighterCredentials,
+  OrderEditObservation,
+  AttachedOrderGroup,
+  ScaleOrderChild,
+  ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
+  PerpsChaseOrderOwner,
+  PerpsChaseOrderDispatch,
+  PerpsChaseOrderChild,
+  PerpsChaseOrderOwnership,
+  ChaseOrderMaxDistanceReached,
+  ChaseOrderStatus,
+  TwapOrder,
+  TwapOrderFill,
+  TwapOrderStatus,
+  TwapSlicePreview,
+  ChaseOrderLists,
+  ChasePlacementCheck,
+  ScaleLadderSizing,
+  ScalePriceWarning,
+  PerpsStrategyRules,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
+  PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   Position,
   AccountState,
+  CrossMarginSummary,
+  HyperLiquidAbstractionMode,
+  PerpsProviderAccountStateEntry,
+  AccountAggregateMetadata,
   ClosePositionParams,
   ClosePositionsParams,
+  ClosePositionsTarget,
   ClosePositionsResult,
+  BatchOperationStatus,
+  WithBatchOperationStatus,
   UpdateMarginParams,
   MarginResult,
   FlipPositionParams,
@@ -163,6 +286,10 @@ export type {
   ToggleTestnetResult,
   AssetRoute,
   SwitchProviderResult,
+  SetDefaultProviderResult,
+  PerpsPendingTradeConfiguration,
+  PerpsTradeConfiguration,
+  PerpsProviderTradeConfigurations,
   CancelOrderParams,
   CancelOrderResult,
   BatchCancelOrdersParams,
@@ -188,6 +315,8 @@ export type {
   CheckEligibilityParams,
   GetPositionsParams,
   GetAccountStateParams,
+  GetUserDataSnapshotParams,
+  PerpsUserDataSnapshot,
   GetOrderFillsParams,
   GetOrFetchFillsParams,
   GetOrdersParams,
@@ -195,21 +324,71 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
+  SubscribeAvailableToTradeParams,
+  PerpsAvailableToTrade,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeCandlesParams,
   OrderBookLevel,
   OrderBookData,
   SubscribeOrderBookParams,
+  PublicTrade,
+  GetPublicTradesParams,
+  SubscribePublicTradesParams,
+  SubscribeProviderHealthParams,
+  PerpsProviderHealth,
+  PerpsProviderHealthReason,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
+  PositionModifyPreviewSource,
+  PositionModifyPreviewKind,
+  PositionPreviewValue,
+  PositionModifyPreviewCurrent,
+  PositionModifyPreviewOpen,
+  PositionModifyPreviewFullClose,
+  PositionModifyPreviewUnsupported,
+  PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
+  GetAccountSupportParams,
+  PerpsAccountSupport,
+  PerpsAccountUnsupportedReason,
+  GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
+  MarginModeLockReason,
+  MarginModeLockUnavailableReason,
+  PerpsMarginModeLock,
+  GetScalePriceLadderParams,
+  OrderCapabilitiesUnavailableReason,
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  RoutedOrderCapabilitiesUnavailableReason,
+  DirectProviderScalePriceLadderUnavailableReason,
+  ScalePriceLadderUnavailableReason,
+  DirectProviderOrderCapabilities,
+  PerpsOrderCapabilities,
+  PerpsPricePrecision,
+  PerpsOrderLimits,
+  PerpsScalePriceLadder,
+  PerpsSubscriptionBenefits,
+  PerpsSubscriptionUsage,
+  PerpsSubscriptionFeeWaiverStatus,
+  PerpsFeeSource,
+  PerpsFeeResolverScope,
+  PerpsFeeResolution,
+  PerpsTradingFeeGrant,
   UpdatePositionTPSLParams,
+  PositionTPSLLeg,
+  ReplacePositionTPSLLegParams,
   Order,
   Funding,
   PerpsProvider,
@@ -224,17 +403,26 @@ export type {
   PerpsTraceName,
   PerpsTraceValue,
   PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsMetrics,
   PerpsDebugLogger,
   PerpsStreamManager,
   PerpsPerformance,
   PerpsTracer,
   PerpsTypedMessageParams,
+  PerpsTypedDataPayload,
+  PerpsAccountSigner,
+  PerpsAgentAccount,
+  PerpsAgentSigner,
   PerpsTransactionParams,
   PerpsAddTransactionOptions,
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  PerpsTerminalMarketService,
+  PerpsGlobalSnapshotRequest,
+  PerpsGlobalSnapshotResult,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,
@@ -242,12 +430,12 @@ export type {
   PaymentToken,
   PerpsSelectedPaymentToken,
   VersionGatedFeatureFlag,
-} from './types';
+} from './types/index.js';
 export {
   PerpsTraceNames,
   PerpsTraceOperations,
   isVersionGatedFeatureFlag,
-} from './types';
+} from './types/index.js';
 
 // Types from sub-modules (re-exported via types/index.ts)
 export type {
@@ -262,14 +450,14 @@ export type {
   ReconnectOptions,
   ExtendedAssetMeta,
   ExtendedPerpDex,
-} from './types';
+} from './types/index.js';
 export type {
   BaseTransactionResult,
   LastTransactionResult,
   TransactionStatus,
   TransactionRecord,
-} from './types';
-export { isTransactionRecord, isLastTransactionResult } from './types';
+} from './types/index.js';
+export { isTransactionRecord, isLastTransactionResult } from './types/index.js';
 export type {
   AssetPosition,
   SpotBalance,
@@ -286,7 +474,7 @@ export type {
   MetaAndAssetCtxsResponse,
   PredictedFundingsResponse,
   SpotMetaResponse,
-} from './types';
+} from './types/index.js';
 export type {
   HyperLiquidEndpoints,
   AssetNetworkConfig,
@@ -300,8 +488,8 @@ export type {
   TradingDefaultsConfig,
   FeeRatesConfig,
   HyperLiquidNetwork,
-} from './types';
-export type { PerpsToken } from './types';
+} from './types/index.js';
+export type { PerpsToken } from './types/index.js';
 
 // Constants (explicit named exports)
 export {
@@ -309,16 +497,18 @@ export {
   TimeDuration,
   ChartInterval,
   MAX_CANDLE_COUNT,
+  VISIBLE_CANDLE_COUNT_CONFIG,
   DURATION_CANDLE_PERIODS,
   CANDLE_PERIODS,
   DEFAULT_CANDLE_PERIOD,
   getCandlePeriodsForDuration,
   getDefaultCandlePeriodForDuration,
   calculateCandleCount,
-} from './constants';
-export { PERPS_EVENT_PROPERTY, PERPS_EVENT_VALUE } from './constants';
-export { DETAILED_ORDER_TYPES, isTPSLOrder } from './constants';
-export { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from './constants';
+} from './constants/index.js';
+export { PERPS_EVENT_PROPERTY, PERPS_EVENT_VALUE } from './constants/index.js';
+export type { PerpsMaxSlippageSource } from './constants/index.js';
+export { DETAILED_ORDER_TYPES, isTPSLOrder } from './constants/index.js';
+export { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from './constants/index.js';
 export {
   ARBITRUM_MAINNET_CHAIN_ID_HEX,
   ARBITRUM_MAINNET_CHAIN_ID,
@@ -351,6 +541,8 @@ export {
   FEE_RATES,
   HIP3_FEE_CONFIG,
   BUILDER_FEE_CONFIG,
+  HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
+  HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
   REFERRAL_CONFIG,
   DEPOSIT_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
@@ -368,59 +560,61 @@ export {
   TESTNET_HIP3_CONFIG,
   MAINNET_HIP3_CONFIG,
   HIP3_MARGIN_CONFIG,
-  USDH_CONFIG,
   INITIAL_AMOUNT_UI_PROGRESS,
   WITHDRAWAL_PROGRESS_STAGES,
   PROGRESS_BAR_COMPLETION_DELAY_MS,
-} from './constants';
-export type { SupportedAsset } from './constants';
-export { PerpsMeasurementName } from './constants';
+} from './constants/index.js';
+export type { SupportedAsset } from './constants/index.js';
+export { PerpsMeasurementName } from './constants/index.js';
 export {
-  MYX_MAINNET_CHAIN_ID,
-  MYX_TESTNET_CHAIN_ID,
-  MYX_MAINNET_CAIP_CHAIN_ID,
-  MYX_TESTNET_CAIP_CHAIN_ID,
-  getMYXChainId,
-  MYX_ENDPOINTS,
-  getMYXHttpEndpoint,
-  MYX_PRICE_DECIMALS,
-  MYX_SIZE_DECIMALS,
-  MYX_COLLATERAL_DECIMALS,
-  USDT_BNB_TESTNET,
-  USDT_BNB_MAINNET,
-  MYX_ASSET_CONFIGS,
-  fromMYXPrice,
-  toMYXPrice,
-  fromMYXSize,
-  toMYXSize,
-  fromMYXCollateral,
-  MYX_PRICE_POLLING_INTERVAL_MS,
-  MYX_HTTP_TIMEOUT_MS,
-  MYX_MAX_RETRIES,
-  MYX_MAX_LEVERAGE,
-  MYX_FEE_RATE,
-  MYX_PROTOCOL_FEE_RATE,
-  MYX_DEFAULT_SLIPPAGE_BPS,
-  MYX_MINIMUM_ORDER_SIZE_USD,
-  MYX_EXECUTION_FEE_TOKEN,
-} from './constants';
+  LIGHTER_MAINNET_CHAIN_ID,
+  LIGHTER_TESTNET_CHAIN_ID,
+  getLighterChainId,
+  LIGHTER_ENDPOINTS,
+  getLighterHttpEndpoint,
+  LIGHTER_DEFAULT_API_KEY_INDEX,
+  LIGHTER_HTTP_TIMEOUT_MS,
+  LIGHTER_PRICE_POLLING_INTERVAL_MS,
+  LIGHTER_MAX_LEVERAGE,
+  toLighterInteger,
+  fromLighterInteger,
+  computeLighterMinOrderSize,
+} from './constants/index.js';
+export type {
+  LighterNetwork,
+  LighterCreateClientParams,
+  LighterSignerBridge,
+  LighterWebSocketCtor,
+  LighterWebSocketLike,
+  LighterWasmCall,
+  LighterSignModifyOrderWireParams,
+  LighterAuthConfig,
+} from './types/lighter-types.js';
 export {
   PERPS_CONSTANTS,
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
+  CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
+  TWAP_ORDER_CONFIG,
+  ORDER_PRICE_WARNING_CONFIG,
+  MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
+  HYPERLIQUID_TWAP_LIMITS,
   CLOSE_POSITION_CONFIG,
   MARGIN_ADJUSTMENT_CONFIG,
   DATA_LAKE_API_CONFIG,
   DECIMAL_PRECISION_CONFIG,
+  TP_SL_PRECISION_CONFIG,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
-} from './constants';
-export type { SortOptionId } from './constants';
+  PERPS_DISPLAY_PRECISION,
+} from './constants/index.js';
+export type { SortOptionId } from './constants/index.js';
 
 // Utilities (explicit named exports)
 export {
@@ -429,16 +623,55 @@ export {
   getSelectedEvmAccount,
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
-} from './utils';
-export type { ReturnOnEquityInput } from './utils';
-export { ensureError, isAbortError } from './utils';
+  getCrossCollateral,
+  getCrossMarginSpotCollateral,
+  calculateAccountSummary,
+} from './utils/index.js';
+export type {
+  ReturnOnEquityInput,
+  CrossMarginSummaryInput,
+  PerpsAccountSummary,
+  CalculateAccountSummaryParams,
+} from './utils/index.js';
+export {
+  calculatePriceForRoE,
+  calculateSignedRoEForPrice,
+  calculateRoEForPrice,
+  calculatePriceForPercentage,
+  calculatePercentageForPrice,
+  getMaxStopLossPercentage,
+  isValidStopLossPercentage,
+  isPositiveTriggerPrice,
+  isValidTakeProfitPrice,
+  isValidStopLossPrice,
+  isStopLossSafeFromLiquidation,
+  validateTPSLPrices,
+  formatRoePercent,
+  calculateExpectedTriggerPnl,
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
+} from './utils/index.js';
+export type {
+  TpslCalculationParams,
+  TpslValidationResult,
+  ExpectedTriggerPnlParams,
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
+} from './utils/index.js';
+export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './utils/index.js';
+export { ensureError, isAbortError } from './utils/index.js';
 export type {
   OrderBookCacheEntry,
   ProcessL2BookDataParams,
   ProcessBboDataParams,
-} from './utils';
-export { processL2BookData, processBboData } from './utils';
-export type { ValidationDebugLogger } from './utils';
+} from './utils/index.js';
+export { processL2BookData, processBboData } from './utils/index.js';
+export type { ValidationDebugLogger } from './utils/index.js';
 export {
   createErrorResult,
   validateWithdrawalParams,
@@ -450,25 +683,47 @@ export {
   getMaxOrderValue,
   validateOrderParams,
   validateCoinExists,
-} from './utils';
+} from './utils/index.js';
+export {
+  TRIGGER_ORDER_TYPES,
+  STRATEGY_ORDER_TYPES,
+  SCALE_ORDER_COUNT,
+  isTriggerOrderType,
+  isStrategyOrderType,
+  isLimitExecutionOrderType,
+  getTriggerExecution,
+  getTriggerDirection,
+  buildTriggerOrderType,
+  buildPositionTriggerOrderFromOrder,
+  computeScalePriceLadder,
+  computeChaseQuotePrice,
+  getPriceTick,
+  splitScaleSizes,
+} from './utils/index.js';
+export {
+  adaptTriggerOrderTypeFromSDK,
+  adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
+} from './utils/index.js';
 export {
   generatePerpsId,
   generateDepositId,
   generateWithdrawalId,
   generateOrderId,
   generateTransactionId,
-} from './utils';
+} from './utils/index.js';
 export {
   calculateOpenInterestUSD,
+  isMarketTradable,
   transformMarketData,
   formatChange,
-} from './utils';
-export type { HyperLiquidMarketData } from './utils';
+} from './utils/index.js';
+export type { HyperLiquidMarketData } from './utils/index.js';
 export {
   getPerpsConnectionAttemptContext,
   withPerpsConnectionAttemptContext,
-} from './utils/perpsConnectionAttemptContext';
-export type { PerpsConnectionAttemptContext } from './utils/perpsConnectionAttemptContext';
+} from './utils/perpsConnectionAttemptContext.js';
+export type { PerpsConnectionAttemptContext } from './utils/perpsConnectionAttemptContext.js';
 export {
   MAX_MARKET_PATTERN_LENGTH,
   escapeRegex,
@@ -481,8 +736,18 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
-} from './utils';
-export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
+  rankMarketsByQuery,
+  getMarketMatchRank,
+} from './utils/index.js';
+export { MarketMatchRank } from './utils/index.js';
+export type {
+  MarketPatternMatcher,
+  CompiledMarketPattern,
+} from './utils/index.js';
 export type {
   OrderCalculationsDebugLogger,
   CalculateFinalPositionSizeParams,
@@ -491,7 +756,7 @@ export type {
   CalculateOrderPriceAndSizeResult,
   BuildOrdersArrayParams,
   BuildOrdersArrayResult,
-} from './utils';
+} from './utils/index.js';
 export {
   calculatePositionSize,
   calculateMarginRequired,
@@ -499,28 +764,31 @@ export {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   buildOrdersArray,
-} from './utils';
+} from './utils/index.js';
 export {
   formatAccountToCaipAccountId,
   isCaipAccountId,
   handleRewardsError,
-} from './utils';
+} from './utils/index.js';
 export {
   countSignificantFigures,
   hasExceededSignificantFigures,
   roundToSignificantFigures,
-} from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
-export { parseVolume, sortMarkets } from './utils';
-export type { StandaloneInfoClientOptions } from './utils';
+} from './utils/index.js';
+export type { SortMarketsParams } from './utils/index.js';
+export { parseVolume, sortMarkets } from './utils/index.js';
+export type {
+  StandaloneClearinghouseStatesResult,
+  StandaloneInfoClientOptions,
+} from './utils/index.js';
 export {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
-} from './utils';
-export { stripQuotes, parseCommaSeparatedString } from './utils';
-export { generateERC20TransferData } from './utils';
-export { wait } from './utils';
+} from './utils/index.js';
+export { stripQuotes, parseCommaSeparatedString } from './utils/index.js';
+export { generateERC20TransferData } from './utils/index.js';
+export { wait } from './utils/index.js';
 export {
   adaptOrderToSDK,
   adaptPositionFromSDK,
@@ -533,9 +801,55 @@ export {
   calculateHip3AssetId,
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
-} from './utils';
-export { getEnvironment } from './utils';
-export type { FiatRangeConfig } from './utils';
+} from './utils/index.js';
+export {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+  buildMaintenanceSchedule,
+  estimateIsolatedLiquidationPrice,
+  estimateIsolatedLiquidationPriceAtTier,
+  estimateIsolatedLeverageChange,
+  estimateCrossMaintenanceMargin,
+  estimateCrossLiquidationPrice,
+} from './utils/index.js';
+export type {
+  HyperLiquidMarginTier,
+  IsolatedLeverageChangeParams,
+  IsolatedLeverageChange,
+  CrossMarginPosition,
+} from './utils/index.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+  getBatchOperationStatus,
+  PERPS_ERROR_COPY,
+  getPerpsErrorCopy,
+  PERPS_ORDER_TYPE_LABELS,
+} from './utils/index.js';
+export type {
+  GroupedOrderBook,
+  PerpsErrorCopy,
+  PerpsOrderTypeLabel,
+} from './utils/index.js';
+export { getEnvironment } from './utils/index.js';
+export type {
+  FiatRangeConfig,
+  PerpsCompactField,
+  PerpsCompactFormatOptions,
+  PerpsDisplayFormatOptions,
+  PerpsDurationFormatOptions,
+  PerpsFiatFormatOptions,
+  PerpsFundingDirection,
+  PerpsFundingRateFormatOptions,
+  PerpsIntlFormatters,
+  PerpsOrderBookLadderOptions,
+  PerpsOrderBookPriceFormat,
+  PerpsOrderBookPriceFormatOptions,
+  PerpsPercentageFormatOptions,
+  PerpsSignDisplay,
+  PerpsUsdInput,
+  PerpsUsdInputFormatOptions,
+} from './utils/index.js';
 export {
   PRICE_THRESHOLD,
   formatWithSignificantDigits,
@@ -545,12 +859,57 @@ export {
   formatPositionSize,
   formatPnl,
   formatPercentage,
+  formatCrossMarginRatio,
   formatFundingRate,
-} from './utils';
+  formatPositionFunding,
+  getPositionFundingDirection,
+  formatFundingPayment,
+  formatFeeBps,
+  formatLiquidationDistance,
+  formatPerpsCompact,
+  getPerpsOrderBookPriceFormat,
+  formatPerpsOrderBookPrice,
+  formatPerpsUsdInput,
+  formatPerpsDuration,
+} from './utils/index.js';
+
+// Advanced orders: venue-neutral TWAP, chase and scale rules and live lists
+export {
+  getStrategyRules,
+  TWAP_ORDER_ACTIVE_STATUSES,
+  isTwapOrderActive,
+  partitionTwapOrders,
+  reconcileTwapExecution,
+  mergeTwapOrders,
+  validateTwapOrder,
+  computeTwapSlicePreview,
+  CHASE_ORDER_RUNNING_STATUSES,
+  isChaseOrderRunning,
+  isChaseOrderCancelable,
+  checkChasePlacement,
+  mergeChaseOrderHistory,
+  sizeScaleLadder,
+  validateScaleOrder,
+  classifyScalePriceWarnings,
+  createLiveTwapOrderList,
+  createLiveChaseOrderList,
+} from './utils/index.js';
+export type {
+  AdvancedOrderValidationResult,
+  LiveTwapOrderSource,
+  LiveChaseOrderSource,
+  CanceledChaseOrder,
+} from './utils/index.js';
 
 // Error codes (explicit named exports)
-export { PERPS_ERROR_CODES } from './perpsErrorCodes';
-export type { PerpsErrorCode } from './perpsErrorCodes';
+export { isPerpsErrorCode, PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+export type { PerpsErrorCode } from './perpsErrorCodes.js';
+export { OrderDiscoveryError } from './errors.js';
+export type {
+  HyperLiquidErrorDetails,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+} from './errors.js';
 
 // Selectors (explicit named exports)
 export {
@@ -558,15 +917,31 @@ export {
   selectHasPlacedFirstOrder,
   selectWatchlistMarkets,
   selectIsWatchlistMarket,
+  selectRecentlyViewedMarkets,
   selectTradeConfiguration,
   selectPendingTradeConfiguration,
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
-} from './selectors';
+  selectMarginMode,
+  selectOrderBookPreferences,
+  selectProLayoutPreferences,
+  selectSelectedOrderType,
+  selectVisibleCandleCount,
+  selectPerpsMode,
+} from './selectors.js';
 
 // Services (only externally consumed items)
-export { TradingReadinessCache } from './services/TradingReadinessCache';
-export type { ServiceContext } from './services/ServiceContext';
+export { TradingReadinessCache } from './services/TradingReadinessCache.js';
+export type { ServiceContext } from './services/ServiceContext.js';
+export {
+  AggregatedOrderBookConnection,
+  processAggregatedOrderBook,
+} from './services/AggregatedOrderBookConnection.js';
+export type {
+  OrderBookConnectionStatus,
+  SubscribeAggregatedOrderBookParams,
+  AggregatedOrderBookConnectionOptions,
+} from './services/AggregatedOrderBookConnection.js';
 
 // Removed with Live Market Prices component:
 // - usePerpsPrices

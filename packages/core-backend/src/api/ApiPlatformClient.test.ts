@@ -13,7 +13,13 @@
  */
 
 import { QueryClient } from '@tanstack/query-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  mockFetch,
+  createMockResponse,
+  setupTestEnvironment,
+} from '../../tests/test-utils.js';
 import {
   ApiPlatformClient,
   createApiPlatformClient,
@@ -24,12 +30,7 @@ import {
   HttpError,
   shouldRetry,
   calculateRetryDelay,
-} from '.';
-import {
-  mockFetch,
-  createMockResponse,
-  setupTestEnvironment,
-} from './test-utils';
+} from './index.js';
 
 describe('ApiPlatformClient', () => {
   let client: ApiPlatformClient;
@@ -51,7 +52,7 @@ describe('ApiPlatformClient', () => {
 
     it('creates instance with all options', () => {
       const customQueryClient = new QueryClient();
-      const getBearerToken = jest.fn().mockResolvedValue('test-token');
+      const getBearerToken = vi.fn().mockResolvedValue('test-token');
 
       const instance = new ApiPlatformClient({
         clientProduct: 'metamask-extension',
@@ -153,7 +154,7 @@ describe('ApiPlatformClient', () => {
     });
 
     it('includes bearer token when getBearerToken is provided', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue('my-auth-token');
+      const getBearerToken = vi.fn().mockResolvedValue('my-auth-token');
       const authClient = new ApiPlatformClient({
         clientProduct: 'test-client',
         getBearerToken,
@@ -180,7 +181,7 @@ describe('ApiPlatformClient', () => {
     });
 
     it('does not include Authorization header when getBearerToken returns undefined', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue(undefined);
+      const getBearerToken = vi.fn().mockResolvedValue(undefined);
       const authClient = new ApiPlatformClient({
         clientProduct: 'test-client',
         getBearerToken,
@@ -289,7 +290,7 @@ describe('ApiPlatformClient', () => {
       const queryKey = ['prices', 'v1SupportedNetworks'];
       client.setCachedData(queryKey, {
         fullSupport: [],
-        partialSupport: [],
+        partialSupport: { spotPricesV2: [] },
       });
 
       await client.prices.invalidatePrices();

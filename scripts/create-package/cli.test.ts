@@ -1,8 +1,13 @@
-import cli from './cli';
-import { commands, commandMap } from './commands';
-import * as utils from './utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('./utils');
+import cli from './cli.ts';
+import { commands, commandMap } from './commands.ts';
+import * as utils from './utils.ts';
+
+vi.mock(import('./utils.ts'), () => ({
+  readMonorepoFiles: vi.fn(),
+  finalizeAndWriteData: vi.fn(),
+}));
 
 /**
  * Returns a mock `process.argv` array with the provided arguments. Includes
@@ -44,7 +49,7 @@ describe('create-package/cli', () => {
   beforeEach(() => {
     // yargs calls process.exit() with 1 on failure and sometimes 0 on success.
     // We have to intercept it.
-    jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
       if (code === 1) {
         throw new Error('exit: 1');
       } else {
@@ -53,17 +58,19 @@ describe('create-package/cli', () => {
     });
 
     // We actually check these.
-    jest.spyOn(console, 'error');
-    jest.spyOn(console, 'log');
+    vi.spyOn(console, 'error');
+    vi.spyOn(console, 'log');
   });
 
   afterEach(() => {
-    delete process.exitCode;
+    process.exitCode = undefined;
   });
 
   it('should error if a string option contains only whitespace', async () => {
     const defaultCommand = commandMap.$0;
-    jest.spyOn(defaultCommand, 'handler').mockImplementation();
+    vi.spyOn(defaultCommand, 'handler').mockImplementation(
+      async () => undefined,
+    );
 
     await expect(cli(getMockArgv('--name', '  '), commands)).rejects.toThrow(
       'exit: 1',
@@ -77,16 +84,16 @@ describe('create-package/cli', () => {
   describe('command: $0', () => {
     it('should call the command handler with the correct arguments', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler');
+      vi.spyOn(defaultCommand, 'handler');
 
-      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
+      vi.mocked(utils.readMonorepoFiles).mockResolvedValue({
         tsConfig: {},
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       } as any);
-      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
+      vi.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 
       expect(
         await cli(
@@ -103,16 +110,16 @@ describe('create-package/cli', () => {
 
     it('should handle names already prefixed with "@metamask/"', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler');
+      vi.spyOn(defaultCommand, 'handler');
 
-      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
+      vi.mocked(utils.readMonorepoFiles).mockResolvedValue({
         tsConfig: {},
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       } as any);
-      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
+      vi.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 
       expect(
         await cli(
@@ -129,7 +136,9 @@ describe('create-package/cli', () => {
 
     it('should create a new package', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      vi.spyOn(defaultCommand, 'handler').mockImplementation(
+        async () => undefined,
+      );
 
       expect(
         await cli(
@@ -146,7 +155,9 @@ describe('create-package/cli', () => {
 
     it('should error if the package name is missing', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      vi.spyOn(defaultCommand, 'handler').mockImplementation(
+        async () => undefined,
+      );
 
       await expect(
         cli(getMockArgv('--description', 'bar'), commands),
@@ -159,7 +170,9 @@ describe('create-package/cli', () => {
 
     it('should error if the package description is missing', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      vi.spyOn(defaultCommand, 'handler').mockImplementation(
+        async () => undefined,
+      );
 
       await expect(cli(getMockArgv('--name', 'foo'), commands)).rejects.toThrow(
         'exit: 1',

@@ -1,21 +1,21 @@
-import type { INotification } from '..';
-import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements';
+import { describe, expect, it, vi } from 'vitest';
+
+import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices.js';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { INotification } from '../index.js';
+import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements.js';
 import {
   ContentfulResult,
   getFeatureAnnouncementNotifications,
   getFeatureAnnouncementUrl,
-} from './feature-announcements';
+} from './feature-announcements.js';
 
 // Mocked type for testing, allows overwriting TS to test erroneous values
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MockedType = any;
 
-jest.mock('@contentful/rich-text-html-renderer', () => ({
-  documentToHtmlString: jest
-    .fn()
-    .mockImplementation((richText: string) => `<p>${richText}</p>`),
+vi.mock('@contentful/rich-text-html-renderer', () => ({
+  documentToHtmlString: vi.fn((richText: string) => `<p>${richText}</p>`),
 }));
 
 const featureAnnouncementsEnv = {
@@ -25,10 +25,6 @@ const featureAnnouncementsEnv = {
 };
 
 describe('Feature Announcement Notifications', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('should return an empty array if invalid environment provided', async () => {
     mockFetchFeatureAnnouncementNotifications();
 

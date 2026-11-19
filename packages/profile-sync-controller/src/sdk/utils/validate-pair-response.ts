@@ -11,6 +11,7 @@ export type RawPairResponse = {
     profile_id: string;
     identifier_id: string;
     metametrics_id?: string;
+    paired_identifier_ids?: { id: string; type: string }[];
   };
   profile_aliases?: RawProfileAlias[];
 };

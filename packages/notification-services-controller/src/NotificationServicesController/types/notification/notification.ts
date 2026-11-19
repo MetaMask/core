@@ -1,10 +1,12 @@
-import type { FeatureAnnouncementRawNotification } from '../feature-announcement/feature-announcement';
-import type { NormalisedAPINotification } from '../notification-api/notification-api';
-import type { RawSnapNotification } from '../snaps';
-import type { Compute } from '../type-utils';
+import type { FeatureAnnouncementRawNotification } from '../feature-announcement/feature-announcement.js';
+import type { NormalisedAPINotification } from '../notification-api/notification-api.js';
+import type { RawSnapNotification } from '../snaps/index.js';
+import type { Compute } from '../type-utils.js';
 
 export type BaseNotification = {
   id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  notification_subtype: string;
   createdAt: string;
   isRead: boolean;
 };

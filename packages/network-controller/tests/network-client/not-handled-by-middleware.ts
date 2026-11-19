@@ -1,7 +1,8 @@
-import { fill } from 'lodash';
+import { fill } from 'lodash-es';
+import { expect, it } from 'vitest';
 
-import type { ProviderType } from './helpers';
-import { withMockedCommunications, withNetworkClient } from './helpers';
+import type { ProviderType } from './helpers.js';
+import { withMockedCommunications, withNetworkClient } from './helpers.js';
 
 type TestsForRpcMethodNotHandledByMiddlewareOptions = {
   providerType: ProviderType;

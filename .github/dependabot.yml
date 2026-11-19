@@ -7,8 +7,31 @@ updates:
     directory: '/'
     schedule:
       interval: 'daily'
-    allow:
-      - dependency-name: '@metamask/*'
+    cooldown:
+      default-days: 3
+      exclude:
+        - '@metamask/*'
+        - '@lavamoat/*'
+    groups:
+      metamask-non-major:
+        applies-to: 'version-updates'
+        patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      external-non-major:
+        applies-to: 'version-updates'
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+    open-pull-requests-limit: 10
     versioning-strategy: 'increase'
 
   - package-ecosystem: 'github-actions'
@@ -16,8 +39,15 @@ updates:
     schedule:
       interval: 'daily'
       time: '06:00'
+    cooldown:
+      default-days: 3
     allow:
       - dependency-name: 'MetaMask/*'
       - dependency-name: 'actions/*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - 'version-update:semver-minor'
+          - 'version-update:semver-patch'
     target-branch: 'main'
     open-pull-requests-limit: 10

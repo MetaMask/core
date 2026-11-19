@@ -9,8 +9,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [6.0.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Accept full RPC provider objects (not just URL strings) in `rpcProviders.fallbacks`, so a single chain using the new object form (e.g. Pharos Mainnet) no longer fails validation for the entire networks config response ([#11436](https://github.com/MetaMask/core/pull/11436))
+- **BREAKING:** Change `FetchConfigResult` and `FetchEventsConfigResult` to use `null` instead of omitted properties ([#11134](https://github.com/MetaMask/core/pull/11134))
+  - `etag` is now `string | null`, and is `null` when the response has no `ETag` header. Previously it was `undefined`.
+  - `data` is now `null` when the server returns 304 and the service has no cached data. Previously it was omitted.
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Removed
+
+- **BREAKING:** Remove `ConfigRegistryApiService.onRetry`, `ConfigRegistryApiService.onBreak`, and `ConfigRegistryApiService.onDegraded` ([#11134](https://github.com/MetaMask/core/pull/11134))
+
+## [5.0.0]
+
+### Added
+
+- Add `ConfigRegistryApiService.fetchEventsConfig`, which hits `/v1/config/events-config` ([#10448](https://github.com/MetaMask/core/pull/10448))
+
+### Changed
+
+- **BREAKING:** `ConfigRegistryControllerMessenger` requires `ConfigRegistryApiService:fetchEventsConfig` in its allowed actions ([#10448](https://github.com/MetaMask/core/pull/10448))
+- `ConfigRegistryController` now caches the result from `/v1/config/events-config` in `configs.eventsConfig` in its polling loop ([#10448](https://github.com/MetaMask/core/pull/10448))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^7.0.0` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [3.1.0]
+
+### Added
+
+- Add optional `isAutoEnabled?: boolean` property to `RegistryNetworkConfig.config` ([#9879](https://github.com/MetaMask/core/pull/9879))
+- Add `selectEvmAutoEnabledNetworksChainIds` selector to retrieve the CAIP-2 chain IDs of all EVM networks that are auto-enabled ([#9879](https://github.com/MetaMask/core/pull/9879))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
+## [3.0.0]
+
+### Added
+
+- Add `ConfigRegistryApiEnv` enum to select the API environment for the service ([#9918](https://github.com/MetaMask/core/pull/9918))
+
+### Changed
+
+- **BREAKING:** The `env` optional constructor option type is now `ConfigRegistryApiEnv` ([#9918](https://github.com/MetaMask/core/pull/9918))
+  - Previously, constructor options were reusing the `SDK.Env` enum from `@metamask/profile-sync-controller`.
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [2.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [2.0.0]
+
+### Added
+
+- Add optional `contracts` property to `RegistryNetworkConfig` ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - The `contracts` property is a record of known contract addresses for the network, keyed by contract name.
+  - Currently, the only supported contract is `multicall3`.
+
+### Removed
+
+- **BREAKING:** Remove `ConfigRegistryControllerMethodActions` from exported types ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - One of the following action types can be used instead:
+    - `ConfigRegistryControllerStartPollingAction`
+    - `ConfigRegistryControllerStopPollingAction`
+    - `ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction`
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [1.0.0]
+
+### Added
+
+- Add `ConfigRegistryControllerStateChangedEvent` (`ConfigRegistryController:stateChanged`) to the controller's events ([#9595](https://github.com/MetaMask/core/pull/9595))
+- Add `ConfigRegistryController.getNetworkConfigByCaip2ChainId` method to retrieve a network config by its CAIP-2 chain ID ([#9597](https://github.com/MetaMask/core/pull/9597), [#9606](https://github.com/MetaMask/core/pull/9606))
+  - The method returns the network config if found, or `undefined` if not found.
+  - The method is also accessible via the controller's messenger as `ConfigRegistryController:getNetworkConfigByCaip2ChainId`.
+
+### Changed
+
+- **BREAKING:** `ConfigRegistryControllerState.configs.networks` is now a `Record<Caip2ChainId, RegistryNetworkConfig>` instead of a `Record<string, RegistryNetworkConfig>` ([#9606](https://github.com/MetaMask/core/pull/9606))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Removed
+
+- **BREAKING:** Removed `ConfigRegistryControllerStateChangeEvent` type in favor of `ConfigRegistryControllerStateChangedEvent` ([#9595](https://github.com/MetaMask/core/pull/9595))
+
+## [0.4.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#8986](https://github.com/MetaMask/core/pull/8986))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [0.4.0]
+
+### Changed
+
+- **BREAKING:** `RegistryNetworkConfigSchema.assets.native.coingeckoCoinId` is now optional ([#8970](https://github.com/MetaMask/core/pull/8970))
+  - The controller now accepts chains with no `assets.native.coingeckoCoinId` property in their configuration.
+
+## [0.3.2]
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [0.3.1]
 
@@ -59,7 +210,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@5.0.0...@metamask/config-registry-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@4.0.0...@metamask/config-registry-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.1.0...@metamask/config-registry-controller@4.0.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.0.0...@metamask/config-registry-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@2.0.1...@metamask/config-registry-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@2.0.0...@metamask/config-registry-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.1...@metamask/config-registry-controller@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.0...@metamask/config-registry-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.1...@metamask/config-registry-controller@1.0.0
+[0.4.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.0...@metamask/config-registry-controller@0.4.1
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.2...@metamask/config-registry-controller@0.4.0
+[0.3.2]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...@metamask/config-registry-controller@0.3.2
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.0...@metamask/config-registry-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...@metamask/config-registry-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...@metamask/config-registry-controller@0.2.0

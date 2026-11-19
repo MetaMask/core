@@ -1,14 +1,16 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Infer } from '@metamask/superstruct';
 import { array, boolean, object, string } from '@metamask/superstruct';
-import type { IDisposable } from 'cockatiel';
 
-import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types';
+import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types.js';
 
 // === GENERAL ===
 
@@ -28,6 +30,22 @@ const COMPLIANCE_API_URLS: Record<ComplianceServiceEnvironment, string> = {
   development: 'https://compliance.dev-api.cx.metamask.io',
 };
 
+export type ComplianceServiceOptions = {
+  messenger: ComplianceServiceMessenger;
+  fetch: typeof fetch;
+  /**
+   * Explicit Compliance API URL. Prefer this for application builds so API
+   * endpoints can be managed by build configuration. Path components are
+   * preserved as a base path for Compliance API routes.
+   */
+  apiUrl?: string;
+  /**
+   * Fallback environment used when `apiUrl` is not provided.
+   */
+  env?: ComplianceServiceEnvironment;
+  policyOptions?: CreateServicePolicyOptions;
+};
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -36,9 +54,17 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Invalidates cached queries for {@link ComplianceService}.
+ */
+export type ComplianceServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link ComplianceService} exposes to other consumers.
  */
-export type ComplianceServiceActions = ComplianceServiceMethodActions;
+export type ComplianceServiceActions =
+  | ComplianceServiceMethodActions
+  | ComplianceServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link ComplianceService} calls.
@@ -46,9 +72,24 @@ export type ComplianceServiceActions = ComplianceServiceMethodActions;
 type AllowedActions = never;
 
 /**
+ * Published when {@link ComplianceService}'s cache is updated.
+ */
+export type ComplianceServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published when a key within {@link ComplianceService}'s cache is updated.
+ */
+export type ComplianceServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link ComplianceService} exposes to other consumers.
  */
-export type ComplianceServiceEvents = never;
+export type ComplianceServiceEvents =
+  | ComplianceServiceCacheUpdatedEvent
+  | ComplianceServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link ComplianceService} subscribes to.
@@ -126,7 +167,7 @@ type BatchWalletCheckResponseItem = Infer<
  * new ComplianceService({
  *   messenger: serviceMessenger,
  *   fetch,
- *   env: 'production',
+ *   apiUrl: 'https://compliance.api.cx.metamask.io',
  * });
  *
  * // Check a single wallet
@@ -137,23 +178,14 @@ type BatchWalletCheckResponseItem = Infer<
  * // => { address: '0x1234...', blocked: false }
  * ```
  */
-export class ComplianceService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  /**
-   * The messenger suited for this service.
-   */
-  readonly #messenger: ConstructorParameters<
-    typeof ComplianceService
-  >[0]['messenger'];
-
+export class ComplianceService extends BaseDataService<
+  typeof serviceName,
+  ComplianceServiceMessenger
+> {
   /**
    * A function that can be used to make an HTTP request.
    */
-  readonly #fetch: ConstructorParameters<typeof ComplianceService>[0]['fetch'];
+  readonly #fetch: typeof fetch;
 
   /**
    * The resolved base URL for the Compliance API.
@@ -161,82 +193,32 @@ export class ComplianceService {
   readonly #complianceApiUrl: string;
 
   /**
-   * The policy that wraps each request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
-
-  /**
    * Constructs a new ComplianceService object.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - A function that can be used to make an HTTP request.
-   * @param args.env - The environment to use for the Compliance API. Determines
-   * the base URL.
+   * @param args.apiUrl - The explicit Compliance API URL.
+   * @param args.env - The fallback environment to use for the Compliance API
+   * when `apiUrl` is not provided.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
     fetch: fetchFunction,
-    env,
+    apiUrl,
+    env = 'production',
     policyOptions = {},
-  }: {
-    messenger: ComplianceServiceMessenger;
-    fetch: typeof fetch;
-    env: ComplianceServiceEnvironment;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+  }: ComplianceServiceOptions) {
+    super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
-    this.#complianceApiUrl = COMPLIANCE_API_URLS[env];
-    this.#policy = createServicePolicy(policyOptions);
+    this.#complianceApiUrl = getComplianceApiUrl({ apiUrl, env });
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Registers a handler that will be called after a request returns a non-500
-   * response, causing a retry.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called when the service is degraded due
-   * to slow responses or repeated failures.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -246,27 +228,26 @@ export class ComplianceService {
    * @returns The compliance status of the wallet.
    */
   async checkWalletCompliance(address: string): Promise<WalletCheckResponse> {
-    const response = await this.#policy.execute(async () => {
-      const url = new URL(
-        `/v1/wallet/${encodeURIComponent(address)}`,
-        this.#complianceApiUrl,
-      );
-      const localResponse = await this.#fetch(url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkWalletCompliance`, address],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: WalletCheckResponseStruct,
+      queryFn: async () => {
+        const url = new URL(
+          `v1/wallet/${encodeURIComponent(address)}`,
+          this.#complianceApiUrl,
         );
-      }
-      return localResponse;
+        const response = await this.#fetch(url);
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Fetching '${url.toString()}' failed with status '${response.status}'`,
+          );
+        }
+        return (await response.json()) as WalletCheckResponse;
+      },
     });
-    const jsonResponse: unknown = await response.json();
-
-    return validateResponse(
-      jsonResponse,
-      WalletCheckResponseStruct,
-      'compliance wallet check API',
-    );
   }
 
   /**
@@ -278,48 +259,55 @@ export class ComplianceService {
   async checkWalletsCompliance(
     addresses: string[],
   ): Promise<BatchWalletCheckResponseItem[]> {
-    const response = await this.#policy.execute(async () => {
-      const url = new URL('/v1/wallet/batch', this.#complianceApiUrl);
-      const localResponse = await this.#fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addresses),
-      });
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      return localResponse;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkWalletsCompliance`, addresses],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: array(BatchWalletCheckResponseItemStruct),
+      queryFn: async () => {
+        const url = new URL('v1/wallet/batch', this.#complianceApiUrl);
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(addresses),
+        });
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Fetching '${url.toString()}' failed with status '${response.status}'`,
+          );
+        }
+        return (await response.json()) as BatchWalletCheckResponseItem[];
+      },
     });
-    const jsonResponse: unknown = await response.json();
-
-    return validateResponse(
-      jsonResponse,
-      array(BatchWalletCheckResponseItemStruct),
-      'compliance batch check API',
-    );
   }
 }
 
-/**
- * Validates an API response against a superstruct schema.
- *
- * @param data - The raw response data to validate.
- * @param struct - The superstruct schema to validate against.
- * @param struct.is - The type guard function from the schema.
- * @param apiName - A human-readable name for the API, used in error messages.
- * @returns The validated data.
- * @throws If the data does not match the schema.
- */
-function validateResponse<Response>(
-  data: unknown,
-  struct: { is: (value: unknown) => value is Response },
-  apiName: string,
-): Response {
-  if (struct.is(data)) {
-    return data;
+function getComplianceApiUrl({
+  apiUrl,
+  env,
+}: {
+  apiUrl?: string;
+  env: ComplianceServiceEnvironment;
+}): string {
+  if (apiUrl === undefined) {
+    return COMPLIANCE_API_URLS[env];
   }
-  throw new Error(`Malformed response received from ${apiName}`);
+
+  let url: URL;
+  try {
+    url = new URL(apiUrl);
+  } catch {
+    throw new Error(`Invalid Compliance API URL: ${apiUrl}`);
+  }
+
+  if (url.search || url.hash) {
+    throw new Error(
+      `Invalid Compliance API URL: ${apiUrl}. Query strings and fragments are not supported.`,
+    );
+  }
+  if (!url.pathname.endsWith('/')) {
+    url.pathname = `${url.pathname}/`;
+  }
+  return url.href;
 }

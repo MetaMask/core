@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi';
-import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { NetworkClientType } from '@metamask/network-controller';
 import {
   TransactionStatus,
   TransactionType,
@@ -8,35 +8,29 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
 import type {
   TransactionData,
   TransactionPayControllerState,
   TransactionPayRequiredToken,
-} from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
-import { parseRequiredTokens } from './required-tokens';
+} from '../types.js';
+import { parseRequiredTokens } from './required-tokens.js';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
-  isPredictWithdrawTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
-} from './transaction';
+} from './transaction.js';
 
-jest.mock('./feature-flags');
-jest.mock('./required-tokens');
-jest.mock('@ethersproject/providers', () => ({
-  ...jest.requireActual('@ethersproject/providers'),
-  Web3Provider: jest.fn(),
-}));
+vi.mock(import('./required-tokens.js'));
 
 const TRANSACTION_ID_MOCK = '123-456';
 const ERROR_MESSAGE_MOCK = 'Test error';
@@ -59,10 +53,7 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 } as TransactionPayRequiredToken;
 
 describe('Transaction Utils', () => {
-  const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
-  const getAssetsUnifyStateFeatureMock = jest.mocked(
-    getAssetsUnifyStateFeature,
-  );
+  const parseRequiredTokensMock = vi.mocked(parseRequiredTokens);
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -71,20 +62,18 @@ describe('Transaction Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
-    } as TransactionControllerState);
-
-    getAssetsUnifyStateFeatureMock.mockReturnValue(false);
+    });
   });
 
   describe('getTransaction', () => {
     it('returns transaction', () => {
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
+      });
 
       const result = getTransaction(TRANSACTION_ID_MOCK, messenger);
       expect(result).toBe(TRANSACTION_META_MOCK);
@@ -93,7 +82,7 @@ describe('Transaction Utils', () => {
     it('returns undefined if transaction not found', () => {
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [] as TransactionMeta[],
-      } as TransactionControllerState);
+      });
 
       const result = getTransaction(TRANSACTION_ID_MOCK, messenger);
       expect(result).toBeUndefined();
@@ -102,7 +91,7 @@ describe('Transaction Utils', () => {
 
   describe('subscribeTransactionChanges', () => {
     it('updates state for new transactions', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -112,7 +101,7 @@ describe('Transaction Utils', () => {
         'TransactionController:stateChange',
         {
           transactions: [TRANSACTION_META_MOCK],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -127,7 +116,7 @@ describe('Transaction Utils', () => {
     });
 
     it('updates state for updated transactions', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -137,7 +126,7 @@ describe('Transaction Utils', () => {
         'TransactionController:stateChange',
         {
           transactions: [TRANSACTION_META_MOCK],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -147,17 +136,112 @@ describe('Transaction Utils', () => {
           transactions: [
             { ...TRANSACTION_META_MOCK, txParams: { data: '0x1' } },
           ],
-        } as TransactionControllerState,
+        },
         [],
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
     });
 
+    it('updates state when txParams.to changes', () => {
+      const updateTransactionDataMock = vi.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        },
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              txParams: {
+                ...TRANSACTION_META_MOCK.txParams,
+                to: '0xnewrecipient',
+              },
+            },
+          ],
+        },
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('updates state when requiredAssets changes', () => {
+      const updateTransactionDataMock = vi.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        },
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              requiredAssets: [{ address: '0xtoken', chainId: '0x1' as Hex }],
+            },
+          ],
+        },
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not update state when txParams.data, txParams.to, and requiredAssets are unchanged', () => {
+      const updateTransactionDataMock = vi.fn();
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        },
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              status: TransactionStatus.submitted,
+            },
+          ],
+        },
+        [],
+      );
+
+      // Only the initial new-transaction event triggers the update
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
     it.each(FINALIZED_STATUSES)(
       'removes state if transaction status is %s',
       (status) => {
-        const removeTransactionDataMock = jest.fn();
+        const removeTransactionDataMock = vi.fn();
 
         subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
@@ -165,7 +249,7 @@ describe('Transaction Utils', () => {
           'TransactionController:stateChange',
           {
             transactions: [TRANSACTION_META_MOCK],
-          } as TransactionControllerState,
+          },
           [],
         );
 
@@ -173,7 +257,7 @@ describe('Transaction Utils', () => {
           'TransactionController:stateChange',
           {
             transactions: [{ ...TRANSACTION_META_MOCK, status }],
-          } as TransactionControllerState,
+          },
           [],
         );
 
@@ -184,7 +268,7 @@ describe('Transaction Utils', () => {
     );
 
     it('removes state if transaction is deleted', () => {
-      const removeTransactionDataMock = jest.fn();
+      const removeTransactionDataMock = vi.fn();
 
       subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
@@ -192,7 +276,7 @@ describe('Transaction Utils', () => {
         'TransactionController:stateChange',
         {
           transactions: [TRANSACTION_META_MOCK],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -200,7 +284,7 @@ describe('Transaction Utils', () => {
         'TransactionController:stateChange',
         {
           transactions: [] as TransactionMeta[],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -221,7 +305,7 @@ describe('Transaction Utils', () => {
           [TRANSACTION_ID_MOCK]: {
             isLoading: false,
             ...data,
-          } as TransactionData,
+          },
         },
       };
     }
@@ -240,16 +324,16 @@ describe('Transaction Utils', () => {
         fresh.getTransactionControllerStateMock;
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [] as TransactionMeta[],
-      } as TransactionControllerState);
+      });
     });
 
-    it('re-parses required tokens for transactions with empty tokens when token rates change', () => {
-      const updateTransactionDataMock = jest.fn();
+    it('subscribes to AssetsController state changes', () => {
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
+      });
 
       subscribeAssetChanges(
         isolatedMessenger,
@@ -257,9 +341,10 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish('AssetsController:stateChange', {}, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+
       const transactionData = {} as TransactionData;
       updateTransactionDataMock.mock.calls[0][1](transactionData);
       expect(transactionData.tokens).toStrictEqual([
@@ -267,91 +352,12 @@ describe('Transaction Utils', () => {
       ]);
     });
 
-    it('re-parses required tokens when currency rates change', () => {
-      const updateTransactionDataMock = jest.fn();
-
-      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
-
-      subscribeAssetChanges(
-        isolatedMessenger,
-        () => buildState({ tokens: [] }),
-        updateTransactionDataMock,
-      );
-
-      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('re-parses required tokens when token state changes', () => {
-      const updateTransactionDataMock = jest.fn();
-
-      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
-
-      subscribeAssetChanges(
-        isolatedMessenger,
-        () => buildState({ tokens: [] }),
-        updateTransactionDataMock,
-      );
-
-      isolatedPublish('TokensController:stateChange', {} as never, []);
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('subscribes to AssetsController state changes when unify-state feature is enabled', () => {
-      const updateTransactionDataMock = jest.fn();
-
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
-      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
-
-      subscribeAssetChanges(
-        isolatedMessenger,
-        () => buildState({ tokens: [] }),
-        updateTransactionDataMock,
-      );
-
-      isolatedPublish('AssetsController:stateChange', {} as never, []);
-
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
-      const updateTransactionDataMock = jest.fn();
-
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
-
-      subscribeAssetChanges(
-        isolatedMessenger,
-        () => buildState({ tokens: [] }),
-        updateTransactionDataMock,
-      );
-
-      isolatedPublish('TokensController:stateChange', {} as never, []);
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
-      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
-
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
-    });
-
     it('skips transactions whose tokens are already populated', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
+      });
 
       subscribeAssetChanges(
         isolatedMessenger,
@@ -362,7 +368,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish('AssetsController:stateChange', {}, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(parseRequiredTokensMock).not.toHaveBeenCalled();
@@ -371,11 +377,11 @@ describe('Transaction Utils', () => {
     it.each(FINALIZED_STATUSES)(
       'skips transactions whose status is %s',
       (status) => {
-        const updateTransactionDataMock = jest.fn();
+        const updateTransactionDataMock = vi.fn();
 
         isolatedGetTransactionControllerStateMock.mockReturnValue({
           transactions: [{ ...TRANSACTION_META_MOCK, status }],
-        } as TransactionControllerState);
+        });
 
         subscribeAssetChanges(
           isolatedMessenger,
@@ -383,18 +389,18 @@ describe('Transaction Utils', () => {
           updateTransactionDataMock,
         );
 
-        isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+        isolatedPublish('AssetsController:stateChange', {}, []);
 
         expect(updateTransactionDataMock).not.toHaveBeenCalled();
       },
     );
 
     it('skips transactions that no longer exist in TransactionController state', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [] as TransactionMeta[],
-      } as TransactionControllerState);
+      });
 
       subscribeAssetChanges(
         isolatedMessenger,
@@ -402,7 +408,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish('AssetsController:stateChange', {}, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
@@ -412,7 +418,7 @@ describe('Transaction Utils', () => {
     it('updates transaction', () => {
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
-      } as TransactionControllerState);
+      });
 
       updateTransaction(
         {
@@ -439,7 +445,7 @@ describe('Transaction Utils', () => {
     it('throws if transaction not found', () => {
       getTransactionControllerStateMock.mockReturnValue({
         transactions: [] as TransactionMeta[],
-      } as TransactionControllerState);
+      });
 
       expect(() =>
         updateTransaction(
@@ -467,7 +473,7 @@ describe('Transaction Utils', () => {
           transactions: [
             { ...TRANSACTION_META_MOCK, status: TransactionStatus.confirmed },
           ],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -493,7 +499,7 @@ describe('Transaction Utils', () => {
               type: TransactionType.bridge,
             },
           ],
-        } as TransactionControllerState,
+        },
         [],
       );
 
@@ -507,7 +513,7 @@ describe('Transaction Utils', () => {
         transactions: [
           { ...TRANSACTION_META_MOCK, status: TransactionStatus.confirmed },
         ],
-      } as TransactionControllerState);
+      });
 
       const result = await waitForTransactionConfirmed(
         TRANSACTION_ID_MOCK,
@@ -529,7 +535,7 @@ describe('Transaction Utils', () => {
             type: TransactionType.bridge,
           },
         ],
-      } as TransactionControllerState);
+      });
 
       await expect(
         waitForTransactionConfirmed(TRANSACTION_ID_MOCK, messenger as never),
@@ -541,7 +547,7 @@ describe('Transaction Utils', () => {
 
   describe('collectTransactionIds', () => {
     it('collects transaction IDs from unapproved events matching from and chain ID', () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       collectTransactionIds(CHAIN_ID_MOCK, FROM_MOCK, messenger, mockCallback);
 
@@ -549,25 +555,25 @@ describe('Transaction Utils', () => {
         id: 'tx1',
         chainId: CHAIN_ID_MOCK,
         txParams: { from: FROM_MOCK },
-      } as TransactionMeta);
+      });
 
       publish('TransactionController:unapprovedTransactionAdded', {
         id: 'tx2',
         chainId: '0x1' as Hex,
         txParams: { from: FROM_MOCK },
-      } as TransactionMeta);
+      });
 
       publish('TransactionController:unapprovedTransactionAdded', {
         id: 'tx3',
         chainId: CHAIN_ID_MOCK,
         txParams: { from: '0xabc' },
-      } as TransactionMeta);
+      });
 
       publish('TransactionController:unapprovedTransactionAdded', {
         id: 'tx4',
         chainId: CHAIN_ID_MOCK,
         txParams: { from: FROM_MOCK },
-      } as TransactionMeta);
+      });
 
       expect(mockCallback).toHaveBeenCalledTimes(2);
       expect(mockCallback).toHaveBeenNthCalledWith(1, 'tx1');
@@ -575,7 +581,7 @@ describe('Transaction Utils', () => {
     });
 
     it('stops collecting transaction IDs after end is called', () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       const { end } = collectTransactionIds(
         CHAIN_ID_MOCK,
@@ -588,7 +594,7 @@ describe('Transaction Utils', () => {
         id: 'tx1',
         chainId: CHAIN_ID_MOCK,
         txParams: { from: FROM_MOCK },
-      } as TransactionMeta);
+      });
 
       end();
 
@@ -596,68 +602,10 @@ describe('Transaction Utils', () => {
         id: 'tx2',
         chainId: CHAIN_ID_MOCK,
         txParams: { from: FROM_MOCK },
-      } as TransactionMeta);
+      });
 
       expect(mockCallback).toHaveBeenCalledTimes(1);
       expect(mockCallback).toHaveBeenCalledWith('tx1');
-    });
-  });
-
-  describe('isPredictWithdrawTransaction', () => {
-    it('returns true when the transaction type is predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        type: TransactionType.predictWithdraw,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when a nested transaction has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.predictWithdraw }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns true when one of multiple nested transactions has type predictWithdraw', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [
-          { type: TransactionType.simpleSend },
-          { type: TransactionType.predictWithdraw },
-        ],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
-    });
-
-    it('returns false when nested transactions have different types', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [{ type: TransactionType.simpleSend }],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is undefined', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
-    });
-
-    it('returns false when nestedTransactions is empty', () => {
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        nestedTransactions: [],
-      } as TransactionMeta;
-
-      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
     });
   });
 });
@@ -669,7 +617,7 @@ const ERC20_ADDRESS_RECEIPT_MOCK =
   '0x2222222222222222222222222222222222222222' as Hex;
 const CHAIN_ID_RECEIPT_MOCK = '0x1' as Hex;
 const NETWORK_CLIENT_ID_RECEIPT_MOCK = 'net-client-1';
-const PROVIDER_RECEIPT_MOCK = { request: jest.fn() };
+const PROVIDER_RECEIPT_MOCK = { request: vi.fn() };
 
 const TRANSFER_EVENT_TOPIC =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -707,32 +655,22 @@ describe('getTransferredAmountFromTxHash', () => {
     getNetworkClientByIdMock: receiptGetNetworkMock,
   } = getMessengerMock();
 
-  let mockGetTransactionReceipt: jest.Mock;
-  let mockSend: jest.Mock;
-  let mockGetTx: jest.Mock;
-
   beforeEach(() => {
-    jest.resetAllMocks();
-
-    mockGetTransactionReceipt = jest.fn();
-    mockSend = jest.fn();
-    mockGetTx = jest.fn();
+    vi.resetAllMocks();
 
     receiptFindNetworkMock.mockReturnValue(NETWORK_CLIENT_ID_RECEIPT_MOCK);
     receiptGetNetworkMock.mockReturnValue({
+      configuration: {
+        chainId: CHAIN_ID_RECEIPT_MOCK,
+        type: NetworkClientType.Custom,
+      },
       provider: PROVIDER_RECEIPT_MOCK,
-    } as never);
-
-    (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
-      getTransactionReceipt: mockGetTransactionReceipt,
-      send: mockSend,
-      getTransaction: mockGetTx,
-    }));
+    });
   });
 
   describe('native token', () => {
     it('returns amount from debug_traceTransaction for direct transfer', async () => {
-      mockSend.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
         value: '0xde0b6b3a7640000',
         calls: [],
@@ -746,15 +684,16 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000000000000000');
-      expect(mockSend).toHaveBeenCalledWith('debug_traceTransaction', [
-        TX_HASH_MOCK,
-        { tracer: 'callTracer' },
-      ]);
+      expect(result.amountRaw).toBe('1000000000000000000');
+      expect(result.blockNumber).toBeUndefined();
+      expect(PROVIDER_RECEIPT_MOCK.request).toHaveBeenCalledWith({
+        method: 'debug_traceTransaction',
+        params: [TX_HASH_MOCK, { tracer: 'callTracer' }],
+      });
     });
 
     it('sums native value from nested internal calls', async () => {
-      mockSend.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         to: '0xcontract',
         value: '0x0',
         calls: [
@@ -784,15 +723,21 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
     });
 
     it('falls back to tx.value when debug_traceTransaction is unsupported', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '1500000000000000000' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x14d1120d7b160000',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -802,18 +747,21 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1500000000000000000');
+      expect(result.amountRaw).toBe('1500000000000000000');
     });
 
-    it('returns undefined when trace returns zero value and tx.to does not match wallet', async () => {
-      mockSend.mockResolvedValue({
-        to: '0xcontract',
-        value: '0x0',
-      });
-      mockGetTx.mockResolvedValue({
-        to: '0xcontract',
-        value: { toString: () => '1000000000000000000' },
-      });
+    it('returns undefined amountRaw when trace returns zero value and tx.to does not match wallet', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.resolve({ to: '0xcontract', value: '0x0' });
+          }
+          return Promise.resolve({
+            to: '0xcontract',
+            value: '0xde0b6b3a7640000',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -823,12 +771,18 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
-    it('returns undefined when trace is unsupported and transaction is not found', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue(null);
+    it('returns undefined amountRaw when trace is unsupported and transaction is not found', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve(null);
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -838,15 +792,21 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
-    it('returns undefined when trace is unsupported and native tx.value is zero', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '0' },
-      });
+    it('returns undefined amountRaw when trace is unsupported and native tx.value is zero', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x0',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -856,18 +816,24 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
     it('ignores trace value with 0x0', async () => {
-      mockSend.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: '0x0',
-      });
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '500' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.resolve({
+              to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+              value: '0x0',
+            });
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x1f4',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -877,13 +843,14 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('500');
+      expect(result.amountRaw).toBe('500');
     });
   });
 
   describe('ERC-20 token', () => {
     it('decodes transfer amount from receipt logs', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
+        blockNumber: '0x1a2b3c',
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '5000000')],
       });
 
@@ -895,11 +862,12 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('5000000');
+      expect(result.amountRaw).toBe('5000000');
+      expect(result.blockNumber).toBe('0x1a2b3c');
     });
 
     it('sums multiple Transfer events to the same wallet', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '3000000'),
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '2000000'),
@@ -914,12 +882,12 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('5000000');
+      expect(result.amountRaw).toBe('5000000');
     });
 
     it('ignores Transfer events to other addresses', async () => {
       const otherAddress = '0x3333333333333333333333333333333333333333' as Hex;
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           encodeTransferLog(otherAddress, '9000000'),
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '1000000'),
@@ -934,7 +902,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000');
+      expect(result.amountRaw).toBe('1000000');
     });
 
     it('ignores logs from other token contracts', async () => {
@@ -943,7 +911,7 @@ describe('getTransferredAmountFromTxHash', () => {
         WALLET_ADDRESS_RECEIPT_MOCK,
         '5000000',
       );
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           { ...transferLog, address: otherToken },
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '1000000'),
@@ -958,11 +926,11 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000');
+      expect(result.amountRaw).toBe('1000000');
     });
 
     it('ignores logs with non-Transfer event topics', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_RECEIPT_MOCK,
@@ -985,11 +953,11 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('2000000');
+      expect(result.amountRaw).toBe('2000000');
     });
 
-    it('returns undefined when receipt is not found', async () => {
-      mockGetTransactionReceipt.mockResolvedValue(null);
+    it('returns undefined amountRaw and blockNumber when receipt is not found', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue(null);
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -999,13 +967,12 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
+      expect(result.blockNumber).toBeUndefined();
     });
 
-    it('returns undefined when no matching Transfer logs exist', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
-        logs: [],
-      });
+    it('returns undefined amountRaw when no matching Transfer logs exist', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({ logs: [] });
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -1015,11 +982,11 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
     it('skips malformed log entries gracefully', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_RECEIPT_MOCK,
@@ -1038,11 +1005,11 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('4000000');
+      expect(result.amountRaw).toBe('4000000');
     });
 
-    it('returns undefined when all Transfer amounts are zero', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+    it('returns undefined amountRaw when all Transfer amounts are zero', async () => {
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '0')],
       });
 
@@ -1054,12 +1021,12 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
   });
 
   it('propagates provider errors for ERC-20', async () => {
-    mockGetTransactionReceipt.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request.mockRejectedValue(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({
@@ -1069,12 +1036,13 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: ERC20_ADDRESS_RECEIPT_MOCK,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionReceipt: RPC error');
   });
 
   it('propagates provider errors for native when both trace and getTransaction fail', async () => {
-    mockSend.mockRejectedValue(new Error('Trace failed'));
-    mockGetTx.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request
+      .mockRejectedValueOnce(new Error('RPC error'))
+      .mockRejectedValueOnce(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({
@@ -1084,6 +1052,6 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: NATIVE_TOKEN_ADDRESS,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionByHash: RPC error');
   });
 });

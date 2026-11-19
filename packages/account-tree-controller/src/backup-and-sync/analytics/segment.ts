@@ -1,4 +1,4 @@
-import type { ProfileId } from '../authentication';
+import type { ProfileId } from '../authentication/index.js';
 
 export const BackupAndSyncAnalyticsEvent = {
   WalletRenamed: 'wallet_renamed',
@@ -48,10 +48,10 @@ export const formatAnalyticsEvent = ({
     feature_name: BACKUP_AND_SYNC_EVENT_FEATURE_NAME,
     action,
     profile_id: profileId,
-    ...(additionalDescription !== undefined
-      ? {
+    ...(additionalDescription === undefined
+      ? {}
+      : {
           additional_description: additionalDescription,
-        }
-      : {}),
+        }),
   };
 };

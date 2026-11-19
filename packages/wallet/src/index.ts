@@ -1,9 +1,11 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export { Wallet } from './Wallet.js';
+export { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
+export { importSecretRecoveryPhrase } from './utilities.js';
+export type { WalletOptions } from './types.js';
+export type {
+  DefaultActions,
+  DefaultEvents,
+  DefaultInstances,
+  DefaultState,
+  RootMessenger,
+} from './initialization/defaults.js';

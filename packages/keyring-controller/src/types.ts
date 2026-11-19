@@ -72,3 +72,11 @@ export type SignTypedDataMessageV3V4 = {
 export type TypedMessageParams = {
   data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 } & AbstractMessageParams;
+
+/**
+ * Credentials for re-authenticating the keyring during sensitive operations
+ * such as `exportSeedPhrase` and `exportAccount`.
+ */
+export type Credentials =
+  | { password: string }
+  | { encryptionKey: string; encryptionSalt?: string };

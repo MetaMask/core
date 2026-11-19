@@ -10,26 +10,28 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
-import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions';
-import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions';
-import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions';
-import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions';
-import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
-import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
-import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
-import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission';
-import { stripArrayTypeIfPresent } from './utils/common';
-import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
+import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions.js';
+import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions.js';
+import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions.js';
+import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions.js';
+import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions.js';
+import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions.js';
+import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission.js';
+import type { ProcessRevokeExecutionPermissionHook } from './methods/wallet-revoke-execution-permission.js';
+import { stripArrayTypeIfPresent } from './utils/common.js';
+import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize.js';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
+  validateTransactionParams,
   validateTypedDataForPrototypePollution,
   validateTypedDataV1ForPrototypePollution,
   validateTypedMessageKeys,
-} from './utils/validation';
+} from './utils/validation.js';
 
 export type TransactionParams = {
   from: string;
+  chainId?: string | number;
 };
 
 export type MessageParams = TransactionParams & {
@@ -46,7 +48,8 @@ export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
 };
 
 export type WalletMiddlewareOptions = {
-  getAccounts: (origin: string) => Promise<string[]>;
+  getAccounts: (origin: string, scope?: string) => Promise<string[]>;
+  getNetworkClientById: (id: string) => { configuration: { chainId: Hex } };
   processDecryptMessage?: (
     msgParams: MessageParams,
     req: MessageRequest,
@@ -97,6 +100,7 @@ export type WalletMiddlewareOptions = {
 export type WalletMiddlewareKeyValues = {
   networkClientId: string;
   origin: string;
+  scope?: string;
   securityAlertResponse?: Record<string, Json>;
   traceContext?: unknown;
 };
@@ -115,7 +119,8 @@ export type WalletMiddlewareParams = MiddlewareParams<
  * but at this point it's just an arbitrary label.
  *
  * @param options - The options for the middleware.
- * @param options.getAccounts - The function to get the accounts for the origin.
+ * @param options.getAccounts - The function to get the accounts for the origin and scope.
+ * @param options.getNetworkClientById - The function to get a network client by ID, used to determine the scope of a request.
  * @param options.processDecryptMessage - The function to process the decrypt message request.
  * @param options.processEncryptionPublicKey - The function to process the encryption public key request.
  * @param options.processPersonalMessage - The function to process the personal message request.
@@ -132,6 +137,7 @@ export type WalletMiddlewareParams = MiddlewareParams<
  */
 export function createWalletMiddleware({
   getAccounts,
+  getNetworkClientById,
   processDecryptMessage,
   processEncryptionPublicKey,
   processPersonalMessage,
@@ -204,7 +210,7 @@ export function createWalletMiddleware({
   async function lookupAccounts({
     context,
   }: WalletMiddlewareParams): Promise<Json> {
-    return await getAccounts(context.assertGet('origin'));
+    return await getAccounts(context.assertGet('origin'), context.get('scope'));
   }
 
   /**
@@ -217,7 +223,10 @@ export function createWalletMiddleware({
   async function lookupDefaultAccount({
     context,
   }: WalletMiddlewareParams): Promise<Json> {
-    const accounts = await getAccounts(context.assertGet('origin'));
+    const accounts = await getAccounts(
+      context.assertGet('origin'),
+      context.get('scope'),
+    );
     return accounts[0] || null;
   }
 
@@ -249,11 +258,16 @@ export function createWalletMiddleware({
     }
 
     const params = request.params[0] as TransactionParams | undefined;
+    validateTransactionParams(params);
     const txParams: TransactionParams = {
       ...params,
-      // Not using nullish coalescing, since `params` may be `null`.
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-      from: await validateAndNormalizeKeyholder(params?.from || '', context),
+      from: await validateAndNormalizeKeyholder(
+        // Not using nullish coalescing, since `params` may be `null`.
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        params?.from || '',
+        params?.chainId,
+        context,
+      ),
     };
     return await processTransaction(txParams, request, context);
   }
@@ -282,11 +296,16 @@ export function createWalletMiddleware({
     }
 
     const params = request.params[0] as TransactionParams | undefined;
+    validateTransactionParams(params);
     const txParams: TransactionParams = {
       ...params,
-      // Not using nullish coalescing, since `params` may be `null`.
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-      from: await validateAndNormalizeKeyholder(params?.from || '', context),
+      from: await validateAndNormalizeKeyholder(
+        // Not using nullish coalescing, since `params` may be `null`.
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        params?.from || '',
+        params?.chainId,
+        context,
+      ),
     };
     return await processSignTransaction(txParams, request, context);
   }
@@ -324,7 +343,11 @@ export function createWalletMiddleware({
       Record<string, string>?,
     ];
     const message = params[0];
-    const address = await validateAndNormalizeKeyholder(params[1], context);
+    const address = await validateAndNormalizeKeyholder(
+      params[1],
+      undefined,
+      context,
+    );
     const version = 'V1';
     validateTypedDataV1ForPrototypePollution(message);
     // Not using nullish coalescing, since `params` may be `null`.
@@ -366,7 +389,11 @@ export function createWalletMiddleware({
 
     const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], context);
+    const address = await validateAndNormalizeKeyholder(
+      params[0],
+      undefined,
+      context,
+    );
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
@@ -407,7 +434,11 @@ export function createWalletMiddleware({
 
     const params = request.params as [string, string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], context);
+    const address = await validateAndNormalizeKeyholder(
+      params[0],
+      undefined,
+      context,
+    );
     const message = normalizeTypedMessage(params[1]);
     validateTypedMessageKeys(message);
     validatePrimaryType(message);
@@ -472,7 +503,7 @@ export function createWalletMiddleware({
       message = firstParam;
       address = secondParam;
     }
-    address = await validateAndNormalizeKeyholder(address, context);
+    address = await validateAndNormalizeKeyholder(address, undefined, context);
 
     const msgParams: MessageParams = {
       ...extraParams,
@@ -538,7 +569,11 @@ export function createWalletMiddleware({
 
     const params = request.params as [string];
 
-    const address = await validateAndNormalizeKeyholder(params[0], context);
+    const address = await validateAndNormalizeKeyholder(
+      params[0],
+      undefined,
+      context,
+    );
 
     return await processEncryptionPublicKey(address, {
       id: request.id as string | number,
@@ -574,6 +609,7 @@ export function createWalletMiddleware({
     const ciphertext: string = params[0];
     const address: string = await validateAndNormalizeKeyholder(
       params[1],
+      undefined,
       context,
     );
     // Not using nullish coalescing, since `params` may be `null`.
@@ -601,15 +637,20 @@ export function createWalletMiddleware({
    * copy of it.
    *
    * @param address - The address to validate and normalize.
+   * @param chainId - An explicit chain ID for the request, if any.
    * @param context - The context of the request.
    * @returns The normalized address, if valid. Otherwise, throws
    * an error
    */
   async function validateAndNormalizeKeyholder(
     address: string,
+    chainId: string | number | undefined,
     context: WalletMiddlewareContext,
   ): Promise<string> {
-    return validateKeyholder(address as Hex, context, { getAccounts });
+    return validateKeyholder(address as Hex, chainId, context, {
+      getAccounts,
+      getNetworkClientById,
+    });
   }
 }
 

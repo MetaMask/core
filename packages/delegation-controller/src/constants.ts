@@ -1,4 +1,4 @@
-import type { Hex } from './types';
+import type { Hex } from './types.js';
 
 export const ROOT_AUTHORITY =
   '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex;

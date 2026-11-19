@@ -1,16 +1,18 @@
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
-import { VALUE_ZERO } from '../constants';
-import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler';
-import { Bundler } from '../helpers/Bundler';
+import { VALUE_ZERO } from '../constants.js';
+import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler.js';
+import { Bundler } from '../helpers/Bundler.js';
 import type {
   PrepareUserOperationResponse,
   UserOperationMetadata,
-} from '../types';
-import { updateGas } from './gas';
+} from '../types.js';
+import { updateGas } from './gas.js';
 
-jest.mock('../helpers/Bundler', () => ({
-  Bundler: jest.fn(),
+vi.mock('../helpers/Bundler', () => ({
+  Bundler: vi.fn(),
 }));
 
 const ENTRYPOINT_MOCK = '0x789';
@@ -41,13 +43,13 @@ const ESTIMATE_RESPONSE_HEX_MOCK: BundlerEstimateUserOperationGasResponse = {
  */
 function createBundlerMock() {
   return {
-    estimateUserOperationGas: jest.fn(),
-    sendUserOperation: jest.fn(),
-  } as unknown as jest.Mocked<Bundler>;
+    estimateUserOperationGas: vi.fn(),
+    sendUserOperation: vi.fn(),
+  } as unknown as Mocked<Bundler>;
 }
 
 describe('gas', () => {
-  const bundlerConstructorMck = jest.mocked(Bundler);
+  const bundlerConstructorMck = vi.mocked(Bundler);
   let metadata: UserOperationMetadata;
   let prepareUserOperationResponse: PrepareUserOperationResponse;
   const bundlerMock = createBundlerMock();
@@ -66,7 +68,9 @@ describe('gas', () => {
       PREPARE_USER_OPERATION_RESPONSE_MOCK,
     );
 
-    bundlerConstructorMck.mockReturnValue(bundlerMock);
+    bundlerConstructorMck.mockImplementation(function () {
+      return bundlerMock;
+    });
   });
 
   describe('updateGas', () => {

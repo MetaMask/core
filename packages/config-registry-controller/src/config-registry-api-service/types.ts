@@ -1,13 +1,17 @@
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
-  assert,
   boolean,
+  literal,
+  nullable,
   number,
   optional,
+  record,
   string,
   type,
+  union,
 } from '@metamask/superstruct';
+import { CaipChainIdStruct, StrictHexStruct } from '@metamask/utils';
 
 const AssetSchema = type({
   assetId: string(),
@@ -15,7 +19,7 @@ const AssetSchema = type({
   name: string(),
   symbol: string(),
   decimals: number(),
-  coingeckoCoinId: string(),
+  coingeckoCoinId: optional(string()),
 });
 
 const AssetsSchema = type({
@@ -32,7 +36,10 @@ const RpcProviderSchema = type({
 
 const RpcProvidersSchema = type({
   default: RpcProviderSchema,
-  fallbacks: array(string()),
+  // The registry API historically served plain RPC URL strings here and now
+  // also serves full provider objects; both shapes are accepted so a single
+  // new-style chain does not fail validation for the entire response.
+  fallbacks: array(union([string(), RpcProviderSchema])),
 });
 
 const BlockExplorerUrlsSchema = type({
@@ -47,7 +54,12 @@ const ChainConfigSchema = type({
   isFeatured: boolean(),
   isDeprecated: boolean(),
   isDeletable: boolean(),
+  isAutoEnabled: optional(boolean()),
   priority: number(),
+});
+
+const NetworkContractsSchema = type({
+  multicall3: optional(StrictHexStruct),
 });
 
 /**
@@ -55,7 +67,7 @@ const ChainConfigSchema = type({
  * chainId is in CAIP-2 format (e.g. "eip155:1", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp").
  */
 export const RegistryNetworkConfigSchema = type({
-  chainId: string(),
+  chainId: CaipChainIdStruct,
   name: string(),
   imageUrl: string(),
   coingeckoPlatformId: string(),
@@ -64,6 +76,7 @@ export const RegistryNetworkConfigSchema = type({
   rpcProviders: RpcProvidersSchema,
   blockExplorerUrls: BlockExplorerUrlsSchema,
   config: ChainConfigSchema,
+  contracts: optional(NetworkContractsSchema),
 });
 
 /**
@@ -83,28 +96,72 @@ export type RegistryConfigApiResponse = Infer<
   typeof RegistryConfigApiResponseSchema
 >;
 
-export function validateRegistryConfigApiResponse(
-  data: unknown,
-): asserts data is RegistryConfigApiResponse {
-  assert(data, RegistryConfigApiResponseSchema);
-}
+/**
+ * Schema for the events-config API response.
+ * Maps event names to their allowed analytics purposes.
+ */
+export const RegistryEventsConfigApiResponseSchema = type({
+  data: type({
+    schemaVersion: string(),
+    version: string(),
+    timestamp: number(),
+    events: record(string(), array(string())),
+  }),
+});
+
+export type RegistryEventsConfigApiResponse = Infer<
+  typeof RegistryEventsConfigApiResponseSchema
+>;
+
+export type RegistryEventsConfig = RegistryEventsConfigApiResponse['data'];
+
+export const FetchConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryConfigApiResponseSchema,
+  }),
+]);
+
+export const FetchEventsConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryEventsConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryEventsConfigApiResponseSchema,
+  }),
+]);
 
 export type FetchConfigOptions = {
   etag?: string;
 };
 
-export type FetchConfigResult =
+type FetchResult<Data> =
   | {
       modified: false;
-      etag?: string;
+      etag: string | null;
       /**
        * Cached data from the service when available (e.g. after a previous
-       * successful fetch). Omitted when the service has no cache yet.
+       * successful fetch). `null` when the service has no cache yet.
        */
-      data?: RegistryConfigApiResponse;
+      data: Data | null;
     }
   | {
       modified: true;
-      data: RegistryConfigApiResponse;
-      etag?: string;
+      etag: string | null;
+      data: Data;
     };
+
+export type FetchConfigResult = FetchResult<RegistryConfigApiResponse>;
+
+export type FetchEventsConfigResult =
+  FetchResult<RegistryEventsConfigApiResponse>;

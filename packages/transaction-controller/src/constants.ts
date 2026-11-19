@@ -35,6 +35,8 @@ export const CHAIN_IDS = {
   SEI: '0x531',
   MANTLE: '0x1388',
   MANTLE_SEPOLIA: '0x138b',
+  INK: '0xdef1',
+  INK_SEPOLIA: '0xba5ed',
 } as const;
 
 /** Extract of the Wrapped ERC-20 ABI required for simulation. */

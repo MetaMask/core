@@ -1,8 +1,9 @@
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
+import { describe, expect, it } from 'vitest';
 
-import type { TransactionMeta } from '..';
-import { flushPromises } from '../../../../tests/helpers';
-import { CollectPublishHook } from './CollectPublishHook';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
+import type { TransactionMeta } from '../index.js';
+import { CollectPublishHook } from './CollectPublishHook.js';
 
 const SIGNED_TX_MOCK = '0x123';
 const SIGNED_TX_2_MOCK = '0x456';

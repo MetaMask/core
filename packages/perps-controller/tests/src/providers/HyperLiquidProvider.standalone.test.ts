@@ -1,0 +1,2032 @@
+/* eslint-disable */
+vi.mock('@nktkas/hyperliquid', () => ({}));
+
+import type { CaipAssetId, Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
+
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import {
+  BUILDER_FEE_CONFIG,
+  REFERRAL_CONFIG,
+} from '../../../src/constants/hyperLiquidConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { OrderDiscoveryError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
+import type {
+  ClosePositionParams,
+  DepositParams,
+  Order,
+  PerpsPlatformDependencies,
+  LiveDataConfig,
+  OrderParams,
+} from '../../../src/types/index.js';
+import { WebSocketConnectionState } from '../../../src/types/index.js';
+import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import {
+  validateAssetSupport,
+  validateBalance,
+  validateCoinExists,
+  validateDepositParams,
+  validateOrderParams,
+  validateWithdrawalParams,
+} from '../../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
+import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+  createMockMessenger,
+} from '../../helpers/serviceMocks.js';
+
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidWalletService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
+// Mock stream manager - will be set up in test
+let mockStreamManagerInstance: any;
+const mockGetStreamManagerInstance = vi.fn(() => mockStreamManagerInstance);
+vi.mock('../../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: mockGetStreamManagerInstance,
+}));
+
+// Mock standalone info client for standalone mode tests
+let mockStandaloneInfoClient: any;
+vi.mock(
+  import('../../../src/utils/standaloneInfoClient'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    createStandaloneInfoClient: vi.fn(() => mockStandaloneInfoClient),
+  }),
+);
+
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
+    .fn()
+    .mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]),
+  getBridgeInfo: vi.fn().mockReturnValue({
+    chainId: 'eip155:42161',
+    contractAddress: '0x1234567890123456789012345678901234567890',
+  }),
+  createErrorResult: vi.fn(),
+}));
+
+// Mock adapter functions
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >();
+  return {
+    ...actual,
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: vi.fn((updates) => {
+      // Return mock history items based on input
+      if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return [];
+      }
+      return updates.map((_update: unknown) => ({
+        type: 'deposit' as const,
+        amount: '100',
+        timestamp: Date.now(),
+        hash: '0x123',
+      }));
+    }),
+  };
+});
+
+// Mock TradingReadinessCache - global singleton for signing operation caching
+vi.mock('../../../src/services/TradingReadinessCache');
+
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
+const MockedHyperLiquidWalletService = HyperLiquidWalletService as MockedClass<
+  typeof HyperLiquidWalletService
+>;
+const MockedHyperLiquidSubscriptionService =
+  HyperLiquidSubscriptionService as MockedClass<
+    typeof HyperLiquidSubscriptionService
+  >;
+const mockValidateOrderParams = validateOrderParams as MockedFunction<
+  typeof validateOrderParams
+>;
+const mockValidateWithdrawalParams = validateWithdrawalParams as MockedFunction<
+  typeof validateWithdrawalParams
+>;
+const mockValidateDepositParams = validateDepositParams as MockedFunction<
+  typeof validateDepositParams
+>;
+const mockValidateCoinExists = validateCoinExists as MockedFunction<
+  typeof validateCoinExists
+>;
+const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
+  typeof validateAssetSupport
+>;
+const mockValidateBalance = validateBalance as MockedFunction<
+  typeof validateBalance
+>;
+
+// Mock factory functions - defined once, reused everywhere
+// These reduce duplication and make tests more maintainable
+const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
+  clearinghouseState: vi.fn().mockResolvedValue({
+    marginSummary: {
+      totalMarginUsed: '500',
+      accountValue: '10500',
+    },
+    withdrawable: '9500',
+    assetPositions: [
+      {
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '100',
+          marginUsed: '500',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '45000',
+          maxLeverage: 50,
+          returnOnEquity: '20',
+          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        },
+        type: 'oneWay',
+      },
+      {
+        position: {
+          coin: 'ETH',
+          szi: '1.5',
+          entryPx: '3000',
+          positionValue: '4500',
+          unrealizedPnl: '50',
+          marginUsed: '450',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '2700',
+          maxLeverage: 50,
+          returnOnEquity: '10',
+          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
+        },
+        type: 'oneWay',
+      },
+    ],
+    crossMarginSummary: {
+      accountValue: '10000',
+      totalMarginUsed: '5000',
+    },
+  }),
+  spotClearinghouseState: vi.fn().mockResolvedValue({
+    balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+  }),
+  // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
+  // so tests that predated the gate still see spot folded into spendable/withdrawable.
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
+    universe: [
+      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+    ],
+  }),
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
+    {
+      universe: [
+        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+      ],
+    },
+    [
+      {
+        funding: '0.0001',
+        openInterest: '1000',
+        prevDayPx: '49000',
+        dayNtlVlm: '1000000',
+        markPx: '50000',
+        midPx: '50000',
+        oraclePx: '50000',
+      },
+      {
+        funding: '0.0001',
+        openInterest: '500',
+        prevDayPx: '2900',
+        dayNtlVlm: '500000',
+        markPx: '3000',
+        midPx: '3000',
+        oraclePx: '3000',
+      },
+    ],
+  ]),
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  frontendOpenOrders: vi.fn().mockResolvedValue([]),
+  referral: vi.fn().mockResolvedValue({
+    referrerState: {
+      stage: 'ready',
+      data: { code: 'MMCSI' },
+    },
+  }),
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
+    feeSchedule: {
+      cross: '0.00030',
+      add: '0.00010',
+      spotCross: '0.00040',
+      spotAdd: '0.00020',
+    },
+    dailyUserVlm: [],
+  }),
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
+    {
+      delta: { type: 'deposit', usdc: '100' },
+      time: Date.now(),
+      hash: '0x123abc',
+    },
+    {
+      delta: { type: 'withdraw', usdc: '50' },
+      time: Date.now() - 3600000,
+      hash: '0x456def',
+    },
+  ]),
+  portfolio: vi.fn().mockResolvedValue([
+    null,
+    [
+      null,
+      {
+        accountValueHistory: [
+          [Date.now() - 86400000, '10000'], // 24h ago
+          [Date.now() - 172800000, '9500'], // 48h ago
+          [Date.now() - 259200000, '9000'], // 72h ago
+        ],
+      },
+    ],
+  ]),
+  spotMeta: vi.fn().mockResolvedValue({
+    tokens: [
+      { name: 'USDC', tokenId: '0xdef456', index: 0 },
+      { name: 'USDT', tokenId: '0x789abc', index: 1 },
+    ],
+    universe: [],
+  }),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
+  ...overrides,
+});
+
+const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
+  order: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
+  }),
+  modify: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: '123' } }] } },
+  }),
+  cancel: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: ['success'] } },
+  }),
+  withdraw3: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  updateLeverage: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  approveBuilderFee: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  setReferrer: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  sendAsset: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  agentSetAbstraction: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  ...overrides,
+});
+
+// Create shared mock platform dependencies for provider tests
+const mockPlatformDependencies: PerpsPlatformDependencies =
+  createMockInfrastructure();
+
+const mockMessenger = createMockMessenger();
+
+/**
+ * Helper to create HyperLiquidProvider with mock platform dependencies
+ * @param options
+ * @param options.isTestnet
+ * @param options.hip3Enabled
+ * @param options.allowlistMarkets
+ * @param options.blocklistMarkets
+ * @param options.useUnifiedAccount
+ */
+const createTestProvider = (
+  options: {
+    isTestnet?: boolean;
+    hip3Enabled?: boolean;
+    allowlistMarkets?: string[];
+    blocklistMarkets?: string[];
+    useUnifiedAccount?: boolean;
+    initialAssetMapping?: [string, number][];
+  } = {},
+): HyperLiquidProvider =>
+  new HyperLiquidProvider({
+    ...options,
+    platformDependencies: mockPlatformDependencies,
+    messenger: mockMessenger,
+  });
+
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
+describe('HyperLiquidProvider', () => {
+  let provider: HyperLiquidProvider;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
+
+  beforeEach(() => {
+    // Reset all mocks
+    vi.clearAllMocks();
+    (
+      mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(0));
+    (
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
+    ).mockImplementation((value: number) => '$' + value.toFixed(2));
+    (
+      mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
+    ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
+    (
+      mockPlatformDependencies.featureFlags.validateVersionGated as Mock
+    ).mockReturnValue(undefined);
+    (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
+
+    // Reset TradingReadinessCache mock state (using imported mocked module)
+    const mockedCache = TradingReadinessCache as Mocked<
+      typeof TradingReadinessCache
+    >;
+    mockedCache.get.mockReturnValue(undefined);
+    mockedCache.getBuilderFee.mockReturnValue(undefined);
+    mockedCache.getReferral.mockReturnValue(undefined);
+    mockedCache.isInFlight.mockReturnValue(undefined);
+    mockedCache.setInFlight.mockReturnValue(vi.fn());
+
+    // Initialize mock stream manager instance
+    mockStreamManagerInstance = {
+      clearAllChannels: vi.fn(),
+    };
+
+    // Create mocked service instances using factory functions
+    mockClientService = {
+      initialize: vi.fn(),
+      isInitialized: vi.fn().mockReturnValue(true),
+      isTestnetMode: vi.fn().mockReturnValue(false),
+      ensureInitialized: vi.fn(),
+      getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      toggleTestnet: vi.fn(),
+      setTestnetMode: vi.fn(),
+      getNetwork: vi.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(),
+      setOnReconnectCallback: vi.fn(),
+      setOnTerminateCallback: vi.fn(),
+      getConnectionState: vi.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
+
+    mockWalletService = {
+      setTestnetMode: vi.fn(),
+      getCurrentAccountId: vi
+        .fn()
+        .mockReturnValue(
+          'eip155:42161:0x1234567890123456789012345678901234567890',
+        ),
+      createWalletAdapter: vi.fn().mockReturnValue({
+        request: vi
+          .fn()
+          .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
+      }),
+      getUserAddress: vi
+        .fn()
+        .mockReturnValue('0x1234567890123456789012345678901234567890'),
+      getUserAddressWithDefault: vi
+        .fn()
+        .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+      isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
+
+    mockSubscriptionService = {
+      subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+      subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      clearAll: vi.fn(),
+      isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedPositions: vi.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+      getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
+      // Cache methods used by buildAssetMapping optimization
+      setDexMetaCache: vi.fn(),
+      setDexAssetCtxsCache: vi.fn(),
+      getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
+      // Price cache used by placeOrder, editOrder, closePosition optimizations
+      getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
+        const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
+        return prices[symbol];
+      }),
+      getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
+      // Orders cache used by updatePositionTPSL and getOpenOrders
+      isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedOrders: vi.fn().mockReturnValue([]),
+      // Atomic getter - returns null when cache not initialized (prevents race condition)
+      getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
+      // Abstraction-mode resolved-mode setter (unified account migration)
+      setUserAbstractionMode: vi.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
+
+    // Mock constructors
+    MockedHyperLiquidClientService.mockImplementation(function () {
+      return mockClientService;
+    });
+    MockedHyperLiquidWalletService.mockImplementation(function () {
+      return mockWalletService;
+    });
+    MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+      return mockSubscriptionService;
+    });
+
+    // Mock validation
+    mockValidateOrderParams.mockReturnValue({ isValid: true });
+    mockValidateWithdrawalParams.mockReturnValue({ isValid: true });
+    mockValidateDepositParams.mockReturnValue({ isValid: true });
+    mockValidateCoinExists.mockReturnValue({ isValid: true });
+    mockValidateAssetSupport.mockReturnValue({ isValid: true });
+    mockValidateBalance.mockReturnValue({ isValid: true });
+    const hyperLiquidValidation =
+      hyperLiquidValidationModule as unknown as Record<string, Mock>;
+    hyperLiquidValidation.getSupportedPaths.mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]);
+    hyperLiquidValidation.getBridgeInfo.mockReturnValue({
+      chainId: 'eip155:42161',
+      contractAddress: '0x1234567890123456789012345678901234567890',
+    });
+    hyperLiquidValidation.createErrorResult.mockImplementation(
+      actualValidation.createErrorResult,
+    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
+    hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
+      (updates: unknown[]) => {
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+          return [];
+        }
+        return updates.map(() => ({
+          type: 'deposit' as const,
+          amount: '100',
+          timestamp: Date.now(),
+          hash: '0x123',
+        }));
+      },
+    );
+
+    provider = createTestProvider({
+      initialAssetMapping: [
+        ['BTC', 0],
+        ['ETH', 1],
+      ],
+    });
+  });
+  describe('WebSocket connection state methods', () => {
+    beforeEach(() => {
+      // Add WebSocket methods to mock client service
+      mockClientService.getConnectionState = vi
+        .fn()
+        .mockReturnValue(WebSocketConnectionState.Connected);
+      mockClientService.subscribeToConnectionState = vi
+        .fn()
+        .mockReturnValue(vi.fn());
+      mockClientService.reconnect = vi.fn().mockResolvedValue(undefined);
+    });
+
+    it('getWebSocketConnectionState delegates to clientService', () => {
+      // Arrange
+      mockClientService.getConnectionState.mockReturnValue(
+        WebSocketConnectionState.Connected,
+      );
+
+      // Act
+      const result = provider.getWebSocketConnectionState();
+
+      // Assert
+      expect(result).toBe(WebSocketConnectionState.Connected);
+      expect(mockClientService.getConnectionState).toHaveBeenCalled();
+    });
+
+    it('subscribeToConnectionState delegates to clientService', () => {
+      // Arrange
+      const mockUnsubscribe = vi.fn();
+      mockClientService.subscribeToConnectionState.mockReturnValue(
+        mockUnsubscribe,
+      );
+      const listener = vi.fn();
+
+      // Act
+      const unsubscribe = provider.subscribeToConnectionState(listener);
+
+      // Assert
+      expect(mockClientService.subscribeToConnectionState).toHaveBeenCalledWith(
+        listener,
+      );
+      expect(unsubscribe).toBe(mockUnsubscribe);
+    });
+
+    it('reconnect delegates to clientService', async () => {
+      // Arrange
+      mockClientService.reconnect.mockResolvedValue(undefined);
+
+      // Act
+      await provider.reconnect();
+
+      // Assert
+      expect(mockClientService.reconnect).toHaveBeenCalled();
+    });
+  });
+
+  describe('getOrFetchFills - Cache-First Pattern', () => {
+    const mockFills = [
+      {
+        orderId: '123',
+        symbol: 'BTC',
+        side: 'buy' as const,
+        size: '0.1',
+        price: '50000',
+        fee: '5',
+        feeToken: 'USDC',
+        timestamp: Date.now(),
+        pnl: '100',
+        direction: 'Open Long',
+        success: true,
+      },
+      {
+        orderId: '124',
+        symbol: 'ETH',
+        side: 'sell' as const,
+        size: '1.0',
+        price: '3000',
+        fee: '3',
+        feeToken: 'USDC',
+        timestamp: Date.now() - 1000,
+        pnl: '-50',
+        direction: 'Close Short',
+        success: true,
+      },
+    ];
+
+    it('uses cached fills when cache is initialized', async () => {
+      // Arrange
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(mockFills);
+
+      // Act
+      const result = await provider.getOrFetchFills({});
+
+      // Assert
+      expect(result).toEqual(mockFills);
+      expect(
+        mockSubscriptionService.getFillsCacheIfInitialized,
+      ).toHaveBeenCalled();
+      // Should NOT call REST API
+      expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+    });
+
+    it('falls back to REST API when cache returns null', async () => {
+      // Arrange - cache not initialized
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(null);
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        userFills: vi.fn().mockResolvedValue([
+          {
+            oid: 125,
+            coin: 'BTC',
+            side: 'B',
+            sz: '0.5',
+            px: '49000',
+            fee: '2',
+            feeToken: 'USDC',
+            time: Date.now(),
+            closedPnl: '50',
+            dir: 'Open Long',
+          },
+        ]),
+      });
+
+      // Act
+      const result = await provider.getOrFetchFills({});
+
+      // Assert
+      expect(
+        mockSubscriptionService.getFillsCacheIfInitialized,
+      ).toHaveBeenCalled();
+      expect(mockClientService.getInfoClient).toHaveBeenCalled();
+      expect(result.length).toBe(1);
+      expect(result[0].symbol).toBe('BTC');
+    });
+
+    it('filters cached fills by startTime', async () => {
+      // Arrange
+      const now = Date.now();
+      const fillsWithDifferentTimes = [
+        { ...mockFills[0], timestamp: now },
+        { ...mockFills[1], timestamp: now - 100000 }, // Older fill
+      ];
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(fillsWithDifferentTimes);
+
+      // Act - filter to only include recent fills
+      const result = await provider.getOrFetchFills({ startTime: now - 50000 });
+
+      // Assert - should only include the more recent fill
+      expect(result.length).toBe(1);
+      expect(result[0].timestamp).toBe(now);
+    });
+
+    it('filters cached fills by symbol', async () => {
+      // Arrange
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(mockFills);
+
+      // Act - filter to only BTC fills
+      const result = await provider.getOrFetchFills({ symbol: 'BTC' });
+
+      // Assert - should only include BTC fill
+      expect(result.length).toBe(1);
+      expect(result[0].symbol).toBe('BTC');
+    });
+
+    it('filters cached fills by both startTime and symbol', async () => {
+      // Arrange
+      const now = Date.now();
+      const fillsWithDifferentTimesAndSymbols = [
+        { ...mockFills[0], symbol: 'BTC', timestamp: now },
+        { ...mockFills[0], symbol: 'BTC', timestamp: now - 100000 },
+        { ...mockFills[0], symbol: 'ETH', timestamp: now },
+      ];
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(fillsWithDifferentTimesAndSymbols);
+
+      // Act - filter to recent BTC fills only
+      const result = await provider.getOrFetchFills({
+        startTime: now - 50000,
+        symbol: 'BTC',
+      });
+
+      // Assert - should only include recent BTC fill
+      expect(result.length).toBe(1);
+      expect(result[0].symbol).toBe('BTC');
+      expect(result[0].timestamp).toBe(now);
+    });
+
+    it('returns all fills when no filter params provided', async () => {
+      // Arrange
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(mockFills);
+
+      // Act - no filter params
+      const result = await provider.getOrFetchFills();
+
+      // Assert - should return all fills
+      expect(result).toEqual(mockFills);
+    });
+
+    it('returns empty array when cache is initialized but empty', async () => {
+      // Arrange - cache initialized but no fills
+      mockSubscriptionService.getFillsCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue([]);
+
+      // Act
+      const result = await provider.getOrFetchFills({});
+
+      // Assert
+      expect(result).toEqual([]);
+      // Should NOT call REST API since cache is initialized
+      expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('standalone mode', () => {
+    const mockUserAddress = '0xabcdef1234567890abcdef1234567890abcdef12';
+    const mockCreateStandaloneInfoClient =
+      createStandaloneInfoClient as MockedFunction<
+        typeof createStandaloneInfoClient
+      >;
+
+    beforeEach(() => {
+      // Reset standalone client mock
+      mockStandaloneInfoClient = {
+        clearinghouseState: vi.fn(),
+        frontendOpenOrders: vi.fn(),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+        spotClearinghouseState: vi.fn().mockResolvedValue({ balances: [] }),
+        // Mode-aware fold gate requires userAbstraction on standalone info
+        // clients as well; default to unifiedAccount for pre-existing tests.
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+      };
+      mockCreateStandaloneInfoClient.mockImplementation(
+        () => mockStandaloneInfoClient,
+      );
+    });
+
+    describe('getUserDataSnapshot', () => {
+      it('reuses one clearinghouse response for positions and account state', async () => {
+        const clearinghouseState = {
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        };
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue(
+          clearinghouseState,
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 101,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 7,
+            dexes: ['main'],
+          },
+        });
+
+        expect(mockStandaloneInfoClient.perpDexs).not.toHaveBeenCalled();
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.spotClearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(mockStandaloneInfoClient.userAbstraction).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(result.positions).toHaveLength(1);
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            stopLossCount: 0,
+            takeProfitPrice: '55000',
+            takeProfitOrders: [
+              expect.objectContaining({
+                orderId: '101',
+                size: '0.5',
+                triggerPrice: '55000',
+              }),
+            ],
+          }),
+        );
+        expect(result.orders).toEqual([
+          expect.objectContaining({
+            orderId: '101',
+            size: '0.5',
+            originalSize: '0.5',
+          }),
+        ]);
+        expect(result.accountState.totalBalance).toBe('25000');
+        expect(result.identity).toEqual({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          address: mockUserAddress,
+          hip3ConfigVersion: 7,
+          dexes: ['main'],
+        });
+      });
+
+      it('reports a lone partial take profit as the position take profit price', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        });
+        // A quantity-scoped take profit is placed with 'na' grouping, so it is
+        // a standalone reduce-only trigger rather than a position-bound one.
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 301,
+            side: 'A',
+            limitPx: '55000',
+            triggerPx: '55000',
+            sz: '0.2',
+            origSz: '0.2',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Limit',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitPrice: '55000',
+            takeProfitCount: 1,
+            stopLossCount: 0,
+            takeProfitOrders: [
+              expect.objectContaining({ orderId: '301', isPartial: true }),
+            ],
+            stopLossOrders: [],
+          }),
+        );
+        expect(result.positions[0].stopLossPrice).toBeUndefined();
+      });
+
+      it('ignores child triggers from the inactive TP/SL grouping', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 201,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+          {
+            coin: 'BTC',
+            oid: 202,
+            side: 'B',
+            limitPx: '44000',
+            triggerPx: '0',
+            sz: '0.5',
+            origSz: '0.5',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [
+              {
+                coin: 'BTC',
+                oid: 203,
+                side: 'A',
+                limitPx: '0',
+                triggerPx: '',
+                sz: '0',
+                origSz: '0',
+                timestamp: Date.now(),
+                orderType: 'Take Profit Market',
+                isTrigger: true,
+                reduceOnly: true,
+                isPositionTpsl: false,
+                cloid: undefined,
+                children: [],
+              },
+            ],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            takeProfitPrice: '55000',
+          }),
+        );
+      });
+
+      it('logs privacy-safe timing for each atomic snapshot stage', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        const timingCalls = (
+          mockPlatformDependencies.debugLogger.log as Mock
+        ).mock.calls.filter(([marker]) => marker === '[PerpsUserSnapshot]');
+        const stages = timingCalls.map(([, detail]) => detail.stage);
+        expect(stages).toHaveLength(5);
+        expect(stages).toEqual(
+          expect.arrayContaining([
+            'clearinghouse_state',
+            'frontend_open_orders',
+            'spot_clearinghouse_state',
+            'user_abstraction',
+            'complete',
+          ]),
+        );
+        expect(JSON.stringify(timingCalls)).not.toContain(mockUserAddress);
+      });
+
+      it('accepts canonical DEX identity when a DEX sorts before main', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main', 'flx'],
+          },
+        });
+
+        expect(result.identity.dexes).toEqual(['main', 'flx']);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+      });
+
+      it('rejects the entire bundle when one required request fails', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('orders unavailable'),
+        );
+
+        const request = provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        await expect(request).rejects.toThrow('orders unavailable');
+      });
+    });
+
+    describe('getPositions with standalone mode', () => {
+      it('returns positions via standalone client when standalone mode enabled', async () => {
+        // Arrange
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+        });
+
+        // Act
+        const positions = await provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert
+        expect(mockCreateStandaloneInfoClient).toHaveBeenCalledWith({
+          isTestnet: false,
+        });
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress });
+        expect(positions).toHaveLength(1);
+        expect(positions[0].symbol).toBe('BTC');
+        expect(positions[0].size).toBe('0.5');
+      });
+
+      it('filters zero-size positions in standalone mode', async () => {
+        // Arrange - include positions with zero size
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+            {
+              position: {
+                coin: 'ETH',
+                szi: '0', // Zero size - should be filtered out
+                entryPx: '3000',
+                positionValue: '0',
+                unrealizedPnl: '0',
+                marginUsed: '0',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '0',
+                maxLeverage: 50,
+                returnOnEquity: '0',
+                cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+        });
+
+        // Act
+        const positions = await provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert - ETH position with zero size should be filtered out
+        expect(positions).toHaveLength(1);
+        expect(positions[0].symbol).toBe('BTC');
+      });
+
+      it('uses testnet endpoint when provider is in testnet mode', async () => {
+        // Arrange - override isTestnetMode to return true for this test
+        mockClientService.isTestnetMode.mockReturnValue(true);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        // Act
+        await provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert
+        expect(mockCreateStandaloneInfoClient).toHaveBeenCalledWith({
+          isTestnet: true,
+        });
+      });
+
+      it('rejects failed standalone positions with their cause', async () => {
+        const cause = new Error('Network error');
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(cause);
+
+        const call = provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
+      });
+    });
+
+    describe('getAccountState with standalone mode', () => {
+      it('returns account state via standalone client when standalone mode enabled', async () => {
+        // Arrange
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: {
+            totalMarginUsed: '1000',
+            accountValue: '50000',
+          },
+          withdrawable: '45000',
+          crossMarginSummary: {
+            accountValue: '50000',
+            totalMarginUsed: '1000',
+          },
+        });
+
+        // Act
+        const accountState = await provider.getAccountState({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert
+        expect(mockCreateStandaloneInfoClient).toHaveBeenCalledWith({
+          isTestnet: false,
+        });
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress });
+        expect(accountState.totalBalance).toBeDefined();
+      });
+
+      it('uses testnet endpoint when provider is in testnet mode', async () => {
+        // Arrange - override isTestnetMode to return true for this test
+        mockClientService.isTestnetMode.mockReturnValue(true);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+          crossMarginSummary: { accountValue: '0', totalMarginUsed: '0' },
+        });
+
+        // Act
+        await provider.getAccountState({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert
+        expect(mockCreateStandaloneInfoClient).toHaveBeenCalledWith({
+          isTestnet: true,
+        });
+      });
+
+      it('throws ACCOUNT_STATE_FAILED instead of placeholders when no DEX answers', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
+          new Error('API unavailable'),
+        );
+
+        await expect(
+          provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+      });
+    });
+
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves a confirmed empty standalone %s under strict discovery',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+        expect(
+          await provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves strict failure semantics for standalone %s',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        await expect(
+          provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('standalone down');
+      },
+    );
+
+    describe('getOpenOrders with standalone mode', () => {
+      it('returns an explicit-address read that completes after disconnect', async () => {
+        const started = createDeferred<void>();
+        const response = createDeferred<[]>();
+        mockStandaloneInfoClient.frontendOpenOrders.mockImplementation(() => {
+          started.resolve();
+          return response.promise;
+        });
+
+        const read = provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await started.promise;
+        await provider.disconnect();
+        response.resolve([]);
+
+        expect(await read).toStrictEqual([]);
+
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledExactlyOnceWith({
+          user: mockUserAddress,
+        });
+      });
+
+      it('returns orders via standalone client when standalone mode enabled', async () => {
+        // Arrange - mock with all required FrontendOrder fields for adaptOrderFromSDK
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 12345,
+            side: 'B',
+            limitPx: '50000',
+            sz: '0.1',
+            origSz: '0.1',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
+
+        // Act
+        const orders = await provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert
+        expect(mockCreateStandaloneInfoClient).toHaveBeenCalledWith({
+          isTestnet: false,
+        });
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledWith({ user: mockUserAddress });
+        expect(orders).toHaveLength(1);
+        expect(orders[0].symbol).toBe('BTC');
+        expect(orders[0].side).toBe('buy');
+      });
+
+      it('does not register Scale cancel handles from standalone account reads', async () => {
+        const scaleClientOrderId = `0x${HYPERLIQUID_SCALE_CLOID_MARKER}${'0'.repeat(24)}`;
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 12345,
+            side: 'B',
+            limitPx: '50000',
+            sz: '0.1',
+            origSz: '0.1',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: scaleClientOrderId,
+            children: [],
+          },
+        ]);
+
+        const orders = await provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        const strategyGroupId = orders[0]?.strategyGroupId;
+        if (!strategyGroupId) {
+          throw new Error('Expected a recovered Scale group ID');
+        }
+
+        expect(
+          await provider.cancelOrder({
+            orderId: strategyGroupId,
+            symbol: 'BTC',
+            orderType: 'scale',
+          }),
+        ).toStrictEqual({
+          success: false,
+          orderId: strategyGroupId,
+          error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+            provider: 'hyperliquid',
+          },
+        });
+      });
+
+      it('rejects failed standalone open orders with their cause', async () => {
+        const cause = new Error('API unavailable');
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(cause);
+
+        const call = provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
+      });
+    });
+
+    describe('multi-DEX standalone mode (HIP-3)', () => {
+      let hip3Provider: HyperLiquidProvider;
+
+      beforeEach(() => {
+        hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+
+        // Mock perpDexs to return main DEX + HIP-3 DEX
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
+          null, // main DEX
+          { name: 'xyz' },
+        ]);
+      });
+
+      it('retains reachable orders in a typed standalone discovery failure', async () => {
+        mockStandaloneInfoClient.frontendOpenOrders
+          .mockResolvedValueOnce([
+            {
+              coin: 'BTC',
+              oid: 12345,
+              side: 'B',
+              limitPx: '50000',
+              sz: '0.1',
+              origSz: '0.1',
+              timestamp: Date.now(),
+              orderType: 'Limit',
+              isTrigger: false,
+              reduceOnly: false,
+              isPositionTpsl: false,
+              children: [],
+            },
+          ])
+          .mockRejectedValueOnce(new Error('HIP-3 DEX timeout'));
+
+        const read = hip3Provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+          throwOnUnavailable: true,
+        });
+
+        await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
+        await expect(read).rejects.toMatchObject({
+          orders: [
+            expect.objectContaining({ orderId: '12345', symbol: 'BTC' }),
+          ],
+          failures: [
+            { providerId: 'hyperliquid', error: 'xyz: HIP-3 DEX timeout' },
+          ],
+        });
+      });
+
+      it('names the HIP-3 DEX that failed in an otherwise complete account read', async () => {
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: { totalMarginUsed: '0', accountValue: '100' },
+            withdrawable: '100',
+          })
+          .mockRejectedValueOnce(new Error('HIP-3 DEX timeout'));
+
+        const accountState = await hip3Provider.getAccountState({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(accountState.totalBalance).toBe('100');
+        expect(accountState.unavailableSubAccounts).toStrictEqual(['xyz']);
+      });
+
+      it('carries the venue display margin on under-margined cross positions', async () => {
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.5',
+                  entryPx: '45000',
+                  positionValue: '22500',
+                  unrealizedPnl: '-500',
+                  marginUsed: '2250',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '40000',
+                  maxLeverage: 50,
+                  returnOnEquity: '-0.22',
+                  cumFunding: {
+                    allTime: '0',
+                    sinceOpen: '0',
+                    sinceChange: '0',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+            marginSummary: { totalMarginUsed: '2250', accountValue: '1125' },
+            crossMarginSummary: {
+              accountValue: '1125',
+              totalMarginUsed: '2250',
+              totalNtlPos: '22500',
+              totalRawUsd: '0',
+            },
+          })
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          });
+
+        const [position] = await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(position.marginUsed).toBe('2250');
+        expect(position.displayMarginUsed).toBe('1125');
+      });
+
+      it('returns positions from both main DEX and HIP-3 DEXs', async () => {
+        // Arrange: main DEX has BTC, xyz DEX has TSLA
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.5',
+                  entryPx: '45000',
+                  positionValue: '22500',
+                  unrealizedPnl: '500',
+                  marginUsed: '2250',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '40000',
+                  maxLeverage: 50,
+                  returnOnEquity: '22.22',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+            marginSummary: {
+              totalMarginUsed: '2250',
+              accountValue: '25000',
+            },
+          })
+          .mockResolvedValueOnce({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'TSLA',
+                  szi: '10',
+                  entryPx: '250',
+                  positionValue: '2500',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 5 },
+                  liquidationPx: '200',
+                  maxLeverage: 20,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '1',
+                    sinceOpen: '0.5',
+                    sinceChange: '0.1',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+            marginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '2600',
+            },
+          });
+
+        // Act
+        const positions = await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert - should have positions from both DEXs
+        expect(positions).toHaveLength(2);
+        expect(positions[0].symbol).toBe('BTC');
+        expect(positions[1].symbol).toBe('TSLA');
+        // Main DEX called without dex param, HIP-3 called with dex param
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress });
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledWith({ user: mockUserAddress, dex: 'xyz' });
+      });
+
+      it('rejects standalone positions when HIP-3 discovery fails', async () => {
+        const cause = new Error('Network error');
+        mockStandaloneInfoClient.perpDexs.mockRejectedValue(cause);
+
+        const call = hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('rejects partial snapshots when a configured DEX fails', async () => {
+        const cause = new Error('xyz unavailable');
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({ assetPositions: [] })
+          .mockRejectedValueOnce(cause);
+        mockStandaloneInfoClient.frontendOpenOrders
+          .mockResolvedValueOnce([])
+          .mockRejectedValueOnce(cause);
+        const params = { standalone: true, userAddress: mockUserAddress };
+
+        const positions = hip3Provider.getPositions(params);
+        await expect(positions).rejects.toThrow(
+          PERPS_ERROR_CODES.POSITIONS_FAILED,
+        );
+        await expect(positions).rejects.toHaveProperty('cause', cause);
+
+        const orders = hip3Provider.getOpenOrders(params);
+        await expect(orders).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+        await expect(orders).rejects.toHaveProperty('cause', cause);
+      });
+
+      it('returns only main DEX positions when hip3Enabled is false', async () => {
+        // Arrange: use provider with HIP-3 disabled
+        const disabledProvider = createTestProvider({
+          hip3Enabled: false,
+        });
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'ETH',
+                szi: '5',
+                entryPx: '3000',
+                positionValue: '15000',
+                unrealizedPnl: '200',
+                marginUsed: '1500',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '2500',
+                maxLeverage: 50,
+                returnOnEquity: '13.33',
+                cumFunding: {
+                  allTime: '5',
+                  sinceOpen: '2',
+                  sinceChange: '1',
+                },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '1500',
+            accountValue: '15200',
+          },
+        });
+
+        // Act
+        const positions = await disabledProvider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert - perpDexs should NOT be called
+        expect(mockStandaloneInfoClient.perpDexs).not.toHaveBeenCalled();
+        expect(positions).toHaveLength(1);
+        expect(positions[0].symbol).toBe('ETH');
+      });
+
+      it('caches validated DEXs across multiple readonly calls', async () => {
+        // Arrange
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+
+        // Act - call getPositions twice on same provider instance
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert - perpDexs should only be called once (cached on second call)
+        expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(1);
+      });
+
+      it('rejects account state when standalone HIP-3 discovery is unavailable', async () => {
+        const cause = new Error('DEX discovery unavailable');
+        mockStandaloneInfoClient.perpDexs.mockRejectedValue(cause);
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(cause.message);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('aggregates account state across multiple DEXs in standalone mode', async () => {
+        // Arrange: main DEX + xyz DEX both have balances
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: {
+              totalMarginUsed: '1000',
+              accountValue: '50000',
+            },
+            withdrawable: '45000',
+          })
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '5000',
+            },
+            withdrawable: '4000',
+          });
+
+        // Act
+        const accountState = await hip3Provider.getAccountState({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert - balances should be aggregated
+        expect(parseFloat(accountState.totalBalance)).toBe(55000);
+        expect(parseFloat(accountState.marginUsed)).toBe(1500);
+      });
+
+      it('rejects a partial standalone account read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockImplementation(
+          (params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.reject(new Error('xyz DEX unavailable'));
+            }
+            return Promise.resolve({
+              assetPositions: [],
+              marginSummary: {
+                totalMarginUsed: '1000',
+                accountValue: '50000',
+              },
+              withdrawable: '45000',
+            });
+          },
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('xyz DEX unavailable');
+      });
+
+      it('rejects a failed standalone spot read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: {
+            totalMarginUsed: '1000',
+            accountValue: '50000',
+          },
+          withdrawable: '45000',
+        });
+        mockStandaloneInfoClient.spotClearinghouseState.mockRejectedValue(
+          new Error('spot clearinghouse down'),
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('spot clearinghouse down');
+      });
+
+      it('does not poison fully-initialized cache when standalone perpDexs() fails', async () => {
+        // Arrange: standalone perpDexs fails (transient network error)
+        mockStandaloneInfoClient.perpDexs.mockRejectedValue(
+          new Error('Network error'),
+        );
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        await expect(
+          hip3Provider.getPositions({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+
+        // Now set up the fully-initialized path's perpDexs to succeed
+        const infoClient = mockClientService.getInfoClient();
+        (infoClient.perpDexs as Mock).mockResolvedValue([
+          null,
+          { name: 'xyz' },
+        ]);
+
+        // Initialize the provider for fully-initialized path
+        await hip3Provider.initialize();
+
+        // Act: fully-initialized getPositions should discover HIP-3 DEXs
+        await hip3Provider.getPositions();
+
+        // Assert: fully-initialized path called perpDexs (cache was NOT poisoned)
+        expect(infoClient.perpDexs).toHaveBeenCalled();
+        // clearinghouseState should be called for both main + xyz DEX
+        expect(infoClient.clearinghouseState).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not cache invalid perpDexs response in standalone mode', async () => {
+        // Arrange: perpDexs returns invalid (non-array) response
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue(null);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        await expect(
+          hip3Provider.getPositions({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+        expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(1);
+
+        // Fix perpDexs to return valid response
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
+          null,
+          { name: 'xyz' },
+        ]);
+
+        // Act: second standalone call should retry perpDexs (not cached)
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert: perpDexs was called again on the second call
+        expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(2);
+      });
+
+      it('shares cache between standalone and fully-initialized when standalone succeeds', async () => {
+        // Arrange: standalone perpDexs succeeds
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        // Act: standalone call succeeds and caches the validated DEXs
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(1);
+
+        // Initialize the provider for fully-initialized path
+        await hip3Provider.initialize();
+        const infoClient = mockClientService.getInfoClient();
+
+        // Act: fully-initialized getPositions should reuse standalone's cache
+        await hip3Provider.getPositions();
+
+        // Assert: fully-initialized path did NOT call perpDexs (reused cache)
+        expect(infoClient.perpDexs).not.toHaveBeenCalled();
+        // clearinghouseState should be called for both main + xyz DEX (from cache)
+        expect(infoClient.clearinghouseState).toHaveBeenCalledTimes(2);
+      });
+
+      it('filters DEXs via testnet config when in testnet mode', async () => {
+        // Arrange: testnet mode with TESTNET_HIP3_CONFIG.EnabledDexs = ['xyz']
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(true);
+        const testnetProvider = createTestProvider({
+          hip3Enabled: true,
+          isTestnet: true,
+        });
+
+        // perpDexs returns main + xyz + other DEX
+        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
+          null,
+          { name: 'xyz' },
+          { name: 'otherdex' },
+        ]);
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        // Act
+        await testnetProvider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert: clearinghouseState called for main + xyz only (otherdex filtered out)
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+        // Restore
+        (mockClientService.isTestnetMode as Mock).mockReturnValue(false);
+      });
+
+      it('updates unified state atomically when standalone perpDexs succeeds', async () => {
+        // Arrange
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+        });
+
+        // Act: first standalone call populates dexDiscoveryCache
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        // Assert: second call reuses cached state — perpDexs NOT called again
+        mockStandaloneInfoClient.perpDexs.mockClear();
+        await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        expect(mockStandaloneInfoClient.perpDexs).not.toHaveBeenCalled();
+      });
+    });
+  });
+});

@@ -5,17 +5,17 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayRequiredToken,
-} from '../types';
+} from '../types.js';
 import {
   computeTokenAmounts,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
-} from './token';
+} from './token.js';
 
 const log = createModuleLogger(projectLogger, 'required-tokens');
 

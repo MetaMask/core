@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
+exports[`BridgeController > should handle errors from fetchBridgeQuotes 1`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -8,6 +8,9 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -31,7 +34,7 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
 }
 `;
 
-exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
+exports[`BridgeController > should handle errors from fetchBridgeQuotes 2`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -39,6 +42,9 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -62,7 +68,7 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
 }
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Completed event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent bridge-status-controller calls > should track the Completed event 1`] = `
 [
   [
     "Unified SwapBridge Completed",
@@ -75,6 +81,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -90,6 +97,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "transaction-id",
       "usd_actual_gas": 10,
       "usd_actual_return": 100,
       "usd_amount_source": 100,
@@ -100,7 +108,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent bridge-status-controller calls > should track the Failed event 1`] = `
 [
   [
     "Unified SwapBridge Failed",
@@ -113,21 +121,26 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "destination_hash_present": false,
       "destination_transaction": "PENDING",
+      "error_code": "status_failed_without_reason",
       "error_message": "error_message",
+      "failure_phase": "source_execution",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 0,
       "provider": "provider_bridge",
       "quoted_time_minutes": 0,
       "quotes_count": 0,
       "quotes_list": [],
       "security_warnings": [],
-      "slippage_limit": undefined,
+      "slippage_limit": 0,
+      "source_hash_present": true,
       "source_transaction": "PENDING",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -144,7 +157,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event before tx is submitted 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent bridge-status-controller calls > should track the Failed event before tx is submitted 1`] = `
 [
   [
     "Unified SwapBridge Failed",
@@ -154,13 +167,17 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
+      "destination_hash_present": false,
+      "error_code": "unknown",
       "error_message": "Failed to submit tx",
+      "failure_phase": "broadcast",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 12,
       "provider": "provider_bridge",
       "quoted_time_minutes": 2,
@@ -170,6 +187,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
         "lifi_mayanMCTP",
       ],
       "slippage_limit": 0.5,
+      "source_hash_present": false,
       "stx_enabled": false,
       "swap_type": "crosschain",
       "token_address_destination": "eip155:1/erc20:0x1234",
@@ -185,7 +203,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the StatusValidationFailed event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent bridge-status-controller calls > should track the StatusValidationFailed event 1`] = `
 [
   [
     "Unified SwapBridge Status Failed Validation",
@@ -194,14 +212,15 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "failures": [
         "Failed to submit tx",
       ],
-      "location": "Main View",
+      "feature_id": "perps",
+      "location": "Unknown",
       "refresh_count": 0,
     },
   ],
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent bridge-status-controller calls > should track the Submitted event 1`] = `
 [
   [
     "Unified SwapBridge Submitted",
@@ -211,6 +230,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -230,7 +250,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesOpened event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the AllQuotesOpened event 1`] = `
 [
   [
     "Unified SwapBridge All Quotes Opened",
@@ -241,15 +261,16 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 6,
       "quotes_count": 0,
       "quotes_list": [],
-      "slippage_limit": undefined,
+      "slippage_limit": 0,
       "stx_enabled": false,
       "swap_type": "crosschain",
       "token_address_destination": null,
@@ -262,7 +283,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesSorted event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the AllQuotesSorted event 1`] = `
 [
   [
     "Unified SwapBridge All Quotes Sorted",
@@ -274,15 +295,16 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 6,
       "quotes_count": 0,
       "quotes_list": [],
-      "slippage_limit": undefined,
+      "slippage_limit": 0,
       "sort_order": "cost_ascending",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -296,7 +318,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AssetDetailTooltipClicked event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the AssetDetailTooltipClicked event 1`] = `
 [
   [
     "Unified SwapBridge Asset Detail Tooltip Clicked",
@@ -304,7 +326,8 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "action_type": "swapbridge-v1",
       "chain_id": "1",
       "chain_name": "Ethereum",
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "token_contract": "0x123",
       "token_name": "ETH",
       "token_symbol": "ETH",
@@ -313,7 +336,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the ButtonClicked event 1`] = `
 [
   [
     "Unified SwapBridge Button Clicked",
@@ -321,6 +344,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
+      "feature_id": "quick_buy_follow_trading",
       "location": "Main View",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
@@ -332,7 +356,30 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the FiatCryptoToggleClicked event 1`] = `
+[
+  [
+    "Unified SwapBridge Fiat Crypto Toggle Clicked",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "eip155:1",
+      "feature_id": "quick_buy_follow_trading",
+      "location": "Main View",
+      "new_primary_denomination": "fiat_value",
+      "previous_primary_denomination": "token_amount",
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the InputSourceDestinationFlipped event 1`] = `
 [
   [
     "Unified SwapBridge Source Destination Switched",
@@ -340,7 +387,8 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "security_warnings": [
         "warning1",
       ],
@@ -354,7 +402,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the PageViewed event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the PageViewed event 1`] = `
 [
   [
     "Unified SwapBridge Page Viewed",
@@ -364,9 +412,11 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
+      "feature_id": "quick_buy_token_details",
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
-      "slippage_limit": undefined,
+      "location": "Unknown",
+      "slippage_limit": 0,
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
@@ -376,7 +426,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuoteSelected event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the QuoteSelected event 1`] = `
 [
   [
     "Unified SwapBridge Quote Selected",
@@ -388,19 +438,20 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
       "is_best_quote": true,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 0,
       "provider": "provider_bridge",
       "quoted_time_minutes": 10,
       "quotes_count": 0,
       "quotes_list": [],
-      "slippage_limit": undefined,
+      "slippage_limit": 0,
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
@@ -412,7 +463,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 1`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the QuotesReceived event 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -421,7 +472,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 2`] = `
+exports[`BridgeController > trackUnifiedSwapBridgeEvent client-side calls > should track the QuotesReceived event 2`] = `
 [
   [
     "Unified SwapBridge Quotes Received",
@@ -433,19 +484,22 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "has_gas_included_quote": false,
+      "has_sufficient_funds": true,
       "initial_load_time_all_quotes": 0,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 0,
       "provider": "provider_bridge",
       "quoted_time_minutes": 10,
       "quotes_count": 0,
       "quotes_list": [],
       "refresh_count": 0,
-      "slippage_limit": undefined,
+      "slippage_limit": 0,
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
@@ -461,42 +515,46 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should only poll once if insufficientBal=true 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should only poll once if insufficientBal=true 1`] = `
 [
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_source",
       "input_value": "eip155:1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_destination",
       "input_value": "eip155:10",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "token_destination",
       "input_value": "eip155:10/erc20:0x123",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "slippage",
       "input_value": 0.5,
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
@@ -507,9 +565,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": false,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -533,12 +593,15 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "dapp_swap",
       "gas_included": false,
       "gas_included_7702": false,
       "has_gas_included_quote": false,
+      "has_sufficient_funds": false,
       "initial_load_time_all_quotes": 11000,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "price_impact": 0,
       "provider": "provider_bridge",
       "quoted_time_minutes": 10,
@@ -564,7 +627,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 1`] = `
 [
   [
     "Error setting minimum balance for rent exemption",
@@ -573,7 +636,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBal
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 2`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 2`] = `
 [
   [
     "SnapController:handleRequest",
@@ -826,9 +889,12 @@ exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBal
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
 {
   "assetExchangeRates": {},
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -856,7 +922,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
 }
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 2`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should trigger quote polling if request is valid 2`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -864,6 +930,9 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -889,42 +958,46 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
 }
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 3`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should trigger quote polling if request is valid 3`] = `
 [
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_source",
       "input_value": "eip155:1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "token_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "slippage",
       "input_value": 0.5,
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
@@ -935,9 +1008,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -959,9 +1034,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -983,9 +1060,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -1007,10 +1086,13 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "error_code": "quote_fetch_failed",
       "error_message": "Network error",
+      "failure_phase": "quote",
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -1032,9 +1114,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -1050,39 +1134,42 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams should update the quoteRequest state 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams should update the quoteRequest state 1`] = `
 [
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_source",
       "input_value": "eip155:1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_destination",
       "input_value": "eip155:10",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "slippage",
       "input_value": 0.5,
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 1`] = `
 [
   [
     "SnapController:handleRequest",
@@ -1149,9 +1236,9 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFe
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 2`] = `[]`;
+exports[`BridgeController > updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 2`] = `[]`;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams: should handle malformed quotes 1`] = `
 [
   [
     "SnapController:handleRequest",
@@ -1182,7 +1269,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should handle malforme
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
 [
   [
     "Unified SwapBridge Quotes Failed Validation",
@@ -1195,7 +1282,8 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should handle malforme
         "socket|quote.destAsset.address",
         "lifi|quote.srcAsset.decimals",
       ],
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "refresh_count": 0,
       "token_address_destination": "eip155:1/slip44:60",
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
@@ -1205,7 +1293,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should handle malforme
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
+exports[`BridgeController > updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
 [
   [
     "SnapController:handleRequest",
@@ -1236,8 +1324,8 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed So
 ]
 `;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 2`] = `[]`;
+exports[`BridgeController > updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 2`] = `[]`;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `[]`;
+exports[`BridgeController > updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `[]`;
 
-exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 2`] = `[]`;
+exports[`BridgeController > updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 2`] = `[]`;

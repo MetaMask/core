@@ -1,18 +1,22 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService.js';
 import {
   AnalyticsDataRegulationController,
   getDefaultAnalyticsDataRegulationControllerState,
-} from '.';
+} from './index.js';
 import type {
   AnalyticsDataRegulationControllerMessenger,
   AnalyticsDataRegulationControllerActions,
   AnalyticsDataRegulationControllerEvents,
   AnalyticsDataRegulationControllerState,
-} from '.';
-import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+} from './index.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
 
 type SetupControllerOptions = {
   state?: Partial<AnalyticsDataRegulationControllerState>;
@@ -64,7 +68,7 @@ function setupController(
   // Mock AnalyticsDataRegulationService actions (can be overridden in individual tests)
   rootMessenger.registerActionHandler(
     'AnalyticsDataRegulationService:createDataDeletionTask',
-    jest.fn().mockResolvedValue({
+    vi.fn().mockResolvedValue({
       status: DATA_DELETE_RESPONSE_STATUSES.Success,
       regulateId: 'test-regulate-id',
     }),
@@ -72,7 +76,7 @@ function setupController(
 
   rootMessenger.registerActionHandler(
     'AnalyticsDataRegulationService:checkDataDeleteStatus',
-    jest.fn().mockResolvedValue({
+    vi.fn().mockResolvedValue({
       status: DATA_DELETE_RESPONSE_STATUSES.Success,
       dataDeleteStatus: DATA_DELETE_STATUSES.Finished,
     }),
@@ -159,8 +163,8 @@ describe('AnalyticsDataRegulationController', () => {
       const { controller, rootMessenger } = setupController();
 
       const fixedTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date(fixedTimestamp));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(fixedTimestamp));
 
       const response = await rootMessenger.call(
         'AnalyticsDataRegulationController:createDataDeletionTask',
@@ -172,7 +176,7 @@ describe('AnalyticsDataRegulationController', () => {
       expect(controller.state.deleteRegulationTimestamp).toBe(fixedTimestamp);
       expect(controller.state.hasCollectedDataSinceDeletionRequest).toBe(false);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('stores deletion timestamp as number when task is created', async () => {
@@ -196,7 +200,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           status: DATA_DELETE_RESPONSE_STATUSES.Success,
           regulateId: 'test-regulate-id',
         }),
@@ -213,8 +217,8 @@ describe('AnalyticsDataRegulationController', () => {
       });
 
       const fixedTimestamp = new Date('2026-01-15T12:00:00Z').getTime();
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date(fixedTimestamp));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(fixedTimestamp));
 
       await rootMessenger.call(
         'AnalyticsDataRegulationController:createDataDeletionTask',
@@ -223,12 +227,12 @@ describe('AnalyticsDataRegulationController', () => {
       expect(controller.state.deleteRegulationTimestamp).toBe(fixedTimestamp);
       expect(typeof controller.state.deleteRegulationTimestamp).toBe('number');
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('emits dataDeletionTaskCreated event with response payload', async () => {
       const { rootMessenger, messenger } = setupController();
-      const eventListener = jest.fn();
+      const eventListener = vi.fn();
 
       messenger.subscribe(
         'AnalyticsDataRegulationController:dataDeletionTaskCreated',
@@ -269,7 +273,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           status: DATA_DELETE_RESPONSE_STATUSES.Success,
           regulateId: 'test-regulate-id',
         }),
@@ -317,7 +321,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest
+        vi
           .fn()
           .mockRejectedValue(
             new Error(
@@ -368,7 +372,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest
+        vi
           .fn()
           .mockRejectedValue(
             new Error(
@@ -419,7 +423,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest
+        vi
           .fn()
           .mockRejectedValue(
             new Error(
@@ -469,7 +473,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest.fn().mockRejectedValue('String error'),
+        vi.fn().mockRejectedValue('String error'),
       );
 
       rootMessenger.delegate({
@@ -512,7 +516,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest.fn().mockRejectedValue(new Error('Service error')),
+        vi.fn().mockRejectedValue(new Error('Service error')),
       );
 
       rootMessenger.delegate({
@@ -555,7 +559,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:createDataDeletionTask',
-        jest.fn().mockRejectedValue(new Error('Service error')),
+        vi.fn().mockRejectedValue(new Error('Service error')),
       );
 
       rootMessenger.delegate({
@@ -636,7 +640,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:checkDataDeleteStatus',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           status: DATA_DELETE_RESPONSE_STATUSES.Success,
           dataDeleteStatus: DATA_DELETE_STATUSES.Finished,
         }),
@@ -688,7 +692,7 @@ describe('AnalyticsDataRegulationController', () => {
 
       rootMessenger.registerActionHandler(
         'AnalyticsDataRegulationService:checkDataDeleteStatus',
-        jest.fn().mockRejectedValue(new Error('Service error')),
+        vi.fn().mockRejectedValue(new Error('Service error')),
       );
 
       rootMessenger.delegate({
@@ -752,7 +756,7 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      const eventListener = jest.fn();
+      const eventListener = vi.fn();
       rootMessenger.subscribe(
         'AnalyticsDataRegulationController:dataRecordingFlagUpdated',
         eventListener,
@@ -772,7 +776,7 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      const eventListener = jest.fn();
+      const eventListener = vi.fn();
       rootMessenger.subscribe(
         'AnalyticsDataRegulationController:dataRecordingFlagUpdated',
         eventListener,
@@ -794,7 +798,7 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      const eventListener = jest.fn();
+      const eventListener = vi.fn();
       messenger.subscribe(
         'AnalyticsDataRegulationController:stateChange',
         eventListener,
@@ -816,7 +820,7 @@ describe('AnalyticsDataRegulationController', () => {
         },
       });
 
-      const eventListener = jest.fn();
+      const eventListener = vi.fn();
       messenger.subscribe(
         'AnalyticsDataRegulationController:stateChange',
         eventListener,

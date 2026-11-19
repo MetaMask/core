@@ -1,4 +1,4 @@
-import type { TRIGGER_TYPES } from '../../constants';
+import type { TRIGGER_TYPES } from '../../constants/index.js';
 
 export type ExpandedView = {
   title: string;

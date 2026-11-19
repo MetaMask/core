@@ -2,71 +2,106 @@
 
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { TransactionPayController } from '.';
-import { updateFiatPayment } from './actions/update-fiat-payment';
-import { updatePaymentToken } from './actions/update-payment-token';
-import { TransactionPayStrategy } from './constants';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
-import { getMessengerMock } from './tests/messenger-mock';
+import { getMessengerMock } from '../tests/messenger-mock.js';
+import { updateFiatPayment } from './actions/update-fiat-payment.js';
+import { updatePaymentToken } from './actions/update-payment-token.js';
+import {
+  PaymentOverride,
+  TransactionPayClientId,
+  TransactionPayStrategy,
+} from './constants.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { TransactionPayController } from './index.js';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerOptions,
   TransactionPaySourceAmount,
+  TransactionPaymentToken,
   UpdateTransactionDataCallback,
-} from './types';
-import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
+} from './types.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
+import { updateQuotes } from './utils/quotes.js';
+import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
-jest.mock('./actions/update-fiat-payment');
-jest.mock('./actions/update-payment-token');
-jest.mock('./strategy/fiat/utils');
-jest.mock('./utils/source-amounts');
-jest.mock('./utils/quotes');
-jest.mock('./utils/transaction');
-jest.mock('./utils/feature-flags');
+vi.mock(import('./actions/update-fiat-payment.js'));
+vi.mock(import('./actions/update-payment-token.js'));
+vi.mock(import('./strategy/fiat/utils.js'));
+vi.mock(import('./helpers/QuoteRefresher.js'));
+vi.mock(import('./utils/source-amounts.js'));
+vi.mock(import('./utils/quotes.js'));
+vi.mock(import('./utils/transaction.js'));
+vi.mock(import('./utils/feature-flags.js'));
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
+const ASSET_ID_MOCK = `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}` as const;
+const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: ASSET_ID_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: 6,
+  symbol: 'USDC',
+};
+const NON_EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: 6,
+  symbol: 'USDC',
+};
 
 describe('TransactionPayController', () => {
-  const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
-  const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
-  const deriveFiatAssetForFiatPaymentMock = jest.mocked(
+  const updateFiatPaymentMock = vi.mocked(updateFiatPayment);
+  const updatePaymentTokenMock = vi.mocked(updatePaymentToken);
+  const deriveFiatAssetForFiatPaymentMock = vi.mocked(
     deriveFiatAssetForFiatPayment,
   );
-  const getTransactionMock = jest.mocked(getTransaction);
-  const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
-  const updateQuotesMock = jest.mocked(updateQuotes);
-  const subscribeTransactionChangesMock = jest.mocked(
+  const getTransactionMock = vi.mocked(getTransaction);
+  const updateSourceAmountsMock = vi.mocked(updateSourceAmounts);
+  const updateQuotesMock = vi.mocked(updateQuotes);
+  const subscribeTransactionChangesMock = vi.mocked(
     subscribeTransactionChanges,
   );
-  const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
-  const getStrategyOrderMock = jest.mocked(getStrategyOrder);
+  const subscribeAssetChangesMock = vi.mocked(subscribeAssetChanges);
+  const getStrategyOrderMock = vi.mocked(getStrategyOrder);
+  const QuoteRefresherMock = vi.mocked(QuoteRefresher);
   let messenger: TransactionPayControllerMessenger;
-  let getKeyringControllerStateMock: jest.Mock;
+  let getKeyringControllerStateMock: Mock;
 
   /**
    * Create a TransactionPayController.
    *
+   * @param options - Controller options.
    * @returns The created controller.
    */
-  function createController(): TransactionPayController {
+  function createController(
+    options: Partial<TransactionPayControllerOptions> = {},
+  ): TransactionPayController {
     return new TransactionPayController({
-      getDelegationTransaction: jest.fn(),
+      ...options,
+      getDelegationTransaction: vi.fn(),
       messenger,
     });
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     const mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
@@ -100,21 +135,60 @@ describe('TransactionPayController', () => {
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
     });
+
+    it('wires QuoteRefresher with getBalance when provided', () => {
+      const getBalance = vi.fn();
+      createController({ getBalance });
+
+      expect(QuoteRefresherMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          getBalance,
+        }),
+      );
+    });
+
+    it('wires QuoteRefresher without getBalance when it is absent', () => {
+      createController();
+
+      expect(QuoteRefresherMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          getBalance: undefined,
+        }),
+      );
+    });
   });
 
   describe('updatePaymentToken', () => {
     it('calls util', () => {
       createController().updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       expect(updatePaymentTokenMock).toHaveBeenCalledWith(
         {
           transactionId: TRANSACTION_ID_MOCK,
-          tokenAddress: TOKEN_ADDRESS_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          assetId: ASSET_ID_MOCK,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('calls util with a non-EVM asset via messenger action handler', () => {
+      createController();
+
+      messenger.call('TransactionPayController:updatePaymentToken', {
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      expect(updatePaymentTokenMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
         },
         {
           messenger,
@@ -126,7 +200,7 @@ describe('TransactionPayController', () => {
 
   describe('updateFiatPayment', () => {
     it('calls util', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       createController().updateFiatPayment({
         transactionId: TRANSACTION_ID_MOCK,
@@ -146,7 +220,7 @@ describe('TransactionPayController', () => {
     });
 
     it('is callable via messenger action handler', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       createController();
 
@@ -204,6 +278,18 @@ describe('TransactionPayController', () => {
         controller.state.transactionData[TRANSACTION_ID_MOCK]
           .isHyperliquidSource,
       ).toBe(true);
+    });
+
+    it('updates paymentOverride in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.MoneyAccount;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe(PaymentOverride.MoneyAccount);
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
@@ -297,20 +383,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -340,20 +424,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -383,20 +465,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -436,7 +516,7 @@ describe('TransactionPayController', () => {
   describe('getDelegationTransaction', () => {
     it('delegates to the callback', async () => {
       const resultMock = { data: '0x1', to: '0x2', value: '0x3' };
-      const getDelegationTransactionMock = jest
+      const getDelegationTransactionMock = vi
         .fn()
         .mockResolvedValue(resultMock);
 
@@ -457,6 +537,139 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getPaymentOverrideData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
+      const getPaymentOverrideDataMock = vi.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        getPaymentOverrideData: getPaymentOverrideDataMock,
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        requestMock,
+      );
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty array when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
+      );
+
+      expect(result).toStrictEqual({ calls: [] });
+    });
+  });
+
+  describe('getAmountData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        updates: [{ nestedTransactionIndex: 0, data: '0xabc' as const }],
+      };
+      const getAmountDataMock = vi.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getAmountData: getAmountDataMock,
+        getDelegationTransaction: vi.fn(),
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '5000000',
+        transaction: TRANSACTION_META_MOCK,
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        requestMock,
+      );
+
+      expect(getAmountDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty updates when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: vi.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        {
+          amount: '5000000',
+          transaction: TRANSACTION_META_MOCK,
+        },
+      );
+
+      expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
+  describe('getFiatOptions', () => {
+    it('returns configured fiat options', () => {
+      const fiatOptions = {
+        testFundingSource: '0x1111111111111111111111111111111111111111' as Hex,
+        testAmountOverride: '0.1',
+      };
+
+      createController({ fiatOptions });
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBe(fiatOptions);
+    });
+
+    it('returns undefined when no fiat options are configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getClientId', () => {
+    it('returns the configured client ID', () => {
+      createController({ clientId: TransactionPayClientId.Mobile });
+
+      const result = messenger.call('TransactionPayController:getClientId');
+
+      expect(result).toBe(TransactionPayClientId.Mobile);
+    });
+
+    it('returns undefined when no client ID is configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getClientId');
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =
@@ -464,16 +677,16 @@ describe('TransactionPayController', () => {
     const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
 
     it('delegates polymarketGetDepositWalletAddress to the callback', async () => {
-      const getDepositWalletAddressMock = jest
+      const getDepositWalletAddressMock = vi
         .fn()
         .mockResolvedValue(DEPOSIT_WALLET_MOCK);
 
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         messenger,
         polymarket: {
           getDepositWalletAddress: getDepositWalletAddressMock,
-          submitDepositWalletBatch: jest.fn(),
+          submitDepositWalletBatch: vi.fn(),
         },
       });
 
@@ -489,15 +702,15 @@ describe('TransactionPayController', () => {
     });
 
     it('delegates polymarketSubmitDepositWalletBatch to the callback', async () => {
-      const submitDepositWalletBatchMock = jest
+      const submitDepositWalletBatchMock = vi
         .fn()
         .mockResolvedValue({ sourceHash: SOURCE_HASH_MOCK });
 
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         messenger,
         polymarket: {
-          getDepositWalletAddress: jest.fn(),
+          getDepositWalletAddress: vi.fn(),
           submitDepositWalletBatch: submitDepositWalletBatchMock,
         },
       });
@@ -518,7 +731,7 @@ describe('TransactionPayController', () => {
 
     it('throws if polymarketGetDepositWalletAddress is invoked without callbacks supplied', () => {
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         messenger,
       });
 
@@ -532,7 +745,7 @@ describe('TransactionPayController', () => {
 
     it('throws if polymarketSubmitDepositWalletBatch is invoked without callbacks supplied', () => {
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         messenger,
       });
 
@@ -559,8 +772,9 @@ describe('TransactionPayController', () => {
 
     it('returns callback value if provided', async () => {
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
-        getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
+        getDelegationTransaction: vi.fn(),
+        getStrategy: (): TransactionPayStrategy =>
+          TransactionPayStrategy.Across,
         messenger,
       });
 
@@ -569,14 +783,14 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         getStrategies: (): TransactionPayStrategy[] => [
-          TransactionPayStrategy.Test,
+          TransactionPayStrategy.Across,
         ],
         messenger,
       });
@@ -588,16 +802,16 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
 
       expect(getStrategyOrderMock).not.toHaveBeenCalled();
     });
 
     it('returns relay if getStrategies callback returns empty', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         getStrategies: (): TransactionPayStrategy[] => [],
         messenger,
       });
@@ -607,14 +821,14 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('falls back to feature flag if getStrategies callback returns invalid first value', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
-        getDelegationTransaction: jest.fn(),
+        getDelegationTransaction: vi.fn(),
         getStrategies: (): TransactionPayStrategy[] =>
           [undefined] as unknown as TransactionPayStrategy[],
         messenger,
@@ -625,7 +839,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Bridge);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
@@ -643,7 +857,7 @@ describe('TransactionPayController', () => {
 
     it('returns strategy from feature flag when no callbacks are provided', async () => {
       getStrategyOrderMock.mockReturnValue([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
 
@@ -654,7 +868,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('passes payment token route args into feature flag fallback', async () => {
@@ -662,20 +876,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -697,25 +909,51 @@ describe('TransactionPayController', () => {
       );
     });
 
+    it('passes no payment token route args into feature flag fallback for a non-EVM payment token', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      messenger.call(
+        'TransactionPayController:getStrategy',
+        TRANSACTION_META_MOCK,
+      );
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
+
     it('passes fiat payment method ID into getStrategyOrder', async () => {
       const controller = createController();
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -745,8 +983,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -772,8 +1009,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -790,6 +1026,7 @@ describe('TransactionPayController', () => {
           sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         }),
         messenger,
+        undefined,
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
@@ -802,6 +1039,157 @@ describe('TransactionPayController', () => {
         updateTransactionData: expect.any(Function),
       });
     });
+
+    it('forwards getBalance callback to updateSourceAmounts', () => {
+      const getBalance = vi.fn().mockReturnValue({ balanceRaw: '9900000' });
+      const controller = createController({ getBalance });
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.isMaxAmount = true;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        expect.any(Object),
+        messenger,
+        getBalance,
+      );
+    });
+
+    it('updates source amounts without quotes when payment token balance changes on max amount', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.isMaxAmount = true;
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('updates source amounts and quotes when switching from a non-EVM to an EVM payment token', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates source amounts and quotes when the non-EVM account override changes', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.accountOverride = '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z';
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores payment token balance change when not max amount', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores payment token balance change when post quote', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.isMaxAmount = true;
+        data.isPostQuote = true;
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = { ...PAYMENT_TOKEN_MOCK, balanceRaw: '5855729' };
+      });
+
+      expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('transaction data removal', () => {
@@ -810,8 +1198,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -838,7 +1225,6 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
-    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
       chainId: '0x89' as Hex,
@@ -851,8 +1237,7 @@ describe('TransactionPayController', () => {
       const controller = createController();
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
       return {
         controller,
@@ -878,7 +1263,7 @@ describe('TransactionPayController', () => {
       ).toBeUndefined();
     });
 
-    it('stores caipAssetId in fiatPayment when payment method changes', () => {
+    it('does not set caipAssetId when payment method changes (set by quote functions instead)', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
@@ -892,7 +1277,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
           ?.caipAssetId,
-      ).toBe(CAIP_ASSET_ID_MOCK);
+      ).toBeUndefined();
     });
 
     it('triggers quote update when fiat payment changes', () => {

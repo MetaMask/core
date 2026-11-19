@@ -15,16 +15,17 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Patch } from 'immer';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   ChildControllerStateChangeEvents,
   ComposableControllerActions,
   ComposableControllerEvents,
-} from './ComposableController';
+} from './ComposableController.js';
 import {
   ComposableController,
   INVALID_CONTROLLER_ERROR,
-} from './ComposableController';
+} from './ComposableController.js';
 
 // Mock BaseController classes
 
@@ -248,7 +249,7 @@ describe('ComposableController', () => {
         messenger: composableControllerMessenger,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       composableControllerMessenger.subscribe(
         'ComposableController:stateChange',
         listener,
@@ -326,7 +327,7 @@ describe('ComposableController', () => {
       messenger: composableControllerMessenger,
     });
 
-    const listener = jest.fn();
+    const listener = vi.fn();
     messenger.subscribe('ComposableController:stateChange', listener);
     fooController.updateFoo('qux');
 
@@ -377,11 +378,11 @@ describe('ComposableController', () => {
       messenger: composableControllerMessenger,
       events: ['FooController:stateChange'],
     });
-    jest
-      .spyOn(composableControllerMessenger, 'subscribe')
-      .mockImplementation(() => {
+    vi.spyOn(composableControllerMessenger, 'subscribe').mockImplementation(
+      () => {
         throw new Error();
-      });
+      },
+    );
     expect(
       () =>
         new ComposableController({

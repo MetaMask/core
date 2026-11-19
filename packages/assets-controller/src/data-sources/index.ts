@@ -2,7 +2,7 @@ export {
   AbstractDataSource,
   type DataSourceState,
   type SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 
 export {
   AccountsApiDataSource,
@@ -10,16 +10,15 @@ export {
   type AccountsApiDataSourceOptions,
   type AccountsApiDataSourceState,
   type AccountsApiDataSourceAllowedActions,
-} from './AccountsApiDataSource';
+} from './AccountsApiDataSource.js';
 
 export {
-  BackendWebsocketDataSource,
-  createBackendWebsocketDataSource,
-  type BackendWebsocketDataSourceOptions,
-  type BackendWebsocketDataSourceState,
-  type BackendWebsocketDataSourceAllowedActions,
-  type BackendWebsocketDataSourceAllowedEvents,
-} from './BackendWebsocketDataSource';
+  AccountActivityDataSource,
+  createAccountActivityDataSource,
+  type AccountActivityDataSourceOptions,
+  type AccountActivityDataSourceState,
+  type AccountActivityDataSourceAllowedEvents,
+} from './AccountActivityDataSource.js';
 
 export {
   RpcDataSource,
@@ -30,19 +29,19 @@ export {
   type RpcDataSourceAllowedActions,
   type RpcDataSourceAllowedEvents,
   type ChainStatus,
-} from './RpcDataSource';
+} from './RpcDataSource.js';
 
 export {
   TokenDataSource,
   type TokenDataSourceOptions,
   type TokenDataSourceAllowedActions,
-} from './TokenDataSource';
+} from './TokenDataSource.js';
 
 export {
   PriceDataSource,
   type PriceDataSourceConfig,
   type PriceDataSourceOptions,
-} from './PriceDataSource';
+} from './PriceDataSource.js';
 
 // Unified Snap Data Source (dynamically discovers keyring snaps via PermissionController)
 export {
@@ -59,10 +58,10 @@ export {
   type SnapDataSourceOptions,
   type SnapDataSourceAllowedActions,
   type SnapDataSourceAllowedEvents,
-} from './SnapDataSource';
+} from './SnapDataSource.js';
 
 export {
   StakedBalanceDataSource,
   type StakedBalanceDataSourceConfig,
   type StakedBalanceDataSourceOptions,
-} from './StakedBalanceDataSource';
+} from './StakedBalanceDataSource.js';

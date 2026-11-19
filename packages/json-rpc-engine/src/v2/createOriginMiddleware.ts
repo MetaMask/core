@@ -1,6 +1,6 @@
-import { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import { MiddlewareContext } from './MiddlewareContext';
-import { Json, JsonRpcRequest } from './utils';
+import { JsonRpcMiddleware } from './JsonRpcEngineV2.js';
+import { MiddlewareContext } from './MiddlewareContext.js';
+import { Json, JsonRpcRequest } from './utils.js';
 
 /**
  * Create a middleware function that adds `origin` to the middleware context.

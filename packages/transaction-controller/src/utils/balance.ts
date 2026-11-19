@@ -2,9 +2,9 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { TransactionMeta } from '..';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { rpcRequest } from './provider';
+import type { TransactionMeta } from '../index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { rpcRequest } from './provider.js';
 
 /**
  * Get the native balance for an address.
@@ -51,16 +51,22 @@ export async function isNativeBalanceSufficientForGas(
   messenger: TransactionControllerMessenger,
   networkClientId: NetworkClientId,
 ): Promise<boolean> {
-  const from = transaction.txParams.from as Hex;
+  const {
+    txParams: { from, gas, maxFeePerGas, gasPrice },
+  } = transaction;
+  const maxFeePerGasValue = maxFeePerGas ?? gasPrice;
 
-  const gasCostRawValue = new BigNumber(
-    transaction.txParams.gas ?? '0x0',
-  ).multipliedBy(
-    transaction.txParams.maxFeePerGas ?? transaction.txParams.gasPrice ?? '0x0',
-  );
+  // Gas estimates can still be in flight (e.g. skipInitialGasEstimate). Treating
+  // missing fee fields as zero makes every balance look sufficient and clears a
+  // selected gas fee token before publish.
+  if (!gas || !maxFeePerGasValue) {
+    return false;
+  }
+
+  const gasCostRawValue = new BigNumber(gas).multipliedBy(maxFeePerGasValue);
 
   const { balanceRaw } = await getNativeBalance(
-    from,
+    from as Hex,
     messenger,
     networkClientId,
   );

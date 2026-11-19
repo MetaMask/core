@@ -1,5 +1,7 @@
-import type { AnalyticsControllerState } from './AnalyticsController';
-import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
+import { describe, expect, it } from 'vitest';
+
+import type { AnalyticsControllerState } from './AnalyticsController.js';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator.js';
 
 describe('analyticsControllerStateValidator', () => {
   describe('validateAnalyticsControllerState', () => {

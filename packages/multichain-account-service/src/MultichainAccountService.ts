@@ -13,37 +13,49 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
-import { traceFallback } from './analytics';
-import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
-import { reportError } from './errors';
-import { projectLogger as log } from './logger';
-import type { MultichainAccountGroup } from './MultichainAccountGroup';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
+import { traceFallback } from './analytics/index.js';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf.js';
+import { reportError } from './errors.js';
+import { projectLogger as log } from './logger.js';
+import type { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import {
+  AccountProviderWrapper,
+  isAccountProviderWrapper,
+} from './providers/AccountProviderWrapper.js';
+import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
   EVM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProviderConfig,
   TrxAccountProviderConfig,
+  XlmAccountProviderConfig,
   BTC_ACCOUNT_PROVIDER_NAME,
   TRX_ACCOUNT_PROVIDER_NAME,
+  XLM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
   TrxAccountProvider,
-} from './providers';
-import {
-  AccountProviderWrapper,
-  isAccountProviderWrapper,
-} from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
+  XlmAccountProvider,
+} from './providers/index.js';
+import { SolAccountProvider } from './providers/SolAccountProvider.js';
 import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProviderConfig,
-} from './providers/SolAccountProvider';
+} from './providers/SolAccountProvider.js';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
-} from './types';
+} from './types.js';
+
+/**
+ * Re-exported from {@link MultichainAccountWallet} for deep imports and Sentry
+ * assertions on {@link MultichainAccountService.removeMultichainAccountWallet}.
+ */
+export type {
+  RemoveMultichainAccountWalletFailure,
+  RemoveMultichainAccountWalletFailureContext,
+} from './MultichainAccountWallet.js';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -58,6 +70,7 @@ export type MultichainAccountServiceOptions = {
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
     [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
     [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
+    [XLM_ACCOUNT_PROVIDER_NAME]?: XlmAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
 };
@@ -77,7 +90,9 @@ export type StateKeys = {
 export type ServiceState = {
   [entropySource: StateKeys['entropySource']]: {
     [groupIndex: string]: {
-      [providerName: StateKeys['providerName']]: Bip44Account<KeyringAccount>['id'][];
+      [
+        providerName: StateKeys['providerName']
+      ]: Bip44Account<KeyringAccount>['id'][];
     };
   };
 };
@@ -196,14 +211,46 @@ export class MultichainAccountService {
           trace,
         ),
       ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new XlmAccountProvider(
+          this.#messenger,
+          providerConfigs?.[XLM_ACCOUNT_PROVIDER_NAME],
+          trace,
+        ),
+      ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
+    this.#assertUniqueProviderNames(this.#providers);
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Assert that every registered provider has a unique name.
+   *
+   * Duplicate names break group state (keyed by provider name), alignment, and
+   * resync. This commonly happens when a client passes a custom provider that
+   * reuses a built-in name (e.g. registering Stellar both as a default and via
+   * `providers`).
+   *
+   * @param providers - The providers to validate.
+   * @throws If two providers share the same {@link Bip44AccountProvider.getName}.
+   */
+  #assertUniqueProviderNames(providers: Bip44AccountProvider[]): void {
+    const seenNames = new Set<string>();
+    for (const provider of providers) {
+      const name = provider.getName();
+      assert(
+        !seenNames.has(name),
+        `Duplicate account provider name "${name}". Custom providers must not reuse a built-in or already-registered provider name.`,
+      );
+      seenNames.add(name);
+    }
   }
 
   /**
@@ -534,27 +581,26 @@ export class MultichainAccountService {
   }
 
   /**
-   * Removes a multichain account wallet.
+   * Removes a multichain account wallet, deleting all of its accounts across
+   * every registered provider (EVM and snap-based).
    *
-   * NOTE: This method should only be called in client code as a revert mechanism.
-   * At the point that this code is called, discovery shouldn't have been triggered.
-   * This is meant to be used in the scenario where a seed phrase backup is not successful.
+   * EVM deletion is required because every multichain account group must have
+   * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+   * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+   * was successfully deleted are removed. The wallet remains registered and
+   * this method throws.
+   *
+   * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
+   * failures are reported together and the wallet is removed.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
-   * @param accountAddress - The address of the account to remove.
-   * @returns The removed multichain account wallet.
+   * @throws If one or more EVM accounts cannot be deleted.
    */
   async removeMultichainAccountWallet(
     entropySource: EntropySourceId,
-    accountAddress: string,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
-
-    await this.#messenger.call(
-      'KeyringController:removeAccount',
-      accountAddress,
-    );
-
+    await wallet.deleteAllMultichainAccountGroups();
     this.#wallets.delete(wallet.id);
   }
 

@@ -3,7 +3,7 @@ import type {
   Caip19AssetId,
   ChainId,
   FungibleAssetMetadata,
-} from './types';
+} from './types.js';
 
 /**
  * EIP-55 checksummed address of MetaMask USD (mUSD) — same canonical contract
@@ -32,6 +32,19 @@ const MUSD_METADATA: FungibleAssetMetadata = {
 };
 
 /**
+ * Arc's native USDC also exists as its own ERC20 (`0x3600...`); Accounts API
+ * resolves that identity without ever seeding native `assetsInfo` metadata.
+ */
+const ARC_NATIVE_ASSET_ID = 'eip155:5042/slip44:5042';
+
+const ARC_NATIVE_METADATA: FungibleAssetMetadata = {
+  type: 'native',
+  symbol: 'USDC',
+  name: 'USDC',
+  decimals: 18,
+};
+
+/**
  * Build the CAIP-19 asset ID for the mUSD ERC-20 token on a given EVM
  * chain.
  *
@@ -39,7 +52,7 @@ const MUSD_METADATA: FungibleAssetMetadata = {
  * @returns The CAIP-19 asset ID for mUSD on that chain.
  */
 function musdAssetId(chainId: ChainId): Caip19AssetId {
-  return `${chainId}/erc20:${MUSD_ADDRESS}` as Caip19AssetId;
+  return `${chainId}/erc20:${MUSD_ADDRESS}`;
 }
 
 /**
@@ -56,9 +69,10 @@ export const DEFAULT_TRACKED_ASSETS_BY_CHAIN: ReadonlyMap<
   ChainId,
   readonly Caip19AssetId[]
 > = new Map<ChainId, readonly Caip19AssetId[]>([
-  ['eip155:1' as ChainId, [musdAssetId('eip155:1' as ChainId)]],
-  ['eip155:59144' as ChainId, [musdAssetId('eip155:59144' as ChainId)]],
-  ['eip155:143' as ChainId, [musdAssetId('eip155:143' as ChainId)]],
+  ['eip155:1', [musdAssetId('eip155:1')]],
+  ['eip155:59144', [musdAssetId('eip155:59144')]],
+  ['eip155:143', [musdAssetId('eip155:143')]],
+  ['eip155:5042', [ARC_NATIVE_ASSET_ID]],
 ]);
 
 /**
@@ -76,9 +90,10 @@ export const CHAINS_WITH_DEFAULT_TRACKED_ASSETS: ReadonlySet<ChainId> = new Set(
  */
 export const DEFAULT_ASSET_METADATA: ReadonlyMap<string, AssetMetadata> =
   new Map<string, AssetMetadata>([
-    [musdAssetId('eip155:1' as ChainId), MUSD_METADATA],
-    [musdAssetId('eip155:59144' as ChainId), MUSD_METADATA],
-    [musdAssetId('eip155:143' as ChainId), MUSD_METADATA],
+    [musdAssetId('eip155:1'), MUSD_METADATA],
+    [musdAssetId('eip155:59144'), MUSD_METADATA],
+    [musdAssetId('eip155:143'), MUSD_METADATA],
+    [ARC_NATIVE_ASSET_ID, ARC_NATIVE_METADATA],
   ]);
 
 /**
@@ -120,7 +135,10 @@ export function buildDefaultAssetsInfo(): Record<Caip19AssetId, AssetMetadata> {
   const info: Record<Caip19AssetId, AssetMetadata> = {};
   for (const assetIds of DEFAULT_TRACKED_ASSETS_BY_CHAIN.values()) {
     for (const assetId of assetIds) {
-      info[assetId] = MUSD_METADATA;
+      const metadata = DEFAULT_ASSET_METADATA.get(assetId);
+      if (metadata) {
+        info[assetId] = metadata;
+      }
     }
   }
   return info;

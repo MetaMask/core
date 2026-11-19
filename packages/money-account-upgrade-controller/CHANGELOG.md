@@ -7,6 +7,200 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/money-account-utils` from `^2.2.0` to `^2.2.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+
+## [7.0.0]
+
+### Added
+
+- Add `upgradeSuccessorAccount` method to upgrade an address as the successor of an existing Money Account, which links it to the Money Account on CHOMP, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add `getRegistrationStatus` method to check whether an address is part of a Money Account identity on CHOMP, and the `MoneyAccountRegistrationStatus` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add `registerMigrationIntents` method to sign and register the CHOMP intents of the old address in a Money Account migration, only when CHOMP reports the expected successor, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+
+### Changed
+
+- **BREAKING:** `UpgradeConfig` now requires `allowedCalldataEnforcer` and `allowedTargetsEnforcer` ([#11369](https://github.com/MetaMask/core/pull/11369))
+- **BREAKING:** `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:getDerivedIdentityByAddress` and `ChompApiService:createIntentsV2` actions ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
+
+### Fixed
+
+- Hex-encode the CHOMP challenge message before signing it, so the MPC keyring can sign it ([#11369](https://github.com/MetaMask/core/pull/11369))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/money-account-utils` from `^2.1.0` to `^2.2.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [6.0.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:createAddressChallenge` and `ChompApiService:associateAddressV2` actions, and no longer uses `ChompApiService:associateAddress` ([#10687](https://github.com/MetaMask/core/pull/10687))
+- The `associate-address` upgrade step now uses CHOMP's v2 address association: it signs a single-use SIWE challenge from `POST /v2/auth/address/challenge` instead of a `CHOMP Authentication {timestamp}` message, and submits it to `POST /v2/auth/address` ([#10687](https://github.com/MetaMask/core/pull/10687))
+  - A challenge that expired or was replaced while signing is retried once with a fresh challenge.
+- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^7.0.0` ([#10626](https://github.com/MetaMask/core/pull/10626), [#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [5.1.0]
+
+### Added
+
+- Create the premium vault (pvmUSD) deposit and withdrawal delegations and register their CHOMP intents (`cash-deposit-premium` / `cash-withdrawal-premium`) when the `moneyAccountPremiumVaultConfig` flag is served for the base vault's chain and CHOMP's service details include `vedaPremiumProtocol` for that chain ([#10430](https://github.com/MetaMask/core/pull/10430))
+  - Add optional `premiumVault` to `UpgradeConfig`.
+  - Resolve the premium delegation redeemer from CHOMP's `vedaPremiumProtocol.adapterAddress`; the remote feature flag only supplies vault contracts. A premium vault config served without a matching `vedaPremiumProtocol` in the service details response is dropped for that bootstrap run — the base vault still arms — and re-fetched on each later feature-flag or keyring trigger until CHOMP serves `vedaPremiumProtocol` for the chain. The base vault stays armed while re-fetching, including when a re-fetch fails or is skipped.
+  - Accounts already upgraded re-run the upgrade once when the premium vault config is first served; only the premium pair is signed and registered.
+  - Add `VaultDelegationType` type.
+- Add `forceUpgradeAccount(address)` method and `MoneyAccountUpgradeController:forceUpgradeAccount` messenger action, which skips the recorded-upgrade shortcut and always runs the upgrade steps so the base and, when configured, premium vault delegations and CHOMP intents exist before an action that depends on them ([#10430](https://github.com/MetaMask/core/pull/10430))
+  - Each step still only acts when its own remote check finds it not already done, so a call that finds everything in place signs and writes nothing.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/chomp-api-service` from `^5.0.0` to `^6.0.0` ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Bump `@metamask/money-account-utils` from `^2.0.0` to `^2.1.0` ([#10423](https://github.com/MetaMask/core/pull/10423), [#10430](https://github.com/MetaMask/core/pull/10430), [#10505](https://github.com/MetaMask/core/pull/10505))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^7.0.0` ([#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/chomp-api-service` from `^4.0.2` to `^5.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/delegation-controller` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/money-account-utils` from `^1.2.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [4.0.0]
+
+### Added
+
+- Add a public `sync()` method that re-evaluates the bootstrap gates against live state, for clients whose `isEnabled` hook reads client-only signals (onboarding, preferences) that should also re-trigger the bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+- Add `MissingMoneyAccountVaultConfigError`, reported through the `onBootstrapError` hook (once per controller lifetime) when the enable flag is on but `moneyAccountVaultConfig` is unserved or malformed ([#10072](https://github.com/MetaMask/core/pull/10072))
+
+### Changed
+
+- **BREAKING:** The controller now owns its bootstrap: it subscribes to `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged`, gates on an unlocked wallet with an HD keyring, parses the `moneyAccountVaultConfig` remote feature flag, and runs a serialized bootstrap that re-checks its gates across `await` points and re-runs when the vault config changes ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - `init()` is now the no-argument lifecycle entry point (subscribe and first sync), to be called once after all controllers and services the messenger reaches are constructed. The former `init({ chainId, boringVaultAddress })` config-arming routine is internal and reads the chain id and boring vault from the flag; clients that called it must remove that orchestration.
+  - The constructor requires a `hooks` option carrying the client-specific parts of the bootstrap: `isEnabled(remoteFeatureFlags)` (required — version-gated flag evaluation depends on the client version, and clients may add gates such as a basic-functionality toggle), plus optional `isEligible()` (an async pre-bootstrap gate, e.g. fail-closed geolocation), `ensureChainConfigured(vaultConfig)` (client-specific network adding), and `onBootstrapError(error)`.
+  - The messenger must now allow the `RemoteFeatureFlagController:getState` and `KeyringController:getState` actions and the `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged` events.
+- **BREAKING:** `upgradeAccount()` now waits for the in-flight bootstrap chain to settle (including runs scheduled while waiting) instead of throwing, and throws a new not-bootstrapped error message when no bootstrap has armed a config or the wallet is locked. Scheduling a bootstrap for a changed vault config — or `isEnabled` flipping off — disarms the previous config, so an upgrade can never sign against a superseded vault, including after a failed re-bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - The armed config is re-checked before every step; if it is disarmed or superseded while the sequence is running, `upgradeAccount()` throws an upgrade-aborted error before the next step signs anything and records nothing
+  - An `onBootstrapError` hook that throws is contained: the failed bootstrap is still forgotten and retried on the next trigger, and the throw does not escape `init()` or `sync()`
+- Add `@metamask/money-account-utils` and `@metamask/remote-feature-flag-controller` as dependencies ([#10072](https://github.com/MetaMask/core/pull/10072))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972), [#10105](https://github.com/MetaMask/core/pull/10105))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/money-account-utils` from `^1.1.0` to `^1.2.0` ([#10105](https://github.com/MetaMask/core/pull/10105))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [3.0.0]
+
+### Added
+
+- **BREAKING:** Add persisted state tracking fully upgraded accounts ([#9500](https://github.com/MetaMask/core/pull/9500))
+  - `MoneyAccountUpgradeControllerState` changes from `Record<string, never>` to `{ upgradedAccounts }`, keyed by lowercased account address. Each entry records when the upgrade sequence completed and a fingerprint of the config it completed under (see new `MoneyAccountUpgradeStatus` type). Code constructing the state type (e.g. `{}` in tests or default-state maps) must include `upgradedAccounts`.
+  - The constructor now accepts an optional `state` option, merged with the defaults; add `getDefaultMoneyAccountUpgradeControllerState` to construct those defaults.
+- Add `TerminalUpgradeError` and `isTerminalMoneyAccountUpgradeError`, and a `terminal` property on `MoneyAccountUpgradeStepError`, marking failures that cannot resolve by retrying — currently an account delegated to a third-party EIP-7702 implementation, an account with unexpected on-chain code, or an address confirmed to be associated with a different CHOMP profile ([#9500](https://github.com/MetaMask/core/pull/9500))
+  - The controller does not retry on its own; clients implementing their own retry logic around `upgradeAccount` can use `isTerminalMoneyAccountUpgradeError` to stop retrying failures that cannot succeed.
+
+### Changed
+
+- **BREAKING:** The `associate-address` upgrade step now checks the profile's existing address associations via `ChompApiService:getAssociatedAddresses` before signing, and reports `already-done` without signing or submitting anything when the address is already associated ([#9387](https://github.com/MetaMask/core/pull/9387))
+  - `MoneyAccountUpgradeControllerMessenger` consumers must grant the `ChompApiService:getAssociatedAddresses` action alongside the previously required actions, and must provide a `@metamask/chomp-api-service` version that registers it (`>=4.0.0`).
+  - The lookup is an optimization: if it fails, the step falls through to the previous sign-and-submit behavior.
+  - A 409 conflict from the association request is disambiguated by re-fetching the associations, so a same-profile create race reports `already-done` instead of failing the upgrade; a genuine conflict (address associated with a different profile) still fails the step.
+- `upgradeAccount` now skips the step sequence entirely when the account is recorded in state as upgraded under the active config fingerprint, and records the account after a successful run. If the chain, CHOMP contract addresses, or Delegation Framework version change, the fingerprint no longer matches and the sequence re-runs ([#9500](https://github.com/MetaMask/core/pull/9500))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Bump `@metamask/chomp-api-service` from `^3.1.0` to `^4.0.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
+
+## [2.2.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [2.2.0]
+
+### Changed
+
+- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^3.0.0` ([#9220](https://github.com/MetaMask/core/pull/9220), [#9348](https://github.com/MetaMask/core/pull/9348))
+
+## [2.1.0]
+
+### Added
+
+- Add `MoneyAccountUpgradeStepError` (and the `isMoneyAccountUpgradeStepError` type guard). `upgradeAccount` now wraps any error thrown by a step in this error, exposing the failing step's `name` as `step` and preserving the original error as `cause`, so consumers can attribute failures to a specific step when reporting to Sentry). ([#9204](https://github.com/MetaMask/core/pull/9204))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [2.0.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Scope the `register-intents` step to the currently-configured token addresses (deposit mUSD / withdrawal vmUSD) so that stale delegations for previously-configured tokens are no longer registered as intents ([#9075](https://github.com/MetaMask/core/pull/9075))
+
+## [2.0.4]
+
+### Changed
+
+- Bump `@metamask/delegation-controller` from `^3.0.1` to `^3.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [2.0.3]
+
+### Changed
+
+- Bump `@metamask/delegation-core` from `^2.0.0` to `^2.2.1` ([#8823](https://github.com/MetaMask/core/pull/8823))
+- Bump `@metamask/delegation-deployments` from `^1.3.0` to `^1.4.0` ([#8823](https://github.com/MetaMask/core/pull/8823))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/delegation-controller` from `^3.0.0` to `^3.0.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
 ## [2.0.2]
 
 ### Changed
@@ -91,7 +285,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.1...@metamask/money-account-upgrade-controller@7.0.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.0...@metamask/money-account-upgrade-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...@metamask/money-account-upgrade-controller@6.0.0
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...@metamask/money-account-upgrade-controller@5.1.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...@metamask/money-account-upgrade-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.1...@metamask/money-account-upgrade-controller@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.0...@metamask/money-account-upgrade-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.1...@metamask/money-account-upgrade-controller@3.0.0
+[2.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.0...@metamask/money-account-upgrade-controller@2.2.1
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.1.0...@metamask/money-account-upgrade-controller@2.2.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.5...@metamask/money-account-upgrade-controller@2.1.0
+[2.0.5]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.4...@metamask/money-account-upgrade-controller@2.0.5
+[2.0.4]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...@metamask/money-account-upgrade-controller@2.0.4
+[2.0.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.2...@metamask/money-account-upgrade-controller@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.1...@metamask/money-account-upgrade-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.0...@metamask/money-account-upgrade-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.3.2...@metamask/money-account-upgrade-controller@2.0.0

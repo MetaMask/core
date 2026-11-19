@@ -12,6 +12,295 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `fetchTokenSearch` and `getTokenSearchQueryOptions` to `TokenApiClient` for querying the Token API search endpoint ([#8822](https://github.com/MetaMask/core/pull/8822))
 - Export `TokenSearchResult`, `TokenSearchPageInfo`, `TokenSearchResponse`, and `TokenSearchQueryOptions` types ([#8822](https://github.com/MetaMask/core/pull/8822))
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [14.1.0]
+
+### Added
+
+- Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - The response `data` is a `V5TransactionRecord`, the same row shape as `GET /v5/multiaccount/transactions`
+
+### Changed
+
+- V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
+  - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
+  - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+
+### Deprecated
+
+- Deprecate `AccountsApiClient.fetchV1TransactionByHash` and `getV1TransactionByHashQueryOptions` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - Fetch one transaction with `fetchV5TransactionById` (`GET /v5/accounts/{accountId}/transactions/{txId}`) instead of `GET /v1/networks/{chainId}/transactions/{txHash}`
+
+## [14.0.0]
+
+### Added
+
+- Add `TokenApiClient.fetchV2Assets` and `getV2AssetsQueryOptions` for Token API `GET /v2/assets`, supporting `includeLaunchpadData` and `includeTokenSecurityData`, along with `V2AssetResponse` and `V2AssetsQueryOptions` types ([#11251](https://github.com/MetaMask/core/pull/11251))
+- Add optional `subscriptionNamespace` to `OHLCVService` so callers can select the WebSocket channel namespace (default: `ohlcv.v1`) ([#11249](https://github.com/MetaMask/core/pull/11249))
+
+### Changed
+
+- **BREAKING:** `OHLCVService` WebSocket channels now use the `ohlcv.v1` namespace instead of `market-data.v1` ([#11249](https://github.com/MetaMask/core/pull/11249))
+  - Channel strings change from `market-data.v1.<assetId>.<interval>.<currency>` to `ohlcv.v1.<assetId>.<interval>.<currency>`, and system notifications move to `system-notifications.v1.ohlcv.v1`.
+  - Pass `subscriptionNamespace: 'market-data.v1'` when constructing `OHLCVService` to keep the previous stream until `ohlcv.v1` is available in production.
+- Bump `uuid` from `^14.0.0` to `^14.0.1` ([#11179](https://github.com/MetaMask/core/pull/11179))
+
+## [13.0.0]
+
+### Added
+
+- Add `AccountsApiClient.fetchV5MultiAccountTransactions`, `getV5MultiAccountTransactionsQueryOptions`, and `getV5MultiAccountTransactionsInfiniteQueryOptions` for Accounts API `GET /v5/multiaccount/transactions`, which returns transactions for EVM and CAS-backed accounts ([#11194](https://github.com/MetaMask/core/pull/11194))
+- Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add `ChannelSubscriptionManager`, a reusable per-channel WebSocket subscription lifecycle helper (reference counting, grace-period unsubscribe, unsubscribe retry, and resubscribe on reconnect) shared by `OHLCVService` and `LaunchpadTokenDetailsService` ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** Remove the unused `BackendWebSocketService:getConnectionInfo` and `BackendWebSocketService:findSubscriptionsByChannelPrefix` actions from `OHLCV_SERVICE_ALLOWED_ACTIONS` ([#10884](https://github.com/MetaMask/core/pull/10884))
+  - `OHLCV_SERVICE_ALLOWED_ACTIONS` / `OHLCV_SERVICE_ALLOWED_EVENTS` and `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS` / `LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` are now sourced from a single shared set (the `BackendWebSocketService` actions/events the `ChannelSubscriptionManager` actually calls), so both services grant identical, minimal permissions.
+  - If you build the `OHLCVService` restricted messenger from `OHLCV_SERVICE_ALLOWED_ACTIONS`, it will no longer be granted those two actions. Neither action was ever called by `OHLCVService`, so no runtime behavior changes; grant them explicitly only if your own code calls them through that messenger.
+- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public methods or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^36.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [12.3.0]
+
+### Changed
+
+- Publish `AccountActivityService:statusChanged` with status `down` for every tracked chain when enabled chain prefixes change, matching WebSocket disconnect, so those chains are released for snaps feature flag changes ([#10819](https://github.com/MetaMask/core/pull/10819))
+
+## [12.2.0]
+
+### Added
+
+- Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+
+## [12.1.0]
+
+### Added
+
+- Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
+- Add `TokenApiClient.fetchV2SupportedNetworks` for Token API `GET /v2/supportedNetworks` ([#10672](https://github.com/MetaMask/core/pull/10672))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- `BackendWebSocketService` routes notifications by exact channel name and `subscriptionId`. Account-activity chain-wildcard matching, stale-subscription channel fallback, and nested payload unwrapping have been removed ([#10754](https://github.com/MetaMask/core/pull/10754))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** `PriceSupportedNetworksResponse` now matches the real `/v2/supportedNetworks` response, with `partialSupport` typed as `{ spotPricesV2: string[]; spotPricesV3: string[] }` instead of `string[]` ([#10582](https://github.com/MetaMask/core/pull/10582))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^33.0.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.103.2` ([#9324](https://github.com/MetaMask/core/pull/9324), [#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+### Deprecated
+
+- Deprecate `PriceSupportedNetworksResponse` in favor of `PriceV2SupportedNetworksResponse` ([#10582](https://github.com/MetaMask/core/pull/10582))
+
+## [11.0.0]
+
+### Added
+
+- Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
+- Add optional `metadata` to `V5BalanceItem` and to the Account Activity `Balance` type ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Add optional `sponsored`, `spendableBalance`, and `minimumReserveBalance` Stellar fields to `V6TokenBalanceMetadata` ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- **BREAKING:** Rename `V6TokenMetadata` to `V6TokenBalanceMetadata` and `V6TokenStellarMetadata` to `V6StellarTokenBalanceMetadata`
+- **BREAKING:** Accounts API `V2SupportedNetworksResponse` now uses CAIP-2 string arrays for both `fullSupport` and `partialSupport`, replacing decimal `fullSupport` and object-shaped `partialSupport.balances` ([#10144](https://github.com/MetaMask/core/pull/10144))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^8.1.0` to `^9.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [9.1.0]
+
+### Added
+
+- Add `authTokenTimeout` to `ApiPlatformClientOptions` and export `DEFAULT_AUTH_TOKEN_TIMEOUT` ([#10104](https://github.com/MetaMask/core/pull/10104))
+  - Requests wait at most this long (default 500ms) for `getBearerToken`. If the token is not ready, the request is sent unauthenticated while the in-flight `fetchQuery` continues so later requests can attach the token. Set `authTokenTimeout` to `0` to wait indefinitely.
+  - Bearer-token `fetchQuery` uses `staleTime: 0` so concurrent requests are de-duplicated without a second JWT cache; token lifetime stays with AuthenticationController.
+- Add `bypassServerCache` option to `FetchOptions` ([#10068](https://github.com/MetaMask/core/pull/10068))
+  - When true, the v5/v6 multi-account balances requests skip the client-side query cache (stale time defaults to 0) and append a random `bypassServerCache` query param so the Accounts API's server-side cache (keyed on the full URL) misses. Intended for hard refreshes only, e.g. right after a transaction confirms.
+
+### Changed
+
+- Bearer-token `fetchQuery` no longer uses a 5-minute `STALE_TIMES.AUTH_TOKEN`; `STALE_TIMES.AUTH_TOKEN` is removed ([#10104](https://github.com/MetaMask/core/pull/10104))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.1.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Align the Accounts API v6 balance response types with the flat `/v6/multiaccount/balances` response: `V6BalancesResponse.accounts` is replaced by `balances`, `V6BalanceItem` now includes `accountId`, `object`, and `type`, `V6BalanceMetadata.protocolIconUrl` is optional, `processingDefiPositions` is now an optional response-level array of CAIP-10 account IDs, and `V6AccountBalancesEntry` is removed ([#9911](https://github.com/MetaMask/core/pull/9911))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
+## [8.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^8.0.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [8.1.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+### Fixed
+
+- `OHLCVService` now flushes grace-period channels when subscribing to a different asset/interval, retries failed WebSocket unsubscribes with backoff before forcing reconnection, and only removes channel tracking after a successful unsubscribe ([#9678](https://github.com/MetaMask/core/pull/9678))
+
+## [8.1.0]
+
+### Changed
+
+- `AccountActivityService` now debounces chain status updates instead of publishing one event per notification ([#9700](https://github.com/MetaMask/core/pull/9700))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [8.0.0]
+
+### Fixed
+
+- **BREAKING:** Align `V6_DEFI_POSITION_TYPES` (and inferred `V6DeFiPositionType`) with Accounts API / Zerion wallet fungible position types: `deposit`, `loan`, `locked`, `staked`, `reward`, `wallet`, `investment` ([#9683](https://github.com/MetaMask/core/pull/9683))
+
+## [7.0.0]
+
+### Added
+
+- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#9557](https://github.com/MetaMask/core/pull/9557))
+- Add `groupId` to `V6BalanceMetadata` to match Accounts API v6 DeFi metadata ([#9557](https://github.com/MetaMask/core/pull/9557))
+
+### Changed
+
+- **BREAKING:** Rename `V6BalanceMetadata.protocolName` to `productName` to match the Accounts API v6 DeFi metadata field ([#9557](https://github.com/MetaMask/core/pull/9557))
+- **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
+  - The `AccountActivityServiceMessenger` now requires the following delegate actions and events:
+    - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event
+    - `AccountTreeController:getAccountsFromSelectedAccountGroup` action and `AccountTreeController:selectedAccountGroupChange` event
+  - EVM (`eip155`) subscriptions are always enabled. Solana, Tron, and Stellar subscriptions are enabled when the corresponding `networkAssetsSnapsMigrationSolana` / `networkAssetsSnapsMigrationTron` / `networkAssetsSnapsMigrationStellar` feature flag has `stage >= 1`, and disabled otherwise.
+  - Accounts whose scopes do not match an enabled chain are no longer subscribed at all.
+  - When the enabled chains change via a feature flag update while the websocket is connected, the service automatically resubscribes the selected account.
+- Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a dependency ([#9379](https://github.com/MetaMask/core/pull/9379))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
+### Removed
+
+- **BREAKING:** `AccountActivityService.subscribe` and `AccountActivityService.unsubscribe` methods have been removed ([#9531](https://github.com/MetaMask/core/pull/9531))
+
+### Fixed
+
+- `AccountActivityService` subscribes to all supported scopes for a given account ([#9379](https://github.com/MetaMask/core/pull/9379))
+
+## [6.5.0]
+
+### Added
+
+- Add `AccountsApiClient` support for the Accounts API `/v6/multiaccount/balances` endpoint via `fetchV6MultiAccountBalances` / `getV6MultiAccountBalancesQueryOptions`, returning token balances plus optional DeFi positions and spot prices (new types `V6BalancesResponse`, `V6AccountBalancesEntry`, `V6BalanceItem`, `V6BalanceMetadata`, `V6TokenMetadata`, `V6VsCurrency`) ([#9302](https://github.com/MetaMask/core/pull/9302))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [6.4.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Fixed
+
+- `BackendWebSocketService` routes account-activity notifications when subscribed channels use chain wildcard `0` but the server sends a specific chain id, falls back to channel-based subscription lookup when `subscriptionId` is stale, and normalizes nested notification payloads ([#9273](https://github.com/MetaMask/core/pull/9273))
+
+## [6.3.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [6.3.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [6.3.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
 ## [6.3.0]
 
 ### Added
@@ -289,7 +578,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...@metamask/core-backend@12.1.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.0...@metamask/core-backend@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...@metamask/core-backend@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...@metamask/core-backend@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...@metamask/core-backend@10.0.0
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...@metamask/core-backend@9.1.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0
+[8.1.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...@metamask/core-backend@8.1.2
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...@metamask/core-backend@8.1.1
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.0.0...@metamask/core-backend@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...@metamask/core-backend@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...@metamask/core-backend@7.0.0
+[6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
+[6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
+[6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
+[6.3.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...@metamask/core-backend@6.3.2
+[6.3.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...@metamask/core-backend@6.3.1
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...@metamask/core-backend@6.3.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...@metamask/core-backend@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1

@@ -1,37 +1,43 @@
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
   parseLegacyAccountFromUserStorageResponse,
-} from './format-utils';
+} from './format-utils.js';
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
-} from './validation';
+} from './validation.js';
 
-jest.mock('./validation');
-jest.mock('../../logger');
+vi.mock('./validation');
+vi.mock('../../logger');
 
-const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
+const mockBackupAndSyncLogger = backupAndSyncLogger as MockedFunction<
   typeof backupAndSyncLogger
 >;
 
 const mockAssertValidUserStorageWallet =
-  assertValidUserStorageWallet as jest.MockedFunction<
+  assertValidUserStorageWallet as MockedFunction<
     typeof assertValidUserStorageWallet
   >;
 const mockAssertValidUserStorageGroup =
-  assertValidUserStorageGroup as jest.MockedFunction<
+  assertValidUserStorageGroup as MockedFunction<
     typeof assertValidUserStorageGroup
   >;
 const mockAssertValidLegacyUserStorageAccount =
-  assertValidLegacyUserStorageAccount as jest.MockedFunction<
+  assertValidLegacyUserStorageAccount as MockedFunction<
     typeof assertValidLegacyUserStorageAccount
   >;
 
@@ -60,10 +66,6 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       name: 'Test Group',
       metadata: { entropy: { groupIndex: 0 } },
     } as unknown as AccountGroupMultichainAccountObject;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   describe('formatWalletForUserStorageUsage', () => {

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionPayController } from './TransactionPayController';
+import type { TransactionPayController } from './TransactionPayController.js';
 
 /**
  * Sets the transaction configuration.
@@ -50,6 +50,20 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
 };
 
 /**
+ * Returns the configured client identifier.
+ *
+ * Used to set the `X-Client-Id` header on intents API requests so the
+ * server can distinguish Mobile from Extension traffic. This is
+ * intentionally not stored in controller state.
+ *
+ * @returns The client identifier, if configured.
+ */
+export type TransactionPayControllerGetClientIdAction = {
+  type: `TransactionPayController:getClientId`;
+  handler: TransactionPayController['getClientId'];
+};
+
+/**
  * Gets the delegation transaction for a given transaction.
  *
  * Converts the provided transaction into a redeem delegation by delegating
@@ -64,6 +78,38 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
 export type TransactionPayControllerGetDelegationTransactionAction = {
   type: `TransactionPayController:getDelegationTransaction`;
   handler: TransactionPayController['getDelegationTransaction'];
+};
+
+/**
+ * Returns additional transactions for the paymentOverride flow.
+ *
+ * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+ * Called during quote execution when `paymentOverride` is defined on the transaction.
+ * Returns an empty array when no callback is configured.
+ *
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+ * @returns A promise resolving to the additional transactions array.
+ */
+export type TransactionPayControllerGetAmountDataAction = {
+  type: `TransactionPayController:getAmountData`;
+  handler: TransactionPayController['getAmountData'];
+};
+
+/**
+ * Returns optional fiat execution configuration.
+ *
+ * This is intentionally not stored in controller state.
+ *
+ * @returns Fiat execution options, if configured.
+ */
+export type TransactionPayControllerGetFiatOptionsAction = {
+  type: `TransactionPayController:getFiatOptions`;
+  handler: TransactionPayController['getFiatOptions'];
+};
+
+export type TransactionPayControllerGetPaymentOverrideDataAction = {
+  type: `TransactionPayController:getPaymentOverrideData`;
+  handler: TransactionPayController['getPaymentOverrideData'];
 };
 
 /**
@@ -112,7 +158,11 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
+  | TransactionPayControllerGetClientIdAction
   | TransactionPayControllerGetDelegationTransactionAction
+  | TransactionPayControllerGetAmountDataAction
+  | TransactionPayControllerGetFiatOptionsAction
+  | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;

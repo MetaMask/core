@@ -9,8 +9,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [7.1.0]
+
+### Added
+
+- Add `createIntentsV2` method for `POST /v2/intent`, which accepts the Money Account migration intent types, and the `ChompMigrationIntentType`, `SendIntentV2Params` and `SendIntentV2Response` types, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add optional `vaultMigrationHelperAddress` to `ServiceDetailsChain` ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add `startFundsTransfer` method for `POST /v1/money-account/identities/address/:address/funds-transfer`, which starts moving the funds of a migrating Money Account to its successor, and the `FundsTransferStart` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+
+### Changed
+
+- `getDerivedIdentities` and `getDerivedIdentityByAddress` now omit migration steps they don't know instead of throwing ([#11369](https://github.com/MetaMask/core/pull/11369))
+
+## [7.0.0]
+
+### Added
+
+- Add `getDerivedIdentities` method, also expose it through the messenger as `ChompApiService:getDerivedIdentities` ([#10695](https://github.com/MetaMask/core/pull/10695))
+- Add `getDerivedIdentityByAddress` method, and expose it through the messenger as `ChompApiService:getDerivedIdentityByAddress` ([#10695](https://github.com/MetaMask/core/pull/10695))
+- Add `disassociateAddress` method for `DELETE /v1/auth/address`, and expose it through the messenger as `ChompApiService:disassociateAddress` ([#10695](https://github.com/MetaMask/core/pull/10695))
+  - For an address linked as a successor, this cancels the Money Account migration and unfreezes its predecessor. CHOMP rejects this with `LINK_COMPLETE` once a funds-transfer request exists for the migration.
+  - The request is never retried.
+- Add `AddressIdentityResponse`, `DerivedIdentitiesResponse`, `DerivedIdentity`, `DerivedIdentityAddressRole`, `DerivedIdentityMigration`, `DerivedIdentityStatus`, `MigrationStep`, `MigrationStepState`, `MigrationTransfer`, `ChompApiServiceDisassociateAddressAction`, `ChompApiServiceGetDerivedIdentitiesAction`, and `ChompApiServiceGetDerivedIdentityByAddressAction` types ([#10695](https://github.com/MetaMask/core/pull/10695))
+- Add `createAddressChallenge` method for `POST /v2/auth/address/challenge`, and expose it through the messenger as `ChompApiService:createAddressChallenge` ([#10687](https://github.com/MetaMask/core/pull/10687))
+  - Returns a single-use SIWE message bound to the profile, chain, purpose and address. The `ASSOCIATE_SUCCESSOR` purpose takes a `predecessorAddress` to link the address as the successor of an existing Money Account.
+- Add `associateAddressV2` method for `POST /v2/auth/address`, and expose it through the messenger as `ChompApiService:associateAddressV2` ([#10687](https://github.com/MetaMask/core/pull/10687))
+  - Submits the signed challenge message to associate the address.
+- Add `ChompApiError`, thrown for non-2xx responses, which exposes the CHOMP error code from the response body as `code` ([#10687](https://github.com/MetaMask/core/pull/10687))
+- Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types ([#10687](https://github.com/MetaMask/core/pull/10687))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Removed
+
+- **BREAKING:** Remove the `associateAddress` method and `ChompApiService:associateAddress` messenger action (`POST /v1/auth/address`), along with the `AssociateAddressParams` and `ChompApiServiceAssociateAddressAction` types ([#10687](https://github.com/MetaMask/core/pull/10687))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+### Fixed
+
+- Ignore unrecognised intent types returned by the CHOMP API instead of failing to parse the whole response ([#10609](https://github.com/MetaMask/core/pull/10609))
+  - `getIntentsByAddress` now omits intents whose `metadata.type` is not a known `ChompIntentType`.
+  - `getServiceDetails` now omits unknown values from each protocol's `intentTypes`.
+
+## [6.0.0]
+
+### Added
+
+- Add `ChompIntentType` export, covering every vault and subscription CHOMP intent type ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Add optional `vedaPremiumProtocol` service-details support alongside the required base `vedaProtocol` ([#10430](https://github.com/MetaMask/core/pull/10430))
+
+### Changed
+
+- **BREAKING:** Widen the intent metadata type union (used by `SendIntentParams`, intent responses, and the service-details `intentTypes` struct) to include `cash-deposit-premium`, `cash-withdrawal-premium`, and `cash-subscription`, alongside the existing `cash-deposit` and `cash-withdrawal` ([#10430](https://github.com/MetaMask/core/pull/10430))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+### Fixed
+
+- Always fetch `getIntentsByAddress` fresh, so a follow-up read does not reuse a stale intent list and try to create intents that already exist ([#10430](https://github.com/MetaMask/core/pull/10430))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [4.0.2]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [4.0.1]
+
+### Changed
+
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [4.0.0]
+
+### Added
+
+- Add `getAssociatedAddresses` method, exposed as the `ChompApiService:getAssociatedAddresses` messenger action, which fetches the active address associations of the authenticated profile via `GET /v1/auth/address` ([#9387](https://github.com/MetaMask/core/pull/9387))
+  - Also adds the `ProfileAddressEntry` type describing each returned entry and the `ChompApiServiceGetAssociatedAddressesAction` type
+  - Returned addresses are parsed into canonical lowercase form, entries are guaranteed to have `status: 'active'`, and results are never served from cache
+  - The query cache key is scoped to the authenticated profile via a SHA-256 digest of the bearer token, so concurrent calls only share an in-flight request when they are for the same profile and one profile's associations are never cached under another's key
+
+### Changed
+
+- **BREAKING:** `associateAddress` now throws an `HttpError` on a 409 response instead of returning the parsed body ([#9387](https://github.com/MetaMask/core/pull/9387))
+  - A 409 from `POST /v1/auth/address` indicates the address is associated with a _different_ profile; the previous handling attempted to parse the error body as an association result and failed with a confusing validation error. An address already associated with the authenticated profile is reported via a 201 response with `status: 'active'`, which is unchanged.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [3.1.0]
 
@@ -44,7 +156,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.0.0...@metamask/chomp-api-service@7.1.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.1...@metamask/chomp-api-service@7.0.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...@metamask/chomp-api-service@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.2...@metamask/chomp-api-service@5.0.0
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...@metamask/chomp-api-service@4.0.2
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...@metamask/chomp-api-service@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...@metamask/chomp-api-service@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.1...@metamask/chomp-api-service@3.1.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...@metamask/chomp-api-service@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@2.0.0...@metamask/chomp-api-service@3.0.0

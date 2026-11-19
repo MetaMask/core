@@ -1,0 +1,5050 @@
+/* eslint-disable */
+/**
+ * PerpsController Tests
+ * Clean, focused test suite for PerpsController
+ */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass } from 'vitest';
+
+import {
+  AGENT_ADDRESS,
+  MAIN_SIGNATURE,
+  MAINNET_ACCOUNT,
+  OTHER_MAIN_ADDRESS,
+} from '../helpers/agentFixtures.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockPosition,
+} from '../helpers/providerMocks.js';
+import {
+  createKeyringMessenger,
+  createMockEvmAccount,
+  createMockInfrastructure,
+  createMockMessenger,
+  keyringCalls,
+} from '../helpers/serviceMocks.js';
+
+vi.mock('@nktkas/hyperliquid', () => ({}));
+
+import {
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
+} from '../../src/constants/eventNames.js';
+import {
+  PERPS_CONSTANTS,
+  PERPS_DISK_CACHE_MARKETS,
+  PERPS_DISK_CACHE_USER_DATA,
+  PROVIDER_CONFIG,
+} from '../../src/constants/perpsConfig.js';
+import {
+  PerpsController,
+  getDefaultPerpsControllerState,
+  InitializationState,
+} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import * as AggregatedPerpsProviderModule from '../../src/providers/AggregatedPerpsProvider.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { LighterProvider } from '../../src/providers/LighterProvider.js';
+import * as accountServiceModule from '../../src/services/AccountService.js';
+import * as dataLakeServiceModule from '../../src/services/DataLakeService.js';
+import * as depositServiceModule from '../../src/services/DepositService.js';
+import * as eligibilityServiceModule from '../../src/services/EligibilityService.js';
+import * as featureFlagConfigurationServiceModule from '../../src/services/FeatureFlagConfigurationService.js';
+import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
+import type { ServiceContext } from '../../src/services/ServiceContext.js';
+import * as tradingServiceModule from '../../src/services/TradingService.js';
+import type {
+  AccountState,
+  GetAvailableDexsParams,
+  HyperLiquidCredentials,
+  LighterCredentials,
+  PerpsProvider,
+  PerpsPlatformDependencies,
+  PerpsMarketData,
+  PerpsProviderType,
+  PerpsUserDataSnapshot,
+  Position,
+  SubscribeAccountParams,
+} from '../../src/types/index.js';
+import {
+  PerpsAnalyticsEvent,
+  WebSocketConnectionState,
+} from '../../src/types/index.js';
+
+vi.mock('../../src/providers/HyperLiquidProvider');
+vi.mock('../../src/providers/LighterProvider');
+
+// Mock transaction controller utility
+const mockAddTransaction = vi.fn();
+vi.mock('../../../util/transaction-controller', () => ({
+  addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
+}));
+
+// Mock wait utility to speed up retry tests
+vi.mock('../../src/utils/wait', () => ({
+  wait: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock stream manager
+const mockStreamManager = {
+  positions: { pause: vi.fn(), resume: vi.fn() },
+  account: { pause: vi.fn(), resume: vi.fn() },
+  orders: { pause: vi.fn(), resume: vi.fn() },
+  prices: { pause: vi.fn(), resume: vi.fn() },
+  orderFills: { pause: vi.fn(), resume: vi.fn() },
+};
+
+vi.mock('../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: vi.fn(() => mockStreamManager),
+}));
+
+vi.mock(import('@metamask/utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  formatAccountToCaipAccountId: vi
+    .fn()
+    .mockReturnValue('eip155:1:0x1234567890123456789012345678901234567890'),
+}));
+
+// Mock EligibilityService as a class with instance methods
+const mockEligibilityServiceInstance = {
+  checkEligibility: vi.fn().mockResolvedValue(true),
+};
+vi.mock('../../src/services/EligibilityService', () => ({
+  EligibilityService: vi.fn().mockImplementation(function () {
+    return mockEligibilityServiceInstance;
+  }),
+}));
+
+// Mock DepositService as a class with instance methods
+const mockDepositServiceInstance = {
+  prepareTransaction: vi.fn(),
+};
+vi.mock('../../src/services/DepositService', () => ({
+  DepositService: vi.fn().mockImplementation(function () {
+    return mockDepositServiceInstance;
+  }),
+}));
+
+// Mock MarketDataService as a class with instance methods
+const mockMarketDataServiceInstance = {
+  getPositions: vi.fn(),
+  getAccountState: vi.fn(),
+  getMarkets: vi.fn(),
+  getMarketDataWithPrices: vi
+    .fn()
+    .mockImplementation(
+      ({
+        provider,
+      }: {
+        provider: { getMarketDataWithPrices: () => Promise<unknown[]> };
+      }) => provider.getMarketDataWithPrices(),
+    ),
+  getWithdrawalRoutes: vi.fn().mockReturnValue([]),
+  validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
+  validateOrder: vi.fn(),
+  calculateMaintenanceMargin: vi.fn().mockResolvedValue(0),
+  calculateLiquidationPrice: vi.fn(),
+  getMaxLeverage: vi.fn(),
+  calculateFees: vi.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: vi.fn(),
+  getAvailableDexs: vi.fn().mockResolvedValue([]),
+  getBlockExplorerUrl: vi.fn(),
+  getOrderFills: vi.fn(),
+  getOrders: vi.fn(),
+  getFunding: vi.fn(),
+};
+vi.mock('../../src/services/MarketDataService', () => ({
+  MarketDataService: vi.fn().mockImplementation(function () {
+    return mockMarketDataServiceInstance;
+  }),
+}));
+
+// Mock TradingService as a class with instance methods
+const mockTradingServiceInstance = {
+  placeOrder: vi.fn(),
+  editOrder: vi.fn(),
+  cancelOrder: vi.fn(),
+  cancelOrders: vi.fn(),
+  closePosition: vi.fn(),
+  closePositions: vi.fn(),
+  updatePositionTPSL: vi.fn(),
+  updateMargin: vi.fn(),
+  flipPosition: vi.fn(),
+  setControllerDependencies: vi.fn(),
+};
+vi.mock('../../src/services/TradingService', () => ({
+  TradingService: vi.fn().mockImplementation(function () {
+    return mockTradingServiceInstance;
+  }),
+}));
+
+// Mock AccountService as a class with instance methods
+const mockAccountServiceInstance = {
+  withdraw: vi.fn(),
+  validateWithdrawal: vi.fn(),
+};
+vi.mock('../../src/services/AccountService', () => ({
+  AccountService: vi.fn().mockImplementation(function () {
+    return mockAccountServiceInstance;
+  }),
+}));
+
+// Mock DataLakeService as a class with instance methods
+const mockDataLakeServiceInstance = {
+  reportOrder: vi.fn(),
+};
+vi.mock('../../src/services/DataLakeService', () => ({
+  DataLakeService: vi.fn().mockImplementation(function () {
+    return mockDataLakeServiceInstance;
+  }),
+}));
+
+// Mock FeatureFlagConfigurationService as a class with instance methods
+const mockFeatureFlagConfigurationServiceInstance = {
+  refreshEligibility: vi.fn((options: any) => {
+    // Simulate the service's behavior: extract blocked regions from remote flags
+    const remoteFlags =
+      options.remoteFeatureFlagControllerState.remoteFeatureFlags;
+    const perpsGeoBlockedRegionsFeatureFlag =
+      remoteFlags?.perpsPerpTradingGeoBlockedCountriesV2;
+    const remoteBlockedRegions =
+      perpsGeoBlockedRegionsFeatureFlag?.blockedRegions;
+
+    if (
+      Array.isArray(remoteBlockedRegions) &&
+      options.context.setBlockedRegionList
+    ) {
+      const currentList = options.context.getBlockedRegionList?.();
+      // Never downgrade from remote to fallback
+      if (!currentList || currentList.source !== 'remote') {
+        options.context.setBlockedRegionList(remoteBlockedRegions, 'remote');
+      }
+    }
+
+    // Call refreshEligibility callback if available
+    if (options.context.refreshEligibility) {
+      options.context.refreshEligibility().catch(() => {
+        // Ignore errors in mock
+      });
+    }
+
+    // Also call refreshHip3Config if available
+    if (remoteFlags) {
+      mockFeatureFlagConfigurationServiceInstance.refreshHip3Config(options);
+    }
+  }),
+  refreshHip3Config: vi.fn(),
+  setBlockedRegions: vi.fn((options: any) => {
+    // Simulate setBlockedRegions behavior
+    const { list, source, context } = options;
+    if (context.setBlockedRegionList && context.getBlockedRegionList) {
+      const currentList = context.getBlockedRegionList();
+      // Never downgrade from remote to fallback
+      if (source === 'fallback' && currentList.source === 'remote') {
+        return;
+      }
+      if (Array.isArray(list)) {
+        context.setBlockedRegionList(list, source);
+      }
+    }
+
+    // Call refreshEligibility callback if available
+    if (context.refreshEligibility) {
+      context.refreshEligibility().catch(() => {
+        // Ignore errors in mock
+      });
+    }
+  }),
+};
+vi.mock('../../src/services/FeatureFlagConfigurationService', () => ({
+  FeatureFlagConfigurationService: vi.fn().mockImplementation(function () {
+    return mockFeatureFlagConfigurationServiceInstance;
+  }),
+}));
+
+/**
+ * Testable version of PerpsController that exposes protected methods for testing.
+ * This follows the pattern used in RewardsController.test.ts
+ */
+class TestablePerpsController extends PerpsController {
+  /**
+   * Test-only method to update state directly.
+   * Exposed for scenarios where state needs to be manipulated
+   * outside the normal public API (e.g., testing error conditions).
+   * @param callback
+   */
+  public testUpdate(callback: (state: PerpsControllerState) => void) {
+    this.update(callback);
+  }
+
+  /**
+   * Test-only method to mark controller as initialized.
+   * Common test scenario that requires internal state changes.
+   */
+  public testMarkInitialized() {
+    this.isInitialized = true;
+    this.update((state) => {
+      state.initializationState = InitializationState.Initialized;
+    });
+  }
+
+  /**
+   * Test-only method to set the providers map with complete providers.
+   * Used in most tests to inject mock providers.
+   * Also sets activeProviderInstance to the first provider (default provider).
+   * @param providers
+   */
+  public testSetProviders(providers: Map<PerpsProviderType, PerpsProvider>) {
+    this.providers = providers;
+    // Set activeProviderInstance to the first provider (typically 'hyperliquid')
+    const firstProvider = providers.values().next().value;
+    if (firstProvider) {
+      this.activeProviderInstance = firstProvider;
+    }
+  }
+
+  /**
+   * Test-only method to set the providers map with partial providers.
+   * Used explicitly in tests that verify error handling with incomplete providers.
+   * Type cast is intentional and necessary for testing graceful degradation.
+   * @param providers
+   */
+  public testSetPartialProviders(
+    providers: Map<PerpsProviderType, Partial<PerpsProvider>>,
+  ) {
+    this.providers = providers as Map<PerpsProviderType, PerpsProvider>;
+  }
+
+  /**
+   * Test-only method to get the providers map.
+   * Used to verify provider state in tests.
+   */
+  public testGetProviders(): Map<PerpsProviderType, PerpsProvider> {
+    return this.providers;
+  }
+
+  /**
+   * Test-only method to set initialization state.
+   * Allows tests to simulate both initialized and uninitialized states.
+   * @param value
+   */
+  public testSetInitialized(value: boolean) {
+    this.isInitialized = value;
+  }
+
+  /**
+   * Test-only method to get initialization state.
+   * Used to verify initialization status in tests.
+   */
+  public testGetInitialized(): boolean {
+    return this.isInitialized;
+  }
+
+  /**
+   * Test-only method to get blocked region list.
+   * Used to verify geo-blocking configuration in tests.
+   */
+  public testGetBlockedRegionList(): { source: string; list: string[] } {
+    return this.blockedRegionList;
+  }
+
+  /**
+   * Test-only method to set blocked region list.
+   * Used to test priority logic (remote vs fallback).
+   * @param list
+   * @param source
+   */
+  public testSetBlockedRegionList(
+    list: string[],
+    source: 'remote' | 'fallback',
+  ) {
+    this.setBlockedRegionList(list, source);
+  }
+
+  /**
+   * Test accessor for protected method refreshEligibilityOnFeatureFlagChange.
+   * Wrapper is necessary because protected methods can't be called from test code.
+   * @param remoteFlags
+   */
+  public testRefreshEligibilityOnFeatureFlagChange(remoteFlags: any) {
+    this.refreshEligibilityOnFeatureFlagChange(remoteFlags);
+  }
+
+  /**
+   * Test accessor for protected method reportOrderToDataLake.
+   * Wrapper is necessary because protected methods can't be called from test code.
+   * @param data
+   */
+  public testReportOrderToDataLake(data: any): Promise<any> {
+    return this.reportOrderToDataLake(data);
+  }
+
+  public testHasStandaloneProvider(): boolean {
+    return this.hasStandaloneProvider();
+  }
+
+  public testRegisterLighterProvider(
+    LighterProvider: new (opts: Record<string, unknown>) => PerpsProvider,
+  ) {
+    this.registerLighterProvider(LighterProvider as never);
+  }
+
+  public testHandleLighterImportError(error: unknown) {
+    this.handleLighterImportError(error);
+  }
+}
+
+describe('PerpsController', () => {
+  let controller: TestablePerpsController;
+  let mockProvider: Mocked<HyperLiquidProvider>;
+  let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
+  let mockMessenger: ReturnType<typeof createMockMessenger>;
+
+  // Helper to mark controller as initialized for tests
+  const markControllerAsInitialized = () => {
+    controller.testMarkInitialized();
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    (
+      (eligibilityServiceModule as unknown as Record<string, Mock>)
+        .EligibilityService as Mock
+    ).mockImplementation(function () {
+      return mockEligibilityServiceInstance;
+    });
+    (
+      (depositServiceModule as unknown as Record<string, Mock>)
+        .DepositService as Mock
+    ).mockImplementation(function () {
+      return mockDepositServiceInstance;
+    });
+    (
+      (marketDataServiceModule as unknown as Record<string, Mock>)
+        .MarketDataService as Mock
+    ).mockImplementation(function () {
+      return mockMarketDataServiceInstance;
+    });
+    (
+      (tradingServiceModule as unknown as Record<string, Mock>)
+        .TradingService as Mock
+    ).mockImplementation(function () {
+      return mockTradingServiceInstance;
+    });
+    (
+      (accountServiceModule as unknown as Record<string, Mock>)
+        .AccountService as Mock
+    ).mockImplementation(function () {
+      return mockAccountServiceInstance;
+    });
+    (
+      (dataLakeServiceModule as unknown as Record<string, Mock>)
+        .DataLakeService as Mock
+    ).mockImplementation(function () {
+      return mockDataLakeServiceInstance;
+    });
+    (
+      (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
+        .FeatureFlagConfigurationService as Mock
+    ).mockImplementation(function () {
+      return mockFeatureFlagConfigurationServiceInstance;
+    });
+
+    mockEligibilityServiceInstance.checkEligibility.mockResolvedValue(true);
+    mockMarketDataServiceInstance.getPositions.mockResolvedValue([]);
+    mockMarketDataServiceInstance.getAccountState.mockResolvedValue({
+      spendableBalance: '10000',
+      withdrawableBalance: '10000',
+      totalBalance: '10000',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    });
+    mockMarketDataServiceInstance.getMarkets.mockResolvedValue([]);
+    mockMarketDataServiceInstance.getMarketDataWithPrices.mockImplementation(
+      ({
+        provider,
+      }: {
+        provider: { getMarketDataWithPrices: () => Promise<unknown[]> };
+      }) => provider.getMarketDataWithPrices(),
+    );
+    mockMarketDataServiceInstance.getWithdrawalRoutes.mockReturnValue([]);
+    mockMarketDataServiceInstance.validateClosePosition.mockResolvedValue({
+      isValid: true,
+    });
+    mockMarketDataServiceInstance.calculateMaintenanceMargin.mockResolvedValue(
+      0,
+    );
+    mockMarketDataServiceInstance.calculateFees.mockResolvedValue({
+      totalFee: 0,
+    });
+    mockMarketDataServiceInstance.getAvailableDexs.mockResolvedValue([]);
+
+    mockFeatureFlagConfigurationServiceInstance.refreshEligibility.mockImplementation(
+      (options: any) => {
+        const remoteFlags =
+          options.remoteFeatureFlagControllerState.remoteFeatureFlags;
+        const perpsGeoBlockedRegionsFeatureFlag =
+          remoteFlags?.perpsPerpTradingGeoBlockedCountriesV2;
+        const remoteBlockedRegions =
+          perpsGeoBlockedRegionsFeatureFlag?.blockedRegions;
+
+        if (
+          Array.isArray(remoteBlockedRegions) &&
+          options.context.setBlockedRegionList
+        ) {
+          const currentList = options.context.getBlockedRegionList?.();
+          if (!currentList || currentList.source !== 'remote') {
+            options.context.setBlockedRegionList(
+              remoteBlockedRegions,
+              'remote',
+            );
+          }
+        }
+
+        if (options.context.refreshEligibility) {
+          options.context.refreshEligibility().catch(() => {
+            // Ignore errors in mock
+          });
+        }
+
+        if (remoteFlags) {
+          mockFeatureFlagConfigurationServiceInstance.refreshHip3Config(
+            options,
+          );
+        }
+      },
+    );
+    mockFeatureFlagConfigurationServiceInstance.setBlockedRegions.mockImplementation(
+      (options: any) => {
+        const { list, source, context } = options;
+        if (context.setBlockedRegionList && context.getBlockedRegionList) {
+          const currentList = context.getBlockedRegionList();
+          if (source === 'fallback' && currentList.source === 'remote') {
+            return;
+          }
+          if (Array.isArray(list)) {
+            context.setBlockedRegionList(list, source);
+          }
+        }
+
+        if (context.refreshEligibility) {
+          context.refreshEligibility().catch(() => {
+            // Ignore errors in mock
+          });
+        }
+      },
+    );
+    mockFeatureFlagConfigurationServiceInstance.refreshHip3Config.mockImplementation(
+      () => undefined,
+    );
+
+    // Create a fresh mock provider for each test
+    mockProvider = createMockHyperLiquidProvider();
+
+    // Add default mock return values for all provider methods
+    mockProvider.getPositions.mockResolvedValue([]);
+    mockProvider.getAccountState.mockResolvedValue({
+      spendableBalance: '10000',
+      withdrawableBalance: '10000',
+      totalBalance: '10000',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    });
+    mockProvider.getMarkets.mockResolvedValue([]);
+    mockProvider.getOpenOrders.mockResolvedValue([]);
+    mockProvider.getFunding.mockResolvedValue([]);
+    mockProvider.getOrderFills.mockResolvedValue([]);
+    mockProvider.getOrders.mockResolvedValue([]);
+    mockProvider.calculateLiquidationPrice.mockResolvedValue('0');
+    mockProvider.getMaxLeverage.mockResolvedValue(50);
+    mockProvider.calculateMaintenanceMargin.mockResolvedValue(0);
+    mockProvider.calculateFees.mockResolvedValue({ feeAmount: 0 });
+    mockProvider.getBlockExplorerUrl.mockReturnValue(
+      'https://explorer.example.com',
+    );
+    mockProvider.getWithdrawalRoutes.mockReturnValue([]);
+
+    (
+      HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+    ).mockImplementation(function () {
+      return mockProvider;
+    });
+
+    const mockCall = vi.fn().mockImplementation((action: string) => {
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {
+            perpsPerpTradingGeoBlockedCountriesV2: {
+              blockedRegions: [],
+            },
+          },
+        };
+      }
+      if (
+        action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+      ) {
+        return [
+          {
+            address: '0x1234567890123456789012345678901234567890',
+            type: 'eip155:eoa',
+            id: 'account-1',
+            options: {},
+            scopes: ['eip155:1'],
+            methods: [],
+            metadata: {
+              name: 'Test',
+              importTime: 0,
+              keyring: { type: 'HD Key Tree' },
+            },
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    mockInfrastructure = createMockInfrastructure();
+    mockMessenger = createMockMessenger({ call: mockCall });
+    controller = new TestablePerpsController({
+      messenger: mockMessenger,
+      state: getDefaultPerpsControllerState(),
+      infrastructure: mockInfrastructure,
+    });
+  });
+
+  afterEach(() => {
+    // Clear only provider mocks, not Engine.context mocks
+    // This prevents breaking Engine.context.RewardsController/NetworkController references
+    if (mockProvider) {
+      Object.values(mockProvider).forEach((value) => {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          'mockClear' in value
+        ) {
+          (value as Mock).mockClear();
+        }
+      });
+    }
+    (mockInfrastructure.metrics.trackPerpsEvent as Mock).mockClear();
+    (mockInfrastructure.logger.error as Mock).mockClear();
+    (mockInfrastructure.debugLogger.log as Mock).mockClear();
+  });
+  describe('resetSelectedPaymentToken', () => {
+    it('sets selectedPaymentToken to null', () => {
+      controller.testUpdate((state) => {
+        state.selectedPaymentToken = {
+          description: 'USDC',
+          address: '0xa0b8',
+          chainId: '0x1',
+        } as PerpsControllerState['selectedPaymentToken'];
+      });
+
+      controller.resetSelectedPaymentToken();
+
+      expect(controller.state.selectedPaymentToken).toBeNull();
+    });
+  });
+
+  describe('switchProvider', () => {
+    it('initializes before a same-provider switch on a cold controller', async () => {
+      const result = await controller.switchProvider('hyperliquid');
+
+      expect(result.success).toBe(true);
+      expect(result.providerId).toBe('hyperliquid');
+      expect(controller.testGetInitialized()).toBe(true);
+      expect(controller.getActiveProviderOrNull()).not.toBeNull();
+    });
+
+    it('returns success without re-init when switching to same provider', async () => {
+      await controller.init();
+
+      const result = await controller.switchProvider('hyperliquid');
+
+      expect(result.success).toBe(true);
+      expect(result.providerId).toBe('hyperliquid');
+    });
+
+    it('returns error when already reinitializing', async () => {
+      await controller.init();
+
+      // Register lighter in providers map so it passes the isValidProvider check
+      const mockLighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const providers = controller.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      controller.testSetProviders(providers);
+
+      vi.spyOn(controller, 'isCurrentlyReinitializing').mockReturnValue(true);
+
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.CLIENT_REINITIALIZING);
+    });
+
+    it('returns error for invalid provider not in providers map', async () => {
+      await controller.init();
+
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Provider lighter not available');
+    });
+
+    it('allows aggregated even without explicit map entry', async () => {
+      await controller.init();
+
+      // 'aggregated' is always valid according to the validation logic
+      const result = await controller.switchProvider('aggregated');
+
+      // The key assertion is that it didn't return "not available" error
+      // aggregated proceeds to the init path and succeeds
+      expect(result.success).toBe(true);
+    });
+
+    it('switches to lighter provider successfully', async () => {
+      // Create controller with Lighter-enabled mocks
+      const lighterInfrastructure = createMockInfrastructure();
+      (
+        lighterInfrastructure.featureFlags.validateVersionGated as Mock
+      ).mockReturnValue(true);
+      // Enable Lighter feature flag via messenger
+      const lighterMockCall = vi.fn().mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return {
+            remoteFeatureFlags: {
+              perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              perpsLighterProviderEnabled: {
+                enabled: true,
+                minimumVersion: '0.0.0',
+              },
+            },
+          };
+        }
+        return undefined;
+      });
+
+      const lighterController = new TestablePerpsController({
+        messenger: createMockMessenger({ call: lighterMockCall }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: lighterInfrastructure,
+        // Local override: the remote flag alone does not enable Lighter
+        // without a client-mounted signer bridge, and the reinit inside
+        // switchProvider would otherwise drop the injected provider.
+        clientConfig: { providerCredentials: { lighter: { enabled: true } } },
+      });
+
+      await lighterController.init();
+
+      // Register a mock Lighter provider
+      const mockLighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const providers = lighterController.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      lighterController.testSetProviders(providers);
+
+      // Mock init on the reinit call inside switchProvider.
+      // Dynamic import() rejects in Jest (no --experimental-vm-modules),
+      // so Lighter can't register via #createProviders. Mock init to
+      // simulate successful reinitialization while preserving our
+      // manually-injected Lighter provider in the map.
+      vi.spyOn(lighterController, 'init').mockImplementationOnce(async () => {
+        lighterController.testUpdate((state) => {
+          state.initializationState = InitializationState.Initialized;
+        });
+      });
+
+      const result = await lighterController.switchProvider('lighter');
+
+      expect(result.success).toBe(true);
+      expect(result.providerId).toBe('lighter');
+      expect(lighterController.state.activeProvider).toBe('lighter');
+    });
+
+    it('rolls back to previous provider on init failure', async () => {
+      await controller.init();
+
+      // Register a mock Lighter provider
+      const mockLighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const providers = controller.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      controller.testSetProviders(providers);
+
+      // Reinitialization now runs through the private serialized lifecycle,
+      // so fail provider reconstruction rather than spying on public init().
+      vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+        throw new Error('Lighter init failed');
+      });
+
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.success).toBe(false);
+      // Should roll back to previous provider
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+
+      // Restore init for further tests
+      vi.restoreAllMocks();
+    });
+
+    it('clears isReinitializing flag after success', async () => {
+      await controller.init();
+
+      const mockLighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const providers = controller.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      controller.testSetProviders(providers);
+
+      await controller.switchProvider('lighter');
+
+      expect(controller.isCurrentlyReinitializing()).toBe(false);
+    });
+
+    it('clears isReinitializing flag after failure', async () => {
+      await controller.init();
+
+      const mockLighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const providers = controller.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      controller.testSetProviders(providers);
+
+      vi.spyOn(controller, 'init').mockImplementationOnce(async () => {
+        controller.testUpdate((state) => {
+          state.initializationState = InitializationState.Failed;
+          state.initializationError = 'fail';
+        });
+      });
+
+      await controller.switchProvider('lighter');
+
+      expect(controller.isCurrentlyReinitializing()).toBe(false);
+
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('init - Lighter fallback', () => {
+    it('falls back to hyperliquid when activeProvider is lighter but Lighter feature flag is disabled', async () => {
+      // Set state to lighter before init
+      controller.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+
+      // #isLighterProviderEnabled() returns false by default (no perpsLighterProviderEnabled in remote flags)
+      await controller.init();
+
+      // The init path should detect Lighter is not available and fall back
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+    });
+
+    it('falls back to hyperliquid when activeProvider is a removed provider persisted from an older version', async () => {
+      // `activeProvider` is persisted, so a user who selected a venue that has
+      // since been removed still has its id in restored state. Init must
+      // self-heal that value rather than throwing, or perps stays broken on
+      // every launch until the client clears state. The literal below is a
+      // removed venue's id as it would appear in a real persisted blob.
+      controller.testUpdate((state) => {
+        (state as { activeProvider: string }).activeProvider = 'myx';
+      });
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initialized,
+      );
+    });
+
+    it.each([true, false])(
+      'forwards the public testnet Chase probe setting only on actual testnet=%s',
+      (isTestnet) => {
+        const MockLighterConstructor = vi.fn(function () {
+          return createMockHyperLiquidProvider();
+        });
+        const lighter = { chaseTestnetProbe: true };
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger(),
+          state: { ...getDefaultPerpsControllerState(), isTestnet },
+          clientConfig: { providerCredentials: { lighter } },
+          infrastructure: mockInfrastructure,
+        });
+        controller.testRegisterLighterProvider(
+          MockLighterConstructor as unknown as new (
+            opts: Record<string, unknown>,
+          ) => PerpsProvider,
+        );
+        const passed = (
+          MockLighterConstructor.mock.calls as unknown as [
+            { chaseTestnetProbe?: boolean },
+          ][]
+        )[0][0];
+        expect(passed.chaseTestnetProbe).toBe(isTestnet ? true : undefined);
+        expect(MockLighterConstructor).toHaveBeenCalledWith(
+          expect.objectContaining({ isTestnet }),
+        );
+      },
+    );
+
+    it('registerLighterProvider registers the provider and forwards the signer bridge and idle close from the Lighter credentials', () => {
+      // Arrange — the client (mobile WebView / headless WASM) supplies the
+      // bridge through the Lighter credentials bag; the controller must
+      // forward it (the shared platform surface stays venue-agnostic).
+      const mockBridge = {
+        createClient: vi.fn(),
+        execute: vi.fn(),
+      };
+      const mockLighterInstance = createMockHyperLiquidProvider();
+      const MockLighterConstructor = vi.fn(function () {
+        return mockLighterInstance;
+      });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: {
+            lighter: { signerBridge: mockBridge, socketIdleCloseMs: 12_000 },
+          },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      // Act
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      // Assert
+      const providers = controller.testGetProviders();
+      expect(providers.get('lighter')).toBe(mockLighterInstance);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // Lighter follows the controller's global network (mainnet default);
+          // mainnet writes are blocked inside LighterProvider instead.
+          isTestnet: false,
+          signerBridge: mockBridge,
+          socketIdleCloseMs: 12_000,
+        }),
+      );
+    });
+
+    it('registerLighterProvider builds Lighter on testnet with its testnet account while Lighter is pinned to testnet', () => {
+      vi.spyOn(
+        PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
+        'LIGHTER_TESTNET_ONLY',
+        'get',
+      ).mockReturnValue(true);
+      const MockLighterConstructor = vi.fn(function () {
+        return createMockHyperLiquidProvider();
+      });
+      const messenger = createMockMessenger();
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: {
+            lighter: { accountIndexMainnet: 1, accountIndexTestnet: 2 },
+          },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      expect(controller.state.isTestnet).toBe(false);
+      expect(MockLighterConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            isTestnet: true,
+            platformDependencies: mockInfrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: 2,
+              apiKeyIndex: undefined,
+            },
+          },
+        ],
+      ]);
+    });
+
+    it.each(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'])(
+      'handleLighterImportError logs debug for %s errors',
+      (code) => {
+        const moduleError = Object.assign(
+          new Error('Cannot find module ./providers/LighterProvider'),
+          { code },
+        );
+
+        controller.testHandleLighterImportError(moduleError);
+
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          {
+            error:
+              'Lighter provider failed to load (Cannot find module ./providers/LighterProvider). Pass providerCredentials.lighter.loadProvider to load it from @metamask/perps-controller/providers/lighter.',
+          },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('Lighter provider loading', () => {
+    const FETCH_FAILURE =
+      'Failed to fetch dynamically imported module: http://localhost:3000/_next/static/chunks/providers/LighterProvider';
+
+    /**
+     * Build a controller with Lighter enabled through the given credentials.
+     *
+     * @param lighter - The Lighter credentials.
+     * @param messenger - The controller messenger. Defaults to one that
+     * answers the remote feature flags, so nothing else reaches logger.error.
+     * @returns The controller.
+     */
+    function createLighterController(
+      lighter: LighterCredentials,
+      messenger = createMockMessenger({
+        call: vi
+          .fn()
+          .mockImplementation((action: string) =>
+            action === 'RemoteFeatureFlagController:getState'
+              ? { remoteFeatureFlags: {} }
+              : undefined,
+          ),
+      }),
+    ): TestablePerpsController {
+      return new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: { providerCredentials: { lighter } },
+        infrastructure: mockInfrastructure,
+      });
+    }
+
+    it('registers Lighter from the client loadProvider and switches to it', async () => {
+      const loadProvider = vi.fn().mockResolvedValue({ LighterProvider });
+      controller = createLighterController({ enabled: true, loadProvider });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(loadProvider).toHaveBeenCalled();
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
+      );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+      expect(controller.state.activeProvider).toBe('lighter');
+    });
+
+    it.each([
+      [
+        'rejects',
+        async (): Promise<never> =>
+          Promise.reject(new TypeError(FETCH_FAILURE)),
+      ],
+      [
+        'throws',
+        (): never => {
+          throw new TypeError(FETCH_FAILURE);
+        },
+      ],
+    ])(
+      'reports a Lighter load that %s from switchProvider without logging an error',
+      async (_, loadProvider) => {
+        controller = createLighterController({ enabled: true, loadProvider });
+
+        await controller.init();
+        const result = await controller.switchProvider('lighter');
+
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initialized,
+        );
+        expect(result).toStrictEqual({
+          success: false,
+          providerId: 'hyperliquid',
+          error: `Provider lighter not available: Lighter provider failed to load (${FETCH_FAILURE}).`,
+        });
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          { error: `Lighter provider failed to load (${FETCH_FAILURE}).` },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+
+    it('registers Lighter through its own import when the client passes no loader', async () => {
+      controller = createLighterController({ enabled: true });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
+      );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+    });
+
+    it('reports a Lighter load that fails for another reason through logError', async () => {
+      const chunkError = Object.assign(new Error('Loading chunk 273 failed.'), {
+        name: 'ChunkLoadError',
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => Promise.reject(chunkError),
+      });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        chunkError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'createProviders.lighter',
+            }),
+          }),
+        }),
+      );
+      expect(result.error).toBe(
+        'Provider lighter not available: Lighter provider failed to load (Loading chunk 273 failed.).',
+      );
+    });
+
+    it('logs a Lighter provider that fails to construct as an error', async () => {
+      vi.mocked(LighterProvider).mockImplementationOnce(function () {
+        throw new Error('Invalid auth config');
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => ({ LighterProvider }),
+      });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Invalid auth config' }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'createProviders.lighter',
+            }),
+          }),
+        }),
+      );
+      expect(result.error).toBe('Provider lighter not available');
+    });
+
+    it('drops a previous load failure once Lighter is no longer enabled', async () => {
+      let isLighterFlagEnabled = true;
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockImplementation(() => isLighterFlagEnabled);
+      const call = vi.fn().mockImplementation((action: string) =>
+        action === 'RemoteFeatureFlagController:getState'
+          ? {
+              remoteFeatureFlags: {
+                perpsLighterProviderEnabled: {
+                  enabled: true,
+                  minimumVersion: '0.0.0',
+                },
+              },
+            }
+          : undefined,
+      );
+      controller = createLighterController(
+        {
+          signerBridge: { createClient: vi.fn(), execute: vi.fn() },
+          loadProvider: async () =>
+            Promise.reject(new TypeError(FETCH_FAILURE)),
+        },
+        createMockMessenger({ call }),
+      );
+      await controller.init();
+
+      isLighterFlagEnabled = false;
+      await controller.switchProvider('aggregated');
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.error).toBe('Provider lighter not available');
+    });
+  });
+
+  describe('account and agent signers', () => {
+    /**
+     * A host messenger `call` that answers the keyring state and the selected
+     * account, and nothing else.
+     *
+     * @param options - The host state.
+     * @param options.isUnlocked - Whether the keyring is unlocked.
+     * @param options.selectedAccount - The selected account, if any.
+     * @returns The `call` mock.
+     */
+    function createHostCall({
+      isUnlocked,
+      selectedAccount = createMockEvmAccount(),
+    }: {
+      isUnlocked: boolean;
+      // An account with an empty address stands for no selection. A getter
+      // answers with the account selected at each call.
+      selectedAccount?:
+        | { address: string }
+        | null
+        | (() => { address: string } | null);
+    }): Mock {
+      return vi.fn().mockImplementation((action: string) => {
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked };
+        }
+        if (action === 'AccountsController:getSelectedAccount') {
+          const account =
+            typeof selectedAccount === 'function'
+              ? selectedAccount()
+              : selectedAccount;
+          return account ?? undefined;
+        }
+        return undefined;
+      });
+    }
+
+    it('hands infrastructure.accountSigner to the HyperLiquid and Lighter providers', async () => {
+      const accountSigner = {
+        signTypedData: vi.fn(),
+        signPersonalMessage: vi.fn(),
+      };
+      const messenger = createMockMessenger();
+      const infrastructure = { ...mockInfrastructure, accountSigner };
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure,
+      });
+
+      await controller.init();
+      registerMockLighterProvider(controller);
+
+      expect(
+        (HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>).mock
+          .calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            hip3Enabled: false,
+            allowlistMarkets: [],
+            blocklistMarkets: [],
+            priceDeviationLimit: undefined,
+            platformDependencies: infrastructure,
+            messenger,
+            builderAddressTestnet: undefined,
+            builderAddressMainnet: undefined,
+            subscriptionBuilderAddressTestnet: undefined,
+            subscriptionBuilderAddressMainnet: undefined,
+            onChaseOrderMaxDistanceReached: expect.any(Function),
+            getAgentSigner: expect.any(Function),
+            onAgentRejected: expect.any(Function),
+          },
+        ],
+      ]);
+      expect(
+        (LighterProvider as MockedClass<typeof LighterProvider>).mock.calls,
+      ).toStrictEqual([
+        [
+          {
+            isTestnet: false,
+            platformDependencies: infrastructure,
+            messenger,
+            signerBridge: undefined,
+            lighterAuthConfig: {
+              enabled: undefined,
+              accountIndex: undefined,
+              apiKeyIndex: undefined,
+            },
+          },
+        ],
+      ]);
+    });
+
+    const agentSigner = {
+      address: AGENT_ADDRESS,
+      signTypedData: vi.fn(),
+    } as const;
+
+    /**
+     * The agent resolver the controller handed to the last HyperLiquid
+     * provider it created.
+     *
+     * @returns The resolver.
+     */
+    function getProviderAgentResolver(): NonNullable<
+      HyperLiquidCredentials['getAgentSigner']
+    > {
+      const { calls } = (
+        HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+      ).mock;
+      const resolver = calls[calls.length - 1][0].getAgentSigner;
+      if (!resolver) {
+        throw new Error('No agent resolver handed to the provider');
+      }
+      return resolver;
+    }
+
+    /**
+     * Register the auto-mocked LighterProvider, which has Lighter's methods
+     * and so no clearAgentSigners.
+     *
+     * @param target - The initialized controller.
+     */
+    function registerMockLighterProvider(
+      target: TestablePerpsController,
+    ): void {
+      target.testRegisterLighterProvider(
+        LighterProvider as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+    }
+
+    it('rejects trading wallet preparation before init like other provider actions', async () => {
+      await expect(controller.prepareTradingWallet()).rejects.toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+    });
+
+    it('runs the agent and preparation actions called through the messenger after init', async () => {
+      const getAgentSigner = vi.fn().mockResolvedValue(agentSigner);
+      // A keyring host, unlocked.
+      const { messenger, rootMessenger } =
+        createKeyringMessenger(MAIN_SIGNATURE);
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger,
+      });
+      mockProvider.prepareTradingWallet = vi
+        .fn()
+        .mockResolvedValue({ ready: true });
+      controller = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { hyperliquid: { getAgentSigner } },
+        },
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      const resolve = getProviderAgentResolver();
+
+      rootMessenger.call(
+        'PerpsController:setAgentSigner',
+        MAINNET_ACCOUNT,
+        null,
+      );
+      const pinned = await resolve(MAINNET_ACCOUNT);
+      rootMessenger.call('PerpsController:clearAgentSigners');
+      const cleared = await resolve(MAINNET_ACCOUNT);
+      const readiness = await rootMessenger.call(
+        'PerpsController:prepareTradingWallet',
+      );
+
+      expect(pinned).toBeNull();
+      expect(cleared).toBe(agentSigner);
+      expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+      expect(readiness).toStrictEqual({ ready: true });
+      expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([[]]);
+    });
+
+    it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
+      mockProvider.clearAgentSigners = vi.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      registerMockLighterProvider(controller);
+      const providers = controller.testGetProviders();
+
+      controller.setAgentSigner(MAINNET_ACCOUNT, agentSigner);
+      controller.clearAgentSigners();
+
+      expect([...providers.keys()]).toStrictEqual(['hyperliquid', 'lighter']);
+      expect(providers.get('lighter')).not.toHaveProperty('clearAgentSigners');
+      expect(mockProvider.clearAgentSigners.mock.calls).toStrictEqual([[], []]);
+    });
+
+    it("builds the aggregated provider on the controller's network and live provider map", async () => {
+      const RealAggregatedPerpsProvider =
+        AggregatedPerpsProviderModule.AggregatedPerpsProvider;
+      let providerIdsAtConstruction: string[] = [];
+      const aggregatedConstructor = vi
+        .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
+        .mockImplementation(function (config) {
+          providerIdsAtConstruction = [...config.providers.keys()];
+          return new RealAggregatedPerpsProvider(config);
+        });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      await controller.init();
+      registerMockLighterProvider(controller);
+
+      expect(aggregatedConstructor.mock.calls).toStrictEqual([
+        [
+          {
+            providers: expect.any(Map),
+            defaultProvider: 'hyperliquid',
+            infrastructure: mockInfrastructure,
+            isTestnet: true,
+          },
+        ],
+      ]);
+      // Lighter registered after the aggregated provider was built, into the
+      // map it shares with the controller.
+      expect(providerIdsAtConstruction).toStrictEqual(['hyperliquid']);
+      const [[constructedWith]] = aggregatedConstructor.mock.calls;
+      expect(constructedWith.providers).toBe(controller.testGetProviders());
+      expect([...constructedWith.providers.keys()]).toStrictEqual([
+        'hyperliquid',
+        'lighter',
+      ]);
+    });
+
+    it.each([
+      {
+        signer: 'the account signer',
+        canSign: true,
+        expected: { ready: true },
+      },
+      {
+        signer: 'the account signer',
+        canSign: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+      { signer: 'the keyring', canSign: true, expected: { ready: true } },
+      {
+        signer: 'the keyring',
+        canSign: false,
+        expected: { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED },
+      },
+    ])(
+      'reports readiness from $signer when the provider has no deferred setup (can sign: $canSign)',
+      async ({ signer, canSign, expected }) => {
+        const usesKeyring = signer === 'the keyring';
+        const call = createHostCall({ isUnlocked: canSign });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: vi.fn(),
+                  signPersonalMessage: vi.fn(),
+                  isReady: (): boolean => canSign,
+                },
+              },
+        });
+        await controller.init();
+        call.mockClear();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual(expected);
+        // Only a host without an account signer is asked for its keyring.
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
+      },
+    );
+
+    it.each([
+      { signer: 'the account signer', usesKeyring: false },
+      { signer: 'the keyring', usesKeyring: true },
+    ])(
+      'reports KEYRING_LOCKED when the provider reports ready while $signer cannot sign',
+      async ({ usesKeyring }) => {
+        // With an account signer, only the account signer is locked: the
+        // keyring would answer unlocked if it were asked.
+        const call = createHostCall({ isUnlocked: !usesKeyring });
+        // For example an aggregated provider whose providers have nothing to
+        // prepare, so none of them checked the signer.
+        mockProvider.prepareTradingWallet = vi
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: usesKeyring
+            ? mockInfrastructure
+            : {
+                ...mockInfrastructure,
+                accountSigner: {
+                  signTypedData: vi.fn(),
+                  signPersonalMessage: vi.fn(),
+                  isReady: (): boolean => false,
+                },
+              },
+        });
+        await controller.init();
+        call.mockClear();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
+        // Only a host without an account signer is asked for its keyring.
+        expect(keyringCalls(call)).toStrictEqual(
+          usesKeyring ? ['KeyringController:getState'] : [],
+        );
+      },
+    );
+
+    it.each([
+      { selection: 'no account', selectedAccount: null },
+      {
+        // What the AccountsController answers with nothing selected.
+        selection: 'an empty account',
+        selectedAccount: { ...createMockEvmAccount(), address: '' },
+      },
+    ])(
+      'reports NO_ACCOUNT_SELECTED when the provider reports ready while $selection is selected',
+      async ({ selectedAccount }) => {
+        // For example a provider without deferred setup, which checks no
+        // account.
+        mockProvider.prepareTradingWallet = vi
+          .fn()
+          .mockResolvedValue({ ready: true });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({
+            call: createHostCall({ isUnlocked: true, selectedAccount }),
+          }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        await controller.init();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        });
+        expect(mockProvider.prepareTradingWallet.mock.calls).toStrictEqual([
+          [],
+        ]);
+      },
+    );
+
+    it.each([
+      {
+        change: 'selected',
+        // No account is selected when the preparation starts.
+        startAccount: { ...createMockEvmAccount(), address: '' },
+        nextAccount: createMockEvmAccount(),
+        providerResult: { ready: true },
+      },
+      {
+        change: 'switched',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        providerResult: { ready: true },
+      },
+      {
+        change: 'deselected',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: '' },
+        providerResult: { ready: true },
+      },
+      {
+        change: 'switched',
+        startAccount: createMockEvmAccount(),
+        nextAccount: { ...createMockEvmAccount(), address: OTHER_MAIN_ADDRESS },
+        // A not-ready result was prepared for the previous account too.
+        providerResult: {
+          ready: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        },
+      },
+    ])(
+      'reports PROVIDER_LIFECYCLE_STALE when the account is $change while the provider prepares (provider ready: $providerResult.ready)',
+      async ({ startAccount, nextAccount, providerResult }) => {
+        let selectedAccount: { address: string } = startAccount;
+        const call = createHostCall({
+          isUnlocked: true,
+          selectedAccount: () => selectedAccount,
+        });
+        // For example an aggregated provider preparing one provider after
+        // another.
+        mockProvider.prepareTradingWallet = vi.fn(async () => {
+          selectedAccount = nextAccount;
+          return providerResult;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        await controller.init();
+
+        const result = await controller.prepareTradingWallet();
+
+        expect(result).toStrictEqual({
+          ready: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        });
+      },
+    );
+
+    it('returns the prepared result when only the casing of the selected address changes', async () => {
+      const { address } = createMockEvmAccount();
+      let selectedAccount = { ...createMockEvmAccount(), address };
+      const call = createHostCall({
+        isUnlocked: true,
+        selectedAccount: () => selectedAccount,
+      });
+      const prepared = { ready: true };
+      mockProvider.prepareTradingWallet = vi.fn(async () => {
+        selectedAccount = {
+          ...selectedAccount,
+          address: `0x${address.slice(2).toUpperCase()}`,
+        };
+        return prepared;
+      });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({ call }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toBe(prepared);
+    });
+
+    it('returns a provider result that is not ready for another reason unchanged, without asking the keyring', async () => {
+      const notReady = {
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      };
+      mockProvider.prepareTradingWallet = vi.fn().mockResolvedValue(notReady);
+      // A locked keyring and no selected account, which would otherwise be
+      // reported instead.
+      const call = createHostCall({ isUnlocked: false, selectedAccount: null });
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({ call }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      await controller.init();
+      call.mockClear();
+
+      const result = await controller.prepareTradingWallet();
+
+      expect(result).toBe(notReady);
+      expect(result).toStrictEqual({
+        ready: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      });
+      expect(keyringCalls(call)).toStrictEqual([]);
+    });
+  });
+
+  describe('getOpenOrders with standalone mode', () => {
+    const mockUserAddress = '0xabcdef1234567890abcdef1234567890abcdef12';
+    const MockedHyperLiquidProvider = HyperLiquidProvider as MockedClass<
+      typeof HyperLiquidProvider
+    >;
+
+    beforeEach(() => {
+      MockedHyperLiquidProvider.mockClear();
+    });
+
+    it('uses existing provider for standalone queries when available', async () => {
+      const mockOrders = [
+        {
+          orderId: 'o1',
+          symbol: 'BTC',
+          side: 'buy' as const,
+          orderType: 'limit' as const,
+          size: '0.1',
+          originalSize: '0.1',
+          filledSize: '0',
+          remainingSize: '0.1',
+          price: '50000',
+          status: 'open' as const,
+          timestamp: Date.now(),
+        },
+      ];
+      const existingMockProvider = createMockHyperLiquidProvider();
+      existingMockProvider.getOpenOrders.mockResolvedValue(mockOrders);
+      controller.testSetProviders(
+        new Map([['hyperliquid', existingMockProvider]]),
+      );
+      controller.testMarkInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+      });
+
+      const result = await controller.getOpenOrders({
+        standalone: true,
+        userAddress: mockUserAddress,
+      });
+
+      expect(existingMockProvider.getOpenOrders).toHaveBeenCalledWith({
+        standalone: true,
+        userAddress: mockUserAddress,
+      });
+      expect(result).toEqual(mockOrders);
+      expect(MockedHyperLiquidProvider).not.toHaveBeenCalled();
+    });
+
+    it('creates temporary provider for standalone queries when no activeProviderInstance', async () => {
+      const mockOrders = [
+        {
+          orderId: 'o2',
+          symbol: 'ETH',
+          side: 'sell' as const,
+          orderType: 'market' as const,
+          size: '1',
+          originalSize: '1',
+          filledSize: '0',
+          remainingSize: '1',
+          price: '3000',
+          status: 'open' as const,
+          timestamp: Date.now(),
+        },
+      ];
+      const tempMockProvider = createMockHyperLiquidProvider();
+      tempMockProvider.getOpenOrders.mockResolvedValue(mockOrders);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
+
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.isTestnet = true;
+      });
+
+      const result = await controller.getOpenOrders({
+        standalone: true,
+        userAddress: mockUserAddress,
+      });
+
+      expect(MockedHyperLiquidProvider).toHaveBeenCalledWith(
+        expect.objectContaining({ isTestnet: true }),
+      );
+      expect(result).toEqual(mockOrders);
+    });
+
+    it('bypasses getActiveProvider check for standalone queries', async () => {
+      const tempMockProvider = createMockHyperLiquidProvider();
+      tempMockProvider.getOpenOrders.mockResolvedValue([]);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
+
+      controller.testUpdate((state) => {
+        state.initializationState = InitializationState.Initializing;
+        state.activeProvider = 'aggregated';
+      });
+
+      const result = await controller.getOpenOrders({
+        standalone: true,
+        userAddress: mockUserAddress,
+      });
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getMarketDataWithPrices with standalone mode', () => {
+    const MockedHyperLiquidProvider = HyperLiquidProvider as MockedClass<
+      typeof HyperLiquidProvider
+    >;
+
+    beforeEach(() => {
+      MockedHyperLiquidProvider.mockClear();
+    });
+
+    it('passes only an exact static Hyperliquid snapshot identity and guards config races', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz:*'],
+          fallbackHip3BlocklistMarkets: ['xyz:TSLA'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+
+      await controller.getMarketDataWithPrices({
+        standalone: true,
+        useTerminalApi: true,
+      });
+
+      const call = mockMarketDataServiceInstance.getMarketDataWithPrices.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshot?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:GOLD')).toBe(
+        true,
+      );
+      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
+        false,
+      );
+      expect(call.context.globalSnapshot?.isCurrent()).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.hip3ConfigVersion += 1;
+      });
+      expect(call.context.globalSnapshot?.isCurrent()).toBe(false);
+
+      const liveUpdate = {
+        symbol: 'BTC',
+        price: '50002',
+        timestamp: Date.now(),
+        isTradable: true,
+      };
+      mockProvider.subscribeToPrices.mockImplementation(({ callback }) => {
+        callback([liveUpdate]);
+        return vi.fn();
+      });
+      const priceCallback = vi.fn();
+      controller.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: priceCallback,
+      });
+      expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
+      expect(priceCallback).toHaveBeenCalledWith([liveUpdate]);
+    });
+
+    it('treats a bare allowlist entry as a DEX shorthand', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+
+      await controller.getMarketDataWithPrices({
+        standalone: true,
+        useTerminalApi: true,
+      });
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshot?.request.enabledDexes,
+      ).toStrictEqual(['main', 'xyz']);
+    });
+
+    it('keeps main first in an exact static snapshot identity', async () => {
+      mockInfrastructure.terminalApi = {
+        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['flx:*', 'xyz:*'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshot?.request.enabledDexes,
+      ).toEqual(['main', 'flx', 'xyz']);
+    });
+
+    it('does not enable snapshots for a legacy-only injected Terminal service', async () => {
+      mockInfrastructure.terminalApi = undefined;
+      mockInfrastructure.terminalMarketService = {
+        fetchMarkets: vi.fn(),
+        clearCache: vi.fn(),
+        logError: vi.fn(),
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshot,
+      ).toBeUndefined();
+    });
+
+    it('passes the shared snapshot identity into getMarkets', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz:*'],
+          fallbackHip3BlocklistMarkets: ['xyz:TSLA'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshot?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
+        false,
+      );
+      expect(call.context.globalSnapshot?.isMarketAllowed('BTC')).toBe(true);
+    });
+
+    it('leaves getMarkets on the legacy path when no snapshot URL is configured', async () => {
+      mockInfrastructure.terminalApi = undefined;
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshot).toBeUndefined();
+    });
+
+    it('uses existing provider for standalone queries when available', async () => {
+      const mockMarketData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ];
+      const existingMockProvider = createMockHyperLiquidProvider();
+      existingMockProvider.getMarketDataWithPrices.mockResolvedValue(
+        mockMarketData,
+      );
+      controller.testSetProviders(
+        new Map([['hyperliquid', existingMockProvider]]),
+      );
+      controller.testMarkInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+      });
+
+      const result = await controller.getMarketDataWithPrices({
+        standalone: true,
+      });
+
+      expect(existingMockProvider.getMarketDataWithPrices).toHaveBeenCalled();
+      expect(result).toEqual(mockMarketData);
+      expect(MockedHyperLiquidProvider).not.toHaveBeenCalled();
+    });
+
+    it('creates temporary provider for standalone queries when no activeProviderInstance', async () => {
+      const mockMarketData = [
+        {
+          symbol: 'ETH',
+          name: 'ETH',
+          price: '3000',
+          maxLeverage: '50x',
+          change24h: '+50',
+          change24hPercent: '+1.7%',
+          volume: '$500M',
+        },
+      ];
+      const tempMockProvider = createMockHyperLiquidProvider();
+      tempMockProvider.getMarketDataWithPrices.mockResolvedValue(
+        mockMarketData,
+      );
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
+
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.isTestnet = false;
+      });
+
+      const result = await controller.getMarketDataWithPrices({
+        standalone: true,
+      });
+
+      expect(MockedHyperLiquidProvider).toHaveBeenCalledWith(
+        expect.objectContaining({ isTestnet: false }),
+      );
+      expect(result).toEqual(mockMarketData);
+    });
+
+    it('does not disconnect a standalone provider while a market request is in flight', async () => {
+      let resolveMarketData!: (marketData: unknown[]) => void;
+      const marketDataPromise = new Promise<unknown[]>((resolve) => {
+        resolveMarketData = resolve;
+      });
+      const tempMockProvider = createMockHyperLiquidProvider();
+      tempMockProvider.getMarketDataWithPrices.mockReturnValue(
+        marketDataPromise as ReturnType<
+          typeof tempMockProvider.getMarketDataWithPrices
+        >,
+      );
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
+
+      const marketRequest = controller.getMarketDataWithPrices({
+        standalone: true,
+      });
+      const disconnectRequest = controller.disconnect();
+
+      expect(tempMockProvider.disconnect).not.toHaveBeenCalled();
+
+      resolveMarketData([]);
+
+      await expect(marketRequest).resolves.toEqual([]);
+      await disconnectRequest;
+      expect(tempMockProvider.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses getActiveProvider for non-standalone queries', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+
+      const result = await controller.getMarketDataWithPrices();
+
+      expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('startMarketDataPreload and stopMarketDataPreload', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      controller.stopMarketDataPreload();
+      vi.useRealTimers();
+    });
+
+    it('is idempotent - calling start twice does not create duplicate timers', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+
+      controller.startMarketDataPreload();
+      controller.startMarketDataPreload();
+
+      // Advance timers past the preload interval (5 min) to verify no double calls
+      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
+
+      // performMarketDataPreload calls getMarketDataWithPrices({ standalone: true })
+      // The first immediate call happens, then only 1 interval call (not 2)
+      // With isPreloading guard, second immediate call is skipped
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Preload already started, skipping',
+      );
+    });
+
+    it('calls performMarketDataPreload immediately on start', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ]);
+
+      controller.startMarketDataPreload();
+
+      // Wait for the async performMarketDataPreload to complete
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Fetching market data in background',
+      );
+    });
+
+    it('stopMarketDataPreload clears interval', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+
+      controller.startMarketDataPreload();
+      controller.stopMarketDataPreload();
+
+      // After stop, advancing timers should not trigger more calls
+      const callCountBefore =
+        mockProvider.getMarketDataWithPrices.mock.calls.length;
+      vi.advanceTimersByTime(10 * 60 * 1000);
+      const callCountAfter =
+        mockProvider.getMarketDataWithPrices.mock.calls.length;
+
+      // No new calls should have been made after stop
+      expect(callCountAfter).toBe(callCountBefore);
+    });
+
+    it('stopMarketDataPreload drops a queued trailing refresh', async () => {
+      let resolvePreload!: (value: PerpsMarketData[]) => void;
+      mockProvider.getMarketDataWithPrices.mockReturnValue(
+        new Promise((resolve) => {
+          resolvePreload = resolve;
+        }),
+      );
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+      controller.stopMarketDataPreload();
+      resolvePreload([]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
+    });
+
+    it('stopMarketDataPreload is safe to call when not started', () => {
+      expect(() => controller.stopMarketDataPreload()).not.toThrow();
+    });
+
+    it('hydrates market data from disk at construction time', () => {
+      const diskMarkets = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        data: [
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            price: '50000',
+            change24h: '+100',
+            change24hPercent: '+0.2%',
+            change5m: '+$10.00',
+            changePercent5m: '1.50%',
+            change1h: '-$4.00',
+            changePercent1h: '-0.50%',
+            maxLeverage: '50x',
+            volume: '$1B',
+          },
+        ],
+        timestamp: Date.now(),
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_MARKETS) {
+            return JSON.stringify(diskMarkets);
+          }
+          return null;
+        },
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      const cached =
+        ctrl.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(cached).not.toBeNull();
+      expect(cached?.data).toHaveLength(1);
+      expect(cached?.data[0].symbol).toBe('BTC');
+      // Prices are stripped to placeholder values
+      expect(cached?.data[0].price).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      expect(cached?.data[0].change24h).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(cached?.data[0].change24hPercent).toBe(
+        PERPS_CONSTANTS.FallbackPercentageDisplay,
+      );
+      expect(cached?.data[0].change5m).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(cached?.data[0].changePercent5m).toBe(
+        PERPS_CONSTANTS.FallbackPercentageDisplay,
+      );
+      expect(cached?.data[0].change1h).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(cached?.data[0].changePercent1h).toBe(
+        PERPS_CONSTANTS.FallbackPercentageDisplay,
+      );
+      expect(ctrl.getCachedMarketDataForActiveProvider()).toBeNull();
+      expect(
+        ctrl.getCachedMarketDataForActiveProvider({ skipTTL: true }),
+      ).toHaveLength(1);
+    });
+
+    it('publishes one construction timestamp after disk hydration and does not write Sentry at construct', () => {
+      const infra = createMockInfrastructure();
+      (infra.performance.now as Mock).mockReturnValue(321);
+      const onControllerConstructed = vi.fn();
+      infra.performance.onControllerConstructed = onControllerConstructed;
+
+      new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      expect(onControllerConstructed).toHaveBeenCalledTimes(1);
+      expect(onControllerConstructed).toHaveBeenCalledWith(321);
+      expect(
+        (infra.diskCache.getItemSync as Mock).mock.invocationCallOrder[0],
+      ).toBeLessThan(onControllerConstructed.mock.invocationCallOrder[0]);
+      expect(infra.tracer.setMeasurement).not.toHaveBeenCalled();
+    });
+
+    it('does not hydrate expired Terminal trend provenance from disk', () => {
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_MARKETS
+          ? JSON.stringify({
+              providerNetworkKey: 'hyperliquid:mainnet',
+              data: [
+                {
+                  symbol: 'BTC',
+                  name: 'Bitcoin',
+                  price: '50000',
+                  change24h: '+100',
+                  change24hPercent: '+0.2%',
+                  maxLeverage: '50x',
+                  volume: '$1B',
+                  dataSource: 'terminal-global-snapshot-mark',
+                  sourceExpiresAt: Date.now() - 1,
+                  trend: [[Date.now() - 3_600_000, '49000']],
+                },
+              ],
+              timestamp: Date.now(),
+            })
+          : null,
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      expect(
+        ctrl.state.cachedMarketDataByProvider['hyperliquid:mainnet']?.data[0]
+          .trend,
+      ).toBeUndefined();
+    });
+
+    it('hydrates multi-provider market data from disk before providers register', () => {
+      const timestamp = Date.now();
+      const diskMarkets = {
+        entries: [
+          {
+            providerNetworkKey: 'hyperliquid:mainnet',
+            data: [
+              {
+                symbol: 'BTC',
+                name: 'Bitcoin',
+                price: '50000',
+                change24h: '+100',
+                change24hPercent: '+0.2%',
+                maxLeverage: '50x',
+                volume: '$1B',
+              },
+            ],
+            timestamp,
+          },
+          {
+            providerNetworkKey: 'lighter:mainnet',
+            data: [
+              {
+                symbol: 'ETH',
+                name: 'Ethereum',
+                price: '3000',
+                change24h: '+50',
+                change24hPercent: '+1.2%',
+                maxLeverage: '25x',
+                volume: '$500M',
+              },
+            ],
+            timestamp,
+          },
+        ],
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_MARKETS) {
+            return JSON.stringify(diskMarkets);
+          }
+          return null;
+        },
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        clientConfig: {
+          providerCredentials: {
+            lighter: {
+              enabled: true,
+            },
+          },
+        } as never,
+        infrastructure: infra,
+      });
+
+      const aggregated = ctrl.getCachedMarketDataForActiveProvider({
+        skipTTL: true,
+      });
+      expect(aggregated).toHaveLength(2);
+      expect(aggregated?.map((market) => market.symbol)).toEqual([
+        'BTC',
+        'ETH',
+      ]);
+    });
+
+    it('hydrates aggregated user data from disk before providers register', () => {
+      const timestamp = Date.now();
+      const diskUserData = {
+        entries: [
+          {
+            providerNetworkKey: 'hyperliquid:mainnet',
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            positions: [createMockPosition({ symbol: 'BTC', size: '1.0' })],
+            orders: [],
+            accountState: {
+              totalBalance: '5000',
+              spendableBalance: '4000',
+              withdrawableBalance: '4000',
+              marginUsed: '1000',
+              unrealizedPnl: '0',
+              returnOnEquity: '0',
+              providerId: 'hyperliquid',
+            },
+            timestamp,
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+          {
+            providerNetworkKey: 'lighter:mainnet',
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            positions: [createMockPosition({ symbol: 'ETH', size: '2.0' })],
+            orders: [],
+            accountState: {
+              totalBalance: '1000.20',
+              spendableBalance: '800.20',
+              withdrawableBalance: '700.20',
+              marginUsed: '200',
+              unrealizedPnl: '60',
+              returnOnEquity: '30',
+              providerId: 'lighter',
+            },
+            timestamp,
+          },
+        ],
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_USER_DATA) {
+            return JSON.stringify(diskUserData);
+          }
+          return null;
+        },
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        clientConfig: {
+          providerCredentials: {
+            lighter: {
+              enabled: true,
+            },
+          },
+        } as never,
+        infrastructure: infra,
+      });
+
+      const aggregated = ctrl.getCachedUserDataForActiveProvider({
+        skipTTL: true,
+      });
+      expect(aggregated?.positions).toHaveLength(2);
+      expect(aggregated?.accountState).toMatchObject({
+        totalBalance: '6000.2',
+        spendableBalance: '4800.2',
+        withdrawableBalance: '4700.2',
+        marginUsed: '1200',
+        unrealizedPnl: '60',
+        returnOnEquity: '5',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+      expect(aggregated?.accountState?.providerId).toBeUndefined();
+    });
+
+    it('hydrates user data from disk at construction time', () => {
+      const diskUserData = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        address: '0x1234567890123456789012345678901234567890',
+        positions: [{ symbol: 'ETH', size: '2.0', entryPrice: '3000' }],
+        orders: [],
+        accountState: {
+          totalBalance: '5000',
+          spendableBalance: '4000',
+          withdrawableBalance: '4000',
+          marginUsed: '1000',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        },
+        timestamp: Date.now(),
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_USER_DATA) {
+            return JSON.stringify(diskUserData);
+          }
+          return null;
+        },
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      const cached = ctrl.state.cachedUserDataByProvider['hyperliquid:mainnet'];
+      expect(cached).not.toBeNull();
+      expect(cached?.positions).toHaveLength(1);
+      expect(cached?.positions[0].symbol).toBe('ETH');
+      expect(cached?.address).toBe(
+        '0x1234567890123456789012345678901234567890',
+      );
+    });
+
+    it('rejects a disk user snapshot with a mismatched HIP-3 identity', () => {
+      const diskUserData = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        positions: [createMockPosition()],
+        orders: [],
+        accountState: null,
+        timestamp: Date.now(),
+        hip3ConfigVersion: 9,
+        dexes: ['main'],
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
+      );
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      const result = ctrl.getCachedUserDataForActiveProvider({ skipTTL: true });
+
+      expect(result).toBeNull();
+    });
+
+    it('rejects malformed disk DEX identity without throwing', () => {
+      const diskUserData = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        positions: [createMockPosition()],
+        orders: [],
+        accountState: null,
+        timestamp: Date.now(),
+        hip3ConfigVersion: 0,
+        dexes: { length: 1 },
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
+      );
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      const readCache = () =>
+        ctrl.getCachedUserDataForActiveProvider({ skipTTL: true });
+
+      expect(readCache).not.toThrow();
+      expect(readCache()).toBeNull();
+    });
+
+    it('accepts a disk user snapshot with the current exact HIP-3 identity', () => {
+      const diskUserData = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+        positions: [createMockPosition()],
+        orders: [],
+        accountState: null,
+        timestamp: Date.now(),
+        hip3ConfigVersion: 0,
+        dexes: ['main'],
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
+      );
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      const result = ctrl.getCachedUserDataForActiveProvider({ skipTTL: true });
+
+      expect(result?.positions).toHaveLength(1);
+    });
+
+    it('hydrates user data from disk even when address differs (filtered at read time)', () => {
+      const diskUserData = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        address: '0xDEADBEEF00000000000000000000000000000000',
+        positions: [{ symbol: 'ETH', size: '2.0' }],
+        orders: [],
+        accountState: null,
+        timestamp: Date.now(),
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_USER_DATA) {
+            return JSON.stringify(diskUserData);
+          }
+          return null;
+        },
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      // Sync hydration populates cache unconditionally — address
+      // validation happens in getCachedUserDataForActiveProvider at read time
+      const cached = ctrl.state.cachedUserDataByProvider['hyperliquid:mainnet'];
+      expect(cached).not.toBeNull();
+      expect(cached?.address).toBe(
+        '0xDEADBEEF00000000000000000000000000000000',
+      );
+
+      // But getCachedUserDataForActiveProvider filters it out (address mismatch)
+      const read = ctrl.getCachedUserDataForActiveProvider({
+        skipTTL: true,
+      });
+      expect(read).toBeNull();
+    });
+
+    it('does not overwrite fresher in-memory state from older disk data', () => {
+      const freshTimestamp = Date.now();
+      const diskMarkets = {
+        providerNetworkKey: 'hyperliquid:mainnet',
+        data: [{ symbol: 'BTC', name: 'Bitcoin', price: '50000' }],
+        timestamp: freshTimestamp - 60_000, // older than initial state
+      };
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
+        (key: string) => {
+          if (key === PERPS_DISK_CACHE_MARKETS) {
+            return JSON.stringify(diskMarkets);
+          }
+          return null;
+        },
+      );
+
+      // Construct with fresher in-memory data already present
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          cachedMarketDataByProvider: {
+            'hyperliquid:mainnet': {
+              data: [{ symbol: 'ETH', name: 'Ethereum', price: '3000' } as any],
+              timestamp: freshTimestamp,
+            },
+          },
+        },
+        infrastructure: infra,
+      });
+
+      const cached =
+        ctrl.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(cached?.data[0].symbol).toBe('ETH');
+      expect(cached?.timestamp).toBe(freshTimestamp);
+    });
+
+    it('handles corrupt disk JSON gracefully at construction', () => {
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItemSync as Mock).mockReturnValue(
+        'not valid json{{{',
+      );
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      expect(
+        ctrl.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
+      ).toBeUndefined();
+    });
+
+    it('falls back gracefully when getItemSync is undefined', () => {
+      const infra = createMockInfrastructure();
+      (infra.diskCache as any).getItemSync = undefined;
+
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      expect(
+        ctrl.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
+      ).toBeUndefined();
+    });
+  });
+
+  describe('performMarketDataPreload', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      controller.stopMarketDataPreload();
+      vi.useRealTimers();
+    });
+
+    it('writes returned global snapshot data into the provider preload cache', async () => {
+      const mockData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+          dataSource: 'terminal-global-snapshot-mark' as const,
+          sourceExpiresAt: Date.now() + 20_000,
+        },
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const entry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(entry?.data).toEqual(mockData);
+      expect(entry?.data[0]?.dataSource).toBe('terminal-global-snapshot-mark');
+      expect(entry?.sourceExpiresAt).toBe(mockData[0].sourceExpiresAt);
+      expect(entry?.hip3ConfigVersion).toBe(0);
+      expect(entry?.dexes).toEqual(['main']);
+      expect(entry?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('refreshes a source-expired snapshot inside the normal preload guard', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [{ symbol: 'BTC', name: 'BTC', price: '$1' }],
+          timestamp: Date.now(),
+          sourceExpiresAt: Date.now() - 1,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+      mockMarketDataServiceInstance.getMarketDataWithPrices.mockResolvedValue(
+        [],
+      );
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not seed memory or disk when snapshot context changes during preload', async () => {
+      let resolveSnapshot:
+        | ((
+            value: Awaited<
+              ReturnType<PerpsProvider['getMarketDataWithPrices']>
+            >,
+          ) => void)
+        | undefined;
+      mockMarketDataServiceInstance.getMarketDataWithPrices.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapshot = resolve;
+          }),
+      );
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      controller.startMarketDataPreload();
+      await Promise.resolve();
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+        state.hip3ConfigVersion += 1;
+      });
+      resolveSnapshot?.([
+        {
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '$50000.00',
+          maxLeverage: '50x',
+          change24h: '+$125.00',
+          change24hPercent: '0.25%',
+          volume: '$1000000',
+          dataSource: 'terminal-global-snapshot-mark',
+        },
+      ]);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
+      ).toBeUndefined();
+      expect(
+        controller.state.cachedMarketDataByProvider['hyperliquid:testnet'],
+      ).toBeUndefined();
+      expect(mockInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('does not seed a provider fallback when context changes during preload', async () => {
+      let resolveProvider:
+        | ((
+            value: Awaited<
+              ReturnType<PerpsProvider['getMarketDataWithPrices']>
+            >,
+          ) => void)
+        | undefined;
+      mockMarketDataServiceInstance.getMarketDataWithPrices.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveProvider = resolve;
+          }),
+      );
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      controller.startMarketDataPreload();
+      await Promise.resolve();
+      controller.testUpdate((state) => {
+        state.hip3ConfigVersion += 1;
+      });
+      resolveProvider?.([
+        {
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '$50000.00',
+          maxLeverage: '50x',
+          change24h: '+$125.00',
+          change24hPercent: '0.25%',
+          volume: '$1000000',
+        },
+      ]);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
+      ).toBeUndefined();
+      expect(mockInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('runs the latest network preload after an older request completes', async () => {
+      let resolveMainnet!: (value: PerpsMarketData[]) => void;
+      mockMarketDataServiceInstance.getMarketDataWithPrices
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveMainnet = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            price: '$50000',
+          },
+        ]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.startMarketDataPreload();
+      await Promise.resolve();
+
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+      const stateChangedHandler = mockMessenger.subscribe.mock.calls.find(
+        ([event]) => event === 'PerpsController:stateChanged',
+      )?.[1];
+      stateChangedHandler?.(controller.state, [
+        { op: 'replace', path: ['isTestnet'], value: true },
+      ]);
+      resolveMainnet([]);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        controller.state.cachedMarketDataByProvider['hyperliquid:testnet']
+          ?.data[0].symbol,
+      ).toBe('BTC');
+    });
+
+    it('persists preloaded market data to disk', async () => {
+      const mockData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(mockInfrastructure.diskCache.setItem).toHaveBeenCalledWith(
+        PERPS_DISK_CACHE_MARKETS,
+        expect.any(String),
+      );
+
+      const persistedPayload = JSON.parse(
+        (mockInfrastructure.diskCache.setItem as Mock).mock.calls.find(
+          ([key]) => key === PERPS_DISK_CACHE_MARKETS,
+        )?.[1] as string,
+      );
+
+      expect(persistedPayload.providerNetworkKey).toBe('hyperliquid:mainnet');
+      expect(persistedPayload.data).toEqual(mockData);
+      expect(persistedPayload.timestamp).toBeGreaterThan(0);
+    });
+
+    it('respects 30s debounce guard', async () => {
+      const mockData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      // First preload
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const callCount = mockProvider.getMarketDataWithPrices.mock.calls.length;
+
+      // Advance by less than 30s and trigger interval
+      controller.stopMarketDataPreload();
+      // Set timestamp to recent to trigger debounce guard
+      controller.testUpdate((state) => {
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: mockData,
+          timestamp: Date.now(),
+        };
+      });
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Should not have called again due to debounce
+      // The second immediate call is debounced
+      expect(mockProvider.getMarketDataWithPrices.mock.calls.length).toBe(
+        callCount,
+      );
+    });
+
+    it('handles errors without throwing', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockRejectedValue(
+        new Error('API failed'),
+      );
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Should log error but not throw
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'performMarketDataPreload',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('traces performance via tracer', async () => {
+      const mockData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(mockInfrastructure.tracer.trace).toHaveBeenCalled();
+      expect(mockInfrastructure.tracer.endTrace).toHaveBeenCalled();
+      expect(mockInfrastructure.tracer.setMeasurement).toHaveBeenCalled();
+      const traceId = mockInfrastructure.tracer.trace.mock.calls[0][0].id;
+      expect(mockInfrastructure.tracer.setMeasurement).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+        'millisecond',
+        traceId,
+      );
+    });
+  });
+
+  describe('performUserDataPreload', () => {
+    // Import actual enum for type compatibility
+    const WSState = WebSocketConnectionState;
+    const mockEvmAccount = {
+      address: '0x1234567890123456789012345678901234567890',
+      type: 'eip155:eoa',
+      id: 'account-1',
+      options: {},
+      scopes: ['eip155:1'],
+      methods: [],
+      metadata: {
+        name: 'Test',
+        importTime: 0,
+        keyring: { type: 'HD Key Tree' },
+      },
+    };
+
+    let preloadController: TestablePerpsController;
+    let preloadMockProvider: Mocked<HyperLiquidProvider>;
+    let preloadInfrastructure: Mocked<PerpsPlatformDependencies>;
+    let preloadMessenger: ReturnType<typeof createMockMessenger>;
+
+    const createUserSnapshot = (): PerpsUserDataSnapshot => ({
+      positions: [createMockPosition()],
+      orders: [],
+      accountState: {
+        totalBalance: '10000',
+        spendableBalance: '10000',
+        withdrawableBalance: '10000',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      },
+      identity: {
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        address: mockEvmAccount.address,
+        hip3ConfigVersion: 0,
+        dexes: ['main'],
+      },
+    });
+
+    const createDeferredSnapshot = () => {
+      let resolve!: (value: PerpsUserDataSnapshot) => void;
+      const promise = new Promise<PerpsUserDataSnapshot>((promiseResolve) => {
+        resolve = promiseResolve;
+      });
+
+      return { promise, resolve };
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // Create controller with messenger that handles account queries
+      const mockCall = vi.fn().mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return {
+            remoteFeatureFlags: {
+              perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+            },
+          };
+        }
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [mockEvmAccount];
+        }
+        return undefined;
+      });
+      preloadInfrastructure = createMockInfrastructure();
+      preloadMockProvider = createMockHyperLiquidProvider();
+      preloadMockProvider.getPositions.mockResolvedValue([]);
+      preloadMockProvider.getAccountState.mockResolvedValue({
+        spendableBalance: '10000',
+        withdrawableBalance: '10000',
+        totalBalance: '10000',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+      preloadMockProvider.getMarkets.mockResolvedValue([]);
+      preloadMockProvider.getOpenOrders.mockResolvedValue([]);
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockImplementation(async ({ userAddress, identity }) => {
+          const [positions, orders, accountState] = await Promise.all([
+            preloadMockProvider.getPositions({
+              standalone: true,
+              userAddress,
+            }),
+            preloadMockProvider.getOpenOrders({
+              standalone: true,
+              userAddress,
+            }),
+            preloadMockProvider.getAccountState({
+              standalone: true,
+              userAddress,
+            }),
+          ]);
+
+          return {
+            positions,
+            orders,
+            accountState,
+            identity: {
+              ...identity,
+              address: userAddress,
+              dexes: ['main'],
+            },
+          };
+        });
+      (
+        HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(function () {
+        return preloadMockProvider;
+      });
+      preloadMessenger = createMockMessenger({ call: mockCall });
+      preloadController = new TestablePerpsController({
+        messenger: preloadMessenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: preloadInfrastructure,
+      });
+    });
+
+    afterEach(() => {
+      mockEvmAccount.address = '0x1234567890123456789012345678901234567890';
+      preloadController.stopMarketDataPreload();
+      vi.useRealTimers();
+    });
+
+    it('returns and atomically persists a provider user snapshot', async () => {
+      const snapshot = createUserSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(snapshot);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const result = await preloadController.getUserDataSnapshot();
+
+      expect(result).toEqual(snapshot);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          positions: snapshot.positions,
+          orders: snapshot.orders,
+          accountState: snapshot.accountState,
+          address: mockEvmAccount.address,
+        }),
+      );
+      expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the returned user snapshot mutable without mutating the cache', async () => {
+      const snapshot = createUserSnapshot();
+      snapshot.accountState.subAccountBreakdown = {
+        main: {
+          spendableBalance: '10',
+          withdrawableBalance: '10',
+          totalBalance: '10',
+        },
+      };
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(snapshot);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const result = await preloadController.getUserDataSnapshot();
+      result.positions[0].leverage.value = 99;
+      const breakdown = result.accountState.subAccountBreakdown;
+      if (!breakdown) {
+        throw new Error('Expected sub-account breakdown');
+      }
+      breakdown.main.totalBalance = '99';
+
+      const cached =
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'];
+      expect(cached.positions[0].leverage.value).not.toBe(99);
+      expect(cached.accountState?.subAccountBreakdown?.main.totalBalance).toBe(
+        '10',
+      );
+    });
+
+    it('fetches through the standalone provider before an active instance exists', async () => {
+      const snapshot = createUserSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(snapshot);
+
+      const result = await preloadController.getUserDataSnapshot();
+
+      expect(result).toEqual(snapshot);
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith({
+        userAddress: mockEvmAccount.address,
+        identity: {
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        },
+      });
+    });
+
+    it('rejects a snapshot whose DEX identity differs from captured configuration', async () => {
+      const snapshot = createUserSnapshot();
+      snapshot.identity.dexes = ['main', 'xyz'];
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(snapshot);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      await expect(preloadController.getUserDataSnapshot()).rejects.toThrow(
+        'mismatched',
+      );
+
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('coalesces concurrent requests with the same captured identity', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const firstRequest = preloadController.getUserDataSnapshot();
+      const secondRequest = preloadController.getUserDataSnapshot();
+      deferred.resolve(createUserSnapshot());
+
+      await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual(
+        [createUserSnapshot(), createUserSnapshot()],
+      );
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('preloads a bare DEX allowlist through the atomic snapshot path', async () => {
+      preloadController = new TestablePerpsController({
+        messenger: preloadMessenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz'],
+        },
+        infrastructure: preloadInfrastructure,
+      });
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockImplementation(async ({ userAddress, identity }) => ({
+          ...createUserSnapshot(),
+          identity: {
+            ...identity,
+            address: userAddress,
+            dexes: ['main', 'xyz'],
+          },
+        }));
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          identity: expect.objectContaining({ dexes: ['main', 'xyz'] }),
+        }),
+      );
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet']
+          ?.dexes,
+      ).toStrictEqual(['main', 'xyz']);
+    });
+
+    it('does not coalesce requests across provider instances', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const firstRequest = preloadController.getUserDataSnapshot();
+      const replacementProvider = createMockHyperLiquidProvider();
+      replacementProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(createUserSnapshot());
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', replacementProvider]]),
+      );
+
+      await expect(preloadController.getUserDataSnapshot()).resolves.toEqual(
+        createUserSnapshot(),
+      );
+      deferred.resolve(createUserSnapshot());
+      await expect(firstRequest).rejects.toThrow('context changed');
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(replacementProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+    });
+
+    it('serializes disk writes so an older account cannot overwrite a newer one', async () => {
+      let resolveFirstWrite!: () => void;
+      const firstWrite = new Promise<void>((resolve) => {
+        resolveFirstWrite = resolve;
+      });
+      preloadInfrastructure.diskCache.setItem
+        .mockReturnValueOnce(firstWrite)
+        .mockResolvedValue(undefined);
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockImplementation(async () => createUserSnapshot());
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      await preloadController.getUserDataSnapshot();
+      mockEvmAccount.address = '0x9999999999999999999999999999999999999999';
+      await preloadController.getUserDataSnapshot();
+      expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
+
+      resolveFirstWrite();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(2);
+      const lastPayload = JSON.parse(
+        preloadInfrastructure.diskCache.setItem.mock.calls[1][1] as string,
+      ) as { address: string };
+      expect(lastPayload.address).toBe(mockEvmAccount.address);
+    });
+
+    it('refreshes user data while WebSocket is connected independently of market preload', async () => {
+      const snapshot = createUserSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockResolvedValue(snapshot);
+      preloadMockProvider.getMarketDataWithPrices.mockReturnValue(
+        new Promise(() => undefined),
+      );
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Connected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet']
+          ?.positions,
+      ).toEqual(snapshot.positions);
+    });
+
+    it('queues the selected-account refresh when an older preload is in flight', async () => {
+      const firstSnapshot = createUserSnapshot();
+      const firstRequest = createDeferredSnapshot();
+      const secondAddress = '0x9999999999999999999999999999999999999999';
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValueOnce(firstRequest.promise)
+        .mockImplementationOnce(async () => createUserSnapshot());
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await Promise.resolve();
+      // Two handlers subscribe to this event: the controller's lifetime
+      // subscription-registration reset (registered in the constructor) and the
+      // preload refresh registered by startMarketDataPreload. This test drives
+      // the preload one, which is the later registration.
+      const accountChangeHandler = preloadMessenger.subscribe.mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .at(-1)?.[1] as (() => void) | undefined;
+      mockEvmAccount.address = secondAddress;
+      accountChangeHandler?.();
+      firstRequest.resolve(firstSnapshot);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(2);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(expect.objectContaining({ address: secondAddress }));
+    });
+
+    it('does not poll user REST data when WebSocket and a matching cache are available', async () => {
+      preloadMockProvider.getUserDataSnapshot = vi.fn();
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Connected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.testUpdate((state) => {
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          positions: [],
+          orders: [],
+          accountState: createUserSnapshot().accountState,
+          timestamp: 1,
+          address: mockEvmAccount.address,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('refreshes once after HIP-3 identity changes while WebSocket is connected', async () => {
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockImplementation(async ({ userAddress, identity }) => ({
+          ...createUserSnapshot(),
+          identity: {
+            ...identity,
+            address: userAddress,
+            dexes: ['main'],
+          },
+        }));
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Connected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.testUpdate((state) => {
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          positions: [],
+          orders: [],
+          accountState: createUserSnapshot().accountState,
+          timestamp: Date.now(),
+          address: mockEvmAccount.address,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+      preloadMockProvider.getUserDataSnapshot.mockClear();
+
+      preloadController.testUpdate((state) => {
+        state.hip3ConfigVersion = 1;
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(300_000);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          hip3ConfigVersion: 1,
+          dexes: ['main'],
+        }),
+      );
+    });
+
+    it('starts user preload after network reinitialization completes', async () => {
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+      preloadMockProvider.getUserDataSnapshot.mockClear();
+      vi.spyOn(preloadController, 'init').mockImplementationOnce(async () => {
+        preloadController.testUpdate((state) => {
+          state.initializationState = InitializationState.Initialized;
+        });
+      });
+
+      await preloadController.toggleTestnet();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          identity: expect.objectContaining({ network: 'testnet' }),
+        }),
+      );
+    });
+
+    it('does not put userAddress on user-preload trace data and targets the named trace id', async () => {
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const userPreloadTrace = preloadInfrastructure.tracer.trace.mock.calls
+        .map((call) => call[0])
+        .find((params) => params.name === 'Perps User Data Preload');
+      expect(userPreloadTrace).toBeDefined();
+      expect(userPreloadTrace?.data).toBeUndefined();
+      expect(JSON.stringify(userPreloadTrace)).not.toContain(
+        mockEvmAccount.address,
+      );
+      expect(preloadInfrastructure.tracer.setMeasurement).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+        'millisecond',
+        userPreloadTrace?.id,
+      );
+    });
+
+    it.each([
+      [
+        'provider',
+        () =>
+          preloadController.testUpdate((state) => {
+            state.activeProvider = 'lighter';
+          }),
+      ],
+      [
+        'network',
+        () =>
+          preloadController.testUpdate((state) => {
+            state.isTestnet = true;
+          }),
+      ],
+      [
+        'HIP-3 configuration',
+        () =>
+          preloadController.testUpdate((state) => {
+            state.hip3ConfigVersion += 1;
+          }),
+      ],
+      [
+        'selected address',
+        () => {
+          mockEvmAccount.address = '0x9999999999999999999999999999999999999999';
+        },
+      ],
+    ])('discards a user snapshot after a %s change', async (_label, mutate) => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const request = preloadController.getUserDataSnapshot();
+      await Promise.resolve();
+      mutate();
+      deferred.resolve(createUserSnapshot());
+
+      await expect(request).rejects.toThrow('context changed');
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('discards an in-flight user snapshot after disconnect', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const request = preloadController.getUserDataSnapshot();
+      await Promise.resolve();
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+
+      await expect(request).rejects.toThrow('context changed');
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('does not report an expected background preload invalidation as an error', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.logger.error).not.toHaveBeenCalled();
+    });
+
+    it('preserves last-known-good data when a snapshot request fails', async () => {
+      const lastKnownGood = {
+        positions: [createMockPosition({ symbol: 'ETH' })],
+        orders: [],
+        accountState: null,
+        timestamp: 1,
+        address: mockEvmAccount.address,
+      };
+      preloadMockProvider.getUserDataSnapshot = vi
+        .fn()
+        .mockRejectedValue(new Error('partial snapshot'));
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.testUpdate((state) => {
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = lastKnownGood;
+      });
+
+      await expect(preloadController.getUserDataSnapshot()).rejects.toThrow(
+        'partial snapshot',
+      );
+
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(lastKnownGood);
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when the provider has no atomic snapshot API', async () => {
+      preloadMockProvider.getUserDataSnapshot = undefined;
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      await expect(preloadController.getUserDataSnapshot()).rejects.toThrow(
+        'atomic snapshot API',
+      );
+
+      expect(preloadMockProvider.getPositions).not.toHaveBeenCalled();
+      expect(preloadMockProvider.getOpenOrders).not.toHaveBeenCalled();
+      expect(preloadMockProvider.getAccountState).not.toHaveBeenCalled();
+    });
+
+    it('fetches positions, orders, and account state', async () => {
+      const mockPositions = [createMockPosition()];
+      const mockOrders = [
+        {
+          orderId: 'o1',
+          symbol: 'BTC',
+          side: 'buy' as const,
+          orderType: 'limit' as const,
+          size: '0.1',
+          originalSize: '0.1',
+          filledSize: '0',
+          remainingSize: '0.1',
+          price: '50000',
+          status: 'open' as const,
+          timestamp: Date.now(),
+        },
+      ];
+      const mockAccountState: AccountState = {
+        totalBalance: '50000',
+        spendableBalance: '45000',
+        withdrawableBalance: '45000',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+      };
+
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadMockProvider.getPositions.mockResolvedValue(mockPositions);
+      preloadMockProvider.getOpenOrders.mockResolvedValue(mockOrders);
+      preloadMockProvider.getAccountState.mockResolvedValue(mockAccountState);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const userCache = preloadController.state.cachedUserDataByProvider;
+      const cacheKey = Object.keys(userCache)[0];
+      expect(cacheKey).toBeDefined();
+      const entry = userCache[cacheKey];
+      expect(entry.positions).toEqual(mockPositions);
+      expect(entry.orders).toEqual(mockOrders);
+      expect(entry.accountState).toEqual(mockAccountState);
+      expect(entry.timestamp).toBeGreaterThan(0);
+    });
+
+    it('keeps aggregated mode on the legacy provider path with trusted identity', async () => {
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(preloadMockProvider.getUserDataSnapshot).not.toHaveBeenCalled();
+      expect(preloadMockProvider.getPositions).toHaveBeenCalledTimes(1);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        }),
+      );
+      expect(
+        preloadController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        }),
+      ).not.toBeNull();
+    });
+
+    it('reconstructs combined cached totals after preloading separate venue snapshots', async () => {
+      const venueAccount = (
+        totalBalance: string,
+        providerId: PerpsProviderType,
+      ): AccountState => ({
+        totalBalance,
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId,
+      });
+      const hlAccount = venueAccount('100', 'hyperliquid');
+      const lighterAccount = venueAccount('200', 'lighter');
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        totalBalance: '300',
+        spendableBalance: '300',
+        withdrawableBalance: '300',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerStates: {
+          hyperliquid: {
+            status: 'available',
+            providerId: 'hyperliquid',
+            state: hlAccount,
+          },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toStrictEqual(
+        hlAccount,
+      );
+      expect(cache['lighter:mainnet'].accountState).toStrictEqual(
+        lighterAccount,
+      );
+      expect(cache['aggregated:mainnet'].accountState).toBeNull();
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '300',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+    });
+
+    it('clears a previously cached balance for an unavailable venue during aggregated preload', async () => {
+      const lighterAccount: AccountState = {
+        totalBalance: '200',
+        spendableBalance: '200',
+        withdrawableBalance: '200',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId: 'lighter',
+      };
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          address: mockEvmAccount.address,
+          accountState: { ...lighterAccount, providerId: 'hyperliquid' },
+          timestamp: Date.now(),
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+          positions: [],
+          orders: [],
+        };
+      });
+      vi.spyOn(preloadController, 'getPositions').mockResolvedValue([
+        lighterPosition,
+      ]);
+      vi.spyOn(preloadController, 'getOpenOrders').mockResolvedValue([]);
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        ...lighterAccount,
+        providerId: undefined,
+        providerStates: {
+          hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toBeNull();
+      expect(cache['lighter:mainnet'].positions).toStrictEqual([
+        lighterPosition,
+      ]);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '200',
+        aggregate: {
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
+        },
+      });
+    });
+
+    it('stamps Hyperliquid identity for aggregated preload before initialization', async () => {
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        }),
+      );
+    });
+
+    it('discards an aggregated preload after HIP-3 context changes', async () => {
+      let resolveOldPositions!: (value: Position[]) => void;
+      preloadMockProvider.getPositions
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveOldPositions = resolve;
+          }),
+        )
+        .mockResolvedValueOnce([
+          createMockPosition({
+            symbol: 'NEW',
+            providerId: 'hyperliquid',
+          }),
+        ]);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+
+      preloadController.startMarketDataPreload();
+      await Promise.resolve();
+      preloadController.testUpdate((state) => {
+        state.hip3ConfigVersion = 1;
+      });
+      const stateChangeHandler = preloadMessenger.subscribe.mock.calls.find(
+        ([event]) => event === 'PerpsController:stateChanged',
+      )?.[1] as
+        | ((
+            state: PerpsControllerState,
+            patches: { path: (string | number)[] }[],
+          ) => void)
+        | undefined;
+      stateChangeHandler?.(preloadController.state, [
+        { path: ['hip3ConfigVersion'] },
+      ]);
+      resolveOldPositions([
+        createMockPosition({
+          symbol: 'OLD',
+          providerId: 'hyperliquid',
+        }),
+      ]);
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(preloadMockProvider.getPositions).toHaveBeenCalledTimes(2);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          positions: [expect.objectContaining({ symbol: 'NEW' })],
+          hip3ConfigVersion: 1,
+          dexes: ['main'],
+        }),
+      );
+    });
+
+    it('persists preloaded user data to disk', async () => {
+      const mockPositions = [createMockPosition()];
+      const mockOrders = [
+        {
+          orderId: 'o1',
+          symbol: 'BTC',
+          side: 'buy' as const,
+          orderType: 'limit' as const,
+          size: '0.1',
+          originalSize: '0.1',
+          filledSize: '0',
+          remainingSize: '0.1',
+          price: '50000',
+          status: 'open' as const,
+          timestamp: Date.now(),
+        },
+      ];
+      const mockAccountState: AccountState = {
+        totalBalance: '50000',
+        spendableBalance: '45000',
+        withdrawableBalance: '45000',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+      };
+
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadMockProvider.getPositions.mockResolvedValue(mockPositions);
+      preloadMockProvider.getOpenOrders.mockResolvedValue(mockOrders);
+      preloadMockProvider.getAccountState.mockResolvedValue(mockAccountState);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledWith(
+        PERPS_DISK_CACHE_USER_DATA,
+        expect.any(String),
+      );
+
+      const persistedPayload = JSON.parse(
+        (preloadInfrastructure.diskCache.setItem as Mock).mock.calls.find(
+          ([key]) => key === PERPS_DISK_CACHE_USER_DATA,
+        )?.[1] as string,
+      );
+
+      expect(persistedPayload.providerNetworkKey).toBe('hyperliquid:mainnet');
+      expect(persistedPayload.address).toBe(mockEvmAccount.address);
+      expect(persistedPayload.positions).toEqual(mockPositions);
+      expect(persistedPayload.orders).toEqual(mockOrders);
+      expect(persistedPayload.accountState).toEqual(mockAccountState);
+      expect(persistedPayload.timestamp).toBeGreaterThan(0);
+    });
+
+    it('replaces the provider cache when the selected account changes', async () => {
+      const firstAddress = mockEvmAccount.address;
+      const secondAddress = '0x9999999999999999999999999999999999999999';
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadMockProvider.getPositions.mockImplementation(
+        async ({ userAddress }) => [
+          createMockPosition({
+            symbol:
+              userAddress.toLowerCase() === firstAddress.toLowerCase()
+                ? 'BTC'
+                : 'ETH',
+          }),
+        ],
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      // Two handlers subscribe to this event: the controller's lifetime
+      // subscription-registration reset (registered in the constructor) and the
+      // preload refresh registered by startMarketDataPreload. This test drives
+      // the preload one, which is the later registration.
+      const accountChangeHandler = preloadMessenger.subscribe.mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .at(-1)?.[1] as (() => void) | undefined;
+      expect(accountChangeHandler).toBeDefined();
+
+      mockEvmAccount.address = secondAddress;
+      accountChangeHandler?.();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+      ).toEqual(
+        expect.objectContaining({
+          address: secondAddress,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        }),
+      );
+      expect(
+        preloadController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          positions: [expect.objectContaining({ symbol: 'ETH' })],
+        }),
+      );
+
+      mockEvmAccount.address = firstAddress;
+      accountChangeHandler?.();
+
+      expect(
+        preloadController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        }),
+      ).toBeNull();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        })?.positions[0].symbol,
+      ).toBe('BTC');
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(3);
+      expect(preloadInfrastructure.diskCache.removeItem).not.toHaveBeenCalled();
+
+      const userWrites = (
+        preloadInfrastructure.diskCache.setItem as Mock
+      ).mock.calls.filter(([key]) => key === PERPS_DISK_CACHE_USER_DATA);
+      const retainedPayload = JSON.parse(
+        userWrites[userWrites.length - 1][1] as string,
+      ) as { address: string };
+      expect(retainedPayload.address.toLowerCase()).toBe(
+        firstAddress.toLowerCase(),
+      );
+
+      const hydratedInfrastructure = createMockInfrastructure();
+      hydratedInfrastructure.diskCache.getItemSync.mockImplementation((key) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(retainedPayload)
+          : null,
+      );
+      const hydratedController = new TestablePerpsController({
+        messenger: preloadMessenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: hydratedInfrastructure,
+      });
+
+      expect(
+        hydratedController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        })?.positions[0].symbol,
+      ).toBe('BTC');
+      mockEvmAccount.address = secondAddress;
+      expect(
+        hydratedController.getCachedUserDataForActiveProvider({
+          skipTTL: true,
+        }),
+      ).toBeNull();
+    });
+
+    it('handles errors without throwing', async () => {
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getPositions.mockRejectedValue(
+        new Error('positions error'),
+      );
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      // Should not crash
+      expect(
+        Object.keys(preloadController.state.cachedUserDataByProvider),
+      ).toHaveLength(0);
+    });
+
+    it('skips when cache is fresh for same account', async () => {
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadMockProvider.getPositions.mockResolvedValue([]);
+      preloadMockProvider.getOpenOrders.mockResolvedValue([]);
+      preloadMockProvider.getAccountState.mockResolvedValue({
+        spendableBalance: '100',
+        withdrawableBalance: '100',
+        totalBalance: '100',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+
+      // First preload — populates the cache
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const freshCache = preloadController.state.cachedUserDataByProvider;
+      const freshKey = Object.keys(freshCache)[0];
+      expect(freshKey).toBeDefined();
+      expect(freshCache[freshKey].address).toBe(mockEvmAccount.address);
+      expect(freshCache[freshKey].timestamp).toBeGreaterThan(0);
+
+      // Reset call counts
+      preloadMockProvider.getPositions.mockClear();
+      preloadMockProvider.getOpenOrders.mockClear();
+      preloadMockProvider.getAccountState.mockClear();
+
+      // Trigger another preload cycle — should skip (cache is fresh, same account)
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(preloadMockProvider.getPositions).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('subscribe method hardening', () => {
+    it('subscribeToPrices returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      // Should not throw
+      unsub();
+      expect(mockProvider.subscribeToPrices).not.toHaveBeenCalled();
+    });
+
+    it('subscribeToOrders returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToOrders({ callback: vi.fn() });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+      expect(mockProvider.subscribeToOrders).not.toHaveBeenCalled();
+    });
+
+    it('subscribeToTwapOrders returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToTwapOrders({ callback: vi.fn() });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToTwapOrders returns no-op when the provider has no TWAP push channel', () => {
+      // Arrange: a provider that implements no native TWAP subscription
+      delete (mockProvider as { subscribeToTwapOrders?: unknown })
+        .subscribeToTwapOrders;
+
+      // Act
+      const unsub = controller.subscribeToTwapOrders({ callback: vi.fn() });
+
+      // Assert
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToPositions returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToPositions({
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+      expect(mockProvider.subscribeToPositions).not.toHaveBeenCalled();
+    });
+
+    it('subscribeToOrderFills returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToOrderFills({
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+      expect(mockProvider.subscribeToOrderFills).not.toHaveBeenCalled();
+    });
+
+    it('subscribeToOrderBook returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToCandles returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h' as never,
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToOICaps returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToOICaps({
+        callback: vi.fn(),
+      });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+  });
+
+  describe('getCachedMarketDataForActiveProvider', () => {
+    it('rejects an expired Terminal snapshot even when TTL is skipped', () => {
+      controller.testUpdate((state) => {
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [
+            {
+              symbol: 'BTC',
+              name: 'BTC',
+              price: '$50000',
+              dataSource: 'terminal-global-snapshot-mark',
+              sourceExpiresAt: Date.now() - 1,
+            },
+          ],
+          timestamp: Date.now(),
+          sourceExpiresAt: Date.now() - 1,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      expect(
+        controller.getCachedMarketDataForActiveProvider({ skipTTL: true }),
+      ).toBeNull();
+    });
+
+    it('returns defensive copies of current Terminal snapshot data', () => {
+      const expiresAt = Date.now() + 20_000;
+      controller.testUpdate((state) => {
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [
+            {
+              symbol: 'BTC',
+              name: 'BTC',
+              price: '$50000',
+              trend: [[Date.now() - 3_600_000, '49000']],
+              dataSource: 'terminal-global-snapshot-mark',
+              sourceExpiresAt: expiresAt,
+            },
+          ],
+          timestamp: Date.now(),
+          sourceExpiresAt: expiresAt,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      const first = controller.getCachedMarketDataForActiveProvider();
+      first?.[0].trend?.push([Date.now(), '1']);
+      first?.splice(0);
+      const second = controller.getCachedMarketDataForActiveProvider();
+
+      expect(second).toHaveLength(1);
+      expect(second?.[0].trend).toHaveLength(1);
+    });
+
+    it('returns null when no cache exists', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns cached data for single provider', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [{ symbol: 'BTC', name: 'BTC', price: '50000' } as any],
+          timestamp: Date.now(),
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toHaveLength(1);
+      expect(result?.[0].symbol).toBe('BTC');
+    });
+
+    it('returns null when single provider cache is expired', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [{ symbol: 'BTC', name: 'BTC', price: '50000' } as any],
+          timestamp: Date.now() - 999_999_999, // very old
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns expired data when skipTTL is true', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [{ symbol: 'BTC', name: 'BTC', price: '50000' } as any],
+          timestamp: Date.now() - 999_999_999, // very old
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider({
+        skipTTL: true,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result?.[0].symbol).toBe('BTC');
+    });
+
+    it('assembles data from multiple providers in aggregated mode', () => {
+      const mockLighterProvider = createMockHyperLiquidProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', mockLighterProvider],
+        ] as any),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [
+            {
+              symbol: 'BTC',
+              name: 'BTC',
+              price: '50000',
+              providerId: 'hyperliquid',
+            } as any,
+          ],
+          timestamp: Date.now(),
+        };
+        state.cachedMarketDataByProvider['lighter:mainnet'] = {
+          data: [
+            {
+              symbol: 'ETH',
+              name: 'ETH',
+              price: '1',
+              providerId: 'lighter',
+            } as any,
+          ],
+          timestamp: Date.now(),
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toHaveLength(2);
+      const symbols = (result ?? []).map((m: any) => m.symbol);
+      expect(symbols).toEqual(expect.arrayContaining(['BTC', 'ETH']));
+    });
+
+    it('returns null in aggregated mode when all provider caches are empty', () => {
+      const mockLighterProvider = createMockHyperLiquidProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', mockLighterProvider],
+        ] as any),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [],
+          timestamp: Date.now(),
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toBeNull();
+    });
+
+    it('keeps current provider data when another aggregated entry is stale', () => {
+      const mockLighterProvider = createMockHyperLiquidProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', mockLighterProvider],
+        ] as any),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedMarketDataByProvider['hyperliquid:mainnet'] = {
+          data: [{ symbol: 'BTC', name: 'BTC', price: '50000' } as any],
+          timestamp: Date.now() - 999_999_999, // very old
+        };
+        state.cachedMarketDataByProvider['lighter:mainnet'] = {
+          data: [{ symbol: 'ETH', name: 'ETH', price: '1' } as any],
+          timestamp: Date.now(), // fresh
+        };
+      });
+
+      const result = controller.getCachedMarketDataForActiveProvider();
+
+      expect(result).toEqual([expect.objectContaining({ symbol: 'ETH' })]);
+    });
+  });
+
+  describe('getCachedUserDataForActiveProvider', () => {
+    const mockAddress = '0x1234567890123456789012345678901234567890';
+
+    it('returns null when no cache exists', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+      });
+
+      const result = controller.getCachedUserDataForActiveProvider();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the selected account cannot be resolved', () => {
+      const ctrl = new TestablePerpsController({
+        messenger: createMockMessenger({
+          call: vi.fn().mockImplementation((action: string) => {
+            if (action === 'RemoteFeatureFlagController:getState') {
+              return { remoteFeatureFlags: {} };
+            }
+            return undefined;
+          }),
+        }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+      });
+      ctrl.testUpdate((state) => {
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          positions: [createMockPosition()],
+          orders: [],
+          accountState: null,
+          timestamp: Date.now(),
+          address: mockAddress,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      const result = ctrl.getCachedUserDataForActiveProvider({ skipTTL: true });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns cached user data for single provider', () => {
+      const mockPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          positions: [mockPosition],
+          orders: [],
+          accountState: {
+            totalBalance: '50000',
+            spendableBalance: '45000',
+            withdrawableBalance: '45000',
+            marginUsed: '5000',
+            unrealizedPnl: '1000',
+            returnOnEquity: '20',
+          },
+          timestamp: Date.now(),
+          address: mockAddress,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      const result = controller.getCachedUserDataForActiveProvider();
+
+      expect(result).not.toBeNull();
+      expect(result?.positions).toHaveLength(1);
+      expect(result?.positions[0].symbol).toBe('BTC');
+      expect(result?.accountState?.totalBalance).toBe('50000');
+    });
+
+    describe('aggregated account totals', () => {
+      const hlAccount: AccountState = {
+        totalBalance: '50000.10',
+        spendableBalance: '45000.10',
+        withdrawableBalance: '45000.10',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '50000.10',
+            spendableBalance: '45000.10',
+            withdrawableBalance: '45000.10',
+          },
+        },
+      };
+      const lighterAccount: AccountState = {
+        totalBalance: '1000.20',
+        spendableBalance: '800.20',
+        withdrawableBalance: '700.20',
+        marginUsed: '1000',
+        unrealizedPnl: '-100',
+        returnOnEquity: '-10',
+      };
+
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(
+          new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', mockProvider],
+            ['lighter', createMockHyperLiquidProvider()],
+          ]),
+        );
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+          state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'BTC', size: '1.0' })],
+            orders: [],
+            accountState: hlAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          };
+          state.cachedUserDataByProvider['lighter:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'ETH', size: '5.0' })],
+            orders: [],
+            accountState: lighterAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+          };
+        });
+      });
+
+      it('combines venue totals and retains venue-local details only in providerStates', () => {
+        const result = controller.getCachedUserDataForActiveProvider();
+
+        expect(result?.positions.map(({ symbol }) => symbol)).toEqual([
+          'BTC',
+          'ETH',
+        ]);
+        expect(result?.accountState).toStrictEqual({
+          totalBalance: '51000.3',
+          spendableBalance: '45800.3',
+          withdrawableBalance: '45700.3',
+          marginUsed: '6000',
+          unrealizedPnl: '900',
+          returnOnEquity: '15',
+          providerStates: {
+            hyperliquid: {
+              status: 'available',
+              providerId: 'hyperliquid',
+              state: { ...hlAccount, providerId: 'hyperliquid' },
+            },
+            lighter: {
+              status: 'available',
+              providerId: 'lighter',
+              state: { ...lighterAccount, providerId: 'lighter' },
+            },
+          },
+          aggregate: {
+            status: 'complete',
+            availableProviders: ['hyperliquid', 'lighter'],
+            unavailableProviders: [],
+          },
+        });
+      });
+
+      it.each([
+        'missing',
+        'expired',
+        'other account',
+        'other network',
+        'HIP-3',
+        'null',
+        'malformed',
+      ])(
+        'returns a Lighter subtotal when the HyperLiquid cache is %s',
+        (invalidity) => {
+          controller.testUpdate((state) => {
+            const key = 'hyperliquid:mainnet';
+            const entry = state.cachedUserDataByProvider[key];
+            switch (invalidity) {
+              case 'missing':
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'expired':
+                entry.timestamp = Date.now() - 60_000;
+                break;
+              case 'other account':
+                entry.address = '0x9999999999999999999999999999999999999999';
+                break;
+              case 'other network':
+                state.cachedUserDataByProvider['hyperliquid:testnet'] = entry;
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'HIP-3':
+                entry.hip3ConfigVersion = state.hip3ConfigVersion + 1;
+                break;
+              case 'null':
+                entry.accountState = null;
+                break;
+              case 'malformed':
+                entry.accountState!.totalBalance = 'NaN';
+                break;
+            }
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toMatchObject({
+            totalBalance: '1000.2',
+            aggregate: {
+              status: 'partial',
+              availableProviders: ['lighter'],
+              unavailableProviders: ['hyperliquid'],
+            },
+            providerStates: {
+              hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+              lighter: { status: 'available', providerId: 'lighter' },
+            },
+          });
+          if (invalidity === 'expired') {
+            expect(
+              controller.getCachedUserDataForActiveProvider({ skipTTL: true })
+                ?.accountState?.totalBalance,
+            ).toBe('51000.3');
+          }
+        },
+      );
+
+      it('returns no account total when neither venue has a usable account snapshot', () => {
+        controller.testUpdate((state) => {
+          for (const entry of Object.values(state.cachedUserDataByProvider)) {
+            entry.accountState = null;
+          }
+        });
+
+        const result = controller.getCachedUserDataForActiveProvider();
+
+        expect(result?.positions).toHaveLength(2);
+        expect(result?.accountState).toBeNull();
+      });
+
+      it.each(['hyperliquid', 'lighter'] as const)(
+        'preserves the direct snapshot shape when only %s participates',
+        (providerId) => {
+          controller.testSetProviders(new Map([[providerId, mockProvider]]));
+          controller.testUpdate((state) => {
+            const otherProvider =
+              providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid';
+            delete state.cachedUserDataByProvider[`${otherProvider}:mainnet`];
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toStrictEqual({
+            ...(providerId === 'hyperliquid' ? hlAccount : lighterAccount),
+            providerId,
+          });
+        },
+      );
+    });
+
+    it('returns null in aggregated mode when no valid entries exist', () => {
+      const mockLighterProvider = createMockHyperLiquidProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', mockLighterProvider],
+        ] as any),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+
+      const result = controller.getCachedUserDataForActiveProvider();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns stale data when skipTTL is true', () => {
+      const mockPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          positions: [mockPosition],
+          orders: [],
+          accountState: null,
+          timestamp: Date.now() - 999_999_999, // very old
+          address: mockAddress,
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+        };
+      });
+
+      const withoutSkip = controller.getCachedUserDataForActiveProvider();
+      const withSkip = controller.getCachedUserDataForActiveProvider({
+        skipTTL: true,
+      });
+
+      expect(withoutSkip).toBeNull();
+      expect(withSkip).not.toBeNull();
+      expect(withSkip?.positions).toHaveLength(1);
+    });
+  });
+
+  describe('performMarketDataPreload aggregated mode', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      controller.stopMarketDataPreload();
+      vi.useRealTimers();
+    });
+
+    it('splits market data by providerId into per-provider cache entries', async () => {
+      const base = {
+        maxLeverage: '50x',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        volume: '$1M',
+      };
+      const mockData = [
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          providerId: 'hyperliquid' as const,
+        },
+        {
+          ...base,
+          symbol: 'ETH',
+          name: 'ETH',
+          price: '3000',
+          providerId: 'hyperliquid' as const,
+        },
+        {
+          ...base,
+          symbol: 'LTR',
+          name: 'LTR',
+          price: '1',
+          providerId: 'lighter' as const,
+        },
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Per-provider entries should be written
+      const hlEntry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(hlEntry?.data).toHaveLength(2);
+      expect(hlEntry?.data[0].symbol).toBe('BTC');
+
+      const lighterEntry =
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'];
+      expect(lighterEntry?.data).toHaveLength(1);
+      expect(lighterEntry?.data[0].symbol).toBe('LTR');
+
+      // Aggregated sentinel should be empty
+      const sentinel =
+        controller.state.cachedMarketDataByProvider['aggregated:mainnet'];
+      expect(sentinel?.data).toHaveLength(0);
+      expect(sentinel?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('assigns items without providerId to hyperliquid fallback', async () => {
+      const mockData = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+1',
+          change24hPercent: '+0.1%',
+          volume: '$1M',
+        }, // no providerId
+      ];
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const hlEntry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(hlEntry?.data).toHaveLength(1);
+      expect(hlEntry?.data[0].symbol).toBe('BTC');
+    });
+  });
+});

@@ -7,7 +7,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { assertIsStrictHexString, hexToBytes } from '@metamask/utils';
 import type BN from 'bn.js';
 
-import { ethersBigNumberToBN } from '../assetsUtil';
+import { ethersBigNumberToBN } from '../assetsUtil.js';
 
 export class ERC20Standard {
   private readonly provider: Web3Provider;

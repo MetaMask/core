@@ -1,25 +1,31 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   MockRootMessenger,
-  createMockAssetControllerMessenger,
+  createMockMessengers,
+  createMockNetworkState,
   createMockWeb3Provider,
   registerStakedMessengerActions,
-} from '../__fixtures__/MockAssetControllerMessenger';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type {
-  AssetsControllerStateInternal,
-  ChainId,
-  Context,
-  DataRequest,
-} from '../types';
-import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
-import { StakedBalanceDataSource } from './StakedBalanceDataSource';
+} from '../__fixtures__/MockAssetControllerMessenger.js';
+import { waitFor, waitUntilStable } from '../__fixtures__/test-utils.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { ChainId, Context, DataRequest } from '../types.js';
+import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
+import { StakedBalanceDataSource } from './StakedBalanceDataSource.js';
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
 const STAKING_CONTRACT_MAINNET = '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+const STAKED_MAINNET_ASSET_ID = `${MAINNET_CHAIN_ID_CAIP}/erc20:${STAKING_CONTRACT_MAINNET}`;
+const STAKED_MAINNET_METADATA = {
+  type: 'erc20',
+  name: 'staked ethereum',
+  symbol: 'ETH',
+  decimals: 18,
+};
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 
@@ -40,7 +46,7 @@ function createMockInternalAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -60,21 +66,10 @@ function createDataRequest(
   };
 }
 
-function getMockAssetsState(): AssetsControllerStateInternal {
-  return {
-    assetsInfo: {},
-    assetsBalance: {},
-    assetsPrice: {},
-    customAssets: {},
-    assetPreferences: {},
-  };
-}
-
 function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: getMockAssetsState,
     ...overrides,
   };
 }
@@ -93,9 +88,6 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: StakedBalanceDataSource;
   messenger: AssetsControllerMessenger;
-  mockMessengerCall: jest.SpyInstance;
-  mockMessengerSubscribe: jest.SpyInstance;
-  mockMessengerUnsubscribe: jest.SpyInstance;
   rootMessenger: MockRootMessenger;
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -120,49 +112,32 @@ async function withController<ReturnValue>(
     }),
   } = controllerOptions;
 
-  const { assetsControllerMessenger, rootMessenger } =
-    createMockAssetControllerMessenger();
-  registerStakedMessengerActions(rootMessenger, {
-    enabledNetworkMap,
-    mockProvider,
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (messenger) =>
+      registerStakedMessengerActions(messenger, {
+        enabledNetworkMap,
+        mockProvider,
+      }),
   });
-
-  // spy on staked messenger calls, so we can inspect and assert
-  const mockStakedMessengerCall = jest.spyOn(assetsControllerMessenger, 'call');
-
-  // spy on staked messenger subscriptions, so we can inspect and assert
-  const mockStakedMessengerSubscribe = jest.spyOn(
-    assetsControllerMessenger,
-    'subscribe',
-  );
-
-  // spy on staked messenger unsubscribe, so we can inspect and assert
-  const mockStakedMessengerUnsubscribe = jest.spyOn(
-    assetsControllerMessenger,
-    'clearEventSubscriptions',
-  );
 
   const onActiveChainsUpdated =
     (
       options as {
         onActiveChainsUpdated?: (n: string, c: ChainId[], p: ChainId[]) => void;
       }
-    ).onActiveChainsUpdated ?? jest.fn();
+    ).onActiveChainsUpdated ?? vi.fn();
 
   const controller = new StakedBalanceDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
     ...options,
-    pollInterval: 1000,
+    pollInterval: 60_000,
   });
 
   try {
     return await fn({
       controller,
       messenger: assetsControllerMessenger,
-      mockMessengerCall: mockStakedMessengerCall,
-      mockMessengerSubscribe: mockStakedMessengerSubscribe,
-      mockMessengerUnsubscribe: mockStakedMessengerUnsubscribe,
       onActiveChainsUpdated,
       mockProvider,
       rootMessenger,
@@ -173,10 +148,6 @@ async function withController<ReturnValue>(
 }
 
 describe('StakedBalanceDataSource', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes with default options', async () => {
       await withController(({ controller }) => {
@@ -214,25 +185,82 @@ describe('StakedBalanceDataSource', () => {
       });
     });
 
-    it('subscribes to transaction and network events', async () => {
-      await withController(({ mockMessengerSubscribe }) => {
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'TransactionController:transactionConfirmed',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'TransactionController:incomingTransactionsReceived',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'NetworkController:stateChange',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'NetworkEnablementController:stateChange',
-          expect.any(Function),
-        );
+    it('refreshes staked balance when a confirmed staking transaction is published', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const onAssetsUpdate = vi.fn();
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
+        onAssetsUpdate.mockClear();
+
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '1',
+          networkClientId: 'mainnet',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          chainId: MAINNET_CHAIN_ID_HEX,
+          txParams: {
+            to: STAKING_CONTRACT_MAINNET,
+            from: '0x0000000000000000000000000000000000000000',
+          },
+        });
+
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
+    });
+
+    it('builds a new provider after the network state changes', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockProvider }) => {
+          const callsBefore = mockProvider.mock.calls.length;
+          const request = createDataRequest();
+
+          await controller.fetch(request);
+          await controller.fetch(request);
+          expect(mockProvider).toHaveBeenCalledTimes(callsBefore + 1);
+
+          rootMessenger.publish(
+            'NetworkController:stateChange',
+            createMockNetworkState(),
+            [],
+          );
+
+          await controller.fetch(request);
+          expect(mockProvider).toHaveBeenCalledTimes(callsBefore + 2);
+        },
+      );
+    });
+
+    it('drops staking chains when network enablement disables mainnet', async () => {
+      await withController(
+        async ({ controller, rootMessenger, onActiveChainsUpdated }) => {
+          expect(await controller.getActiveChains()).toContain(
+            MAINNET_CHAIN_ID_CAIP,
+          );
+
+          rootMessenger.publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: { eip155: {} },
+              nativeAssetIdentifiers: {},
+            },
+            [],
+          );
+
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+          expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+            'StakedBalanceDataSource',
+            [],
+            [MAINNET_CHAIN_ID_CAIP],
+          );
+        },
+      );
     });
   });
 
@@ -289,11 +317,11 @@ describe('StakedBalanceDataSource', () => {
     it('returns empty response for unsupported chain', async () => {
       await withController(async ({ controller }) => {
         const request = createDataRequest({
-          chainIds: ['eip155:999' as ChainId],
+          chainIds: ['eip155:999'],
           accountsWithSupportedChains: [
             {
               account: createMockInternalAccount(),
-              supportedChains: ['eip155:999' as ChainId],
+              supportedChains: ['eip155:999'],
             },
           ],
         });
@@ -303,26 +331,28 @@ describe('StakedBalanceDataSource', () => {
     });
 
     it('returns staked balance and metadata for mainnet when fetcher returns data', async () => {
-      await withController(
-        async ({ controller, mockMessengerCall: mockMessengerCalls }) => {
-          const account = createMockInternalAccount();
-          const request = createDataRequest({
-            accounts: [account],
-            chainIds: [MAINNET_CHAIN_ID_CAIP],
-            accountsWithSupportedChains: [
-              { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
-            ],
-          });
+      await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
+        const request = createDataRequest({
+          accounts: [account],
+          chainIds: [MAINNET_CHAIN_ID_CAIP],
+          accountsWithSupportedChains: [
+            { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
+          ],
+        });
 
-          const response = await controller.fetch(request);
-          expect(response).toBeDefined();
-
-          expect(mockMessengerCalls).toHaveBeenCalledWith(
-            'NetworkController:getNetworkClientById',
-            'mainnet',
-          );
-        },
-      );
+        const response = await controller.fetch(request);
+        expect(response).toStrictEqual({
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [STAKED_MAINNET_ASSET_ID]: { amount: '1.5' },
+            },
+          },
+          assetsInfo: {
+            [STAKED_MAINNET_ASSET_ID]: STAKED_MAINNET_METADATA,
+          },
+        });
+      });
     });
 
     it('returns zero amount when getShares returns zero', async () => {
@@ -352,16 +382,12 @@ describe('StakedBalanceDataSource', () => {
   describe('subscribe', () => {
     it('stores subscription and calls onAssetsUpdate after initial fetch', async () => {
       await withController(async ({ controller }) => {
-        const onAssetsUpdate = jest.fn();
+        const onAssetsUpdate = vi.fn();
         await controller.subscribe({
           request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
-        });
-        await new Promise((resolve) => {
-          setTimeout(resolve, 100);
         });
         expect(await controller.getActiveChains()).toContain(
           MAINNET_CHAIN_ID_CAIP,
@@ -374,13 +400,12 @@ describe('StakedBalanceDataSource', () => {
       await withController(
         { enabledNetworkMap: { eip155: {} } },
         async ({ controller }) => {
-          const onAssetsUpdate = jest.fn();
+          const onAssetsUpdate = vi.fn();
           await controller.subscribe({
             request: createDataRequest(),
             subscriptionId: 'test-sub',
             isUpdate: false,
             onAssetsUpdate,
-            getAssetsState: getMockAssetsState,
           });
           expect(onAssetsUpdate).not.toHaveBeenCalled();
         },
@@ -395,8 +420,7 @@ describe('StakedBalanceDataSource', () => {
           request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-          getAssetsState: getMockAssetsState,
+          onAssetsUpdate: vi.fn(),
         });
         await controller.unsubscribe('test-sub');
         const chains = await controller.getActiveChains();
@@ -408,17 +432,16 @@ describe('StakedBalanceDataSource', () => {
   describe('transaction events', () => {
     const arrange = async (props: {
       controller: StakedBalanceDataSource;
-    }): Promise<jest.Mock> => {
+    }): Promise<Mock> => {
       // subscribe and wait ensure polling finishes before we start test
-      const onAssetsUpdate = jest.fn();
+      const onAssetsUpdate = vi.fn();
       await props.controller.subscribe({
         request: createDataRequest(),
         subscriptionId: 'test-sub',
         isUpdate: false,
         onAssetsUpdate,
-        getAssetsState: getMockAssetsState,
       });
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
       onAssetsUpdate.mockClear();
 
       return onAssetsUpdate;
@@ -443,8 +466,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
     });
 
@@ -467,7 +491,7 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
@@ -488,66 +512,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('refreshes when incomingTransactionsReceived includes tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: STAKING_CONTRACT_MAINNET,
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('does not refresh when incomingTransactionsReceived has no tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: '0x1234567890123456789012345678901234567890',
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        expect(onAssetsUpdate).not.toHaveBeenCalled();
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
     });
   });
@@ -555,13 +522,12 @@ describe('StakedBalanceDataSource', () => {
   describe('refreshStakedBalance', () => {
     it('pushes updates for all subscribed accounts and chains', async () => {
       await withController(async ({ controller }) => {
-        const onAssetsUpdate = jest.fn();
+        const onAssetsUpdate = vi.fn();
         await controller.subscribe({
           request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
         });
         onAssetsUpdate.mockClear();
         expect(await controller.refreshStakedBalance()).toBeUndefined();
@@ -583,7 +549,7 @@ describe('StakedBalanceDataSource', () => {
       await withController(
         { options: { enabled: false }, enabledNetworkMap: {} },
         async ({ controller }) => {
-          const next = jest.fn().mockResolvedValue(undefined);
+          const next = vi.fn().mockResolvedValue(undefined);
           const context = createMiddlewareContext();
           await controller.assetsMiddleware(context, next);
           expect(next).toHaveBeenCalledWith(context);
@@ -594,7 +560,7 @@ describe('StakedBalanceDataSource', () => {
 
     it('merges staked balance into response when balance data type requested', async () => {
       await withController(async ({ controller }) => {
-        const next = jest.fn().mockResolvedValue(undefined);
+        const next = vi.fn().mockResolvedValue(undefined);
         const context = createMiddlewareContext();
         await controller.assetsMiddleware(context, next);
         expect(next).toHaveBeenCalledWith(context);
@@ -609,7 +575,7 @@ describe('StakedBalanceDataSource', () => {
 
     it('passes through without fetching when dataTypes does not include balance', async () => {
       await withController(async ({ controller }) => {
-        const next = jest.fn().mockResolvedValue(undefined);
+        const next = vi.fn().mockResolvedValue(undefined);
         const request = createDataRequest();
         request.dataTypes = ['price'];
         const context = createMiddlewareContext({ request, response: {} });

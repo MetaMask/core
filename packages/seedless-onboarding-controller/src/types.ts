@@ -1,7 +1,11 @@
-import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type {
+  EncAccountDataType,
+  KeyPair,
+  NodeAuthTokens,
+} from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants';
+import type { AuthConnection, SecretType } from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -67,6 +71,32 @@ export type AuthenticatedUserDetails = {
   refreshToken: string;
 };
 
+/**
+ * Auth-server tokens and social login details passed to
+ * {@link SeedlessOnboardingController.authenticate}, except `skipLock`.
+ *
+ * Extends {@link AuthenticatedUserDetails} without `nodeAuthTokens` (those are
+ * produced by authenticate) and with optional `socialLoginEmail` (not always
+ * returned by the IdP).
+ */
+export type SeedlessAuthData = Omit<
+  AuthenticatedUserDetails,
+  'nodeAuthTokens' | 'socialLoginEmail'
+> & {
+  /**
+   * ID token(s) verified by the TOPRF nodes.
+   */
+  idTokens: string[];
+  accessToken: string;
+  metadataAccessToken: string;
+  /**
+   * Needed to unlock an existing vault. Callers that need it should check it
+   * is present.
+   */
+  revokeToken?: string;
+  socialLoginEmail?: string;
+};
+
 export type SRPBackedUpUserDetails = {
   /**
    * The public key of the authentication key pair in base64 format.
@@ -90,6 +120,16 @@ export type RecoveryErrorData = {
    */
   numberOfAttempts: number;
 };
+
+/**
+ * Non-sensitive type labels for each secret metadata item, in the same order
+ * as fetched secret data (after sorting). Uses `dataType` when present,
+ * otherwise falls back to `SecretType`.
+ */
+export type InvalidPrimarySecretDataTypeErrorData = (
+  | SecretType
+  | EncAccountDataType
+)[];
 
 // State
 export type SeedlessOnboardingControllerState =
@@ -263,8 +303,8 @@ export type DeserializedVaultData = Pick<
   VaultData,
   'accessToken' | 'revokeToken'
 > & {
-  toprfEncryptionKey: Uint8Array;
-  toprfPwEncryptionKey: Uint8Array;
+  toprfEncryptionKey: Uint8Array<ArrayBuffer>;
+  toprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
   toprfAuthKeyPair: KeyPair;
 };
 

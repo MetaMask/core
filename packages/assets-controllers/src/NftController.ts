@@ -35,7 +35,10 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import {
+  RecommendedAction,
+  RequestSourceFlow,
+} from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -49,16 +52,19 @@ import type {
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController-method-action-types';
+} from './AssetsContractController-method-action-types.js';
 import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
+  isDataUri,
+  parseJsonDataUri,
   reduceInBatchesSerially,
-} from './assetsUtil';
-import { Source } from './constants';
-import { getNftOwnershipForMultipleNfts } from './multicall';
-import type { NftOwnershipResult } from './multicall';
+} from './assetsUtil.js';
+import { Source } from './constants.js';
+import { getNftOwnershipForMultipleNfts } from './multicall.js';
+import type { NftOwnershipResult } from './multicall.js';
+import type { NftControllerMethodActions } from './NftController-method-action-types.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -66,7 +72,7 @@ import type {
   Attributes,
   LastSale,
   TopBid,
-} from './NftDetectionController';
+} from './NftDetectionController.js';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -109,11 +115,13 @@ type SuggestedNftMeta = {
  * creator - The NFT owner information object
  * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * transactionId - Transaction Id associated with the NFT
+ * source - How the NFT was added (`custom`, `dapp` or `detected`). Set on creation; auto-detection never overwrites it, a dapp suggestion upgrades `detected`, and a manual import overrides any other source. Unset for NFTs added before this field existed.
  */
 export type Nft = {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
+  source?: Source;
 } & NftMetadata;
 
 type NftUpdate = {
@@ -288,11 +296,23 @@ type NftToAdd = {
  */
 const controllerName = 'NftController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addNft',
+  'addNftVerifyOwnership',
+  'removeAndIgnoreNft',
+  'removeNft',
+  'checkAndUpdateAllNftsOwnershipStatus',
+  'checkAndUpdateSingleNftOwnershipStatus',
+  'isNftOwner',
+] as const;
+
 export type NftControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NftControllerState
 >;
-export type NftControllerActions = NftControllerGetStateAction;
+export type NftControllerActions =
+  | NftControllerGetStateAction
+  | NftControllerMethodActions;
 
 /**
  * The external actions available to the {@link NftController}.
@@ -336,6 +356,16 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
 });
 
 const NFT_UPDATE_THRESHOLD = 500;
+
+/**
+ * Narrows an untrusted token URI metadata field to a string.
+ *
+ * @param value - The metadata field value.
+ * @returns The value if it is a string, otherwise `null`.
+ */
+function toStringOrNull(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -429,6 +459,11 @@ export class NftController extends BaseController<
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
     );
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -513,9 +548,9 @@ export class NftController extends BaseController<
    */
   #updateNestedNftState<
     Key extends typeof ALL_NFTS_STATE_KEY | typeof ALL_NFTS_CONTRACTS_STATE_KEY,
-    NftCollection extends Key extends typeof ALL_NFTS_STATE_KEY
+    NftCollection extends (Key extends typeof ALL_NFTS_STATE_KEY
       ? Nft[]
-      : NftContract[],
+      : NftContract[]),
   >(
     newCollection: NftCollection,
     baseStateKey: Key,
@@ -687,31 +722,63 @@ export class NftController extends BaseController<
       };
     }
 
-    try {
-      const object = await handleFetch(tokenURI);
-      // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
-      const image = Object.prototype.hasOwnProperty.call(object, 'image')
-        ? 'image'
-        : /* istanbul ignore next */ 'image_url';
+    const fallbackMetadata: NftMetadata = {
+      image: null,
+      name: null,
+      description: null,
+      standard: standard || null,
+      favorite: false,
+      tokenURI: tokenURI ?? null,
+    };
 
-      return {
-        image: object[image],
-        name: object.name,
-        description: object.description,
-        standard,
-        favorite: false,
-        tokenURI: tokenURI ?? null,
-      };
-    } catch {
-      return {
-        image: null,
-        name: null,
-        description: null,
-        standard: standard || null,
-        favorite: false,
-        tokenURI: tokenURI ?? null,
-      };
+    // Never hand a `data:` URL to `fetch`: not every client's `fetch` can
+    // decode them (e.g. it crashes MetaMask Mobile). JSON metadata is decoded
+    // inline; any other `data:` media type gets the safe fallback.
+    if (isDataUri(tokenURI)) {
+      const object = parseJsonDataUri(tokenURI);
+      return object
+        ? this.#buildNftMetadataFromTokenURIObject(object, standard, tokenURI)
+        : fallbackMetadata;
     }
+
+    try {
+      const object: Record<string, unknown> = await handleFetch(tokenURI);
+      return this.#buildNftMetadataFromTokenURIObject(
+        object,
+        standard,
+        tokenURI,
+      );
+    } catch {
+      return fallbackMetadata;
+    }
+  }
+
+  /**
+   * Builds NFT metadata from the JSON object a token URI resolves to.
+   *
+   * @param object - The JSON metadata object the token URI resolves to.
+   * @param standard - The NFT standard.
+   * @param tokenURI - The token URI.
+   * @returns The NFT metadata.
+   */
+  #buildNftMetadataFromTokenURIObject(
+    object: Record<string, unknown>,
+    standard: string,
+    tokenURI: string,
+  ): NftMetadata {
+    // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
+    const image = Object.prototype.hasOwnProperty.call(object, 'image')
+      ? 'image'
+      : /* istanbul ignore next */ 'image_url';
+
+    return {
+      image: toStringOrNull(object[image]),
+      name: toStringOrNull(object.name),
+      description: toStringOrNull(object.description),
+      standard: standard || null,
+      favorite: false,
+      tokenURI,
+    };
   }
 
   /**
@@ -933,10 +1000,18 @@ export class NftController extends BaseController<
               existingEntry,
             );
 
+            // Auto-detection never overwrites a stored source and nothing
+            // overwrites a manual import.
+            const needsSourceUpdate =
+              source !== Source.Detected &&
+              existingEntry.source !== Source.Custom &&
+              existingEntry.source !== source;
+
             if (
               !differentMetadata &&
               existingEntry.isCurrentlyOwned &&
-              !hasNewFields
+              !hasNewFields &&
+              !needsSourceUpdate
             ) {
               continue;
             }
@@ -951,6 +1026,7 @@ export class NftController extends BaseController<
               allNftsForUserPerChain[chainId][indexToUpdate] = {
                 ...existingEntry,
                 ...nftMetadata,
+                ...(needsSourceUpdate && { source }),
               };
             }
           } else {
@@ -960,6 +1036,7 @@ export class NftController extends BaseController<
               favorite: false,
               isCurrentlyOwned: true,
               ...nftMetadata,
+              source,
             };
 
             allNftsForUserPerChain[chainId].push(newEntry);
@@ -1418,7 +1495,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options - an object of arguments
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    */
   async addNftVerifyOwnership(
     address: string,
@@ -1460,7 +1537,7 @@ export class NftController extends BaseController<
    * @param options - an object of arguments
    * @param options.nftMetadata - NFT optional metadata.
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
@@ -1484,7 +1561,10 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    if (!nftMetadata) {
+    if (nftMetadata) {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
+    } else {
       const fetchedMetadata = await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
@@ -1492,9 +1572,6 @@ export class NftController extends BaseController<
       );
       // Sanitize metadata
       nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
-    } else {
-      // Sanitize provided metadata
-      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
     const { contracts: newNftContracts } = await this.#addNftContracts(
@@ -1552,7 +1629,7 @@ export class NftController extends BaseController<
    * @param nfts[].tokenId - The NFT identifier.
    * @param nfts[].nftMetadata - NFT metadata including chainId.
    * @param userAddress - The address of the current user.
-   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to Source.Custom.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    * @returns Promise resolving to the current NFT list.
    */
   async addNfts(
@@ -2299,6 +2376,7 @@ export class NftController extends BaseController<
           const bulkScanResponse = await this.messenger.call(
             'PhishingController:bulkScanUrls',
             batch,
+            RequestSourceFlow.NftDetection,
           );
 
           // Collect blocked URLs from this batch

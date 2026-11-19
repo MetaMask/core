@@ -1,16 +1,22 @@
 import { NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CHAIN_IDS } from '../constants';
+import { CHAIN_IDS } from '../constants.js';
 import type {
   TransactionMeta,
   SecurityAlertResponse,
   SimulationData,
   SimulationTokenBalanceChange,
-} from '../types';
-import { TransactionStatus, SimulationTokenStandard } from '../types';
-import { getPercentageChange } from '../utils/utils';
+} from '../types.js';
+import {
+  TransactionContainerType,
+  TransactionStatus,
+  SimulationTokenStandard,
+} from '../types.js';
+import { getPercentageChange } from '../utils/utils.js';
 import {
   ResimulateHelper,
   BLOCK_TIME_ADDITIONAL_SECONDS,
@@ -20,8 +26,7 @@ import {
   shouldResimulate,
   VALUE_COMPARISON_PERCENT_THRESHOLD,
   RESIMULATE_INTERVAL_MS,
-} from './ResimulateHelper';
-import type { ResimulateHelperOptions } from './ResimulateHelper';
+} from './ResimulateHelper.js';
 
 const CURRENT_TIME_MOCK = 1234567890;
 const CURRENT_TIME_SECONDS_MOCK = 1234567;
@@ -82,14 +87,14 @@ const mockTransactionMeta = {
   status: TransactionStatus.unapproved,
 } as TransactionMeta;
 
-jest.mock('../utils/utils');
+vi.mock('../utils/utils');
 
 describe('ResimulateHelper', () => {
-  let getTransactionsMock: jest.Mock<() => TransactionMeta[]>;
-  let simulateTransactionMock: jest.Mock<
+  let getTransactionsMock: Mock<() => TransactionMeta[]>;
+  let simulateTransactionMock: Mock<
     (transactionMeta: TransactionMeta) => Promise<void>
   >;
-  let onTransactionsUpdateMock: jest.Mock<(listener: () => void) => void>;
+  let onTransactionsUpdateMock: Mock<(listener: () => void) => void>;
 
   /**
    * Triggers onStateChange callback
@@ -99,83 +104,123 @@ describe('ResimulateHelper', () => {
   }
 
   /**
-   * Mocks getTransactions to return given transactions argument
+   * Flushes the microtask queue so the resimulation promise chain settles and
+   * the next timer is scheduled before advancing fake timers again.
+   */
+  async function flushPromises(): Promise<void> {
+    for (let i = 0; i < 5; i++) {
+      await Promise.resolve();
+    }
+  }
+
+  /**
+   * Mocks getTransactions to always return the given transactions argument.
+   * The resimulation timer reads the latest state on each tick, so the mock
+   * must persist across calls rather than returning a value only once.
    *
    * @param transactions - Transactions to be returned
    */
-  function mockGetTransactionsOnce(transactions: TransactionMeta[]): void {
-    getTransactionsMock.mockReturnValueOnce(
-      transactions as unknown as ResimulateHelperOptions['getTransactions'],
-    );
+  function mockGetTransactions(transactions: TransactionMeta[]): void {
+    getTransactionsMock.mockReturnValue(transactions);
   }
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    getTransactionsMock = jest.fn();
-    onTransactionsUpdateMock = jest.fn();
-    simulateTransactionMock = jest.fn().mockResolvedValue(undefined);
+    vi.useFakeTimers();
+    getTransactionsMock = vi.fn();
+    onTransactionsUpdateMock = vi.fn();
+    simulateTransactionMock = vi.fn().mockResolvedValue(undefined);
 
     // eslint-disable-next-line no-new
     new ResimulateHelper({
       getTransactions: getTransactionsMock,
       onTransactionsUpdate: onTransactionsUpdateMock,
       simulateTransaction: simulateTransactionMock,
-    } as unknown as ResimulateHelperOptions);
+    });
   });
 
   afterEach(() => {
-    jest.clearAllTimers();
+    vi.clearAllTimers();
   });
 
   it(`resimulates unapproved active transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
-    mockGetTransactionsOnce([mockTransactionMeta]);
+    mockGetTransactions([mockTransactionMeta]);
     triggerStateChange();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
-    await Promise.resolve();
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
-    await Promise.resolve();
-
-    jest.runAllTimers();
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
 
     expect(simulateTransactionMock).toHaveBeenCalledWith(mockTransactionMeta);
     expect(simulateTransactionMock).toHaveBeenCalledTimes(2);
   });
 
+  it('resimulates with the latest transaction after it is updated', async () => {
+    const updatedTransactionMeta = {
+      ...mockTransactionMeta,
+      txParams: {
+        ...mockTransactionMeta.txParams,
+        data: '0x2',
+      },
+    } as TransactionMeta;
+
+    mockGetTransactions([mockTransactionMeta]);
+    triggerStateChange();
+
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
+
+    expect(simulateTransactionMock).toHaveBeenNthCalledWith(
+      1,
+      mockTransactionMeta,
+    );
+
+    mockGetTransactions([updatedTransactionMeta]);
+    triggerStateChange();
+
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
+
+    expect(simulateTransactionMock).toHaveBeenNthCalledWith(
+      2,
+      updatedTransactionMeta,
+    );
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it(`does not resimulate twice the same transaction even if state change is triggered twice`, async () => {
-    mockGetTransactionsOnce([mockTransactionMeta]);
+    mockGetTransactions([mockTransactionMeta]);
     triggerStateChange();
 
     // Halfway through the interval
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
     // Assume state change is triggered again
-    mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
 
     // Halfway through the interval
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
     expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not resimulate a transaction that is no longer active', () => {
-    mockGetTransactionsOnce([mockTransactionMeta]);
+    mockGetTransactions([mockTransactionMeta]);
     triggerStateChange();
 
     // Halfway through the interval
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
     const inactiveTransactionMeta = {
       ...mockTransactionMeta,
       isActive: false,
     } as TransactionMeta;
 
-    mockGetTransactionsOnce([inactiveTransactionMeta]);
+    mockGetTransactions([inactiveTransactionMeta]);
     triggerStateChange();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
     expect(simulateTransactionMock).toHaveBeenCalledTimes(0);
   });
@@ -186,35 +231,54 @@ describe('ResimulateHelper', () => {
       isActive: false,
     } as TransactionMeta;
 
-    mockGetTransactionsOnce([inactiveTransactionMeta]);
+    mockGetTransactions([inactiveTransactionMeta]);
     triggerStateChange();
 
-    jest.advanceTimersByTime(2 * RESIMULATE_INTERVAL_MS);
+    vi.advanceTimersByTime(2 * RESIMULATE_INTERVAL_MS);
 
     expect(simulateTransactionMock).toHaveBeenCalledTimes(0);
   });
 
   it('stops resimulating a transaction that is no longer in the transaction list', () => {
-    mockGetTransactionsOnce([mockTransactionMeta]);
+    mockGetTransactions([mockTransactionMeta]);
     triggerStateChange();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
 
-    mockGetTransactionsOnce([]);
+    mockGetTransactions([]);
     triggerStateChange();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops resimulating when the transaction disappears between ticks', async () => {
+    mockGetTransactions([mockTransactionMeta]);
+    triggerStateChange();
+
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
+
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
+
+    // The transaction is removed without a state change being triggered, so
+    // the running timer must detect this on its next tick and stop itself.
+    mockGetTransactions([]);
+
+    vi.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await flushPromises();
 
     expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('Resimulate Utils', () => {
-  const getPercentageChangeMock = jest.mocked(getPercentageChange);
+  const getPercentageChangeMock = vi.mocked(getPercentageChange);
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.spyOn(Date, 'now').mockReturnValue(CURRENT_TIME_MOCK);
+    vi.resetAllMocks();
+    vi.spyOn(Date, 'now').mockReturnValue(CURRENT_TIME_MOCK);
 
     getPercentageChangeMock.mockReturnValue(0);
   });
@@ -260,6 +324,35 @@ describe('Resimulate Utils', () => {
         expect(result).toStrictEqual({
           blockTime: undefined,
           resimulate: false,
+        });
+      });
+    });
+
+    describe('Enforced simulations', () => {
+      it('resimulates when enforced simulations are applied', () => {
+        const result = shouldResimulate(TRANSACTION_META_MOCK, {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
+        });
+      });
+
+      it('resimulates when enforced simulations are removed', () => {
+        const result = shouldResimulate(
+          {
+            ...TRANSACTION_META_MOCK,
+            containerTypes: [TransactionContainerType.EnforcedSimulations],
+          },
+          TRANSACTION_META_MOCK,
+        );
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
         });
       });
     });
@@ -334,6 +427,26 @@ describe('Resimulate Utils', () => {
         expect(result.blockTime).toBe(
           CURRENT_TIME_SECONDS_MOCK + BLOCK_TIME_ADDITIONAL_SECONDS,
         );
+      });
+
+      it('uses the current block if the transaction is trusted', () => {
+        getPercentageChangeMock.mockReturnValueOnce(
+          VALUE_COMPARISON_PERCENT_THRESHOLD + 1,
+        );
+
+        const result = shouldResimulate(
+          TRANSACTION_META_MOCK,
+          {
+            ...TRANSACTION_META_MOCK,
+            simulationData: SIMULATION_DATA_MOCK,
+          },
+          true,
+        );
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
+        });
       });
 
       it('does not resimulate if simulation data changed but value and native balance match', () => {

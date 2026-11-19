@@ -7,9 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/eth-money-mpc-keyring` from `^0.2.0` to `^0.3.1` ([#11494](https://github.com/MetaMask/core/pull/11494))
+- Bump `@metamask/eth-money-keyring` from `^4.0.2` to `^5.0.0` ([#11532](https://github.com/MetaMask/core/pull/11532))
+
+## [3.0.0]
+
+### Added
+
+- Add support for MPC-backed money accounts (MFA accounts) via `createMoneyAccount({ type: 'mpc' })` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add `setDefaultMoneyAccount` and a persisted `defaultMoneyAccountId` state field ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add a dependency on `@metamask/eth-money-mpc-keyring` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** `createMoneyAccount` now takes a params object ([#10694](https://github.com/MetaMask/core/pull/10694))
+  - `{ type: 'mpc' }` for the MPC-backed account (MFA)
+  - `{ type: 'mnemonic', entropySource? }` for the `MoneyKeyring` account (SFA), defaulting to the primary HD keyring's entropy source when `entropySource` is omitted
+  - Now requires `KeyringController:withKeyringV2` and `KeyringController:withController` actions.
+- **BREAKING:** `MoneyAccount.options.entropy` is now a union of mnemonic and MPC entropy options (`MoneyAccountEntropyOptions`) ([#10694](https://github.com/MetaMask/core/pull/10694))
+- **BREAKING:** `getMoneyAccount()` now takes a selector ([#10694](https://github.com/MetaMask/core/pull/10694))
+  - `{ id }` to look up by account id
+  - `{ type: 'mpc' }` for the MPC-backed account (MFA)
+  - `{ type: 'mnemonic', entropySource? }` for the `MoneyKeyring` account (SFA), defaulting to the primary HD keyring's entropy source when `entropySource` is omitted
+  - With no selector, the default money account (`defaultMoneyAccountId`) is now returned.
+- `init` now sets the primary entropy source's money account (SFA) as the default when no default is set ([#10694](https://github.com/MetaMask/core/pull/10694))
+  - Safety net for wallets predating `defaultMoneyAccountId`.
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/eth-money-keyring` from `^4.0.0` to `^4.0.2` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^40.0.0` ([#9807](https://github.com/MetaMask/core/pull/9807), [#9969](https://github.com/MetaMask/core/pull/9969), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `eth_signTransaction` account method ([#9763](https://github.com/MetaMask/core/pull/9763))
+  - Money accounts were not supposed to sign transaction, the support has been removed from the keyring.
+- Bump `@metamask/eth-money-keyring` from `^2.0.4` to `^4.0.0` ([#9763](https://github.com/MetaMask/core/pull/9763), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.1` ([#9129](https://github.com/MetaMask/core/pull/9129), [#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470), [#9735](https://github.com/MetaMask/core/pull/9735), [#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^24.0.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-money-keyring` from `^2.0.4` to `^4.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [0.3.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [0.3.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [0.3.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [0.3.0]
 
@@ -39,7 +121,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountController` ([#8361](https://github.com/MetaMask/core/pull/8361))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@3.0.0...@metamask/money-account-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@2.0.0...@metamask/money-account-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@1.0.0...@metamask/money-account-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.3...@metamask/money-account-controller@1.0.0
+[0.3.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.2...@metamask/money-account-controller@0.3.3
+[0.3.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.1...@metamask/money-account-controller@0.3.2
+[0.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.0...@metamask/money-account-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.2.0...@metamask/money-account-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.1.0...@metamask/money-account-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-controller@0.1.0

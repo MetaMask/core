@@ -1,13 +1,13 @@
 import type { ExternalScopeString } from '@metamask/chain-agnostic-permission';
 import { toHex } from '@metamask/controller-utils';
-import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
+import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager.js';
 import type { NetworkController } from '@metamask/network-controller';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 
-import { MultichainApiNotifications } from '../handlers/types';
-import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
+import { MultichainApiNotifications } from '../handlers/types.js';
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager.js';
 
 export type SubscriptionManager = {
   events: SafeEventEmitter;

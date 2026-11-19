@@ -1,1 +1,1 @@
-export { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare';
+export { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare.js';

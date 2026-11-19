@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `uuid` from `^8.3.2` to `^14.0.2` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.2` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [17.0.0]
+
+### Added
+
+- Export `AbstractPollingControllerBaseMixin`, `getKey`, `Constructor`, and `PollingTokenSetId` ([#9882](https://github.com/MetaMask/core/pull/9882))
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+### Removed
+
+- **BREAKING:** Remove `BlockTrackerPollingController` and `BlockTrackerPollingControllerOnly` ([#9882](https://github.com/MetaMask/core/pull/9882))
+
+## [16.0.9]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [16.0.8]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [16.0.7]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Drop `@metamask/controller-utils` dependency, which was no longer used in source ([#9058](https://github.com/MetaMask/core/pull/9058), [#9064](https://github.com/MetaMask/core/pull/9064))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [16.0.6]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
@@ -104,13 +159,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ### Removed
 
-- **BREAKING:** Remove `BlockTrackerPollingControllerV1`, `StaticIntervalPollingControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Remove `BlockTrackerPollingControllerV1`, `StaticIntervalPollingControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018))
 
 ## [12.0.2]
 
@@ -158,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -326,7 +381,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.9...@metamask/polling-controller@17.0.0
+[16.0.9]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.8...@metamask/polling-controller@16.0.9
+[16.0.8]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.7...@metamask/polling-controller@16.0.8
+[16.0.7]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.6...@metamask/polling-controller@16.0.7
+[16.0.6]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.5...@metamask/polling-controller@16.0.6
 [16.0.5]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.4...@metamask/polling-controller@16.0.5
 [16.0.4]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.3...@metamask/polling-controller@16.0.4
 [16.0.3]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.2...@metamask/polling-controller@16.0.3

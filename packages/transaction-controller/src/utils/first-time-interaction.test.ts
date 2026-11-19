@@ -1,19 +1,20 @@
 import type { TraceContext } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAccountAddressRelationship } from '../api/accounts-api';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus, TransactionType } from '../types';
-import { updateFirstTimeInteraction } from './first-time-interaction';
-import { decodeTransactionData } from './transaction-type';
-import { validateParamTo } from './validation';
+import { getAccountAddressRelationship } from '../api/accounts-api.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus, TransactionType } from '../types.js';
+import { updateFirstTimeInteraction } from './first-time-interaction.js';
+import { decodeTransactionData } from './transaction-type.js';
+import { validateParamTo } from './validation.js';
 
-jest.mock('./transaction-type');
-jest.mock('./validation');
-jest.mock('../api/accounts-api');
+vi.mock('./transaction-type');
+vi.mock('./validation');
+vi.mock('../api/accounts-api');
 
-const mockDecodeTransactionData = jest.mocked(decodeTransactionData);
-const mockValidateParamTo = jest.mocked(validateParamTo);
-const mockGetAccountAddressRelationship = jest.mocked(
+const mockDecodeTransactionData = vi.mocked(decodeTransactionData);
+const mockValidateParamTo = vi.mocked(validateParamTo);
+const mockGetAccountAddressRelationship = vi.mocked(
   getAccountAddressRelationship,
 );
 
@@ -32,13 +33,13 @@ describe('updateFirstTimeInteraction', () => {
   } as unknown as TransactionMeta;
 
   const mockTraceContext: TraceContext = { name: 'test-trace' };
-  const mockIsFirstTimeInteractionEnabled = jest.fn();
-  const mockTrace = jest.fn();
-  const mockGetTransaction = jest.fn();
-  const mockUpdateTransactionInternal = jest.fn();
+  const mockIsFirstTimeInteractionEnabled = vi.fn();
+  const mockTrace = vi.fn();
+  const mockGetTransaction = vi.fn();
+  const mockUpdateTransactionInternal = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockTrace.mockImplementation(
       async (_traceRequest: unknown, callback: () => unknown) => {
@@ -416,7 +417,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameContract: TransactionMeta = {
           ...mockTransactionMeta,
@@ -428,7 +429,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData
           .mockReturnValueOnce({
@@ -472,7 +473,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameRecipient: TransactionMeta = {
           ...mockTransactionMeta,
@@ -484,7 +485,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'transfer',
@@ -518,7 +519,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameContract: TransactionMeta = {
           ...mockTransactionMeta,
@@ -530,7 +531,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData
           .mockReturnValueOnce({
@@ -582,7 +583,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xdata',
           },
-        } as unknown as TransactionMeta;
+        };
 
         const existingTxSameRecipient: TransactionMeta = {
           ...mockTransactionMeta,
@@ -594,7 +595,7 @@ describe('updateFirstTimeInteraction', () => {
             to: tokenContract,
             data: '0xother',
           },
-        } as unknown as TransactionMeta;
+        };
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'safeTransferFrom',

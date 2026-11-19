@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MultichainAccountService } from './MultichainAccountService';
+import type { MultichainAccountService } from './MultichainAccountService.js';
 
 /**
  * Initialize the service and constructs the internal reprensentation of
@@ -77,15 +77,20 @@ export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
 };
 
 /**
- * Removes a multichain account wallet.
+ * Removes a multichain account wallet, deleting all of its accounts across
+ * every registered provider (EVM and snap-based).
  *
- * NOTE: This method should only be called in client code as a revert mechanism.
- * At the point that this code is called, discovery shouldn't have been triggered.
- * This is meant to be used in the scenario where a seed phrase backup is not successful.
+ * EVM deletion is required because every multichain account group must have
+ * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+ * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+ * was successfully deleted are removed. The wallet remains registered and
+ * this method throws.
+ *
+ * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
+ * failures are reported together and the wallet is removed.
  *
  * @param entropySource - The entropy source of the multichain account wallet.
- * @param accountAddress - The address of the account to remove.
- * @returns The removed multichain account wallet.
+ * @throws If one or more EVM accounts cannot be deleted.
  */
 export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
   type: `MultichainAccountService:removeMultichainAccountWallet`;

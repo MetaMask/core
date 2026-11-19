@@ -3,7 +3,7 @@ import nock from 'nock';
 import {
   getMockDeletePushNotificationLinksResponse,
   getMockUpdatePushNotificationLinksResponse,
-} from '../mocks/mockResponse';
+} from '../mocks/mockResponse.js';
 
 type MockReply = {
   status: nock.StatusCode;

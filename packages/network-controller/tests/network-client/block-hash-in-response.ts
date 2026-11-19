@@ -1,14 +1,15 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
+import { describe, expect, it, vi } from 'vitest';
 
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
-import type { ProviderType } from './helpers';
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
+import { NetworkClientType } from '../../src/types.js';
+import type { ProviderType } from './helpers.js';
 import {
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
-} from './helpers';
-import { testsForRpcFailoverBehavior } from './rpc-failover';
+} from './helpers.js';
+import { testsForRpcFailoverBehavior } from './rpc-failover.js';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   providerType: ProviderType;
@@ -97,7 +98,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await jest.advanceTimersByTimeAsync(pollingInterval);
+          await vi.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -328,7 +329,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line jest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({
             message: error.message,
@@ -337,7 +337,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         );
       } else {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line jest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({ data: error }),
         );
@@ -446,7 +445,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         code: errorCodes.rpc.resourceUnavailable,
       });
 
-      it('retries the request up to 5 times until there is a 200 response', async () => {
+      it('retries the request up to 4 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -462,7 +461,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
               error: 'Some error',
               httpStatus,
             },
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -546,7 +545,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       // still used by Node.
       error.code = errorCode;
 
-      it('retries the request up to 5 times until it is successful', async () => {
+      it('retries the request up to 4 times until it is successful', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -559,7 +558,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           comms.mockRpcCall({
             request,
             error,
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -604,7 +603,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             },
           );
 
-          await expect(promiseForResult).rejects.toThrow(error.message);
+          await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
         });
       });
 
@@ -620,9 +619,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         }),
         failure: error,
         isRetriableFailure: true,
-        getExpectedError: (url: string) =>
+        getExpectedError: () =>
           expect.objectContaining({
-            message: `request to ${url} failed, reason: ${errorCode}`,
+            message: expect.stringMatching(/fetch failed/u),
           }),
       });
     },
@@ -633,7 +632,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       code: errorCodes.rpc.parse,
     });
 
-    it('retries the request up to 5 times until it responds with valid JSON', async () => {
+    it('retries the request up to 4 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -648,7 +647,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           response: {
             body: 'invalid JSON',
           },
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,
@@ -726,7 +725,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   describe('if making the request throws a connection error', () => {
     const error = new TypeError('Failed to fetch');
 
-    it('retries the request up to 5 times until there is no connection error', async () => {
+    it('retries the request up to 4 times until there is no connection error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -739,7 +738,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         comms.mockRpcCall({
           request,
           error,
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,
@@ -786,7 +785,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           },
         );
 
-        await expect(promiseForResult).rejects.toThrow(error.message);
+        await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
       });
     });
 
@@ -802,9 +801,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       }),
       failure: error,
       isRetriableFailure: true,
-      getExpectedError: (url: string) =>
+      getExpectedError: () =>
         expect.objectContaining({
-          message: `request to ${url} failed, reason: ${error.message}`,
+          message: expect.stringMatching(/fetch failed/u),
         }),
     });
   });

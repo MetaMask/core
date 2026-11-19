@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { KeyringController } from './KeyringController';
+import type { KeyringController } from './KeyringController.js';
 
 /**
  * Adds a new account to the default (first) HD seed phrase keyring.
@@ -82,7 +82,8 @@ export type KeyringControllerIsUnlockedAction = {
 /**
  * Gets the seed phrase of the HD keyring.
  *
- * @param password - Password of the keyring.
+ * @param credentials - Object holding either the `password` or the vault
+ * `encryptionKey`.
  * @param keyringId - The id of the keyring.
  * @returns Promise resolving to the seed phrase.
  */
@@ -94,7 +95,8 @@ export type KeyringControllerExportSeedPhraseAction = {
 /**
  * Gets the private key from the keyring controlling an address.
  *
- * @param password - Password of the keyring.
+ * @param credentials - Object holding either the `password` or the vault
+ * `encryptionKey`.
  * @param address - Address to export.
  * @returns Promise resolving to the private key for an address.
  */

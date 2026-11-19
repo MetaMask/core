@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "references": [
+    {
+      "path": "../node-utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

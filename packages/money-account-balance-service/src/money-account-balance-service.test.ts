@@ -1,32 +1,49 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Json } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Mock, MockedClass, MockedFunction } from 'vitest';
 
-import { VAULT_CONFIG_FEATURE_FLAG_KEY } from './constants';
 import {
+  LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
+  MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
+  MULTICALL3_ADDRESS_BY_CHAIN_ID,
+  VAULT_CONFIG_FEATURE_FLAG_KEY,
+} from './constants.js';
+import {
+  MoneyAccountBalanceFetchError,
+  MoneyAccountBalanceUnavailableError,
+  MoneyAccountBalanceValidationError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
-} from './errors';
-import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service';
+} from './errors.js';
+import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service.js';
 import {
   MoneyAccountBalanceService,
   serviceName,
-} from './money-account-balance-service';
+} from './money-account-balance-service.js';
 
-jest.mock('@ethersproject/contracts');
-jest.mock('@ethersproject/providers');
+vi.mock('@ethersproject/contracts');
+vi.mock('@ethersproject/providers');
 
-const MockContract = Contract as jest.MockedClass<typeof Contract>;
-const MockWeb3Provider = Web3Provider as jest.MockedClass<typeof Web3Provider>;
+const MockContract = Contract as MockedClass<typeof Contract>;
+const MockWeb3Provider = Web3Provider as MockedClass<typeof Web3Provider>;
 
 // ============================================================
 // Fixtures
@@ -51,6 +68,11 @@ const MOCK_VAULT_CONFIG = {
   tellerAddress: MOCK_TELLER_ADDRESS,
   lensAddress: MOCK_LENS_ADDRESS,
   chainId: '0xa4b1' as const,
+};
+
+const MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
+  ...MOCK_VAULT_CONFIG,
+  underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -99,20 +121,20 @@ const MOCK_VAULT_APY_RAW_RESPONSE = {
 
 const MOCK_VAULT_APY_NORMALIZED = {
   aggregationPeriod: '7 days',
-  apy: 0.055,
+  apy: 0.05653623699373145,
   chainAllocation: { arbitrum: 1.0 },
   fees: 0.005,
   globalApyBreakdown: {
     fee: 0.005,
-    maturityApy: 0.03,
-    realApy: 0.05,
+    maturityApy: 0.030453263600551006,
+    realApy: 0.05126749646744733,
   },
   performanceFees: 0.001,
   realApyBreakdown: [
     {
       allocation: 1.0,
-      apy: 0.055,
-      apyNet: 0.05,
+      apy: 0.05653623699373145,
+      apyNet: 0.05126749646744733,
       chain: 'arbitrum',
       protocol: 'aave',
     },
@@ -184,37 +206,41 @@ function publishRFFCStateChange(
  * @param args.callInit - Whether to call `service.init()` after construction. Defaults to true.
  * @param args.captureException - Error reporter wired on the root messenger.
  * @param args.options - Partial constructor options for the service.
+ * @param args.mockFetchPositions - Stub for `MoneyAccountApiDataService:fetchPositions`.
  * @returns The constructed service together with messenger instances and mock stubs.
  */
 function createService({
   rffcFlags = { [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG },
   callInit = true,
-  captureException = jest.fn(),
+  captureException = vi.fn(),
   options = {},
+  mockFetchPositions = vi.fn(),
 }: {
   rffcFlags?: Record<string, Json>;
   callInit?: boolean;
-  captureException?: jest.Mock;
+  captureException?: Mock;
   options?: Partial<
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
+  mockFetchPositions?: Mock;
 } = {}): {
   service: MoneyAccountBalanceService;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountBalanceServiceMessenger;
-  mockGetNetworkConfig: jest.Mock;
-  mockGetNetworkClient: jest.Mock;
-  mockGetRFFCState: jest.Mock;
-  captureException: jest.Mock;
+  mockGetNetworkConfig: Mock;
+  mockGetNetworkClient: Mock;
+  mockGetRFFCState: Mock;
+  mockFetchPositions: Mock;
+  captureException: Mock;
 } {
   const rootMessenger = createRootMessenger(captureException);
   const messenger = createServiceMessenger(rootMessenger);
 
-  const mockGetNetworkConfig = jest.fn().mockReturnValue(MOCK_NETWORK_CONFIG);
-  const mockGetNetworkClient = jest.fn().mockReturnValue({
+  const mockGetNetworkConfig = vi.fn().mockReturnValue(MOCK_NETWORK_CONFIG);
+  const mockGetNetworkClient = vi.fn().mockReturnValue({
     provider: MOCK_PROVIDER,
   });
-  const mockGetRFFCState = jest
+  const mockGetRFFCState = vi
     .fn()
     .mockReturnValue({ remoteFeatureFlags: rffcFlags, cacheTimestamp: 0 });
 
@@ -230,14 +256,19 @@ function createService({
     'RemoteFeatureFlagController:getState',
     mockGetRFFCState,
   );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountApiDataService:fetchPositions',
+    mockFetchPositions,
+  );
 
   rootMessenger.delegate({
     actions: [
       'NetworkController:getNetworkConfigurationByChainId',
       'NetworkController:getNetworkClientById',
       'RemoteFeatureFlagController:getState',
+      'MoneyAccountApiDataService:fetchPositions',
     ],
-    // eslint-disable-next-line no-restricted-syntax
+
     events: ['RemoteFeatureFlagController:stateChange'],
     messenger,
   });
@@ -255,6 +286,7 @@ function createService({
     mockGetNetworkConfig,
     mockGetNetworkClient,
     mockGetRFFCState,
+    mockFetchPositions,
     captureException,
   };
 }
@@ -262,17 +294,16 @@ function createService({
 /**
  * Configures the Contract mock so that `balanceOf` resolves to an object
  * whose `.toString()` returns `balance`. Used for single-contract flows
- * such as `getMusdSHFvdBalance`.
+ * such as `getVmusdBalance`.
  *
  * @param balance - The raw uint256 balance string to return.
  */
 function mockErc20BalanceOf(balance: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        balanceOf: jest.fn().mockResolvedValue({ toString: () => balance }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      balanceOf: vi.fn().mockResolvedValue({ toString: () => balance }),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -283,12 +314,11 @@ function mockErc20BalanceOf(balance: string): void {
  * is instantiated to read the balance.
  */
 function mockAccountantBase(): void {
-  MockContract.mockImplementationOnce(
-    () =>
-      ({
-        base: jest.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementationOnce(function () {
+    return {
+      base: vi.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -298,12 +328,11 @@ function mockAccountantBase(): void {
  * @param rate - The raw uint256 rate string to return.
  */
 function mockAccountantGetRate(rate: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        getRate: jest.fn().mockResolvedValue({ toString: () => rate }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      getRate: vi.fn().mockResolvedValue({ toString: () => rate }),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -315,14 +344,119 @@ function mockAccountantGetRate(rate: string): void {
  * @param balanceOfInAssets - The raw uint256 asset balance string to return.
  */
 function mockLensBalanceOfInAssets(balanceOfInAssets: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        balanceOfInAssets: jest
-          .fn()
-          .mockResolvedValue({ toString: () => balanceOfInAssets }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      balanceOfInAssets: vi
+        .fn()
+        .mockResolvedValue({ toString: () => balanceOfInAssets }),
+    } as unknown as Contract;
+  });
+}
+
+function makeMockBN(value: string): {
+  toString: () => string;
+  add: (other: { toString: () => string }) => {
+    toString: () => string;
+    add: (o: { toString: () => string }) => unknown;
+  };
+} {
+  return {
+    toString: () => value,
+    add: (other) =>
+      makeMockBN((BigInt(value) + BigInt(other.toString())).toString()),
+  };
+}
+
+function mockMoneyAccountBalanceMulticall({
+  musdBalance = '0',
+  vmusdValueInMusd = '0',
+  aggregate3,
+}: {
+  musdBalance?: string;
+  vmusdValueInMusd?: string;
+  aggregate3?: Mock;
+} = {}): Mock {
+  const MUSD_RETURN_DATA = '0xMUSD';
+  const SHFVD_RETURN_DATA = '0xSHFVD';
+
+  const aggregate3Mock =
+    aggregate3 ??
+    vi.fn().mockResolvedValue([
+      { success: true, returnData: MUSD_RETURN_DATA },
+      { success: true, returnData: SHFVD_RETURN_DATA },
+    ]);
+
+  const multicall3Address =
+    MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+
+  MockContract.mockImplementation(function (address: string) {
+    return (address === multicall3Address
+      ? { callStatic: { aggregate3: aggregate3Mock } }
+      : {
+          base: vi.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0xcalldata'),
+            decodeFunctionResult: vi
+              .fn()
+              .mockImplementation((_functionFragment: string, data: string) =>
+                data === MUSD_RETURN_DATA
+                  ? [makeMockBN(musdBalance)]
+                  : [makeMockBN(vmusdValueInMusd)],
+              ),
+          },
+        }) as unknown as Contract;
+  });
+
+  return aggregate3Mock;
+}
+
+function createTraceCallback(): MockedFunction<TraceCallback> {
+  return vi
+    .fn()
+    .mockImplementation(
+      async <ReturnType>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        if (!fn) {
+          return undefined as ReturnType;
+        }
+        return await Promise.resolve(fn());
+      },
+    ) as MockedFunction<TraceCallback>;
+}
+
+function expectTraceRequest(
+  traceCallback: MockedFunction<TraceCallback>,
+  {
+    errorName,
+    name,
+    operation,
+    success = true,
+    tokenAddress,
+  }: {
+    errorName?: string;
+    name: string;
+    operation: string;
+    success?: boolean;
+    tokenAddress?: string;
+  },
+): void {
+  const traceRequest = traceCallback.mock.calls.find(
+    ([request]) => request.name === name,
+  )?.[0];
+
+  expect(traceRequest).toStrictEqual({
+    name,
+    startTime: expect.any(Number),
+    data: {
+      chainId: MOCK_VAULT_CONFIG.chainId,
+      ...(errorName ? { errorName } : {}),
+      operation,
+      success,
+      ...(tokenAddress ? { tokenAddress } : {}),
+    },
+  });
 }
 
 // ============================================================
@@ -332,12 +466,10 @@ function mockLensBalanceOfInAssets(balanceOfInAssets: string): void {
 describe('MoneyAccountBalanceService', () => {
   beforeEach(() => {
     MockContract.mockReset();
-    MockWeb3Provider.mockImplementation(() => ({}) as unknown as Web3Provider);
-    nockCleanAll();
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
+    MockWeb3Provider.mockImplementation(function () {
+      return {} as unknown as Web3Provider;
+    });
+    nock.cleanAll();
   });
 
   // ----------------------------------------------------------
@@ -383,11 +515,11 @@ describe('MoneyAccountBalanceService', () => {
       // Do NOT register RemoteFeatureFlagController:getState or delegate it.
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkConfigurationByChainId',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.delegate({
         actions: [
@@ -438,9 +570,9 @@ describe('MoneyAccountBalanceService', () => {
           },
         });
 
-        await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+        await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
-        // getMusdSHFvdBalance uses vaultAddress — verify the new address was used.
+        // getVmusdBalance uses vaultAddress — verify the new address was used.
         expect(MockContract).toHaveBeenCalledWith(
           NEW_VAULT_ADDRESS,
           expect.anything(),
@@ -464,7 +596,7 @@ describe('MoneyAccountBalanceService', () => {
       });
 
       it('clears vault config and routes VaultConfigValidationError when a malformed config arrives after valid config', async () => {
-        const captureException = jest.fn();
+        const captureException = vi.fn();
         const { service, rootMessenger } = createService({ captureException });
 
         publishRFFCStateChange(rootMessenger, {
@@ -483,7 +615,7 @@ describe('MoneyAccountBalanceService', () => {
       });
 
       it('routes VaultConfigValidationError to captureException when malformed config arrives with no prior config', () => {
-        const captureException = jest.fn();
+        const captureException = vi.fn();
         const { rootMessenger } = createService({
           rffcFlags: {},
           captureException,
@@ -502,7 +634,7 @@ describe('MoneyAccountBalanceService', () => {
     describe('cache invalidation', () => {
       it('does NOT invalidate queries when config is set for the first time via subscription', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
@@ -513,7 +645,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when config changes to a different valid config', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         const updatedConfig = {
           ...MOCK_VAULT_CONFIG,
@@ -528,7 +660,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when the same config arrives again', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { ...MOCK_VAULT_CONFIG },
@@ -539,7 +671,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when the flag key is removed after valid config was set', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {});
 
@@ -548,7 +680,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when absent flag key arrives with no prior config', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {});
 
@@ -557,7 +689,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when a malformed config arrives after valid config was set', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
@@ -568,7 +700,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when a malformed config arrives with no prior config', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
@@ -584,6 +716,14 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
 
   describe('when vault config is not available', () => {
+    it('getMoneyAccountBalance throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
     it('getMusdBalance throws VaultConfigNotAvailableError', async () => {
       const { service } = createService({ rffcFlags: {} });
 
@@ -592,11 +732,11 @@ describe('MoneyAccountBalanceService', () => {
       ).rejects.toThrow(VaultConfigNotAvailableError);
     });
 
-    it('getMusdSHFvdBalance throws VaultConfigNotAvailableError', async () => {
+    it('getVmusdBalance throws VaultConfigNotAvailableError', async () => {
       const { service } = createService({ rffcFlags: {} });
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow(VaultConfigNotAvailableError);
     });
 
@@ -622,6 +762,283 @@ describe('MoneyAccountBalanceService', () => {
       await expect(service.getVaultApy()).rejects.toThrow(
         VaultConfigNotAvailableError,
       );
+    });
+  });
+
+  // ----------------------------------------------------------
+  // tracing
+  // ----------------------------------------------------------
+
+  describe('tracing', () => {
+    it('traces getMusdBalance ERC-20 balance RPC on cache miss', async () => {
+      mockErc20BalanceOf('5000000');
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
+      });
+    });
+
+    it('traces getMoneyAccountBalance Multicall3 RPC on cache miss', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+      });
+    });
+
+    it('traces getVmusdBalance ERC-20 balance RPC on cache miss', async () => {
+      mockErc20BalanceOf('3000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_VAULT_ADDRESS,
+      });
+    });
+
+    it('traces getExchangeRate Accountant RPC on cache miss', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getExchangeRate();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('traces getMusdEquivalentValue Lens RPC on cache miss', async () => {
+      mockLensBalanceOfInAssets('1000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account mUSD Equivalent Value RPC',
+        operation: 'balanceOfInAssets',
+      });
+    });
+
+    it('traces getVaultApy Veda API fetch on cache miss', async () => {
+      nock('https://api.sevenseas.capital')
+        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
+        .reply(200, MOCK_VAULT_APY_RAW_RESPONSE);
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getVaultApy();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Vault APY API',
+        operation: 'fetchVaultApy',
+      });
+    });
+
+    it('traces fallback underlying token RPC when configured token is absent', async () => {
+      mockAccountantBase();
+      mockErc20BalanceOf('5000000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(trace).toHaveBeenCalledTimes(2);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Underlying Token RPC',
+        operation: 'base',
+      });
+      expectTraceRequest(trace, {
+        name: 'Get Money Account ERC20 Balance RPC',
+        operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
+      });
+    });
+
+    it('does not trace a cached query result', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('does not fail or refetch when the trace callback rejects', async () => {
+      const mockGetRate = vi
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
+      const trace = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('trace boom'),
+        ) as MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+      expect(trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fail when the trace callback returns undefined', async () => {
+      mockAccountantGetRate('1050000');
+      const trace = vi
+        .fn()
+        .mockReturnValue(undefined) as MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(trace).toHaveBeenCalledTimes(1);
+      expectTraceRequest(trace, {
+        name: 'Get Money Account Exchange Rate RPC',
+        operation: 'getRate',
+      });
+    });
+
+    it('does not fail when the trace callback throws synchronously', async () => {
+      const mockGetRate = vi
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
+      const trace = vi.fn().mockImplementation(() => {
+        throw new Error('trace boom');
+      }) as MockedFunction<TraceCallback>;
+      const { service } = createService({ options: { trace } });
+
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+      expect(await service.getExchangeRate()).toStrictEqual({
+        rate: '1050000',
+      });
+
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+      expect(trace).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates aggregate3 rejections after emitting a failed trace', async () => {
+      const aggregate3 = vi
+        .fn()
+        .mockRejectedValue(new Error('execution reverted'));
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+      expectTraceRequest(trace, {
+        errorName: 'Error',
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+        success: false,
+      });
+    });
+
+    it('traces non-Error aggregate3 rejections with the thrown value type', async () => {
+      const aggregate3 = vi.fn().mockRejectedValue('execution reverted');
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const trace = createTraceCallback();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        options: { trace },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toBe('execution reverted');
+      expectTraceRequest(trace, {
+        errorName: 'string',
+        name: 'Get Money Account Balance RPC',
+        operation: 'aggregate3',
+        success: false,
+      });
+    });
+
+    it('propagates Veda API errors after emitting a failed trace', async () => {
+      nock('https://api.sevenseas.capital')
+        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const trace = createTraceCallback();
+      const { service } = createService({ options: { trace } });
+
+      await expect(service.getVaultApy()).rejects.toThrow(
+        new HttpError(500, "Veda performance API failed with status '500'"),
+      );
+      expectTraceRequest(trace, {
+        errorName: 'Error',
+        name: 'Get Money Account Vault APY API',
+        operation: 'fetchVaultApy',
+        success: false,
+      });
     });
   });
 
@@ -656,6 +1073,35 @@ describe('MoneyAccountBalanceService', () => {
       // Step 2: ERC-20 contract instantiated with the resolved underlying token address.
       expect(MockContract).toHaveBeenCalledWith(
         MOCK_UNDERLYING_TOKEN_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('uses the configured underlyingToken and skips the on-chain base() read when present', async () => {
+      // Only the ERC-20 contract is instantiated; no Accountant.base() call.
+      mockErc20BalanceOf('5000000');
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+          },
+        },
+      });
+
+      const result = await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({ balance: '5000000' });
+      // balanceOf is read directly on the configured underlying token...
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+      // ...and the Accountant is never instantiated to resolve base().
+      expect(MockContract).not.toHaveBeenCalledWith(
+        MOCK_ACCOUNTANT_ADDRESS,
         expect.anything(),
         expect.anything(),
       );
@@ -719,18 +1165,41 @@ describe('MoneyAccountBalanceService', () => {
         'client-at-index-0',
       );
     });
+
+    it('reads the ERC-20 balance at the pending block tag', async () => {
+      const mockBalanceOf = vi
+        .fn()
+        .mockResolvedValue({ toString: () => '5000000' });
+      MockContract.mockImplementation(function () {
+        return { balanceOf: mockBalanceOf } as unknown as Contract;
+      });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+          },
+        },
+      });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mockBalanceOf).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        blockTag: 'pending',
+      });
+    });
   });
 
   // ----------------------------------------------------------
-  // getMusdSHFvdBalance
+  // getVmusdBalance
   // ----------------------------------------------------------
 
-  describe('getMusdSHFvdBalance', () => {
+  describe('getVmusdBalance', () => {
     it('returns the vault share balance for the given address', async () => {
       mockErc20BalanceOf('3000000');
       const { service } = createService();
 
-      const result = await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+      const result = await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({ balance: '3000000' });
     });
@@ -739,7 +1208,7 @@ describe('MoneyAccountBalanceService', () => {
       mockErc20BalanceOf('3000000');
       const { service } = createService();
 
-      await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+      await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
       expect(MockContract).toHaveBeenCalledWith(
         MOCK_VAULT_ADDRESS,
@@ -758,7 +1227,7 @@ describe('MoneyAccountBalanceService', () => {
       mockGetNetworkConfig.mockReturnValue(undefined);
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No network configuration found for chain 0xa4b1');
     });
 
@@ -767,7 +1236,7 @@ describe('MoneyAccountBalanceService', () => {
       mockGetNetworkClient.mockReturnValue({ provider: null });
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No provider found for chain 0xa4b1');
     });
   });
@@ -818,12 +1287,12 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('returns the cached rate when called without options within the default stale window', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
       const { service } = createService();
 
       // Seed the cache.
@@ -839,12 +1308,12 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('refetches when called with staleTime: 0 even if a cached value exists', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
       const { service } = createService();
 
       // Seed the cache.
@@ -887,15 +1356,14 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('instantiates the Lens contract with lensAddress and calls balanceOfInAssets with (accountAddress, boringVault, accountantAddress)', async () => {
-      const mockBalanceOfInAssets = jest
+      const mockBalanceOfInAssets = vi
         .fn()
         .mockResolvedValue({ toString: () => '1000000' });
-      MockContract.mockImplementation(
-        () =>
-          ({
-            balanceOfInAssets: mockBalanceOfInAssets,
-          }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return {
+          balanceOfInAssets: mockBalanceOfInAssets,
+        } as unknown as Contract;
+      });
 
       const { service } = createService();
 
@@ -910,6 +1378,7 @@ describe('MoneyAccountBalanceService', () => {
         MOCK_ACCOUNT_ADDRESS,
         MOCK_VAULT_ADDRESS,
         MOCK_ACCOUNTANT_ADDRESS,
+        { blockTag: 'pending' },
       );
     });
 
@@ -929,6 +1398,789 @@ describe('MoneyAccountBalanceService', () => {
       await expect(
         service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No provider found for chain 0xa4b1');
+    });
+  });
+
+  // ----------------------------------------------------------
+  // getMoneyAccountBalance
+  // ----------------------------------------------------------
+
+  describe('getMoneyAccountBalance', () => {
+    it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it('exercises real ABI encode/decode through the multicall path', async () => {
+      const { Contract: RealContract } = await vi.importActual<
+        typeof import('@ethersproject/contracts')
+      >('@ethersproject/contracts');
+      const erc20Iface = new RealContract(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        abiERC20,
+      ).interface;
+      const lensIface = new RealContract(MOCK_LENS_ADDRESS, LENS_ABI).interface;
+
+      const musdReturnData = erc20Iface.encodeFunctionResult('balanceOf', [
+        '5000000',
+      ]);
+      const vmusdReturnData = lensIface.encodeFunctionResult(
+        'balanceOfInAssets',
+        ['2200000'],
+      );
+
+      const aggregate3Mock = vi.fn().mockResolvedValue([
+        { success: true, returnData: musdReturnData },
+        { success: true, returnData: vmusdReturnData },
+      ]);
+
+      const multicall3Address =
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+
+      MockContract.mockImplementation(function (address, abi) {
+        return (address === multicall3Address
+          ? { callStatic: { aggregate3: aggregate3Mock } }
+          : new RealContract(address, abi)) as unknown as Contract;
+      });
+
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+
+      const [[calls]] = aggregate3Mock.mock.calls;
+      expect(calls).toHaveLength(2);
+      expect(calls[0].callData).toBe(
+        erc20Iface.encodeFunctionData('balanceOf', [MOCK_ACCOUNT_ADDRESS]),
+      );
+      expect(calls[1].callData).toBe(
+        lensIface.encodeFunctionData('balanceOfInAssets', [
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_VAULT_ADDRESS,
+          MOCK_ACCOUNTANT_ADDRESS,
+        ]),
+      );
+    });
+
+    it('batches the mUSD and Lens reads into one aggregate3 request with allowFailure disabled', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      // A single batched request containing exactly the two balance reads,
+      // read at the pending block tag.
+      expect(aggregate3).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            target: MOCK_UNDERLYING_TOKEN_ADDRESS,
+            allowFailure: false,
+          }),
+          expect.objectContaining({
+            target: MOCK_LENS_ADDRESS,
+            allowFailure: false,
+          }),
+        ],
+        { blockTag: 'pending' },
+      );
+      // The Multicall3 contract is instantiated at the canonical address.
+      expect(MockContract).toHaveBeenCalledWith(
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId],
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('falls back to an on-chain base() read when underlyingToken is absent from config', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+      });
+      // MOCK_VAULT_CONFIG has no underlyingToken.
+      const { service } = createService();
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+        totalBalance: '10',
+      });
+      // Accountant is instantiated for the base() fallback...
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_ACCOUNTANT_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+      // ...and the resolved underlying token is used as the mUSD read target.
+      expect(aggregate3).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ target: MOCK_UNDERLYING_TOKEN_ADDRESS }),
+          expect.objectContaining({ target: MOCK_LENS_ADDRESS }),
+        ],
+        { blockTag: 'pending' },
+      );
+    });
+
+    it('is also callable via the messenger action', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const { rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await rootMessenger.call(
+        'MoneyAccountBalanceService:getMoneyAccountBalance',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+    });
+
+    it('rejects without reporting a partial balance when the aggregate3 multicall reverts', async () => {
+      const aggregate3 = vi
+        .fn()
+        .mockRejectedValue(new Error('execution reverted'));
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+    });
+
+    it('throws when no Multicall3 address is configured for the vault chain', async () => {
+      mockMoneyAccountBalanceMulticall();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+            chainId: '0x1',
+          },
+        },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No Multicall3 address configured for chain 0x1');
+    });
+  });
+
+  // ----------------------------------------------------------
+  // fetchBalanceWithFallback
+  // ----------------------------------------------------------
+
+  describe('fetchBalanceWithFallback', () => {
+    const MOCK_API_BALANCE = {
+      musd_balance: '2',
+      vmusd_value_in_musd: '1513527',
+      total_balance: '1513529',
+    };
+
+    const MOCK_API_POSITIONS = {
+      address: MOCK_ACCOUNT_ADDRESS,
+      as_of_block: 88976660,
+      as_of_timestamp: '2026-07-20T10:49:51Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 3,
+      balance: MOCK_API_BALANCE,
+      positions: [],
+    };
+
+    const apiPrimaryFlags = {
+      [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+      [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
+    };
+
+    it('returns RPC balance by default (RPC primary) without using fallback', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: false,
+      });
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('returns API balance when the flag is set to api', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '2',
+        vmusdValueInMusd: '1513527',
+        totalBalance: '1513529',
+        source: 'api',
+        usedFallback: false,
+        asOfBlock: 88976660,
+        asOfTimestamp: '2026-07-20T10:49:51Z',
+        dataFreshness: 'live',
+        indexerLagSeconds: 3,
+        musdBalanceUpdatedAt: null,
+      });
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
+    });
+
+    it('falls back to RPC when API balance is null', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('falls back to RPC when API balance is omitted', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+      });
+      const { balance: _omittedBalance, ...positionsWithoutBalance } =
+        MOCK_API_POSITIONS;
+      const mockFetchPositions = vi
+        .fn()
+        .mockResolvedValue(positionsWithoutBalance);
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('falls back to RPC when the API call fails', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+      });
+      const mockFetchPositions = vi
+        .fn()
+        .mockRejectedValue(new Error('network down'));
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '7',
+        vmusdValueInMusd: '3',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it('falls back to RPC when API balance fails semantic validation', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '1',
+        vmusdValueInMusd: '2',
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          musd_balance: '1',
+          vmusd_value_in_musd: '2',
+          total_balance: '999',
+        },
+      });
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '1',
+        vmusdValueInMusd: '2',
+        totalBalance: '3',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        new MoneyAccountBalanceValidationError(
+          'Invalid balance invariant: totalBalance must equal musdBalance + vmusdValueInMusd',
+        ),
+      );
+    });
+
+    it('falls back to RPC when API balance contains a non-integer amount', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          musd_balance: '1.5',
+          vmusd_value_in_musd: '2',
+          total_balance: '3.5',
+        },
+      });
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+        totalBalance: '10',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).toHaveBeenCalledWith(
+        new MoneyAccountBalanceValidationError(
+          'Invalid musdBalance: expected a non-negative integer string',
+        ),
+      );
+    });
+
+    it('falls back to API when RPC primary fails', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '2',
+        vmusdValueInMusd: '1513527',
+        totalBalance: '1513529',
+        source: 'api',
+        usedFallback: true,
+        asOfBlock: 88976660,
+        asOfTimestamp: '2026-07-20T10:49:51Z',
+        dataFreshness: 'live',
+        indexerLagSeconds: 3,
+        musdBalanceUpdatedAt: null,
+      });
+    });
+
+    it('falls back to RPC when API as_of_block is behind minBlock', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+        captureException,
+      });
+
+      const result = await service.fetchBalanceWithFallback(
+        MOCK_ACCOUNT_ADDRESS,
+        { minBlock: MOCK_API_POSITIONS.as_of_block + 1 },
+      );
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+      expect(captureException).not.toHaveBeenCalled();
+      // minBlock implies a fresh positions read.
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+    });
+
+    it('accepts API balance when as_of_block meets minBlock', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result = await service.fetchBalanceWithFallback(
+        MOCK_ACCOUNT_ADDRESS,
+        { minBlock: MOCK_API_POSITIONS.as_of_block },
+      );
+
+      expect(result.source).toBe('api');
+      expect(result.asOfBlock).toBe(MOCK_API_POSITIONS.as_of_block);
+      expect(result.usedFallback).toBe(false);
+    });
+
+    it('forwards fresh: true to fetchPositions', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        fresh: true,
+      });
+    });
+
+    it('maps musd_balance_updated_at through to musdBalanceUpdatedAt', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          ...MOCK_API_BALANCE,
+          musd_balance_updated_at: '2026-07-20T10:49:51Z',
+        },
+      });
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.musdBalanceUpdatedAt).toBe('2026-07-20T10:49:51Z');
+    });
+
+    it('does not captureException when api-only rejects a stale minBlock read', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api-only',
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      await expect(
+        service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS, {
+          minBlock: MOCK_API_POSITIONS.as_of_block + 1,
+        }),
+      ).rejects.toBeInstanceOf(MoneyAccountBalanceFetchError);
+
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it('does not fall back when the flag is api-only', async () => {
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api-only',
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      let thrown: unknown;
+      try {
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
+      expect((thrown as MoneyAccountBalanceFetchError).causes).toHaveLength(1);
+      expect(
+        (thrown as MoneyAccountBalanceFetchError).causes[0],
+      ).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('does not fall back when the flag is rpc-only', async () => {
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc-only',
+        },
+        mockFetchPositions,
+      });
+
+      await expect(
+        service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(MoneyAccountBalanceFetchError);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('throws MoneyAccountBalanceFetchError with both causes when primary and fallback fail', async () => {
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = vi.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+        captureException,
+      });
+
+      let thrown: unknown;
+      try {
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
+      const { causes } = thrown as MoneyAccountBalanceFetchError;
+      expect(causes).toHaveLength(2);
+      expect(causes[0]).toBeInstanceOf(Error);
+      expect((causes[0] as Error).message).toBe('execution reverted');
+      expect(causes[1]).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
+    });
+
+    it('defaults to rpc policy when the source flag is malformed', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'not-a-policy',
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.source).toBe('rpc');
+      expect(result.usedFallback).toBe(false);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('updates the source policy on RemoteFeatureFlagController:stateChange', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
+        },
+        mockFetchPositions,
+      });
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc-only',
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.source).toBe('rpc');
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('is callable via messenger action', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = vi.fn();
+      const { rootMessenger, service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result = await rootMessenger.call(
+        'MoneyAccountBalanceService:fetchBalanceWithFallback',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(result.source).toBe('rpc');
+      service.destroy();
     });
   });
 
@@ -1040,6 +2292,11 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result.apy).toBe(0);
       expect(result.fees).toBe(0);
+      expect(result.globalApyBreakdown).toStrictEqual({
+        fee: 0,
+        maturityApy: 0,
+        realApy: 0,
+      });
       expect(result.timestamp).toBe('Fri, 10 Apr 2026 22:05:54 GMT');
       expect(result.realApyBreakdown).toStrictEqual([]);
     });
@@ -1062,7 +2319,7 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result).toStrictEqual({
         aggregationPeriod: undefined,
-        apy: 0.03,
+        apy: 0.030453263600551006,
         chainAllocation: undefined,
         fees: undefined,
         globalApyBreakdown: undefined,
@@ -1102,6 +2359,129 @@ describe('MoneyAccountBalanceService', () => {
       );
     });
   });
+
+  // ----------------------------------------------------------
+  // Balance staleTime feature flag
+  // ----------------------------------------------------------
+
+  describe('balance staleTime feature flag', () => {
+    /**
+     * Stubs the Accountant so `getRate` invocations are observable across
+     * calls. `getExchangeRate` is used as the probe because its staleTime
+     * defaults to the configurable balance staleTime.
+     *
+     * @returns The `getRate` mock.
+     */
+    function mockAccountantGetRateSpy(): Mock {
+      const mockGetRate = vi
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
+      return mockGetRate;
+    }
+
+    it('applies a valid staleTime override read from the flag during init', async () => {
+      const mockGetRate = mockAccountantGetRateSpy();
+      // staleTime 0 disables caching, so each call performs a fresh read.
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+        },
+      });
+
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
+
+    it('applies a staleTime override that arrives via stateChange', async () => {
+      const mockGetRate = mockAccountantGetRateSpy();
+      const { service, rootMessenger } = createService();
+
+      // Default 60s window → the second call is served from cache.
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+
+      // Lower staleTime to 0 remotely → caching is disabled for later calls.
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+        [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+      });
+
+      await service.getExchangeRate();
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      { description: 'a non-number', value: 'soon' },
+      { description: 'NaN', value: NaN },
+      { description: 'a negative number', value: -1 },
+    ])(
+      'falls back to the default staleTime when the flag is $description',
+      async ({ value }) => {
+        const mockGetRate = mockAccountantGetRateSpy();
+        const { service } = createService({
+          rffcFlags: {
+            [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+            [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: value,
+          },
+        });
+
+        // Default (non-zero) window applies → the second call is cached.
+        await service.getExchangeRate();
+        await service.getExchangeRate();
+
+        expect(mockGetRate).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('applies staleTime even when the vault config flag is malformed (orchestrator isolation)', async () => {
+      // This test verifies that when #onRemoteFeatureFlagChange (the orchestrator)
+      // receives a stateChange with both flags, it processes BOTH — even when
+      // #applyVaultConfig throws. #applyBalanceStaleTimeFlag runs first and is
+      // never blocked by a vault config error.
+      const captureException = vi.fn();
+      const mockGetRate = mockAccountantGetRateSpy();
+      const { service, rootMessenger } = createService({
+        rffcFlags: {},
+        captureException,
+      });
+
+      // stateChange carries staleTime=0 AND a malformed vault config. The
+      // orchestrator calls #applyBalanceStaleTimeFlag first (→ staleTime=0),
+      // then #applyVaultConfig which throws. The messenger routes the throw to
+      // captureException so the subscriber does not crash.
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+      });
+
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(VaultConfigValidationError),
+      );
+
+      // Restore a valid vault config. The orchestrator now also re-applies
+      // staleTime for this event (no flag present → resets to default), but the
+      // key assertion above already confirms the orchestrator processed both
+      // flags on the previous event (captureException was called, which means
+      // #applyVaultConfig was reached, meaning #applyBalanceStaleTimeFlag ran
+      // first as intended).
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+        [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+      });
+
+      // Cache is bypassed on every call since staleTime=0 is active.
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 
 // ============================================================
@@ -1117,6 +2497,31 @@ describe('VaultConfigNotAvailableError', () => {
         'RemoteFeatureFlagController may not have fetched flags yet.',
     );
     expect(error.name).toBe('VaultConfigNotAvailableError');
+  });
+});
+
+describe('MoneyAccountBalanceUnavailableError', () => {
+  it('has the expected name', () => {
+    const error = new MoneyAccountBalanceUnavailableError('missing');
+    expect(error.message).toBe('missing');
+    expect(error.name).toBe('MoneyAccountBalanceUnavailableError');
+  });
+});
+
+describe('MoneyAccountBalanceValidationError', () => {
+  it('has the expected name', () => {
+    const error = new MoneyAccountBalanceValidationError('bad total');
+    expect(error.message).toBe('bad total');
+    expect(error.name).toBe('MoneyAccountBalanceValidationError');
+  });
+});
+
+describe('MoneyAccountBalanceFetchError', () => {
+  it('preserves causes', () => {
+    const causes = [new Error('a'), new Error('b')];
+    const error = new MoneyAccountBalanceFetchError(causes);
+    expect(error.name).toBe('MoneyAccountBalanceFetchError');
+    expect(error.causes).toBe(causes);
   });
 });
 

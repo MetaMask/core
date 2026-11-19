@@ -1,13 +1,14 @@
 import { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import { describe, expect, it } from 'vitest';
 
 import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
-} from '../types';
-import { TransactionStatus } from '../types';
-import * as util from './utils';
+} from '../types.js';
+import { TransactionStatus } from '../types.js';
+import * as util from './utils.js';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -343,16 +344,16 @@ describe('utils', () => {
     });
 
     it('throws for unsupported types', () => {
-      expect(() => util.toBN(true as unknown)).toThrow(
+      expect(() => util.toBN(true)).toThrow(
         'Unexpected value returned from oracle contract',
       );
-      expect(() => util.toBN(null as unknown)).toThrow(
+      expect(() => util.toBN(null)).toThrow(
         'Unexpected value returned from oracle contract',
       );
       expect(() => util.toBN(undefined as unknown)).toThrow(
         'Unexpected value returned from oracle contract',
       );
-      expect(() => util.toBN({} as unknown)).toThrow(
+      expect(() => util.toBN({})).toThrow(
         'Unexpected value returned from oracle contract',
       );
     });

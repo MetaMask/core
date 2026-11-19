@@ -1,8 +1,18 @@
 import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  ConfigRegistryControllerStateChangedEvent,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  ConfigRegistryControllerGetStateAction,
+} from '@metamask/config-registry-controller';
+import { selectEvmAutoEnabledNetworksChainIds } from '@metamask/config-registry-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
@@ -21,18 +31,43 @@ import {
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
+import {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
+import {
+  array,
+  boolean,
+  define,
+  enums,
+  literal,
+  number,
+  object as superstructObject,
+  optional,
+  record,
+  string,
+  union,
+} from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 import {
   createEventEmitterProxy,
   createSwappableProxy,
 } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import type { Hex } from '@metamask/utils';
-import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
+import {
+  hasProperty,
+  isPlainObject,
+  isStrictHexString,
+  numberToHex,
+  parseCaipChainId,
+  StrictHexStruct,
+} from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
@@ -42,53 +77,50 @@ import {
   DEPRECATED_NETWORKS,
   INFURA_BLOCKED_KEY,
   NetworkStatus,
-} from './constants';
+} from './constants.js';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
-} from './create-auto-managed-network-client';
-import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
-import type { DegradedEventType, RetryReason } from './create-network-client';
-import { projectLogger, createModuleLogger } from './logger';
+} from './create-auto-managed-network-client.js';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client.js';
 import type {
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
-  NetworkControllerMethodActions,
-} from './NetworkController-method-action-types';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
-import { NetworkClientType } from './types';
+  DegradedEventType,
+  RetryReason,
+} from './create-network-client.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types.js';
+import {
+  trackRpcServiceDegraded,
+  trackRpcServiceUnavailable,
+} from './rpc-service-analytics.js';
+import type {
+  NetworkControllerAnalyticsOptions,
+  ResolvedNetworkControllerAnalyticsOptions,
+} from './rpc-service-analytics.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
+import { selectRpcFailoverModeFeatureFlag } from './selectors.js';
+import type { RpcFailoverMode } from './selectors.js';
+import { NetworkClientType } from './types.js';
 import type {
   BlockTracker,
   Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  AdditionalDefaultNetwork,
-} from './types';
+} from './types.js';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 const INFURA_URL_REGEX =
   /^https:\/\/(?<networkName>[^.]+)\.infura\.io\/v\d+\/(?<apiKey>.+)$/u;
 
+/**
+ * The failover mode that network clients will be initialized with.
+ */
+export const DEFAULT_RPC_FAILOVER_MODE: RpcFailoverMode = 'enabled';
+
 export type Block = {
   baseFeePerGas?: string;
-};
-
-/**
- * Information about a network not held by any other part of state.
- */
-export type NetworkMetadata = {
-  /**
-   * EIPs supported by the network.
-   */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  EIPS: {
-    [eipNumber: number]: boolean;
-  };
-  /**
-   * Indicates the availability of the network
-   */
-  status: NetworkStatus;
 };
 
 /**
@@ -102,6 +134,57 @@ export enum RpcEndpointType {
   Infura = 'infura',
 }
 
+const NetworkClientIdStruct = string();
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+export type NetworkClientId = Infer<typeof NetworkClientIdStruct>;
+
+const BuiltInNetworkClientIdStruct = NetworkClientIdStruct;
+
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+export type BuiltInNetworkClientId = Infer<typeof BuiltInNetworkClientIdStruct>;
+
+const CustomNetworkClientIdStruct = NetworkClientIdStruct;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+export type CustomNetworkClientId = Infer<typeof CustomNetworkClientIdStruct>;
+
+const InfuraRpcEndpointUrlStruct =
+  define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
+    'infuraRpcEndpointUrl',
+    string().validator,
+  );
+
+const InfuraRpcEndpointStruct = superstructObject({
+  /**
+   * The optional user-facing nickname of the endpoint.
+   */
+  name: optional(string()),
+  /**
+   * The identifier for the network client that has been created for this RPC
+   * endpoint. This is also used to uniquely identify the RPC endpoint in a
+   * set of RPC endpoints as well: once assigned, it is used to determine
+   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
+   */
+  networkClientId: BuiltInNetworkClientIdStruct,
+  /**
+   * The type of this endpoint, always "default".
+   */
+  type: literal(RpcEndpointType.Infura),
+  /**
+   * The URL of the endpoint. Expected to be a template with the string
+   * `{infuraProjectId}`, which will get replaced with the Infura project ID
+   * when the network client is created.
+   */
+  url: InfuraRpcEndpointUrlStruct,
+});
+
 /**
  * An Infura RPC endpoint is a reference to a specific network that Infura
  * supports as well as an Infura account we own that we allow users to make use
@@ -114,63 +197,40 @@ export enum RpcEndpointType {
  * this replacement for Infura endpoints and not custom endpoints — hence the
  * separate type.
  */
-export type InfuraRpcEndpoint = {
-  /**
-   * Alternate RPC endpoints to use when this endpoint is down.
-   */
-  failoverUrls?: string[];
+export type InfuraRpcEndpoint = Infer<typeof InfuraRpcEndpointStruct>;
+
+const CustomRpcEndpointStruct = superstructObject({
   /**
    * The optional user-facing nickname of the endpoint.
    */
-  name?: string;
+  name: optional(string()),
   /**
    * The identifier for the network client that has been created for this RPC
    * endpoint. This is also used to uniquely identify the RPC endpoint in a
    * set of RPC endpoints as well: once assigned, it is used to determine
    * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
    */
-  networkClientId: BuiltInNetworkClientId;
+  networkClientId: CustomNetworkClientIdStruct,
   /**
-   * The type of this endpoint, always "default".
+   * The type of this endpoint, always "custom".
    */
-  type: RpcEndpointType.Infura;
+  type: literal(RpcEndpointType.Custom),
   /**
-   * The URL of the endpoint. Expected to be a template with the string
-   * `{infuraProjectId}`, which will get replaced with the Infura project ID
-   * when the network client is created.
+   * The URL of the endpoint.
    */
-  url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
-};
+  url: string(),
+});
 
 /**
  * A custom RPC endpoint is a reference to a user-defined server which fronts an
  * EVM chain. It may refer to an Infura network, but only by coincidence.
  */
-export type CustomRpcEndpoint = {
-  /**
-   * Alternate RPC endpoints to use when this endpoint is down.
-   */
-  failoverUrls?: string[];
-  /**
-   * The optional user-facing nickname of the endpoint.
-   */
-  name?: string;
-  /**
-   * The identifier for the network client that has been created for this RPC
-   * endpoint. This is also used to uniquely identify the RPC endpoint in a
-   * set of RPC endpoints as well: once assigned, it is used to determine
-   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
-   */
-  networkClientId: CustomNetworkClientId;
-  /**
-   * The type of this endpoint, always "custom".
-   */
-  type: RpcEndpointType.Custom;
-  /**
-   * The URL of the endpoint.
-   */
-  url: string;
-};
+export type CustomRpcEndpoint = Infer<typeof CustomRpcEndpointStruct>;
+
+const RpcEndpointStruct = union([
+  InfuraRpcEndpointStruct,
+  CustomRpcEndpointStruct,
+]);
 
 /**
  * An RPC endpoint is a reference to a server which fronts an EVM chain. There
@@ -179,7 +239,51 @@ export type CustomRpcEndpoint = {
  * @see {@link CustomRpcEndpoint}
  * @see {@link InfuraRpcEndpoint}
  */
-export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
+export type RpcEndpoint = Infer<typeof RpcEndpointStruct>;
+
+const NetworkConfigurationStruct = superstructObject({
+  /**
+   * A set of URLs that allows the user to view activity that has occurred on
+   * the chain.
+   */
+  blockExplorerUrls: array(string()),
+  /**
+   * The ID of the chain. Represented in hexadecimal format with a leading "0x"
+   * instead of decimal format so that when viewed out of context it can be
+   * unambiguously interpreted.
+   */
+  chainId: StrictHexStruct,
+  /**
+   * A reference to a URL that the client will use by default to allow the user
+   * to view activity that has occurred on the chain. This index must refer to
+   * an item in `blockExplorerUrls`.
+   */
+  defaultBlockExplorerUrlIndex: optional(number()),
+  /**
+   * A reference to an RPC endpoint that all requests will use by default in order to
+   * interact with the chain. This index must refer to an item in
+   * `rpcEndpoints`.
+   */
+  defaultRpcEndpointIndex: number(),
+  /**
+   * The user-facing nickname assigned to the chain.
+   */
+  name: string(),
+  /**
+   * The name of the currency to use for the chain.
+   */
+  nativeCurrency: string(),
+  /**
+   * The collection of possible RPC endpoints that the client can use to
+   * interact with the chain.
+   */
+  rpcEndpoints: array(RpcEndpointStruct),
+  /**
+   * Profile Sync - Network Sync field.
+   * Allows comparison of local network state with state to sync.
+   */
+  lastUpdatedAt: optional(number()),
+});
 
 /**
  * From a user perspective, a network configuration holds information about a
@@ -194,49 +298,40 @@ export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
  * something for which a network client object is created automatically or
  * created on demand when it is added to the client.
  */
-export type NetworkConfiguration = {
+export type NetworkConfiguration = Infer<typeof NetworkConfigurationStruct>;
+
+const NetworkMetadataStruct = superstructObject({
   /**
-   * A set of URLs that allows the user to view activity that has occurred on
-   * the chain.
+   * EIPs supported by the network.
    */
-  blockExplorerUrls: string[];
+  EIPS: record(string(), boolean()),
   /**
-   * The ID of the chain. Represented in hexadecimal format with a leading "0x"
-   * instead of decimal format so that when viewed out of context it can be
-   * unambiguously interpreted.
+   * Indicates the availability of the network
    */
-  chainId: Hex;
-  /**
-   * A reference to a URL that the client will use by default to allow the user
-   * to view activity that has occurred on the chain. This index must refer to
-   * an item in `blockExplorerUrls`.
-   */
-  defaultBlockExplorerUrlIndex?: number;
-  /**
-   * A reference to an RPC endpoint that all requests will use by default in order to
-   * interact with the chain. This index must refer to an item in
-   * `rpcEndpoints`.
-   */
-  defaultRpcEndpointIndex: number;
-  /**
-   * The user-facing nickname assigned to the chain.
-   */
-  name: string;
-  /**
-   * The name of the currency to use for the chain.
-   */
-  nativeCurrency: string;
-  /**
-   * The collection of possible RPC endpoints that the client can use to
-   * interact with the chain.
-   */
-  rpcEndpoints: RpcEndpoint[];
-  /**
-   * Profile Sync - Network Sync field.
-   * Allows comparison of local network state with state to sync.
-   */
-  lastUpdatedAt?: number;
-};
+  status: enums([
+    NetworkStatus.Unknown,
+    NetworkStatus.Available,
+    NetworkStatus.Degraded,
+    NetworkStatus.Unavailable,
+    NetworkStatus.Blocked,
+  ]),
+});
+
+/**
+ * Information about a network not held by any other part of state.
+ */
+export type NetworkMetadata = Infer<typeof NetworkMetadataStruct>;
+
+const NetworksMetadataStruct = record(
+  NetworkClientIdStruct,
+  NetworkMetadataStruct,
+);
+
+/**
+ * Extra information about each network, such as whether it is accessible or
+ * blocked and whether it supports EIP-1559, keyed by network client ID.
+ */
+export type NetworksMetadata = Infer<typeof NetworksMetadataStruct>;
 
 /**
  * A custom RPC endpoint in a new network configuration, meant to be used in
@@ -321,49 +416,33 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
 
-/**
- * The string that uniquely identifies an Infura network client.
- */
-export type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-export type CustomNetworkClientId = string;
-
-/**
- * The string that uniquely identifies a network client.
- */
-export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
-
-/**
- * Extra information about each network, such as whether it is accessible or
- * blocked and whether it supports EIP-1559, keyed by network client ID.
- */
-export type NetworksMetadata = Record<NetworkClientId, NetworkMetadata>;
-
-/**
- * The state that NetworkController stores.
- */
-export type NetworkState = {
+const NetworkStateStruct = superstructObject({
   /**
    * The ID of the network client that the proxies returned by
    * `getSelectedNetworkClient` currently point to.
    */
-  selectedNetworkClientId: NetworkClientId;
+  selectedNetworkClientId: NetworkClientIdStruct,
   /**
    * The registry of networks and corresponding RPC endpoints that the
    * controller can use to make requests for various chains.
    *
    * @see {@link NetworkConfiguration}
    */
-  networkConfigurationsByChainId: Record<Hex, NetworkConfiguration>;
+  networkConfigurationsByChainId: record(
+    StrictHexStruct,
+    NetworkConfigurationStruct,
+  ),
   /**
    * Extra information about each network, such as whether it is accessible or
    * blocked and whether it supports EIP-1559, keyed by network client ID.
    */
-  networksMetadata: NetworksMetadata;
-};
+  networksMetadata: NetworksMetadataStruct,
+});
+
+/**
+ * The state that NetworkController stores.
+ */
+export type NetworkState = Infer<typeof NetworkStateStruct>;
 
 const controllerName = 'NetworkController';
 
@@ -663,12 +742,12 @@ export type NetworkControllerEvents =
 /**
  * All events that {@link NetworkController} calls internally.
  */
-type AllowedEvents = never;
+type AllowedEvents =
+  | RemoteFeatureFlagControllerStateChangeEvent
+  | ConfigRegistryControllerStateChangedEvent;
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
-  'disableRpcFailover',
-  'enableRpcFailover',
   'findNetworkClientIdByChainId',
   'get1559CompatibilityWithNetworkClientId',
   'getEIP1559Compatibility',
@@ -680,7 +759,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getProviderAndBlockTracker',
   'getSelectedChainId',
   'getSelectedNetworkClient',
-  'initializeProvider',
   'loadBackup',
   'lookupNetwork',
   'lookupNetworkByClientId',
@@ -706,15 +784,15 @@ export type NetworkControllerActions =
   | NetworkControllerMethodActions;
 
 /**
- * @deprecated Use {@link NetworkControllerGetNetworkConfigurationByNetworkClientIdAction} instead.
- */
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction;
-
-/**
  * All actions that {@link NetworkController} calls internally.
  */
-type AllowedActions = ConnectivityControllerGetStateAction;
+type AllowedActions =
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
+  | ConfigRegistryControllerGetStateAction
+  | ConnectivityControllerGetStateAction
+  | RemoteFeatureFlagControllerGetStateAction
+  | AnalyticsControllerGetStateAction
+  | AnalyticsControllerTrackEventAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -735,6 +813,10 @@ export type NetworkControllerOptions = {
    */
   infuraProjectId: string;
   /**
+   * An optional map of available failover URLs for each chain ID.
+   */
+  failoverUrls?: Record<Hex, string[]>;
+  /**
    * The desired state with which to initialize this controller.
    * Missing properties will be filled in with defaults. For instance, if not
    * specified, `networkConfigurationsByChainId` will default to a basic set of
@@ -748,12 +830,12 @@ export type NetworkControllerOptions = {
   /**
    * A function that can be used to customize a RPC service constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
-   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * an object with type {@link RpcServiceOptionsWithDefaults}, minus `failoverService`
    * and `endpointUrl` (as they are filled in automatically).
    */
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   /**
    * A function that can be used to customize a block tracker constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
@@ -764,39 +846,31 @@ export type NetworkControllerOptions = {
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
-   * An array of Hex Chain IDs representing the additional networks to be included as default.
+   * Configuration for the "RPC Service Unavailable" and "RPC Service Degraded"
+   * analytics events the controller emits via the `AnalyticsController:trackEvent`
+   * action when an RPC endpoint becomes unavailable or degraded. Both the option
+   * and its properties are optional; omitted properties default to
+   * `isRpcEndpointUrlPublic: () => false` and `rpcServiceEventsSampleRate: 0`
+   * (which emits nothing). The messenger must allow `AnalyticsController:getState`
+   * and `AnalyticsController:trackEvent` regardless.
    */
-  additionalDefaultNetworks?: AdditionalDefaultNetwork[];
-  /**
-   * Whether or not requests sent to unavailable RPC endpoints should be
-   * automatically diverted to configured failover RPC endpoints.
-   */
-  isRpcFailoverEnabled?: boolean;
+  analyticsOptions?: NetworkControllerAnalyticsOptions;
 };
 
 /**
  * Constructs a value for the state property `networkConfigurationsByChainId`
  * which will be used if it has not been provided to the constructor.
  *
- * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default value for `networkConfigurationsByChainId`.
  */
-function getDefaultNetworkConfigurationsByChainId(
-  additionalDefaultNetworks: AdditionalDefaultNetwork[] = [],
-): Record<Hex, NetworkConfiguration> {
+function getDefaultNetworkConfigurationsByChainId(): Record<
+  Hex,
+  NetworkConfiguration
+> {
   const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
   const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
 
-  return additionalDefaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
-    (obj, chainId) => {
-      if (hasProperty(customNetworks, chainId)) {
-        obj[chainId] = customNetworks[chainId];
-      }
-      return obj;
-    },
-    // Always include the infura networks in the default networks
-    infuraNetworks,
-  );
+  return { ...customNetworks, ...infuraNetworks };
 }
 
 /**
@@ -820,15 +894,17 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
       const rpcEndpointUrl =
         `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
+      const { rpcPrefs } = BUILT_IN_NETWORKS[infuraNetworkType];
+
       const networkConfiguration: NetworkConfiguration = {
-        blockExplorerUrls: [],
+        blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+        defaultBlockExplorerUrlIndex: 0,
         chainId,
         defaultRpcEndpointIndex: 0,
         name: NetworkNickname[infuraNetworkType],
         nativeCurrency: NetworksTicker[infuraNetworkType],
         rpcEndpoints: [
           {
-            failoverUrls: [],
             networkClientId: infuraNetworkType,
             type: RpcEndpointType.Infura,
             url: rpcEndpointUrl,
@@ -855,9 +931,6 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   // Because it is not always guaranteed that the custom networks are included in the
   // default networks.
   return {
-    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
-      CustomNetworkType['megaeth-testnet'],
-    ),
     [ChainId['megaeth-testnet-v2']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet-v2'],
     ),
@@ -888,7 +961,6 @@ function getCustomNetworkConfiguration(
     nativeCurrency: ticker,
     rpcEndpoints: [
       {
-        failoverUrls: [],
         networkClientId: customNetworkType,
         type: RpcEndpointType.Custom,
         url: rpcEndpointUrl,
@@ -901,15 +973,12 @@ function getCustomNetworkConfiguration(
  * Constructs properties for the NetworkController state whose values will be
  * used if not provided to the constructor.
  *
- * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default NetworkController state.
  */
-export function getDefaultNetworkControllerState(
-  additionalDefaultNetworks?: AdditionalDefaultNetwork[],
-): NetworkState {
+export function getDefaultNetworkControllerState(): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
-    getDefaultNetworkConfigurationsByChainId(additionalDefaultNetworks);
+    getDefaultNetworkConfigurationsByChainId();
 
   return {
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1096,20 +1165,15 @@ function isValidUrl(url: string): boolean {
  *
  * @param rpcEndpointUrl - The URL to operate on.
  * @returns The Infura network name that the URL references.
- * @throws if the URL is not an Infura API URL, or if an Infura network is not
- * present in the URL.
+ * @throws if no Infura network is present in the URL.
  */
 function deriveInfuraNetworkNameFromRpcEndpointUrl(
   rpcEndpointUrl: string,
-): InfuraNetworkType {
+): string {
   const match = INFURA_URL_REGEX.exec(rpcEndpointUrl);
 
   if (match?.groups) {
-    if (isInfuraNetworkType(match.groups.networkName)) {
-      return match.groups.networkName;
-    }
-
-    throw new Error(`Unknown Infura network '${match.groups.networkName}'`);
+    return match.groups.networkName;
   }
 
   throw new Error('Could not derive Infura network from RPC endpoint URL');
@@ -1265,9 +1329,13 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
+  static readonly struct = NetworkStateStruct;
+
   #ethQuery?: EthQuery;
 
   readonly #infuraProjectId: string;
+
+  readonly #failoverUrls?: Record<Hex, string[]>;
 
   #previouslySelectedNetworkClientId: string;
 
@@ -1287,15 +1355,14 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
+  readonly #analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
   >;
 
-  #isRpcFailoverEnabled: Exclude<
-    NetworkControllerOptions['isRpcFailoverEnabled'],
-    undefined
-  >;
+  #rpcFailoverMode: RpcFailoverMode = DEFAULT_RPC_FAILOVER_MODE;
 
   /**
    * Constructs a NetworkController.
@@ -1305,16 +1372,16 @@ export class NetworkController extends BaseController<
   constructor(options: NetworkControllerOptions) {
     const {
       messenger,
-      state,
       infuraProjectId,
+      failoverUrls,
+      state,
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
-      additionalDefaultNetworks,
-      isRpcFailoverEnabled = false,
+      analyticsOptions,
     } = options;
     const initialState = {
-      ...getDefaultNetworkControllerState(additionalDefaultNetworks),
+      ...getDefaultNetworkControllerState(),
       ...state,
     };
     validateInitialState(initialState);
@@ -1351,10 +1418,15 @@ export class NetworkController extends BaseController<
     });
 
     this.#infuraProjectId = infuraProjectId;
+    this.#failoverUrls = failoverUrls;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
-    this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
+    this.#analyticsOptions = {
+      isRpcEndpointUrlPublic: (): boolean => false,
+      rpcServiceEventsSampleRate: 0,
+      ...analyticsOptions,
+    };
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1392,6 +1464,33 @@ export class NetworkController extends BaseController<
         });
       },
     );
+
+    this.messenger.subscribe(`${this.name}:rpcEndpointUnavailable`, (payload) =>
+      trackRpcServiceUnavailable(
+        this.messenger,
+        this.#analyticsOptions,
+        payload,
+      ),
+    );
+    this.messenger.subscribe(`${this.name}:rpcEndpointDegraded`, (payload) =>
+      trackRpcServiceDegraded(this.messenger, this.#analyticsOptions, payload),
+    );
+
+    this.messenger.subscribe(
+      'RemoteFeatureFlagController:stateChange',
+      (rpcFailoverMode) => {
+        if (rpcFailoverMode) {
+          this.#updateRpcFailover(rpcFailoverMode);
+        }
+      },
+      selectRpcFailoverModeFeatureFlag,
+    );
+
+    this.messenger.subscribe(
+      'ConfigRegistryController:stateChanged',
+      (caipChainIds) => this.#autoAddNetworksFromConfigRegistry(caipChainIds),
+      selectEvmAutoEnabledNetworksChainIds,
+    );
   }
 
   /**
@@ -1405,35 +1504,15 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Enables the RPC failover functionality. That is, if any RPC endpoints are
-   * configured with failover URLs, then traffic will automatically be diverted
-   * to them if those RPC endpoints are unavailable.
-   */
-  enableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(true);
-  }
-
-  /**
-   * Disables the RPC failover functionality. That is, even if any RPC endpoints
-   * are configured with failover URLs, then traffic will not automatically be
-   * diverted to them if those RPC endpoints are unavailable.
-   */
-  disableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(false);
-  }
-
-  /**
-   * Enables or disables the RPC failover functionality, depending on the
-   * boolean given. This is done by reconstructing all network clients that were
-   * originally configured with failover URLs so that those URLs are either
-   * honored or ignored. Network client IDs will be preserved so as not to
-   * invalidate state in other controllers.
+   * Applies the given RPC failover mode by reconstructing all network clients
+   * that were configured with failover URLs so that the new mode takes effect.
+   * Network client IDs are preserved so as not to invalidate state in other
+   * controllers.
    *
-   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
-   * RPC failover functionality.
+   * @param newMode - The RPC failover mode to apply.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
-    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+  #updateRpcFailover(newMode: RpcFailoverMode): void {
+    if (this.#rpcFailoverMode === newMode) {
       return;
     }
 
@@ -1444,23 +1523,17 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     )) {
       for (const networkClientId of Object.keys(networkClientsById)) {
-        // Type assertion: We can assume that `networkClientId` is valid here.
-        const networkClient =
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ];
+        const networkClient = networkClientsById[networkClientId];
         if (
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0
         ) {
-          newIsRpcFailoverEnabled
-            ? networkClient.enableRpcFailover()
-            : networkClient.disableRpcFailover();
+          networkClient.setRpcFailoverMode(newMode);
         }
       }
     }
 
-    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
+    this.#rpcFailoverMode = newMode;
   }
 
   /**
@@ -1566,18 +1639,11 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    if (isInfuraNetworkType(networkClientId)) {
-      const infuraNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
-        ];
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!infuraNetworkClient) {
-        throw new Error(
-          `No Infura network client was found with the ID "${networkClientId}".`,
-        );
-      }
+    const infuraNetworkClient =
+      autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+        networkClientId
+      ];
+    if (infuraNetworkClient) {
       return infuraNetworkClient;
     }
 
@@ -1587,7 +1653,7 @@ export class NetworkController extends BaseController<
       ];
     if (!customNetworkClient) {
       throw new Error(
-        `No custom network client was found with the ID "${networkClientId}".`,
+        `No network client was found with ID "${networkClientId}".`,
       );
     }
     return customNetworkClient;
@@ -1624,58 +1690,28 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Creates proxies for accessing the global network client and its block
-   * tracker. You must call this method in order to use
-   * `getProviderAndBlockTracker` (or its replacement,
-   * `getSelectedNetworkClient`).
+   * Initialize the NetworkController by:
    *
-   * @param options - Optional arguments.
-   * @param options.lookupNetwork - Usually, metadata for the global network
-   * will be populated via a call to `lookupNetwork` after creating the provider
-   * and block tracker proxies. This allows for responding to the status of the
-   * global network after initializing this controller; however, it requires
-   * making a request to the network to do so. In the clients, where controllers
-   * are initialized before the UI is shown, this may be undesirable, as it
-   * means that if the user has just installed MetaMask, their IP address may be
-   * shared with a third party before they have a chance to finish onboarding.
-   * You can pass `false` if you'd like to disable this request and call
-   * `lookupNetwork` yourself.
+   * - applying the RPC failover mode from the `corePlatformRpcFailoverMode`
+   *   feature flag, if present;
+   * - setting proxies for the globally selected network; and
+   * - auto-adding networks for any chains that are configured to be
+   *   auto-enabled in ConfigRegistryController.
    */
-  initializeProvider(options: { lookupNetwork: false }): void;
-
-  /**
-   * Creates proxies for accessing the global network client and its block
-   * tracker. You must call this method in order to use
-   * `getProviderAndBlockTracker` (or its replacement,
-   * `getSelectedNetworkClient`).
-   *
-   * @param options - Optional arguments.
-   * @param options.lookupNetwork - Usually, metadata for the global network
-   * will be populated via a call to `lookupNetwork` after creating the provider
-   * and block tracker proxies. This allows for responding to the status of the
-   * global network after initializing this controller; however, it requires
-   * making a request to the network to do so. In the clients, where controllers
-   * are initialized before the UI is shown, this may be undesirable, as it
-   * means that if the user has just installed MetaMask, their IP address may be
-   * shared with a third party before they have a chance to finish onboarding.
-   * You can pass `false` if you'd like to disable this request and call
-   * `lookupNetwork` yourself.
-   * @returns A promise that resolves when the network lookup completes.
-   */
-  initializeProvider(options?: { lookupNetwork?: boolean }): Promise<void>;
-
-  initializeProvider({
-    lookupNetwork = true,
-  }: {
-    lookupNetwork?: boolean;
-  } = {}): Promise<void> | undefined {
-    this.#applyNetworkSelection(this.state.selectedNetworkClientId);
-
-    if (lookupNetwork) {
-      return this.lookupNetwork();
+  init(): void {
+    const state = this.messenger.call('RemoteFeatureFlagController:getState');
+    const rpcFailoverMode = selectRpcFailoverModeFeatureFlag(state);
+    if (rpcFailoverMode) {
+      this.#updateRpcFailover(rpcFailoverMode);
     }
 
-    return undefined;
+    this.#applyNetworkSelection(this.state.selectedNetworkClientId);
+
+    this.#autoAddNetworksFromConfigRegistry(
+      selectEvmAutoEnabledNetworksChainIds(
+        this.messenger.call('ConfigRegistryController:getState'),
+      ),
+    );
   }
 
   /**
@@ -1700,10 +1736,7 @@ export class NetworkController extends BaseController<
       | NetworkStatus.Blocked;
     isEIP1559Compatible: undefined | boolean;
   }> {
-    // Force TypeScript to use one of the two overloads explicitly
-    const networkClient = isInfuraNetworkType(networkClientId)
-      ? this.getNetworkClientById(networkClientId)
-      : this.getNetworkClientById(networkClientId);
+    const networkClient = this.getNetworkClientById(networkClientId);
 
     const isInfura =
       networkClient.configuration.type === NetworkClientType.Infura;
@@ -2684,16 +2717,6 @@ export class NetworkController extends BaseController<
           : undefined;
 
       if (
-        rpcEndpointFields.type === RpcEndpointType.Custom &&
-        networkClientId !== undefined &&
-        isInfuraNetworkType(networkClientId)
-      ) {
-        throw new Error(
-          `${errorMessagePrefix}: Custom RPC endpoint '${rpcEndpointFields.url}' has invalid network client ID '${networkClientId}'`,
-        );
-      }
-
-      if (
         mode === 'update' &&
         networkClientId !== undefined &&
         rpcEndpointFields.type === RpcEndpointType.Custom &&
@@ -2778,22 +2801,6 @@ export class NetworkController extends BaseController<
       throw new Error(
         `${errorMessagePrefix}: There cannot be more than one Infura RPC endpoint`,
       );
-    }
-
-    const soleInfuraRpcEndpoint = infuraRpcEndpoints[0];
-    if (soleInfuraRpcEndpoint) {
-      const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
-        soleInfuraRpcEndpoint.url,
-      );
-      const infuraNetworkNickname = NetworkNickname[infuraNetworkName];
-      const infuraChainId = ChainId[infuraNetworkName];
-      if (networkFields.chainId !== infuraChainId) {
-        throw new Error(
-          mode === 'add'
-            ? `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
-            : `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-        );
-      }
     }
 
     if (
@@ -2898,6 +2905,7 @@ export class NetworkController extends BaseController<
           ),
       );
 
+    const failoverUrls = this.#failoverUrls?.[networkFields.chainId] ?? [];
     for (const addedRpcEndpoint of addedRpcEndpoints) {
       if (addedRpcEndpoint.type === RpcEndpointType.Infura) {
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
@@ -2908,14 +2916,14 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
-            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            failoverRpcUrls: failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
         });
       } else {
@@ -2926,14 +2934,14 @@ export class NetworkController extends BaseController<
           networkClientConfiguration: {
             type: NetworkClientType.Custom,
             chainId: networkFields.chainId,
-            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            failoverRpcUrls: failoverUrls,
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
         });
       }
@@ -3077,6 +3085,7 @@ export class NetworkController extends BaseController<
     const networkClientsWithIds = chainIds.flatMap((chainId) => {
       const networkConfiguration =
         this.state.networkConfigurationsByChainId[chainId];
+      const failoverUrls = this.#failoverUrls?.[chainId] ?? [];
       return networkConfiguration.rpcEndpoints.map((rpcEndpoint) => {
         if (rpcEndpoint.type === RpcEndpointType.Infura) {
           const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
@@ -3089,7 +3098,7 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
-                failoverRpcUrls: rpcEndpoint.failoverUrls,
+                failoverRpcUrls: failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
@@ -3097,7 +3106,7 @@ export class NetworkController extends BaseController<
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messenger,
-              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+              rpcFailoverMode: this.#rpcFailoverMode,
               logger: this.#log,
             }),
           ] as const;
@@ -3109,14 +3118,14 @@ export class NetworkController extends BaseController<
             networkClientConfiguration: {
               type: NetworkClientType.Custom,
               chainId: networkConfiguration.chainId,
-              failoverRpcUrls: rpcEndpoint.failoverUrls,
+              failoverRpcUrls: failoverUrls,
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messenger,
-            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+            rpcFailoverMode: this.#rpcFailoverMode,
             logger: this.#log,
           }),
         ] as const;
@@ -3172,42 +3181,7 @@ export class NetworkController extends BaseController<
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
   ): void {
-    const autoManagedNetworkClientRegistry =
-      this.#ensureAutoManagedNetworkClientRegistryPopulated();
-
-    let autoManagedNetworkClient:
-      | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
-      | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
-
-    if (isInfuraNetworkType(networkClientId)) {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
-        ];
-
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(
-          `No Infura network client found with ID '${networkClientId}'`,
-        );
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    } else {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          networkClientId
-        ];
-
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(`No network client found with ID '${networkClientId}'`);
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    }
-
-    this.#autoManagedNetworkClient = autoManagedNetworkClient;
+    this.#autoManagedNetworkClient = this.getNetworkClientById(networkClientId);
 
     this.update((state) => {
       state.selectedNetworkClientId = networkClientId;
@@ -3241,5 +3215,66 @@ export class NetworkController extends BaseController<
     }
 
     this.#ethQuery = new EthQuery(this.#providerProxy);
+  }
+
+  /**
+   * Adds networks to state and registers network clients for the given CAIP-2
+   * chain IDs if they are not already present. Configurations for these
+   * networks are retrieved from ConfigRegistryController.
+   *
+   * @param caipChainIds - The CAIP-2 chain IDs of the networks to enable.
+   */
+  #autoAddNetworksFromConfigRegistry(caipChainIds: CaipChainId[]): void {
+    for (const caipChainId of caipChainIds) {
+      try {
+        const registryNetworkConfig = this.messenger.call(
+          'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+          caipChainId,
+        );
+        const hexChainId = numberToHex(
+          Number(parseCaipChainId(caipChainId).reference),
+        );
+
+        if (
+          !registryNetworkConfig ||
+          this.state.networkConfigurationsByChainId[hexChainId]
+        ) {
+          continue;
+        }
+
+        const rpcEndpoint:
+          | InfuraRpcEndpoint
+          | AddNetworkCustomRpcEndpointFields =
+          registryNetworkConfig.rpcProviders.default.type === 'infura'
+            ? {
+                type: RpcEndpointType.Infura,
+                networkClientId:
+                  registryNetworkConfig.rpcProviders.default.networkClientId,
+                url: registryNetworkConfig.rpcProviders.default
+                  .url as InfuraRpcEndpoint['url'],
+              }
+            : {
+                type: RpcEndpointType.Custom,
+                url: registryNetworkConfig.rpcProviders.default.url,
+              };
+
+        this.addNetwork({
+          chainId: hexChainId,
+          name: registryNetworkConfig.name,
+          nativeCurrency: registryNetworkConfig.assets.native.symbol,
+          rpcEndpoints: [rpcEndpoint],
+          defaultRpcEndpointIndex: 0,
+          blockExplorerUrls: [registryNetworkConfig.blockExplorerUrls.default],
+          defaultBlockExplorerUrlIndex: 0,
+        });
+      } catch (error) {
+        const capturedError =
+          error instanceof Error ? error : new Error(String(error));
+        this.#log?.error(
+          `Failed to auto-enable network for chain ID ${caipChainId}: ${capturedError}`,
+        );
+        this.messenger.captureException?.(capturedError);
+      }
+    }
   }
 }

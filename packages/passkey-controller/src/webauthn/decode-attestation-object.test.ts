@@ -1,5 +1,7 @@
-import { base64URLToBytes } from '../utils/encoding';
-import { decodeAttestationObject } from './decode-attestation-object';
+import { describe, expect, it } from 'vitest';
+
+import { base64URLToBytes } from '../utils/encoding.js';
+import { decodeAttestationObject } from './decode-attestation-object.js';
 
 describe('decodeAttestationObject', () => {
   it('decodes base64url-encoded indirect attestationObject', () => {

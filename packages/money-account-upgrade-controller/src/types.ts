@@ -20,10 +20,28 @@ export type UpgradeConfig = {
   vedaVaultAdapterAddress: Hex;
   /** The EIP-7702 delegation target (EIP7702StatelessDeleGatorImpl). */
   delegatorImplAddress: Hex;
+  /** Address of the AllowedCalldataEnforcer caveat enforcer. */
+  allowedCalldataEnforcer: Hex;
+  /** Address of the AllowedTargetsEnforcer caveat enforcer. */
+  allowedTargetsEnforcer: Hex;
   /** Address of the ERC20TransferAmountEnforcer caveat enforcer. */
   erc20TransferAmountEnforcer: Hex;
   /** Address of the RedeemerEnforcer caveat enforcer. */
   redeemerEnforcer: Hex;
   /** Address of the ValueLteEnforcer caveat enforcer. */
   valueLteEnforcer: Hex;
+  /** The premium vault (pvmUSD), from the `moneyAccountPremiumVaultConfig` flag when served. */
+  premiumVault?: {
+    boringVaultAddress: Hex;
+    vedaVaultAdapterAddress: Hex;
+  };
 };
+
+/**
+ * The CHOMP intent type of a vault deposit or withdrawal delegation.
+ */
+export type VaultDelegationType =
+  | 'cash-deposit'
+  | 'cash-withdrawal'
+  | 'cash-deposit-premium'
+  | 'cash-withdrawal-premium';

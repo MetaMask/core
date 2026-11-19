@@ -8,20 +8,22 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   AssetMetadata,
+  AssetsControllerState,
   Middleware,
   FungibleAssetMetadata,
-} from '../types';
-import { fetchWithTimeout } from '../utils';
-import {
-  isStakingContractAssetId,
-  reduceInBatchesSerially,
-} from './evm-rpc-services';
+  DataResponse,
+} from '../types.js';
+import { findLaunchpadAssetIds } from '../utils/findLaunchpadAssetIds.js';
+import { findLowOccurrenceSpamAssetIds } from '../utils/findLowOccurrenceSpamAssetIds.js';
+import { getAssetIdsForMetadataFetch } from '../utils/getAssetIdsForMetadataFetch.js';
+import { fetchWithTimeout } from '../utils/index.js';
+import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -39,10 +41,11 @@ const TOKENS_API_BATCH_SIZE = 50;
 const BULK_SCAN_BATCH_SIZE = 100;
 
 /**
- * Minimum number of aggregator occurrences required for an EVM ERC-20 token to
- * pass the spam filter. Non-EVM tokens are filtered via Blockaid bulk scan instead.
+ * Fallback minimum aggregator occurrences for EVM ERC-20 spam filtering when
+ * Token API `/v1/suggestedOccurrenceFloors` has no entry for the chain (or
+ * the floors request fails). Non-EVM tokens are filtered via Blockaid instead.
  */
-const MIN_TOKEN_OCCURRENCES = 3;
+const DEFAULT_OCCURRENCE_FLOOR = 3;
 
 /** CAIP-19 `assetNamespace` segments used across filtering logic. */
 export enum CaipAssetNamespace {
@@ -53,6 +56,17 @@ export enum CaipAssetNamespace {
 
 const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
 
+/**
+ * Whether a CAIP-19 asset ID (any casing) is mUSD, which is exempt from
+ * occurrence-floor filtering.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @returns True when the asset is mUSD.
+ */
+function isMusdAssetId(assetId: string): boolean {
+  return assetId.toLowerCase().includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`);
+}
+
 // ============================================================================
 // OPTIONS
 // ============================================================================
@@ -62,11 +76,15 @@ export type TokenDataSourceOptions = {
   queryApiClient: ApiPlatformClient;
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   getNativeAssetIds: () => string[];
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   /**
    * Timeout in ms for a single Tokens API call (default: 15000). When it
    * fires, the batch rejects so metadata enrichment proceeds without it.
    */
   fetchTimeoutMs?: number;
+  /** Current AssetsController state. Used to skip already-known metadata and custom assets. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 /**
@@ -91,33 +109,16 @@ export type TokenDataSourceAllowedActions =
  *
  * @param assetId - CAIP-19 asset ID used to derive token type.
  * @param assetData - V3 API response data.
- * @param nativeAssetIds - Set of known native asset IDs (lowercased) for membership checks.
+ * @param getAssetType - Returns the asset type for a given CAIP-19 asset ID.
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
   assetId: Caip19AssetId,
   assetData: V3AssetResponse,
-  nativeAssetIds: ReadonlySet<string>,
+  getAssetType: (id: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): AssetMetadata {
-  const parsed = parseCaipAssetType(assetId);
-  let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
-
-  if (
-    nativeAssetIds.has(assetId.toLowerCase()) ||
-    parsed.assetNamespace === CaipAssetNamespace.Slip44
-  ) {
-    tokenType = 'native';
-  } else if (
-    parsed.chain.namespace === KnownCaipNamespace.Solana &&
-    parsed.assetNamespace === CaipAssetNamespace.Token
-  ) {
-    tokenType = 'spl';
-  }
-  // TODO: Add support for Tron trc20 standard
-
   const metadata: FungibleAssetMetadata = {
-    // Type derived from assetId
-    type: tokenType,
+    type: getAssetType(assetId),
     // BaseAssetMetadata fields
     name: assetData.name,
     symbol: assetData.symbol,
@@ -139,6 +140,53 @@ function transformV3AssetResponseToMetadata(
   return metadata;
 }
 
+/**
+ * Resolve the occurrence floor for an EVM asset from suggested floors keyed by
+ * decimal chain ID (e.g. `{ "1": 3, "143": 1 }`).
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @param floors - Map of decimal chain ID → suggested floor.
+ * @returns Floor to apply, or {@link DEFAULT_OCCURRENCE_FLOOR} when missing.
+ */
+function getOccurrenceFloorForAsset(
+  assetId: string,
+  floors: Record<string, number>,
+): number {
+  try {
+    const { chain } = parseCaipAssetType(assetId as CaipAssetType);
+    return floors[chain.reference] ?? DEFAULT_OCCURRENCE_FLOOR;
+  } catch {
+    return DEFAULT_OCCURRENCE_FLOOR;
+  }
+}
+
+function cleanResponseSpam(
+  spamAssetIds: Set<string>,
+  response: DataResponse,
+): void {
+  const spamLowerIds = new Set([...spamAssetIds].map((id) => id.toLowerCase()));
+
+  // Correctly clean assetsBalance by its own Ids
+  if (response.assetsBalance) {
+    for (const accountBalances of Object.values(response.assetsBalance)) {
+      for (const assetId of Object.keys(accountBalances)) {
+        if (spamLowerIds.has(assetId.toLowerCase())) {
+          delete (accountBalances as Record<string, unknown>)[assetId];
+        }
+      }
+    }
+  }
+
+  // Correctly clean assetsInfo by its own Ids
+  if (response.assetsInfo) {
+    for (const assetId of Object.keys(response.assetsInfo)) {
+      if (spamLowerIds.has(assetId.toLowerCase())) {
+        delete response.assetsInfo[assetId as Caip19AssetId];
+      }
+    }
+  }
+}
+
 // ============================================================================
 // TOKEN DATA SOURCE
 // ============================================================================
@@ -147,8 +195,14 @@ function transformV3AssetResponseToMetadata(
  * TokenDataSource enriches responses with token metadata from the Tokens API.
  *
  * This middleware-based data source:
- * - Checks detected assets for missing metadata/images
+ * - Collects metadata for state balances that have no metadata yet, and for
+ *   every balance on the current response
+ * - Excludes hidden assets
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
+ * - Filters EVM ERC-20 spam using per-chain floors from Token API
+ *   `/v1/suggestedOccurrenceFloors` (default floor 3) for balances that are
+ *   new to state; balances already tracked in state are enriched without
+ *   spam-filtering
  * - Merges fetched metadata into the response
  *
  * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
@@ -167,10 +221,17 @@ export class TokenDataSource {
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   readonly #getNativeAssetIds: () => string[];
 
+  /** Returns the asset type for a given CAIP-19 asset ID */
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
+
   /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
   readonly #messenger: AssetsControllerMessenger;
 
   readonly #fetchTimeoutMs: number;
+
+  readonly #getAssetsState: () => AssetsControllerState;
 
   constructor(
     messenger: AssetsControllerMessenger,
@@ -179,7 +240,9 @@ export class TokenDataSource {
     this.#messenger = messenger;
     this.#apiClient = options.queryApiClient;
     this.#getNativeAssetIds = options.getNativeAssetIds;
+    this.#getAssetType = options.getAssetType;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#getAssetsState = options.getAssetsState;
   }
 
   /**
@@ -203,6 +266,47 @@ export class TokenDataSource {
       return new Set(allNetworks);
     } catch (error) {
       log('Failed to fetch supported networks', { error });
+      return new Set();
+    }
+  }
+
+  /**
+   * Fetches per-chain suggested occurrence floors from Token API
+   * (`GET /v1/suggestedOccurrenceFloors`). Caching is handled by
+   * ApiPlatformClient. Fails open to an empty map so callers fall back to
+   * {@link DEFAULT_OCCURRENCE_FLOOR}.
+   *
+   * @returns Map of decimal chain ID → suggested occurrence floor.
+   */
+  async #getSuggestedOccurrenceFloors(): Promise<Record<string, number>> {
+    try {
+      return await fetchWithTimeout(
+        () => this.#apiClient.token.fetchV1SuggestedOccurrenceFloors(),
+        this.#fetchTimeoutMs,
+      );
+    } catch (error) {
+      log('Failed to fetch suggested occurrence floors', { error });
+      return {};
+    }
+  }
+
+  /**
+   * Returns the non-malicious launchpad tokens among `assetIds`, which are
+   * exempt from occurrence-floor filtering. Fails closed to an empty set so a
+   * failed lookup never lets extra tokens through.
+   *
+   * @param assetIds - CAIP-19 asset IDs that failed the occurrence floor.
+   * @returns Lower-cased asset IDs of launchpad tokens to keep.
+   */
+  async #getLaunchpadAssetIds(assetIds: string[]): Promise<Set<string>> {
+    try {
+      return await findLaunchpadAssetIds({
+        assetIds,
+        apiClient: this.#apiClient,
+        timeoutMs: this.#fetchTimeoutMs,
+      });
+    } catch (error) {
+      log('Failed to fetch launchpad data', { error });
       return new Set();
     }
   }
@@ -313,11 +417,150 @@ export class TokenDataSource {
   }
 
   /**
+   * Middleware that runs for account-activity (websocket) updates. New-to-state
+   * EVM ERC-20 balances are enriched with their Token API occurrence counts
+   * first, and tokens below the per-chain suggested occurrence floor are
+   * dropped from the response (balances and stub metadata) so spam airdrops
+   * never reach metadata enrichment, pricing, or state. Custom assets and
+   * mUSD are exempt, and assets unknown to the Token API are kept (fail
+   * open), mirroring {@link TokenDataSource.assetsMiddleware} filtering
+   * semantics.
+   *
+   * @returns The middleware function for the assets pipeline.
+   */
+  get occurrenceFilterMiddleware(): Middleware {
+    return forDataTypes(['balance'], async (ctx, next) => {
+      const { response } = ctx;
+      const {
+        assetsBalance: stateBalances,
+        assetsInfo: stateMetadata,
+        customAssets,
+      } = this.#getAssetsState();
+
+      const customAssetIds = new Set(
+        Object.values(customAssets ?? {})
+          .flat()
+          .map((id) => id.toLowerCase()),
+      );
+
+      // State keys are checksummed, but AccountActivity delivers lower-case
+      // ERC-20 IDs, so every lookup below compares lower-cased IDs. Matching
+      // case-sensitively would classify existing holdings as new and delete
+      // the very balance update this pipeline pass is meant to persist.
+      const knownMetadataIds = new Set(
+        Object.keys(stateMetadata).map((id) => id.toLowerCase()),
+      );
+
+      // Candidates: EVM ERC-20s that are genuinely new (absent from state
+      // balances and metadata).
+      const candidateByLowerId = new Map<string, string>();
+      for (const [accountId, accountBalances] of Object.entries(
+        response.assetsBalance ?? {},
+      )) {
+        const knownBalanceIds = new Set(
+          Object.keys(stateBalances[accountId] ?? {}).map((id) =>
+            id.toLowerCase(),
+          ),
+        );
+        for (const assetId of Object.keys(accountBalances)) {
+          const caipAssetId = assetId as Caip19AssetId;
+          const lowerId = assetId.toLowerCase();
+          if (
+            knownBalanceIds.has(lowerId) ||
+            knownMetadataIds.has(lowerId) ||
+            customAssetIds.has(lowerId) ||
+            isMusdAssetId(lowerId)
+          ) {
+            continue;
+          }
+          try {
+            const { assetNamespace, chain } = parseCaipAssetType(caipAssetId);
+            if (
+              assetNamespace === CaipAssetNamespace.Erc20 &&
+              chain.namespace === KnownCaipNamespace.Eip155
+            ) {
+              candidateByLowerId.set(lowerId, assetId);
+            }
+          } catch {
+            // Unparseable IDs are left for downstream middleware to handle.
+          }
+        }
+      }
+
+      if (candidateByLowerId.size === 0) {
+        return next(ctx);
+      }
+
+      try {
+        const [occurrenceResponse, suggestedOccurrenceFloors] =
+          await Promise.all([
+            reduceInBatchesSerially<string, V3AssetResponse[]>({
+              values: [...candidateByLowerId.values()],
+              batchSize: TOKENS_API_BATCH_SIZE,
+              eachBatch: async (workingResult, batch) => {
+                const batchResponse = await fetchWithTimeout(
+                  () =>
+                    this.#apiClient.tokens.fetchV3Assets(batch, {
+                      includeOccurrences: true,
+                    }),
+                  this.#fetchTimeoutMs,
+                );
+                return [
+                  ...(workingResult as V3AssetResponse[]),
+                  ...batchResponse,
+                ];
+              },
+              initialResult: [],
+            }),
+            this.#getSuggestedOccurrenceFloors(),
+          ]);
+
+        // Only assets the API knows can be judged; missing ones are kept.
+        const occurrencesByLowerId = new Map(
+          occurrenceResponse.map((assetData) => [
+            assetData.assetId.toLowerCase(),
+            assetData.occurrences,
+          ]),
+        );
+        const judgeableAssetIds = [...candidateByLowerId.values()].filter(
+          (id) => occurrencesByLowerId.has(id.toLowerCase()),
+        );
+        const spamAssetIds = new Set(
+          await findLowOccurrenceSpamAssetIds({
+            assetIds: judgeableAssetIds,
+            isExempt: (id) =>
+              customAssetIds.has(id.toLowerCase()) || isMusdAssetId(id),
+            getOccurrences: (id) => occurrencesByLowerId.get(id.toLowerCase()),
+            getOccurrenceFloor: (id) =>
+              getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors),
+            findLaunchpadAssetIds: (ids) => this.#getLaunchpadAssetIds(ids),
+          }),
+        );
+
+        if (spamAssetIds.size > 0) {
+          cleanResponseSpam(spamAssetIds, response);
+          log('Filtered low-occurrence websocket assets', {
+            assetIds: [...spamAssetIds],
+          });
+        }
+      } catch (error) {
+        // Fail open — keep all assets when occurrences cannot be fetched.
+        log('Failed to fetch occurrences for websocket update', { error });
+      }
+
+      return next(ctx);
+    });
+  }
+
+  /**
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches metadata for detected assets (assets without metadata)
+   * 1. Fetches metadata for state balances that are missing a field clients
+   *    or controller logic read, and for every balance on the current
+   *    response, excluding hidden assets
+   * 2. Spam-filters balances that are new to state; balances already tracked
+   *    are enriched without being removed
    * 3. Enriches the response with fetched metadata
    * 4. Calls next() at the end to continue the middleware chain
    *
@@ -325,11 +568,16 @@ export class TokenDataSource {
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['metadata'], async (ctx, next) => {
-      // Extract response from context
-      const { response } = ctx;
-
-      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
-      const assetIdsNeedingMetadata = new Set<string>();
+      const { request, response } = ctx;
+      const assetsState = this.#getAssetsState();
+      const { customAssets } = assetsState;
+      const nativeAssetIdsList = this.#getNativeAssetIds();
+      const { assetIdsNeedingMetadata, balanceHealAssetIds } =
+        getAssetIdsForMetadataFetch({
+          state: assetsState,
+          request,
+          response,
+        });
 
       // Custom assets are user-imported — exempt from spam filtering.
       // State stores asset IDs in their normalized (checksummed) form, but the
@@ -341,47 +589,21 @@ export class TokenDataSource {
           .map((id) => id.toLowerCase()),
       );
 
-      // Always include native asset IDs from NetworkEnablementController
-      const nativeAssetIdsList = this.#getNativeAssetIds();
+      // Natives in the metadata response are kept even at zero occurrences.
       const nativeAssetIds = new Set(
         nativeAssetIdsList.map((id) => id.toLowerCase()),
       );
-      for (const nativeAssetId of nativeAssetIdsList) {
-        assetIdsNeedingMetadata.add(nativeAssetId);
-      }
-
-      // Also fetch metadata for detected assets that are missing it
-      if (response.detectedAssets) {
-        for (const detectedIds of Object.values(response.detectedAssets)) {
-          for (const assetId of detectedIds) {
-            // Skip if response already has metadata with image
-            const responseMetadata = response.assetsInfo?.[assetId];
-            if (responseMetadata?.image) {
-              continue;
-            }
-
-            // Skip if state already has metadata with image
-            const existingMetadata = stateMetadata[assetId];
-            if (existingMetadata?.image) {
-              continue;
-            }
-
-            // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
-            if (isStakingContractAssetId(assetId)) {
-              continue;
-            }
-
-            assetIdsNeedingMetadata.add(assetId);
-          }
-        }
-      }
 
       if (assetIdsNeedingMetadata.size === 0) {
         return next(ctx);
       }
 
-      // Filter asset IDs to only include supported networks
-      const supportedNetworks = await this.#getSupportedNetworks();
+      // Filter asset IDs to only include supported networks; load per-chain
+      // occurrence floors in parallel (Token API suggested floors).
+      const [supportedNetworks, suggestedOccurrenceFloors] = await Promise.all([
+        this.#getSupportedNetworks(),
+        this.#getSuggestedOccurrenceFloors(),
+      ]);
       const supportedAssetIds = this.#filterAssetsByNetwork(
         [...assetIdsNeedingMetadata],
         supportedNetworks,
@@ -420,8 +642,8 @@ export class TokenDataSource {
 
         // Split assets by chain type: EVM uses occurrence-count filtering;
         // non-EVM non-native uses Blockaid; native assets are always allowed.
-        const occurrencesByAssetId = new Map(
-          metadataResponse.map((a) => [a.assetId, a.occurrences]),
+        const occurrencesByLowerId = new Map(
+          metadataResponse.map((a) => [a.assetId.toLowerCase(), a.occurrences]),
         );
 
         const evmErc20Ids: string[] = [];
@@ -442,29 +664,43 @@ export class TokenDataSource {
           }
         }
 
-        // EVM: require minimum occurrence count to suppress low-signal tokens.
-        // Tokens with no occurrence data (undefined) are treated the same as
-        // zero occurrences and filtered out.
+        // EVM: require per-chain suggested occurrence floor (from Token API
+        // `/v1/suggestedOccurrenceFloors`, default {@link DEFAULT_OCCURRENCE_FLOOR})
+        // to suppress low-signal tokens. Tokens with no occurrence data
+        // (undefined) are treated the same as zero occurrences and filtered out.
         // Custom assets (user-imported) bypass the occurrence filter — users
         // can import whatever they want and we must keep their metadata even
-        // if the API has fewer than `MIN_TOKEN_OCCURRENCES` aggregator hits.
-        const allowedEvmIds = new Set(
-          evmErc20Ids.filter(
-            (id) =>
+        // if the API has fewer aggregator hits than the floor.
+        // Balance-only heals also bypass — see `balanceHealAssetIds` below.
+        const spamEvmIds = new Set(
+          await findLowOccurrenceSpamAssetIds({
+            assetIds: evmErc20Ids,
+            isExempt: (id) =>
               customAssetIds.has(id.toLowerCase()) ||
-              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
-              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
-          ),
+              balanceHealAssetIds.has(id.toLowerCase()) ||
+              isMusdAssetId(id),
+            getOccurrences: (id) => occurrencesByLowerId.get(id.toLowerCase()),
+            getOccurrenceFloor: (id) =>
+              getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors),
+            findLaunchpadAssetIds: (ids) => this.#getLaunchpadAssetIds(ids),
+          }),
+        );
+        const allowedEvmIds = new Set(
+          evmErc20Ids.filter((id) => !spamEvmIds.has(id)),
         );
 
         // Non-EVM: Blockaid bulk scan.
-        // Custom assets (user-imported) bypass Blockaid filtering.
+        // Custom assets and balance-only heals bypass Blockaid filtering.
         const nonEvmToScan = nonEvmTokenIds.filter(
-          (id) => !customAssetIds.has(id.toLowerCase()),
+          (id) =>
+            !customAssetIds.has(id.toLowerCase()) &&
+            !balanceHealAssetIds.has(id.toLowerCase()),
         );
         const allowedNonEvmIds = new Set([
-          ...nonEvmTokenIds.filter((id) =>
-            customAssetIds.has(id.toLowerCase()),
+          ...nonEvmTokenIds.filter(
+            (id) =>
+              customAssetIds.has(id.toLowerCase()) ||
+              balanceHealAssetIds.has(id.toLowerCase()),
           ),
           ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
         ]);
@@ -499,30 +735,12 @@ export class TokenDataSource {
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
             caipAssetId,
             assetData,
-            nativeAssetIds,
+            this.#getAssetType,
           );
         }
 
         if (filteredOutAssets.size > 0) {
-          if (response.assetsBalance) {
-            for (const accountBalances of Object.values(
-              response.assetsBalance,
-            )) {
-              for (const assetId of filteredOutAssets) {
-                delete (accountBalances as Record<string, unknown>)[assetId];
-              }
-            }
-          }
-
-          if (response.detectedAssets) {
-            for (const [accountId, assetIds] of Object.entries(
-              response.detectedAssets,
-            )) {
-              response.detectedAssets[accountId] = assetIds.filter(
-                (id) => !filteredOutAssets.has(id),
-              );
-            }
-          }
+          cleanResponseSpam(filteredOutAssets, response);
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

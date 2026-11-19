@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ConnectivityController } from './ConnectivityController';
+import type { ConnectivityController } from './ConnectivityController.js';
 
 /**
  * Initializes the controller by fetching the initial connectivity status.

@@ -1,23 +1,31 @@
 import { TransactionFactory } from '@ethereumjs/tx';
 import type { TypedTransaction } from '@ethereumjs/tx';
-import { Contract } from '@ethersproject/contracts';
+import { Interface } from '@ethersproject/abi';
 import type { Provider } from '@metamask/network-controller';
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import type { Mocked, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
-import { bnFromHex, padHexToEvenLength } from '../utils/utils';
-import { MantleLayer1GasFeeFlow } from './MantleLayer1GasFeeFlow';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionStatus } from '../types.js';
+import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { bnFromHex, padHexToEvenLength } from '../utils/utils.js';
+import { MantleLayer1GasFeeFlow } from './MantleLayer1GasFeeFlow.js';
 
-jest.mock('@ethersproject/contracts', () => ({
-  Contract: jest.fn(),
-}));
+vi.mock('../utils/provider');
 
-jest.mock('@ethersproject/providers');
+const ORACLE_INTERFACE = new Interface([
+  'function getL1Fee(bytes _data)',
+  'function getOperatorFee(uint256 _gasUsed)',
+  'function tokenRatio()',
+]);
+
+const GET_L1_FEE_SELECTOR = ORACLE_INTERFACE.getSighash('getL1Fee');
+const TOKEN_RATIO_SELECTOR = ORACLE_INTERFACE.getSighash('tokenRatio');
 
 const TRANSACTION_PARAMS_MOCK = {
   from: '0x123',
@@ -42,6 +50,8 @@ const TRANSACTION_META_TESTNET_MOCK: TransactionMeta = {
   txParams: TRANSACTION_PARAMS_MOCK,
 };
 
+const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+
 const SERIALIZED_TRANSACTION_MOCK = '0x1234';
 // L1 fee in ETH (returned by oracle)
 const L1_FEE_MOCK = '0x0de0b6b3a7640000'; // 1e18 (1 ETH in wei)
@@ -57,49 +67,54 @@ const OPERATOR_FEE_MOCK = '0x2386f26fc10000'; // 0.01 ETH in wei
  */
 function createMockTypedTransaction(
   serializedBuffer: Buffer,
-): jest.Mocked<TypedTransaction> {
+): Mocked<TypedTransaction> {
   const instance = {
     serialize: (): Buffer => serializedBuffer,
-    sign: jest.fn(),
+    sign: vi.fn(),
   };
 
-  jest.spyOn(instance, 'sign').mockReturnValue(instance);
+  vi.spyOn(instance, 'sign').mockReturnValue(instance);
 
-  return instance as unknown as jest.Mocked<TypedTransaction>;
+  return instance as unknown as Mocked<TypedTransaction>;
 }
 
 describe('MantleLayer1GasFeeFlow', () => {
-  const contractMock = jest.mocked(Contract);
-  const contractGetL1FeeMock: jest.MockedFn<() => Promise<BN>> = jest.fn();
-  const contractGetOperatorFeeMock: jest.MockedFn<() => Promise<BN>> =
-    jest.fn();
-  const contractTokenRatioMock: jest.MockedFn<() => Promise<BN>> = jest.fn();
+  const rpcRequestMock = vi.mocked(rpcRequest);
+  const getL1FeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
+  const getOperatorFeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
+  const tokenRatioMock: MockedFunction<() => Promise<unknown>> = vi.fn();
 
   let request: Layer1GasFeeFlowRequest;
 
   beforeEach(() => {
     request = {
+      messenger: MESSENGER_MOCK,
       provider: {} as Provider,
       transactionMeta: TRANSACTION_META_MOCK,
     };
 
-    contractMock.mockClear();
-    contractGetL1FeeMock.mockClear();
-    contractGetOperatorFeeMock.mockClear();
-    contractTokenRatioMock.mockClear();
+    rpcRequestMock.mockClear();
+    getL1FeeMock.mockClear();
+    getOperatorFeeMock.mockClear();
+    tokenRatioMock.mockClear();
 
-    contractGetL1FeeMock.mockResolvedValue(bnFromHex(L1_FEE_MOCK));
-    contractGetOperatorFeeMock.mockResolvedValue(new BN(0));
-    contractTokenRatioMock.mockResolvedValue(TOKEN_RATIO_MOCK);
+    getL1FeeMock.mockResolvedValue(L1_FEE_MOCK);
+    getOperatorFeeMock.mockResolvedValue('0x0');
+    tokenRatioMock.mockResolvedValue(add0x(TOKEN_RATIO_MOCK.toString(16)));
 
-    // The base class creates a contract first (for getL1Fee/getOperatorFee),
-    // then transformOracleFee creates a second contract (for tokenRatio).
-    // Both use the same mock constructor.
-    contractMock.mockReturnValue({
-      getL1Fee: contractGetL1FeeMock,
-      getOperatorFee: contractGetOperatorFeeMock,
-      tokenRatio: contractTokenRatioMock,
-    } as unknown as Contract);
+    rpcRequestMock.mockImplementation(async (args) => {
+      const { data } = (args.params as [{ data: Hex }, string])[0];
+
+      if (data.startsWith(GET_L1_FEE_SELECTOR)) {
+        return await getL1FeeMock();
+      }
+
+      if (data.startsWith(TOKEN_RATIO_SELECTOR)) {
+        return await tokenRatioMock();
+      }
+
+      return await getOperatorFeeMock();
+    });
   });
 
   describe('matchesTransaction', () => {
@@ -153,17 +168,13 @@ describe('MantleLayer1GasFeeFlow', () => {
         },
       };
 
-      contractGetOperatorFeeMock.mockResolvedValueOnce(
-        bnFromHex(OPERATOR_FEE_MOCK),
-      );
+      getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -173,28 +184,118 @@ describe('MantleLayer1GasFeeFlow', () => {
         bnFromHex(OPERATOR_FEE_MOCK),
       );
 
-      expect(contractTokenRatioMock).toHaveBeenCalledTimes(1);
-      expect(contractGetOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(tokenRatioMock).toHaveBeenCalledTimes(1);
+      expect(getOperatorFeeMock).toHaveBeenCalledTimes(1);
       expect(response).toStrictEqual({
         layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
       });
     });
 
-    it('returns converted L1 fee when no gasUsed (no operator fee)', async () => {
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+    it('falls back to txParams.gas for operator fee when gasUsed is missing', async () => {
+      getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
+
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
+
+      const flow = new MantleLayer1GasFeeFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
+      const expectedTotal = expectedL1FeeInMnt.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(getOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(rpcRequestMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'eth_call',
+          params: [
+            expect.objectContaining({
+              data: ORACLE_INTERFACE.encodeFunctionData('getOperatorFee', [
+                TRANSACTION_PARAMS_MOCK.gas,
+              ]),
+            }),
+            'latest',
+          ],
+        }),
+      );
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
+    });
+
+    it('falls back to txParams.gasLimit for operator fee when gasUsed and txParams.gas are missing', async () => {
+      const gasLimit = '0x9999';
+      request = {
+        ...request,
+        transactionMeta: {
+          ...request.transactionMeta,
+          txParams: {
+            from: TRANSACTION_PARAMS_MOCK.from,
+            gasLimit,
+          },
+        },
+      };
+
+      getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
+
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
+
+      const flow = new MantleLayer1GasFeeFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
+      const expectedTotal = expectedL1FeeInMnt.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(getOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(rpcRequestMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'eth_call',
+          params: [
+            expect.objectContaining({
+              data: ORACLE_INTERFACE.encodeFunctionData('getOperatorFee', [
+                gasLimit,
+              ]),
+            }),
+            'latest',
+          ],
+        }),
+      );
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
+    });
+
+    it('skips operator fee when no gasUsed, txParams.gas, or txParams.gasLimit is available', async () => {
+      request = {
+        ...request,
+        transactionMeta: {
+          ...request.transactionMeta,
+          txParams: { from: TRANSACTION_PARAMS_MOCK.from },
+        },
+      };
+
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
 
       const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
 
-      expect(contractGetOperatorFeeMock).not.toHaveBeenCalled();
+      expect(getOperatorFeeMock).not.toHaveBeenCalled();
       expect(response).toStrictEqual({
         layer1Fee: add0x(padHexToEvenLength(expectedL1FeeInMnt.toString(16))),
       });
@@ -210,15 +311,13 @@ describe('MantleLayer1GasFeeFlow', () => {
         },
       };
 
-      contractGetOperatorFeeMock.mockRejectedValueOnce(new Error('revert'));
+      getOperatorFeeMock.mockRejectedValueOnce(new Error('revert'));
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -231,15 +330,29 @@ describe('MantleLayer1GasFeeFlow', () => {
     });
 
     it('throws if tokenRatio call fails', async () => {
-      contractTokenRatioMock.mockRejectedValue(new Error('error'));
+      tokenRatioMock.mockRejectedValue(new Error('error'));
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
+
+      const flow = new MantleLayer1GasFeeFlow();
+
+      await expect(flow.getLayer1Fee(request)).rejects.toThrow(
+        'Failed to get oracle layer 1 gas fee',
+      );
+    });
+
+    it('throws if tokenRatio call returns empty result', async () => {
+      tokenRatioMock.mockResolvedValue('0x');
+
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
 
@@ -284,17 +397,13 @@ describe('MantleLayer1GasFeeFlow', () => {
         },
       };
 
-      contractGetOperatorFeeMock.mockResolvedValueOnce(
-        bnFromHex(OPERATOR_FEE_MOCK),
-      );
+      getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -304,8 +413,8 @@ describe('MantleLayer1GasFeeFlow', () => {
         bnFromHex(OPERATOR_FEE_MOCK),
       );
 
-      expect(contractTokenRatioMock).toHaveBeenCalledTimes(1);
-      expect(contractGetOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(tokenRatioMock).toHaveBeenCalledTimes(1);
+      expect(getOperatorFeeMock).toHaveBeenCalledTimes(1);
       expect(response).toStrictEqual({
         layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
       });

@@ -8,9 +8,8 @@ This document provides guidance for AI agents working within this repo.
 
 - **Yarn 4** for managing the monorepo
 - **TypeScript 5** for writing type-safe code
-- **Jest** for writing tests
+- **Vitest** for writing tests
 - **ESLint 9** and **Prettier** for linting and formatting code
-- **Babel** for compiling ESM code so that Jest can run it
 - **`@metamask/auto-changelog`** for writing and validating changelogs
 - **`@metamask/create-release-branch`**, **`MetaMask/action-publish-release`**, and **`MetaMask/action-npm-publish`** for creating and publishing releases
 - **TypeDoc** for generating API documentation
@@ -56,20 +55,20 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 - `packages/**/tsconfig.build.json` (and `scripts/create-package/package-template/tsconfig.build.json`) defines TypeScript settings for each package that are used to produce a build.
 - `scripts/create-package/tsconfig.json` customizes TypeScript settings for the `create-package` tool.
 
-#### Jest
+#### Vitest
 
-- `jest.config.packages.js` defines shared Jest settings for all directories in `packages/`.
-- `jest.config.scripts.js` defines shared Jest settings for all directories in `scripts/`.
-- `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
+- `vitest.config.packages.ts` defines shared Vitest settings for all directories in `packages/`.
+- `vitest.config.scripts.ts` defines Vitest settings for the tests in `scripts/`.
+- `packages/**/vitest.config.ts` (and `packages/package-template/vitest.config.ts`) customizes Vitest settings for each package.
 
-#### ESLint
+#### Oxlint
 
-- `eslint.config.mjs` configures ESLint for the entire monorepo.
-- `eslint-suppressions.json` isn't a config file per se, but defines ESLint errors that are being ignored (temporarily).
+- `oxlint.config.ts` configures Oxlint for the entire monorepo.
+- `oxlint-suppressions.json` isn't a config file per se, but defines Oxlint errors that are being ignored (temporarily).
 
-#### Prettier
+#### Oxfmt
 
-- `.prettierrc.js` configures Prettier for the entire repo.
+- `.oxfmtrc.json` configures Oxlint for the entire repo.
 
 #### TypeDoc
 
@@ -77,7 +76,6 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 
 #### Other files
 
-- `babel.config.js` configures Babel, which is used for tests within `scripts/create-package`.
 - `release.config.js` configures the `@metamask/create-release-branch` tool.
 
 ## Processes
@@ -121,13 +119,15 @@ For more on these commands, see:
 ### Running tests
 
 - Run `yarn workspace <package-name> run test` to run all tests for a package.
-- Run `yarn workspace <package-name> run jest --no-coverage <file>` to run a specific test file.
-- Prefer the above two commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
+- Run `yarn workspace <package-name> run test run <file>` to run a specific test file.
+- Run `yarn workspace <package-name> run test:coverage` to run all tests for a package with coverage and enforce its coverage thresholds.
+- Prefer the above commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
+- Run `yarn test:packages --project <directory-name>` from the root to run a single package's tests through the root Vitest projects config.
 
 ### Linting and formatting
 
 - Run `yarn lint` to check for code quality issues across the monorepo.
-- Run `yarn validate:changelog` to check for formatting issues in changelogs.
+- Run `yarn changelog:validate` to check for formatting issues in changelogs.
 - Run `yarn lint:fix` to automatically fix fixable violations.
 
 ### Building packages
@@ -158,7 +158,7 @@ Each consumer-facing change to a package should be accompanied by one or more en
   - Do not simply reuse the PR title in the entry, but describe exact changes to the API or usable surface area of the project.
   - When there are multiple upgrades to a package in the same release, combine them into a single entry.
   - Each changelog entry should describe one kind of change; if an entry describes too many things, split it up.
-- After updating a changelog, run `yarn validate:changelog` and fix any errors reported.
+- After updating a changelog, run `yarn changelog:validate` and fix any errors reported.
 
 ## Creating releases
 
@@ -219,3 +219,17 @@ When adding or updating data services in packages, follow these guidelines:
 - Make sure to write comprehensive tests for the service class.
 
 Use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
+
+## Cursor Cloud specific instructions
+
+This repo is a **library monorepo** — a collection of `@metamask/*` TypeScript packages published to npm and consumed by MetaMask clients. There is **no long-running server/app to start**; "running" the code means building packages, running their test suites, or invoking one of the CLI packages (e.g. `messenger-cli`). Do not look for a dev server.
+
+Environment prerequisites (Node LTS + Yarn 4 via Corepack + `yarn install`) are handled by the startup update script, so you normally don't need to reinstall. If you do run it manually, use `corepack enable` before any `yarn` command — the base image's global `yarn` is Classic (1.x), and this repo requires Yarn 4 (pinned via `packageManager`).
+
+Standard lint/test/build commands are documented above and in `docs/processes/`. Non-obvious caveats for this environment:
+
+- `yarn build` (whole monorepo, via `tsc --build`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
+- `yarn lint:eslint` runs `build:only-clean` first, which **deletes all `packages/*/dist`**. Run `yarn build` again afterward if you need the built artifacts (tests don't need `dist`; they run TS/Babel directly).
+- The full `yarn lint` does much more than ESLint (constraints, `knip` dependency checks, changelog/teams/tsconfig/codeowners checks); prefer `yarn lint:eslint` for a quick code-quality pass.
+- Per-package tests are fast: `yarn workspace <package-name> run test`. `yarn test` across all packages is heavy.
+- `yarn install` emits `YN0060`/`YN0002`/`YN0086` peer-dependency warnings — these are expected and not failures.

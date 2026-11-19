@@ -3,5 +3,5 @@ export type {
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
   ComposableControllerMessenger,
-} from './ComposableController';
-export { ComposableController } from './ComposableController';
+} from './ComposableController.js';
+export { ComposableController } from './ComposableController.js';

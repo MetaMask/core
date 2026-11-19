@@ -13,7 +13,7 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types';
+import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types.js';
 
 /**
  * ContactEntry representation

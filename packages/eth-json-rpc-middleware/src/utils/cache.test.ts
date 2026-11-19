@@ -1,10 +1,12 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   blockTagForRequest,
   blockTagParamIndex,
   cacheTypeForMethod,
   cacheIdentifierForRequest,
   canCache,
-} from './cache';
+} from './cache.js';
 
 const knownMethods = [
   'web3_clientVersion',

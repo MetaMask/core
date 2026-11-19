@@ -1,6 +1,6 @@
 import type { Json, JsonRpcParams, JsonRpcSuccess } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngine.js';
 
 type ScaffoldMiddlewareHandler<
   Params extends JsonRpcParams,

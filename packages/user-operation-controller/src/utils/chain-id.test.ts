@@ -1,4 +1,6 @@
-import { toEip155ChainId } from './chain-id';
+import { describe, expect, it } from 'vitest';
+
+import { toEip155ChainId } from './chain-id.js';
 
 describe('chain-id', () => {
   describe('toEip155ChainId', () => {

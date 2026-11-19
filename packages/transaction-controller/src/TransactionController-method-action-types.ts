@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionController } from './TransactionController';
+import type { TransactionController } from './TransactionController.js';
 
 /**
  * Handle new method data request.
@@ -51,33 +51,6 @@ export type TransactionControllerIsAtomicBatchSupportedAction = {
 export type TransactionControllerAddTransactionAction = {
   type: `TransactionController:addTransaction`;
   handler: TransactionController['addTransaction'];
-};
-
-/**
- * Starts polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStartIncomingTransactionPollingAction = {
-  type: `TransactionController:startIncomingTransactionPolling`;
-  handler: TransactionController['startIncomingTransactionPolling'];
-};
-
-/**
- * Stops polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStopIncomingTransactionPollingAction = {
-  type: `TransactionController:stopIncomingTransactionPolling`;
-  handler: TransactionController['stopIncomingTransactionPolling'];
-};
-
-/**
- * Update the incoming transactions by polling the remote transaction source.
- *
- * @param request - Request object.
- * @param request.tags - Additional tags to identify the source of the request.
- */
-export type TransactionControllerUpdateIncomingTransactionsAction = {
-  type: `TransactionController:updateIncomingTransactions`;
-  handler: TransactionController['updateIncomingTransactions'];
 };
 
 /**
@@ -159,6 +132,52 @@ export type TransactionControllerEstimateGasBufferedAction = {
 export type TransactionControllerUpdateTransactionAction = {
   type: `TransactionController:updateTransaction`;
   handler: TransactionController['updateTransaction'];
+};
+
+/**
+ * Updates transaction metadata.
+ *
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
+ * @param options.skipResimulate - Whether to skip automatic re-simulation.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionMetadataAction = {
+  type: `TransactionController:updateTransactionMetadata`;
+  handler: TransactionController['updateTransactionMetadata'];
+};
+
+/**
+ * Mark a transaction as failed, transitioning it through the standard failure
+ * path.
+ *
+ * Unlike `updateTransaction`, this emits the transaction lifecycle events
+ * (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`), so
+ * downstream subscribers such as the bridge status controller and metrics are
+ * notified. Intended for callers that finalize a transaction out-of-band, for
+ * example the smart transactions controller when the relay cancels a smart
+ * transaction that never landed on chain.
+ *
+ * @param transactionId - The ID of the transaction to mark as failed.
+ * @param error - The error describing why the transaction failed.
+ */
+export type TransactionControllerFailTransactionAction = {
+  type: `TransactionController:failTransaction`;
+  handler: TransactionController['failTransaction'];
+};
+
+/**
+ * Marks a pending resumed transaction as submitted, using the same
+ * event path as a normal publish. Only valid when the transaction is
+ * in `approved` or `signed` status; throws otherwise.
+ *
+ * @param transactionId - ID of the transaction to finalise.
+ * @param transactionHash - On-chain hash returned by the resuming controller.
+ */
+export type TransactionControllerFinalizeResumedTransactionAction = {
+  type: `TransactionController:finalizeResumedTransaction`;
+  handler: TransactionController['finalizeResumedTransaction'];
 };
 
 /**
@@ -381,6 +400,19 @@ export type TransactionControllerUpdateAtomicBatchDataAction = {
 };
 
 /**
+ * Update the batch transactions associated with a transaction.
+ * These transactions will be submitted with the main transaction as a batch.
+ *
+ * @param request - The request object.
+ * @param request.transactionId - The ID of the transaction to update.
+ * @param request.batchTransactions - The new batch transactions.
+ */
+export type TransactionControllerUpdateBatchTransactionsAction = {
+  type: `TransactionController:updateBatchTransactions`;
+  handler: TransactionController['updateBatchTransactions'];
+};
+
+/**
  * Update the selected gas fee token for a transaction.
  *
  * @param transactionId - The ID of the transaction to update.
@@ -443,15 +475,15 @@ export type TransactionControllerMethodActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | TransactionControllerAddTransactionAction
-  | TransactionControllerStartIncomingTransactionPollingAction
-  | TransactionControllerStopIncomingTransactionPollingAction
-  | TransactionControllerUpdateIncomingTransactionsAction
   | TransactionControllerStopTransactionAction
   | TransactionControllerSpeedUpTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionMetadataAction
+  | TransactionControllerFailTransactionAction
+  | TransactionControllerFinalizeResumedTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction
@@ -468,6 +500,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerClearUnapprovedTransactionsAction
   | TransactionControllerAbortTransactionSigningAction
   | TransactionControllerUpdateAtomicBatchDataAction
+  | TransactionControllerUpdateBatchTransactionsAction
   | TransactionControllerUpdateSelectedGasFeeTokenAction
   | TransactionControllerUpdateRequiredTransactionIdsAction
   | TransactionControllerEmulateNewTransactionAction

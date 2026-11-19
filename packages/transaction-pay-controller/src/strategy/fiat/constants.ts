@@ -4,9 +4,11 @@ import type { Hex } from '@metamask/utils';
 import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_MAINNET,
+  CHAIN_ID_MONAD,
   CHAIN_ID_POLYGON,
+  MUSD_MONAD_ADDRESS,
   NATIVE_TOKEN_ADDRESS,
-} from '../../constants';
+} from '../../constants.js';
 
 export const DEFAULT_FIAT_CURRENCY = 'USD';
 
@@ -33,7 +35,29 @@ export const ETH_MAINNET_FIAT_ASSET: TransactionPayFiatAsset = {
 export const FIAT_ASSET_ID_BY_TX_TYPE: Partial<
   Record<TransactionType, TransactionPayFiatAsset>
 > = {
-  [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
+  [TransactionType.membershipSubscription]: ETH_MAINNET_FIAT_ASSET,
+  [TransactionType.moneyAccountDeposit]: ETH_MAINNET_FIAT_ASSET,
   [TransactionType.perpsDeposit]: ARBITRUM_ETH_FIAT_ASSET,
-  [TransactionType.perpsDepositAndOrder]: ARBITRUM_ETH_FIAT_ASSET,
+  [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
+};
+
+/**
+ * Transaction types that deposit into the Money Account vault, so share the
+ * Money Account fiat handling (direct mUSD on-ramp and CHOMP recovery).
+ */
+export const MONEY_ACCOUNT_DEPOSIT_TYPES: TransactionType[] = [
+  TransactionType.membershipSubscription,
+  TransactionType.moneyAccountDeposit,
+];
+
+export const FIAT_ENABLED_TYPES: TransactionType[] = [
+  ...MONEY_ACCOUNT_DEPOSIT_TYPES,
+  TransactionType.perpsDeposit,
+  TransactionType.predictDeposit,
+];
+
+/** Fiat asset descriptor for mUSD on Monad. */
+export const MUSD_MONAD_FIAT_ASSET: TransactionPayFiatAsset = {
+  address: MUSD_MONAD_ADDRESS,
+  chainId: CHAIN_ID_MONAD,
 };

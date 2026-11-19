@@ -1,4 +1,6 @@
-import { setDifference, setIntersection } from './utils';
+import { describe, expect, it } from 'vitest';
+
+import { setDifference, setIntersection } from './utils.js';
 
 describe('utils - setDifference()', () => {
   it('should return the difference between 2 sets', () => {

@@ -26,24 +26,29 @@ import {
   TrxMethod,
   TrxScope,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { CaipChainId } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
-} from '../tests/mockMessenger';
+} from '../tests/mockMessenger.js';
 import {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
-} from './AccountTreeController';
-import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
-import { BackupAndSyncService } from './backup-and-sync/service';
-import { isAccountGroupNameUnique } from './group';
-import { getAccountWalletNameFromKeyringType } from './rules/keyring';
-import type { AccountTreeControllerState } from './types';
+} from './AccountTreeController.js';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics/index.js';
+import { BackupAndSyncService } from './backup-and-sync/service/index.js';
+import { isAccountGroupNameUnique } from './group.js';
+import { getAccountWalletNameFromKeyringType } from './rules/keyring.js';
+import { makeLocalMnemonicWallet } from './state/tests/helpers.js';
+import type { AccountTreeControllerState } from './types.js';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -233,7 +238,7 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
-const mockGetSelectedMultichainAccountActionHandler = jest.fn();
+const mockGetSelectedMultichainAccountActionHandler = vi.fn();
 
 const MOCK_PREPOPULATED_WALLET_ID = toMultichainAccountWalletId(
   MOCK_HD_KEYRING_1.metadata.id,
@@ -245,33 +250,13 @@ const MOCK_PREPOPULATED_GROUP_ID = toMultichainAccountGroupId(
 const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
   selectedAccountGroup: MOCK_PREPOPULATED_GROUP_ID,
   accountTree: {
-    wallets: {
-      [MOCK_PREPOPULATED_WALLET_ID]: {
-        id: MOCK_PREPOPULATED_WALLET_ID,
-        type: AccountWalletType.Entropy,
-        status: 'ready',
-        groups: {
-          [MOCK_PREPOPULATED_GROUP_ID]: {
-            id: MOCK_PREPOPULATED_GROUP_ID,
-            type: AccountGroupType.MultichainAccount,
-            accounts: [MOCK_HD_ACCOUNT_1.id],
-            metadata: {
-              name: 'Account 1',
-              entropy: {
-                groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-              },
-              pinned: false,
-              hidden: false,
-              lastSelected: 0,
-            },
-          },
-        },
-        metadata: {
-          name: 'Wallet 1',
-          entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
-        },
+    wallets: makeLocalMnemonicWallet(MOCK_HD_KEYRING_1.metadata.id, [
+      {
+        groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        name: 'Account 1',
+        accounts: [MOCK_HD_ACCOUNT_1.id],
       },
-    },
+    ]),
   },
 };
 
@@ -302,11 +287,11 @@ function setup({
     backupAndSync: {
       isAccountSyncingEnabled: true,
       isBackupAndSyncEnabled: true,
-      onBackupAndSyncEvent: jest.fn(),
+      onBackupAndSyncEvent: vi.fn(),
     },
     accountOrderCallbacks: {
-      isHiddenAccount: jest.fn().mockReturnValue(false),
-      isPinnedAccount: jest.fn().mockReturnValue(false),
+      isHiddenAccount: vi.fn().mockReturnValue(false),
+      isPinnedAccount: vi.fn().mockReturnValue(false),
     },
   },
 }: {
@@ -334,52 +319,71 @@ function setup({
     typeof getAccountTreeControllerMessenger
   >;
   spies: {
-    consoleWarn: jest.SpyInstance;
+    consoleWarn: MockInstance;
   };
   mocks: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
       keyrings: KeyringObject[];
-      getState: jest.Mock;
+      getState: Mock;
+      removeAccount: Mock;
+      verifyPassword: Mock;
+      withController: Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    MultichainAccountService: {
+      removeMultichainAccountWallet: Mock;
+    };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AccountsController: {
       accounts: InternalAccount[];
-      listMultichainAccounts: jest.Mock;
-      getSelectedMultichainAccount: jest.Mock;
-      getAccount: jest.Mock;
+      listMultichainAccounts: Mock;
+      getSelectedMultichainAccount: Mock;
+      getAccount: Mock;
+      getAccounts: Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     UserStorageController: {
-      performGetStorage: jest.Mock;
-      performGetStorageAllFeatureEntries: jest.Mock;
-      performSetStorage: jest.Mock;
-      performBatchSetStorage: jest.Mock;
-      syncInternalAccountsWithUserStorage: jest.Mock;
+      performGetStorage: Mock;
+      performGetStorageAllFeatureEntries: Mock;
+      performSetStorage: Mock;
+      performBatchSetStorage: Mock;
+      syncInternalAccountsWithUserStorage: Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AuthenticationController: {
-      getSessionProfile: jest.Mock;
+      getSessionProfile: Mock;
     };
   };
 } {
   const mocks = {
     KeyringController: {
       keyrings,
-      getState: jest.fn(),
+      getState: vi.fn(),
+      removeAccount: vi.fn().mockResolvedValue(undefined),
+      verifyPassword: vi.fn().mockResolvedValue(undefined),
+      withController: vi.fn(),
+    },
+    MultichainAccountService: {
+      removeMultichainAccountWallet: vi.fn().mockResolvedValue(undefined),
     },
     AccountsController: {
       accounts,
-      listMultichainAccounts: jest.fn(),
-      getAccount: jest.fn(),
-      getSelectedMultichainAccount: jest.fn(),
+      listMultichainAccounts: vi.fn(),
+      getAccount: vi.fn(),
+      getAccounts: vi.fn(),
+      getSelectedMultichainAccount: vi.fn(),
     },
     UserStorageController: {
-      getState: jest.fn(),
-      performGetStorage: jest.fn(),
-      performGetStorageAllFeatureEntries: jest.fn(),
-      performSetStorage: jest.fn(),
-      performBatchSetStorage: jest.fn(),
-      syncInternalAccountsWithUserStorage: jest.fn(),
+      getState: vi.fn(),
+      performGetStorage: vi.fn(),
+      performGetStorageAllFeatureEntries: vi.fn(),
+      performSetStorage: vi.fn(),
+      performBatchSetStorage: vi.fn(),
+      syncInternalAccountsWithUserStorage: vi.fn(),
     },
     AuthenticationController: {
-      getSessionProfile: jest.fn().mockResolvedValue({
+      getSessionProfile: vi.fn().mockResolvedValue({
         profileId: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
         metaMetricsId: '561ec651-a844-4b36-a451-04d6eac35740',
         identifierId:
@@ -406,6 +410,16 @@ function setup({
       mocks.AccountsController.getAccount,
     );
 
+    mocks.AccountsController.getAccounts.mockImplementation((ids: string[]) =>
+      ids.map((id) =>
+        mocks.AccountsController.accounts.find((account) => account.id === id),
+      ),
+    );
+    messenger.registerActionHandler(
+      'AccountsController:getAccounts',
+      mocks.AccountsController.getAccounts,
+    );
+
     // Mock AccountsController:getSelectedMultichainAccount to return the first account
     mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
       () => accounts[0] || MOCK_HD_ACCOUNT_1,
@@ -418,7 +432,7 @@ function setup({
     // Mock AccountsController:setSelectedAccount
     messenger.registerActionHandler(
       'AccountsController:setSelectedAccount',
-      jest.fn(),
+      vi.fn(),
     );
 
     // Mock AuthenticationController:getSessionProfile
@@ -464,7 +478,37 @@ function setup({
       'KeyringController:getState',
       mocks.KeyringController.getState,
     );
+
+    messenger.registerActionHandler(
+      'KeyringController:verifyPassword',
+      mocks.KeyringController.verifyPassword,
+    );
+
+    messenger.registerActionHandler(
+      'KeyringController:removeAccount',
+      mocks.KeyringController.removeAccount,
+    );
+
+    // Default: call the callback with no existing keyrings so private-key
+    // imports are a no-op unless the test overrides this handler.
+    mocks.KeyringController.withController.mockImplementation(
+      async (
+        callback: (ctx: {
+          keyrings: { keyring: { type: string }; keyringV2: unknown }[];
+          addNewKeyring: Mock;
+        }) => Promise<unknown>,
+      ) => callback({ keyrings: [], addNewKeyring: vi.fn() }),
+    );
+    messenger.registerActionHandler(
+      'KeyringController:withController',
+      mocks.KeyringController.withController,
+    );
   }
+
+  messenger.registerActionHandler(
+    'MultichainAccountService:removeMultichainAccountWallet',
+    mocks.MultichainAccountService.removeMultichainAccountWallet,
+  );
 
   const accountTreeControllerMessenger =
     getAccountTreeControllerMessenger(messenger);
@@ -474,7 +518,7 @@ function setup({
     ...(config && { config }),
   });
 
-  const consoleWarnSpy = jest
+  const consoleWarnSpy = vi
     .spyOn(console, 'warn')
     .mockImplementation(() => undefined);
 
@@ -488,8 +532,292 @@ function setup({
 }
 
 describe('AccountTreeController', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
+  describe('isInitialized', () => {
+    it('returns false before init', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(controller.isInitialized()).toBe(false);
+    });
+
+    it('returns true after init', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(controller.isInitialized()).toBe(true);
+    });
+
+    it('returns false after clearState until init is called again', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      controller.clearState();
+
+      expect(controller.isInitialized()).toBe(false);
+    });
+
+    it('returns true after reinit', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      controller.reinit();
+
+      expect(controller.isInitialized()).toBe(true);
+    });
+
+    it('is exposed via AccountTreeController:isInitialized', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(messenger.call('AccountTreeController:isInitialized')).toBe(false);
+
+      controller.init();
+
+      expect(messenger.call('AccountTreeController:isInitialized')).toBe(true);
+    });
+  });
+
+  describe('removeAccountWallet', () => {
+    it('throws if the account tree is not initialized', async () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      await expect(
+        controller.removeAccountWallet(MOCK_PREPOPULATED_WALLET_ID),
+      ).rejects.toThrow('Account tree is not initialized');
+    });
+
+    it('throws if the wallet does not exist', async () => {
+      const { controller } = setup();
+      controller.init();
+
+      await expect(
+        controller.removeAccountWallet('entropy:missing-wallet'),
+      ).rejects.toThrow('Account wallet not found in tree');
+    });
+
+    it('throws before removing the primary entropy wallet', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      await expect(
+        controller.removeAccountWallet(
+          toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+        ),
+      ).rejects.toThrow('Cannot remove the primary account wallet');
+      expect(
+        mocks.MultichainAccountService.removeMultichainAccountWallet,
+      ).not.toHaveBeenCalled();
+      expect(mocks.KeyringController.removeAccount).not.toHaveBeenCalled();
+    });
+
+    it('removes a secondary entropy wallet through MultichainAccountService', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      mocks.MultichainAccountService.removeMultichainAccountWallet.mockImplementation(
+        async () => {
+          messenger.publish('AccountsController:accountsRemoved', [
+            MOCK_HD_ACCOUNT_2.id,
+          ]);
+        },
+      );
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(
+        mocks.MultichainAccountService.removeMultichainAccountWallet,
+      ).toHaveBeenCalledWith(MOCK_HD_KEYRING_2.metadata.id);
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('force-removes every hardware account through KeyringController', async () => {
+      const secondHardwareAccount: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-hardware-id-2',
+        address: '0xDEF',
+      };
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.KeyringController.removeAccount.mockImplementation(
+        async (address) => {
+          const account = [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount].find(
+            (candidate) => candidate.address === address,
+          );
+          messenger.publish('AccountsController:accountsRemoved', [
+            account?.id as AccountId,
+          ]);
+        },
+      );
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledTimes(2);
+      expect(mocks.KeyringController.removeAccount).toHaveBeenNthCalledWith(
+        1,
+        MOCK_HARDWARE_ACCOUNT_1.address,
+      );
+      expect(mocks.KeyringController.removeAccount).toHaveBeenNthCalledWith(
+        2,
+        secondHardwareAccount.address,
+      );
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('force-removes Snap accounts through KeyringController', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_SNAP_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () =>
+          MOCK_SNAP_2 as unknown as ReturnType<
+            SnapControllerGetSnap['handler']
+          >,
+      );
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Snap,
+        MOCK_SNAP_2.id,
+      );
+      mocks.KeyringController.removeAccount.mockImplementation(async () => {
+        messenger.publish('AccountsController:accountsRemoved', [
+          MOCK_SNAP_ACCOUNT_2.id,
+        ]);
+      });
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        MOCK_SNAP_ACCOUNT_2.address,
+      );
+      expect(controller.getAccountWalletObject(walletId)).toBeUndefined();
+    });
+
+    it('continues removing accounts after an individual removal fails', async () => {
+      const secondHardwareAccount: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-hardware-id-2',
+        address: '0xDEF',
+      };
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1, secondHardwareAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.KeyringController.removeAccount
+        .mockRejectedValueOnce(new Error('Removal failed'))
+        .mockImplementationOnce(async () => {
+          messenger.publish('AccountsController:accountsRemoved', [
+            secondHardwareAccount.id,
+          ]);
+        });
+
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledTimes(2);
+      expect(
+        controller.getAccountWalletObject(walletId)?.groups[
+          toAccountGroupId(walletId, MOCK_HARDWARE_ACCOUNT_1.address)
+        ].accounts,
+      ).toStrictEqual([MOCK_HARDWARE_ACCOUNT_1.id]);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Account wallet removal is incomplete',
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('keeps the wallet when an account is missing from AccountsController', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+      mocks.AccountsController.accounts = [];
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await controller.removeAccountWallet(walletId);
+
+      expect(mocks.KeyringController.removeAccount).not.toHaveBeenCalled();
+      expect(controller.getAccountWalletObject(walletId)).toBeDefined();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Account wallet removal is incomplete',
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('is exposed through the controller messenger', async () => {
+      const { accountTreeControllerMessenger, controller } = setup();
+      controller.init();
+
+      await expect(
+        accountTreeControllerMessenger.call(
+          'AccountTreeController:removeAccountWallet',
+          'entropy:missing-wallet',
+        ),
+      ).rejects.toThrow('Account wallet not found in tree');
+    });
   });
 
   describe('init', () => {
@@ -917,7 +1245,7 @@ describe('AccountTreeController', () => {
       // Reset mock call counts after construction: the constructor calls
       // #initTreeContext which seeds the fast-index Maps from persisted state,
       // incrementing the call counters before we even call init().
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       controller.init();
       expect(
@@ -947,7 +1275,7 @@ describe('AccountTreeController', () => {
       // Reset mock call counts after construction: the constructor calls
       // #initTreeContext which seeds the fast-index Maps from persisted state,
       // incrementing the call counters before we even call init().
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       controller.init();
       expect(
@@ -1230,6 +1558,208 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('getAccountFromSelectedAccountGroup', () => {
+    const evmAndNonEvmGroupSetup = (): {
+      controller: AccountTreeController;
+      mockSolAccount1: Bip44Account<InternalAccount>;
+    } => {
+      const mockSolAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            groupIndex: 0,
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_2, mockSolAccount1],
+        keyrings: [MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      return { controller, mockSolAccount1 };
+    };
+
+    it('returns the EVM account when the selected group has both EVM and non-EVM accounts', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_HD_ACCOUNT_2,
+      );
+    });
+
+    it('returns the first account when the selected group has no EVM account', () => {
+      const nonEvmGroupId = toAccountGroupId(
+        MOCK_PREPOPULATED_WALLET_ID,
+        'tron-group',
+      );
+      const nonEvmGroupState: Partial<AccountTreeControllerState> = {
+        selectedAccountGroup: nonEvmGroupId,
+        accountTree: {
+          wallets: {
+            [MOCK_PREPOPULATED_WALLET_ID]: {
+              id: MOCK_PREPOPULATED_WALLET_ID,
+              type: AccountWalletType.Entropy,
+              status: 'ready',
+              groups: {
+                [nonEvmGroupId]: {
+                  id: nonEvmGroupId,
+                  type: AccountGroupType.MultichainAccount,
+                  accounts: [MOCK_TRX_ACCOUNT_1.id],
+                  metadata: {
+                    name: 'Tron Group',
+                    entropy: { groupIndex: 0 },
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+              },
+            },
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_TRX_ACCOUNT_1],
+        keyrings: [],
+        state: nonEvmGroupState,
+      });
+
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_TRX_ACCOUNT_1,
+      );
+    });
+
+    it('returns undefined when no group is selected', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountFromSelectedAccountGroup()).toBeUndefined();
+    });
+
+    it('returns undefined when the selected group is empty', () => {
+      const emptyGroupId = toAccountGroupId(
+        MOCK_PREPOPULATED_WALLET_ID,
+        'empty-group',
+      );
+      const emptyGroupState: Partial<AccountTreeControllerState> = {
+        selectedAccountGroup: emptyGroupId,
+        accountTree: {
+          wallets: {
+            [MOCK_PREPOPULATED_WALLET_ID]: {
+              id: MOCK_PREPOPULATED_WALLET_ID,
+              type: AccountWalletType.Entropy,
+              status: 'ready',
+              groups: {
+                [emptyGroupId]: {
+                  id: emptyGroupId,
+                  type: AccountGroupType.MultichainAccount,
+                  accounts: [],
+                  metadata: {
+                    name: 'Empty Group',
+                    entropy: { groupIndex: 0 },
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+              },
+            },
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+        state: emptyGroupState,
+      });
+
+      expect(controller.getAccountFromSelectedAccountGroup()).toBeUndefined();
+    });
+
+    it('returns the account from persisted state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — the account must be resolved from persisted state.
+      expect(controller.getAccountFromSelectedAccountGroup()).toStrictEqual(
+        MOCK_HD_ACCOUNT_1,
+      );
+    });
+
+    it('returns the account matching the given CAIP-2 chain ID (non-EVM)', () => {
+      const { controller, mockSolAccount1 } = evmAndNonEvmGroupSetup();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toStrictEqual(mockSolAccount1);
+    });
+
+    it('returns the account matching the given CAIP-2 chain ID (EVM)', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(EthScope.Mainnet),
+      ).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    });
+
+    it('returns undefined when no group is selected and a chain ID is provided', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when no account in the selected group matches the scope', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // The selected group only contains an EVM account, so a Sol scope matches nothing.
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toBeUndefined();
+    });
+
+    it('throws when the chain ID is not a valid CAIP-2 chain ID', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(() =>
+        controller.getAccountFromSelectedAccountGroup(
+          'not-a-caip-chain-id' as CaipChainId,
+        ),
+      ).toThrow('Invalid CAIP-2 chain ID: not-a-caip-chain-id');
+    });
+  });
+
   describe('on AccountsController:accountsRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -1329,7 +1859,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty group if it holds no accounts', () => {
@@ -1420,7 +1950,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty wallet if it holds no groups', () => {
@@ -1447,7 +1977,7 @@ describe('AccountTreeController', () => {
           wallets: {},
         },
         selectedAccountGroup: expect.any(String), // Will be set after init
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes custom wallet metadata when wallet is removed', () => {
@@ -1494,7 +2024,7 @@ describe('AccountTreeController', () => {
       // Force ref to the controller, even if we don't use it in this test.
       expect(controller).toBeDefined();
 
-      const mockAccountTreeChange = jest.fn();
+      const mockAccountTreeChange = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountTreeChange',
         mockAccountTreeChange,
@@ -1655,7 +2185,50 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
+    });
+
+    it('adds a watch-only account to a watch-only wallet', () => {
+      const mockWatchOnlyAccount: InternalAccount = {
+        id: 'mock-watch-only-id-1',
+        address: '0xABC',
+        options: {},
+        // Watch-only accounts expose no signing methods.
+        methods: [],
+        type: EthAccountType.Eoa,
+        scopes: [EthScope.Eoa],
+        metadata: {
+          name: '',
+          keyring: { type: KeyringType.WatchOnly },
+          importTime: 0,
+          lastSelected: 0,
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockWatchOnlyAccount],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringType.WatchOnly,
+      );
+      const groupId = toAccountGroupId(walletId, mockWatchOnlyAccount.address);
+
+      const wallet = controller.getAccountWalletObject(walletId);
+      expect(wallet).toBeDefined();
+      expect(wallet?.metadata).toStrictEqual({
+        name: 'Watch-only accounts',
+        keyring: { type: KeyringType.WatchOnly },
+      });
+      expect(Object.keys(wallet?.groups ?? {})).toStrictEqual([groupId]);
+
+      const group = controller.getAccountGroupObject(groupId);
+      expect(group?.accounts).toStrictEqual([mockWatchOnlyAccount.id]);
+      expect(group?.metadata.name).toBe('Watch-only Account 1');
     });
 
     it('adds a new wallet to the tree', () => {
@@ -1806,7 +2379,7 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
     });
 
     it('does not add any account if init has not been called', () => {
@@ -1950,7 +2523,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(
+      const setSelectedAccountSpy = vi.spyOn(
         accountTreeControllerMessenger,
         'call',
       );
@@ -1993,7 +2566,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(
+      const setSelectedAccountSpy = vi.spyOn(
         accountTreeControllerMessenger,
         'call',
       );
@@ -2022,7 +2595,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const setSelectedAccountSpy = jest.spyOn(messenger, 'call');
+      const setSelectedAccountSpy = vi.spyOn(messenger, 'call');
 
       controller.init();
 
@@ -2609,6 +3182,76 @@ describe('AccountTreeController', () => {
       expect(
         state.accountTree.wallets[trxWalletId].groups[trxGroupId],
       ).toBeDefined();
+    });
+  });
+
+  describe('setSelectedAccountGroupByAccountId', () => {
+    it('sets the selected account group for a known account', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_2.id);
+
+      expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId2);
+    });
+
+    it('updates AccountsController selected account when called', () => {
+      const { controller, accountTreeControllerMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const setSelectedAccountSpy = vi.spyOn(
+        accountTreeControllerMessenger,
+        'call',
+      );
+
+      controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_2.id);
+
+      expect(setSelectedAccountSpy).toHaveBeenCalledWith(
+        'AccountsController:setSelectedAccount',
+        expect.any(String),
+      );
+    });
+
+    it('throws when account ID is not in the tree', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(() => {
+        controller.setSelectedAccountGroupByAccountId(
+          'non-existent-account-id',
+        );
+      }).toThrow('Account not found in the account tree');
+    });
+
+    it('throws before init when account ID is not yet in the tree', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(() => {
+        controller.setSelectedAccountGroupByAccountId(MOCK_HD_ACCOUNT_1.id);
+      }).toThrow('Account not found in the account tree');
     });
   });
 
@@ -4233,7 +4876,7 @@ describe('AccountTreeController', () => {
     );
 
     it('gets a multichain account with AccountTreeController:getSelectedAccountGroup', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'getSelectedAccountGroup',
       );
@@ -4250,7 +4893,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:setSelectedAccountGroup', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'setSelectedAccountGroup',
       );
@@ -4267,7 +4910,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:getAccountsFromSelectedAccountGroup', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'getAccountsFromSelectedAccountGroup',
       );
@@ -4285,8 +4928,47 @@ describe('AccountTreeController', () => {
       expect(spy).toHaveBeenCalled();
     });
 
+    it('calls getAccountFromSelectedAccountGroup via AccountTreeController:getAccountFromSelectedAccountGroup', () => {
+      const spy = vi.spyOn(
+        AccountTreeController.prototype,
+        'getAccountFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountFromSelectedAccountGroup',
+      );
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls getAccountFromSelectedAccountGroup with a chain ID via the messenger action', () => {
+      const spy = vi.spyOn(
+        AccountTreeController.prototype,
+        'getAccountFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountFromSelectedAccountGroup',
+        EthScope.Mainnet,
+      );
+      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet);
+    });
+
     it('gets account context with AccountTreeController:getAccountContext', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'getAccountContext',
       );
@@ -4306,7 +4988,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:setAccountWalletName', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'setAccountWalletName',
       );
@@ -4329,7 +5011,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:setAccountGroupName', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'setAccountGroupName',
       );
@@ -4352,7 +5034,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:setAccountGroupPinned', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'setAccountGroupPinned',
       );
@@ -4375,7 +5057,7 @@ describe('AccountTreeController', () => {
     });
 
     it('gets a multichain account with AccountTreeController:setAccountGroupHidden', () => {
-      const spy = jest.spyOn(
+      const spy = vi.spyOn(
         AccountTreeController.prototype,
         'setAccountGroupHidden',
       );
@@ -4396,6 +5078,53 @@ describe('AccountTreeController', () => {
       );
       expect(spy).toHaveBeenCalledWith(groupId, hidden);
     });
+
+    it('calls exportState via AccountTreeController:exportState', async () => {
+      const spy = vi.spyOn(AccountTreeController.prototype, 'exportState');
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      await messenger.call('AccountTreeController:exportState');
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls importState via AccountTreeController:importState', async () => {
+      const spy = vi
+        .spyOn(AccountTreeController.prototype, 'importState')
+        .mockResolvedValue();
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const mockSnapshot = {} as Parameters<
+        AccountTreeController['importState']
+      >[0];
+      await messenger.call('AccountTreeController:importState', mockSnapshot);
+      expect(spy).toHaveBeenCalledWith(mockSnapshot);
+    });
   });
 
   describe('Event Emissions', () => {
@@ -4405,7 +5134,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const accountTreeChangeListener = jest.fn();
+      const accountTreeChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountTreeChange',
         accountTreeChangeListener,
@@ -4422,14 +5151,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const accountTreeChangeListener = jest.fn();
+      const accountTreeChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountTreeChange',
         accountTreeChangeListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsAdded', [
         { ...MOCK_HD_ACCOUNT_2 },
@@ -4447,14 +5176,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const accountTreeChangeListener = jest.fn();
+      const accountTreeChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountTreeChange',
         accountTreeChangeListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_2.id,
@@ -4473,7 +5202,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4488,7 +5217,7 @@ describe('AccountTreeController', () => {
       const groupId = toMultichainAccountGroupId(walletId, 1);
       controller.setSelectedAccountGroup(groupId);
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Remove the only account in the selected group, which should trigger auto-selection
       messenger.publish('AccountsController:accountsRemoved', [
@@ -4514,7 +5243,7 @@ describe('AccountTreeController', () => {
         () => MOCK_HD_ACCOUNT_1,
       );
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4554,7 +5283,7 @@ describe('AccountTreeController', () => {
         defaultAccountGroupId,
       );
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4604,7 +5333,7 @@ describe('AccountTreeController', () => {
         defaultAccountGroupId,
       );
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4632,7 +5361,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4646,7 +5375,7 @@ describe('AccountTreeController', () => {
       );
       const targetGroupId = toMultichainAccountGroupId(walletId, 1);
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       controller.setSelectedAccountGroup(targetGroupId);
 
@@ -4664,7 +5393,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4674,7 +5403,7 @@ describe('AccountTreeController', () => {
 
       const initialSelectedGroup = controller.state.selectedAccountGroup;
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish(
         'AccountsController:selectedAccountChange',
@@ -4696,7 +5425,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4704,7 +5433,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Try to trigger selectedAccountChange with same account
       messenger.publish(
@@ -4721,7 +5450,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const selectedAccountGroupChangeListener = jest.fn();
+      const selectedAccountGroupChangeListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:selectedAccountGroupChange',
         selectedAccountGroupChangeListener,
@@ -4734,7 +5463,7 @@ describe('AccountTreeController', () => {
       );
       const groupId = toMultichainAccountGroupId(walletId, 0);
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       controller.setSelectedAccountGroup(groupId);
 
@@ -4747,8 +5476,8 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const createdListener = jest.fn();
-      const updatedListener = jest.fn();
+      const createdListener = vi.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupCreated',
         createdListener,
@@ -4770,8 +5499,8 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const createdListener = jest.fn();
-      const updatedListener = jest.fn();
+      const createdListener = vi.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupCreated',
         createdListener,
@@ -4782,7 +5511,7 @@ describe('AccountTreeController', () => {
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsAdded', [
         { ...MOCK_HD_ACCOUNT_2 },
@@ -4809,8 +5538,8 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const createdListener = jest.fn();
-      const updatedListener = jest.fn();
+      const createdListener = vi.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupCreated',
         createdListener,
@@ -4821,7 +5550,7 @@ describe('AccountTreeController', () => {
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsAdded', [
         { ...MOCK_TRX_ACCOUNT_1 },
@@ -4848,14 +5577,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const updatedListener = jest.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupUpdated',
         updatedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsRemoved', [
         MOCK_TRX_ACCOUNT_1.id,
@@ -4881,14 +5610,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const updatedListener = jest.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupUpdated',
         updatedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsRemoved', [
         MOCK_SNAP_ACCOUNT_1.id,
@@ -4903,14 +5632,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      const removedListener = jest.fn();
+      const removedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupRemoved',
         removedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const removedWalletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
@@ -4934,14 +5663,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const removedListener = jest.fn();
+      const removedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupRemoved',
         removedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       messenger.publish('AccountsController:accountsRemoved', [
         MOCK_TRX_ACCOUNT_1.id,
@@ -4956,14 +5685,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const updatedListener = jest.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupUpdated',
         updatedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -4989,14 +5718,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const updatedListener = jest.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupUpdated',
         updatedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -5022,14 +5751,14 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      const updatedListener = jest.fn();
+      const updatedListener = vi.fn();
       messenger.subscribe(
         'AccountTreeController:accountGroupUpdated',
         updatedListener,
       );
 
       controller.init();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -5048,16 +5777,106 @@ describe('AccountTreeController', () => {
       expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
       expect(expectedGroup.metadata.hidden).toBe(true);
     });
+
+    it('emits initialized after init() completes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('emits initialized again after reinit()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+      vi.clearAllMocks();
+
+      controller.reinit();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('does NOT emit initialized during clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const initializedListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.clearState();
+
+      expect(initializedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits uninitialized after clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const uninitializedListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.clearState();
+
+      expect(uninitializedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit uninitialized during init()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const uninitializedListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.init();
+
+      expect(uninitializedListener).not.toHaveBeenCalled();
+    });
   });
 
   describe('syncWithUserStorage', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('calls performFullSync on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
-      const performFullSyncSpy = jest.spyOn(
+      const performFullSyncSpy = vi.spyOn(
         BackupAndSyncService.prototype,
         'performFullSync',
       );
@@ -5076,7 +5895,7 @@ describe('AccountTreeController', () => {
 
     it('handles sync errors gracefully', async () => {
       const syncError = new Error('Sync failed');
-      const performFullSyncSpy = jest
+      const performFullSyncSpy = vi
         .spyOn(BackupAndSyncService.prototype, 'performFullSync')
         .mockRejectedValue(syncError);
 
@@ -5095,13 +5914,9 @@ describe('AccountTreeController', () => {
   });
 
   describe('syncWithUserStorageAtLeastOnce', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('calls performFullSyncAtLeastOnce on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
-      const performFullSyncAtLeastOnceSpy = jest.spyOn(
+      const performFullSyncAtLeastOnceSpy = vi.spyOn(
         BackupAndSyncService.prototype,
         'performFullSyncAtLeastOnce',
       );
@@ -5120,7 +5935,7 @@ describe('AccountTreeController', () => {
 
     it('handles sync errors gracefully', async () => {
       const syncError = new Error('Sync failed');
-      const performFullSyncAtLeastOnceSpy = jest
+      const performFullSyncAtLeastOnceSpy = vi
         .spyOn(BackupAndSyncService.prototype, 'performFullSyncAtLeastOnce')
         .mockRejectedValue(syncError);
 
@@ -5139,12 +5954,8 @@ describe('AccountTreeController', () => {
   });
 
   describe('UserStorageController:stateChange subscription', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('calls BackupAndSyncService.handleUserStorageStateChange', () => {
-      const handleUserStorageStateChangeSpy = jest.spyOn(
+      const handleUserStorageStateChangeSpy = vi.spyOn(
         BackupAndSyncService.prototype,
         'handleUserStorageStateChange',
       );
@@ -5163,6 +5974,7 @@ describe('AccountTreeController', () => {
           isBackupAndSyncUpdateLoading: false,
           isContactSyncingEnabled: false,
           isContactSyncingInProgress: false,
+          isRampsSyncingEnabled: true,
         },
         [],
       );
@@ -5203,11 +6015,54 @@ describe('AccountTreeController', () => {
         getDefaultAccountTreeControllerState(),
       );
     });
+
+    it('clears in-memory reverse-lookup Maps', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountContext(MOCK_HD_ACCOUNT_1.id)).toBeDefined();
+      expect(
+        controller.getAccountGroupObject('entropy:mock-keyring-id-1/0'),
+      ).toBeDefined();
+
+      controller.clearState();
+
+      expect(
+        controller.getAccountContext(MOCK_HD_ACCOUNT_1.id),
+      ).toBeUndefined();
+      expect(
+        controller.getAccountGroupObject('entropy:mock-keyring-id-1/0'),
+      ).toBeUndefined();
+    });
+
+    it('publishes selectedAccountGroupChange event with empty group ID', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const previousGroupId = controller.state.selectedAccountGroup;
+      const mockListener = vi.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        mockListener,
+      );
+
+      controller.clearState();
+
+      expect(mockListener).toHaveBeenCalledWith('', previousGroupId);
+    });
   });
 
   describe('backup and sync config initialization', () => {
     it('initializes backup and sync config with provided analytics callback', async () => {
-      const mockAnalyticsCallback = jest.fn();
+      const mockAnalyticsCallback = vi.fn();
 
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
@@ -5502,7 +6357,7 @@ describe('AccountTreeController', () => {
       // Try to set name for a non-existent group ID
       expect(() => {
         controller.setAccountGroupName(
-          'entropy:non-existent/group-id' as AccountGroupId,
+          'entropy:non-existent/group-id',
           'Test Name',
         );
       }).toThrow('Account group not found in tree');
@@ -5840,7 +6695,7 @@ describe('AccountTreeController', () => {
             backupAndSync: {
               isAccountSyncingEnabled: true,
               isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
+              onBackupAndSyncEvent: vi.fn(),
             },
             // No accountOrderCallbacks provided
           },
@@ -5878,7 +6733,7 @@ describe('AccountTreeController', () => {
 
       it('handles only pinned callback provided', () => {
         const mockCallbacks = {
-          isPinnedAccount: jest.fn().mockReturnValue(true),
+          isPinnedAccount: vi.fn().mockReturnValue(true),
         };
 
         const { controller } = setup({
@@ -5887,7 +6742,7 @@ describe('AccountTreeController', () => {
             backupAndSync: {
               isAccountSyncingEnabled: true,
               isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
+              onBackupAndSyncEvent: vi.fn(),
             },
             accountOrderCallbacks: mockCallbacks,
           },
@@ -5928,7 +6783,7 @@ describe('AccountTreeController', () => {
 
       it('handles only hidden callback provided', () => {
         const mockCallbacks = {
-          isHiddenAccount: jest.fn().mockReturnValue(true),
+          isHiddenAccount: vi.fn().mockReturnValue(true),
         };
 
         const { controller } = setup({
@@ -5937,7 +6792,7 @@ describe('AccountTreeController', () => {
             backupAndSync: {
               isAccountSyncingEnabled: true,
               isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
+              onBackupAndSyncEvent: vi.fn(),
             },
             accountOrderCallbacks: mockCallbacks,
           },
@@ -5977,8 +6832,8 @@ describe('AccountTreeController', () => {
       });
 
       it('prefers persisted metadata over callbacks', () => {
-        const mockIsHiddenAccount = jest.fn().mockReturnValue(true);
-        const mockIsPinnedAccount = jest.fn().mockReturnValue(true);
+        const mockIsHiddenAccount = vi.fn().mockReturnValue(true);
+        const mockIsPinnedAccount = vi.fn().mockReturnValue(true);
 
         const walletId = toMultichainAccountWalletId(
           mockAccount1.options.entropy.id,
@@ -6009,7 +6864,7 @@ describe('AccountTreeController', () => {
             backupAndSync: {
               isAccountSyncingEnabled: true,
               isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
+              onBackupAndSyncEvent: vi.fn(),
             },
             accountOrderCallbacks: {
               isHiddenAccount: mockIsHiddenAccount,
@@ -6061,7 +6916,7 @@ describe('AccountTreeController', () => {
             backupAndSync: {
               isAccountSyncingEnabled: true,
               isBackupAndSyncEnabled: true,
-              onBackupAndSyncEvent: jest.fn(),
+              onBackupAndSyncEvent: vi.fn(),
             },
             // No accountOrderCallbacks provided
           },
@@ -6075,6 +6930,177 @@ describe('AccountTreeController', () => {
         expect(groups[0].metadata.pinned).toBe(true);
         expect(groups[0].metadata.hidden).toBe(true);
       });
+    });
+  });
+
+  describe('exportState / importState round-trip', () => {
+    it('preserves wallet and group metadata across a metadata-only export/import cycle', async () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Set custom metadata before export.
+      controller.setAccountWalletName(walletId, 'My Custom Wallet');
+      controller.setAccountGroupName(groupId, 'My Custom Account');
+      controller.setAccountGroupPinned(groupId, true);
+      controller.setAccountGroupHidden(groupId, false);
+
+      // Register handlers that export needs but the default setup() doesn't provide.
+      // withKeyringV2Unsafe: returns the entropy source ID derived from the keyring.
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      // --- EXPORT ---
+      const snapshot = await controller.exportState();
+      const payload = snapshot.serialize();
+
+      expect(payload.wallets).toHaveLength(1);
+      const exportedWallet = payload.wallets[0];
+      expect(exportedWallet.type).toBe('mnemonic');
+      expect(exportedWallet.metadata.name).toBe('My Custom Wallet');
+      expect(exportedWallet.groups[0]?.metadata.name).toBe('My Custom Account');
+      expect(exportedWallet.groups[0]?.metadata.pinned).toBe(true);
+      expect(exportedWallet.groups[0]?.metadata.hidden).toBe(false);
+
+      // The snapshot's idMap bridges local IDs ↔ payload IDs.
+      expect(snapshot.toPayloadId(walletId)).toBe(
+        `wallet:${MOCK_HD_KEYRING_1.metadata.id}`,
+      );
+      expect(
+        snapshot.toLocalId(`wallet:${MOCK_HD_KEYRING_1.metadata.id}`),
+      ).toBe(walletId);
+
+      // Mutate metadata so the import can restore it.
+      controller.setAccountWalletName(walletId, 'Overwritten Wallet Name');
+      controller.setAccountGroupName(groupId, 'Overwritten Account Name');
+      controller.setAccountGroupPinned(groupId, false);
+      controller.setAccountGroupHidden(groupId, true);
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Overwritten Wallet Name');
+
+      // --- IMPORT ---
+      // withKeyringV2Unsafe is called again during import to find the matching wallet.
+      // It's already registered; the existing handler stays in place.
+      await controller.importState(snapshot);
+
+      // After import, original metadata should be restored.
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('My Custom Wallet');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.name,
+      ).toBe('My Custom Account');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.pinned,
+      ).toBe(true);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.hidden,
+      ).toBe(false);
+    });
+
+    it('throws when exporting with a locked vault regardless of includeSecrets', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.getState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: mocks.KeyringController.keyrings,
+      });
+
+      await expect(
+        controller.exportState({ includeSecrets: false }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
+
+      await expect(
+        controller.exportState({
+          includeSecrets: true,
+          password: 'test-password',
+        }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
+    });
+
+    it('throws when exporting with a wrong password', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.verifyPassword.mockRejectedValue(
+        new Error('Invalid password'),
+      );
+
+      await expect(
+        controller.exportState({
+          includeSecrets: true,
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow('Invalid password');
+    });
+
+    it('verifies password before exporting', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              // Must be even-length for encodeMnemonic (uses Uint16Array internally).
+              mnemonic: new Uint8Array([1, 2, 3, 4]),
+            },
+          }),
+      );
+
+      await controller.exportState({
+        includeSecrets: true,
+        password: 'correct-password',
+      });
+
+      expect(mocks.KeyringController.verifyPassword).toHaveBeenCalledWith(
+        'correct-password',
+      );
     });
   });
 });

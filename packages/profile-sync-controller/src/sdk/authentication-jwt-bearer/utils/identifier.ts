@@ -1,5 +1,5 @@
-import { createSHA256Hash } from '../../../shared/encryption';
-import type { Env } from '../../../shared/env';
+import { createSHA256Hash } from '../../../shared/encryption/index.js';
+import type { Env } from '../../../shared/env.js';
 
 export const IDENTIFIER_SALT: Record<Env, string> = {
   dev: 'Baiche1eu8Oa2een5ieReul0Phooph4e',

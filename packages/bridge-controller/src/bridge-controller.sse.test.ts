@@ -1,5 +1,6 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import * as ethersContractUtils from '@ethersproject/contracts';
+import type { TraceRequest } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -8,11 +9,22 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers';
-import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
+import {
+  mockBridgeQuotesErc20Erc20V1,
+  getMockBridgeQuotesErc20Erc20V2,
+} from '../tests/mock-quotes-erc20-erc20.js';
+import {
+  getMockBridgeQuotesNativeErc20EthV2,
+  mockBridgeQuotesNativeErc20EthV1,
+} from '../tests/mock-quotes-native-erc20-eth.js';
+import {
+  getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
+} from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -21,24 +33,38 @@ import {
   mockSseEventSourceWithMultipleDelays,
   mockSseEventSourceWithWarnings,
   mockSseServerError,
-} from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+} from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
-import * as balanceUtils from './utils/balance';
-import { formatChainIdToDec } from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
+} from './constants/bridge.js';
+import { TraceName } from './constants/traces.js';
+import { ChainId, RequestStatus } from './types.js';
+import type { BridgeControllerMessenger } from './types.js';
+import * as balanceUtils from './utils/balance.js';
 import {
-  TokenFeatureType,
-  QuoteStreamCompleteReason,
-} from './utils/validators';
+  formatChainIdToCaip,
+  formatChainIdToDec,
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
+import { AbortReason } from './utils/metrics/constants.js';
+import { FeatureId } from './validators/feature-flags.js';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
+import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
+import { TokenFeatureType } from './validators/token-feature.js';
+import type { TxData } from './validators/trade.js';
+
+vi.mock('uuid', () => ({
+  v4: (): string => 'test-uuid-1234',
+}));
+
+const { Contract: ActualContract } = await vi.importActual<
+  typeof import('@ethersproject/contracts')
+>('@ethersproject/contracts');
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -59,10 +85,10 @@ const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
   'AssetsController:getExchangeRatesForBridge',
 ] as const;
 
-const messengerCallMock = jest.fn();
-const getLayer1GasFeeMock = jest.fn();
-const mockFetchFn = jest.fn();
-const trackMetaMetricsFn = jest.fn();
+const messengerCallMock = vi.fn();
+const getLayer1GasFeeMock = vi.fn();
+const mockFetchFn = vi.fn();
+const trackMetaMetricsFn = vi.fn();
 
 const FIRST_FETCH_DELAY = 4000;
 const SECOND_FETCH_DELAY = 9000;
@@ -81,6 +107,7 @@ const quoteRequest = {
   resetApproval: false,
 };
 const metricsContext = {
+  feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -89,6 +116,16 @@ const metricsContext = {
   warnings: [],
   token_security_type_destination: null,
 };
+
+const createTraceCallback = (traceRequests: TraceRequest[]): Mock =>
+  vi
+    .fn()
+    .mockImplementation(
+      async (request: TraceRequest, callback?: () => unknown) => {
+        traceRequests.push(request);
+        return await callback?.();
+      },
+    );
 
 const assetExchangeRates = {
   'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -100,18 +137,19 @@ const assetExchangeRates = {
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeController;
   rootMessenger: RootMessenger;
-  stopAllPollingSpy: jest.SpyInstance;
-  startPollingSpy: jest.SpyInstance;
-  hasSufficientBalanceSpy: jest.SpyInstance;
-  fetchBridgeQuotesSpy: jest.SpyInstance;
-  fetchAssetPricesSpy: jest.SpyInstance;
-  consoleLogSpy: jest.SpyInstance;
+  stopAllPollingSpy: MockInstance;
+  startPollingSpy: MockInstance;
+  hasSufficientBalanceSpy: MockInstance;
+  fetchBridgeQuotesSpy: MockInstance;
+  fetchAssetPricesSpy: MockInstance;
+  consoleLogSpy: MockInstance;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof BridgeController>[0]>;
 };
 
+let mockTraceFn: Mock;
 async function withController<ReturnValue>(
   ...args:
     | [WithControllerCallback<ReturnValue>]
@@ -140,7 +178,7 @@ async function withController<ReturnValue>(
     );
   }
 
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   getLayer1GasFeeMock.mockResolvedValue('0x1');
 
@@ -152,7 +190,7 @@ async function withController<ReturnValue>(
         default:
           return {
             address: '0x123',
-            provider: jest.fn(),
+            provider: vi.fn(),
             currencyRates: {},
             marketData: {},
             conversionRates: {},
@@ -161,7 +199,7 @@ async function withController<ReturnValue>(
     },
   );
 
-  jest.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
+  vi.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
     minimumVersion: '0.0.0',
     maxRefreshCount: 5,
     refreshRate: 30000,
@@ -190,16 +228,17 @@ async function withController<ReturnValue>(
     fetchFn: mockFetchFn,
     trackMetaMetricsFn,
     clientVersion: '13.8.0',
+    traceFn: mockTraceFn,
     ...options,
   });
 
-  const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-  const startPollingSpy = jest.spyOn(controller, 'startPolling');
-  const hasSufficientBalanceSpy = jest
+  const stopAllPollingSpy = vi.spyOn(controller, 'stopAllPolling');
+  const startPollingSpy = vi.spyOn(controller, 'startPolling');
+  const hasSufficientBalanceSpy = vi
     .spyOn(balanceUtils, 'hasSufficientBalance')
     .mockResolvedValue(true);
-  const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
-  const fetchAssetPricesSpy = jest
+  const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
+  const fetchAssetPricesSpy = vi
     .spyOn(fetchUtils, 'fetchAssetPrices')
     .mockResolvedValue({
       'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -207,7 +246,7 @@ async function withController<ReturnValue>(
       },
     });
 
-  const consoleLogSpy = jest.spyOn(console, 'log');
+  const consoleLogSpy = vi.spyOn(console, 'log');
 
   return await testFunction({
     controller,
@@ -223,9 +262,187 @@ async function withController<ReturnValue>(
 
 describe('BridgeController SSE', function () {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.resetAllMocks();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.resetAllMocks();
+    mockTraceFn = vi.fn(async (_request, fn) => await fn?.());
+  });
+
+  describe('quote tracing', () => {
+    const runTraceScenario = async ({
+      response,
+      request = quoteRequest,
+      abort = false,
+    }: {
+      response: () => unknown;
+      request?: typeof quoteRequest;
+      abort?: boolean;
+    }): Promise<TraceRequest[]> => {
+      const traceRequests: TraceRequest[] = [];
+
+      await withController(
+        {
+          options: {
+            traceFn: createTraceCallback(traceRequests),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          mockFetchFn.mockImplementationOnce(async () => response());
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            request,
+            metricsContext,
+          );
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          if (abort) {
+            controller.stopPollingForQuotes(AbortReason.NewQuoteRequest);
+          }
+          vi.advanceTimersByTime(11000);
+          await flushPromises();
+        },
+      );
+
+      return traceRequests;
+    };
+
+    const getTrace = (
+      requests: TraceRequest[],
+      name: TraceName,
+    ): TraceRequest | undefined =>
+      requests.find((request) => request.name === name);
+
+    it('records cross-chain success and the first result from each provider', async () => {
+      const firstQuote = mockBridgeQuotesErc20Erc20V1[0];
+      const secondProviderQuote = {
+        ...firstQuote,
+        quote: {
+          ...firstQuote.quote,
+          requestId: 'second-provider-request',
+          bridgeId: 'hop',
+          bridges: ['hop'],
+          protocols: ['hop'],
+        },
+      };
+
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([firstQuote, firstQuote, secondProviderQuote]),
+      });
+      const providerTraces = requests.filter(
+        (request) => request.name === TraceName.QuoteProviderFirstResult,
+      );
+
+      expect(
+        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
+      ).toStrictEqual(
+        expect.objectContaining({
+          request_id: 'test-uuid-1234',
+          feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+          result: 'success',
+        }),
+      );
+      expect(
+        providerTraces.map((request) => request.data?.provider),
+      ).toStrictEqual(['socket_across', 'hop_hop']);
+      expect(
+        providerTraces.every((request) => Number.isFinite(request.startTime)),
+      ).toBe(true);
+    });
+
+    it.each([
+      {
+        name: 'same-chain success',
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+        request: {
+          ...quoteRequest,
+          destChainId: quoteRequest.srcChainId,
+        },
+        traceName: TraceName.SwapQuotesFetched,
+        result: 'success',
+        providerCount: 1,
+      },
+      {
+        name: 'no quotes',
+        response: (): unknown => mockSseEventSource([]),
+        request: quoteRequest,
+        traceName: TraceName.BridgeQuotesFetched,
+        result: 'no_quotes',
+        providerCount: 0,
+      },
+      {
+        name: 'error',
+        response: (): unknown => mockSseServerError('provider request failed'),
+        request: quoteRequest,
+        traceName: TraceName.BridgeQuotesFetched,
+        result: 'error',
+        providerCount: 0,
+      },
+    ])('records $name', async (scenario) => {
+      const requests = await runTraceScenario(scenario);
+
+      expect(getTrace(requests, scenario.traceName)?.data).toStrictEqual(
+        expect.objectContaining({
+          result: scenario.result,
+        }),
+      );
+      expect(
+        requests.filter(
+          (request) => request.name === TraceName.QuoteProviderFirstResult,
+        ),
+      ).toHaveLength(scenario.providerCount);
+    });
+
+    it('records cancellation for an expected abort', async () => {
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]], 10000),
+        abort: true,
+      });
+
+      expect(
+        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
+      ).toStrictEqual(
+        expect.objectContaining({
+          result: 'cancelled',
+        }),
+      );
+    });
+
+    it('swallows throws from a synchronous traceFn', async () => {
+      const traceFn = vi.fn(() => {
+        throw new Error('trace failed');
+      });
+
+      await withController(
+        {
+          options: {
+            traceFn,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          mockFetchFn.mockImplementationOnce(async () =>
+            mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest,
+            metricsContext,
+          );
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          vi.advanceTimersByTime(11000);
+          await flushPromises();
+
+          expect(traceFn).toHaveBeenCalled();
+          expect(controller.state.quotesLoadingStatus).toBe(
+            RequestStatus.FETCHED,
+          );
+          expect(controller.state.quoteFetchError).toBeNull();
+        },
+      );
+    });
   });
 
   it('should trigger quote polling if request is valid', async function () {
@@ -241,9 +458,7 @@ describe('BridgeController SSE', function () {
         consoleLogSpy,
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          );
+          return mockSseEventSource(mockBridgeQuotesNativeErc20V1);
         });
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -273,7 +488,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
@@ -285,6 +500,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,
@@ -299,12 +515,12 @@ describe('BridgeController SSE', function () {
         );
         const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
           bridgeController.state;
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual({
@@ -317,10 +533,11 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
+          quotes: getMockBridgeQuotesNativeErc20V2().map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
@@ -331,8 +548,59 @@ describe('BridgeController SSE', function () {
         expect(consoleLogSpy).toHaveBeenCalledTimes(0);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+        expect(mockTraceFn.mock.calls).toMatchObject([
+          [
+            {
+              data: {
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+                swap_type: 'crosschain',
+              },
+              name: 'Quote Provider First Result',
+              tags: {
+                feature: 'swap',
+              },
+            },
+            expect.any(Function),
+          ],
+          [
+            {
+              data: {
+                destChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                feature_id: 'unified_swap_bridge',
+                provider: 'socket_celercircle',
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+                swap_type: 'crosschain',
+              },
+              name: 'Quote Provider First Result',
+              tags: {
+                feature: 'swap',
+              },
+            },
+            expect.any(Function),
+          ],
+          [
+            {
+              data: {
+                destChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                feature_id: 'unified_swap_bridge',
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+              },
+              name: 'Bridge Quotes Fetched',
+              tags: {
+                feature: 'swap',
+              },
+            },
+            expect.any(Function),
+          ],
+        ]);
       },
     );
   });
@@ -352,7 +620,7 @@ describe('BridgeController SSE', function () {
     ],
     ['swapping', '0', '0x1', undefined, false, 1],
   ])(
-    'should append resetApproval when %s USDT on Ethereum',
+    'should append resetApproval when %s USDT on Ethereum (%s, %s)',
     async function (
       _: string,
       allowance: string,
@@ -371,34 +639,36 @@ describe('BridgeController SSE', function () {
           fetchBridgeQuotesSpy,
           consoleLogSpy,
         }) => {
-          const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map(
-            (quote) => ({
-              ...quote,
-              quote: {
-                ...quote.quote,
-                srcTokenAddress,
-                srcChainId: 1,
-                destChainId: formatChainIdToDec(destChainId),
+          const mockUSDTQuoteResponse = getMockBridgeQuotesErc20Erc20V2({
+            quote: {
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId:
+                  `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+                chainId: 1,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
               },
-            }),
-          );
+              srcChainId: 1,
+            },
+          });
           mockFetchFn.mockImplementationOnce(async () => {
-            return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+            return mockSseEventSource(mockUSDTQuoteResponse);
           });
 
           const contractMock = new ethersContractUtils.Contract(
             ETH_USDT_ADDRESS,
             abiERC20,
           );
-          const contractMockSpy = jest
+          const contractMockSpy = vi
             .spyOn(ethersContractUtils, 'Contract')
-            .mockImplementation(() => {
+            .mockImplementation(function () {
               return {
-                ...jest.requireActual('@ethersproject/contracts').Contract,
+                ...ActualContract,
                 interface: contractMock.interface,
-                allowance: jest
-                  .fn()
-                  .mockResolvedValue(BigNumber.from(allowance)),
+                allowance: vi.fn().mockResolvedValue(BigNumber.from(allowance)),
               };
             });
 
@@ -438,7 +708,7 @@ describe('BridgeController SSE', function () {
           expect(bridgeController.state).toStrictEqual(expectedState);
 
           // Loading state
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           await advanceToNthTimerThenFlush();
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
             mockFetchFn,
@@ -450,6 +720,7 @@ describe('BridgeController SSE', function () {
               },
             ],
             expect.any(AbortSignal),
+            FeatureId.UNIFIED_SWAP_BRIDGE,
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
             BRIDGE_PROD_API_BASE_URL,
@@ -474,7 +745,7 @@ describe('BridgeController SSE', function () {
           expect(t1).toBeCloseTo(Date.now() - 1000);
 
           // After first fetch
-          jest.advanceTimersByTime(5000);
+          vi.advanceTimersByTime(5000);
           await flushPromises();
           expect(bridgeController.state).toStrictEqual({
             ...expectedState,
@@ -486,8 +757,23 @@ describe('BridgeController SSE', function () {
                 resetApproval,
               },
             ],
-            quotes: mockUSDTQuoteResponse.map((quote) => ({
+            quotes: getMockBridgeQuotesErc20Erc20V2({
+              quote: {
+                srcAsset: {
+                  address: ETH_USDT_ADDRESS,
+                  assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                  symbol: 'USDT',
+                  name: 'Tether USD',
+                  decimals: 6,
+                  chainId: 1,
+                  iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+                },
+                srcChainId: 1,
+                destChainId: formatChainIdToDec(destChainId),
+              },
+            }).map((quote) => ({
               ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
               resetApproval: tradeData
                 ? {
                     ...quote.approval,
@@ -533,31 +819,43 @@ describe('BridgeController SSE', function () {
             } as never;
           },
         );
-        const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map(
+        const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20V1.map(
           (quote) => ({
             ...quote,
             quote: {
               ...quote.quote,
-              srcTokenAddress: ETH_USDT_ADDRESS,
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}` as const,
+                chainId: 1,
+                symbol: 'USDT',
+                name: 'Tether USD',
+                decimals: 6,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+              },
               srcChainId: 1,
             },
           }),
         );
+        mockUSDTQuoteResponse.forEach((quote) =>
+          validateQuoteResponseV1(quote),
+        );
+
         mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+          return mockSseEventSource(mockUSDTQuoteResponse);
         });
 
         const contractMock = new ethersContractUtils.Contract(
           ETH_USDT_ADDRESS,
           abiERC20,
         );
-        const contractMockSpy = jest
+        const contractMockSpy = vi
           .spyOn(ethersContractUtils, 'Contract')
-          .mockImplementation(() => {
+          .mockImplementation(function () {
             return {
-              ...jest.requireActual('@ethersproject/contracts').Contract,
+              ...ActualContract,
               interface: contractMock.interface,
-              allowance: jest.fn().mockResolvedValue(BigNumber.from('1')),
+              allowance: vi.fn().mockResolvedValue(BigNumber.from('1')),
             };
           });
 
@@ -596,7 +894,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
@@ -609,6 +907,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,
@@ -631,7 +930,7 @@ describe('BridgeController SSE', function () {
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -643,8 +942,22 @@ describe('BridgeController SSE', function () {
               resetApproval: true,
             },
           ],
-          quotes: mockUSDTQuoteResponse.map((quote) => ({
+          quotes: getMockBridgeQuotesErc20Erc20V2({
+            quote: {
+              srcAsset: {
+                address: ETH_USDT_ADDRESS,
+                assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}`,
+                name: 'Tether USD',
+                decimals: 6,
+                symbol: 'USDT',
+                chainId: 1,
+                iconUrl: 'https://media.socket.tech/tokens/all/USDT',
+              },
+              srcChainId: 1,
+            },
+          }).map((quote) => ({
             ...quote,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
             resetApproval: {
               ...quote.approval,
               data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
@@ -676,13 +989,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -694,13 +1007,14 @@ describe('BridgeController SSE', function () {
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20.map((quote) => ({
+          getMockBridgeQuotesNativeErc20V2().map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
         );
         const t1 = bridgeController.state.quotesLastFetched;
@@ -708,7 +1022,7 @@ describe('BridgeController SSE', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         const expectedState = {
@@ -721,9 +1035,10 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+          quotes: [getMockBridgeQuotesNativeErc20EthV2()[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesLoadingStatus: RequestStatus.LOADING,
           quotesRefreshCount: 1,
@@ -731,8 +1046,8 @@ describe('BridgeController SSE', function () {
         };
 
         // 2nd fetch request's first server event
-        jest.advanceTimersToNextTimer();
-        jest.advanceTimersByTime(SECOND_FETCH_DELAY - 1000);
+        vi.advanceTimersToNextTimer();
+        vi.advanceTimersByTime(SECOND_FETCH_DELAY - 1000);
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
         expect(bridgeController.state).toStrictEqual({
@@ -747,9 +1062,10 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
-          quotes: mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+          quotes: getMockBridgeQuotesNativeErc20EthV2().map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesLastFetched: t2,
           quotesRefreshCount: 2,
@@ -760,7 +1076,7 @@ describe('BridgeController SSE', function () {
         expect(consoleLogSpy).toHaveBeenCalledTimes(0);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.at(-1)).toMatchSnapshot();
       },
     );
@@ -779,13 +1095,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as never,
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -796,11 +1112,11 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
+        consoleLogSpy.mockImplementationOnce(vi.fn());
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -816,9 +1132,10 @@ describe('BridgeController SSE', function () {
           FIRST_FETCH_DELAY,
         );
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+          getMockBridgeQuotesNativeErc20EthV2().map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
         );
         const t2 = bridgeController.state.quotesLastFetched;
@@ -848,17 +1165,17 @@ describe('BridgeController SSE', function () {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         ).toBeGreaterThan(t2!);
         expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-        [
           [
-            "Failed to stream bridge quotes",
-            "Network error",
-          ],
-        ]
-      `);
+            [
+              "Failed to stream bridge quotes",
+              "Network error",
+            ],
+          ]
+        `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(6, 8)).toMatchSnapshot();
       },
     );
@@ -877,13 +1194,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as never,
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -891,9 +1208,9 @@ describe('BridgeController SSE', function () {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
             [
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-              ...(mockBridgeQuotesNativeErc20 as never),
-            ] as never,
+              ...mockBridgeQuotesNativeErc20V1,
+              ...mockBridgeQuotesNativeErc20V1,
+            ],
             THIRD_FETCH_DELAY,
           );
         });
@@ -904,25 +1221,25 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
+        consoleLogSpy.mockImplementationOnce(vi.fn());
         hasSufficientBalanceSpy.mockRejectedValue(new Error('Balance error'));
 
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
 
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         // 2nd fetch
-        jest.advanceTimersToNextTimer();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(bridgeController.state.quotesRefreshCount).toBe(2);
         const t2 = bridgeController.state.quotesLastFetched;
@@ -958,6 +1275,7 @@ describe('BridgeController SSE', function () {
             security_warnings: [],
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         // Right after state update, before fetch has started
@@ -986,9 +1304,10 @@ describe('BridgeController SSE', function () {
           quotesInitialLoadTime: THIRD_FETCH_DELAY,
           quotes: [
             {
-              ...mockBridgeQuotesNativeErc20[0],
+              ...getMockBridgeQuotesNativeErc20V2()[0],
               l1GasFeesInHexWei: '0x1',
               resetApproval: undefined,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
             },
           ],
           quotesRefreshCount: 0,
@@ -1020,12 +1339,13 @@ describe('BridgeController SSE', function () {
           quotesRefreshCount: 1,
           quotesLoadingStatus: RequestStatus.FETCHED,
           quotes: [
-            ...mockBridgeQuotesNativeErc20,
-            ...mockBridgeQuotesNativeErc20,
+            ...getMockBridgeQuotesNativeErc20V2(),
+            ...getMockBridgeQuotesNativeErc20V2(),
           ].map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           assetExchangeRates,
         });
@@ -1039,7 +1359,7 @@ describe('BridgeController SSE', function () {
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(2);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(9);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(8, 9)).toMatchSnapshot();
       },
     );
@@ -1058,13 +1378,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never[],
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -1072,22 +1392,22 @@ describe('BridgeController SSE', function () {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
             [
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-            ] as never[],
+              ...mockBridgeQuotesNativeErc20V1,
+              ...mockBridgeQuotesNativeErc20V1,
+            ],
             THIRD_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
-          const { quote, ...rest } = mockBridgeQuotesNativeErc20[0];
+          const { quote, ...rest } = mockBridgeQuotesNativeErc20V1[0];
           return mockSseEventSourceWithMultipleDelays(
             [
               {
-                ...mockBridgeQuotesNativeErc20Eth[1],
+                ...mockBridgeQuotesNativeErc20EthV1[1],
                 trade: { abc: '123' } as unknown as TxData,
-              } as never,
+              },
               '' as unknown as never,
-              mockBridgeQuotesNativeErc20Eth[0] as unknown as never,
+              mockBridgeQuotesNativeErc20EthV1[0],
               rest as unknown as never,
             ],
             FOURTH_FETCH_DELAY,
@@ -1099,17 +1419,17 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
-        const consoleWarnSpy = jest
+        consoleLogSpy.mockImplementationOnce(vi.fn());
+        const consoleWarnSpy = vi
           .spyOn(console, 'warn')
-          .mockImplementationOnce(jest.fn())
-          .mockImplementationOnce(jest.fn());
+          .mockImplementationOnce(vi.fn())
+          .mockImplementationOnce(vi.fn());
 
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
 
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -1142,6 +1462,7 @@ describe('BridgeController SSE', function () {
             security_warnings: [],
             usd_amount_source: 100,
             token_security_type_destination: 'test',
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
 
@@ -1149,7 +1470,7 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
 
         // 1st quote is received
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
         await flushPromises();
 
         const t4 = bridgeController.state.quotesLastFetched;
@@ -1165,24 +1486,26 @@ describe('BridgeController SSE', function () {
         // 2nd quote is received
         await advanceToNthTimerThenFlush(3);
         expect(bridgeController.state.quotes).toStrictEqual(
-          [...mockBridgeQuotesNativeErc20, ...mockBridgeQuotesNativeErc20].map(
-            (quote) => ({
-              ...quote,
-              l1GasFeesInHexWei: '0x1',
-              resetApproval: undefined,
-            }),
-          ),
+          [
+            ...getMockBridgeQuotesNativeErc20V2(),
+            ...getMockBridgeQuotesNativeErc20V2(),
+          ].map((quote) => ({
+            ...quote,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+            l1GasFeesInHexWei: '0x1',
+            resetApproval: undefined,
+          })),
         );
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         // 2nd fetch after request is updated
         // Iterate through a list of received valid and invalid quotes
         // Invalid quotes received
         // Invalid quote
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
         await flushPromises();
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
@@ -1195,9 +1518,10 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+          quotes: [getMockBridgeQuotesNativeErc20EthV2()[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesRefreshCount: 1,
           quoteFetchError: null,
@@ -1220,24 +1544,23 @@ describe('BridgeController SSE', function () {
           t6!,
         );
         expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
           [
-            "lifi|trade",
-            "lifi|trade.chainId",
-            "lifi|trade.to",
-            "lifi|trade.from",
-            "lifi|trade.value",
-            "lifi|trade.data",
-            "lifi|trade.gasLimit",
-            "lifi|trade.unsignedPsbtBase64",
-            "lifi|trade.inputsToSign",
-            "lifi|trade.raw_data_hex",
-          ],
-        ]
-      `);
+            "Quote validation failed",
+            [
+              "At path: quote.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.dest (type) -- Expected an object, but received: undefined",
+              "At path: quote.feeData.metabridge (type) -- Expected an array value, but received: [object Object]",
+              "At path: quote.aggregator (type) -- Expected a string, but received: undefined",
+              "At path: quote.protocols (type) -- Expected an array value, but received: undefined",
+              "At path: quote.steps.0.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.0.dest (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.1.src (type) -- Expected an object, but received: undefined",
+              "At path: quote.steps.1.dest (type) -- Expected an object, but received: undefined",
+            ],
+          ]
+        `);
         // Invalid quote
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -1250,28 +1573,28 @@ describe('BridgeController SSE', function () {
         );
         expect(consoleWarnSpy.mock.calls).toHaveLength(3);
         expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
           [
-            "unknown|unknown",
-          ],
-        ]
-      `);
+            "Quote validation failed",
+            [
+              "At path: <root> (type) -- Expected an object, but received: """,
+            ],
+          ]
+        `);
         expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
           [
-            "unknown|quote",
-          ],
-        ]
-      `);
+            "Quote validation failed",
+            [
+              "At path: quote (type) -- Expected an object, but received: undefined",
+            ],
+          ]
+        `);
 
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(2);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(13);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(10, 13)).toMatchSnapshot();
       },
     );
@@ -1327,7 +1650,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
@@ -1344,6 +1667,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,
@@ -1359,12 +1683,12 @@ describe('BridgeController SSE', function () {
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
           bridgeController.state;
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -1384,14 +1708,14 @@ describe('BridgeController SSE', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Failed to stream bridge quotes",
-          [Error: Bridge-api error: timeout from server],
-        ]
-      `);
+                  [
+                    "Failed to stream bridge quotes",
+                    [Error: Bridge-api error: timeout from server],
+                  ]
+              `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
       },
     );
@@ -1405,10 +1729,9 @@ describe('BridgeController SSE', function () {
         description: 'Token is a honeypot',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1418,11 +1741,11 @@ describe('BridgeController SSE', function () {
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
 
       // After stream completes
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1438,10 +1761,9 @@ describe('BridgeController SSE', function () {
         description: 'Token is a honeypot',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1449,9 +1771,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1474,10 +1796,10 @@ describe('BridgeController SSE', function () {
         description: 'Duplicate warning',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning, duplicateWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+          duplicateWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1485,9 +1807,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1507,10 +1829,10 @@ describe('BridgeController SSE', function () {
         description: 'Informational notice',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [maliciousWarning, infoWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          maliciousWarning,
+          infoWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1518,9 +1840,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([
@@ -1542,10 +1864,10 @@ describe('BridgeController SSE', function () {
         description: 'Possible fake token',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [honeypotWarning, fakeTokenWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          honeypotWarning,
+          fakeTokenWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1553,9 +1875,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([
@@ -1575,7 +1897,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementationOnce(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );
@@ -1588,9 +1910,9 @@ describe('BridgeController SSE', function () {
 
       expect(bridgeController.state.quoteStreamComplete).toBeNull();
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1615,9 +1937,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1634,7 +1956,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementationOnce(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );
@@ -1645,9 +1967,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1667,7 +1989,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementation(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );
@@ -1678,9 +2000,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1688,17 +2010,138 @@ describe('BridgeController SSE', function () {
       );
 
       // Trigger a second fetch — quoteStreamComplete should be cleared before the stream completes
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
 
       expect(bridgeController.state.quoteStreamComplete).toBeNull();
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
         mockComplete,
       );
     });
+  });
+
+  it.each([
+    { getShouldFetchFirstQuoteImmediately: undefined, fetchesBeforePoll: 0 },
+    {
+      getShouldFetchFirstQuoteImmediately: (): boolean => true,
+      fetchesBeforePoll: 1,
+    },
+  ])(
+    'fetches the first quote before the first poll only when getShouldFetchFirstQuoteImmediately returns true',
+    async ({ getShouldFetchFirstQuoteImmediately, fetchesBeforePoll }) => {
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately } },
+        async ({ controller, fetchBridgeQuotesSpy }) => {
+          mockFetchFn.mockImplementation(async () =>
+            mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          );
+          await controller.updateBridgeQuoteRequestParams(
+            quoteRequest,
+            metricsContext,
+          );
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(fetchesBeforePoll);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    },
+  );
+
+  it('does not reuse a pending first fetch after resetState', async function () {
+    const getShouldFetchFirstQuoteImmediately = vi
+      .fn()
+      .mockReturnValueOnce(true)
+      .mockReturnValue(false);
+    await withController(
+      { options: { getShouldFetchFirstQuoteImmediately } },
+      async ({ controller, fetchBridgeQuotesSpy }) => {
+        mockFetchFn.mockImplementation(async () =>
+          mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+        );
+        await controller.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        controller.resetState();
+        await controller.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        vi.advanceTimersByTime(0);
+        await flushPromises();
+
+        expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+      },
+    );
+  });
+
+  it.each([
+    { getShouldYieldAfterFirstQuote: undefined, quotesBeforeTick: 2 },
+    { getShouldYieldAfterFirstQuote: (): boolean => true, quotesBeforeTick: 1 },
+  ])(
+    'should yield one macrotask after the first quote only when getShouldYieldAfterFirstQuote returns true',
+    async ({ getShouldYieldAfterFirstQuote, quotesBeforeTick }) => {
+      await withController(
+        { options: { getShouldYieldAfterFirstQuote } },
+        async ({ controller: bridgeController }) => {
+          mockFetchFn.mockImplementationOnce(async () =>
+            mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          );
+          await bridgeController.updateBridgeQuoteRequestParams(
+            quoteRequest,
+            metricsContext,
+          );
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          vi.advanceTimersByTime(3000);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(quotesBeforeTick);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(2);
+        },
+      );
+    },
+  );
+
+  it('should not update state after the stream is aborted during the yield', async () => {
+    await withController(
+      { options: { getShouldYieldAfterFirstQuote: (): boolean => true } },
+      async ({ controller: bridgeController }) => {
+        mockFetchFn.mockImplementationOnce(async () =>
+          mockSseEventSourceWithComplete(mockBridgeQuotesNativeErc20V1, [], {
+            quoteCount: 2,
+            hasQuotes: true,
+          }),
+        );
+        await bridgeController.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        vi.advanceTimersByTime(1000);
+        await advanceToNthTimerThenFlush();
+        vi.advanceTimersByTime(3000);
+        await flushPromises();
+        bridgeController.stopPollingForQuotes();
+        vi.advanceTimersByTime(0);
+        await flushPromises();
+
+        expect(bridgeController.state.quotes).toHaveLength(1);
+        expect(bridgeController.state.quoteStreamComplete).toBeNull();
+        expect(bridgeController.state.quotesLoadingStatus).toBe(
+          RequestStatus.LOADING,
+        );
+      },
+    );
   });
 });

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ApprovalController } from './ApprovalController';
+import type { ApprovalController } from './ApprovalController.js';
 
 /**
  * Adds an approval request per the given arguments, optionally showing

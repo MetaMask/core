@@ -3,13 +3,33 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController.js';
 
 /**
  * Runs each step in the upgrade sequence in order. A step that reports
  * `'already-done'` is skipped without performing any action; a step that
  * reports `'completed'` has performed its action. An error thrown by any
- * step propagates and halts the sequence.
+ * step halts the sequence and is re-thrown wrapped in a
+ * {@link MoneyAccountUpgradeStepError} that records which step failed (the
+ * original error is preserved as `cause`).
+ *
+ * A run that completes is recorded in state (keyed by lowercased address,
+ * fingerprinted against the active config); subsequent calls for a
+ * recorded account return immediately without running any steps. If the
+ * active config no longer matches the recorded fingerprint, the sequence
+ * re-runs.
+ *
+ * A call that arrives while the bootstrap chain is still in flight —
+ * including runs scheduled while waiting — waits for it to settle rather
+ * than failing, so the upgrade always runs against the latest armed
+ * config. Scheduling a bootstrap for a changed vault config disarms the
+ * previous one (unless the change can only add the premium vault to it),
+ * so it throws when no bootstrap has armed a config (feature disabled or
+ * the last bootstrap failed) or when the wallet is locked.
+ *
+ * The armed config is re-checked before every step: if a sync disarms or
+ * supersedes it while the sequence is running, the sequence aborts before
+ * the next step signs anything, and nothing is recorded.
  *
  * @param address - The Money Account address to upgrade.
  */
@@ -19,7 +39,107 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
 };
 
 /**
+ * Like {@link upgradeAccount}, but skips the recorded-upgrade shortcut and
+ * always runs the upgrade steps. Use this immediately before an action that
+ * depends on the base and (when configured) premium vault delegations and
+ * CHOMP intents actually existing right now — e.g. before starting a
+ * subscription — rather than trusting a fingerprint recorded on a
+ * previous run, which does not reflect deletions or revocations made
+ * since (on this device or elsewhere).
+ *
+ * "Force" means the shortcut is skipped, not that everything is redone:
+ * as with `upgradeAccount`, each step only performs its action if its own
+ * remote check finds it is not already done, so a call that finds
+ * everything in place performs no signing and makes no writes.
+ *
+ * @param address - The Money Account address.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded while the sequence is running, or if a step
+ * fails (wrapped in a {@link MoneyAccountUpgradeStepError}).
+ */
+export type MoneyAccountUpgradeControllerForceUpgradeAccountAction = {
+  type: `MoneyAccountUpgradeController:forceUpgradeAccount`;
+  handler: MoneyAccountUpgradeController['forceUpgradeAccount'];
+};
+
+/**
+ * Upgrades `address` as the successor of an existing Money Account, as part
+ * of migrating that Money Account to a new address. Runs the same steps as
+ * {@link upgradeAccount}, except that associating the address with the
+ * CHOMP profile also links it to `predecessorAddress`, which starts the
+ * migration on CHOMP and freezes the predecessor until it completes or is
+ * cancelled.
+ *
+ * Like {@link forceUpgradeAccount}, this skips the recorded-upgrade
+ * shortcut, so a previously recorded upgrade of `address` cannot cause the
+ * link to be skipped. Each step still only performs its action if its own
+ * remote check finds it is not already done.
+ *
+ * @param address - The new Money Account address.
+ * @param predecessorAddress - The current address of the Money Account
+ * that `address` succeeds.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded while the sequence is running, or if a step
+ * fails (wrapped in a {@link MoneyAccountUpgradeStepError}). A link CHOMP
+ * can never accept is marked terminal; a predecessor with a withdrawal in
+ * progress is not, and its cause carries the
+ * `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
+ */
+export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
+  type: `MoneyAccountUpgradeController:upgradeSuccessorAccount`;
+  handler: MoneyAccountUpgradeController['upgradeSuccessorAccount'];
+};
+
+/**
+ * Registers the CHOMP intents that `predecessorAddress` signs to migrate its
+ * Money Account: the root delegation to the successor, the open mUSD and
+ * vmUSD transfers to the successor and, for a premium migration, the pvmUSD
+ * transfer through the vault migration helper.
+ *
+ * The successor and the incomplete steps are read from CHOMP, so only the
+ * missing intents are registered and a migration can be resumed by calling
+ * this again. The vault migration helper of a premium migration is read
+ * from the CHOMP service details when it is needed, so one CHOMP starts
+ * serving after the bootstrap is used. The steps signed by the successor
+ * are completed by {@link upgradeSuccessorAccount}. Nothing is recorded in
+ * state.
+ *
+ * @param predecessorAddress - The current address of the migrating Money
+ * Account.
+ * @param successorAddress - The address the Money Account is expected to
+ * migrate to. Nothing is signed unless CHOMP reports this successor.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded first, or if the step fails (wrapped in a
+ * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
+ * predecessor of a migration to `successorAddress`, a premium migration is missing the premium
+ * vault or the vault migration helper, or signing or a CHOMP call fails.
+ */
+export type MoneyAccountUpgradeControllerRegisterMigrationIntentsAction = {
+  type: `MoneyAccountUpgradeController:registerMigrationIntents`;
+  handler: MoneyAccountUpgradeController['registerMigrationIntents'];
+};
+
+/**
+ * Looks up whether `address` is registered with CHOMP, meaning it is part of
+ * a Money Account identity of the authenticated profile in any role:
+ * current, previous, or pending successor.
+ *
+ * Unlike the upgrade methods, this does not require a bootstrap.
+ *
+ * @param address - The address to look up.
+ * @returns Whether the address is registered.
+ */
+export type MoneyAccountUpgradeControllerGetRegistrationStatusAction = {
+  type: `MoneyAccountUpgradeController:getRegistrationStatus`;
+  handler: MoneyAccountUpgradeController['getRegistrationStatus'];
+};
+
+/**
  * Union of all MoneyAccountUpgradeController action types.
  */
 export type MoneyAccountUpgradeControllerMethodActions =
-  MoneyAccountUpgradeControllerUpgradeAccountAction;
+  | MoneyAccountUpgradeControllerUpgradeAccountAction
+  | MoneyAccountUpgradeControllerForceUpgradeAccountAction
+  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
+  | MoneyAccountUpgradeControllerRegisterMigrationIntentsAction
+  | MoneyAccountUpgradeControllerGetRegistrationStatusAction;

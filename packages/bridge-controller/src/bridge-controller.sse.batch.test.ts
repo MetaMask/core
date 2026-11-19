@@ -5,26 +5,34 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers';
-import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
+import {
+  getMockBridgeQuotesErc20Erc20V2,
+  mockBridgeQuotesErc20Erc20V1,
+} from '../tests/mock-quotes-erc20-erc20.js';
+import {
+  getMockBridgeQuotesNativeErc20V2,
+  mockBridgeQuotesNativeErc20V1,
+} from '../tests/mock-quotes-native-erc20.js';
 import {
   advanceToNthTimerThenFlush,
   mockSseBatchSellEventSource,
-} from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+} from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-} from './constants/bridge';
-import * as selectors from './selectors';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger, QuoteResponse } from './types';
-import * as balanceUtils from './utils/balance';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
+} from './constants/bridge.js';
+import { ChainId, RequestStatus } from './types.js';
+import type { BridgeControllerMessenger } from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
+import { FeatureId } from './validators/feature-flags.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -45,10 +53,10 @@ const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
   'AssetsController:getExchangeRatesForBridge',
 ] as const;
 
-const messengerCallMock = jest.fn();
-const getLayer1GasFeeMock = jest.fn();
-const mockFetchFn = jest.fn();
-const trackMetaMetricsFn = jest.fn();
+const messengerCallMock = vi.fn();
+const getLayer1GasFeeMock = vi.fn();
+const mockFetchFn = vi.fn();
+const trackMetaMetricsFn = vi.fn();
 
 const quoteRequest = {
   srcChainId: '0x1',
@@ -62,6 +70,7 @@ const quoteRequest = {
   resetApproval: false,
 };
 const metricsContext = {
+  feature_id: FeatureId.BATCH_SELL,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -81,12 +90,12 @@ const assetExchangeRates = {
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeController;
   rootMessenger: RootMessenger;
-  stopAllPollingSpy: jest.SpyInstance;
-  startPollingSpy: jest.SpyInstance;
-  hasSufficientBalanceSpy: jest.SpyInstance;
-  fetchBridgeQuotesSpy: jest.SpyInstance;
-  fetchAssetPricesSpy: jest.SpyInstance;
-  consoleLogSpy: jest.SpyInstance;
+  stopAllPollingSpy: MockInstance;
+  startPollingSpy: MockInstance;
+  hasSufficientBalanceSpy: MockInstance;
+  fetchBridgeQuotesSpy: MockInstance;
+  fetchAssetPricesSpy: MockInstance;
+  consoleLogSpy: MockInstance;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -121,7 +130,7 @@ async function withController<ReturnValue>(
     );
   }
 
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   getLayer1GasFeeMock.mockResolvedValue('0x1');
 
@@ -133,7 +142,7 @@ async function withController<ReturnValue>(
         default:
           return {
             address: '0x123',
-            provider: jest.fn(),
+            provider: vi.fn(),
             currencyRates: {},
             marketData: {},
             conversionRates: {},
@@ -142,7 +151,7 @@ async function withController<ReturnValue>(
     },
   );
 
-  jest.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
+  vi.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
     minimumVersion: '0.0.0',
     maxRefreshCount: 5,
     refreshRate: 30000,
@@ -174,13 +183,13 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-  const startPollingSpy = jest.spyOn(controller, 'startPolling');
-  const hasSufficientBalanceSpy = jest
+  const stopAllPollingSpy = vi.spyOn(controller, 'stopAllPolling');
+  const startPollingSpy = vi.spyOn(controller, 'startPolling');
+  const hasSufficientBalanceSpy = vi
     .spyOn(balanceUtils, 'hasSufficientBalance')
     .mockResolvedValue(true);
-  const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
-  const fetchAssetPricesSpy = jest
+  const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
+  const fetchAssetPricesSpy = vi
     .spyOn(fetchUtils, 'fetchAssetPrices')
     .mockResolvedValue({
       'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -188,7 +197,7 @@ async function withController<ReturnValue>(
       },
     });
 
-  const consoleLogSpy = jest.spyOn(console, 'log');
+  const consoleLogSpy = vi.spyOn(console, 'log');
 
   return await testFunction({
     controller,
@@ -203,250 +212,720 @@ async function withController<ReturnValue>(
 }
 
 describe('BridgeController BatchSell (multiple quote requests) SSE', function () {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.resetAllMocks();
-  });
+  describe('fetch quotes', function () {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.clearAllTimers();
+      vi.resetAllMocks();
+    });
 
-  it('should trigger quote polling if request is valid', async function () {
-    await withController(
-      async ({
-        controller: bridgeController,
-        rootMessenger,
-        stopAllPollingSpy,
-        startPollingSpy,
-        hasSufficientBalanceSpy,
-        fetchBridgeQuotesSpy,
-        fetchAssetPricesSpy,
-        consoleLogSpy,
-      }) => {
-        mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseBatchSellEventSource([
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
-            mockBridgeQuotesErc20Erc20 as QuoteResponse[],
-          ]);
-        });
-        hasSufficientBalanceSpy.mockResolvedValue(true);
+    it('should trigger quote polling if request is valid', async function () {
+      const consoleWarnSpy = vi.spyOn(console, 'warn');
+      await withController(
+        async ({
+          controller: bridgeController,
+          rootMessenger,
+          stopAllPollingSpy,
+          startPollingSpy,
+          hasSufficientBalanceSpy,
+          fetchBridgeQuotesSpy,
+          fetchAssetPricesSpy,
+          consoleLogSpy,
+        }) => {
+          mockFetchFn.mockImplementationOnce(async () => {
+            return mockSseBatchSellEventSource([
+              mockBridgeQuotesNativeErc20V1,
+              mockBridgeQuotesErc20Erc20V1.map((quote) => ({
+                ...quote,
+                quoteRequestIndex: 1,
+              })),
+            ]);
+          });
+          hasSufficientBalanceSpy.mockResolvedValue(true);
 
-        const selectIsAssetExchangeRateInStateSpy = jest.spyOn(
-          selectors,
-          'selectIsAssetExchangeRateInState',
-        );
+          const quoteRequest0 = {
+            ...quoteRequest,
+            srcTokenAddress:
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.address,
+            destTokenAddress:
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.address,
+            srcChainId:
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.chainId.toString(),
+            destChainId:
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.chainId.toString(),
+            srcTokenAmount: '100000000000000000',
+          };
+          const quoteRequest1 = {
+            ...quoteRequest,
+            srcTokenAddress:
+              mockBridgeQuotesErc20Erc20V1[0].quote.srcAsset.address,
+            destTokenAddress:
+              mockBridgeQuotesErc20Erc20V1[0].quote.destAsset.address,
+            srcChainId:
+              mockBridgeQuotesErc20Erc20V1[0].quote.srcAsset.chainId.toString(),
+            destChainId:
+              mockBridgeQuotesErc20Erc20V1[0].quote.destAsset.chainId.toString(),
+            srcTokenAmount: '1000000000000000000',
+          };
+          const quoteRequest2 = {
+            ...quoteRequest,
+            srcTokenAddress:
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.address,
+            destTokenAddress:
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.address,
+            srcChainId:
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.chainId.toString(),
+            destChainId:
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.chainId.toString(),
+            srcTokenAmount: '1000000000000000000',
+          };
 
-        const quoteRequest0 = {
-          ...quoteRequest,
-          srcTokenAddress:
-            mockBridgeQuotesNativeErc20[0].quote.srcAsset.address,
-          destTokenAddress:
-            mockBridgeQuotesNativeErc20[0].quote.destAsset.address,
-          srcChainId:
-            mockBridgeQuotesNativeErc20[0].quote.srcAsset.chainId.toString(),
-          destChainId:
-            mockBridgeQuotesNativeErc20[0].quote.destAsset.chainId.toString(),
-          srcTokenAmount: '100000000000000000',
-        };
-        const quoteRequest1 = {
-          ...quoteRequest,
-          srcTokenAddress: mockBridgeQuotesErc20Erc20[0].quote.srcAsset.address,
-          destTokenAddress:
-            mockBridgeQuotesErc20Erc20[0].quote.destAsset.address,
-          srcChainId:
-            mockBridgeQuotesErc20Erc20[0].quote.srcAsset.chainId.toString(),
-          destChainId:
-            mockBridgeQuotesErc20Erc20[0].quote.destAsset.chainId.toString(),
-          srcTokenAmount: '1000000000000000000',
-        };
-        const quoteRequest2 = {
-          ...quoteRequest,
-          srcTokenAddress:
-            mockBridgeQuotesNativeErc20[0].quote.srcAsset.address,
-          destTokenAddress:
-            mockBridgeQuotesNativeErc20[0].quote.destAsset.address,
-          srcChainId:
-            mockBridgeQuotesNativeErc20[0].quote.srcAsset.chainId.toString(),
-          destChainId:
-            mockBridgeQuotesNativeErc20[0].quote.destAsset.chainId.toString(),
-          srcTokenAmount: '1000000000000000000',
-        };
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest2,
+            metricsContext,
+            4,
+            1,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest2,
+            metricsContext,
+            1,
+            2,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest2,
+            metricsContext,
+            4,
+            1,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest0,
+            metricsContext,
+            0,
+            1,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest1,
+            metricsContext,
+            1,
+            2,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest1,
+            metricsContext,
+            1,
+            3,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest2,
+            metricsContext,
+            2,
+            3,
+          );
 
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest2,
-          metricsContext,
-          4,
-          1,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest2,
-          metricsContext,
-          1,
-          2,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest2,
-          metricsContext,
-          4,
-          1,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest0,
-          metricsContext,
-          0,
-          1,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest1,
-          metricsContext,
-          1,
-          2,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest1,
-          metricsContext,
-          1,
-          3,
-        );
-        await rootMessenger.call(
-          'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest2,
-          metricsContext,
-          2,
-          3,
-        );
-
-        // Before polling starts
-        expect(stopAllPollingSpy).toHaveBeenCalledTimes(5);
-        expect(startPollingSpy).toHaveBeenCalledTimes(4);
-        expect(
-          startPollingSpy.mock.calls
-            .map((call) => call[0].quoteRequests)
-            .flat()
-            .find((call) => !call),
-        ).toBeUndefined();
-        expect(bridgeController.state.quoteRequest).toStrictEqual([
-          { ...quoteRequest0, insufficientBal: false },
-          { ...quoteRequest1, insufficientBal: false },
-          { ...quoteRequest2, insufficientBal: false },
-        ]);
-        expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
-        const expectedState = {
-          ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-          quoteRequest: [
+          // Before polling starts
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(5);
+          expect(startPollingSpy).toHaveBeenCalledTimes(4);
+          expect(
+            startPollingSpy.mock.calls
+              .map((call) => call[0].quoteRequests)
+              .flat()
+              .find((call) => !call),
+          ).toBeUndefined();
+          expect(bridgeController.state.quoteRequest).toStrictEqual([
             { ...quoteRequest0, insufficientBal: false },
             { ...quoteRequest1, insufficientBal: false },
             { ...quoteRequest2, insufficientBal: false },
-          ],
-          quotesLoadingStatus: RequestStatus.LOADING,
-        };
-        expect(bridgeController.state).toStrictEqual(expectedState);
+          ]);
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+          const expectedState = {
+            ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+            quoteRequest: [
+              { ...quoteRequest0, insufficientBal: false },
+              { ...quoteRequest1, insufficientBal: false },
+              { ...quoteRequest2, insufficientBal: false },
+            ],
+            quotesLoadingStatus: RequestStatus.LOADING,
+          };
+          expect(bridgeController.state).toStrictEqual(expectedState);
 
-        // Loading state
-        jest.advanceTimersByTime(1000);
-        await advanceToNthTimerThenFlush();
-        expect(bridgeController.state.quotesLoadingStatus).toBe(
-          RequestStatus.LOADING,
-        );
-        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
-        expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
-          mockFetchFn,
-          [
+          // Loading state
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          expect(bridgeController.state.quotesLoadingStatus).toBe(
+            RequestStatus.LOADING,
+          );
+          expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
+            mockFetchFn,
+            [
+              {
+                ...quoteRequest0,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+              {
+                ...quoteRequest1,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+              {
+                ...quoteRequest2,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
+            expect.any(AbortSignal),
+            FeatureId.BATCH_SELL,
+            BridgeClientId.EXTENSION,
+            'AUTH_TOKEN',
+            BRIDGE_PROD_API_BASE_URL,
             {
-              ...quoteRequest0,
-              insufficientBal: false,
-              resetApproval: false,
+              onQuoteValidationFailure: expect.any(Function),
+              onValidQuoteReceived: expect.any(Function),
+              onTokenWarning: expect.any(Function),
+              onComplete: expect.any(Function),
+              onClose: expect.any(Function),
             },
-            {
-              ...quoteRequest1,
-              insufficientBal: false,
-              resetApproval: false,
-            },
-            {
-              ...quoteRequest2,
-              insufficientBal: false,
-              resetApproval: false,
-            },
-          ],
-          expect.any(AbortSignal),
-          BridgeClientId.EXTENSION,
-          'AUTH_TOKEN',
-          BRIDGE_PROD_API_BASE_URL,
-          {
-            onQuoteValidationFailure: expect.any(Function),
-            onValidQuoteReceived: expect.any(Function),
-            onTokenWarning: expect.any(Function),
-            onComplete: expect.any(Function),
-            onClose: expect.any(Function),
-          },
-          '13.8.0',
-        );
-        const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
-          bridgeController.state;
-        // eslint-disable-next-line jest/no-restricted-matchers
-        expect(stateWithoutTimestamp).toMatchSnapshot();
-        expect(t1).toBeCloseTo(Date.now() - 1000);
+            '13.8.0',
+          );
+          const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
+            bridgeController.state;
+          // eslint-disable-next-line vitest/no-restricted-matchers
+          expect(stateWithoutTimestamp).toMatchSnapshot();
+          expect(t1).toBeCloseTo(Date.now() - 1000);
 
-        // After first fetch
-        jest.advanceTimersByTime(5000);
-        await flushPromises();
-        expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
-        expect(bridgeController.state).toStrictEqual({
-          ...expectedState,
-          quotesInitialLoadTime: 6000,
-          quoteRequest: [
-            {
-              ...quoteRequest0,
-              insufficientBal: false,
-              resetApproval: false,
-            },
-            {
-              ...quoteRequest1,
-              insufficientBal: false,
-              resetApproval: false,
-            },
-            {
-              ...quoteRequest2,
-              insufficientBal: false,
-              resetApproval: false,
-            },
-          ],
-          quotes: mockBridgeQuotesNativeErc20
-            .map((quote) => ({
-              ...quote,
-              l1GasFeesInHexWei: '0x1',
-              resetApproval: undefined,
-              quoteRequestIndex: 0,
-            }))
-            .concat(
-              mockBridgeQuotesErc20Erc20.map(
-                (quote) =>
-                  ({
+          // After first fetch
+          vi.advanceTimersByTime(5000);
+          await flushPromises();
+          expect(consoleWarnSpy.mock.calls).toMatchInlineSnapshot(`[]`);
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+          expect(bridgeController.state).toStrictEqual({
+            ...expectedState,
+            quotesInitialLoadTime: 6000,
+            quoteRequest: [
+              {
+                ...quoteRequest0,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+              {
+                ...quoteRequest1,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+              {
+                ...quoteRequest2,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
+            quotes: getMockBridgeQuotesNativeErc20V2()
+              .map((quote) => ({
+                ...quote,
+                l1GasFeesInHexWei: '0x1',
+                resetApproval: undefined,
+                quoteRequestIndex: 0,
+                featureId: FeatureId.BATCH_SELL,
+              }))
+              .concat(
+                getMockBridgeQuotesErc20Erc20V2({ quoteRequestIndex: 1 }).map(
+                  (quote) => ({
                     ...quote,
                     l1GasFeesInHexWei: '0x2',
                     resetApproval: undefined,
                     quoteRequestIndex: 1,
-                  }) as never,
+                    featureId: FeatureId.BATCH_SELL,
+                  }),
+                ),
               ),
-            ),
-          quotesRefreshCount: 1,
-          quotesLoadingStatus: 1,
-          quotesLastFetched: t1,
-          assetExchangeRates,
-        });
-        expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
-        expect(consoleLogSpy).toHaveBeenCalledTimes(0);
-        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
-        expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
-        // eslint-disable-next-line jest/no-restricted-matchers
-        expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-        expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledTimes(12);
-        expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
-      },
-    );
+            quotesRefreshCount: 1,
+            quotesLoadingStatus: 1,
+            quotesLastFetched: t1,
+            assetExchangeRates,
+            batchSellTrades: null,
+            batchSellTradesLoadingStatus: RequestStatus.LOADING,
+          });
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+          expect(consoleLogSpy).toHaveBeenCalledTimes(0);
+          expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
+          expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
+          // eslint-disable-next-line vitest/no-restricted-matchers
+          expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('fetch trades/fees', function () {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.clearAllTimers();
+      vi.resetAllMocks();
+    });
+
+    it('should fetch batch gasless trades and fees', async function () {
+      await withController(
+        async ({
+          controller: bridgeController,
+          rootMessenger,
+          stopAllPollingSpy,
+          startPollingSpy,
+          fetchAssetPricesSpy,
+          consoleLogSpy,
+        }) => {
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
+            AbortController.prototype,
+            'abort',
+          );
+          const fetchBatchSellTradesSpy = vi.spyOn(
+            fetchUtils,
+            'fetchBatchSellTrades',
+          );
+          const mockBatchSellTrades = {
+            transactions: [],
+            fee: {
+              amount: '100',
+              asset: {
+                symbol: 'USDC',
+                chainId: 10,
+                address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+              } as const,
+            },
+          };
+
+          // Before initial fetch
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(0);
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(0);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toBeNull();
+          expect(
+            bridgeController.state.batchSellTradesLoadingStatus,
+          ).toBeNull();
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+          expect(bridgeController.state).toStrictEqual(
+            DEFAULT_BRIDGE_CONTROLLER_STATE,
+          );
+
+          fetchBatchSellTradesSpy.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                vi.useRealTimers();
+                setTimeout(() => {
+                  vi.useFakeTimers();
+                  resolve(mockBatchSellTrades);
+                }, 2000);
+              }),
+          );
+
+          // Initial fetch
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+            false,
+          );
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(0);
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toStrictEqual(
+            mockBatchSellTrades,
+          );
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(bridgeController.state).toStrictEqual({
+            ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+            batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+            batchSellTrades: mockBatchSellTrades,
+          });
+
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
+          expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
+          expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+          vi.useRealTimers();
+        },
+      );
+    });
+
+    it('should abort previous fetch if new fetch is called', async function () {
+      await withController(
+        async ({
+          controller: bridgeController,
+          rootMessenger,
+          stopAllPollingSpy,
+          startPollingSpy,
+          fetchAssetPricesSpy,
+          consoleLogSpy,
+        }) => {
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
+            AbortController.prototype,
+            'abort',
+          );
+          const fetchBatchSellTradesSpy = vi.spyOn(
+            fetchUtils,
+            'fetchBatchSellTrades',
+          );
+          const mockBatchSellTrades = {
+            transactions: [],
+            fee: {
+              amount: '100',
+              asset: {
+                symbol: 'USDC',
+                chainId: 10,
+                address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+              } as const,
+            },
+          };
+          const mockBatchSellTrades2 = {
+            transactions: [],
+            fee: {
+              amount: '500',
+              asset: {
+                ...mockBatchSellTrades.fee.asset,
+              },
+            },
+          };
+
+          // Before initial fetch
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(0);
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(0);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toBeNull();
+          expect(
+            bridgeController.state.batchSellTradesLoadingStatus,
+          ).toBeNull();
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+          expect(bridgeController.state).toStrictEqual(
+            DEFAULT_BRIDGE_CONTROLLER_STATE,
+          );
+
+          fetchBatchSellTradesSpy.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                vi.useRealTimers();
+                setTimeout(() => {
+                  vi.useFakeTimers();
+                  resolve(mockBatchSellTrades);
+                }, 2000);
+              }),
+          );
+
+          fetchBatchSellTradesSpy.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                resolve(mockBatchSellTrades2);
+              }),
+          );
+
+          // Call twice in a row
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+            false,
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            getMockBridgeQuotesErc20Erc20V2(),
+            false,
+          );
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(1);
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toStrictEqual(
+            mockBatchSellTrades2,
+          );
+          expect(
+            bridgeController.state.batchSellTradesLoadingStatus,
+          ).toStrictEqual(RequestStatus.FETCHED);
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(bridgeController.state).toStrictEqual({
+            ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+            batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+            batchSellTrades: mockBatchSellTrades2,
+          });
+
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
+          expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
+            [],
+            false,
+            expect.any(AbortSignal),
+            'extension',
+            'AUTH_TOKEN',
+            expect.any(Function),
+            'https://bridge.api.cx.metamask.io',
+            '13.8.0',
+          ]);
+          expect(fetchBatchSellTradesSpy.mock.calls[1]).toStrictEqual([
+            getMockBridgeQuotesErc20Erc20V2(),
+            false,
+            expect.any(AbortSignal),
+            'extension',
+            'AUTH_TOKEN',
+            expect.any(Function),
+            'https://bridge.api.cx.metamask.io',
+            '13.8.0',
+          ]);
+          expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
+          expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+          vi.useRealTimers();
+        },
+      );
+    });
+
+    it('should abort previous fetch if resetState is called', async function () {
+      await withController(
+        async ({
+          controller: bridgeController,
+          rootMessenger,
+          stopAllPollingSpy,
+          startPollingSpy,
+          fetchAssetPricesSpy,
+          consoleLogSpy,
+        }) => {
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
+            AbortController.prototype,
+            'abort',
+          );
+          const fetchBatchSellTradesSpy = vi.spyOn(
+            fetchUtils,
+            'fetchBatchSellTrades',
+          );
+          const mockBatchSellTrades = {
+            transactions: [],
+            fee: {
+              amount: '100',
+              asset: {
+                symbol: 'USDC',
+                chainId: 10,
+                address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+              } as const,
+            },
+          };
+
+          // Before initial fetch
+          expect(bridgeController.state).toStrictEqual(
+            DEFAULT_BRIDGE_CONTROLLER_STATE,
+          );
+
+          fetchBatchSellTradesSpy.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                vi.useRealTimers();
+                setTimeout(() => {
+                  vi.useFakeTimers();
+                  resolve(mockBatchSellTrades);
+                }, 2000);
+              }),
+          );
+
+          // Reset after starting fetch
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+            false,
+          );
+          rootMessenger.call('BridgeController:resetState');
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(2);
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toBeNull();
+          expect(
+            bridgeController.state.batchSellTradesLoadingStatus,
+          ).toBeNull();
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(bridgeController.state).toStrictEqual(
+            DEFAULT_BRIDGE_CONTROLLER_STATE,
+          );
+
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
+          expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
+            [],
+            false,
+            expect.any(AbortSignal),
+            'extension',
+            'AUTH_TOKEN',
+            expect.any(Function),
+            'https://bridge.api.cx.metamask.io',
+            '13.8.0',
+          ]);
+          expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
+          expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+          vi.useRealTimers();
+        },
+      );
+    });
+
+    it('should reset batch trade states if fetch throws an error', async function () {
+      await withController(
+        async ({
+          controller: bridgeController,
+          rootMessenger,
+          stopAllPollingSpy,
+          startPollingSpy,
+          fetchAssetPricesSpy,
+          consoleLogSpy,
+        }) => {
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
+            AbortController.prototype,
+            'abort',
+          );
+          const fetchBatchSellTradesSpy = vi.spyOn(
+            fetchUtils,
+            'fetchBatchSellTrades',
+          );
+          const mockBatchSellTrades = {
+            transactions: [],
+            fee: {
+              amount: '100',
+              asset: {
+                symbol: 'USDC',
+                chainId: 10,
+                address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+              } as const,
+            },
+          };
+
+          expect(bridgeController.state).toStrictEqual(
+            DEFAULT_BRIDGE_CONTROLLER_STATE,
+          );
+
+          fetchBatchSellTradesSpy.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                vi.useRealTimers();
+                setTimeout(() => {
+                  vi.useFakeTimers();
+                  resolve(mockBatchSellTrades);
+                }, 1000);
+              }),
+          );
+          fetchBatchSellTradesSpy.mockRejectedValueOnce(
+            new Error('Network error'),
+          );
+
+          // 1st fetch
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+            false,
+          );
+
+          await vi.advanceTimersByTimeAsync(1000);
+          await flushPromises();
+
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(0);
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toStrictEqual(
+            mockBatchSellTrades,
+          );
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+          expect(bridgeController.state.batchSellTradesLoadingStatus).toBe(
+            RequestStatus.FETCHED,
+          );
+
+          expect(bridgeController.state).toStrictEqual({
+            ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+            batchSellTrades: mockBatchSellTrades,
+            batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+          });
+
+          // 2nd fetch
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            getMockBridgeQuotesErc20Erc20V2(),
+            false,
+          );
+
+          await vi.advanceTimersByTimeAsync(2000);
+          await flushPromises();
+
+          expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
+          expect(abortControllerSpy).toHaveBeenCalledTimes(1);
+          expect(fetchBatchSellTradesSpy.mock.calls[1][0]).toStrictEqual(
+            getMockBridgeQuotesErc20Erc20V2(),
+          );
+          expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(bridgeController.state.batchSellTrades).toBeNull();
+          expect(bridgeController.state.batchSellTradesLoadingStatus).toBe(
+            RequestStatus.ERROR,
+          );
+          expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
+
+          expect(bridgeController.state).toStrictEqual({
+            ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+            batchSellTradesLoadingStatus: RequestStatus.ERROR,
+          });
+
+          expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
+          expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                "Failed to fetch batch sell trades",
+                [Error: Network error],
+              ],
+            ]
+          `);
+          expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
+          vi.useRealTimers();
+        },
+      );
+    });
   });
 });

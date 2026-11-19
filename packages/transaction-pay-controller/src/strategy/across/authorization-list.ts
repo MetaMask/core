@@ -1,7 +1,10 @@
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { QuoteRequest } from '../../types';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import type { QuoteRequest } from '../../types.js';
 
 /**
  * Check whether an authorization list on the original transaction is unsupported by Across.
@@ -24,7 +27,7 @@ export function hasUnsupportedTransactionAuthorizationList(
   }
 
   return (
-    !isPredictWithdrawTransaction(transaction) ||
+    !hasTransactionType(transaction, [TransactionType.predictWithdraw]) ||
     requests.some((request) => request.isPostQuote !== true)
   );
 }

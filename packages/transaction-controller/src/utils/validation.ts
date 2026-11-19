@@ -1,17 +1,17 @@
 import { Interface } from '@ethersproject/abi';
-import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
-import { TransactionEnvelopeType, TransactionType } from '../types';
+import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type {
   Authorization,
   TransactionBatchRequest,
   TransactionParams,
-} from '../types';
-import { isEIP1559Transaction } from './utils';
+} from '../types.js';
+import { isEIP1559Transaction } from './utils.js';
 
 export enum ErrorCode {
   DuplicateBundleId = 5720,
@@ -38,6 +38,7 @@ type GasFieldsToValidate =
  * @param options.data - The data included in the transaction.
  * @param options.from - The address from which the transaction is initiated.
  * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.isInternal - Whether the transaction was added by trusted internal MetaMask code.
  * @param options.origin - The origin or source of the transaction.
  * @param options.permittedAddresses - The permitted accounts for the given origin.
  * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
@@ -49,6 +50,7 @@ export async function validateTransactionOrigin({
   data,
   from,
   internalAccounts,
+  isInternal,
   origin,
   permittedAddresses,
   txParams,
@@ -57,14 +59,13 @@ export async function validateTransactionOrigin({
   data?: string;
   from: string;
   internalAccounts?: string[];
+  isInternal?: boolean;
   origin?: string;
   permittedAddresses?: string[];
   selectedAddress?: string;
   txParams: TransactionParams;
   type?: TransactionType;
 }): Promise<void> {
-  const isInternal = !origin || origin === ORIGIN_METAMASK;
-
   if (isInternal) {
     return;
   }
@@ -273,27 +274,30 @@ export function validateParamTo(to?: string): void {
  *
  * @param options - Options bag.
  * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.isInternal - Whether the batch was added by trusted internal MetaMask code.
  * @param options.request - The batch request object.
  * @param options.sizeLimit - The maximum number of calls allowed in a batch request.
  */
 export function validateBatchRequest({
   internalAccounts,
+  isInternal,
   request,
   sizeLimit,
 }: {
   internalAccounts: string[];
+  isInternal?: boolean;
   request: TransactionBatchRequest;
   sizeLimit: number;
 }): void {
-  const { origin } = request;
-  const isExternal = origin && origin !== ORIGIN_METAMASK;
+  if (isInternal) {
+    return;
+  }
 
   const internalAccountsNormalized = internalAccounts.map((account) =>
     account.toLowerCase(),
   );
 
   if (
-    isExternal &&
     request.transactions.some((nestedTransaction) => {
       const normalizedCallTo =
         nestedTransaction.params.to?.toLowerCase() as string;
@@ -313,7 +317,7 @@ export function validateBatchRequest({
     );
   }
 
-  if (isExternal && request.transactions.length > sizeLimit) {
+  if (request.transactions.length > sizeLimit) {
     throw new JsonRpcError(
       ErrorCode.BundleTooLarge,
       `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,

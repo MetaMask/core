@@ -1,7 +1,7 @@
 export type {
   AbstractTokenPricesService,
   NativeAssetIdentifiersMap,
-} from './abstract-token-prices-service';
+} from './abstract-token-prices-service.js';
 export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
@@ -10,4 +10,5 @@ export {
   getSupportedNetworks,
   resetSupportedNetworksCache,
   SPOT_PRICES_SUPPORT_INFO,
-} from './codefi-v2';
+  getAssetId,
+} from './codefi-v2.js';

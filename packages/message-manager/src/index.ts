@@ -1,4 +1,4 @@
-export * from './AbstractMessageManager';
-export * from './EncryptionPublicKeyManager';
-export * from './DecryptMessageManager';
-export type * from './types';
+export * from './AbstractMessageManager.js';
+export * from './EncryptionPublicKeyManager.js';
+export * from './DecryptMessageManager.js';
+export type * from './types.js';

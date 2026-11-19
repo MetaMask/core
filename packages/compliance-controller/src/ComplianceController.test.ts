@@ -1,14 +1,22 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ComplianceController } from './ComplianceController';
-import type { ComplianceControllerMessenger } from './ComplianceController';
-import { selectIsWalletBlocked } from './selectors';
+import { ComplianceController } from './ComplianceController.js';
+import type { ComplianceControllerMessenger } from './ComplianceController.js';
+import {
+  selectAreAnyWalletsBlocked,
+  selectIsWalletBlocked,
+} from './selectors.js';
+
+const LOWERCASE_EVM_ADDRESS = '0x4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+const CHECKSUM_EVM_ADDRESS = toChecksumHexAddress(LOWERCASE_EVM_ADDRESS);
 
 describe('ComplianceController', () => {
   describe('constructor', () => {
@@ -96,15 +104,97 @@ describe('ComplianceController', () => {
         },
       );
     });
+
+    it('returns true for an EVM address with different casing than the cached key', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                [LOWERCASE_EVM_ADDRESS]: {
+                  address: LOWERCASE_EVM_ADDRESS,
+                  blocked: true,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(
+            selectIsWalletBlocked(CHECKSUM_EVM_ADDRESS)(controller.state),
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('does not use case-insensitive matching for non-EVM addresses', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                SolanaAddress: {
+                  address: 'SolanaAddress',
+                  blocked: true,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(selectIsWalletBlocked('solanaaddress')(controller.state)).toBe(
+            false,
+          );
+        },
+      );
+    });
+  });
+
+  describe('selectAreAnyWalletsBlocked', () => {
+    it('returns true if any cached wallet is blocked', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                [LOWERCASE_EVM_ADDRESS]: {
+                  address: LOWERCASE_EVM_ADDRESS,
+                  blocked: true,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(
+            selectAreAnyWalletsBlocked(['0xUNKNOWN', CHECKSUM_EVM_ADDRESS])(
+              controller.state,
+            ),
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('returns false if no cached wallet is blocked', async () => {
+      await withController(({ controller }) => {
+        expect(selectAreAnyWalletsBlocked([])(controller.state)).toBe(false);
+        expect(
+          selectAreAnyWalletsBlocked([LOWERCASE_EVM_ADDRESS])(controller.state),
+        ).toBe(false);
+      });
+    });
   });
 
   describe('ComplianceController:checkWalletCompliance', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('calls the service, persists the result to state, and returns the status', async () => {
@@ -169,6 +259,39 @@ describe('ComplianceController', () => {
       );
     });
 
+    it('returns an EVM cached result if the API call fails and only the address casing differs', async () => {
+      const cached = {
+        address: LOWERCASE_EVM_ADDRESS,
+        blocked: true,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: { [LOWERCASE_EVM_ADDRESS]: cached },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletCompliance',
+            async () => {
+              throw new Error('API unavailable');
+            },
+          );
+
+          const result = await rootMessenger.call(
+            'ComplianceController:checkWalletCompliance',
+            CHECKSUM_EVM_ADDRESS,
+          );
+
+          expect(result).toStrictEqual(cached);
+        },
+      );
+    });
+
     it('re-throws the error if the API call fails and no cached entry exists', async () => {
       await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -190,11 +313,11 @@ describe('ComplianceController', () => {
 
   describe('checkWalletCompliance', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does the same thing as the messenger action', async () => {
@@ -220,11 +343,11 @@ describe('ComplianceController', () => {
 
   describe('ComplianceController:checkWalletsCompliance', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('calls the service, persists all results to state, and returns statuses', async () => {
@@ -307,6 +430,39 @@ describe('ComplianceController', () => {
           );
 
           expect(result).toStrictEqual([cachedSafe, cachedBlocked]);
+        },
+      );
+    });
+
+    it('returns cached EVM results for all addresses if only address casing differs', async () => {
+      const cached = {
+        address: LOWERCASE_EVM_ADDRESS,
+        blocked: true,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: { [LOWERCASE_EVM_ADDRESS]: cached },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletsCompliance',
+            async () => {
+              throw new Error('API unavailable');
+            },
+          );
+
+          const result = await rootMessenger.call(
+            'ComplianceController:checkWalletsCompliance',
+            [CHECKSUM_EVM_ADDRESS],
+          );
+
+          expect(result).toStrictEqual([cached]);
         },
       );
     });
@@ -498,7 +654,7 @@ type WithControllerOptions = {
 function getRootMessenger(): RootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: jest.fn(),
+    captureException: vi.fn(),
   });
 }
 

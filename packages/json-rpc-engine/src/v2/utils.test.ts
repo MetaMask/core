@@ -1,10 +1,12 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   isRequest,
   isNotification,
   stringify,
   JsonRpcEngineError,
   isInstance,
-} from './utils';
+} from './utils.js';
 
 const jsonrpc = '2.0' as const;
 

@@ -1,7 +1,7 @@
 import { gtVersion, isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
-import type { MultiVersionFeatureFlagValue } from '../remote-feature-flag-controller-types';
+import type { MultiVersionFeatureFlagValue } from '../remote-feature-flag-controller-types.js';
 
 /**
  * Constants for MultiVersionFeatureFlagValue property names

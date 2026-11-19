@@ -1,11 +1,12 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { describe, expect, it } from 'vitest';
 
-import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
+import type { MessageParamsPersonal, MessageParamsTyped } from '../types.js';
 import {
   normalizeParam,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
-} from './normalize';
+} from './normalize.js';
 
 describe('Normalize Utils', () => {
   describe('normalizePersonalMessageParams', () => {

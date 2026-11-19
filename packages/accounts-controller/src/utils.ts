@@ -6,10 +6,12 @@ import type { Infer } from '@metamask/superstruct';
 import { is, number, string, type } from '@metamask/superstruct';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
-import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
 
-import type { AccountId } from './AccountsController';
+import type { AccountId } from './AccountsController.js';
+
+// This is exported by the `uuid` package, but not importable in ESM.
+type V4Options = Exclude<Parameters<typeof uuid>[0], undefined>;
 
 /**
  * Returns the name of the keyring type.
@@ -44,12 +46,21 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringType.WatchOnly: {
+      return 'Watch-only Account';
+    }
+    // NOTE: We don't use those keyrings/accounts within this controller. However, since this
+    // function only use the keyring type to return a name, we still support it here in case
+    // clients need it.
+    // FIXME: This should probably live in the `KeyringController` package instead.
     case KeyringTypes.money: {
-      // NOTE: We don't use Money keyring/accounts within this controller. However, since this
-      // function only use the keyring type to return a name, we still support it here in case
-      // clients need it.
-      // FIXME: This should probably live in the `KeyringController` package instead.
       return 'Money';
+    }
+    case KeyringTypes.mpcMoney: {
+      return 'MPC Money';
+    }
+    case KeyringTypes.mpc: {
+      return 'MPC';
     }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
@@ -95,7 +106,7 @@ export function isNormalKeyringType(
   return (
     !isSnapKeyringType(keyringType) &&
     !isSnapKeyringV2Type(keyringType) &&
-    !isMoneyKeyringType(keyringType)
+    !isSkippedKeyringType(keyringType)
   );
 }
 
@@ -119,6 +130,18 @@ export function isSnapKeyringV2Type(
   keyringType: KeyringTypes | KeyringType | string,
 ): boolean {
   return keyringType === (KeyringType.Snap as string);
+}
+
+/**
+ * Check if a keyring type is a watch-only keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a watch-only keyring, false otherwise.
+ */
+export function isWatchOnlyKeyringType(
+  keyringType: KeyringTypes | KeyringType | string,
+): boolean {
+  return keyringType === (KeyringType.WatchOnly as string);
 }
 
 /**
@@ -153,6 +176,34 @@ export function isMoneyKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
   return keyringType === (KeyringTypes.money as string);
+}
+
+/**
+ * Check if a keyring type is a MPC Money keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is a MPC Money keyring, false otherwise.
+ */
+export function isMpcMoneyKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.mpcMoney as string);
+}
+
+/**
+ * Check if a keyring type is a skipped keyring (Money or MPC Money keyring).
+ *
+ * A skipped keyring is one that should be ignored during account
+ * re-synchronization with the `KeyringController` (through `:stateChange` events
+ * or `updateAccounts` calls).
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a skipped keyring, false otherwise.
+ */
+export function isSkippedKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return isMoneyKeyringType(keyringType) || isMpcMoneyKeyringType(keyringType);
 }
 
 /**

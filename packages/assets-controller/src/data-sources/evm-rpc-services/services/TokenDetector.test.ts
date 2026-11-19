@@ -1,42 +1,41 @@
-import type { MulticallClient } from '../clients';
-import type { TokensApiClient } from '../clients/TokensApiClient';
+import { numberToHex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
+import type { MulticallClient } from '../clients/index.js';
 import type {
   Address,
   BalanceOfResponse,
   ChainId,
   TokenListEntry,
-} from '../types';
-import { TokenDetector } from './TokenDetector';
+} from '../types/index.js';
+import { TokenDetector } from './TokenDetector.js';
 import type {
   TokenDetectorConfig,
   DetectionPollingInput,
-} from './TokenDetector';
+} from './TokenDetector.js';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
-const TEST_ACCOUNT: Address =
-  '0x1234567890123456789012345678901234567890' as Address;
+const TEST_ACCOUNT: Address = '0x1234567890123456789012345678901234567890';
 const TEST_ACCOUNT_ID = 'test-account-uuid';
-const TEST_TOKEN_1: Address =
-  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
-const TEST_TOKEN_2: Address =
-  '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address;
-const TEST_TOKEN_3: Address =
-  '0x6B175474E89094C44Da98b954EescdeCB5e6cF8dA' as Address;
+const TEST_TOKEN_1: Address = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const TEST_TOKEN_2: Address = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+const TEST_TOKEN_3: Address = '0x6B175474E89094C44Da98b954EescdeCB5e6cF8dA';
 
-const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
-const POLYGON_CHAIN_ID: ChainId = '0x89' as ChainId;
+const MAINNET_CHAIN_ID: ChainId = '0x1';
+const POLYGON_CHAIN_ID: ChainId = '0x89';
 
 // =============================================================================
 // MOCK HELPERS
 // =============================================================================
 
-const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
+const createMockMulticallClient = (): Mocked<MulticallClient> =>
   ({
-    batchBalanceOf: jest.fn(),
-  }) as unknown as jest.Mocked<MulticallClient>;
+    batchBalanceOf: vi.fn(),
+  }) as unknown as Mocked<MulticallClient>;
 
 function createMockTokenList(
   tokens: {
@@ -51,14 +50,27 @@ function createMockTokenList(
   return tokens.map((token) => ({ ...token }));
 }
 
-function createMockTokensApiClient(
+function createMockTokenApi(
   tokenListByChain: Record<ChainId, TokenListEntry[]> = {},
-): jest.Mocked<TokensApiClient> {
+): {
+  fetchV2SupportedNetworks: Mock;
+  fetchV1SuggestedOccurrenceFloors: Mock;
+  fetchTokenList: Mock;
+} {
   return {
-    fetchTokenList: jest.fn((chainId: ChainId) =>
-      Promise.resolve(tokenListByChain[chainId] ?? []),
+    fetchV2SupportedNetworks: vi.fn(() =>
+      Promise.resolve({
+        fullSupport: ['eip155:1', 'eip155:137'],
+        partialSupport: [],
+      }),
     ),
-  } as unknown as jest.Mocked<TokensApiClient>;
+    fetchV1SuggestedOccurrenceFloors: vi.fn(() =>
+      Promise.resolve({ '1': 3, '137': 3 }),
+    ),
+    fetchTokenList: vi.fn((chainId: number) => {
+      return Promise.resolve(tokenListByChain[numberToHex(chainId)] ?? []);
+    }),
+  };
 }
 
 function createMockBalanceResponse(
@@ -81,8 +93,8 @@ type WithControllerOptions = {
 
 type WithControllerCallback<ReturnValue> = (params: {
   controller: TokenDetector;
-  mockMulticallClient: jest.Mocked<MulticallClient>;
-  mockTokensApiClient: jest.Mocked<TokensApiClient>;
+  mockMulticallClient: Mocked<MulticallClient>;
+  mockTokenApi: ReturnType<typeof createMockTokenApi>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -101,15 +113,15 @@ async function withController<ReturnValue>(
   const { config, tokenListByChain = {} } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockTokensApiClient = createMockTokensApiClient(tokenListByChain);
+  const mockTokenApi = createMockTokenApi(tokenListByChain);
   const controller = new TokenDetector(
     mockMulticallClient,
-    mockTokensApiClient,
+    mockTokenApi,
     config,
   );
 
   try {
-    return await fn({ controller, mockMulticallClient, mockTokensApiClient });
+    return await fn({ controller, mockMulticallClient, mockTokenApi });
   } finally {
     controller.stopAllPolling();
   }
@@ -121,12 +133,12 @@ async function withController<ReturnValue>(
 
 describe('TokenDetector', () => {
   beforeEach(() => {
-    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -189,7 +201,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -237,7 +249,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -374,11 +386,106 @@ describe('TokenDetector', () => {
     it('calls the Tokens API with the correct chain ID', async () => {
       await withController(
         { tokenListByChain: {} },
-        async ({ controller, mockTokensApiClient }) => {
+        async ({ controller, mockTokenApi }) => {
           await controller.getTokensToCheck(POLYGON_CHAIN_ID);
-          expect(mockTokensApiClient.fetchTokenList).toHaveBeenCalledWith(
-            POLYGON_CHAIN_ID,
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            137,
+            expect.objectContaining({ occurrenceFloor: 3 }),
+            expect.any(Object),
           );
+        },
+      );
+    });
+
+    it('reuses the last supported-networks list when a later refresh fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('returns no tokens when the first supported-networks fetch fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('keeps a chain unsupported when a failed refresh follows a list that omitted it', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          tokenListByChain: {
+            [MAINNET_CHAIN_ID]: tokenList,
+            [POLYGON_CHAIN_ID]: tokenList,
+          },
+        },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockResolvedValueOnce({
+            fullSupport: ['eip155:1'],
+            partialSupport: [],
+          });
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
         },
       );
     });
@@ -466,7 +573,7 @@ describe('TokenDetector', () => {
       );
     });
 
-    it('includes detected asset but omits detectedBalances when token list entry has no decimals', async () => {
+    it('records a balance with 18 decimals when the token list omits decimals', async () => {
       const tokenList: TokenListEntry[] = [
         {
           address: TEST_TOKEN_1,
@@ -498,7 +605,12 @@ describe('TokenDetector', () => {
           );
 
           expect(result.detectedAssets).toHaveLength(1);
-          expect(result.detectedBalances).toHaveLength(0);
+          expect(result.detectedBalances).toStrictEqual([
+            expect.objectContaining({
+              decimals: 18,
+              formattedBalance: '0.000000001',
+            }),
+          ]);
         },
       );
     });
@@ -814,7 +926,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -963,7 +1075,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([

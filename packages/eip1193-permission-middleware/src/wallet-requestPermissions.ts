@@ -22,9 +22,9 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { pick } from 'lodash';
+import { pick } from 'lodash-es';
 
-import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 
 export type RequestPermissionsHooks = {
   getAccounts: () => string[];

@@ -1,9 +1,10 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import {
   DEFI_POSITIONS_API_URL,
   buildPositionFetcher,
-} from './fetch-positions';
+} from './fetch-positions.js';
 
 describe('fetchPositions', () => {
   const mockAccountAddress = '0x1234567890123456789012345678901234567890';

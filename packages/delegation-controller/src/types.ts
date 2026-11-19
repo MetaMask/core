@@ -5,8 +5,8 @@ import type {
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { controllerName } from './DelegationController';
-import type { DelegationControllerMethodActions } from './DelegationController-method-action-types';
+import type { DelegationControllerMethodActions } from './DelegationController-method-action-types.js';
+import type { controllerName } from './DelegationController.js';
 
 type Hex = `0x${string}`;
 type Address = `0x${string}`;

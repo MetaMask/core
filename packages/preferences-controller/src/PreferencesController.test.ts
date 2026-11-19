@@ -5,13 +5,14 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
-import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants.js';
 import type {
   EtherscanSupportedHexChainId,
   PreferencesControllerMessenger,
-} from './PreferencesController';
-import { PreferencesController } from './PreferencesController';
+} from './PreferencesController.js';
+import { PreferencesController } from './PreferencesController.js';
 
 describe('PreferencesController', () => {
   it('should set default state', () => {

@@ -1,5 +1,5 @@
-import type { GatorPermissionsSnapRpcMethod } from './types';
-import { GatorPermissionsControllerErrorCode } from './types';
+import type { GatorPermissionsSnapRpcMethod } from './types.js';
+import { GatorPermissionsControllerErrorCode } from './types.js';
 
 /**
  * Represents a base gator permissions error.

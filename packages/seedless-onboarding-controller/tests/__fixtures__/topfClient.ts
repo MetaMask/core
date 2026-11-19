@@ -9,7 +9,7 @@ import {
   MOCK_TOPRF_AUTHENTICATION_RESPONSE,
   MOCK_TOPRF_COMMITMENT_RESPONSE,
   TOPRF_BASE_URL,
-} from '../mocks/toprf';
+} from '../mocks/toprf.js';
 
 type MockReply = {
   status: nock.StatusCode;

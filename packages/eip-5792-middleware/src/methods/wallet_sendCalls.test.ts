@@ -1,12 +1,14 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type {
   ProcessSendCallsHook,
   SendCallsPayload,
   SendCallsParams,
-} from '../types';
-import { walletSendCalls } from './wallet_sendCalls';
+} from '../types.js';
+import { walletSendCalls } from './wallet_sendCalls.js';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 
@@ -38,8 +40,8 @@ describe('wallet_sendCalls', () => {
   let request: JsonRpcRequest<SendCallsParams> & { origin: string };
   let params: SendCallsParams;
   let response: PendingJsonRpcResponse<string>;
-  let getPermittedAccountsForOriginMock: jest.MockedFn<GetPermittedAccountsForOrigin>;
-  let processSendCallsMock: jest.MockedFunction<ProcessSendCallsHook>;
+  let getPermittedAccountsForOriginMock: MockedFunction<GetPermittedAccountsForOrigin>;
+  let processSendCallsMock: MockedFunction<ProcessSendCallsHook>;
 
   /**
    *
@@ -53,14 +55,14 @@ describe('wallet_sendCalls', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK);
     params = request.params as SendCallsParams;
     response = {} as PendingJsonRpcResponse<string>;
 
-    getPermittedAccountsForOriginMock = jest.fn();
-    processSendCallsMock = jest.fn();
+    getPermittedAccountsForOriginMock = vi.fn();
+    processSendCallsMock = vi.fn();
 
     getPermittedAccountsForOriginMock.mockResolvedValue([ADDRESS_MOCK]);
 
@@ -126,7 +128,7 @@ describe('wallet_sendCalls', () => {
   });
 
   it('throws if missing properties', async () => {
-    params[0].from = undefined as never;
+    params[0].from = undefined;
     params[0].chainId = undefined as never;
     params[0].calls = undefined as never;
     params[0].atomicRequired = undefined as never;
@@ -197,8 +199,8 @@ describe('wallet_sendCalls', () => {
   });
 
   it('throws if addresses are wrong length', async () => {
-    params[0].from = '0x123' as never;
-    params[0].calls[0].to = '0x123' as never;
+    params[0].from = '0x123';
+    params[0].calls[0].to = '0x123';
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params

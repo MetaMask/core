@@ -1,15 +1,16 @@
-export { NetworkEnablementController } from './NetworkEnablementController';
+export { NetworkEnablementController } from './NetworkEnablementController.js';
 
 export type {
   NetworkEnablementControllerState,
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerActions,
   NetworkEnablementControllerEvents,
+  NetworkEnablementControllerStateChangeEvent,
   NetworkEnablementControllerMessenger,
   NativeAssetIdentifier,
   NativeAssetIdentifiersMap,
   NetworkConfig,
-} from './NetworkEnablementController';
+} from './NetworkEnablementController.js';
 
 export type {
   NetworkEnablementControllerEnableNetworkAction,
@@ -22,7 +23,7 @@ export type {
   NetworkEnablementControllerListPopularEvmNetworksAction,
   NetworkEnablementControllerListPopularMultichainNetworksAction,
   NetworkEnablementControllerListPopularNetworksAction,
-} from './NetworkEnablementController-method-action-types';
+} from './NetworkEnablementController-method-action-types.js';
 
 export {
   selectEnabledNetworkMap,
@@ -32,6 +33,10 @@ export {
   selectEnabledNetworksCount,
   selectEnabledEvmNetworks,
   selectEnabledSolanaNetworks,
-} from './selectors';
+} from './selectors.js';
 
-export { Slip44Service, getEvmSlip44, getSlip44BySymbol } from './services';
+export {
+  Slip44Service,
+  getEvmSlip44,
+  getSlip44BySymbol,
+} from './services/index.js';

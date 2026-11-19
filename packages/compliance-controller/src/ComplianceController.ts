@@ -6,12 +6,13 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { ComplianceControllerMethodActions } from './ComplianceController-method-action-types';
+import type { ComplianceControllerMethodActions } from './ComplianceController-method-action-types.js';
 import type {
   ComplianceServiceCheckWalletComplianceAction,
   ComplianceServiceCheckWalletsComplianceAction,
-} from './ComplianceService-method-action-types';
-import type { WalletComplianceStatus } from './types';
+} from './ComplianceService-method-action-types.js';
+import type { WalletComplianceStatus } from './types.js';
+import { getWalletComplianceStatus } from './utils.js';
 
 // === GENERAL ===
 
@@ -208,7 +209,10 @@ export class ComplianceController extends BaseController<
 
       return status;
     } catch (error) {
-      const cached = this.state.walletComplianceStatusMap[address];
+      const cached = getWalletComplianceStatus(
+        this.state.walletComplianceStatusMap,
+        address,
+      );
       if (cached) {
         return cached;
       }
@@ -252,10 +256,17 @@ export class ComplianceController extends BaseController<
 
       return statuses;
     } catch (error) {
-      const cachedStatuses = addresses.map(
-        (address) => this.state.walletComplianceStatusMap[address],
+      const cachedStatuses = addresses.map((address) =>
+        getWalletComplianceStatus(
+          this.state.walletComplianceStatusMap,
+          address,
+        ),
       );
-      if (cachedStatuses.every(Boolean)) {
+      if (
+        cachedStatuses.every((status): status is WalletComplianceStatus =>
+          Boolean(status),
+        )
+      ) {
         return cachedStatuses;
       }
       throw error;

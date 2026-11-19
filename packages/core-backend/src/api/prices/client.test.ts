@@ -2,19 +2,22 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient';
-import { API_URLS } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   createMockResponse,
   mockFetch,
   setupTestEnvironment,
-} from '../test-utils';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS } from '../shared-types.js';
+import type { FetchOptions } from '../shared-types.js';
 import type {
-  PriceSupportedNetworksResponse,
+  PriceV1SupportedNetworksResponse,
+  PriceV2SupportedNetworksResponse,
   V1ExchangeRatesResponse,
   V3SpotPricesResponse,
-} from './types';
+} from './types.js';
 
 describe('PricesApiClient', () => {
   let client: ApiPlatformClient;
@@ -25,9 +28,9 @@ describe('PricesApiClient', () => {
 
   describe('Supported Networks', () => {
     it('fetches price v1 supported networks', async () => {
-      const mockResponse = {
-        fullSupport: ['0x1', '0x89'],
-        partialSupport: ['0x38'],
+      const mockResponse: PriceV1SupportedNetworksResponse = {
+        fullSupport: [1, 137],
+        partialSupport: { spotPricesV2: [56] },
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
@@ -40,16 +43,25 @@ describe('PricesApiClient', () => {
       );
     });
 
-    it('fetches price v2 supported networks', async () => {
-      const mockResponse = {
+    it('fetches price v2 supported networks with object-shaped partialSupport', async () => {
+      const mockResponse: PriceV2SupportedNetworksResponse = {
         fullSupport: ['eip155:1', 'eip155:137'],
-        partialSupport: ['eip155:56'],
+        partialSupport: {
+          spotPricesV2: ['eip155:56'],
+          spotPricesV3: [
+            'eip155:56',
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          ],
+        },
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       const result = await client.prices.fetchPriceV2SupportedNetworks();
 
       expect(result).toStrictEqual(mockResponse);
+      expect(result.partialSupport.spotPricesV3).toContain(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      );
       expect(mockFetch).toHaveBeenCalledWith(
         `${API_URLS.PRICES}/v2/supportedNetworks`,
         expect.any(Object),
@@ -650,8 +662,8 @@ describe('PricesApiClient', () => {
   describe('get*QueryOptions pass-through options (select, initialPageParam)', () => {
     it('getPriceV1SupportedNetworksQueryOptions merges select and initialPageParam from options', () => {
       const select = (
-        data: PriceSupportedNetworksResponse,
-      ): PriceSupportedNetworksResponse => data;
+        data: PriceV1SupportedNetworksResponse,
+      ): PriceV1SupportedNetworksResponse => data;
       const options = client.prices.getPriceV1SupportedNetworksQueryOptions({
         select,
         initialPageParam: 0,

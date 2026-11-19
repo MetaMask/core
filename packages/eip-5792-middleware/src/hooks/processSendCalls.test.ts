@@ -15,14 +15,16 @@ import type {
 import { providerErrors } from '@metamask/rpc-errors';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
-import { SupportedCapabilities } from '../constants';
+import { SupportedCapabilities } from '../constants.js';
 import type {
   SendCallsPayload,
   SendCallsParams,
   EIP5792Messenger,
-} from '../types';
-import { processSendCalls } from './processSendCalls';
+} from '../types.js';
+import { processSendCalls } from './processSendCalls.js';
 
 const CHAIN_ID_MOCK = '0x123';
 const CHAIN_ID_2_MOCK = '0xabc';
@@ -56,42 +58,45 @@ type AllActions = MessengerActions<EIP5792Messenger>;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
 describe('EIP-5792', () => {
-  const addTransactionBatchMock: jest.MockedFn<
+  const addTransactionBatchMock: MockedFunction<
     TransactionController['addTransactionBatch']
-  > = jest.fn();
+  > = vi.fn();
 
-  const addTransactionMock: jest.MockedFn<
+  const addTransactionMock: MockedFunction<
     TransactionController['addTransaction']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getNetworkClientByIdMock: jest.MockedFn<
+  const getNetworkClientByIdMock: MockedFunction<
     NetworkControllerGetNetworkClientByIdAction['handler']
-  > = jest.fn();
+  > = vi.fn() as MockedFunction<
+    NetworkControllerGetNetworkClientByIdAction['handler']
+  >;
 
-  const getSelectedAccountMock: jest.MockedFn<
+  const getSelectedAccountMock: MockedFunction<
     AccountsControllerGetSelectedAccountAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const isAtomicBatchSupportedMock: jest.MockedFn<
+  const isAtomicBatchSupportedMock: MockedFunction<
     TransactionController['isAtomicBatchSupported']
-  > = jest.fn();
+  > = vi.fn();
 
-  const validateSecurityMock: jest.MockedFunction<
+  const validateSecurityMock: MockedFunction<
     Parameters<typeof processSendCalls>[0]['validateSecurity']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getDismissSmartAccountSuggestionEnabledMock: jest.MockedFn<
+  const getDismissSmartAccountSuggestionEnabledMock: MockedFunction<
     () => boolean
-  > = jest.fn();
+  > = vi.fn();
 
-  const getAccountsStateMock: jest.MockedFn<
+  const getAccountsStateMock: MockedFunction<
     AccountsControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+  const isAuxiliaryFundsSupportedMock: Mock = vi.fn();
 
-  const getPermittedAccountsForOriginMock: jest.MockedFn<() => Promise<Hex[]>> =
-    jest.fn();
+  const getPermittedAccountsForOriginMock: MockedFunction<
+    () => Promise<Hex[]>
+  > = vi.fn();
 
   let rootMessenger: RootMessenger;
 
@@ -109,7 +114,7 @@ describe('EIP-5792', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
       namespace: MOCK_ANY_NAMESPACE,
@@ -528,8 +533,8 @@ describe('EIP-5792', () => {
                 optional: false,
                 requiredAssets: [
                   {
-                    address: '0x123' as Hex,
-                    amount: '0x1' as Hex,
+                    address: '0x123',
+                    amount: '0x1',
                     standard: 'erc20',
                   },
                 ],
@@ -671,13 +676,13 @@ describe('EIP-5792', () => {
             optional: true,
             requiredAssets: [
               {
-                address: '0x123' as Hex,
-                amount: '0x2' as Hex,
+                address: '0x123',
+                amount: '0x2',
                 standard: 'erc20',
               },
               {
-                address: '0x123' as Hex,
-                amount: '0x3' as Hex,
+                address: '0x123',
+                amount: '0x3',
                 standard: 'erc20',
               },
             ],
@@ -799,8 +804,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xAAA' as Hex,
-                      amount: '0x1' as Hex,
+                      address: '0xAAA',
+                      amount: '0x1',
                       standard: 'erc20',
                     },
                   ],
@@ -814,8 +819,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xAAA' as Hex,
-                      amount: '0x2' as Hex,
+                      address: '0xAAA',
+                      amount: '0x2',
                       standard: 'erc20',
                     },
                   ],
@@ -851,8 +856,8 @@ describe('EIP-5792', () => {
               optional: true,
               requiredAssets: [
                 {
-                  address: '0xBBB' as Hex,
-                  amount: '0x5' as Hex,
+                  address: '0xBBB',
+                  amount: '0x5',
                   standard: 'erc20',
                 },
               ],
@@ -866,8 +871,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xBBB' as Hex,
-                      amount: '0x3' as Hex,
+                      address: '0xBBB',
+                      amount: '0x3',
                       standard: 'erc20',
                     },
                   ],

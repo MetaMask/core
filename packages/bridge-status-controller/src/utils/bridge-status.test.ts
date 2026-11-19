@@ -1,12 +1,20 @@
-import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
-import { BridgeClientId } from '../types';
-import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
+
+import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants.js';
+import { QuoteStatusFetchWithRetryOutcomeType } from '../quote-status-manager/constants.js';
+import { QuoteStatusGetError } from '../quote-status-manager/errors.js';
+import { QuoteStatusGetWithRetryOutcome } from '../quote-status-manager/quote-status-get-with-retry-outcome.js';
+import type { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager.js';
+import { BridgeClientId } from '../types.js';
+import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types.js';
 import {
+  fetchBridgeQuoteStatus,
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
   shouldSkipFetchDueToFetchFailures,
-} from './bridge-status';
+} from './bridge-status.js';
 
 describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {
@@ -91,7 +99,7 @@ describe('utils', () => {
     const mockClientId = BridgeClientId.EXTENSION;
 
     it('should successfully fetch and validate bridge transaction status', async () => {
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(mockValidResponse);
 
@@ -115,7 +123,7 @@ describe('utils', () => {
       );
 
       // Verify URL contains all required parameters
-      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      const callUrl = (mockFetch as Mock).mock.calls[0][0];
       expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
       expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
       expect(callUrl).toContain(
@@ -132,7 +140,7 @@ describe('utils', () => {
         ...mockValidResponse,
         status: 'INVALID',
       };
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(mockInvalidResponse);
 
@@ -156,7 +164,7 @@ describe('utils', () => {
       );
 
       // Verify URL contains all required parameters
-      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      const callUrl = (mockFetch as Mock).mock.calls[0][0];
       expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
       expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
       expect(callUrl).toContain(
@@ -177,7 +185,7 @@ describe('utils', () => {
         invalid: 'response',
       };
 
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(invalidResponse);
 
@@ -202,7 +210,7 @@ describe('utils', () => {
     });
 
     it('should handle fetch errors', async () => {
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockRejectedValue(new Error('Network error'));
 
@@ -215,6 +223,119 @@ describe('utils', () => {
           BRIDGE_PROD_API_BASE_URL,
         ),
       ).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('fetchBridgeQuoteStatus', () => {
+    const mockQuoteId = 'quote-1';
+
+    /**
+     * Builds a mock `QuoteStatusManager` whose `getStatus` method resolves
+     * with the given outcome.
+     *
+     * @param outcome - The outcome `getStatus` should resolve with.
+     * @returns An object with the mocked manager and its `getStatus` spy.
+     */
+    function createMockQuoteStatusManager(
+      outcome: QuoteStatusGetWithRetryOutcome | undefined,
+    ): {
+      quoteStatusManager: QuoteStatusManager;
+      getStatus: Mock;
+    } {
+      const getStatus = vi.fn().mockResolvedValue(outcome);
+      return {
+        quoteStatusManager: { getStatus } as unknown as QuoteStatusManager,
+        getStatus,
+      };
+    }
+
+    it('returns the submitted tx status when the manager reports it', async () => {
+      const { quoteStatusManager, getStatus } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          { submittedTx: mockValidResponse as never },
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(getStatus).toHaveBeenCalledWith(mockQuoteId);
+      expect(result).toStrictEqual({
+        status: mockValidResponse,
+        validationFailures: [],
+      });
+    });
+
+    it('returns validation failures from the outcome error alongside the submitted tx status', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          { submittedTx: mockValidResponse as never },
+          new QuoteStatusGetError('unexpected response shape', {
+            quoteId: mockQuoteId,
+            validationFailures: ['socket|status'],
+          }),
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toStrictEqual({
+        status: mockValidResponse,
+        validationFailures: ['socket|status'],
+      });
+    });
+
+    it('returns null when the manager is disabled (resolves undefined)', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(undefined);
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the outcome has no response', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
+          undefined,
+          new QuoteStatusGetError('request error', {
+            quoteId: mockQuoteId,
+          }),
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the response has no submittedTx yet', async () => {
+      const { quoteStatusManager } = createMockQuoteStatusManager(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          {},
+        ),
+      );
+
+      const result = await fetchBridgeQuoteStatus(
+        quoteStatusManager,
+        mockQuoteId,
+      );
+
+      expect(result).toBeNull();
     });
   });
 
@@ -255,10 +376,10 @@ describe('utils', () => {
 
   describe('shouldSkipFetchDueToFetchFailures', () => {
     const mockCurrentTime = 1_000_000; // Fixed timestamp for testing
-    let dateNowSpy: jest.SpyInstance;
+    let dateNowSpy: MockInstance;
 
     beforeEach(() => {
-      dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(mockCurrentTime);
+      dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(mockCurrentTime);
     });
 
     afterEach(() => {

@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
-import { JsonRpcEngine, createIdRemapMiddleware } from '.';
+import { describe, expect, it } from 'vitest';
+
+import { JsonRpcEngine, createIdRemapMiddleware } from './index.js';
 
 describe('idRemapMiddleware', () => {
   it('basic middleware test', async () => {

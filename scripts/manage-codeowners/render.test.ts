@@ -1,0 +1,120 @@
+import { describe, expect, it } from 'vitest';
+
+import { renderCodeownersSection } from './render.ts';
+
+describe('renderCodeownersSection', () => {
+  it('renders a package section without a blank line between its header and rules', () => {
+    const section = {
+      title: 'accounts-controller',
+      rules: [
+        {
+          pattern: '/packages/accounts-controller',
+          primaryOwners: ['@MetaMask/accounts-engineers'],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section, 3)).toBe(
+      '### accounts-controller\n/packages/accounts-controller    @MetaMask/accounts-engineers',
+    );
+  });
+
+  it('pads patterns so that owners align within a section', () => {
+    const section = {
+      title: 'example',
+      rules: [
+        { pattern: '/packages/example', primaryOwners: ['@MetaMask/team'] },
+        {
+          pattern: '/packages/example/CHANGELOG.md',
+          primaryOwners: ['@MetaMask/team', '@MetaMask/core-platform'],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section, 3)).toBe(
+      '### example\n' +
+        '/packages/example                 @MetaMask/team\n' +
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team',
+    );
+  });
+
+  it('notes the maintenance owners of a rule in an inline comment', () => {
+    const section = {
+      title: 'example',
+      rules: [
+        { pattern: '/packages/example', primaryOwners: ['@MetaMask/team'] },
+        {
+          pattern: '/packages/example/CHANGELOG.md',
+          primaryOwners: ['@MetaMask/team'],
+          maintenanceOwners: ['@MetaMask/core-platform'],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section, 3)).toBe(
+      '### example\n' +
+        '/packages/example                 @MetaMask/team\n' +
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team    # maintenance-owner: @MetaMask/core-platform',
+    );
+  });
+
+  it('underlines a top-level section heading', () => {
+    expect(
+      renderCodeownersSection({
+        title: '@MetaMask/accounts-engineers',
+        rules: [],
+      }),
+    ).toBe('# @MetaMask/accounts-engineers\n# ----------------------------');
+  });
+
+  it('renders a team section with a blank line before each nested package section', () => {
+    const section = {
+      title: '@MetaMask/team',
+      rules: [],
+      subsections: [
+        {
+          title: 'alpha',
+          rules: [
+            { pattern: '/packages/alpha', primaryOwners: ['@MetaMask/team'] },
+            {
+              pattern: '/packages/alpha/CHANGELOG.md',
+              primaryOwners: ['@MetaMask/team', '@MetaMask/core-platform'],
+            },
+          ],
+        },
+        {
+          title: 'beta',
+          rules: [
+            { pattern: '/packages/beta', primaryOwners: ['@MetaMask/team'] },
+          ],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section)).toBe(
+      `# @MetaMask/team
+# --------------
+
+### alpha
+/packages/alpha                 @MetaMask/team
+/packages/alpha/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team
+
+### beta
+/packages/beta    @MetaMask/team`,
+    );
+  });
+
+  it('adds a blank line between the Overrides heading and its rules', () => {
+    expect(
+      renderCodeownersSection({
+        title: 'Overrides',
+        rules: [
+          {
+            pattern: '/.github/',
+            primaryOwners: ['@MetaMask/core-platform'],
+          },
+        ],
+      }),
+    ).toBe('# Overrides\n# ---------\n\n/.github/    @MetaMask/core-platform');
+  });
+});

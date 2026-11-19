@@ -1,13 +1,12 @@
 export {
-  findRuleWithMatchingCaveatAddresses,
-  findRulesWithMatchingCaveatAddresses,
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
-  selectUniqueRuleAndDecodedPermission,
-} from './decodePermission';
-export { createPermissionRulesForContracts } from './rules';
+  selectUniqueDecoderAndDecodedPermission,
+} from './decodePermission.js';
+export { createPermissionDecodersForContracts } from './decoders/index.js';
 
 export type {
   DecodedPermission,
-  PermissionRule,
+  PermissionDecoder,
   ValidateAndDecodeResult,
-} from './types';
+} from './types.js';

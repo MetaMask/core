@@ -14,9 +14,9 @@ import {
 } from '@metamask/keyring-api';
 import type { KeyringAccountType } from '@metamask/keyring-api';
 
-import type { UpdatableField, ExtractFieldValues } from './type-utils';
-import type { AccountTreeControllerState } from './types';
-import type { AccountWalletObject } from './wallet';
+import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
+import type { AccountTreeControllerState } from './types.js';
+import type { AccountWalletObject } from './wallet.js';
 
 /**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).

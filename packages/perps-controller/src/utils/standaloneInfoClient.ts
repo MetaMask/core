@@ -1,10 +1,10 @@
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
 
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
   ClearinghouseStateResponse,
   FrontendOpenOrdersResponse,
-} from '../types/hyperliquid-types';
+} from '../types/hyperliquid-types.js';
 
 export type StandaloneInfoClientOptions = {
   /** Whether to use testnet API endpoint */
@@ -34,37 +34,62 @@ export const createStandaloneInfoClient = (
 };
 
 /**
+ * Per-DEX outcome of {@link queryStandaloneClearinghouseStates}.
+ */
+export type StandaloneClearinghouseStatesResult = {
+  /** States from the DEXs that answered (`dex` null for the main DEX). */
+  results: { dex: string | null; data: ClearinghouseStateResponse }[];
+  /** DEXs whose query failed. Their state is unknown, not empty. */
+  failedDexs: { dex: string | null; error: unknown }[];
+};
+
+/**
  * Query clearinghouseState across multiple DEXs in parallel.
  * Used by standalone mode to aggregate positions/account state across HIP-3 DEXs.
  *
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query state for.
  * @param dexs - The array of DEX identifiers to query (null for main DEX).
- * @returns A promise that resolves to an array of clearinghouse state responses.
+ * @param throwOnUnavailable - Reject any failed DEX read instead of returning partial data.
+ * @returns The answered states and the DEXs that failed.
  */
 export const queryStandaloneClearinghouseStates = async (
   infoClient: InfoClient,
   userAddress: string,
   dexs: (string | null)[],
-): Promise<ClearinghouseStateResponse[]> => {
-  const results = await Promise.allSettled(
-    dexs.map(async (dex) => {
-      const queryParams: { user: string; dex?: string } = {
-        user: userAddress,
-      };
-      if (dex) {
-        queryParams.dex = dex;
-      }
-      return infoClient.clearinghouseState(queryParams);
-    }),
-  );
+  throwOnUnavailable = false,
+): Promise<StandaloneClearinghouseStatesResult> => {
+  const requests = dexs.map(async (dex) => {
+    const queryParams: { user: string; dex?: string } = {
+      user: userAddress,
+    };
+    if (dex) {
+      queryParams.dex = dex;
+    }
+    return infoClient.clearinghouseState(queryParams);
+  });
+  if (throwOnUnavailable) {
+    const results = await Promise.all(requests);
+    return {
+      results: results.map((data, index) => ({ dex: dexs[index], data })),
+      failedDexs: [],
+    };
+  }
+  const results = await Promise.allSettled(requests);
 
-  return results
-    .filter(
-      (result): result is PromiseFulfilledResult<ClearinghouseStateResponse> =>
-        result.status === 'fulfilled',
-    )
-    .map((result) => result.value);
+  const outcome: StandaloneClearinghouseStatesResult = {
+    results: [],
+    failedDexs: [],
+  };
+  results.forEach((result, index) => {
+    const dex = dexs[index];
+    if (result.status === 'fulfilled') {
+      outcome.results.push({ dex, data: result.value });
+    } else {
+      outcome.failedDexs.push({ dex, error: result.reason });
+    }
+  });
+  return outcome;
 };
 
 /**
@@ -74,24 +99,28 @@ export const queryStandaloneClearinghouseStates = async (
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query orders for.
  * @param dexs - The array of DEX identifiers to query (null for main DEX).
+ * @param throwOnUnavailable - Reject any failed DEX read instead of returning partial data.
  * @returns A promise that resolves to an array of frontend open orders responses.
  */
 export const queryStandaloneOpenOrders = async (
   infoClient: InfoClient,
   userAddress: string,
   dexs: (string | null)[],
+  throwOnUnavailable = false,
 ): Promise<FrontendOpenOrdersResponse[]> => {
-  const results = await Promise.allSettled(
-    dexs.map(async (dex) => {
-      const queryParams: { user: string; dex?: string } = {
-        user: userAddress,
-      };
-      if (dex) {
-        queryParams.dex = dex;
-      }
-      return infoClient.frontendOpenOrders(queryParams);
-    }),
-  );
+  const requests = dexs.map(async (dex) => {
+    const queryParams: { user: string; dex?: string } = {
+      user: userAddress,
+    };
+    if (dex) {
+      queryParams.dex = dex;
+    }
+    return infoClient.frontendOpenOrders(queryParams);
+  });
+  if (throwOnUnavailable) {
+    return Promise.all(requests);
+  }
+  const results = await Promise.allSettled(requests);
 
   return results
     .filter(

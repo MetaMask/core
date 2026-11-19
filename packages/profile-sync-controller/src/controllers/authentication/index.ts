@@ -1,12 +1,13 @@
-import { AuthenticationController } from './AuthenticationController';
+import { AuthenticationController } from './AuthenticationController.js';
 
 export { AuthenticationController as Controller };
 export default AuthenticationController;
-export * from './AuthenticationController';
-export * as Mocks from './mocks';
+export * from './AuthenticationController.js';
+export * as Mocks from './mocks/index.js';
 
 export type {
   AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerExchangeSocialAccessTokenAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
@@ -14,4 +15,18 @@ export type {
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerRequestProfilePairingAction,
-} from './AuthenticationController-method-action-types';
+  AuthenticationControllerGetPartnerIdentityTokenAction,
+  AuthenticationControllerClearStateAction,
+  AuthenticationControllerRefreshEnrolledCredentialsAction,
+  AuthenticationControllerRefreshSocialLoginCredentialsAction,
+  AuthenticationControllerBeginCredentialEnrollmentAction,
+  AuthenticationControllerCompleteCredentialEnrollmentAction,
+  AuthenticationControllerBeginCredentialVerificationAction,
+  AuthenticationControllerCompleteCredentialVerificationAction,
+  AuthenticationControllerBeginSocialLoginVerificationAction,
+  AuthenticationControllerCompleteSocialLoginVerificationAction,
+  AuthenticationControllerGetVerificationTokenAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+  AuthenticationControllerRemoveCredentialAction,
+  AuthenticationControllerClearVerificationSessionAction,
+} from './AuthenticationController-method-action-types.js';

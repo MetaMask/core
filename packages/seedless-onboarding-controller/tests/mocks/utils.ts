@@ -1,4 +1,4 @@
-import type { DecodedBaseJWTToken } from '../../src/types';
+import type { DecodedBaseJWTToken } from '../../src/types.js';
 
 /**
  * Creates a mock JWT token for testing

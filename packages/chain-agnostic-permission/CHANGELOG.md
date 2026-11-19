@@ -7,9 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+
+## [2.1.0]
+
+### Added
+
+- Add `getEthAccountsForScope` to get the Ethereum accounts permitted for a single scope of a CAIP-25 caveat value ([#10915](https://github.com/MetaMask/core/pull/10915))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [1.7.0]
+
+### Added
+
+- Add `getSessionProperties` async function that hydrates the persisted session properties of a CAIP-25 caveat value with an `eip155Capabilities` record, mapping each permitted EVM account address to its per-chain capabilities resolved from the provided `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
+  - `getCapabilities` has the signature `(params: { address: string }) => Promise<Record<Hex, Record<string, Json>>>`.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [1.6.2]
+
+### Changed
+
+- Bump `@metamask/api-specs` from `^0.14.0` to `^0.15.0` ([#9096](https://github.com/MetaMask/core/pull/9096))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [1.6.1]
 
@@ -215,7 +264,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.0.0...@metamask/chain-agnostic-permission@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...@metamask/chain-agnostic-permission@2.0.0
+[1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0
+[1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.0...@metamask/chain-agnostic-permission@1.6.1
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.5.0...@metamask/chain-agnostic-permission@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...@metamask/chain-agnostic-permission@1.5.0

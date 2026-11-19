@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BridgeController SSE should publish validation failures 4`] = `
+exports[`BridgeController SSE > should publish validation failures 4`] = `
 [
   [
     "Unified SwapBridge Quotes Failed Validation",
@@ -9,18 +9,18 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "failures": [
-        "lifi|trade",
-        "lifi|trade.chainId",
-        "lifi|trade.to",
-        "lifi|trade.from",
-        "lifi|trade.value",
-        "lifi|trade.data",
-        "lifi|trade.gasLimit",
-        "lifi|trade.unsignedPsbtBase64",
-        "lifi|trade.inputsToSign",
-        "lifi|trade.raw_data_hex",
+        "lifi|quote.src",
+        "lifi|quote.dest",
+        "lifi|quote.feeData.metabridge",
+        "lifi|quote.aggregator",
+        "lifi|quote.protocols",
+        "lifi|quote.steps.0.src",
+        "lifi|quote.steps.0.dest",
+        "lifi|quote.steps.1.src",
+        "lifi|quote.steps.1.dest",
       ],
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -36,7 +36,8 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "failures": [
         "unknown|unknown",
       ],
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -52,7 +53,8 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "failures": [
         "unknown|quote",
       ],
-      "location": "Main View",
+      "feature_id": "unified_swap_bridge",
+      "location": "Unknown",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -62,7 +64,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
 ]
 `;
 
-exports[`BridgeController SSE should replace all stale quotes after a refresh and first quote is received 1`] = `
+exports[`BridgeController SSE > should replace all stale quotes after a refresh and first quote is received 1`] = `
 [
   "Unified SwapBridge Quotes Requested",
   {
@@ -71,9 +73,11 @@ exports[`BridgeController SSE should replace all stale quotes after a refresh an
     "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "chain_id_source": "eip155:1",
     "custom_slippage": true,
+    "feature_id": "unified_swap_bridge",
     "has_sufficient_funds": true,
+    "input_primary_denomination": "token_amount",
     "is_hardware_wallet": false,
-    "location": "Main View",
+    "location": "Unknown",
     "security_warnings": [],
     "slippage_limit": 0.5,
     "stx_enabled": true,
@@ -89,7 +93,7 @@ exports[`BridgeController SSE should replace all stale quotes after a refresh an
 ]
 `;
 
-exports[`BridgeController SSE should reset and refetch quotes after quote request is changed 1`] = `
+exports[`BridgeController SSE > should reset and refetch quotes after quote request is changed 1`] = `
 [
   [
     "Unified SwapBridge Quotes Requested",
@@ -99,9 +103,11 @@ exports[`BridgeController SSE should reset and refetch quotes after quote reques
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": false,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -117,7 +123,7 @@ exports[`BridgeController SSE should reset and refetch quotes after quote reques
 ]
 `;
 
-exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`] = `
+exports[`BridgeController SSE > should reset quotes list if quote refresh fails 2`] = `
 [
   [
     "Unified SwapBridge Quotes Requested",
@@ -127,9 +133,11 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -151,10 +159,13 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "error_code": "non_error_rejection",
       "error_message": "Network error",
+      "failure_phase": "quote",
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -171,7 +182,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
 ]
 `;
 
-exports[`BridgeController SSE should rethrow error from server 1`] = `
+exports[`BridgeController SSE > should rethrow error from server 1`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -179,6 +190,9 @@ exports[`BridgeController SSE should rethrow error from server 1`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -205,42 +219,46 @@ exports[`BridgeController SSE should rethrow error from server 1`] = `
 }
 `;
 
-exports[`BridgeController SSE should rethrow error from server 3`] = `
+exports[`BridgeController SSE > should rethrow error from server 3`] = `
 [
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_source",
       "input_value": "eip155:1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "token_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "slippage",
       "input_value": 0.5,
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
@@ -251,9 +269,11 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -275,10 +295,13 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "error_code": "quote_fetch_failed",
       "error_message": "Bridge-api error: timeout from server",
+      "failure_phase": "quote",
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -295,7 +318,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
 ]
 `;
 
-exports[`BridgeController SSE should trigger quote polling if request is valid 1`] = `
+exports[`BridgeController SSE > should trigger quote polling if request is valid 1`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -303,6 +326,9 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 1
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -329,42 +355,46 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 1
 }
 `;
 
-exports[`BridgeController SSE should trigger quote polling if request is valid 2`] = `
+exports[`BridgeController SSE > should trigger quote polling if request is valid 2`] = `
 [
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_source",
       "input_value": "eip155:1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "chain_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "token_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
     "Unified SwapBridge Input Changed",
     {
       "action_type": "swapbridge-v1",
+      "feature_id": "unified_swap_bridge",
       "input": "slippage",
       "input_value": 0.5,
-      "location": "Main View",
+      "location": "Unknown",
     },
   ],
   [
@@ -375,9 +405,11 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
+      "feature_id": "unified_swap_bridge",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
-      "location": "Main View",
+      "location": "Unknown",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,

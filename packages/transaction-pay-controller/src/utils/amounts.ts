@@ -1,6 +1,6 @@
 import { BigNumber } from 'bignumber.js';
 
-import type { Amount, FiatValue } from '../types';
+import type { Amount, FiatValue } from '../types.js';
 
 /**
  * Sum a list of amounts.

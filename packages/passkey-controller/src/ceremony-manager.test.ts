@@ -1,25 +1,27 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   CEREMONY_MAX_AGE_MS,
   CeremonyManager,
   MAX_CONCURRENT_PASSKEY_CEREMONIES,
-} from './ceremony-manager';
+} from './ceremony-manager.js';
 
 describe('CeremonyManager', () => {
   const baseReg = { userHandle: 'u' };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('registration flow', () => {
     it('save stores ceremony state retrievable by challenge', () => {
       const manager = new CeremonyManager();
       const now = 1_000_000;
-      jest.setSystemTime(now);
+      vi.setSystemTime(now);
       manager.saveRegistrationCeremony('chal1', {
         ...baseReg,
         challenge: 'chal1',
@@ -31,24 +33,44 @@ describe('CeremonyManager', () => {
       });
     });
 
+    it('stores replacement marker and source credential ID', () => {
+      const manager = new CeremonyManager();
+      vi.setSystemTime(1_000_000);
+
+      manager.saveRegistrationCeremony('replacement-challenge', {
+        isReplacement: true,
+        sourceCredentialId: 'old-credential',
+        userHandle: 'new-user-handle',
+        challenge: 'replacement-challenge',
+        createdAt: 1_000_000,
+      });
+
+      expect(
+        manager.getRegistrationCeremony('replacement-challenge'),
+      ).toMatchObject({
+        isReplacement: true,
+        sourceCredentialId: 'old-credential',
+      });
+    });
+
     it('getRegistrationCeremony prunes entries older than CEREMONY_MAX_AGE_MS before lookup', () => {
       const manager = new CeremonyManager();
       const tOld = 100_000;
       const tNew = 150_000;
       const pruneAt = tOld + CEREMONY_MAX_AGE_MS + 1;
-      jest.setSystemTime(tOld);
+      vi.setSystemTime(tOld);
       manager.saveRegistrationCeremony('old', {
         ...baseReg,
         challenge: 'old',
         createdAt: tOld,
       });
-      jest.setSystemTime(tNew);
+      vi.setSystemTime(tNew);
       manager.saveRegistrationCeremony('new', {
         ...baseReg,
         challenge: 'new',
         createdAt: tNew,
       });
-      jest.setSystemTime(pruneAt);
+      vi.setSystemTime(pruneAt);
       expect(pruneAt - tOld).toBeGreaterThan(CEREMONY_MAX_AGE_MS);
       expect(manager.getRegistrationCeremony('new')).toMatchObject({
         challenge: 'new',
@@ -62,14 +84,22 @@ describe('CeremonyManager', () => {
       const cap = MAX_CONCURRENT_PASSKEY_CEREMONIES;
       for (let i = 0; i <= cap; i += 1) {
         const createdAt = 10 + i;
-        jest.setSystemTime(createdAt);
+        vi.setSystemTime(createdAt);
         manager.saveRegistrationCeremony(`k${i}`, {
           ...baseReg,
           challenge: `k${i}`,
           createdAt,
         });
+        if (i === 0) {
+          manager.saveAuthenticationCeremony('k0-auth', {
+            challenge: 'k0-auth',
+            registrationChallenge: 'k0',
+            createdAt,
+          });
+        }
       }
       expect(manager.getRegistrationCeremony('k0')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('k0-auth')).toBeUndefined();
       expect(manager.getRegistrationCeremony('k1')).toMatchObject({
         challenge: 'k1',
         createdAt: 11,
@@ -80,14 +110,14 @@ describe('CeremonyManager', () => {
       const manager = new CeremonyManager();
       const cap = MAX_CONCURRENT_PASSKEY_CEREMONIES;
       for (let i = 0; i < cap; i += 1) {
-        jest.setSystemTime(1000 + i);
+        vi.setSystemTime(1000 + i);
         manager.saveRegistrationCeremony(`k${i}`, {
           ...baseReg,
           challenge: `k${i}`,
           createdAt: Number.NaN,
         });
       }
-      jest.setSystemTime(5000);
+      vi.setSystemTime(5000);
       manager.saveRegistrationCeremony('newest', {
         ...baseReg,
         challenge: 'newest',
@@ -99,22 +129,47 @@ describe('CeremonyManager', () => {
       });
     });
 
+    it('evicts authentication ceremonies without registration cleanup', () => {
+      const manager = new CeremonyManager();
+      const cap = MAX_CONCURRENT_PASSKEY_CEREMONIES;
+      for (let i = 0; i <= cap; i += 1) {
+        const createdAt = 20 + i;
+        vi.setSystemTime(createdAt);
+        manager.saveAuthenticationCeremony(`auth-${i}`, {
+          challenge: `auth-${i}`,
+          createdAt,
+        });
+      }
+
+      expect(manager.getAuthenticationCeremony('auth-0')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('auth-1')).toMatchObject({
+        challenge: 'auth-1',
+        createdAt: 21,
+      });
+    });
+
     it('delete removes a single entry', () => {
       const manager = new CeremonyManager();
-      jest.setSystemTime(0);
+      vi.setSystemTime(0);
       manager.saveRegistrationCeremony('x', {
         ...baseReg,
         challenge: 'x',
         createdAt: 0,
       });
+      manager.saveAuthenticationCeremony('x-auth', {
+        challenge: 'x-auth',
+        registrationChallenge: 'x',
+        createdAt: 0,
+      });
       expect(manager.deleteRegistrationCeremony('x')).toBe(true);
       expect(manager.getRegistrationCeremony('x')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('x-auth')).toBeUndefined();
       expect(manager.deleteRegistrationCeremony('missing')).toBe(false);
     });
 
     it('clear removes registration entries', () => {
       const manager = new CeremonyManager();
-      jest.setSystemTime(0);
+      vi.setSystemTime(0);
       manager.saveRegistrationCeremony('a', {
         ...baseReg,
         challenge: 'a',
@@ -134,7 +189,7 @@ describe('CeremonyManager', () => {
   it('registration and authentication maps are independent', () => {
     const manager = new CeremonyManager();
     const now = 1_000_000;
-    jest.setSystemTime(now);
+    vi.setSystemTime(now);
 
     manager.saveRegistrationCeremony('reg-chal', {
       userHandle: 'uh',
@@ -149,19 +204,19 @@ describe('CeremonyManager', () => {
     expect(manager.getRegistrationCeremony('reg-chal')).toBeDefined();
     expect(manager.getAuthenticationCeremony('auth-chal')).toBeDefined();
 
-    jest.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
+    vi.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
     expect(manager.getRegistrationCeremony('reg-chal')).toBeUndefined();
 
-    jest.setSystemTime(now);
+    vi.setSystemTime(now);
     manager.saveRegistrationCeremony('reg2', {
       userHandle: 'uh2',
       challenge: 'reg2',
       createdAt: now,
     });
-    jest.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
+    vi.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
     expect(manager.getAuthenticationCeremony('auth-chal')).toBeUndefined();
 
-    jest.setSystemTime(now);
+    vi.setSystemTime(now);
     manager.saveAuthenticationCeremony('auth2', {
       challenge: 'auth2',
       createdAt: now,

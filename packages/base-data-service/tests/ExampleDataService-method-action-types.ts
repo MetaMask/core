@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ExampleDataService } from './ExampleDataService';
+import type { ExampleDataService } from './ExampleDataService.js';
 
 export type ExampleDataServiceGetAssetsAction = {
   type: `ExampleDataService:getAssets`;
@@ -15,9 +15,21 @@ export type ExampleDataServiceGetActivityAction = {
   handler: ExampleDataService['getActivity'];
 };
 
+export type ExampleDataServiceAddFollowerAction = {
+  type: `ExampleDataService:addFollower`;
+  handler: ExampleDataService['addFollower'];
+};
+
+export type ExampleDataServiceCreateDataDeletionTaskAction = {
+  type: `ExampleDataService:createDataDeletionTask`;
+  handler: ExampleDataService['createDataDeletionTask'];
+};
+
 /**
  * Union of all ExampleDataService action types.
  */
 export type ExampleDataServiceMethodActions =
   | ExampleDataServiceGetAssetsAction
-  | ExampleDataServiceGetActivityAction;
+  | ExampleDataServiceGetActivityAction
+  | ExampleDataServiceAddFollowerAction
+  | ExampleDataServiceCreateDataDeletionTaskAction;

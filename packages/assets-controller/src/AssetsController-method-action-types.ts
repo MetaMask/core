@@ -3,11 +3,29 @@
  * Do not edit manually.
  */
 
-import type { AssetsController } from './AssetsController';
+import type { AssetsController } from './AssetsController.js';
 
 export type AssetsControllerGetAssetsAction = {
   type: `AssetsController:getAssets`;
   handler: AssetsController['getAssets'];
+};
+
+/**
+ * Force-fetch spot prices for an explicit asset list.
+ *
+ * Calls `PriceDataSource` directly and merges the result into `assetsPrice`.
+ * Prices are shared across accounts, so this does not take an account or
+ * chain scope and does not run the balance pipeline.
+ *
+ * Returns without calling the Price API when basic functionality is off.
+ * That matches the asset pipeline, which drops the price source in RPC-only
+ * mode, and `setSelectedCurrency`, which skips its price refresh.
+ *
+ * @param assetIds - CAIP-19 asset IDs to sync.
+ */
+export type AssetsControllerSyncAssetsPricesAction = {
+  type: `AssetsController:syncAssetsPrices`;
+  handler: AssetsController['syncAssetsPrices'];
 };
 
 export type AssetsControllerGetAssetsBalanceAction = {
@@ -18,6 +36,72 @@ export type AssetsControllerGetAssetsBalanceAction = {
 export type AssetsControllerGetAssetMetadataAction = {
   type: `AssetsController:getAssetMetadata`;
   handler: AssetsController['getAssetMetadata'];
+};
+
+/**
+ * Get a single combined asset (balance + metadata + price + computed
+ * `fiatValue`) for an account directly from controller state.
+ *
+ * Reuses the same state-composition and filtering logic as `getAssets`
+ * (balance and metadata are required, a missing price falls back to
+ * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+ * otherwise filtered assets are excluded) so the returned shape never
+ * drifts from `getAssets`. Reads from current state only and does not
+ * trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param assetId - The CAIP-19 asset ID including chain scope
+ * (e.g. `eip155:1/erc20:0x...`).
+ * @returns The combined `Asset`, or `undefined` when no complete
+ * renderable asset (balance + metadata) exists for the account/asset pair.
+ * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
+ */
+export type AssetsControllerGetAccountAssetByIDAction = {
+  type: `AssetsController:getAccountAssetByID`;
+  handler: AssetsController['getAccountAssetByID'];
+};
+
+/**
+ * Get multiple combined assets (balance + metadata + price + computed
+ * `fiatValue`) for an account directly from controller state.
+ *
+ * Applies the same state-composition and filtering rules as
+ * `getAccountAssetByID` to each requested asset ID. Asset IDs that do not
+ * resolve to a complete renderable asset (missing balance/metadata, hidden,
+ * or otherwise filtered out) are omitted from the result. Reads from
+ * current state only and does not trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param assetIds - The CAIP-19 asset IDs including chain scope
+ * (e.g. `eip155:1/erc20:0x...`).
+ * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+ * ID, containing only the requested assets that resolved.
+ * @throws If `accountId` is empty or any `assetIds` entry is not a valid
+ * CAIP-19 asset ID.
+ */
+export type AssetsControllerGetAccountAssetsByIDsAction = {
+  type: `AssetsController:getAccountAssetsByIDs`;
+  handler: AssetsController['getAccountAssetsByIDs'];
+};
+
+/**
+ * Get all combined assets (balance + metadata + price + computed
+ * `fiatValue`) an account holds on a given chain scope, directly from
+ * controller state.
+ *
+ * Applies the same state-composition and filtering rules as
+ * `getAccountAssetByID` (hidden or otherwise filtered assets are excluded).
+ * Reads from current state only and does not trigger a data-source refresh.
+ *
+ * @param accountId - The account ID (`InternalAccount.id`, not an address).
+ * @param scope - The CAIP-2 chain ID to filter by (e.g. `eip155:1`).
+ * @returns A record of combined `Asset`s keyed by CAIP-19 asset ID,
+ * containing only the account's assets on the given scope.
+ * @throws If `accountId` is empty or `scope` is not a valid CAIP-2 chain ID.
+ */
+export type AssetsControllerGetAccountAssetsByScopeAction = {
+  type: `AssetsController:getAccountAssetsByScope`;
+  handler: AssetsController['getAccountAssetsByScope'];
 };
 
 export type AssetsControllerGetAssetsPriceAction = {
@@ -56,7 +140,8 @@ export type AssetsControllerGetStateForTransactionPayAction = {
 /**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
- * Adding a custom asset also unhides it if it was previously hidden.
+ * Adding a custom asset also unhides it if it was previously hidden,
+ * and force-fetches that asset's chain (including every visible pin).
  *
  * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
  * flow), the token metadata is persisted immediately into `assetsInfo` so the
@@ -65,6 +150,10 @@ export type AssetsControllerGetStateForTransactionPayAction = {
  * @param accountId - The account ID to add the custom asset for.
  * @param assetId - The CAIP-19 asset ID to add.
  * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
+ * @param bypassServerCache - Also bypass server-side HTTP caches (e.g. the
+ * Accounts API's 60s cache) on the force-fetch, e.g. right after a
+ * transaction that changed this asset's balance. Only applies when
+ * `accountId` belongs to the selected account group.
  */
 export type AssetsControllerAddCustomAssetAction = {
   type: `AssetsController:addCustomAsset`;
@@ -107,6 +196,9 @@ export type AssetsControllerHideAssetAction = {
 
 /**
  * Unhide an asset globally.
+ * Force-fetches that asset's chain (including every visible pin) so a
+ * `full` snapshot can restore the balance immediately, then re-evaluates
+ * subscriptions so later polls stop excluding it.
  *
  * @param assetId - The CAIP-19 asset ID to unhide.
  */
@@ -130,8 +222,12 @@ export type AssetsControllerSetSelectedCurrencyAction = {
  */
 export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
+  | AssetsControllerSyncAssetsPricesAction
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
+  | AssetsControllerGetAccountAssetByIDAction
+  | AssetsControllerGetAccountAssetsByIDsAction
+  | AssetsControllerGetAccountAssetsByScopeAction
   | AssetsControllerGetAssetsPriceAction
   | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerGetStateForTransactionPayAction

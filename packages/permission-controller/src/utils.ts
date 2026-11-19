@@ -2,12 +2,12 @@ import type {
   CaveatConstraint,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
-} from './Caveat';
+} from './Caveat.js';
 import type {
   PermissionConstraint,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
-} from './Permission';
+} from './Permission.js';
 
 export enum MethodNames {
   RequestPermissions = 'wallet_requestPermissions',

@@ -1,6 +1,7 @@
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import { JsonRpcEngine, createAsyncMiddleware } from '.';
+import { JsonRpcEngine, createAsyncMiddleware } from './index.js';
 
 const jsonrpc = '2.0' as const;
 

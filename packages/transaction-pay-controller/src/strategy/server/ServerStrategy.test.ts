@@ -1,0 +1,195 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { TransactionPayControllerMessenger } from '../../index.js';
+import type {
+  PayStrategyGetQuotesRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
+import { getServerQuotes } from './server-quotes.js';
+import { submitServerQuotes } from './server-submit.js';
+import { ServerStrategy } from './ServerStrategy.js';
+import type { ServerQuote } from './types.js';
+
+vi.mock(import('./server-quotes.js'));
+vi.mock(import('./server-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/max-quote.js'));
+
+const QUOTE_MOCK = {
+  estimatedDuration: 5,
+} as TransactionPayQuote<ServerQuote>;
+
+const QUOTE_REQUEST_MOCK = {
+  from: '0x1234567890123456789012345678901234567890',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+  sourceBalanceRaw: '1000000',
+  sourceTokenAmount: '1000',
+  targetAmountMinimum: '900',
+  targetChainId: '0xa4b1',
+  targetTokenAddress: '0x0000000000000000000000000000000000000002',
+} as QuoteRequest;
+
+const SUPPORTS_REQUEST_MOCK = {
+  messenger: {} as TransactionPayControllerMessenger,
+  requests: [QUOTE_REQUEST_MOCK],
+  transaction: { type: TransactionType.perpsDeposit } as TransactionMeta,
+} as PayStrategyGetQuotesRequest;
+
+describe('ServerStrategy', () => {
+  const getServerQuotesMock = vi.mocked(getServerQuotes);
+  const submitServerQuotesMock = vi.mocked(submitServerQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getServerQuotesMock.mockResolvedValue([QUOTE_MOCK]);
+    getPayStrategiesConfigMock.mockReturnValue({
+      server: {
+        enabled: true,
+        enabledTransactionTypes: [TransactionType.perpsDeposit],
+      },
+      relay: { enabled: false },
+    } as ReturnType<typeof getPayStrategiesConfig>);
+  });
+
+  describe('supports', () => {
+    it('returns true when enabled and the flow is allowlisted', () => {
+      expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(true);
+    });
+
+    it('returns false when server strategy is disabled', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: false,
+          enabledTransactionTypes: [TransactionType.perpsDeposit],
+        },
+        relay: { enabled: true },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
+    });
+
+    it('returns false when the flow is not allowlisted', () => {
+      getPayStrategiesConfigMock.mockReturnValue({
+        server: {
+          enabled: true,
+          enabledTransactionTypes: [] as TransactionType[],
+        },
+        relay: { enabled: false },
+      } as ReturnType<typeof getPayStrategiesConfig>);
+
+      expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
+    });
+
+    it('returns false when a request has a non-EVM source asset', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            },
+          ],
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('getQuotes', () => {
+    it('returns result from util', async () => {
+      const result = new ServerStrategy().getQuotes({
+        accountSupports7702: false,
+        messenger: {} as TransactionPayControllerMessenger,
+        requests: [],
+        transaction: {} as TransactionMeta,
+      });
+
+      expect(await result).toStrictEqual([QUOTE_MOCK]);
+    });
+  });
+
+  describe('getBatchTransactions', () => {
+    it('returns empty batch list', async () => {
+      expect(await new ServerStrategy().getBatchTransactions()).toStrictEqual(
+        [],
+      );
+    });
+  });
+
+  describe('getRefreshInterval', () => {
+    it('returns max amount refresh interval', async () => {
+      const getMaxAmountRefreshIntervalMock = vi.mocked(
+        getMaxAmountRefreshInterval,
+      );
+      getMaxAmountRefreshIntervalMock.mockReturnValue(5000);
+
+      const refreshRequest = {
+        chainId: 'eip155:1' as const,
+        messenger: {} as TransactionPayControllerMessenger,
+        transactionId: 'tx-1',
+      };
+
+      expect(
+        await new ServerStrategy().getRefreshInterval(refreshRequest),
+      ).toBe(5000);
+      expect(getMaxAmountRefreshIntervalMock).toHaveBeenCalledWith(
+        refreshRequest,
+      );
+    });
+  });
+
+  describe('execute', () => {
+    it('calls util', async () => {
+      await new ServerStrategy().execute({
+        accountSupports7702: false,
+        isSmartTransaction: () => false,
+        quotes: [QUOTE_MOCK],
+        messenger: {} as TransactionPayControllerMessenger,
+        transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+      });
+
+      expect(submitServerQuotesMock).toHaveBeenCalledTimes(1);
+      expect(
+        submitServerQuotesMock.mock.calls[0][0].transaction.txParams.from,
+      ).toBe('0x1');
+    });
+
+    it('wraps errors', async () => {
+      submitServerQuotesMock.mockRejectedValue(new Error('boom'));
+
+      await expect(
+        new ServerStrategy().execute({
+          accountSupports7702: false,
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Server submit: boom');
+    });
+
+    it('wraps non-Error throws using String()', async () => {
+      submitServerQuotesMock.mockRejectedValue('plain string error');
+
+      await expect(
+        new ServerStrategy().execute({
+          accountSupports7702: false,
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Server submit: plain string error');
+    });
+  });
+});

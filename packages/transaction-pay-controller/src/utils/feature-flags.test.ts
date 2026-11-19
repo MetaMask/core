@@ -1,35 +1,62 @@
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../constants';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { TransactionPayStrategy } from '../constants.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
+import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
+  DEFAULT_GAS_STATION_COST_BUFFER,
+  DEFAULT_SERVER_BASE_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
-  getAssetsUnifyStateFeature,
   getFallbackGas,
   getFiatAssetPerTransactionType,
+  getFiatEnabledTypes,
+  getFiatFeeReserveMultiplier,
+  getFiatMaxRateDriftPercent,
+  getFiatOrderPollIntervalMs,
+  getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
+  getDirectMoneyMusdEnabled,
+  getServerPollingInterval,
+  getServerPollingTimeout,
+  getFiatVaultDisabled,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  getStablecoins,
+  isChainExcludedFromInfura,
   isEIP7702Chain,
+  getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
+  isAtomicMaxEnabled,
+  isRelayValidationEnabled,
+  isServerGaslessEnabled,
+  isServerValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getGasStationCostBuffer,
+  getHyperliquidActivationFeeConfig,
+  DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  getMaxBalanceRefreshInterval,
   getPayStrategiesConfig,
   getSlippage,
   getStrategy,
   getStrategyOrder,
-} from './feature-flags';
-import * as featureFlagsModule from './feature-flags';
+} from './feature-flags.js';
+import * as featureFlagsModule from './feature-flags.js';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
@@ -49,7 +76,7 @@ describe('Feature Flags Utils', () => {
     getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -153,6 +180,42 @@ describe('Feature Flags Utils', () => {
       });
     });
   });
+  describe('getGasStationCostBuffer', () => {
+    it('returns default when not set', () => {
+      expect(getGasStationCostBuffer(messenger)).toBe(
+        DEFAULT_GAS_STATION_COST_BUFFER,
+      );
+    });
+
+    it('returns value from feature flags', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            gasStationCostBuffer: 1.05,
+          },
+        },
+      });
+
+      expect(getGasStationCostBuffer(messenger)).toBe(1.05);
+    });
+
+    it('returns default when value is below 1', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            gasStationCostBuffer: 0.9,
+          },
+        },
+      });
+
+      expect(getGasStationCostBuffer(messenger)).toBe(
+        DEFAULT_GAS_STATION_COST_BUFFER,
+      );
+    });
+  });
+
   describe('getGasBuffer', () => {
     it('returns default gas buffer when none are set', () => {
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -315,7 +378,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(messenger, '0x1' as Hex, TOKEN_ADDRESS_MOCK);
+      const slippage = getSlippage(messenger, '0x1', TOKEN_ADDRESS_MOCK);
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -335,11 +398,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(
-        messenger,
-        CHAIN_ID_MOCK,
-        '0xabc123def456' as Hex,
-      );
+      const slippage = getSlippage(messenger, CHAIN_ID_MOCK, '0xabc123def456');
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -459,6 +518,87 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('getEIP7702UpgradeContractAddress', () => {
+    const CONTRACT_ADDRESS_MOCK = '0xdelegator' as Hex;
+
+    it('returns undefined when no feature flags are set', () => {
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns the first contract address for the chain', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              [CHAIN_ID_MOCK]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+                { address: '0xsecond' as Hex, signature: '0xsig2' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK)).toBe(
+        CONTRACT_ADDRESS_MOCK,
+      );
+    });
+
+    it('matches the chain ID case-insensitively', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              ['0xAABB' as Hex]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb')).toBe(
+        CONTRACT_ADDRESS_MOCK,
+      );
+    });
+
+    it('returns undefined when the chain has no contracts', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            contracts: {
+              [CHAIN_ID_DIFFERENT_MOCK]: [
+                { address: CONTRACT_ADDRESS_MOCK, signature: '0xsig' as Hex },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when contracts is undefined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {},
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
+      ).toBeUndefined();
+    });
+  });
+
   describe('isRelayExecuteEnabled', () => {
     it('returns false when no feature flags are set', () => {
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
@@ -496,6 +636,470 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isServerGaslessEnabled', () => {
+    it('returns true when no feature flags are set', () => {
+      expect(isServerGaslessEnabled(messenger)).toBe(true);
+    });
+
+    it('returns true when gaslessEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                gaslessEnabled: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isServerGaslessEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when gaslessEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                gaslessEnabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isServerGaslessEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isServerValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('ignores the relay validation flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('applies a per-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+  });
+
+  describe('isRelayValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: { default: false } },
+            },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns false when default is omitted', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: {} },
+            },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when per-type override is true and default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when per-type override is false and default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns default value for a txType with no per-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns default value when no transaction is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(isRelayValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('applies a per-type override matched via a nested transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+          nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+  });
+
+  describe('isAtomicMaxEnabled', () => {
+    it('returns false for a Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false for a non-Money Account deposit when no flag is set', () => {
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: false } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { atomicMaxEnabled: { default: true } },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns true when per-type override is true and default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when per-type override is false and default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.moneyAccountDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns default value for a type with no per-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                atomicMaxEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isAtomicMaxEnabled(messenger, {
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+  });
+
+  describe('isChainExcludedFromInfura', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns false when excludeChainIdsFromInfura is empty', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns true when chainId is in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(true);
+    });
+
+    it('returns false when chainId is not in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_DIFFERENT_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('performs case-insensitive comparison', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: ['0xA' as Hex],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, '0xa')).toBe(true);
     });
   });
 
@@ -650,83 +1254,196 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getAssetsUnifyStateFeature', () => {
-    type AssetsUnifyingState =
-      | {
-          enabled: boolean;
-          featureVersion: string | null;
-        }
-      | undefined;
+  describe('getPayStrategiesConfig - server', () => {
+    it('returns defaults when server config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
 
-    const failureCases: {
-      description: string;
-      assetsUnifyingState: AssetsUnifyingState;
-    }[] = [
-      {
-        description: 'returns false when assetsUnifyState is not set',
-        assetsUnifyingState: undefined,
-      },
-      {
-        description: 'returns false when assetsUnifyState.enabled is false',
-        assetsUnifyingState: {
-          enabled: false,
-          featureVersion: '1',
-        },
-      },
-      {
-        description:
-          'returns false when featureVersion does not match expected version',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '2',
-        },
-      },
-    ];
+      expect(config.server).toStrictEqual({
+        enabled: false,
+        enabledTransactionTypes: [],
+        baseUrl: DEFAULT_SERVER_BASE_URL,
+        pollingInterval: 2000,
+        pollingTimeout: undefined,
+      });
+    });
 
-    const successCases = [
-      {
-        description:
-          'returns true when assetsUnifyState is enabled and featureVersion matches',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '1',
-        },
-      },
-    ];
+    it.each([
+      ['the flag is absent', undefined, []],
+      ['the flag is not an array', 'perpsDeposit', []],
+      [
+        'the flag lists known types',
+        ['perpsDeposit', 'perpsWithdraw'],
+        [TransactionType.perpsDeposit, TransactionType.perpsWithdraw],
+      ],
+      [
+        'the flag lists unknown types',
+        ['perpsDeposit', 'notATransactionType'],
+        [TransactionType.perpsDeposit],
+      ],
+      [
+        'the flag lists duplicates',
+        ['perpsDeposit', 'perpsDeposit'],
+        [TransactionType.perpsDeposit],
+      ],
+    ])(
+      'returns enabled transaction types when %s',
+      (_name, enabledTransactionTypes, expected) => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay_extended: {
+              payStrategies: {
+                server: { enabledTransactionTypes },
+              },
+            },
+          },
+        });
 
-    const arrangeMocks = (assetsUnifyState: AssetsUnifyingState): void => {
-      const defaultRemoteFeatureFlagsState =
-        getDefaultRemoteFeatureFlagControllerState();
+        expect(
+          getPayStrategiesConfig(messenger).server.enabledTransactionTypes,
+        ).toStrictEqual(expected);
+      },
+    );
+
+    it('returns enabled: true when the flag enables server', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...defaultRemoteFeatureFlagsState,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          ...defaultRemoteFeatureFlagsState.remoteFeatureFlags,
-          ...(assetsUnifyState ? { assetsUnifyState } : {}),
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                enabled: true,
+              },
+            },
+          },
         },
       });
-    };
 
-    it.each(failureCases)(
-      '$description',
-      ({ assetsUnifyingState }: (typeof failureCases)[number]) => {
-        arrangeMocks(assetsUnifyingState);
+      expect(getPayStrategiesConfig(messenger).server.enabled).toBe(true);
+    });
 
-        const result = getAssetsUnifyStateFeature(messenger);
+    it('returns custom baseUrl when set by the feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                baseUrl: 'https://server.test',
+              },
+            },
+          },
+        },
+      });
 
-        expect(result).toBe(false);
-      },
-    );
+      const { server } = getPayStrategiesConfig(messenger);
 
-    it.each(successCases)(
-      '$description',
-      ({ assetsUnifyingState }: (typeof successCases)[number]) => {
-        arrangeMocks(assetsUnifyingState);
+      expect(server.baseUrl).toBe('https://server.test');
+    });
+  });
 
-        const result = getAssetsUnifyStateFeature(messenger);
+  describe('getMaxBalanceRefreshInterval', () => {
+    const typedMessenger = messenger as TransactionPayControllerMessenger;
+    const typedGetStateMock =
+      getRemoteFeatureFlagControllerStateMock as MockedFunction<
+        RemoteFeatureFlagControllerGetStateAction['handler']
+      >;
 
-        expect(result).toBe(true);
-      },
-    );
+    beforeEach(() => {
+      typedGetStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            maxBalanceRefreshInterval: {
+              [TransactionType.perpsWithdraw]: 5000,
+            },
+          },
+        },
+      });
+    });
+
+    it('returns undefined when no interval is configured', () => {
+      typedGetStateMock.mockReturnValue(
+        getDefaultRemoteFeatureFlagControllerState(),
+      );
+
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta),
+      ).toBeUndefined();
+    });
+
+    it('returns the interval for a matching transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta),
+      ).toBe(5000);
+    });
+
+    it('returns the interval for a matching nested transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
+        } as TransactionMeta),
+      ).toBe(5000);
+    });
+
+    it('returns undefined for a non-matching transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('getServerPollingInterval', () => {
+    it('returns the default polling interval when no feature flag is set', () => {
+      expect(getServerPollingInterval(messenger)).toBe(2000);
+    });
+
+    it('returns the configured polling interval when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                pollingInterval: 7500,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getServerPollingInterval(messenger)).toBe(7500);
+    });
+  });
+
+  describe('getServerPollingTimeout', () => {
+    it('returns undefined when no feature flag is set', () => {
+      expect(getServerPollingTimeout(messenger)).toBeUndefined();
+    });
+
+    it('returns the configured polling timeout when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                pollingTimeout: 45000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getServerPollingTimeout(messenger)).toBe(45000);
+    });
   });
 
   describe('getStrategyOrder', () => {
@@ -742,8 +1459,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             strategyOrder: [
-              TransactionPayStrategy.Test,
-              TransactionPayStrategy.Bridge,
+              TransactionPayStrategy.Fiat,
               TransactionPayStrategy.Relay,
             ],
           },
@@ -753,8 +1469,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Test,
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Fiat,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -765,9 +1480,9 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             strategyOrder: [
-              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Fiat,
               'unknown-strategy',
-              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Fiat,
               TransactionPayStrategy.Relay,
             ],
           },
@@ -777,7 +1492,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Fiat,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -837,7 +1552,7 @@ describe('Feature Flags Utils', () => {
             strategyOverrides: {
               default: {
                 chains: {
-                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Bridge],
+                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Across],
                 },
               },
             },
@@ -1153,6 +1868,49 @@ describe('Feature Flags Utils', () => {
 
       expect(getStrategyOrder(messenger)).toStrictEqual([]);
     });
+
+    it('filters Server out of the strategy order when payStrategies.server is disabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: { enabled: true },
+              server: { enabled: false },
+            },
+            strategyOrder: ['server', 'relay'],
+          },
+        },
+      });
+
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('includes Server in the strategy order when payStrategies.server is enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: { enabled: true },
+            },
+            strategyOrder: ['server', 'relay'],
+          },
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: { enabled: true },
+            },
+          },
+        },
+      });
+
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Server,
+        TransactionPayStrategy.Relay,
+      ]);
+    });
   });
 
   describe('getStrategyOrder with remote feature flag controller state', () => {
@@ -1220,6 +1978,15 @@ describe('Feature Flags Utils', () => {
       address: '0x0000000000000000000000000000000000001010',
       chainId: '0x89',
     };
+
+    it('returns ETH mainnet fallback when transaction type is undefined', () => {
+      const result = getFiatAssetPerTransactionType(messenger, undefined);
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
 
     it('returns ETH mainnet fallback when confirmations_pay_fiat flag is absent', () => {
       const result = getFiatAssetPerTransactionType(
@@ -1313,6 +2080,498 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+  });
+
+  describe('getFiatEnabledTypes', () => {
+    it('returns hardcoded defaults when feature flag is absent', () => {
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns hardcoded defaults when confirmations_pay_fiat exists but enabledTransactionTypes is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns enabled types from feature flag when set', () => {
+      const customTypes = [
+        TransactionType.perpsDeposit,
+        TransactionType.predictDeposit,
+      ];
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: customTypes,
+          },
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(customTypes);
+    });
+  });
+
+  describe('getFiatFeeReserveMultiplier', () => {
+    it('returns 1.2 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns the configured multiplier from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 1.5 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.5);
+    });
+
+    it('returns 1.2 when multiplier is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 0 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns 1.2 when multiplier is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: -2 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+  });
+
+  describe('getFiatMaxRateDriftPercent', () => {
+    it('returns 10 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 25 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(25);
+    });
+
+    it('returns 10 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 0 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns 10 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: -5 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+  });
+
+  describe('getDirectMoneyMusdEnabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without direct mUSD flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when direct mUSD flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: true },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when direct mUSD flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: false },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatVaultDisabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without vault flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns true when vault disabled flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: true },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(true);
+    });
+
+    it('returns false when vault disabled flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: false },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatOrderPollIntervalMs', () => {
+    it('returns 1000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 5000 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(5000);
+    });
+
+    it('returns 1000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns 1000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: -500 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+  });
+
+  describe('getFiatOrderPollTimeoutMs', () => {
+    it('returns 600000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 300000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(300000);
+    });
+
+    it('returns 600000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns 600000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: -1000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+  });
+
+  describe('getHyperliquidActivationFeeConfig', () => {
+    const TRANSACTION_TYPE = 'perpsWithdraw';
+
+    it('returns disabled with the default fee when the flag is unset', () => {
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: false,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('reads the transaction-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 2.5 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({ enabled: true, amountUsd: 2.5 });
+    });
+
+    it('falls back to the default config when there is no override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('falls back to the default config when no transaction type is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(getHyperliquidActivationFeeConfig(messenger)).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('prefers the transaction-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: false } },
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE).enabled,
+      ).toBe(true);
+    });
+
+    it('falls back to the default fee when the amount is not positive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 0 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE)
+          .amountUsd,
+      ).toBe(DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD);
+    });
+  });
+
+  describe('getStablecoins', () => {
+    it('returns hardcoded fallback when flag is absent', () => {
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
+      expect(result['0x1' as Hex]).toContain(
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      );
+    });
+
+    it('returns flag value when stableTokens is a valid object', () => {
+      const flagValue = {
+        '0x1': ['0xaaa', '0xbbb'],
+        '0xa4b1': ['0xccc'],
+      };
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          stableTokens: flagValue,
+        },
+      });
+
+      expect(getStablecoins(messenger)).toStrictEqual(flagValue);
+    });
+
+    it('normalizes addresses and chain IDs to lowercase', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          stableTokens: {
+            '0xA4B1': ['0xAf88d065e77c8cC2239327C5EDb3A432268e5831'],
+          },
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toStrictEqual({
+        '0xa4b1': ['0xaf88d065e77c8cc2239327c5edb3a432268e5831'],
+      });
+    });
+
+    it('skips non-array entries in flag value', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          stableTokens: {
+            '0x1': ['0xaaa'],
+            '0xa4b1': 'not-an-array',
+          },
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toStrictEqual({ '0x1': ['0xaaa'] });
+    });
+
+    it('returns fallback when flag is an array', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          stableTokens: ['not', 'an', 'object'],
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
+    });
+
+    it('returns fallback when flag is a primitive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          stableTokens: true,
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
     });
   });
 });

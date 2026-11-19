@@ -1,11 +1,13 @@
-import type { RampsControllerState } from './RampsController';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+import { describe, expect, it } from 'vitest';
+
+import type { RampsControllerState } from './RampsController.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import {
   createLoadingState,
   createSuccessState,
   createErrorState,
-} from './RequestCache';
-import { createRequestSelector } from './selectors';
+} from './RequestCache.js';
+import { createRequestSelector } from './selectors.js';
 
 type TestRootState = {
   ramps: RampsControllerState;

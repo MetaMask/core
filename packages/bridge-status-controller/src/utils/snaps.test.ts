@@ -1,18 +1,20 @@
+import { ChainId } from '@metamask/bridge-controller';
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { ChainId } from '../../../bridge-controller/src/types';
-import { BridgeStatusControllerMessenger } from '../types';
-import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
+import { BridgeStatusControllerMessenger } from '../types.js';
+import { createClientTransactionRequest, handleNonEvmTx } from './snaps.js';
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(),
+vi.mock('uuid', () => ({
+  v4: vi.fn(),
 }));
 
 describe('Snaps Utils', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (uuid as jest.Mock).mockReturnValue('test-uuid-1234');
+    vi.clearAllMocks();
+    (uuid as Mock).mockReturnValue('test-uuid-1234');
   });
 
   describe('handleNonEvmTx', () => {
@@ -62,7 +64,7 @@ describe('Snaps Utils', () => {
         const transaction = 'base64-encoded-transaction';
         const accountId = 'test-account-id';
 
-        const mockCall = jest.fn((...args: unknown[]) => {
+        const mockCall = vi.fn((...args: unknown[]) => {
           const [action] = args;
           if (action === 'SnapController:handleRequest') {
             return Promise.resolve(snapResponse);
@@ -75,13 +77,17 @@ describe('Snaps Utils', () => {
           messenger,
           transaction,
           {
-            quote: {
-              srcChainId: ChainId.SOLANA,
-              srcAsset: { symbol: 'SOL' },
-              destAsset: { symbol: 'MATIC' },
+            ...{
+              quote: {
+                srcChainId: ChainId.SOLANA,
+                srcAsset: { symbol: 'SOL' },
+                destAsset: { symbol: 'MATIC' },
+              },
             },
-            sentAmount: {
-              amount: '1000000000',
+            ...{
+              sentAmount: {
+                amount: '1000000000',
+              },
             },
           } as never,
           { id: accountId, metadata: { snap: { id: snapId } } } as never,
@@ -145,7 +151,7 @@ describe('Snaps Utils', () => {
       const transaction = 'base64-encoded-transaction';
       const accountId = 'test-account-id';
 
-      const mockCall = jest.fn((...args: unknown[]) => {
+      const mockCall = vi.fn((...args: unknown[]) => {
         const [action] = args;
         if (action === 'SnapController:handleRequest') {
           return Promise.resolve(undefined);
@@ -158,13 +164,17 @@ describe('Snaps Utils', () => {
         messenger,
         transaction,
         {
-          quote: {
-            srcChainId: ChainId.SOLANA,
-            srcAsset: { symbol: 'SOL' },
-            destAsset: { symbol: 'MATIC' },
+          ...{
+            quote: {
+              srcChainId: ChainId.SOLANA,
+              srcAsset: { symbol: 'SOL' },
+              destAsset: { symbol: 'MATIC' },
+            },
           },
-          sentAmount: {
-            amount: '1000000000',
+          ...{
+            sentAmount: {
+              amount: '1000000000',
+            },
           },
         } as never,
         { id: accountId, metadata: { snap: { id: snapId } } } as never,
@@ -220,6 +230,43 @@ describe('Snaps Utils', () => {
           "type": "swap",
         }
       `);
+    });
+
+    it('omits the swap asset ids for an approval transaction', async () => {
+      const snapId = 'test-snap-id';
+      const transaction = 'base64-encoded-approval';
+      const accountId = 'test-account-id';
+
+      const mockCall = vi.fn((...args: unknown[]) => {
+        const [action] = args;
+        if (action === 'SnapController:handleRequest') {
+          return Promise.resolve({ transactionId: 'approval-tx-id' });
+        }
+      });
+      const messenger = {
+        call: (...args: unknown[]) => mockCall(...args),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      await handleNonEvmTx(
+        messenger,
+        transaction,
+        {
+          quote: {
+            srcChainId: ChainId.SOLANA,
+            srcAsset: { symbol: 'SOL', assetId: 'solana:src/slip44:501' },
+            destAsset: { symbol: 'USDC', assetId: 'solana:dest/token:usdc' },
+          },
+          sentAmount: { amount: '1000000000' },
+        } as never,
+        { id: accountId, metadata: { snap: { id: snapId } } } as never,
+        true,
+      );
+
+      const [, request] = mockCall.mock.calls[0] as [
+        string,
+        { request: { params: { options?: unknown } } },
+      ];
+      expect(request.request.params.options).toBeUndefined();
     });
   });
 

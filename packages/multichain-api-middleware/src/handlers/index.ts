@@ -1,13 +1,13 @@
 import type { UnionToIntersection } from '@metamask/json-rpc-engine/v2';
 
-import type { WalletCreateSessionHooks } from './wallet-createSession';
-import { walletCreateSessionHandler } from './wallet-createSession';
-import type { WalletGetSessionHooks } from './wallet-getSession';
-import { walletGetSessionHandler } from './wallet-getSession';
-import type { WalletInvokeMethodHooks } from './wallet-invokeMethod';
-import { walletInvokeMethodHandler } from './wallet-invokeMethod';
-import type { WalletRevokeSessionHooks } from './wallet-revokeSession';
-import { walletRevokeSessionHandler } from './wallet-revokeSession';
+import type { WalletCreateSessionHooks } from './wallet-createSession.js';
+import { walletCreateSessionHandler } from './wallet-createSession.js';
+import type { WalletGetSessionHooks } from './wallet-getSession.js';
+import { walletGetSessionHandler } from './wallet-getSession.js';
+import type { WalletInvokeMethodHooks } from './wallet-invokeMethod.js';
+import { walletInvokeMethodHandler } from './wallet-invokeMethod.js';
+import type { WalletRevokeSessionHooks } from './wallet-revokeSession.js';
+import { walletRevokeSessionHandler } from './wallet-revokeSession.js';
 
 export type MethodHandlerHooks = UnionToIntersection<
   | WalletCreateSessionHooks

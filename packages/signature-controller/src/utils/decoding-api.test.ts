@@ -1,6 +1,9 @@
-import { EthMethod } from '../types';
-import type { OriginalRequest } from '../types';
-import { decodeSignature } from './decoding-api';
+import { describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
+import { EthMethod } from '../types.js';
+import type { OriginalRequest } from '../types.js';
+import { decodeSignature } from './decoding-api.js';
 
 const PERMIT_REQUEST_MOCK = {
   method: EthMethod.SignTypedDataV4,
@@ -37,7 +40,7 @@ const MOCK_ERROR = {
 };
 
 describe('Decoding api', () => {
-  let fetchMock: jest.MockedFunction<typeof fetch>;
+  let fetchMock: MockedFunction<typeof fetch>;
 
   /**
    * Mock a JSON response from fetch.
@@ -46,14 +49,12 @@ describe('Decoding api', () => {
    */
   function mockFetchResponse(jsonResponse: unknown) {
     fetchMock.mockResolvedValueOnce({
-      json: jest.fn().mockResolvedValue(jsonResponse),
+      json: vi.fn().mockResolvedValue(jsonResponse),
     } as unknown as Response);
   }
 
   it('return the data from api', async () => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
+    fetchMock = vi.spyOn(global, 'fetch');
     mockFetchResponse(MOCK_RESULT);
 
     const result = await decodeSignature(
@@ -66,9 +67,7 @@ describe('Decoding api', () => {
   });
 
   it('return error from the api as it is', async () => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
+    fetchMock = vi.spyOn(global, 'fetch');
     mockFetchResponse(MOCK_ERROR);
 
     const result = await decodeSignature(
@@ -91,15 +90,13 @@ describe('Decoding api', () => {
   });
 
   it('return data if method is method eth_signTypedData_v3', async () => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
+    fetchMock = vi.spyOn(global, 'fetch');
     mockFetchResponse(MOCK_RESULT);
     const result = await decodeSignature(
       {
         ...PERMIT_REQUEST_MOCK,
         method: 'eth_signTypedData_v3',
-      } as OriginalRequest,
+      },
       '0x1',
       'https://testdecodingurl.com',
     );

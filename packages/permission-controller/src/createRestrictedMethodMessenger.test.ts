@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
-import { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
+import { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger.js';
 
 type FooAction = {
   type: 'Foo:ping';

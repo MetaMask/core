@@ -1,6 +1,6 @@
 import type { PublicInterface } from '@metamask/utils';
 
-import type { MultichainNetworkService } from './MultichainNetworkService';
+import type { MultichainNetworkService } from './MultichainNetworkService.js';
 
 /**
  * A service object which is responsible for fetching network activity data.

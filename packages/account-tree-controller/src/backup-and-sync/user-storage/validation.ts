@@ -4,12 +4,12 @@ import type {
   LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   UserStorageSyncedWalletSchema,
   UserStorageSyncedWalletGroupSchema,
   LegacyUserStorageSyncedAccountSchema,
-} from '../types';
+} from '../types.js';
 
 /**
  * Formats validation error messages for user storage data.
@@ -17,7 +17,7 @@ import {
  * @param error - The StructError thrown during validation.
  * @returns A formatted string of validation error messages.
  */
-const formatValidationErrorMessages = (error: StructError) => {
+const formatValidationErrorMessages = (error: StructError): string => {
   const validationFailures = error
     .failures()
     .map(({ path, message }) => `[${path.join('.')}] ${message}`)

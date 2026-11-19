@@ -10,14 +10,19 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "noEmit": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "types": ["node"],
+    "paths": {
+      "@metamask/error-utils": ["./packages/error-utils/src/index.ts"],
+      "@metamask/node-utils": ["./packages/node-utils/src/index.ts"],
+      "@metamask/type-utils": ["./packages/type-utils/src/index.ts"]
+    }
   },
-  "include": ["./scripts/**/*.ts"],
+  "include": ["./scripts/**/*.ts", "./scripts/**/*.mts"],
   "exclude": ["**/node_modules"]
 }

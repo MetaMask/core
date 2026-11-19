@@ -1,5 +1,7 @@
-import { testsForRpcMethodSupportingBlockParam } from '../../../tests/network-client/block-param';
-import { NetworkClientType } from '../../types';
+import { describe } from 'vitest';
+
+import { testsForRpcMethodSupportingBlockParam } from '../../../tests/network-client/block-param.js';
+import { NetworkClientType } from '../../types.js';
 
 describe('createNetworkClient - methods included in the Ethereum JSON-RPC spec - methods that have a param to specify the block', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

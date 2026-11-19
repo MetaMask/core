@@ -8,9 +8,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
-import { controllerName } from '../../src/constants';
-import type { SeedlessOnboardingControllerMessenger } from '../../src/SeedlessOnboardingController';
+import { controllerName } from '../../src/constants.js';
+import type { SeedlessOnboardingControllerMessenger } from '../../src/SeedlessOnboardingController.js';
 
 export type AllSeedlessOnboardingControllerActions =
   MessengerActions<SeedlessOnboardingControllerMessenger>;
@@ -63,6 +65,14 @@ export function createCustomSeedlessOnboardingMessenger(): {
     parent: baseMessenger,
   });
 
+  baseMessenger.delegate({
+    messenger,
+    actions: [
+      'KeyringController:exportSeedPhrase',
+      'AnalyticsController:trackEvent',
+    ],
+  });
+
   return {
     baseMessenger,
     messenger,
@@ -77,7 +87,7 @@ type OverrideMessengers = {
 };
 
 /**
- * Jest Mock Utility to generate a mock Seedless Onboarding Messenger
+ * Mock utility to generate a mock Seedless Onboarding Messenger
  *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @returns series of mocks to actions that can be called
@@ -88,17 +98,17 @@ export function mockSeedlessOnboardingMessenger(
   baseMessenger: RootMessenger;
   messenger: SeedlessOnboardingControllerMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
-  mockKeyringGetAccounts: jest.Mock;
-  mockKeyringAddAccounts: jest.Mock;
-  mockAccountsListAccounts: jest.Mock;
+  mockKeyringGetAccounts: Mock;
+  mockKeyringAddAccounts: Mock;
+  mockAccountsListAccounts: Mock;
 } {
   const { baseMessenger, messenger, keyringControllerMessenger } =
     overrideMessengers ?? createCustomSeedlessOnboardingMessenger();
 
-  const mockKeyringGetAccounts = jest.fn();
-  const mockKeyringAddAccounts = jest.fn();
+  const mockKeyringGetAccounts = vi.fn();
+  const mockKeyringAddAccounts = vi.fn();
 
-  const mockAccountsListAccounts = jest.fn();
+  const mockAccountsListAccounts = vi.fn();
 
   return {
     baseMessenger,

@@ -5,67 +5,161 @@ export type {
   SocialControllerMessenger,
   SocialControllerOptions,
   SocialControllerStateChangeEvent,
-} from './SocialController';
+} from './SocialController.js';
 export {
   SocialController,
   getDefaultSocialControllerState,
-} from './SocialController';
+} from './SocialController.js';
 
 export type {
   SocialControllerFollowTraderAction,
+  SocialControllerOptInToLeaderboardAction,
+  SocialControllerOptOutOfLeaderboardAction,
+  SocialControllerTranslateCommentAction,
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
   SocialControllerUpdateLeaderboardAction,
-} from './SocialController-method-action-types';
+} from './SocialController-method-action-types.js';
 
 export type {
   SocialServiceActions,
   SocialServiceEvents,
   SocialServiceMessenger,
-} from './SocialService';
-export { SocialService } from './SocialService';
+} from './SocialService.js';
+export { SocialService } from './SocialService.js';
 
 export type {
+  SocialServiceBlockAction,
+  SocialServiceFetchBlockedContentAction,
+  SocialServiceFetchBlockedProfilesAction,
   SocialServiceFetchClosedPositionsAction,
+  SocialServiceFetchFeedAction,
   SocialServiceFetchFollowersAction,
+  SocialServiceFetchTraderFollowingAction,
+  SocialServiceFetchTokenFeedAction,
   SocialServiceFetchFollowingAction,
+  SocialServiceFetchMyFollowingAction,
+  SocialServiceFetchMyFollowersAction,
   SocialServiceFetchLeaderboardAction,
+  SocialServiceFetchModerationStatusAction,
   SocialServiceFetchOpenPositionsAction,
   SocialServiceFetchPositionByIdAction,
+  SocialServiceFetchQuoteTokensAction,
+  SocialServiceFetchTraderFeedAction,
   SocialServiceFetchTraderProfileAction,
+  SocialServiceFetchTrendingGifsAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceReactToCommentAction,
+  SocialServiceCreateCopyTradeIntentAction,
+  SocialServiceCreateSwapCommentAction,
+  SocialServiceTranslateCommentAction,
+  SocialServiceRefreshNotificationPreferencesCacheAction,
+  SocialServiceRemoveCommentReactionAction,
+  SocialServiceSearchGifsAction,
+  SocialServiceUnblockProfileAction,
   SocialServiceUnfollowAction,
-} from './SocialService-method-action-types';
+} from './SocialService-method-action-types.js';
 
-export { TradeStruct } from './social-types';
+export {
+  DEVELOPER_POSITION_FLAG,
+  INSIDER_POSITION_FLAG,
+  TRADER_RANKING_TAGS,
+  TRADING_PRIVACY_VALUES,
+  TradeStruct,
+  UNSUPPORTED_TOKEN_POSITION_FLAG,
+} from './social-types.js';
+export {
+  SOCIAL_FEED_CHANNELS,
+  SOCIAL_FEED_CHANNEL_TYPE,
+  SocialRealtimeService,
+} from './SocialRealtimeService.js';
 export type {
+  SocialFeedEvent,
+  SocialFeedEventListener,
+  SocialFeedReconnectListener,
+  SocialFeedRealtimeScope,
+  SocialRealtimeServiceOptions,
+} from './SocialRealtimeService.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
+export type {
+  AuthorComment,
+  BlockedContent,
+  BlockedContentResponse,
+  BlockedContentType,
+  BlockedProfile,
+  BlockedProfilesResponse,
+  BlockOptions,
+  CommentEngagement,
+  CommentReaction,
+  CommentReactionProfile,
+  CommentTranslation,
+  CopyTradeAccount,
+  CopyTradeExecution,
+  CopyTradeIntentResponse,
+  CopyTradeOrigin,
+  CopyTradePayoutEligibility,
+  CopytradedAllTime,
+  CreateCopyTradeIntentOptions,
+  CreateSwapCommentOptions,
+  FetchBlockedListOptions,
+  FeedActorSummary,
+  FeedItem,
+  FeedPagination,
+  FeedResponse,
+  FeedScope,
+  FetchFeedOptions,
   FetchFollowersOptions,
+  FetchTraderFollowingOptions,
+  FetchTokenFeedOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
   FollowingResponse,
   FollowOptions,
   FollowResponse,
+  GifItem,
+  GifMediaFile,
+  GifMediaSize,
+  GifPageResponse,
+  GifQueryParams,
   LeaderboardEntry,
   LeaderboardResponse,
+  ModerationStatusResponse,
   Pagination,
   PerChainBreakdown,
   Position,
   PositionsResponse,
+  ProfileIdentity,
   ProfileSummary,
+  QuoteTokensResponse,
+  ReactToCommentOptions,
+  RemoveCommentReactionOptions,
   SocialControllerState,
   SocialHandles,
+  SwapCommentAuthor,
+  SwapCommentResponse,
+  TranslateCommentOptions,
+  TokenFeedChain,
+  TokenFeedStatus,
   Trade,
+  TradeAction,
+  TradeInFlight,
   TraderProfile,
   TraderProfileResponse,
+  TraderRankingTag,
   TraderStats,
+  TradingPrivacy,
+  UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
+} from './social-types.js';
 
 export {
   serviceName as socialServiceName,
   SocialServiceErrorMessage,
-} from './social-constants';
+} from './social-constants.js';

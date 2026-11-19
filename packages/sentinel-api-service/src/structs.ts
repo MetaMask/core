@@ -1,0 +1,147 @@
+import {
+  array,
+  boolean,
+  nullable,
+  number,
+  optional,
+  record,
+  string,
+  type,
+} from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
+
+/**
+ * Validates a single network entry from the `/networks` registry, or the
+ * single network configuration from the `/network` endpoint. Uses `type`
+ * (loose) validation so that additional fields returned by the API do not
+ * cause rejection; only the fields we depend on are asserted.
+ */
+export const SentinelNetworkStruct = type({
+  chainID: optional(number()),
+  confirmations: optional(boolean()),
+  cubistSigners: optional(array(StrictHexStruct)),
+  network: string(),
+  relayTransactions: optional(boolean()),
+  sendBundle: optional(boolean()),
+  simulationIncludeFees: optional(boolean()),
+  smartTransactions: optional(boolean()),
+});
+
+/**
+ * Validates the `/networks` registry response (a map keyed by decimal chain
+ * ID).
+ */
+export const SentinelNetworkRegistryStruct = record(
+  string(),
+  SentinelNetworkStruct,
+);
+
+/**
+ * Validates a simulated-transaction result. Loose to tolerate the many
+ * optional fields the API may return.
+ */
+const SentinelSimulationResponseTransactionStruct = type({
+  error: optional(string()),
+});
+
+/**
+ * Validates the top-level simulation response. Only the `transactions` array
+ * is required by consumers.
+ */
+export const SentinelSimulationResponseStruct = type({
+  transactions: array(SentinelSimulationResponseTransactionStruct),
+});
+
+/**
+ * Validates the response from submitting a relay transaction.
+ */
+export const SentinelRelaySubmitResponseStruct = type({
+  uuid: string(),
+});
+
+/**
+ * Validates a single entry in the smart-transactions endpoint response.
+ */
+const SentinelSmartTransactionStruct = type({
+  hash: optional(string()),
+  status: string(),
+  errorReason: optional(nullable(string())),
+});
+
+/**
+ * Validates the smart-transactions endpoint response body (a list of
+ * transactions).
+ */
+export const SentinelSmartTransactionResponseStruct = type({
+  transactions: array(SentinelSmartTransactionStruct),
+});
+
+/**
+ * Validates one fee level from the `/getFees` endpoint.
+ */
+const SentinelSmartTransactionFeeStruct = type({
+  maxFeePerGas: number(),
+  maxPriorityFeePerGas: number(),
+});
+
+/**
+ * Validates the fee quote for a single transaction. Loose so additional
+ * fields returned by the API are ignored.
+ */
+const SentinelSmartTransactionFeesStruct = type({
+  cancelFees: array(SentinelSmartTransactionFeeStruct),
+  feeEstimate: number(),
+  fees: array(SentinelSmartTransactionFeeStruct),
+  gasLimit: number(),
+  gasUsed: number(),
+});
+
+/**
+ * Validates the `/getFees` response body.
+ */
+export const SentinelGetFeesResponseStruct = type({
+  txs: array(SentinelSmartTransactionFeesStruct),
+});
+
+/**
+ * Validates the `/submitTransactions` response body.
+ */
+export const SentinelSubmitTransactionsResponseStruct = type({
+  uuid: string(),
+});
+
+/**
+ * Validates the `/cancel` response body.
+ */
+export const SentinelCancelResponseStruct = type({
+  affected: number(),
+  cancelled: boolean(),
+  uuid: string(),
+});
+
+/**
+ * Validates one UUID's entry in the `/batchStatus` response. The closed-set
+ * fields are checked as strings, matching the loose validation used for other
+ * Sentinel status fields.
+ */
+const SentinelBatchedTransactionStatusStruct = type({
+  cancellationFeeWei: number(),
+  cancellationReason: string(),
+  deadlineRatio: number(),
+  duplicated: boolean(),
+  isSettled: boolean(),
+  minedHash: string(),
+  minedTx: string(),
+  originalTransactionStatus: string(),
+  proxied: boolean(),
+  timedOut: boolean(),
+  wouldRevertMessage: string(),
+});
+
+/**
+ * Validates the `/batchStatus` response body (a map keyed by UUID).
+ */
+export const SentinelBatchStatusResponseStruct = record(
+  string(),
+  SentinelBatchedTransactionStatusStruct,
+);

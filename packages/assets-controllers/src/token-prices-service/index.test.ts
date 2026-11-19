@@ -1,4 +1,6 @@
-import * as allExports from '.';
+import { describe, expect, it } from 'vitest';
+
+import * as allExports from './index.js';
 
 describe('token-prices-service', () => {
   it('has expected exports', () => {
@@ -11,6 +13,7 @@ describe('token-prices-service', () => {
         "getSupportedNetworks",
         "resetSupportedNetworksCache",
         "SPOT_PRICES_SUPPORT_INFO",
+        "getAssetId",
       ]
     `);
   });

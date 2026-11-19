@@ -8,16 +8,20 @@ import {
 import type {
   CaipAccountAddress,
   CaipAccountId,
+  CaipChainId,
   CaipNamespace,
   CaipReference,
   Hex,
 } from '@metamask/utils';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownWalletScopeString } from '../scope/constants';
-import { getUniqueArrayItems } from '../scope/transform';
-import type { InternalScopeString, InternalScopesObject } from '../scope/types';
-import { parseScopeString } from '../scope/types';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
+import { KnownWalletScopeString } from '../scope/constants.js';
+import { getUniqueArrayItems } from '../scope/transform.js';
+import type {
+  InternalScopeString,
+  InternalScopesObject,
+} from '../scope/types.js';
+import { parseScopeString } from '../scope/types.js';
 
 /*
  *
@@ -89,6 +93,30 @@ export const getEthAccounts = (
 
   return getUniqueArrayItems(ethAccounts);
 };
+
+/**
+ * Gets the Ethereum (EIP155 namespaced) accounts for a single scope.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to get the Ethereum accounts from.
+ * @param scope - The CAIP-2 scope to get the Ethereum accounts for.
+ * @returns An array of Ethereum accounts.
+ */
+export function getEthAccountsForScope(
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
+  scope: CaipChainId,
+): Hex[] {
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
+
+  const accounts = [
+    ...getEthAccountsFromScopes({ [scope]: requiredScopes[scope] ?? {} }),
+    ...getEthAccountsFromScopes({ [scope]: optionalScopes[scope] ?? {} }),
+  ];
+
+  return getUniqueArrayItems(accounts);
+}
 
 /**
  * Sets the Ethereum (EIP155 namespaced) accounts for the given scopes object.

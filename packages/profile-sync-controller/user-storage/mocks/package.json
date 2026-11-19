@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../../dist/controllers/user-storage/mocks/index.cjs",
-  "types": "../../dist/types/controllers/user-storage/mocks/index.d.cts"
+  "main": "../../dist/controllers/user-storage/mocks/index.js",
+  "types": "../../dist/controllers/user-storage/mocks/index.d.ts"
 }

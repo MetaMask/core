@@ -1,5 +1,7 @@
-import type { TransactionParams } from '../types';
-import { getTransactionParamsWithIncreasedGasFee } from './retry';
+import { describe, expect, it } from 'vitest';
+
+import type { TransactionParams } from '../types.js';
+import { getTransactionParamsWithIncreasedGasFee } from './retry.js';
 
 const RATE_MOCK = 16;
 const VALUE_MOCK = '0x111';

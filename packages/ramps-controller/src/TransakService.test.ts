@@ -4,19 +4,22 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, isDone } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
+import packageJson from '../package.json';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
-} from './TransakService';
+} from './TransakService.js';
 import {
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
   TransakApiError,
-} from './TransakService';
+} from './TransakService.js';
 
 // === Test Constants ===
 
@@ -216,22 +219,37 @@ function getRootMessenger(): RootMessenger {
 }
 
 function getMessenger(rootMessenger: RootMessenger): TransakServiceMessenger {
-  return new Messenger({
+  const messenger: TransakServiceMessenger = new Messenger({
     namespace: 'TransakService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+    messenger,
+  });
+  return messenger;
 }
 
 function getService({
   options = {},
+  mockGetBearerToken,
 }: {
   options?: Partial<ConstructorParameters<typeof TransakService>[0]>;
+  mockGetBearerToken?: Mock;
 } = {}): {
   service: TransakService;
   rootMessenger: RootMessenger;
   messenger: TransakServiceMessenger;
+  mockGetBearerToken: Mock;
 } {
   const rootMessenger = getRootMessenger();
+  const getBearerTokenMock =
+    mockGetBearerToken ?? vi.fn().mockResolvedValue('mock-bearer-token');
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerTokenMock,
+  );
   const messenger = getMessenger(rootMessenger);
   const service = new TransakService({
     fetch,
@@ -243,7 +261,12 @@ function getService({
     ...options,
   });
 
-  return { service, rootMessenger, messenger };
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    mockGetBearerToken: getBearerTokenMock,
+  };
 }
 
 function authenticateService(service: TransakService): void {
@@ -282,12 +305,12 @@ function nockTranslation(
 
 describe('TransakService', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ now: 0, doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers({ now: 0 });
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    cleanAll();
+    vi.useRealTimers();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -315,10 +338,10 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('uses production URLs when environment is Production', async () => {
@@ -333,10 +356,10 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -489,7 +512,7 @@ describe('TransakService', () => {
       service.setAccessToken(validToken);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_USER_DETAILS);
@@ -516,7 +539,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('test@example.com');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -541,7 +564,7 @@ describe('TransakService', () => {
         'TransakService:sendUserOtp',
         'user@test.com',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -554,7 +577,8 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('invalid');
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '400'");
@@ -574,7 +598,8 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('test@example.com');
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toBeInstanceOf(TransakApiError);
@@ -614,7 +639,7 @@ describe('TransakService', () => {
         '123456',
         'state-token',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -640,7 +665,7 @@ describe('TransakService', () => {
       expect(service.getAccessToken()).toBeNull();
 
       const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
 
@@ -653,7 +678,8 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.verifyUserOtp('a@b.com', 'wrong', 'st');
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '401'");
@@ -678,7 +704,7 @@ describe('TransakService', () => {
 
       const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
       promise.catch(() => undefined);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -696,7 +722,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -711,7 +737,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -731,7 +757,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -750,7 +777,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -768,7 +795,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -793,7 +820,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow(
@@ -816,7 +844,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toBeInstanceOf(TransakApiError);
@@ -844,7 +873,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow(
@@ -871,7 +901,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow(
@@ -905,7 +936,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.patchUser(patchData);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -935,7 +966,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.patchUser(patchData);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -955,7 +986,7 @@ describe('TransakService', () => {
         personalDetails: { firstName: 'Fail' },
       });
       promise.catch(() => undefined);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -975,7 +1006,8 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Bad' },
       });
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toBeInstanceOf(TransakApiError);
@@ -1024,11 +1056,84 @@ describe('TransakService', () => {
         'credit_debit_card',
         '100',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
-      expect(result).toStrictEqual(MOCK_BUY_QUOTE);
+      expect(result).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        requestedAssetId: 'eip155:1/slip44:60',
+        requestedChainId: 'eip155:1',
+      });
+    });
+
+    it('omits fee exclusion for a fee-inclusive quote request', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(
+          (query) =>
+            query.fiatAmount === '15' &&
+            query.isFeeExcludedFromFiat === undefined &&
+            query.apiKey === MOCK_API_KEY,
+        )
+        .reply(200, { data: { ...MOCK_BUY_QUOTE, fiatAmount: 15 } });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        'eip155:143',
+        '/payments/debit-credit-card',
+        '15',
+        false,
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        fiatAmount: 15,
+        requestedAssetId:
+          'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        requestedChainId: 'eip155:143',
+      });
+    });
+
+    it('omits query parameters whose values are undefined', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(
+          (query) =>
+            query.fiatAmount === undefined &&
+            query.fiatCurrency === 'USD' &&
+            query.apiKey === MOCK_API_KEY,
+        )
+        .reply(200, { data: MOCK_BUY_QUOTE });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        // A JS consumer can pass undefined despite the type; it must not
+        // become a literal "undefined" query parameter.
+        undefined as unknown as string,
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        requestedAssetId: 'eip155:1/slip44:60',
+        requestedChainId: 'eip155:1',
+      });
     });
 
     it('normalizes ramps API payment method IDs before translation', async () => {
@@ -1051,7 +1156,7 @@ describe('TransakService', () => {
         '/payments/debit-credit-card',
         '100',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -1074,7 +1179,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getBuyQuote('USD', 'ETH', 'eip155:1', '', '100');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -1102,7 +1207,7 @@ describe('TransakService', () => {
         chainId: 'eip155:1',
         fiatCurrencyId: 'USD',
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1120,7 +1225,7 @@ describe('TransakService', () => {
       });
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -1144,7 +1249,7 @@ describe('TransakService', () => {
         paymentMethod: undefined,
         cryptoCurrencyId: undefined,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -1166,7 +1271,29 @@ describe('TransakService', () => {
         fiatCurrencyId: 'USD',
         paymentMethod: '/payments/debit-credit-card',
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
+    });
+
+    it('normalizes canonical payment method IDs without the /payments/ prefix', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(
+          (query) =>
+            query.paymentMethod === 'apple_pay' &&
+            query.fiatCurrencyId === 'USD',
+        )
+        .reply(200, MOCK_TRANSLATION);
+
+      const { service } = getService();
+
+      const promise = service.getTranslation({
+        fiatCurrencyId: 'USD',
+        paymentMethod: 'apple-pay',
+      });
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -1188,7 +1315,7 @@ describe('TransakService', () => {
         fiatCurrencyId: 'USD',
         paymentMethod: 'credit_debit_card',
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -1204,7 +1331,7 @@ describe('TransakService', () => {
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
       promise.catch(() => undefined);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -1226,7 +1353,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getKycRequirement('quote-123');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1252,7 +1379,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getAdditionalRequirements('quote-456');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1280,7 +1407,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.submitSsnDetails('123-45-6789', 'quote-123');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -1312,7 +1439,7 @@ describe('TransakService', () => {
         'investment',
         'payments',
       ]);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -1343,7 +1470,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getIdProofStatus('wfr-123');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(mockStatus);
@@ -1377,7 +1504,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1398,7 +1525,8 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '400'");
@@ -1427,7 +1555,7 @@ describe('TransakService', () => {
         '0x1234',
         '/payments/debit-credit-card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -1459,14 +1587,14 @@ describe('TransakService', () => {
         '0x1234',
         '/payments/debit-credit-card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
     });
 
     it('retries order creation when the first attempt fails with an existing order error', async () => {
-      jest.useRealTimers();
+      vi.useRealTimers();
 
       nockTranslation();
 
@@ -1525,7 +1653,8 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '409'");
@@ -1548,7 +1677,8 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow(
@@ -1585,12 +1715,67 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
       expect(result.id).toBe(depositOrderId);
       expect(result.orderType).toBe('DEPOSIT');
+    });
+
+    it('sends client identity query params on ramps API order fetches', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(
+          (query) =>
+            query.clientProduct === 'metamask-mobile' &&
+            query.clientVersion === '8.9.0',
+        )
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('omits the wallet query parameter when it is undefined', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(
+          (query) =>
+            query.wallet === undefined &&
+            query.action === 'deposit' &&
+            query.context === MOCK_CONTEXT,
+        )
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService();
+
+      const promise = service.getOrder(
+        depositOrderId,
+        // A JS consumer can pass undefined despite the type; it must not
+        // become a literal "undefined" query parameter.
+        undefined as unknown as string,
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
     });
 
     it('converts a raw Transak order ID to deposit format', async () => {
@@ -1605,7 +1790,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder('raw-order-id', '0x1234');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1634,7 +1819,7 @@ describe('TransakService', () => {
         '0x1234',
         paymentDetails,
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1662,7 +1847,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1686,7 +1871,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1706,7 +1891,7 @@ describe('TransakService', () => {
 
       const promise = service.getOrder(depositOrderId, '0x1234');
       promise.catch(() => undefined);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '503'");
@@ -1733,7 +1918,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1760,7 +1945,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserLimits('USD', 'credit_debit_card', 'L2');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1782,7 +1967,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserLimits('USD', '', 'L2');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_USER_LIMITS);
@@ -1806,7 +1991,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.requestOtt();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1932,6 +2117,189 @@ describe('TransakService', () => {
     });
   });
 
+  describe('createWidgetUrl', () => {
+    const WIDGET_URL_PATH = `${STAGING_PROVIDER_PATH}/widget-url`;
+    const MOCK_WIDGET_URL = 'https://global-stg.transak.com?sessionId=sess-1';
+
+    it('creates a widget URL via the ramps API proxy', async () => {
+      let requestBody: Record<string, unknown> | undefined;
+      const scope = nock(STAGING_ORDERS_BASE)
+        .post(WIDGET_URL_PATH, (body) => {
+          requestBody = body;
+          return true;
+        })
+        .query({
+          action: 'deposit',
+          sdk: '2.1.6',
+          controller: packageJson.version,
+          context: MOCK_CONTEXT,
+        })
+        .matchHeader('authorization', 'Bearer mock-bearer-token')
+        .matchHeader('x-transak-access-token', MOCK_ACCESS_TOKEN.accessToken)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET', {
+        themeColor: '037dd6',
+      });
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+      expect(requestBody).toStrictEqual({
+        widgetParams: {
+          referrerDomain: 'metamask.io',
+          fiatCurrency: 'USD',
+          cryptoCurrencyCode: 'ETH',
+          fiatAmount: 100,
+          network: 'ethereum',
+          paymentMethod: 'credit_debit_card',
+          walletAddress: '0xWALLET',
+          hideExchangeScreen: 'true',
+          disableWalletAddressEdit: 'true',
+          hideMenu: 'true',
+          redirectURL:
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          themeColor: '037dd6',
+        },
+      });
+    });
+
+    it('throws when not authenticated with Transak', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('omits the Transak access token header when the token is cleared while awaiting the bearer token', async () => {
+      const scope = nock(STAGING_ORDERS_BASE, {
+        badheaders: ['x-transak-access-token'],
+      })
+        .post(WIDGET_URL_PATH)
+        .query({
+          action: 'deposit',
+          sdk: '2.1.6',
+          controller: packageJson.version,
+          context: MOCK_CONTEXT,
+        })
+        .matchHeader('authorization', 'Bearer mock-bearer-token')
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service, mockGetBearerToken } = getService();
+      authenticateService(service);
+      mockGetBearerToken.mockImplementation(async () => {
+        service.clearAccessToken();
+        return 'mock-bearer-token';
+      });
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('propagates failures from the bearer token fetch', async () => {
+      const { service } = getService({
+        mockGetBearerToken: vi
+          .fn()
+          .mockRejectedValue(new Error('wallet is locked')),
+      });
+      authenticateService(service);
+
+      await expect(
+        service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET'),
+      ).rejects.toThrow('wallet is locked');
+    });
+
+    it('throws a TransakApiError on a non-2xx proxy response', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(400, {
+          error: { message: 'referrerDomain is required' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(TransakApiError);
+    });
+
+    it('respects rampsApiBaseUrlOverride for local development', async () => {
+      const scope = nock('http://localhost:3000')
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { rampsApiBaseUrlOverride: 'http://localhost:3000' },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses the production proxy path when environment is Production', async () => {
+      const scope = nock(PRODUCTION_ORDERS_BASE)
+        .post(`${PRODUCTION_PROVIDER_PATH}/widget-url`)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { environment: TransakEnvironment.Production },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('uses the dev ramps API with the staging provider path when environment is Development', async () => {
+      const scope = nock('https://on-ramp.dev-api.cx.metamask.io')
+        .post(WIDGET_URL_PATH)
+        .query(true)
+        .reply(200, { widgetUrl: MOCK_WIDGET_URL });
+
+      const { service } = getService({
+        options: { environment: TransakEnvironment.Development },
+      });
+      authenticateService(service);
+
+      const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toBe(MOCK_WIDGET_URL);
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
   describe('confirmPayment', () => {
     it('confirms payment with translated payment method', async () => {
       nockTranslation();
@@ -1953,7 +2321,7 @@ describe('TransakService', () => {
         depositOrderId,
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1977,7 +2345,7 @@ describe('TransakService', () => {
         'raw-order-id',
         'credit_debit_card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -2003,7 +2371,7 @@ describe('TransakService', () => {
         'order-1',
         '/payments/debit-credit-card',
       );
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -2034,7 +2402,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder(depositOrderId);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -2050,7 +2418,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('raw-cancel-id');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -2073,7 +2441,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('bad-order');
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '404'");
@@ -2091,7 +2460,8 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('err-order');
-      await jest.runAllTimersAsync();
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toBeInstanceOf(TransakApiError);
@@ -2131,11 +2501,11 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('collects individual cancel errors instead of throwing', async () => {
@@ -2163,7 +2533,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       const errors = await promise;
@@ -2183,12 +2553,10 @@ describe('TransakService', () => {
       const { service } = getService();
       authenticateService(service);
 
-      jest
-        .spyOn(service, 'cancelOrder')
-        .mockRejectedValue('string error value');
+      vi.spyOn(service, 'cancelOrder').mockRejectedValue('string error value');
 
       const promise = service.cancelAllActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       const errors = await promise;
@@ -2207,7 +2575,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
@@ -2225,7 +2593,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -2238,6 +2606,520 @@ describe('TransakService', () => {
       await expect(service.getActiveOrders()).rejects.toThrow(
         'Authentication required',
       );
+    });
+  });
+
+  describe('BaseDataService integration', () => {
+    async function settle<Result>(promise: Promise<Result>): Promise<Result> {
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      return await promise;
+    }
+
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
+
+      expect(
+        await rootMessenger.call('TransakService:invalidateQueries'),
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated events after a read', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .reply(200, { data: [] });
+      const { service, messenger } = getService();
+      authenticateService(service);
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.getActiveOrders());
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'TransakService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('publishes cacheUpdated events after a write', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'a@b.com',
+            expiresIn: 300,
+          },
+        });
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.sendUserOtp('a@b.com'));
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'TransakService:cacheUpdated',
+        expect.objectContaining({ objectType: 'mutation' }),
+      );
+    });
+
+    it('keeps request bodies and credentials out of published cache keys', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'secret@example.com',
+            expiresIn: 300,
+          },
+        })
+        .post('/api/v2/kyc/ssn')
+        .reply(200, { data: {} });
+      const { service, messenger } = getService();
+      authenticateService(service);
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.sendUserOtp('secret@example.com'));
+      await settle(service.submitSsnDetails('123-45-6789', 'quote-1'));
+
+      const eventNames = publishSpy.mock.calls
+        .map(([eventName]) => String(eventName))
+        .join(' ');
+      expect(eventNames).toContain('TransakService:sendUserOtp');
+      expect(eventNames).not.toContain('secret@example.com');
+      expect(eventNames).not.toContain('123-45-6789');
+      expect(eventNames).not.toContain(MOCK_API_KEY);
+      expect(eventNames).not.toContain(MOCK_ACCESS_TOKEN.accessToken);
+    });
+
+    it('shares one request between concurrent identical reads', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS });
+      const secondRequest = nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Other' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all([service.getUserDetails(), service.getUserDetails()]),
+      );
+
+      expect(results).toStrictEqual([MOCK_USER_DETAILS, MOCK_USER_DETAILS]);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('does not share requests between reads with different parameters', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/requirement')
+        .query((query) => query['metadata[quoteId]'] === 'quote-a')
+        .reply(200, { data: MOCK_KYC_REQUIREMENT })
+        .get('/api/v2/kyc/requirement')
+        .query((query) => query['metadata[quoteId]'] === 'quote-b')
+        .reply(200, { data: { ...MOCK_KYC_REQUIREMENT, kycType: 'L3' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all([
+          service.getKycRequirement('quote-a'),
+          service.getKycRequirement('quote-b'),
+        ]),
+      );
+
+      expect(results.map(({ kycType }) => kycType)).toStrictEqual(['L2', 'L3']);
+    });
+
+    it('does not share a read between different login sessions', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS })
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Second' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const first = service.getUserDetails();
+      service.setAccessToken({
+        accessToken: 'other-session',
+        ttl: 3600,
+        created: new Date(Date.now() + 1000),
+      });
+      const second = service.getUserDetails();
+      const results = await settle(Promise.all([first, second]));
+
+      expect(results.map(({ firstName }) => firstName)).toStrictEqual([
+        'Test',
+        'Second',
+      ]);
+    });
+
+    it('does not share a read between requests for different paths', async () => {
+      const orderIds = ['order-a', 'order-b'];
+      for (const orderId of orderIds) {
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/${orderId}`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get(`/api/v2/orders/${orderId}`)
+          .query(true)
+          .reply(200, {
+            data: {
+              ...MOCK_TRANSAK_ORDER,
+              paymentDetails: [
+                {
+                  fiatCurrency: 'USD',
+                  paymentMethod: 'credit_debit_card',
+                  fields: [{ name: 'reference', id: 'ref', value: orderId }],
+                },
+              ],
+            },
+          });
+      }
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all(
+          orderIds.map((orderId) =>
+            service.getOrder(
+              `${STAGING_PROVIDER_PATH}/orders/${orderId}`,
+              '0x1234',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        results.map(({ paymentDetails }) => paymentDetails?.[0]?.fields[0]),
+      ).toStrictEqual([
+        { name: 'reference', id: 'ref', value: 'order-a' },
+        { name: 'reference', id: 'ref', value: 'order-b' },
+      ]);
+    });
+
+    describe('sparse responses', () => {
+      it('accepts a user profile that is missing optional fields', async () => {
+        const sparseProfile = {
+          id: 'user-1',
+          firstName: 'Test',
+          kyc: { status: 'APPROVED', type: 'SIMPLE' },
+          address: { addressLine1: '123 Test St', city: 'Test City' },
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: sparseProfile });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(service.getUserDetails());
+
+        expect(result).toStrictEqual(sparseProfile);
+      });
+
+      it('accepts a profile that has no kyc or address yet', async () => {
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: { id: 'user-1' } });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(service.getUserDetails());
+
+        expect(result).toStrictEqual({ id: 'user-1' });
+      });
+
+      it('still rejects a profile field with the wrong type', async () => {
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: { id: 'user-1', firstName: 42 } });
+        const { service } = getService();
+        authenticateService(service);
+
+        await expect(settle(service.getUserDetails())).rejects.toThrow(
+          'unexpected response',
+        );
+      });
+
+      it('accepts a buy quote that only has the quote id and amounts', async () => {
+        nockTranslation();
+        const sparseQuote = {
+          quoteId: 'quote-1',
+          conversionPrice: 4072.34,
+          fiatCurrency: 'USD',
+          cryptoCurrency: 'ETH',
+          fiatAmount: 100,
+          cryptoAmount: 0.02455598,
+          totalFee: 23.33,
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/lookup/quotes')
+          .query(true)
+          .reply(200, { data: sparseQuote });
+        const { service } = getService();
+
+        const result = await settle(
+          service.getBuyQuote(
+            'USD',
+            'eip155:1/slip44:60',
+            'eip155:1',
+            '/payments/debit-credit-card',
+            '100',
+          ),
+        );
+
+        expect(result.quoteId).toBe('quote-1');
+      });
+
+      it('rejects a buy quote without a quote id', async () => {
+        nockTranslation();
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/lookup/quotes')
+          .query(true)
+          .reply(200, { data: { fiatAmount: 100 } });
+        const { service } = getService();
+
+        await expect(
+          settle(
+            service.getBuyQuote(
+              'USD',
+              'eip155:1/slip44:60',
+              'eip155:1',
+              '/payments/debit-credit-card',
+              '100',
+            ),
+          ),
+        ).rejects.toThrow('unexpected response');
+      });
+
+      it('accepts user limits without a shortage', async () => {
+        nockTranslation();
+        const limits = {
+          limits: { '1': 5000, '30': 25000, '365': 100000 },
+          spent: { '1': 0, '30': 0, '365': 0 },
+          remaining: { '1': 5000, '30': 25000, '365': 100000 },
+          exceeded: { '1': false, '30': false, '365': false },
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/user-limit')
+          .query(true)
+          .reply(200, { data: limits });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.getUserLimits('USD', 'credit_debit_card', 'SIMPLE'),
+        );
+
+        expect(result).toStrictEqual(limits);
+      });
+
+      it('accepts a created order whose payment details are null', async () => {
+        nockTranslation();
+        nock(STAGING_TRANSAK_BASE)
+          .post('/api/v2/orders')
+          .reply(200, {
+            data: {
+              orderId: 'order-abc-123',
+              walletAddress: '0x1234',
+              paymentDetails: null,
+            },
+          });
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/order-abc-123')
+          .query(true)
+          .reply(200, { data: { orderId: 'order-abc-123' } });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.createOrder('quote-123', '0x1234', 'credit_debit_card'),
+        );
+
+        expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`);
+      });
+
+      it('reads payment details from an order response without a wallet address', async () => {
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/order-abc-123')
+          .query(true)
+          .reply(200, {
+            data: {
+              orderId: 'order-abc-123',
+              paymentDetails: MOCK_TRANSAK_ORDER.paymentDetails,
+            },
+          });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.getOrder(
+            `${STAGING_PROVIDER_PATH}/orders/order-abc-123`,
+            '0x1234',
+          ),
+        );
+
+        expect(result.paymentDetails).toStrictEqual(
+          MOCK_TRANSAK_ORDER.paymentDetails,
+        );
+      });
+    });
+
+    it('refetches on sequential reads', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS })
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Second' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const first = await settle(service.getUserDetails());
+      const second = await settle(service.getUserDetails());
+
+      expect(first.firstName).toBe('Test');
+      expect(second.firstName).toBe('Second');
+    });
+
+    it('retries reads that fail', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(500)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS });
+      const { service } = getService({
+        options: { policyOptions: { maxRetries: 1 } },
+      });
+      authenticateService(service);
+
+      expect(await settle(service.getUserDetails())).toStrictEqual(
+        MOCK_USER_DETAILS,
+      );
+    });
+
+    it.each([
+      ['sendUserOtp', 'post', '/api/v2/auth/login', ['a@b.com']],
+      ['patchUser', 'patch', '/api/v2/kyc/user', [{}]],
+      ['cancelOrder', 'delete', '/api/v2/orders/order-1', ['order-1']],
+      ['logout', 'post', '/api/v1/auth/logout', []],
+      ['requestOtt', 'post', '/api/v2/auth/request-ott', []],
+      ['submitSsnDetails', 'post', '/api/v2/kyc/ssn', ['123', 'quote-1']],
+    ] as const)(
+      'does not retry the %s write when it fails',
+      async (method, verb, path, args) => {
+        nock(STAGING_TRANSAK_BASE).intercept(path, verb).query(true).reply(500);
+        const secondRequest = nock(STAGING_TRANSAK_BASE)
+          .intercept(path, verb)
+          .query(true)
+          .reply(200, { data: {} });
+        const { service } = getService({
+          options: { policyOptions: { maxRetries: 3 } },
+        });
+        authenticateService(service);
+
+        await expect(
+          settle(
+            (service[method] as (...a: unknown[]) => Promise<unknown>)(...args),
+          ),
+        ).rejects.toThrow("failed with status '500'");
+        expect(secondRequest.isDone()).toBe(false);
+      },
+    );
+
+    it('shares one circuit breaker between reads and writes', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .times(2)
+        .reply(500);
+      const loginRequest = nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'a@b.com',
+            expiresIn: 300,
+          },
+        });
+      const { service } = getService({
+        options: {
+          policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
+        },
+      });
+      authenticateService(service);
+
+      await expect(settle(service.getActiveOrders())).rejects.toThrow(
+        "failed with status '500'",
+      );
+      await expect(settle(service.getActiveOrders())).rejects.toThrow(
+        "failed with status '500'",
+      );
+      await expect(settle(service.sendUserOtp('a@b.com'))).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
+      expect(loginRequest.isDone()).toBe(false);
+    });
+
+    it('throws a descriptive error when a read response is malformed', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/requirement')
+        .query(true)
+        .reply(200, { data: { status: 'APPROVED' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      await expect(
+        settle(service.getKycRequirement('quote-1')),
+      ).rejects.toThrow(
+        'Query function for "TransakService:getKycRequirement" returned an unexpected response',
+      );
+    });
+
+    it('throws a descriptive error when a write response is malformed', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, { data: { stateToken: 'st' } });
+      const { service } = getService();
+
+      await expect(settle(service.sendUserOtp('a@b.com'))).rejects.toThrow(
+        'Mutation function for "TransakService:sendUserOtp" returned an unexpected response',
+      );
+    });
+
+    it('does not store an access token when verification returns a malformed response', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/verify')
+        .reply(200, { data: { ttl: 3600 } });
+      const { service } = getService();
+
+      await expect(
+        settle(service.verifyUserOtp('a@b.com', '000000', 'st')),
+      ).rejects.toThrow('returned an unexpected response');
+      expect(service.getAccessToken()).toBeNull();
     });
   });
 
@@ -2257,7 +3139,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -2280,7 +3162,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('a@b.com');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();

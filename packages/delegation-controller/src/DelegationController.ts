@@ -9,8 +9,8 @@ import type {
   DeleGatorEnvironment,
   Hex,
   UnsignedDelegation,
-} from './types';
-import { createTypedMessageParams } from './utils';
+} from './types.js';
+import { createTypedMessageParams } from './utils.js';
 
 export const controllerName = 'DelegationController';
 

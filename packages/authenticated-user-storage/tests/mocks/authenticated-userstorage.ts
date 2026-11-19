@@ -1,12 +1,22 @@
-import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage';
+import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage.js';
 import type {
+  AssetsWatchlistBlob,
   DelegationResponse,
   DelegationSubmission,
+  MarketingConsent,
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
   NotificationPreferences,
-} from '../../src/types';
+  UserAssetsBlob,
+} from '../../src/types.js';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators.js';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
+export const MOCK_MARKETING_CONSENT_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/marketing-consent`;
+export const MOCK_IDENTITY_SHARING_CONSENT_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/identity-sharing-consent`;
+export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/assets-watchlist`;
+export const MOCK_USER_ASSETS_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/custom-tokens`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {
@@ -66,4 +76,51 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
       'e8f2a1b3-5c4d-4e6f-8a9b-2c3d4e5f6a7b',
     ],
   },
+  agenticCli: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: false,
+  },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 };
+
+export const MOCK_MARKETING_CONSENT: MarketingConsent = {
+  marketingConsentEnabled: true,
+};
+
+export const MOCK_IDENTITY_SHARING_CONSENT: IdentitySharingConsent = {
+  kyc: true,
+};
+
+export const MOCK_IDENTITY_SHARING_CONSENT_WRITE: IdentitySharingConsentWrite =
+  {
+    audience: 'kyc',
+    granted: true,
+  };
+
+export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {
+  version: 1,
+  assets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:1/slip44:60',
+  ],
+};
+
+export const MOCK_INVALID_ASSETS_WATCHLIST_BLOB = {
+  version: 2,
+  assets: 'not-an-array',
+} as const;
+
+export const MOCK_USER_ASSETS_BLOB: UserAssetsBlob = {
+  version: 1,
+  importedAssets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+  ],
+  hiddenAssets: ['eip155:10/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce36000000'],
+};
+
+export const MOCK_INVALID_USER_ASSETS_BLOB = {
+  version: 2,
+  importedAssets: 'not-an-array',
+  hiddenAssets: [],
+} as const;

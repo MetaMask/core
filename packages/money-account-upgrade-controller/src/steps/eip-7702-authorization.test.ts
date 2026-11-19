@@ -5,9 +5,11 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
-import { eip7702AuthorizationStep } from './eip-7702-authorization';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import { eip7702AuthorizationStep } from './eip-7702-authorization.js';
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia) — non-trivial decimal
@@ -29,7 +31,7 @@ const MOCK_NONCE = 7;
 
 const PLAIN_EOA_CODE = '0x';
 const delegationCode = (impl: Hex): Hex =>
-  `0xef0100${impl.slice(2).toLowerCase()}` as Hex;
+  `0xef0100${impl.slice(2).toLowerCase()}`;
 
 // 65-byte signature: r (32) + s (32) + v (1). v = 28 → yParity = 1.
 const MOCK_R =
@@ -49,14 +51,11 @@ type ProviderRequest = (args: {
 }) => Promise<unknown>;
 
 type Mocks = {
-  createUpgrade: jest.Mock;
-  signEip7702Authorization: jest.Mock;
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock<
-    ReturnType<ProviderRequest>,
-    [Parameters<ProviderRequest>[0]]
-  >;
+  createUpgrade: Mock;
+  signEip7702Authorization: Mock;
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  providerRequest: Mock<ProviderRequest>;
 };
 
 /**
@@ -82,10 +81,10 @@ function setup(): {
   messenger: MoneyAccountUpgradeControllerMessenger;
   mocks: Mocks;
 } {
-  const providerRequest = jest.fn() as Mocks['providerRequest'];
+  const providerRequest = vi.fn() as Mocks['providerRequest'];
 
   const mocks: Mocks = {
-    createUpgrade: jest.fn().mockResolvedValue({
+    createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ADDRESS,
       address: MOCK_DELEGATOR_IMPL,
       chainId: MOCK_CHAIN_ID,
@@ -93,11 +92,11 @@ function setup(): {
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
-    signEip7702Authorization: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    findNetworkClientIdByChainId: jest
+    signEip7702Authorization: vi.fn().mockResolvedValue(MOCK_SIGNATURE),
+    findNetworkClientIdByChainId: vi
       .fn()
       .mockReturnValue(MOCK_NETWORK_CLIENT_ID),
-    getNetworkClientById: jest.fn().mockReturnValue({
+    getNetworkClientById: vi.fn().mockReturnValue({
       provider: { request: providerRequest },
     }),
     providerRequest,
@@ -150,9 +149,11 @@ async function run(
     messenger,
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
-    boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex,
+    boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    allowedCalldataEnforcer: '0x1010101010101010101010101010101010101010',
+    allowedTargetsEnforcer: '0x2020202020202020202020202020202020202020',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_TOKEN,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
@@ -182,7 +183,7 @@ describe('eip7702AuthorizationStep', () => {
       const { messenger, mocks } = setup();
       configureProvider(
         mocks,
-        `0xef0100${MOCK_DELEGATOR_IMPL.slice(2).toUpperCase()}` as Hex,
+        `0xef0100${MOCK_DELEGATOR_IMPL.slice(2).toUpperCase()}`,
       );
 
       const result = await run(messenger);
@@ -202,19 +203,33 @@ describe('eip7702AuthorizationStep', () => {
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
     });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, delegationCode(MOCK_THIRD_PARTY_IMPL));
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
+    });
   });
 
   describe('when the account has unexpected non-delegation code', () => {
     it('throws without signing or submitting', async () => {
       const { messenger, mocks } = setup();
       // A regular contract — not a 7702 delegation.
-      configureProvider(mocks, '0x6080604052' as Hex);
+      configureProvider(mocks, '0x6080604052');
 
       await expect(run(messenger)).rejects.toThrow(
         `Account ${MOCK_ADDRESS} has unexpected on-chain code; expected either no code or an EIP-7702 delegation.`,
       );
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
+    });
+
+    it('marks the failure as terminal', async () => {
+      const { messenger, mocks } = setup();
+      configureProvider(mocks, '0x6080604052');
+
+      await expect(run(messenger)).rejects.toMatchObject({ terminal: true });
     });
 
     it('throws when eth_getCode returns a non-hex value', async () => {

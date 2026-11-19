@@ -19,8 +19,8 @@ import {
   LOG_METHOD_TYPES,
   WALLET_PREFIX,
   CAVEAT_TYPES,
-} from './enums';
-import type { PermissionLogControllerMethodActions } from './PermissionLogController-method-action-types';
+} from './enums.js';
+import type { PermissionLogControllerMethodActions } from './PermissionLogController-method-action-types.js';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,

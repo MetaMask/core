@@ -1,4 +1,4 @@
-import { Slip44Service } from './Slip44Service';
+import { Slip44Service } from './Slip44Service.js';
 
 export { Slip44Service };
 

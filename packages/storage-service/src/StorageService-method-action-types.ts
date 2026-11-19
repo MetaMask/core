@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { StorageService } from './StorageService';
+import type { StorageService } from './StorageService.js';
 
 /**
  * Store large JSON data in storage.

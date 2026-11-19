@@ -7,35 +7,40 @@ import type {
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
-} from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
+} from '../../../keyring-controller/src/index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionStatus } from '../types.js';
+import type { AuthorizationList } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import {
   DELEGATION_PREFIX,
   decodeAuthorizationSignature,
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getAuthorizationAuthority,
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
+  recoverAuthorizationAuthority,
   signAuthorizationList,
-} from './eip7702';
+  updateEIP7702BatchData,
+} from './eip7702.js';
 import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
-} from './feature-flags';
-import { rpcRequest } from './provider';
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
 
-jest.mock('../utils/feature-flags');
+vi.mock('../utils/feature-flags');
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const CHAIN_ID_MOCK = '0xab12';
@@ -91,34 +96,34 @@ describe('EIP-7702 Utils', () => {
     MessengerEvents<TransactionControllerMessenger>
   >;
 
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
   let controllerMessenger: TransactionControllerMessenger;
 
-  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+  const getEIP7702SupportedChainsMock = vi.mocked(getEIP7702SupportedChains);
 
-  const getEIP7702ContractAddressesMock = jest.mocked(
+  const getEIP7702ContractAddressesMock = vi.mocked(
     getEIP7702ContractAddresses,
   );
 
-  let getKeyringStateMock: jest.MockedFn<
+  let getKeyringStateMock: MockedFunction<
     KeyringControllerGetStateAction['handler']
   >;
 
-  let signAuthorizationMock: jest.MockedFn<
+  let signAuthorizationMock: MockedFunction<
     KeyringControllerSignEip7702AuthorizationAction['handler']
   >;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
-    getKeyringStateMock = jest.fn().mockReturnValue({
+    getKeyringStateMock = vi.fn().mockReturnValue({
       isUnlocked: true,
       keyrings: [],
     });
 
-    signAuthorizationMock = jest
+    signAuthorizationMock = vi
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
@@ -281,6 +286,96 @@ describe('EIP-7702 Utils', () => {
       );
       expect(result?.[0]?.yParity).toBe('0x1');
     });
+
+    it('retains pre-signed authorizations without re-signing', async () => {
+      const preSignedAuthorization = {
+        address: AUTHORIZATION_LIST_MOCK[0].address,
+        chainId: AUTHORIZATION_LIST_MOCK[0].chainId,
+        nonce: AUTHORIZATION_LIST_MOCK[0].nonce,
+        r: '0xpreSignedR' as Hex,
+        s: '0xpreSignedS' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      const result = await signAuthorizationList({
+        authorizationList: [
+          preSignedAuthorization,
+          { address: AUTHORIZATION_LIST_MOCK[0].address },
+        ],
+        messenger: controllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(signAuthorizationMock).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual([
+        preSignedAuthorization,
+        {
+          address: AUTHORIZATION_LIST_MOCK[0].address,
+          chainId: TRANSACTION_META_MOCK.chainId,
+          nonce: '0x125',
+          r: '0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292',
+          s: '0xda533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf',
+          yParity: '0x1',
+        },
+      ]);
+    });
+  });
+
+  describe('recoverAuthorizationAuthority', () => {
+    it('recovers the signer of a valid EIP-7702 authorization', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488' as Hex,
+        s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBe(
+        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+      );
+    });
+
+    it('returns undefined for an invalid signature', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0x0' as Hex,
+        s: '0x0' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBeUndefined();
+    });
+  });
+
+  describe('getAuthorizationAuthority', () => {
+    it('returns the transaction sender for unsigned authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          { address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+          '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        ),
+      ).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+    });
+
+    it('recovers the signer for signed authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          {
+            address: '0xcccccccccccccccccccccccccccccccccccccccc',
+            chainId: '0x1',
+            nonce: '0x6',
+            r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488',
+            s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427',
+            yParity: '0x0',
+          },
+          '0xother',
+        ),
+      ).toBe('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
+    });
   });
 
   describe('decodeAuthorizationSignature', () => {
@@ -422,6 +517,23 @@ describe('EIP-7702 Utils', () => {
             type: 'Money Keyring',
             accounts: [ADDRESS_MOCK],
             metadata: { id: 'money', name: 'Money Keyring' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns true for MPC Money Keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'MPC Money Keyring',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'mpc-money', name: 'MPC Money Keyring' },
           },
         ],
       });
@@ -606,6 +718,75 @@ describe('EIP-7702 Utils', () => {
         delegationAddress: undefined,
         isSupported: false,
       });
+    });
+  });
+
+  describe('updateEIP7702BatchData', () => {
+    it('returns updated nested transactions and regenerated batch data without mutating the input', () => {
+      const nestedTransactions = [
+        {
+          data: '0xaaaa' as Hex,
+          to: ADDRESS_2_MOCK as Hex,
+          value: '0x5678' as Hex,
+        },
+        {
+          data: '0xbbbb' as Hex,
+          to: ADDRESS_3_MOCK as Hex,
+          value: '0xdef0' as Hex,
+        },
+      ];
+
+      const result = updateEIP7702BatchData({
+        from: ADDRESS_MOCK,
+        transactions: nestedTransactions,
+        updates: [
+          { transactionIndex: 0, transactionData: '0x1234' },
+          { transactionIndex: 1, transactionData: '0x9abc' },
+        ],
+      });
+
+      expect(result).toStrictEqual({
+        nestedTransactions: [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        transactionData: DATA_MOCK,
+      });
+      expect(nestedTransactions.map(({ data }) => data)).toStrictEqual([
+        '0xaaaa',
+        '0xbbbb',
+      ]);
+    });
+
+    it('throws if an update index is duplicated', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [
+            { transactionIndex: 0, transactionData: '0x1234' },
+            { transactionIndex: 0, transactionData: '0x5678' },
+          ],
+        }),
+      ).toThrow('Duplicate nested transaction index - 0');
+    });
+
+    it('throws if an update index does not exist', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [{ transactionIndex: 1, transactionData: '0x1234' }],
+        }),
+      ).toThrow('Nested transaction not found with index - 1');
     });
   });
 

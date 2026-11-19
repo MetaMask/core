@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SubscriptionController } from './SubscriptionController';
+import type { SubscriptionController } from './SubscriptionController.js';
 
 /**
  * Gets the pricing information from the subscription service.
@@ -21,6 +21,22 @@ export type SubscriptionControllerGetSubscriptionsAction = {
 };
 
 /**
+ * Gets and stores the user's subscription benefits.
+ *
+ * An ineligible response is a normal result. Persisted benefits are cleared
+ * and the response is returned so callers can branch on `eligible`. That
+ * includes a provisional subscription whose benefits are not ready yet,
+ * which is distinct from having no active Money Account Plus subscription.
+ *
+ * @returns The benefits response, including when `eligible` is false.
+ * @throws If the user is not an active Money Account Plus subscriber.
+ */
+export type SubscriptionControllerGetBenefitsAction = {
+  type: `SubscriptionController:getBenefits`;
+  handler: SubscriptionController['getBenefits'];
+};
+
+/**
  * Get the subscription by product.
  *
  * @param productType - The product type.
@@ -29,6 +45,23 @@ export type SubscriptionControllerGetSubscriptionsAction = {
 export type SubscriptionControllerGetSubscriptionByProductAction = {
   type: `SubscriptionController:getSubscriptionByProduct`;
   handler: SubscriptionController['getSubscriptionByProduct'];
+};
+
+/**
+ * Whether the user is eligible to start a trial for the given product.
+ *
+ * Shield is eligible when the user has not trialed Shield before.
+ * Money Account Plus is eligible when the user has not trialed it before
+ * and is authenticated with social login. Only an unlocked wallet can
+ * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+ * sufficient social-login check.
+ *
+ * @param productType - The product to check.
+ * @returns Whether the user is eligible for a trial.
+ */
+export type SubscriptionControllerIsUserEligibleForTrialAction = {
+  type: `SubscriptionController:isUserEligibleForTrial`;
+  handler: SubscriptionController['isUserEligibleForTrial'];
 };
 
 /**
@@ -52,29 +85,74 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
   handler: SubscriptionController['unCancelSubscription'];
 };
 
-export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
-  type: `SubscriptionController:startShieldSubscriptionWithCard`;
-  handler: SubscriptionController['startShieldSubscriptionWithCard'];
+/**
+ * Starts a card-paid subscription checkout session for the requested products
+ * (e.g. Shield or Money Account Plus).
+ *
+ * `isTrialRequested` on the request is ignored and overwritten from
+ * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+ * when it has not been trialed. Money Account Plus is eligible when it has
+ * not been trialed and the user is authenticated with social login.
+ *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
+ *
+ * @param request - The start subscription request.
+ * @returns The checkout session response.
+ */
+export type SubscriptionControllerStartSubscriptionWithCardAction = {
+  type: `SubscriptionController:startSubscriptionWithCard`;
+  handler: SubscriptionController['startSubscriptionWithCard'];
 };
 
+/**
+ * Starts a crypto-paid subscription for the requested products
+ * (e.g. Shield or Money Account Plus). Unlike card checkout, this
+ * creates the subscription immediately, so local state is refreshed
+ * afterwards.
+ *
+ * `isTrialRequested` on the request is ignored and overwritten from
+ * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+ * when it has not been trialed. Money Account Plus is eligible when it has
+ * not been trialed and the user is authenticated with social login.
+ *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
+ *
+ * @param request - The start crypto subscription request.
+ * @returns The start crypto subscription response.
+ * @throws If `products` is empty.
+ */
 export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
   type: `SubscriptionController:startSubscriptionWithCrypto`;
   handler: SubscriptionController['startSubscriptionWithCrypto'];
 };
 
 /**
- * Handles shield subscription crypto approval transactions.
+ * Submits a Shield ERC-20 crypto approval transaction to start or update a
+ * crypto subscription.
  *
- * @param txMeta - The transaction metadata.
- * @param isSponsored - Whether the transaction is sponsored.
- * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
+ * This handler is Shield / `TransactionType.shieldSubscriptionApprove` only.
+ * Delegation-based products (e.g. Money Account) must call
+ * `startSubscriptionWithCrypto` instead.
+ *
+ * @param request - The crypto approval request.
+ * @param request.productType - The subscription product. Typed as
+ * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more
+ * product).
+ * @param request.txMeta - The transaction metadata. Must have type
+ * `TransactionType.shieldSubscriptionApprove`.
+ * @param request.isSponsored - Whether the transaction is sponsored.
+ * @param request.rewardAccountId - The account ID of the reward subscription
+ * to link.
+ * @throws If `productType` is not Shield or `txMeta.type` is not
+ * `shieldSubscriptionApprove`.
  * @returns void
  */
-export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
-  {
-    type: `SubscriptionController:submitShieldSubscriptionCryptoApproval`;
-    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
-  };
+export type SubscriptionControllerSubmitSubscriptionCryptoApprovalAction = {
+  type: `SubscriptionController:submitSubscriptionCryptoApproval`;
+  handler: SubscriptionController['submitSubscriptionCryptoApproval'];
+};
 
 /**
  * Get transaction params to create crypto approve transaction for subscription payment
@@ -109,12 +187,12 @@ export type SubscriptionControllerGetBillingPortalUrlAction = {
 /**
  * Cache the last selected payment method for a specific product.
  *
- * @param product - The product to cache the payment method for.
- * @param paymentMethod - The payment method to cache.
- * @param paymentMethod.type - The type of the payment method.
- * @param paymentMethod.paymentTokenAddress - The payment token address.
- * @param paymentMethod.plan - The plan of the payment method.
- * @param paymentMethod.product - The product of the payment method.
+ * @param request - The request object.
+ * @param request.product - The product to cache the payment method for.
+ * @param request.paymentMethod - The payment method to cache.
+ * @param request.paymentMethod.type - The type of the payment method.
+ * @param request.paymentMethod.paymentTokenAddress - The payment token address.
+ * @param request.paymentMethod.plan - The plan of the payment method.
  */
 export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
   type: `SubscriptionController:cacheLastSelectedPaymentMethod`;
@@ -144,7 +222,8 @@ export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
  * recurringInterval: RecurringInterval.Month,
  * billingCycles: 1,
  * }
- * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false otherwise
+ * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false if the chain does not support sponsorship or the user has already trialed
+ * @throws If the crypto payment method or chain is missing from pricing
  */
 export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   type: `SubscriptionController:submitSponsorshipIntents`;
@@ -227,19 +306,36 @@ export type SubscriptionControllerTriggerAccessTokenRefreshAction = {
   handler: SubscriptionController['triggerAccessTokenRefresh'];
 };
 
+export type SubscriptionControllerStartPollingAction = {
+  type: `SubscriptionController:startPolling`;
+  handler: SubscriptionController['startPolling'];
+};
+
+export type SubscriptionControllerStopPollingByPollingTokenAction = {
+  type: `SubscriptionController:stopPollingByPollingToken`;
+  handler: SubscriptionController['stopPollingByPollingToken'];
+};
+
+export type SubscriptionControllerStopAllPollingAction = {
+  type: `SubscriptionController:stopAllPolling`;
+  handler: SubscriptionController['stopAllPolling'];
+};
+
 /**
  * Union of all SubscriptionController action types.
  */
 export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerGetBenefitsAction
   | SubscriptionControllerGetSubscriptionByProductAction
+  | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerGetSubscriptionsEligibilitiesAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerUnCancelSubscriptionAction
-  | SubscriptionControllerStartShieldSubscriptionWithCardAction
+  | SubscriptionControllerStartSubscriptionWithCardAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
+  | SubscriptionControllerSubmitSubscriptionCryptoApprovalAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction
@@ -252,4 +348,7 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetTokenApproveAmountAction
   | SubscriptionControllerGetTokenMinimumBalanceAmountAction
   | SubscriptionControllerClearStateAction
-  | SubscriptionControllerTriggerAccessTokenRefreshAction;
+  | SubscriptionControllerTriggerAccessTokenRefreshAction
+  | SubscriptionControllerStartPollingAction
+  | SubscriptionControllerStopPollingByPollingTokenAction
+  | SubscriptionControllerStopAllPollingAction;

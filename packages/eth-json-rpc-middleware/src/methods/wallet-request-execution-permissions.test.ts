@@ -1,13 +1,15 @@
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import type { WalletMiddlewareParams } from '../wallet';
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   ProcessRequestExecutionPermissionsHook,
   RequestExecutionPermissionsRequestParams,
   RequestExecutionPermissionsResult,
-} from './wallet-request-execution-permissions';
-import { createWalletRequestExecutionPermissionsHandler } from './wallet-request-execution-permissions';
+} from './wallet-request-execution-permissions.js';
+import { createWalletRequestExecutionPermissionsHandler } from './wallet-request-execution-permissions.js';
 
 const FROM_ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123A';
 const TO_ADDRESS_MOCK = '0x016562aA41A8697720ce0943F003141f5dEAe006';
@@ -68,7 +70,7 @@ const RESULT_MOCK: RequestExecutionPermissionsResult = [
 describe('wallet_requestExecutionPermissions', () => {
   let request: JsonRpcRequest;
   let params: RequestExecutionPermissionsRequestParams;
-  let processRequestExecutionPermissionsMock: jest.MockedFunction<ProcessRequestExecutionPermissionsHook>;
+  let processRequestExecutionPermissionsMock: MockedFunction<ProcessRequestExecutionPermissionsHook>;
   let context: WalletMiddlewareParams['context'];
 
   const callMethod = async (): Promise<Readonly<Json> | undefined> => {
@@ -80,7 +82,7 @@ describe('wallet_requestExecutionPermissions', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK);
     params = request.params as RequestExecutionPermissionsRequestParams;
@@ -89,7 +91,7 @@ describe('wallet_requestExecutionPermissions', () => {
       ['origin', 'test-origin'],
     ]) as WalletMiddlewareParams['context'];
 
-    processRequestExecutionPermissionsMock = jest.fn();
+    processRequestExecutionPermissionsMock = vi.fn();
     processRequestExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
   });
 
@@ -120,7 +122,7 @@ describe('wallet_requestExecutionPermissions', () => {
   });
 
   it('supports null rules', async () => {
-    params[0].rules = null as never;
+    params[0].rules = null;
 
     await callMethod();
 

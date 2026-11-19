@@ -1,5 +1,7 @@
-import { generateActionTypesContent } from './generate-content';
-import type { SourceInfo } from './parse-source';
+import { describe, expect, it } from 'vitest';
+
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
 
 describe('generateActionTypesContent', () => {
   it('generates action types for a controller with one method', async () => {
@@ -71,8 +73,7 @@ describe('generateActionTypesContent', () => {
        * Union of all BarController action types.
        */
       export type BarControllerMethodActions =
-        | BarControllerMethodAAction
-        | BarControllerMethodBAction;
+        BarControllerMethodAAction | BarControllerMethodBAction;
       "
     `);
   });
@@ -136,5 +137,41 @@ describe('generateActionTypesContent', () => {
     const result = await generateActionTypesContent(controller, 'prettier');
 
     expect(result).not.toContain('EmptyControllerMethodActions');
+  });
+
+  describe('with esm: true', () => {
+    it('adds .js extension to the import path', async () => {
+      const controller: SourceInfo = {
+        name: 'FooController',
+        filePath: '/some/path/FooController.ts',
+
+        methods: [{ name: 'doSomething', jsDoc: '' }],
+      };
+
+      const result = await generateActionTypesContent(
+        controller,
+        'prettier',
+        true,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        "/**
+         * This file is auto generated.
+         * Do not edit manually.
+         */
+
+        import type { FooController } from './FooController.js';
+
+        export type FooControllerDoSomethingAction = {
+          type: \`FooController:doSomething\`;
+          handler: FooController['doSomething'];
+        };
+
+        /**
+         * Union of all FooController action types.
+         */
+        export type FooControllerMethodActions = FooControllerDoSomethingAction;
+        "
+      `);
+    });
   });
 });

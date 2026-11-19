@@ -1,6 +1,6 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 
-import type { AttestationObject } from './types';
+import type { AttestationObject } from './types.js';
 
 /**
  * CBOR-decode an attestationObject buffer into a Map with `fmt`, `attStmt`,

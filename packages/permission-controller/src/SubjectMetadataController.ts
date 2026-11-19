@@ -5,13 +5,14 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import deepEqual from 'fast-deep-equal';
 
+import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types.js';
 import type {
   GenericPermissionController,
   PermissionSubjectMetadata,
-} from './PermissionController';
-import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types';
-import type { SubjectMetadataControllerMethodActions } from './SubjectMetadataController-method-action-types';
+} from './PermissionController.js';
+import type { SubjectMetadataControllerMethodActions } from './SubjectMetadataController-method-action-types.js';
 
 const controllerName = 'SubjectMetadataController';
 
@@ -201,6 +202,12 @@ export class SubjectMetadataController extends BaseController<
       subjectType: metadata.subjectType ?? null,
     };
 
+    const existingEntry = this.state.subjectMetadata[origin];
+
+    if (deepEqual(existingEntry, newMetadata)) {
+      return;
+    }
+
     let originToForget: string | null = null;
     // We only delete the oldest encountered subject from the cache, again to
     // ensure that the user's experience isn't degraded by missing icons etc.
@@ -213,19 +220,20 @@ export class SubjectMetadataController extends BaseController<
           .values()
           .next().value;
 
-      this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
-        cachedOrigin,
-      );
+      if (cachedOrigin) {
+        this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
+          cachedOrigin,
+        );
 
-      if (!this.#subjectHasPermissions(cachedOrigin)) {
-        originToForget = cachedOrigin;
+        if (!this.#subjectHasPermissions(cachedOrigin)) {
+          originToForget = cachedOrigin;
+        }
       }
     }
 
     this.#subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
-      // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
       draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];

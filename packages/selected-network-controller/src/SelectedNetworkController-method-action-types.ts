@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SelectedNetworkController } from './SelectedNetworkController';
+import type { SelectedNetworkController } from './SelectedNetworkController.js';
 
 export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   type: `SelectedNetworkController:setNetworkClientIdForDomain`;

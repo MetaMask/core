@@ -7,17 +7,18 @@ import type {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   InternalProvider,
   convertEip1193RequestToJsonRpcRequest,
-} from './internal-provider';
+} from './internal-provider.js';
 
-jest.mock('uuid');
+vi.mock('uuid');
 
 type ResultParam =
   | Json
@@ -51,7 +52,7 @@ const createV2Engine = (
       }): Json | Promise<Readonly<Json> | undefined> => {
         if (request.method === method) {
           return typeof result === 'function'
-            ? result(request as JsonRpcRequest, context)
+            ? result(request, context)
             : result;
         }
         return next();
@@ -202,11 +203,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        providerErrors.custom({
-          code: 1001,
-          message: 'Test error',
-          data: { cause: 'Test cause' },
-        }),
+        'Test error',
       );
     });
 
@@ -222,9 +219,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        rpcErrors.internal({
-          message: 'Test error',
-        }),
+        'Test error',
       );
     });
   });
@@ -339,9 +334,7 @@ describe.each([
         'push' in rpcHandler
           ? JsonRpcEngineV2.create({ middleware: [asV2Middleware(rpcHandler)] })
           : rpcHandler;
-      jest
-        .spyOn(rpcHandler, 'handle')
-        .mockRejectedValue(new Error('Test error'));
+      vi.spyOn(rpcHandler, 'handle').mockRejectedValue(new Error('Test error'));
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const request = {

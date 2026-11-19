@@ -1,8 +1,10 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   withMockedCommunications,
   withNetworkClient,
-} from '../../../tests/network-client/helpers';
-import { NetworkClientType } from '../../types';
+} from '../../../tests/network-client/helpers.js';
+import { NetworkClientType } from '../../types.js';
 
 describe('createNetworkClient - methods included in the Ethereum JSON-RPC spec - other methods', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

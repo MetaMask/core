@@ -1,0 +1,47 @@
+name: Create Update Issues
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  create-update-issues:
+    environment: default-branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout head
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fetch tags
+        run: git fetch --prune --unshallow --tags
+      - name: Get extension token
+        id: extension-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: 'MetaMask/metamask-extension'
+          permissions: |
+            contents: read
+            issues: write
+            metadata: read
+      - name: Get mobile token
+        id: mobile-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: 'MetaMask/metamask-mobile'
+          permissions: |
+            contents: read
+            issues: write
+            metadata: read
+      - name: Create issues in extension and mobile repositories
+        run: ./scripts/create-update-issues.sh --no-dry-run
+        env:
+          EXTENSION_GITHUB_TOKEN: ${{ steps.extension-token.outputs.token }}
+          MOBILE_GITHUB_TOKEN: ${{ steps.mobile-token.outputs.token }}

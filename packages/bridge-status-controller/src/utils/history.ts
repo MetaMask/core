@@ -4,41 +4,84 @@ import {
   isNonEvmChainId,
   isTronChainId,
 } from '@metamask/bridge-controller';
+import type { ChainId, DeepPartial } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
-} from '../types';
-import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
+  StartPollingForBridgeTxStatusArgs,
+} from '../types.js';
+import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
+import { isApprovalTx, isAtomic7702BatchTx } from './transaction.js';
+
+const TRANSACTION_STATUS_TO_STATUS_TYPES: Partial<
+  Record<TransactionStatus, StatusTypes>
+> = {
+  [TransactionStatus.failed]: StatusTypes.FAILED,
+  [TransactionStatus.submitted]: StatusTypes.PENDING,
+  [TransactionStatus.confirmed]: StatusTypes.COMPLETE,
+};
+
+const mergeHistoryItems = (
+  oldHistoryItem: BridgeHistoryItem,
+  historyItemOverrides?: Partial<
+    Pick<
+      BridgeHistoryItem,
+      'approvalTxId' | 'quoteIds' | 'quote' | 'txMetaId' | 'actionId'
+    > & { status?: DeepPartial<BridgeHistoryItem['status']> }
+  >,
+): Partial<BridgeHistoryItem> => {
+  return {
+    ...oldHistoryItem,
+    txMetaId: historyItemOverrides?.txMetaId ?? oldHistoryItem.txMetaId,
+    originalTransactionId:
+      oldHistoryItem.originalTransactionId ?? historyItemOverrides?.txMetaId,
+    actionId: historyItemOverrides?.actionId ?? oldHistoryItem.actionId,
+    approvalTxId:
+      historyItemOverrides?.approvalTxId ?? oldHistoryItem.approvalTxId,
+    status: {
+      ...oldHistoryItem.status,
+      srcChain: {
+        ...oldHistoryItem.status.srcChain,
+        txHash:
+          historyItemOverrides?.status?.srcChain?.txHash ??
+          oldHistoryItem.status.srcChain?.txHash,
+      },
+      status:
+        historyItemOverrides?.status?.status ?? oldHistoryItem.status?.status,
+    },
+    ...(historyItemOverrides?.quote && { quote: historyItemOverrides.quote }),
+    ...(historyItemOverrides?.quoteIds && {
+      quoteIds: historyItemOverrides.quoteIds,
+    }),
+  };
+};
 
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
-  actionId: string,
-  txMeta: { id: string; hash?: string },
+  oldKey: string,
+  newKey: string,
+  historyItemOverrides?: Parameters<typeof mergeHistoryItems>[1],
 ): boolean => {
-  const historyItem = state.txHistory[actionId];
+  const historyItem = state.txHistory[oldKey];
   if (!historyItem) {
     return false;
   }
 
-  state.txHistory[txMeta.id] = {
+  state.txHistory[newKey] = {
     ...historyItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-    status: {
-      ...historyItem.status,
-      srcChain: {
-        ...historyItem.status.srcChain,
-        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-      },
-    },
+    ...mergeHistoryItems(historyItem, historyItemOverrides),
   };
-  delete state.txHistory[actionId];
+  delete state.txHistory[oldKey];
   return true;
 };
+
+export const isBatchSellHistoryItem = (
+  historyItem: BridgeHistoryItem,
+): boolean => Boolean(historyItem?.batchSellData);
 
 /**
  * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
@@ -53,7 +96,7 @@ export const getMatchingHistoryEntryForTxMeta = (
 ): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
-  return historyEntries.find(([key, value]) => {
+  return historyEntries.find(([key, historyItem]) => {
     const {
       txMetaId,
       actionId,
@@ -61,15 +104,41 @@ export const getMatchingHistoryEntryForTxMeta = (
       status: {
         srcChain: { txHash },
       },
-    } = value;
-    return (
-      key === txMeta.id ||
-      key === txMeta.actionId ||
-      txMetaId === txMeta.id ||
-      (actionId ? actionId === txMeta.actionId : false) ||
-      (batchId ? batchId === txMeta.batchId : false) ||
-      (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
-    );
+    } = historyItem;
+
+    const isInitialBatchTx =
+      (Boolean(batchId) && batchId === txMeta.batchId) ||
+      key === txMeta.batchId;
+
+    const isTxMetaIdMatch = txMetaId === txMeta.id || key === txMeta.id;
+
+    if (isBatchSellHistoryItem(historyItem)) {
+      if (isAtomic7702BatchTx(txMeta)) {
+        return isInitialBatchTx || isTxMetaIdMatch;
+      }
+      // STX batch-sell
+      const isInitialBatchSellStxTrade =
+        isInitialBatchTx && !txMetaId && !actionId;
+      return !isInitialBatchSellStxTrade && isTxMetaIdMatch;
+    }
+
+    // Exclude approval transactions when matching by actionId to prevent
+    // premature quote event publishing
+    const isInitialRegularTx =
+      Boolean(actionId) &&
+      key === txMeta.actionId &&
+      !(txMeta.type && isApprovalTx(txMeta.type));
+
+    const isTxHashMatch = txHash
+      ? txHash.toLowerCase() === txMeta.hash?.toLowerCase()
+      : false;
+
+    return [
+      isInitialBatchTx,
+      isInitialRegularTx,
+      isTxMetaIdMatch,
+      isTxHashMatch,
+    ].some(Boolean);
   });
 };
 
@@ -86,15 +155,93 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 ): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
-  return historyEntries.find(([_, value]) =>
-    value.approvalTxId ? value.approvalTxId === txMeta.id : false,
+  return historyEntries.find(([key, value]) => {
+    if (value.approvalTxId && value.approvalTxId === txMeta.id) {
+      return true;
+    }
+
+    // approvalTxId is written only after the approval hash resolves
+    // until then the pre-submit actionId maps to the approval
+    return (
+      Boolean(txMeta.actionId) &&
+      Boolean(value.actionId) &&
+      key === txMeta.actionId &&
+      Boolean(txMeta.type && isApprovalTx(txMeta.type))
+    );
+  });
+};
+
+export const resolveHistoryKeyForTxMeta = (
+  { transactionMeta }: { transactionMeta: TransactionMeta },
+  txHistory: BridgeStatusControllerState['txHistory'],
+): { historyKey?: string; txMeta: TransactionMeta } => ({
+  historyKey:
+    // Match swap/bridge/batch src tx
+    (getMatchingHistoryEntryForTxMeta(txHistory, transactionMeta) ??
+      // Match approval tx
+      getMatchingHistoryEntryForApprovalTxMeta(
+        txHistory,
+        transactionMeta,
+      ))?.[0],
+  txMeta: transactionMeta,
+});
+
+/**
+ * Returns the BatchSell history items in the same batch as the provided tx hash.
+ *
+ * @param txHistory - The bridge status controller's history to search for matching history items
+ * @param txHashOrId - the hash or txMeta.id of a single trade in a BatchSell
+ * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch.
+ * @example
+ * getBatchSellHistoryItemsForTxHash(txHistory, id)
+ * If id is the hash or txMetaId of a BatchSell trade, it will return the history items for
+ * the trade and all other trades in the same batch.
+ */
+export const getBatchSellHistoryItemsForTxHash = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txHashOrId?: string,
+): { historyItems: BridgeHistoryItem[]; is7702Batch: boolean } => {
+  const historyItems = Object.values(txHistory);
+
+  if (!txHashOrId) {
+    return {
+      historyItems: [],
+      is7702Batch: false,
+    };
+  }
+
+  /**
+   * Either a delegation tx or a single STX BatchSell trade
+   */
+  const parentHistoryItem = historyItems.find(
+    ({ status, txMetaId }) =>
+      status.srcChain.txHash?.toLowerCase() === txHashOrId.toLowerCase() ||
+      txMetaId === txHashOrId,
   );
+
+  // Match by batchId or by quoteId
+  const matchingHistoryItems =
+    parentHistoryItem?.quoteIds?.map((quoteId) => txHistory[quoteId]) ??
+    historyItems.filter(
+      ({ batchId }) =>
+        batchId &&
+        parentHistoryItem?.batchId &&
+        batchId === parentHistoryItem.batchId,
+    );
+
+  return {
+    historyItems: matchingHistoryItems.filter((item) => item !== undefined),
+    is7702Batch:
+      Boolean(parentHistoryItem) &&
+      Boolean(parentHistoryItem?.quoteIds?.length),
+  };
 };
 
 /**
  * Determines the key to use for storing a bridge history item.
  * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
  *
+ * @deprecated specify an explicit history key instead
  * @param actionId - The action ID used for pre-submission tracking
  * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
  * @param syntheticTransactionId - The transactionId of the intent's placeholder transaction
@@ -115,17 +262,46 @@ export function getHistoryKey(
   return historyKey;
 }
 
-export const getInitialHistoryItem = (
-  args: StartPollingForBridgeTxStatusArgsSerialized,
-): {
-  historyKey: string;
-  txHistoryItem: BridgeHistoryItem;
+export const getHistoryOverridesFromTxMeta = (
+  isStxEnabled: boolean,
+  chainId: ChainId,
+  txMeta?: Partial<
+    Pick<TransactionMeta, 'actionId' | 'id' | 'status' | 'hash' | 'batchId'>
+  >,
+): Pick<BridgeHistoryItem, 'txMetaId' | 'actionId' | 'batchId'> & {
+  status: Partial<Pick<BridgeHistoryItem['status'], 'status'>> &
+    Pick<BridgeHistoryItem['status'], 'srcChain'>;
 } => {
+  const mappedStatus = txMeta?.status
+    ? TRANSACTION_STATUS_TO_STATUS_TYPES[txMeta.status]
+    : undefined;
+
+  return {
+    txMetaId: txMeta?.id,
+    actionId: txMeta?.actionId,
+    batchId: txMeta?.batchId,
+    status: {
+      ...(mappedStatus ? { status: mappedStatus } : {}),
+      srcChain: {
+        chainId,
+        // We don't set the initial tx hash for STX transactions because they return a hash on submission
+        // but it is not finalized until confirmation on chain
+        txHash:
+          isNonEvmChainId(chainId) || !isStxEnabled ? txMeta?.hash : undefined,
+      },
+    },
+  };
+};
+
+export const getInitialHistoryItem = (
+  args: StartPollingForBridgeTxStatusArgs,
+): BridgeHistoryItem => {
   const {
     bridgeTxMeta,
     quoteResponse,
     startTime,
     slippagePercentage,
+    customSlippage,
     initialDestAssetBalance,
     targetContractAddress,
     approvalTxId,
@@ -135,53 +311,43 @@ export const getInitialHistoryItem = (
     activeAbTests,
     accountAddress: selectedAddress,
     originalTransactionId,
-    actionId,
     tokenSecurityTypeDestination,
+    inputPrimaryDenomination,
+    batchSellData,
   } = args;
-  // Determine the key for this history item:
-  // - For pre-submission (non-batch EVM): use actionId
-  // - For post-submission or other cases: use bridgeTxMeta.id
-  const historyKey = getHistoryKey(
-    actionId,
-    bridgeTxMeta?.id,
-    originalTransactionId,
-  );
+
+  const { status: statusOverride, ...overridesFromTxMeta } =
+    getHistoryOverridesFromTxMeta(
+      isStxEnabled ?? false,
+      quoteResponse.quote.srcChainId,
+      bridgeTxMeta,
+    );
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
-  const txHistoryItem = {
-    txMetaId: bridgeTxMeta?.id,
-    actionId,
+  const txHistoryItem: BridgeHistoryItem = {
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
-    batchId: bridgeTxMeta?.batchId,
     quote: quoteResponse.quote,
+    quoteId: quoteResponse.quoteId,
     startTime,
     estimatedProcessingTimeInSeconds:
       quoteResponse.estimatedProcessingTimeInSeconds,
     slippagePercentage,
+    ...(customSlippage !== undefined && { customSlippage }),
     pricingData: {
-      amountSent: quoteResponse.sentAmount?.amount ?? '0',
-      amountSentInUsd: quoteResponse.sentAmount?.usd ?? undefined,
-      quotedGasInUsd: quoteResponse.gasFee?.effective?.usd ?? undefined,
-      quotedReturnInUsd: quoteResponse.toTokenAmount?.usd ?? undefined,
-      quotedGasAmount: quoteResponse.gasFee?.effective?.amount ?? undefined,
+      amountSent: quoteResponse?.sentAmount?.amount ?? '0',
+      amountSentInUsd: quoteResponse?.sentAmount?.usd ?? undefined,
+      quotedGasInUsd: quoteResponse?.gasFee?.total?.usd ?? undefined,
+      quotedReturnInUsd: quoteResponse?.toTokenAmount?.usd ?? undefined,
+      quotedGasAmount: quoteResponse?.gasFee?.total?.amount ?? undefined,
     },
     initialDestAssetBalance,
     targetContractAddress,
     account: selectedAddress,
+    ...overridesFromTxMeta,
     status: {
-      // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
-      // Also we know the bare minimum fields for status at this point in time
-      status: StatusTypes.PENDING,
-      srcChain: {
-        chainId: quoteResponse.quote.srcChainId,
-        // We don't set the initial tx hash for STX transactions because they return a hash on submission
-        // but it is not finalized until confirmation on chain
-        txHash:
-          isNonEvmChainId(quoteResponse.quote.srcChainId) || !isStxEnabled
-            ? bridgeTxMeta?.hash
-            : undefined,
-      },
+      status: statusOverride.status ?? StatusTypes.PENDING,
+      srcChain: statusOverride.srcChain,
     },
     hasApprovalTx: Boolean(quoteResponse.approval),
     approvalTxId,
@@ -193,9 +359,16 @@ export const getInitialHistoryItem = (
     ...(tokenSecurityTypeDestination !== undefined && {
       tokenSecurityTypeDestination,
     }),
+    ...(inputPrimaryDenomination !== undefined && {
+      inputPrimaryDenomination,
+    }),
   };
 
-  return { historyKey, txHistoryItem };
+  if (batchSellData) {
+    txHistoryItem.batchSellData = batchSellData;
+  }
+
+  return txHistoryItem;
 };
 
 export const shouldPollHistoryItem = (

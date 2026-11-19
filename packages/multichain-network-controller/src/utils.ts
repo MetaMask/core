@@ -8,11 +8,11 @@ import {
 } from '@metamask/utils';
 import type { Hex, CaipChainId } from '@metamask/utils';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants.js';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
-} from './types';
+} from './types.js';
 
 /**
  * Checks if the chain ID is EVM.

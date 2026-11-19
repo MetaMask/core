@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { DelegationController } from './DelegationController';
+import type { DelegationController } from './DelegationController.js';
 
 /**
  * Signs a delegation.

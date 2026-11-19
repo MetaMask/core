@@ -1,14 +1,16 @@
-import type { TransactionParams } from '../../../transaction-controller/src';
+import { describe, expect, it } from 'vitest';
+
+import type { TransactionParams } from '../../../transaction-controller/src/index.js';
 import {
   TransactionStatus,
   TransactionType,
   UserFeeLevel,
-} from '../../../transaction-controller/src';
-import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
-import { UserOperationStatus } from '../types';
-import type { UserOperation } from '../types';
-import type { UserOperationMetadata } from '../types';
-import { getTransactionMetadata } from './transaction';
+} from '../../../transaction-controller/src/index.js';
+import { EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
+import { UserOperationStatus } from '../types.js';
+import type { UserOperation } from '../types.js';
+import type { UserOperationMetadata } from '../types.js';
+import { getTransactionMetadata } from './transaction.js';
 
 const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   id: 'testUserOperationId',
@@ -209,7 +211,7 @@ describe('transation', () => {
       const metadata = {
         ...USER_OPERATION_METADATA_MOCK,
         chainId: '0x5',
-      } as UserOperationMetadata;
+      };
 
       const transactionMetadata = getTransactionMetadata(metadata);
 

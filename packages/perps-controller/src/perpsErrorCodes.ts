@@ -1,21 +1,33 @@
 /**
- * Error codes for PerpsController
- * These codes are returned to the UI layer for translation
- * Extracted to separate file to avoid circular dependencies with translatePerpsError
+ * Error codes for PerpsController.
+ * These codes are returned to the UI layer for translation.
+ * Extracted to a separate file to avoid circular dependencies with translatePerpsError.
+ *
+ * Adding a code is a minor, not a breaking change. Clients must handle unknown
+ * codes in a catch-all (else / default / fallback translation) rather than an
+ * exhaustive `Record<PerpsErrorCode, …>`.
  */
 export const PERPS_ERROR_CODES = {
   CLIENT_NOT_INITIALIZED: 'CLIENT_NOT_INITIALIZED',
   CLIENT_REINITIALIZING: 'CLIENT_REINITIALIZING',
   PROVIDER_NOT_AVAILABLE: 'PROVIDER_NOT_AVAILABLE',
+  PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  // With multiple registered venues a write must name the venue it is for
+  PROVIDER_ROUTE_REQUIRED: 'PROVIDER_ROUTE_REQUIRED',
+  PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
+  // Some venues or discovery targets could not complete a batch.
+  BATCH_INCOMPLETE: 'BATCH_INCOMPLETE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',
   POSITIONS_FAILED: 'POSITIONS_FAILED',
   ACCOUNT_STATE_FAILED: 'ACCOUNT_STATE_FAILED',
+  ORDERS_FAILED: 'ORDERS_FAILED', // An orders read failed; the order list is unknown, not empty
   MARKETS_FAILED: 'MARKETS_FAILED',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
   // Provider-agnostic order errors
   ORDER_LEVERAGE_REDUCTION_FAILED: 'ORDER_LEVERAGE_REDUCTION_FAILED',
+  ORDER_NO_LONGER_OPEN: 'ORDER_NO_LONGER_OPEN', // A cancel found no resting order: never placed, already cancelled, or filled; not proof of a fill or successful cancellation
   // HyperLiquid-specific order errors
   IOC_CANCEL: 'IOC_CANCEL', // Order could not immediately match (insufficient liquidity)
   // Connection errors
@@ -41,21 +53,80 @@ export const PERPS_ERROR_CODES = {
   ORDER_PRICE_REQUIRED: 'ORDER_PRICE_REQUIRED',
   ORDER_SIZE_MIN: 'ORDER_SIZE_MIN',
   ORDER_LEVERAGE_INVALID: 'ORDER_LEVERAGE_INVALID',
+  ORDER_MARGIN_MODE_INVALID: 'ORDER_MARGIN_MODE_INVALID',
+  ORDER_MARGIN_MODE_UNSUPPORTED: 'ORDER_MARGIN_MODE_UNSUPPORTED',
+  ORDER_MARGIN_MODE_POSITION_OPEN: 'ORDER_MARGIN_MODE_POSITION_OPEN',
+  ORDER_MARGIN_MODE_ORDER_OPEN: 'ORDER_MARGIN_MODE_ORDER_OPEN',
   ORDER_LEVERAGE_BELOW_POSITION: 'ORDER_LEVERAGE_BELOW_POSITION',
   ORDER_MAX_VALUE_EXCEEDED: 'ORDER_MAX_VALUE_EXCEEDED',
+  // Validation errors - trigger placement (stop / take profit) and partial TP/SL
+  ORDER_TRIGGER_PRICE_REQUIRED: 'ORDER_TRIGGER_PRICE_REQUIRED', // stop_*/take_profit_* placed without a trigger price
+  ORDER_TRIGGER_PRICE_POSITIVE: 'ORDER_TRIGGER_PRICE_POSITIVE',
+  ORDER_TRIGGER_PRICE_NOT_SUPPORTED: 'ORDER_TRIGGER_PRICE_NOT_SUPPORTED', // Trigger price supplied for a market/limit order
+  ORDER_TRIGGER_TPSL_UNSUPPORTED: 'ORDER_TRIGGER_TPSL_UNSUPPORTED', // Attached TP/SL on a trigger placement
+  ORDER_TPSL_SIZE_INVALID: 'ORDER_TPSL_SIZE_INVALID', // Partial TP/SL size non-positive, larger than the order, or missing its price
+  ORDER_EDIT_TRIGGER_UNSUPPORTED: 'ORDER_EDIT_TRIGGER_UNSUPPORTED', // editOrder cannot turn a resting order into a trigger placement
+  ORDER_TPSL_LINKAGE_CONFLICT: 'ORDER_TPSL_LINKAGE_CONFLICT', // tpslLinkage and the deprecated grouping disagree
+  ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED:
+    'ORDER_TPSL_POSITION_LINKAGE_UNSUPPORTED', // Position-linked TP/SL requested on an order placement; use updatePositionTPSL
+  ORDER_TPSL_LINKAGE_REQUIRED: 'ORDER_TPSL_LINKAGE_REQUIRED', // Attached TP/SL requested with no linkage to parent or position
+  ORDER_EDIT_ORDER_UNVERIFIABLE: 'ORDER_EDIT_ORDER_UNVERIFIABLE', // editOrder cannot confirm the resting order's placement type
+  ORDER_TIME_IN_FORCE_NOT_SUPPORTED: 'ORDER_TIME_IN_FORCE_NOT_SUPPORTED', // Time in force supplied for an order shape that cannot carry one
+  // Validation errors - strategy placement (twap / scale / chase)
+  ORDER_STRATEGY_PARAMS_NOT_SUPPORTED: 'ORDER_STRATEGY_PARAMS_NOT_SUPPORTED', // Strategy field supplied on an order type that does not own it
+  ORDER_STRATEGY_FIELD_UNSUPPORTED: 'ORDER_STRATEGY_FIELD_UNSUPPORTED', // price / triggerPrice / timeInForce / attached TP/SL supplied on a strategy placement
+  ORDER_STRATEGY_MARKET_UNSUPPORTED: 'ORDER_STRATEGY_MARKET_UNSUPPORTED', // The provider cannot run a strategy placement on this market
+  ORDER_STRATEGY_ROUTE_UNAVAILABLE: 'ORDER_STRATEGY_ROUTE_UNAVAILABLE', // The requested strategy provider route does not match the active direct provider
+  ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Strategy cancel handle is invalid or this provider session does not hold it
+  ORDER_EDIT_STRATEGY_UNSUPPORTED: 'ORDER_EDIT_STRATEGY_UNSUPPORTED', // editOrder cannot modify a strategy placement; cancel by its handle and place again
+  ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry
+  ORDER_TWAP_DURATION_REQUIRED: 'ORDER_TWAP_DURATION_REQUIRED', // TWAP placed without twapDuration
+  ORDER_TWAP_DURATION_INVALID: 'ORDER_TWAP_DURATION_INVALID', // twapDuration not a whole number of minutes within the venue's bounds
+  ORDER_SCALE_PREVIEW_STALE: 'ORDER_SCALE_PREVIEW_STALE', // Approved ladder or constraints changed; refresh the preview
+  ORDER_SCALE_RANGE_REQUIRED: 'ORDER_SCALE_RANGE_REQUIRED', // Scale placed without both ladder bounds
+  ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds or skew are invalid
+  ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
+  ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
+  ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
+  ORDER_SCALE_SIZE_CONSERVATION_FAILED: 'ORDER_SCALE_SIZE_CONSERVATION_FAILED', // Internal: a ladder split lost a grid unit or left the size grid; not caused by input
+  ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT: 'ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT', // Internal: a sized ladder exceeds the requested size or USD amount; not caused by input
+  ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
+  ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
+  ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
+  ORDER_CHASE_MAX_DISTANCE_INVALID: 'ORDER_CHASE_MAX_DISTANCE_INVALID', // chaseMaxDistanceBps must be finite, greater than 0, and less than 10,000 when supplied
+  ORDER_CHASE_ABANDONED: 'ORDER_CHASE_ABANDONED', // The provider was torn down while the chase was being placed; its order rests but no strategy runs
+  ORDER_CHASE_LIMIT_REACHED: 'ORDER_CHASE_LIMIT_REACHED', // The venue's cap on simultaneously active chase orders is already in use
+  ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
+  // HyperLiquid post-only rejections
+  ORDER_POST_ONLY_WOULD_CROSS: 'ORDER_POST_ONLY_WOULD_CROSS', // A post-only order was refused because its price would cross the spread. When it replaced a resting order via editOrder, HyperLiquid has already cancelled the original.
+  ORDER_POST_ONLY_WINDOW: 'ORDER_POST_ONLY_WINDOW', // HyperLiquid accepts only post-only orders for a while after a network upgrade
   // HyperLiquid client/service errors
   EXCHANGE_CLIENT_NOT_AVAILABLE: 'EXCHANGE_CLIENT_NOT_AVAILABLE',
   INFO_CLIENT_NOT_AVAILABLE: 'INFO_CLIENT_NOT_AVAILABLE',
   SUBSCRIPTION_CLIENT_NOT_AVAILABLE: 'SUBSCRIPTION_CLIENT_NOT_AVAILABLE',
   // Wallet/account errors
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
+  // The signer could not sign: a locked keyring or account signer, or, with
+  // HyperLiquid agent signing, an agent that is unavailable or that the venue
+  // rejected. Retryable.
   KEYRING_LOCKED: 'KEYRING_LOCKED',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
+  // Wallet has no account on the exchange yet (HyperLiquid creates accounts
+  // server-side on the first USDC credit). Actionable: the user must fund the
+  // account before any order can be placed.
+  EXCHANGE_ACCOUNT_NOT_FOUND: 'EXCHANGE_ACCOUNT_NOT_FOUND',
+  // HyperLiquid exchange rejects agent-signed writes for multi-sig accounts
+  // without a multi-sig wrapper, or when the action nonce is stale/reused.
+  EXCHANGE_MULTI_SIG_REQUIRED: 'EXCHANGE_MULTI_SIG_REQUIRED',
+  EXCHANGE_INVALID_NONCE: 'EXCHANGE_INVALID_NONCE',
   // Transfer/swap errors
   TRANSFER_FAILED: 'TRANSFER_FAILED',
   SWAP_FAILED: 'SWAP_FAILED',
   SPOT_PAIR_NOT_FOUND: 'SPOT_PAIR_NOT_FOUND',
   PRICE_UNAVAILABLE: 'PRICE_UNAVAILABLE',
+  LIQUIDATION_PRICE_UNAVAILABLE: 'LIQUIDATION_PRICE_UNAVAILABLE',
+  // Market/collateral errors
+  UNSUPPORTED_COLLATERAL: 'UNSUPPORTED_COLLATERAL', // DEX collateral token is not USDC (TAT-3304)
   // Batch operation errors
   BATCH_CANCEL_FAILED: 'BATCH_CANCEL_FAILED',
   BATCH_CLOSE_FAILED: 'BATCH_CLOSE_FAILED',
@@ -64,11 +135,15 @@ export const PERPS_ERROR_CODES = {
   INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
   REDUCE_ONLY_VIOLATION: 'REDUCE_ONLY_VIOLATION',
   POSITION_WOULD_FLIP: 'POSITION_WOULD_FLIP',
+  POSITION_NOT_FOUND: 'POSITION_NOT_FOUND',
   MARGIN_ADJUSTMENT_FAILED: 'MARGIN_ADJUSTMENT_FAILED',
   TPSL_UPDATE_FAILED: 'TPSL_UPDATE_FAILED',
+  TPSL_PROTECTION_LOST: 'TPSL_PROTECTION_LOST',
+  TPSL_LEG_REPLACE_UNSUPPORTED: 'TPSL_LEG_REPLACE_UNSUPPORTED', // The provider cannot replace one position TP/SL leg on its own
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',
+  PRICE_MOVED: 'PRICE_MOVED',
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   // Network/service errors
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
@@ -77,3 +152,16 @@ export const PERPS_ERROR_CODES = {
 
 export type PerpsErrorCode =
   (typeof PERPS_ERROR_CODES)[keyof typeof PERPS_ERROR_CODES];
+
+/**
+ * Checks whether a value is a known Perps error code.
+ *
+ * @param value - Value to classify.
+ * @returns Whether the value is a Perps error code.
+ */
+export function isPerpsErrorCode(value: unknown): value is PerpsErrorCode {
+  return (
+    typeof value === 'string' &&
+    Object.values(PERPS_ERROR_CODES).some((code) => code === value)
+  );
+}

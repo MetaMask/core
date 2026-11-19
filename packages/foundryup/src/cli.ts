@@ -6,7 +6,7 @@
  * This script downloads and installs Foundry binaries.
  * If an error occurs, it logs the error and exits with code 1.
  */
-import { downloadAndInstallFoundryBinaries } from '.';
+import { downloadAndInstallFoundryBinaries } from './index.js';
 
 /**
  * Run the main installation process and handle errors.

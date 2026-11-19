@@ -4,18 +4,18 @@ import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-} from '../types';
-import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { rpcRequest } from '../utils/provider';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+} from '../types.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
 
 type LineaEstimateGasResponse = {
   baseFeePerGas: Hex;

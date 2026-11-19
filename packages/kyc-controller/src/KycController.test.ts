@@ -1,0 +1,3078 @@
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
+import { base64ToBytes, bytesToBase64, bytesToString } from '@metamask/utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
+
+import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type {
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
+import {
+  getDefaultKycControllerState,
+  KycController,
+} from './KycController.js';
+import type { KycControllerMessenger } from './KycController.js';
+import type { KycSumSubLauncher } from './providers/sumsub.js';
+import { KYC_CURRENT_STEPS } from './types.js';
+import type {
+  KycConsentRecord,
+  KycCurrentStep,
+  KycSessionDisclaimers,
+  KycSessionStatus,
+} from './types.js';
+import {
+  UKYC_LOCAL_USER_SECRET_PATH,
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+} from './ukyc/constants.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+
+vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  verifyJwtChain: vi.fn(),
+  assertAttestedServerPublicKey: vi.fn(),
+}));
+vi.mock(import('./ukyc/wrapEncryptionKey.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  wrapEncryptionKey: vi.fn(),
+}));
+
+const mockVerifyJwtChain = verifyJwtChain as MockedFunction<
+  typeof verifyJwtChain
+>;
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
+const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
+  typeof wrapEncryptionKey
+>;
+
+const MOCK_SESSION_DISCLAIMERS: KycSessionDisclaimers = {
+  idOS: [
+    {
+      key: 'idos-tos',
+      version: '1',
+      title: 'idOS ToS',
+      url: 'https://idos.example/tos',
+      consented: false,
+    },
+  ],
+  kycProvider: [
+    {
+      key: 'sumsub-tos',
+      version: '1',
+      title: 'SumSub ToS',
+      url: 'https://sumsub.example/tos',
+      consented: false,
+    },
+  ],
+  credentialReusabilityConsentGiven: false,
+};
+
+const MOCK_IDOS_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
+  MOCK_SESSION_DISCLAIMERS.idOS.map(({ key, version }) => ({ key, version }));
+
+const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
+  MOCK_SESSION_DISCLAIMERS.kycProvider.map(({ key, version }) => ({
+    key,
+    version,
+  }));
+
+const AAL2_TOKEN = 'aal2-token';
+
+const ENCRYPTION_SCHEMA = {
+  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+  jwtChain: 'jwt.chain.sig',
+};
+
+describe('KycController', () => {
+  describe('constructor', () => {
+    it('accepts initial state merged over defaults', async () => {
+      await withController(
+        { options: { state: { email: 'a@b.co', vendor: 'iron' } } },
+        ({ controller }) => {
+          expect(controller.state.email).toBe('a@b.co');
+          expect(controller.state.vendor).toBe('iron');
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+
+    it('uses default state when none is provided', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
+      });
+    });
+  });
+
+  describe('startSession', () => {
+    it('creates a UKYC session when the vendor has no latest session', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        const result = await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'iron',
+          granted: true,
+        });
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'iron',
+        );
+        expect(
+          handlers.putIdentitySharingConsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
+        );
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'iron',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'a@b.co', email_verified: true },
+          }),
+        });
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            residenceCountry: 'USA',
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'a@b.co', email_verified: true },
+            }),
+          }),
+        );
+        expect(
+          handlers.createVendorCustomer.mock.invocationCallOrder[0],
+        ).toBeLessThan(handlers.createUkycSession.mock.invocationCallOrder[0]);
+        expect(handlers.setAuthorizations).toHaveBeenCalled();
+        expect(result).toStrictEqual(sessionStatus('approved'));
+        expect(controller.state.sessionStatus).toStrictEqual(result);
+        expect(controller.state.email).toBe('a@b.co');
+        expect(controller.state.vendor).toBe('iron');
+        expect(controller.state.geoCountry).toBe('USA');
+      });
+    });
+
+    it('stores a latest vendor session instead of creating one', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('pending'),
+        );
+
+        const result = await controller.startSession({ vendor: 'iron' });
+
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        expect(result).toStrictEqual(sessionStatus('pending'));
+        expect(controller.state.sessionStatus).toStrictEqual(
+          sessionStatus('pending'),
+        );
+      });
+    });
+
+    it('returns the existing session without creating another', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('pending'));
+          expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('refreshes capability authorization when the existing session is expired', async () => {
+      const expired = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      const refreshed = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending', {
+                capabilityAuthorizationStatus: 'stored',
+              }),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(expired);
+          handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(refreshed);
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
+          expect(handlers.setAuthorizations).toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toStrictEqual(refreshed);
+        },
+      );
+    });
+
+    it('submits capability authorization when the existing session is new', async () => {
+      const fresh = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'new',
+      });
+      const stored = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(fresh);
+          handlers.setAuthorizations.mockResolvedValue(stored);
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(stored);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
+          expect(handlers.setAuthorizations).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not submit capability authorization when status is pending', async () => {
+      const pendingAuth = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'pending',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(pendingAuth);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not refresh capability authorization when finalStatus is approved', async () => {
+      const approvedExpired = sessionStatus('approved', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('approved'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(approvedExpired);
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(approvedExpired);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('refreshes capability authorization when a latest vendor session is expired', async () => {
+      const expired = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      const refreshed = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(expired);
+        handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+        expect(await controller.startSession({ vendor: 'iron' })).toStrictEqual(
+          refreshed,
+        );
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
+        expect(handlers.setAuthorizations).toHaveBeenCalled();
+      });
+    });
+
+    it('throws when the refreshed session status is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(null);
+
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
+          ).rejects.toThrow('No session was found');
+        },
+      );
+    });
+
+    it('throws when refreshing authorizations without a session id', async () => {
+      const missingId = sessionStatus('pending', {
+        id: '',
+        capabilityAuthorizationStatus: 'new',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(missingId);
+
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
+          ).rejects.toThrow('No session was found');
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when email does not match the initialized session', async () => {
+      await withController(
+        { options: { state: { email: 'a@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockResolvedValue(
+            unsignedJwt({
+              ext: { email: 'other@b.co', email_verified: true },
+            }),
+          );
+
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
+          ).rejects.toThrow(
+            'KycController already initialized with a different email',
+          );
+        },
+      );
+    });
+
+    it('throws when vendor does not match the initialized session', async () => {
+      await withController(
+        { options: { state: { vendor: 'moonpay' } } },
+        async ({ controller }) => {
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
+          ).rejects.toThrow(
+            'KycController already initialized with a different vendor',
+          );
+        },
+      );
+    });
+
+    it('throws when the resolved country does not match the initialized session', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('DEU');
+
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
+          ).rejects.toThrow(
+            'KycController already initialized with a different geoCountry',
+          );
+          expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when no verified email can be resolved', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue(
+          Object.assign(new Error('email_required'), { status: 422 }),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('KycController missing verified email for vendor');
+      });
+    });
+
+    it('resumes a stored session when the partner identity token is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'stored@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('pending'));
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(controller.state.email).toBe('stored@b.co');
+        },
+      );
+    });
+
+    it('does not create a customer from stored email when the partner identity token is missing', async () => {
+      await withController(
+        { options: { state: { email: 'stored@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(
+            'KycController missing partner identity token for vendor',
+          );
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('requests a moonpay-audience partner identity token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockResolvedValue(
+          unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
+        );
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await controller.startSession({
+          vendor: 'moonpay',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'moonpay',
+          granted: true,
+        });
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'moonpay',
+        );
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'moonpay',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
+        });
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vendor: 'moonpay',
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'moonpay@example.com', email_verified: true },
+            }),
+          }),
+        );
+      });
+    });
+
+    it('does not mint a partner identity token when consent recording fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.putIdentitySharingConsent.mockRejectedValue(
+          new Error('consent failed'),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('consent failed');
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rethrows non-422 partner identity token errors', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue(
+          new Error('token mint failed'),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('token mint failed');
+      });
+    });
+
+    it('does not create a session when aal2Token is missing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('does not create a UKYC session when creating the vendor customer fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.createVendorCustomer.mockRejectedValue(
+          new Error('customer failed'),
+        );
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow('customer failed');
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when fetching signing keys fails', async () => {
+      const fetchError = new Error(
+        "Fetching 'https://idos.example/.well-known/jwks.json' failed with status '500'",
+      );
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosEnclaveJwks.mockRejectedValueOnce(fetchError);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+          cause: fetchError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when encryption-key verification fails', async () => {
+      const verificationError = new Error(
+        'UKYC: jwtChain signature verification failed against JWKS.',
+      );
+      mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+        throw verificationError;
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+          cause: verificationError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+  });
+
+  describe('reset and clearState', () => {
+    it('clears session fields', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.reset();
+          expect(controller.state).toStrictEqual(
+            getDefaultKycControllerState(),
+          );
+        },
+      );
+    });
+  });
+
+  describe('getSessionStatusForVendor', () => {
+    it('forwards the vendor to KycService', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('approved'),
+        );
+
+        expect(
+          await controller.getSessionStatusForVendor('iron'),
+        ).toStrictEqual(sessionStatus('approved'));
+        expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
+      });
+    });
+  });
+
+  describe('getDataShares', () => {
+    const dataShares = [
+      {
+        kycSessionId: '11111111-2222-3333-4444-555555555555',
+        vendor: 'moonpay' as const,
+        sharedAt: '2026-02-02T00:00:00.000Z',
+      },
+    ];
+
+    it('uses the external user id from the session on state', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        async ({ controller, handlers }) => {
+          handlers.getDataShares.mockResolvedValue(dataShares);
+
+          expect(await controller.getDataShares()).toStrictEqual(dataShares);
+          expect(handlers.getDataShares).toHaveBeenCalledWith({
+            externalUserId: 'ext-1',
+          });
+          expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns an empty list when nothing has been shared', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        async ({ controller }) => {
+          expect(await controller.getDataShares()).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('resolves the latest session for the vendor when state is cold', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('approved', { externalUserId: 'ext-cold' }),
+          );
+          handlers.getDataShares.mockResolvedValue(dataShares);
+
+          expect(await controller.getDataShares()).toStrictEqual(dataShares);
+          expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith(
+            'iron',
+          );
+          expect(handlers.getDataShares).toHaveBeenCalledWith({
+            externalUserId: 'ext-cold',
+          });
+          // The resolved session is not written to state.
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+
+    it('returns an empty list when no vendor is on state', async () => {
+      await withController(async ({ controller, handlers }) => {
+        expect(await controller.getDataShares()).toStrictEqual([]);
+        expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+        expect(handlers.getDataShares).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an empty list when the vendor has no latest session', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+          expect(await controller.getDataShares()).toStrictEqual([]);
+          expect(handlers.getDataShares).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('is exposed as a messenger action', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        async ({ rootMessenger, handlers }) => {
+          handlers.getDataShares.mockResolvedValue(dataShares);
+
+          expect(
+            await rootMessenger.call('KycController:getDataShares'),
+          ).toStrictEqual(dataShares);
+        },
+      );
+    });
+  });
+
+  describe('refreshSessionStatus', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('throws when no session is available', async () => {
+      await withController(async ({ controller }) => {
+        expect(() => controller.refreshSessionStatus()).toThrow(
+          'No session was found',
+        );
+      });
+    });
+
+    it.each(['approved', 'rejected', 'retry'] as const)(
+      'returns a %s session without fetching, refreshing authorization, or polling',
+      async (finalStatus) => {
+        vi.useFakeTimers();
+        const current = sessionStatus(finalStatus, {
+          capabilityAuthorizationStatus: 'expired',
+        });
+        await withController(
+          {
+            options: { state: { sessionStatus: current } },
+          },
+          async ({ controller, handlers }) => {
+            expect(controller.refreshSessionStatus()).toStrictEqual(current);
+
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+            expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+            expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+            expect(controller.state.sessionStatus).toStrictEqual(current);
+
+            await vi.advanceTimersByTimeAsync(30_000);
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('returns the persisted status and starts polling when not terminal', async () => {
+      vi.useFakeTimers();
+      const current = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      const latest = sessionStatus('pending', { kycStatus: 'in_review' });
+      await withController(
+        {
+          options: { state: { sessionStatus: current } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(latest);
+
+          expect(controller.refreshSessionStatus()).toStrictEqual(current);
+          await flushPromises();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(controller.state.sessionStatus).toStrictEqual(latest);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+
+          await vi.advanceTimersByTimeAsync(15_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+  });
+
+  describe('readSessionStatus', () => {
+    it('returns null when no session is stored', async () => {
+      await withController(({ controller, handlers }) => {
+        expect(controller.readSessionStatus()).toBeNull();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns the persisted session without fetching', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        ({ controller, handlers }) => {
+          expect(controller.readSessionStatus()).toStrictEqual(
+            sessionStatus('pending'),
+          );
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('fetchSessionStatusOnce', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('resets a stored submitted outcome when idOS still has the applicant on the kyc step', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'submitted',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+        },
+      );
+    });
+
+    it.each([
+      ['idOS is processing', sessionStatus('pending')],
+      [
+        'idOS decided on the kyc step',
+        sessionStatus('retry', { currentStep: KYC_CURRENT_STEPS.kyc }),
+      ],
+    ])('keeps a stored submitted outcome when %s', async (_case, latest) => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'submitted',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(latest);
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('leaves other outcomes alone when idOS has the applicant on the kyc step', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'not_started',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+        },
+      );
+    });
+
+    it('writes one session-status GET and does not poll', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          expect(await controller.fetchSessionStatusOnce('sid')).toStrictEqual(
+            sessionStatus('approved'),
+          );
+          expect(controller.state.sessionStatus).toMatchInlineSnapshot(`
+            {
+              "currentStep": "approved",
+              "externalUserId": "ext-1",
+              "finalStatus": "approved",
+              "id": "sid",
+              "kycStatus": "approved",
+              "vendor": "sumsub",
+              "vendorStatus": "approved",
+            }
+          `);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+
+          await vi.advanceTimersByTimeAsync(60_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('startSessionStatusPolling', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('throws when no session id is available', async () => {
+      await withController(({ controller }) => {
+        expect(() => controller.startSessionStatusPolling()).toThrow(
+          'No session was found',
+        );
+      });
+    });
+
+    it('updates state when the fetched session status differs', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValueOnce({
+            ...sessionStatus('pending'),
+            kycStatus: 'in_review',
+          });
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(controller.state.sessionStatus?.kycStatus).toBe('in_review');
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it.each(['new', 'expired'] as const)(
+      'writes a polled %s capability status without refreshing authorization',
+      async (capabilityAuthorizationStatus) => {
+        const fetched = sessionStatus('pending', {
+          capabilityAuthorizationStatus,
+        });
+        await withController(
+          {
+            options: { state: { sessionStatus: sessionStatus('pending') } },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(fetched);
+
+            controller.startSessionStatusPolling();
+            await flushPromises();
+
+            expect(controller.state.sessionStatus).toStrictEqual(fetched);
+            expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+            expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('does not refresh capability authorization when the polled status is unchanged', async () => {
+      const current = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: current } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(current);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toStrictEqual(current);
+        },
+      );
+    });
+
+    it('does not submit capability authorization when the polled status is pending', async () => {
+      const pendingAuth = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'pending',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(controller.state.sessionStatus).toStrictEqual(pendingAuth);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not refresh capability authorization when the polled finalStatus is approved', async () => {
+      const approvedExpired = sessionStatus('approved', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(approvedExpired);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(controller.state.sessionStatus).toStrictEqual(approvedExpired);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it.each(['approved', 'rejected', 'retry'])(
+      'stops polling once finalStatus is %s',
+      async (finalStatus) => {
+        vi.useFakeTimers();
+        await withController(
+          {
+            options: { state: { sessionStatus: sessionStatus('pending') } },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus(finalStatus),
+            );
+
+            controller.startSessionStatusPolling();
+            await flushPromises();
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+            await vi.advanceTimersByTimeAsync(30_000);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('waits 10 seconds longer after each poll', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await vi.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          await vi.advanceTimersByTimeAsync(19_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await vi.advanceTimersByTimeAsync(29_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+        },
+      );
+    });
+
+    it('restarts the backoff when polling starts again', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await vi.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+
+          // The replaced loop would have fired 20s after this restart.
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+          await vi.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+          await vi.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(5);
+        },
+      );
+    });
+
+    it('polls again after a failed request', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockResolvedValue(sessionStatus('approved'));
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+        },
+      );
+    });
+
+    it('lengthens the wait after a failed request', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockRejectedValue(
+            new Error('network down'),
+          );
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          await vi.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
+    it('cancels a scheduled poll when reset lands between ticks', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await controller.reset();
+
+          await vi.advanceTimersByTimeAsync(60_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('discards an in-flight poll after reset', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockImplementation(async () => {
+            await controller.reset();
+            return sessionStatus('approved');
+          });
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('fetchSessionDisclaimers', () => {
+    it('fetches by session id', async () => {
+      await withController(async ({ controller, handlers }) => {
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).toHaveBeenCalledWith({ sessionId: 'sid' });
+      });
+    });
+
+    it('fetches by country', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const catalog = { idOS: [], kycProvider: [] };
+        handlers.fetchSessionDisclaimersByCountry.mockResolvedValue(catalog);
+
+        expect(
+          await controller.fetchSessionDisclaimers({ country: 'USA' }),
+        ).toStrictEqual(catalog);
+        expect(handlers.fetchSessionDisclaimersByCountry).toHaveBeenCalledWith({
+          country: 'USA',
+        });
+      });
+    });
+
+    it('throws when both sessionId and country are provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers({
+            sessionId: 'sid',
+            country: 'USA',
+          } as unknown as { sessionId: string } | { country: string }),
+        ).rejects.toThrow(/provide exactly one of sessionId or country/u);
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when neither sessionId nor country is provided', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.fetchSessionDisclaimers(
+            {} as { sessionId: string } | { country: string },
+          ),
+        ).rejects.toThrow(/provide exactly one of sessionId or country/u);
+      });
+    });
+  });
+
+  describe('recordSessionDisclaimers', () => {
+    it('throws when no session exists', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.recordSessionDisclaimers({
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            credentialReusabilityConsentGiven: true,
+          }),
+        ).rejects.toThrow('No session was found');
+      });
+    });
+
+    it('submits consents and persists accepted records', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          await controller.recordSessionDisclaimers({
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            credentialReusabilityConsentGiven: true,
+          });
+
+          expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
+            sessionId: 'sid',
+            idOS: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            kycProvider: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            credentialReusabilityConsentGiven: true,
+          });
+          expect(
+            controller.state.providerDisclaimersAccepted.sumsub,
+          ).toStrictEqual(MOCK_SUMSUB_DISCLAIMERS_ACCEPTED);
+          expect(controller.state.idosDisclaimersAccepted).toStrictEqual(
+            MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          );
+          expect(controller.state.credentialReusabilityConsentGiven).toBe(true);
+        },
+      );
+    });
+  });
+
+  describe('hasCompletedSessionDisclaimers', () => {
+    it('throws when no session exists', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.hasCompletedSessionDisclaimers(),
+        ).rejects.toThrow('No session was found');
+      });
+    });
+
+    it('returns true when the fetched session consentStatus is given', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'given',
+          });
+
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false when the fetched session consentStatus is not given', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'pending',
+          });
+
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(false);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+        },
+      );
+    });
+  });
+
+  describe('fetchVendorDisclaimers', () => {
+    it('forwards vendor and country to KycService.fetchVendorDisclaimers', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const disclaimers = [{ id: '1', display_name: 'T', url: 'u' }];
+        handlers.fetchVendorDisclaimers.mockResolvedValue(disclaimers);
+
+        expect(
+          await controller.fetchVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+          }),
+        ).toStrictEqual(disclaimers);
+        expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
+          vendor: 'iron',
+          country: 'USA',
+        });
+      });
+    });
+  });
+
+  describe('recordVendorDisclaimers', () => {
+    it('throws when vendor is missing', async () => {
+      await withController(
+        { options: { state: { email: 'a@b.co' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).rejects.toThrow('No vendor was found');
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when email is missing', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).rejects.toThrow('No email was found');
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('submits accepted ids and persists them', async () => {
+      const signings = [
+        { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
+      ];
+      await withController(
+        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.submitVendorDisclaimers.mockResolvedValue(signings);
+
+          expect(
+            await controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).toStrictEqual(signings);
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            disclaimerIds: ['d1'],
+          });
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
+          ).toStrictEqual(['d1']);
+        },
+      );
+    });
+  });
+
+  describe('hasCompletedVendorDisclaimers', () => {
+    it('throws when vendor is missing', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller }) => {
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).rejects.toThrow('No vendor was found');
+        },
+      );
+    });
+
+    it('throws when geoCountry is missing', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).rejects.toThrow('No geoCountry was found');
+          expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false when the fetched catalog has unaccepted documents', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendor: 'iron',
+              geoCountry: 'USA',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T1', url: 'u1' },
+            { id: 'd2', display_name: 'T2', url: 'u2' },
+          ]);
+
+          expect(await controller.hasCompletedVendorDisclaimers()).toBe(false);
+        },
+      );
+    });
+
+    it('returns true when persisted Iron ids cover the fetched catalog', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendor: 'iron',
+              geoCountry: 'USA',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1', 'd2'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T1', url: 'u1' },
+            { id: 'd2', display_name: 'T2', url: 'u2' },
+          ]);
+
+          expect(await controller.hasCompletedVendorDisclaimers()).toBe(true);
+        },
+      );
+    });
+  });
+
+  describe('launchProviderFlow', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('launches SumSub when a session exists', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+
+          const result = await controller.launchProviderFlow({
+            locale: 'en',
+            debug: false,
+          });
+
+          expect(result).toBe('submitted');
+          expect(handlers.createJourney).toHaveBeenCalledWith('sid');
+          expect(launcher.launch).toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('records abandonment when SumSub closes before submission', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports that it could not run', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Failed' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports Failed through a status change', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Failed');
+              return { status: 'Ready' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('marks the session pending and starts polling once the SDK completes', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('retry') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+              onTokenExpiration: () => Promise<string>;
+            }) => {
+              expect(await params.onTokenExpiration()).toBe('aat');
+              params.onStatusChange('Initial', 'Ready');
+              params.onStatusChange('Ready', 'Completed');
+              return { status: 'Initial' };
+            },
+          );
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(launcher.launch).toHaveBeenCalledWith(
+            expect.objectContaining({ locale: 'en', debug: false }),
+          );
+          expect(handlers.createJourney).toHaveBeenCalledTimes(2);
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(controller.state.sessionStatus?.currentStep).toBe(
+            KYC_CURRENT_STEPS.processing,
+          );
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+        },
+      );
+    });
+
+    it.each(['TemporarilyDeclined', 'FinallyRejected', 'Approved'])(
+      'records abandonment when SumSub opens on %s and closes without a submission',
+      async (decision) => {
+        await withController(
+          { options: { state: { sessionStatus: sessionStatus('retry') } } },
+          async ({ controller, handlers, launcher }) => {
+            launcher.launch.mockImplementation(
+              async (params: {
+                onStatusChange: (previous: string, next: string) => void;
+              }) => {
+                params.onStatusChange('Ready', decision);
+                return { status: decision };
+              },
+            );
+
+            const result = await controller.launchProviderFlow({});
+
+            expect(result).toBe('abandoned');
+            expect(controller.state.providerFlowStatus).toBe('abandoned');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('retry');
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('records a submission when SumSub reports a review decision after the applicant submits', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('retry') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'TemporarilyDeclined');
+              params.onStatusChange('TemporarilyDeclined', 'Incomplete');
+              params.onStatusChange('Incomplete', 'Pending');
+              params.onStatusChange('Pending', 'TemporarilyDeclined');
+              return { status: 'TemporarilyDeclined' };
+            },
+          );
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+        },
+      );
+    });
+
+    it('records abandonment when SumSub reports Pending partway through and the applicant leaves on a later step', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Incomplete');
+              params.onStatusChange('Incomplete', 'Pending');
+              params.onStatusChange('Pending', 'Initial');
+              return { status: 'Initial' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('records abandonment when SumSub closes on Pending but idOS still has the applicant on the kyc step', async () => {
+      vi.useFakeTimers();
+      const collecting = sessionStatus('new', {
+        currentStep: KYC_CURRENT_STEPS.kyc,
+      });
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Incomplete', 'Pending');
+              return { status: 'Pending' };
+            },
+          );
+          handlers.getSessionStatus.mockResolvedValue(collecting);
+
+          const launched = controller.launchProviderFlow({});
+          await vi.advanceTimersByTimeAsync(2_000);
+          const result = await launched;
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+          expect(controller.state.sessionStatus).toStrictEqual(collecting);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await vi.advanceTimersByTimeAsync(30_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
+    it('records a submission once idOS moves the applicant past the kyc step', async () => {
+      vi.useFakeTimers();
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus
+            .mockResolvedValueOnce(
+              sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+            )
+            .mockResolvedValue(sessionStatus('pending'));
+
+          const launched = controller.launchProviderFlow({});
+          await vi.advanceTimersByTimeAsync(1_000);
+          const result = await launched;
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.currentStep).toBe(
+            KYC_CURRENT_STEPS.processing,
+          );
+        },
+      );
+    });
+
+    it('records a submission when idOS already decided while the applicant is on the kyc step', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('retry', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('records failure when the session is cleared while idOS is checked', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus.mockImplementation(async () => {
+            await controller.reset();
+            return sessionStatus('pending');
+          });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+
+    it('leaves the session alone when it was cleared while the SDK ran', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            await controller.reset();
+            return { status: 'Completed' };
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(controller.state.sessionStatus).toBeNull();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does nothing when the SumSub SDK is unavailable', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.isAvailable.mockReturnValue(false);
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('does nothing when there is no session', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        const result = await controller.launchProviderFlow({});
+
+        expect(result).toBe('failed');
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.providerFlowStatus).toBe('failed');
+      });
+    });
+
+    it('records failure when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockRejectedValue(new Error('launcher unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('does not update a reset session when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            controller.clearState();
+            throw new Error('launcher unavailable');
+          });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+        },
+      );
+    });
+
+    it('returns the persisted provider flow status', async () => {
+      await withController(
+        { options: { state: { providerFlowStatus: 'abandoned' } } },
+        ({ controller }) => {
+          expect(controller.getProviderFlowStatus()).toBe('abandoned');
+        },
+      );
+    });
+  });
+
+  describe('ensureLocalUserSecret', () => {
+    it('creates and stores a local_user_secret when none exists', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        expect(await controller.ensureLocalUserSecret()).toBeUndefined();
+
+        expect(storage.get).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          undefined,
+        );
+        expect(storage.set).toHaveBeenCalledTimes(1);
+        expect(storage.set).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          expect.any(String),
+          undefined,
+        );
+        const [, persisted] = storage.set.mock.calls[0] as [
+          string,
+          string,
+          undefined,
+        ];
+        expect(storage.value).toBe(persisted);
+        expect(base64ToBytes(persisted)).toHaveLength(
+          UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+        );
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
+      });
+    });
+
+    it('keeps an existing local_user_secret', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const existing = bytesToBase64(
+          new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(7),
+        );
+        const storage = statefulUserStorage(handlers, existing);
+
+        await controller.ensureLocalUserSecret();
+
+        expect(storage.set).not.toHaveBeenCalled();
+        expect(storage.value).toBe(existing);
+      });
+    });
+
+    it('stores the secret once when called concurrently', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        await Promise.all([
+          controller.ensureLocalUserSecret(),
+          controller.ensureLocalUserSecret(),
+        ]);
+
+        expect(storage.set).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('leaves session creation with a storage read when the secret already exists', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+        await controller.ensureLocalUserSecret();
+        storage.set.mockClear();
+        storage.get.mockClear();
+
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(storage.get).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          undefined,
+        );
+        expect(storage.set).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects when encrypted user storage cannot be read', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.performGetStorage.mockRejectedValue(new Error('storage down'));
+
+        await expect(controller.ensureLocalUserSecret()).rejects.toThrow(
+          'storage down',
+        );
+      });
+    });
+
+    it('is exposed as a messenger action', async () => {
+      await withController(async ({ rootMessenger, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        await rootMessenger.call('KycController:ensureLocalUserSecret');
+
+        expect(storage.set).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('analytics', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /**
+     * Builds `trackKycAnalytics` and records each payload it receives.
+     *
+     * @returns The callbacks and the payloads they recorded.
+     */
+    function createAnalyticsTrackers(): {
+      trackKycAnalytics: KycAnalyticsTrackers;
+      verification: KycAnalyticsVerificationOutcomePayload[];
+      status: KycAnalyticsStatusChangedPayload[];
+    } {
+      const verification: KycAnalyticsVerificationOutcomePayload[] = [];
+      const status: KycAnalyticsStatusChangedPayload[] = [];
+      return {
+        verification,
+        status,
+        trackKycAnalytics: {
+          verificationOutcome: (payload) => {
+            verification.push(payload);
+          },
+          statusChanged: (payload) => {
+            status.push(payload);
+          },
+        },
+      };
+    }
+
+    it('tracks submitted and the move to pending after the SDK completes', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          await controller.launchProviderFlow({});
+
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'submitted',
+              kycStatus: 'pending',
+              providerFlowStatus: 'submitted',
+              vendor: 'iron',
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'new',
+              kycStatus: 'pending',
+              providerFlowStatus: 'submitted',
+              vendor: 'iron',
+            },
+          ]);
+        },
+      );
+    });
+
+    it('tracks abandoned without a KYC status change', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          await controller.launchProviderFlow({});
+
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'abandoned',
+              kycStatus: 'new',
+              providerFlowStatus: 'abandoned',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks failed for each SDK failure path', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValueOnce({ status: 'Failed' });
+          await controller.launchProviderFlow({});
+          launcher.launch.mockRejectedValueOnce(new Error('launcher threw'));
+          await controller.launchProviderFlow({});
+          launcher.isAvailable.mockReturnValueOnce(false);
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map((event) => event.status),
+          ).toStrictEqual(['failed', 'failed', 'failed']);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks the same launch outcome again on a repeated attempt', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map(({ status }) => status),
+          ).toStrictEqual(['abandoned', 'abandoned']);
+        },
+      );
+    });
+
+    it('tracks failed without writing state when the session changed during launch', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            await controller.reset();
+            return { status: 'Completed' };
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'failed',
+              kycStatus: 'none',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks failed without writing state when the launcher throws after a reset', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            controller.clearState();
+            throw new Error('launcher unavailable');
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map(({ status }) => status),
+          ).toStrictEqual(['failed']);
+        },
+      );
+    });
+
+    it('tracks one KYC status change when a poll newly approves the session', async () => {
+      vi.useFakeTimers();
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          controller.startSessionStatusPolling();
+          await vi.advanceTimersByTimeAsync(60_000);
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'pending',
+              kycStatus: 'approved',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.verification).toStrictEqual([]);
+        },
+      );
+    });
+
+    it.each([
+      ['rejected', 'rejected'],
+      ['retry', 'retry'],
+    ] as const)(
+      'tracks a KYC status change when fetchSessionStatusOnce moves the session to %s',
+      async (finalStatus, kycStatus) => {
+        const analytics = createAnalyticsTrackers();
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+              trackKycAnalytics: analytics.trackKycAnalytics,
+            },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus(finalStatus),
+            );
+
+            await controller.fetchSessionStatusOnce('sid');
+
+            expect(
+              analytics.status.map((event) => event.kycStatus),
+            ).toStrictEqual([kycStatus]);
+            expect(analytics.status[0].previousKycStatus).toBe('pending');
+          },
+        );
+      },
+    );
+
+    it('tracks a KYC status change when startSession refetches an existing session that is now approved', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              sessionStatus: sessionStatus('pending'),
+            },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.startSession({ vendor: 'iron' });
+
+          expect(
+            analytics.status.map((event) => event.kycStatus),
+          ).toStrictEqual(['approved']);
+        },
+      );
+    });
+
+    it('tracks a KYC status change with a none previous status when the session is first created', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        { options: { trackKycAnalytics: analytics.trackKycAnalytics } },
+        async ({ controller, handlers }) => {
+          handlers.setAuthorizations.mockResolvedValue(sessionStatus('new'));
+
+          await controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          });
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'none',
+              kycStatus: 'new',
+              providerFlowStatus: 'not_started',
+              vendor: 'iron',
+            },
+          ]);
+        },
+      );
+    });
+
+    it('reports none rather than omitting the previous status when the stored status was unrecognized', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('mystery') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'none',
+              kycStatus: 'approved',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+        },
+      );
+    });
+
+    it('does not track when an already-approved session is loaded into empty state', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        { options: { trackKycAnalytics: analytics.trackKycAnalytics } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.startSession({ vendor: 'iron' });
+
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(analytics.status).toStrictEqual([]);
+          expect(analytics.verification).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('does not track when the derived status is unchanged', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('approved') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved', { vendorStatus: 'still-approved' }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('writes state before tracking', async () => {
+      const statusAtTrack: (string | undefined)[] = [];
+      let readFinalStatus: () => string | undefined = () => undefined;
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: {
+              verificationOutcome: vi.fn(),
+              statusChanged: () => {
+                statusAtTrack.push(readFinalStatus());
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          readFinalStatus = (): string | undefined =>
+            controller.state.sessionStatus?.finalStatus;
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(statusAtTrack).toStrictEqual(['approved']);
+        },
+      );
+    });
+
+    it('keeps a submitted launch when the analytics callbacks throw', async () => {
+      await withController(
+        {
+          options: {
+            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: {
+              verificationOutcome: () => {
+                throw new Error('analytics down');
+              },
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('stops polling an approval when the analytics callback throws', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: {
+              verificationOutcome: vi.fn(),
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          controller.startSessionStatusPolling();
+          await vi.advanceTimersByTimeAsync(60_000);
+
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(handlers.getSessionStatus).toHaveBeenCalledOnce();
+        },
+      );
+    });
+
+    it('leaves KYC behavior unchanged when no tracker is passed', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('new') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          expect(await controller.launchProviderFlow({})).toBe('abandoned');
+        },
+      );
+    });
+  });
+
+  describe('getKycAnalyticsStatus', () => {
+    it.each([
+      [null, 'none'],
+      [sessionStatus('new'), 'new'],
+      [sessionStatus('pending'), 'pending'],
+      [sessionStatus('approved'), 'approved'],
+      [sessionStatus('rejected'), 'rejected'],
+      [sessionStatus('retry'), 'retry'],
+      [sessionStatus('mystery'), 'none'],
+    ] as const)('maps %j to %s', (session, expected) => {
+      expect(getKycAnalyticsStatus(session)).toBe(expected);
+    });
+
+    it('ignores the relay kycStatus', () => {
+      expect(
+        getKycAnalyticsStatus(sessionStatus('new', { kycStatus: 'approved' })),
+      ).toBe('new');
+    });
+  });
+
+  describe('messenger actions', () => {
+    it('exposes fetchSessionDisclaimers', async () => {
+      await withController(async ({ rootMessenger, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+
+        expect(
+          await rootMessenger.call('KycController:fetchSessionDisclaimers', {
+            sessionId: 'sid',
+          }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+      });
+    });
+  });
+
+  describe('deleteEncryptedStorage', () => {
+    it('wraps a delete-scoped token and completes the deletion', async () => {
+      await withController(async ({ controller, handlers }) => {
+        mockWrapEncryptionKey.mockClear();
+        mockAssertAttestedServerPublicKey.mockClear();
+
+        await controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN });
+
+        const createParams = handlers.createDeletion.mock.calls[0][0] as {
+          sessionClientPublicKey: string;
+          aal2Token: string;
+        };
+        expect(createParams.aal2Token).toBe(AAL2_TOKEN);
+        expect(typeof createParams.sessionClientPublicKey).toBe('string');
+        expect(createParams.sessionClientPublicKey).not.toHaveLength(0);
+        expect(handlers.fetchIdosEnclaveJwks).not.toHaveBeenCalled();
+        expect(handlers.fetchIdosRelayJwks).toHaveBeenCalledOnce();
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenCalledOnce();
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenCalledWith(
+          [],
+          ENCRYPTION_SCHEMA,
+        );
+
+        const plaintext = bytesToString(mockWrapEncryptionKey.mock.calls[0][2]);
+        const token = JSON.parse(
+          bytesToString(base64UrlToBytes(plaintext)),
+        ) as {
+          payload: {
+            operations: string[];
+            presenter: string;
+            session_id?: string;
+            issued_at: string;
+            expires_at: string;
+          };
+        };
+        expect(token.payload.operations).toStrictEqual(['delete']);
+        expect(token.payload.presenter).toBe('client');
+        expect(token.payload.session_id).toBeUndefined();
+        const tokenLifetimeMs =
+          Date.parse(token.payload.expires_at) -
+          Date.parse(token.payload.issued_at);
+        // Both timestamps drop fractional seconds, so a mint that crosses a
+        // second boundary is one second short of four hours.
+        expect(tokenLifetimeMs).toBeGreaterThanOrEqual(
+          4 * 60 * 60 * 1000 - 1000,
+        );
+        expect(tokenLifetimeMs).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
+        expect(mockWrapEncryptionKey).toHaveBeenCalledWith(
+          expect.any(Uint8Array),
+          ENCRYPTION_SCHEMA.serverPublicKey.x,
+          expect.any(Uint8Array),
+        );
+        expect(handlers.completeDeletion).toHaveBeenCalledWith({
+          deletionId: 'deletion-1',
+          wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
+          aal2Token: AAL2_TOKEN,
+        });
+      });
+    });
+
+    it('does not prepare a deletion when aal2Token is missing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: '' }),
+        ).rejects.toThrow(/aal2Token is required/u);
+        expect(handlers.createDeletion).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not complete the deletion when preparing it fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createDeletion.mockRejectedValue(new Error('prepare failed'));
+
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toThrow('prepare failed');
+        expect(handlers.completeDeletion).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not complete the deletion when fetching relay signing keys fails', async () => {
+      const fetchError = new Error(
+        "Fetching 'https://idos.example/.well-known/jwks.json' failed with status '500'",
+      );
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchIdosRelayJwks.mockRejectedValueOnce(fetchError);
+
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyCapabilityTokenSchema: Unable to fetch JWKS needed to verify wrapping keys.',
+          cause: fetchError,
+        });
+        expect(handlers.completeDeletion).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not complete the deletion when wrapping-key verification fails', async () => {
+      const verificationError = new Error(
+        'UKYC: jwtChain signature verification failed against JWKS.',
+      );
+      mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+        throw verificationError;
+      });
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyCapabilityTokenSchema: Failed to verify the wrapping keys.',
+          cause: verificationError,
+        });
+        expect(handlers.completeDeletion).not.toHaveBeenCalled();
+      });
+    });
+  });
+});
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<KycControllerMessenger>,
+  MessengerEvents<KycControllerMessenger>
+>;
+
+type ServiceHandlers = {
+  getGeoCountry: Mock;
+  getPartnerIdentityToken: Mock;
+  putIdentitySharingConsent: Mock;
+  fetchVendorDisclaimers: Mock;
+  createMoonpaySession: Mock;
+  createVendorCustomer: Mock;
+  submitVendorDisclaimers: Mock;
+  fetchSessionDisclaimersByCountry: Mock;
+  fetchSessionDisclaimersBySessionId: Mock;
+  submitSessionDisclaimers: Mock;
+  fetchIdosEnclaveJwks: Mock;
+  fetchIdosRelayJwks: Mock;
+  createUkycSession: Mock;
+  resetWrappingKeys: Mock;
+  setAuthorizations: Mock;
+  createDeletion: Mock;
+  completeDeletion: Mock;
+  createJourney: Mock;
+  getSessionStatus: Mock;
+  getSessionStatusForVendor: Mock;
+  getDataShares: Mock;
+  performGetStorage: Mock;
+  performSetStorage: Mock;
+};
+
+type Launcher = {
+  isAvailable: Mock;
+  launch: Mock;
+};
+
+type WithControllerCallback<ReturnValue> = (payload: {
+  controller: KycController;
+  rootMessenger: RootMessenger;
+  handlers: ServiceHandlers;
+  launcher: Launcher;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = {
+  options: Partial<ConstructorParameters<typeof KycController>[0]>;
+};
+
+/**
+ * Builds an unsigned JWT whose payload is the given JSON object.
+ *
+ * @param payload - Claims to encode in the JWT payload.
+ * @returns A three-segment JWT string.
+ */
+function unsignedJwt(payload: unknown): string {
+  const encode = (value: unknown): string =>
+    toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(payload)}.sig`;
+}
+
+/**
+ * Builds a UKYC session-creation payload with encryption schemas.
+ *
+ * @param overrides - Fields to overlay on the default session response.
+ * @returns A complete session-creation response.
+ */
+function ukycSessionResponse(
+  overrides: Partial<{
+    sessionId: string;
+    encryptionDataKey: typeof ENCRYPTION_SCHEMA;
+    ukycCapabilityToken: typeof ENCRYPTION_SCHEMA;
+  }> = {},
+): {
+  sessionId: string;
+  encryptionDataKey: typeof ENCRYPTION_SCHEMA;
+  ukycCapabilityToken: typeof ENCRYPTION_SCHEMA;
+} {
+  return {
+    sessionId: 'sid',
+    encryptionDataKey: ENCRYPTION_SCHEMA,
+    ukycCapabilityToken: ENCRYPTION_SCHEMA,
+    ...overrides,
+  };
+}
+
+/**
+ * Asserts `resetWrappingKeys` was called once for `sessionId` with a
+ * non-empty `sessionClientPublicKey`.
+ *
+ * @param resetWrappingKeys - The mocked `KycService:resetWrappingKeys` handler.
+ * @param sessionId - Expected UKYC session id.
+ */
+function expectResetWrappingKeys(
+  resetWrappingKeys: Mock,
+  sessionId: string,
+): void {
+  const calls = resetWrappingKeys.mock.calls as [
+    { sessionId: string; sessionClientPublicKey: string },
+  ][];
+  const resetParams = calls[0][0];
+  expect(resetParams.sessionId).toBe(sessionId);
+  expect(typeof resetParams.sessionClientPublicKey).toBe('string');
+  expect(resetParams.sessionClientPublicKey).not.toHaveLength(0);
+}
+
+/**
+ * Builds a UKYC session status payload with a given `finalStatus`.
+ *
+ * @param finalStatus - The overall session status.
+ * @param overrides - Optional fields to overlay on the default status.
+ * @returns A complete session status object.
+ */
+function sessionStatus(
+  finalStatus: string,
+  overrides: Partial<KycSessionStatus> = {},
+): KycSessionStatus {
+  const currentStep: KycCurrentStep =
+    finalStatus === KYC_CURRENT_STEPS.approved ||
+    finalStatus === KYC_CURRENT_STEPS.rejected
+      ? finalStatus
+      : KYC_CURRENT_STEPS.processing;
+  return {
+    id: 'sid',
+    finalStatus,
+    externalUserId: 'ext-1',
+    kycStatus: finalStatus,
+    vendor: 'sumsub',
+    vendorStatus: finalStatus,
+    currentStep,
+    ...overrides,
+  };
+}
+
+/**
+ * Points the user-storage mocks at one in-memory value so a write is visible
+ * to the next read.
+ *
+ * @param handlers - Service handlers from {@link withController}.
+ * @param initial - Initial stored base64 value.
+ * @returns The storage mocks plus the current stored value.
+ */
+function statefulUserStorage(
+  handlers: ServiceHandlers,
+  initial: string | null = null,
+): { get: Mock; set: Mock; value: string | null } {
+  let value = initial;
+  const get = handlers.performGetStorage.mockImplementation(async () => value);
+  const set = handlers.performSetStorage.mockImplementation(
+    async (_path: string, next: string) => {
+      value = next;
+    },
+  );
+  return {
+    get,
+    set,
+    get value() {
+      return value;
+    },
+  };
+}
+
+/**
+ * Wraps a test with a fully-wired controller, mocked service handlers, and a
+ * mocked SumSub launcher.
+ *
+ * @param args - Either a callback, or an options bag and a callback.
+ * @returns The callback's return value.
+ */
+function withController<ReturnValue>(
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
+): ReturnValue | Promise<ReturnValue> {
+  const [{ options = {} }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger: KycControllerMessenger = new Messenger({
+    namespace: 'KycController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'KycService:getGeoCountry',
+      'KycService:fetchVendorDisclaimers',
+      'KycService:createMoonpaySession',
+      'KycService:createVendorCustomer',
+      'KycService:submitVendorDisclaimers',
+      'KycService:fetchSessionDisclaimersByCountry',
+      'KycService:fetchSessionDisclaimersBySessionId',
+      'KycService:submitSessionDisclaimers',
+      'KycService:fetchIdosEnclaveJwks',
+      'KycService:fetchIdosRelayJwks',
+      'KycService:createUkycSession',
+      'KycService:resetWrappingKeys',
+      'KycService:setAuthorizations',
+      'KycService:createDeletion',
+      'KycService:completeDeletion',
+      'KycService:createJourney',
+      'KycService:getSessionStatus',
+      'KycService:getSessionStatusForVendor',
+      'KycService:getDataShares',
+      'UserStorageController:performGetStorage',
+      'UserStorageController:performSetStorage',
+      'AuthenticationController:getPartnerIdentityToken',
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+    ],
+    events: [],
+    messenger,
+  });
+
+  const handlers: ServiceHandlers = {
+    getGeoCountry: vi.fn().mockResolvedValue('USA'),
+    getPartnerIdentityToken: vi
+      .fn()
+      .mockResolvedValue(
+        unsignedJwt({ ext: { email: 'a@b.co', email_verified: true } }),
+      ),
+    putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
+    fetchVendorDisclaimers: vi.fn().mockResolvedValue([]),
+    createMoonpaySession: vi.fn().mockResolvedValue({ sessionToken: 'sess' }),
+    createVendorCustomer: vi.fn().mockResolvedValue({
+      id: 'cust-1',
+      email: 'a@b.co',
+      status: 'SigningsRequired',
+    }),
+    submitVendorDisclaimers: vi.fn().mockResolvedValue([]),
+    fetchSessionDisclaimersByCountry: vi.fn().mockResolvedValue({
+      idOS: [],
+      kycProvider: [],
+    }),
+    fetchSessionDisclaimersBySessionId: vi
+      .fn()
+      .mockResolvedValue(MOCK_SESSION_DISCLAIMERS),
+    submitSessionDisclaimers: vi.fn().mockResolvedValue({
+      ...MOCK_SESSION_DISCLAIMERS,
+      credentialReusabilityConsentGiven: true,
+    }),
+    fetchIdosEnclaveJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosRelayJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    createUkycSession: vi.fn().mockResolvedValue(ukycSessionResponse()),
+    resetWrappingKeys: vi.fn().mockResolvedValue(ukycSessionResponse()),
+    setAuthorizations: vi.fn().mockResolvedValue(sessionStatus('approved')),
+    createDeletion: vi.fn().mockResolvedValue({
+      deletionId: 'deletion-1',
+      ukycCapabilityToken: ENCRYPTION_SCHEMA,
+    }),
+    completeDeletion: vi.fn().mockResolvedValue(undefined),
+    createJourney: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
+    getSessionStatus: vi.fn().mockResolvedValue(sessionStatus('approved')),
+    getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
+    getDataShares: vi.fn().mockResolvedValue([]),
+    performGetStorage: vi.fn().mockResolvedValue(null),
+    performSetStorage: vi.fn().mockResolvedValue(undefined),
+  };
+
+  rootMessenger.registerActionHandler(
+    'KycService:getGeoCountry',
+    handlers.getGeoCountry,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchVendorDisclaimers',
+    handlers.fetchVendorDisclaimers,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createMoonpaySession',
+    handlers.createMoonpaySession,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createVendorCustomer',
+    handlers.createVendorCustomer,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:submitVendorDisclaimers',
+    handlers.submitVendorDisclaimers,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchSessionDisclaimersByCountry',
+    handlers.fetchSessionDisclaimersByCountry,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchSessionDisclaimersBySessionId',
+    handlers.fetchSessionDisclaimersBySessionId,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:submitSessionDisclaimers',
+    handlers.submitSessionDisclaimers,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIdosEnclaveJwks',
+    handlers.fetchIdosEnclaveJwks,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIdosRelayJwks',
+    handlers.fetchIdosRelayJwks,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createUkycSession',
+    handlers.createUkycSession,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:resetWrappingKeys',
+    handlers.resetWrappingKeys,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:setAuthorizations',
+    handlers.setAuthorizations,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createDeletion',
+    handlers.createDeletion,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:completeDeletion',
+    handlers.completeDeletion,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createJourney',
+    handlers.createJourney,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getSessionStatus',
+    handlers.getSessionStatus,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getSessionStatusForVendor',
+    handlers.getSessionStatusForVendor,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getDataShares',
+    handlers.getDataShares,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getPartnerIdentityToken',
+    handlers.getPartnerIdentityToken,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:putIdentitySharingConsent',
+    handlers.putIdentitySharingConsent,
+  );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performGetStorage',
+    handlers.performGetStorage,
+  );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performSetStorage',
+    handlers.performSetStorage,
+  );
+
+  mockVerifyJwtChain.mockResolvedValue({
+    sessionServerPublicKeyX: 'spk-x',
+    nonce: 'n',
+  });
+  mockWrapEncryptionKey.mockReturnValue({
+    data: 'enc',
+    nonce: 'nonce',
+  });
+
+  const launcher: Launcher = {
+    isAvailable: vi.fn().mockReturnValue(true),
+    launch: vi.fn().mockResolvedValue({ ok: true }),
+  };
+
+  const controller = new KycController({
+    messenger,
+    sumsubLauncher: launcher,
+    ...options,
+  });
+
+  return testFunction({
+    controller,
+    rootMessenger,
+    handlers,
+    launcher,
+  });
+}

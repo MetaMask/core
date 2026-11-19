@@ -7,24 +7,31 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
-import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionType } from '../types.js';
+import { DELEGATION_PREFIX } from './eip7702.js';
+import { rpcRequest } from './provider.js';
 import {
   decodeTransactionData,
   determineTransactionType,
-} from './transaction-type';
+  hasTransactionType,
+} from './transaction-type.js';
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
+const Permit2Interface = new Interface([
+  'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+  'function transferFrom(address from, address to, uint160 amount, address token)',
+]);
 
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';
@@ -36,12 +43,8 @@ describe('determineTransactionType', () => {
     from: FROM_MOCK,
   };
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -62,7 +65,7 @@ describe('determineTransactionType', () => {
     'does NOT return a token transfer type and instead returns contract interaction' +
       ' when the recipient is a contract, the data matches the respective method call, but there is a value passed',
     async () => {
-      jest.mocked(rpcRequest).mockResolvedValue('0xab');
+      vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
       const resultWithEmptyValue = await determineTransactionType(txParams, {
         messenger: messengerMock,
@@ -101,7 +104,7 @@ describe('determineTransactionType', () => {
   );
 
   it('does NOT return a token transfer type when the recipient is not a contract but the data matches the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(txParams, {
       messenger: messengerMock,
@@ -114,9 +117,9 @@ describe('determineTransactionType', () => {
   });
 
   it('does not identify contract codes with DELEGATION_PREFIX as contract addresses', async () => {
-    jest
-      .mocked(rpcRequest)
-      .mockResolvedValue(`${DELEGATION_PREFIX}1234567890abcdef`);
+    vi.mocked(rpcRequest).mockResolvedValue(
+      `${DELEGATION_PREFIX}1234567890abcdef`,
+    );
 
     const result = await determineTransactionType(
       {
@@ -134,7 +137,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when the recipient is a contract and data is for the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -150,7 +153,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when data is uppercase', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -161,6 +164,48 @@ describe('determineTransactionType', () => {
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
+      getCodeResponse: '0xab',
+    });
+  });
+
+  it('returns a token approve type for a Permit2 approve', async () => {
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        data: Permit2Interface.encodeFunctionData('approve', [
+          '0x1234567890123456789012345678901234567890',
+          '0x2234567890123456789012345678901234567890',
+          '1000000',
+          1700000000,
+        ]),
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result).toMatchObject({
+      type: TransactionType.tokenMethodApprove,
+      getCodeResponse: '0xab',
+    });
+  });
+
+  it('returns a contract interaction type for a Permit2 transferFrom', async () => {
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        data: Permit2Interface.encodeFunctionData('transferFrom', [
+          '0x1234567890123456789012345678901234567890',
+          '0x2234567890123456789012345678901234567890',
+          '1000000',
+          '0x3234567890123456789012345678901234567890',
+        ]),
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result).toMatchObject({
+      type: TransactionType.contractInteraction,
       getCodeResponse: '0xab',
     });
   });
@@ -181,7 +226,7 @@ describe('determineTransactionType', () => {
   });
 
   it('does NOT classify as deployContract when "to" is falsy but data is "0x" (empty bytecode)', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -195,7 +240,7 @@ describe('determineTransactionType', () => {
   });
 
   it('does NOT classify as deployContract when "to" is undefined but data is "0x"', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -209,7 +254,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a 0x getCodeResponse when there is data, but the "to" address is not a contract address', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -225,7 +270,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a null getCodeResponse when "to" is truthy and there is data, but getCode returns an error', async () => {
-    jest.mocked(rpcRequest).mockRejectedValue(new Error('Some error'));
+    vi.mocked(rpcRequest).mockRejectedValue(new Error('Some error'));
 
     const result = await determineTransactionType(
       {
@@ -241,7 +286,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is truthy and there is data, and it is not a token transaction', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {
@@ -257,7 +302,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is a contract address and data is falsy', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {
@@ -273,7 +318,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns contractInteraction for send with approve', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {
@@ -394,5 +439,95 @@ describe('decodeTransactionData', () => {
     expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[0].toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[1].toString()).toBe(amount);
+  });
+
+  it('parses Permit2 approve data correctly', () => {
+    const token = '0x1234567890123456789012345678901234567890';
+    const spender = '0x2234567890123456789012345678901234567890';
+    const amount = '1000000';
+    const expiration = 1700000000;
+    const approveData = Permit2Interface.encodeFunctionData('approve', [
+      token,
+      spender,
+      amount,
+      expiration,
+    ]);
+
+    const result = decodeTransactionData(approveData) as TransactionDescription;
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('approve');
+    expect(result?.sighash).toBe('0x87517c45');
+    expect(result?.args.token).toBe(token);
+    expect(result?.args.spender).toBe(spender);
+    expect(String(result?.args.amount)).toBe(amount);
+    expect(result?.args.expiration).toBe(expiration);
+  });
+});
+
+describe('hasTransactionType', () => {
+  const MATCH = TransactionType.perpsWithdraw;
+  const OTHER = TransactionType.simpleSend;
+
+  it('returns true when the top-level transaction type matches', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when a nested transaction type matches', () => {
+    const transaction = {
+      nestedTransactions: [{ type: MATCH }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when one of multiple nested transaction types matches', () => {
+    const transaction = {
+      nestedTransactions: [{ type: OTHER }, { type: MATCH }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(true);
+  });
+
+  it('returns true when the top-level type matches any of multiple candidates', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(
+      hasTransactionType(transaction, [TransactionType.predictWithdraw, MATCH]),
+    ).toBe(true);
+  });
+
+  it('returns false when nested transactions have different types', () => {
+    const transaction = {
+      nestedTransactions: [{ type: OTHER }],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when nestedTransactions is undefined', () => {
+    const transaction = {} as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when nestedTransactions is empty', () => {
+    const transaction = {
+      nestedTransactions: [] as { type: TransactionType }[],
+    } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [MATCH])).toBe(false);
+  });
+
+  it('returns false when the transaction is undefined', () => {
+    expect(hasTransactionType(undefined, [MATCH])).toBe(false);
+  });
+
+  it('returns false when the types array is empty', () => {
+    const transaction = { type: MATCH } as TransactionMeta;
+
+    expect(hasTransactionType(transaction, [])).toBe(false);
   });
 });

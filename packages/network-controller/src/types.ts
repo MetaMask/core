@@ -1,4 +1,3 @@
-import type { InfuraNetworkType, ChainId } from '@metamask/controller-utils';
 import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
@@ -47,7 +46,7 @@ export type CustomNetworkClientConfiguration =
  */
 export type InfuraNetworkClientConfiguration =
   CommonNetworkClientConfiguration & {
-    network: InfuraNetworkType;
+    network: string;
     infuraProjectId: string;
     type: NetworkClientType.Infura;
   };
@@ -58,11 +57,3 @@ export type InfuraNetworkClientConfiguration =
 export type NetworkClientConfiguration =
   | CustomNetworkClientConfiguration
   | InfuraNetworkClientConfiguration;
-
-/**
- * The Chain ID representing the additional networks to be included as default.
- */
-export type AdditionalDefaultNetwork = (typeof ChainId)[
-  | 'megaeth-testnet'
-  | 'megaeth-testnet-v2'
-  | 'monad-testnet'];

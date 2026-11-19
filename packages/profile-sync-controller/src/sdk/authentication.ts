@@ -1,26 +1,44 @@
+import type { PublicInterface } from '@metamask/utils';
 import type { Eip1193Provider } from 'ethers';
 
-import type { Env } from '../shared/env';
-import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
-import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
+import type { Env } from '../shared/env.js';
+import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
+import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
+import type { MfaVerificationAssertion } from './authentication-jwt-bearer/mfa/services.js';
+import type {
+  EnrolledCredential,
+  EnrollmentChallenge,
+  EnrollmentProof,
+  MfaApproval,
+  MfaApprovalRequest,
+  MfaCredentialType,
+  VerificationChallenge,
+  VerificationProof,
+} from './authentication-jwt-bearer/mfa/types.js';
 import {
   getNonce,
   pairIdentifiers,
-} from './authentication-jwt-bearer/services';
-import type { PairProfilesResponse } from './authentication-jwt-bearer/services';
+} from './authentication-jwt-bearer/services.js';
+import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
+  AccessToken,
+  LoginResponse,
   UserProfile,
   Pair,
+  PairSocialIdentifierParams,
+  ProfileIdentifier,
+  SocialLoginParams,
+  OidcTokenAudience,
+  OidcTokenClaims,
   UserProfileLineage,
-} from './authentication-jwt-bearer/types';
-import { AuthType } from './authentication-jwt-bearer/types';
-import { PairError, UnsupportedAuthTypeError } from './errors';
+} from './authentication-jwt-bearer/types.js';
+import { AuthType } from './authentication-jwt-bearer/types.js';
+import { PairError, UnsupportedAuthTypeError } from './errors.js';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 
-type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
-type SIWEInterface = Compute<SIWEJwtBearerAuth>;
-export type SRPInterface = Compute<SRPJwtBearerAuth>;
+type SIWEInterface = PublicInterface<SIWEJwtBearerAuth>;
+export type SRPInterface = PublicInterface<SRPJwtBearerAuth>;
 
 type SiweParams = ConstructorParameters<typeof SIWEJwtBearerAuth>;
 type SRPParams = ConstructorParameters<typeof SRPJwtBearerAuth>;
@@ -83,12 +101,127 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.getUserProfileLineage(entropySourceId);
   }
 
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    return await this.#sdk.getCustomerServiceToken(entropySourceId);
+  }
+
+  async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    return await this.#sdk.getPartnerIdentityToken(
+      claims,
+      audience,
+      entropySourceId,
+    );
+  }
+
+  async beginMfaEnrollment(
+    type: MfaCredentialType,
+    options?: {
+      email?: string;
+      entropySourceId?: string;
+      accessToken?: string;
+    },
+  ): Promise<EnrollmentChallenge> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.beginMfaEnrollment(type, options);
+  }
+
+  async completeMfaEnrollment(
+    flowId: string,
+    proof: EnrollmentProof,
+    entropySourceId?: string,
+    accessToken?: string,
+  ): Promise<MfaVerificationAssertion> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.completeMfaEnrollment(
+      flowId,
+      proof,
+      entropySourceId,
+      accessToken,
+    );
+  }
+
+  async beginMfaVerification(
+    type: MfaCredentialType,
+    entropySourceId?: string,
+    accessToken?: string,
+  ): Promise<VerificationChallenge> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.beginMfaVerification(
+      type,
+      entropySourceId,
+      accessToken,
+    );
+  }
+
+  async completeMfaVerification(
+    flowId: string,
+    proof: VerificationProof,
+    entropySourceId?: string,
+    accessToken?: string,
+  ): Promise<MfaVerificationAssertion> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.completeMfaVerification(
+      flowId,
+      proof,
+      entropySourceId,
+      accessToken,
+    );
+  }
+
+  async getMfaCredentials(
+    entropySourceId?: string,
+    accessToken?: string,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.getMfaCredentials(entropySourceId, accessToken);
+  }
+
+  async requestMfaApproval(
+    body: MfaApprovalRequest,
+    options?: { entropySourceId?: string; accessToken?: string },
+  ): Promise<MfaApproval> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.requestMfaApproval(body, options);
+  }
+
+  async deleteMfaCredential(
+    credentialId: string,
+    accessToken: string,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.deleteMfaCredential(credentialId, accessToken);
+  }
+
+  async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeMfaAssertion(assertionJwt);
+  }
+
   async pairSrpProfiles(
     accessTokens: string[],
     authAccessToken: string,
   ): Promise<PairProfilesResponse> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.pairSrpProfiles(accessTokens, authAccessToken);
+  }
+
+  async pairSocialIdentifier(
+    params: PairSocialIdentifierParams,
+    authAccessToken: string,
+  ): Promise<ProfileIdentifier[] | undefined> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+  }
+
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeSocialAccessToken(params);
   }
 
   async signMessage(
@@ -165,6 +298,6 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   }
 }
 
-export { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
-export { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
-export * from './authentication-jwt-bearer/types';
+export { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
+export { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
+export * from './authentication-jwt-bearer/types.js';

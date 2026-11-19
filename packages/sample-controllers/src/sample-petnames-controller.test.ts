@@ -5,10 +5,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
-import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
-import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
-import { SamplePetnamesController } from './sample-petnames-controller';
+import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util.js';
+import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller.js';
+import { SamplePetnamesController } from './sample-petnames-controller.js';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {

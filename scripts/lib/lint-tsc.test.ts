@@ -1,0 +1,245 @@
+import { execa } from 'execa';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { lintTsc } from './lint-tsc.ts';
+import * as tscSuppressions from './tsc-suppressions.ts';
+import type { TscError } from './tsc-suppressions.ts';
+
+vi.mock(import('execa'), () => ({
+  execa: vi.fn(),
+}));
+
+vi.mock('./tsc-suppressions.ts', () => ({
+  parseTscOutput: vi.fn(),
+  isTscError: vi.fn(),
+  addSuppressions: vi.fn(),
+  pruneSuppressions: vi.fn(),
+  compareErrorsToSuppressions: vi.fn(),
+  readSuppressions: vi.fn(),
+  writeSuppressions: vi.fn(),
+  printReport: vi.fn(),
+}));
+
+const ERROR = { filePath: 'a.ts', code: 'TS2322', message: 'Nope.' };
+
+const PASSING_REPORT = {
+  unsuppressedErrors: [],
+  staleSuppressions: [],
+  didPass: true,
+};
+
+/**
+ * Stubs a `tsc` run which produces the given output and one parsed error.
+ *
+ * @param lines - The lines of output that `tsc` should produce.
+ * @param exitCode - The code that `tsc` should exit with. It exits non-zero
+ * whenever it reports errors, so that is the default.
+ */
+function mockTscRun(lines: string[], exitCode = 1): void {
+  vi.mocked(execa).mockResolvedValue({ all: lines, exitCode } as never);
+  vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
+  vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+}
+
+describe('lintTsc', () => {
+  let originalProcess: typeof globalThis.process;
+
+  beforeEach(() => {
+    originalProcess = globalThis.process;
+    // The exit code is reset because it is global state that another test file
+    // may have set.
+    globalThis.process = { ...globalThis.process, exitCode: undefined };
+    vi.spyOn(console, 'log').mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    globalThis.process = originalProcess;
+  });
+
+  it('typechecks every package in the repo, capturing errors rather than throwing', async () => {
+    mockTscRun([]);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
+
+    await lintTsc([]);
+
+    expect(execa).toHaveBeenCalledWith(
+      'tsc',
+      ['--build', 'tsconfig.lint.json', '--pretty', 'false'],
+      expect.objectContaining({ reject: false, all: true }),
+    );
+  });
+
+  it('checks the parsed errors against the suppressions file', async () => {
+    mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
+    const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue(suppressions);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
+
+    await lintTsc([]);
+
+    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([
+      'a.ts(1,1): error TS2322: Nope.',
+    ]);
+    expect(tscSuppressions.compareErrorsToSuppressions).toHaveBeenCalledWith({
+      errors: [ERROR],
+      suppressions,
+    });
+  });
+
+  it('prints the report and leaves the exit code alone when the check passes', async () => {
+    mockTscRun([]);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
+
+    await lintTsc([]);
+
+    expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('exits with a non-zero code when the check fails', async () => {
+    mockTscRun([]);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue({
+      unsuppressedErrors: [
+        {
+          filePath: 'a.ts',
+          code: 'TS2322',
+          count: 1,
+          suppressedCount: 0,
+          messages: ['Nope.'],
+        },
+      ],
+      staleSuppressions: [],
+      didPass: false,
+    });
+
+    await lintTsc([]);
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('treats a successful run that produces no output as having no errors', async () => {
+    vi.mocked(execa).mockResolvedValue({
+      all: undefined,
+      exitCode: 0,
+    } as never);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
+
+    await lintTsc([]);
+
+    expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([]);
+  });
+
+  it('throws when tsc fails without reporting any type errors', async () => {
+    vi.mocked(execa).mockResolvedValue({
+      all: ['boom'],
+      exitCode: 1,
+    } as never);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+
+    await expect(lintTsc([])).rejects.toThrow(
+      '`tsc` failed for a reason other than the type errors it reported.',
+    );
+    expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when tsc exits non-zero but reports type errors, as those may be suppressed', async () => {
+    mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
+
+    await lintTsc([]);
+
+    expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
+  });
+
+  it('throws when tsc reports a diagnostic that belongs to no file, even though type errors were reported too', async () => {
+    const filelessDiagnostic = {
+      filePath: undefined,
+      code: 'TS6053',
+      message: "File 'nope.json' not found.",
+    };
+    vi.mocked(execa).mockResolvedValue({ all: ['boom'], exitCode: 1 } as never);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([
+      ERROR,
+      filelessDiagnostic,
+    ]);
+    vi.mocked(tscSuppressions.isTscError).mockImplementation(
+      (diagnostic): diagnostic is TscError => diagnostic.filePath !== undefined,
+    );
+
+    await expect(lintTsc([])).rejects.toThrow(
+      '`tsc` failed for a reason other than the type errors it reported.',
+    );
+    expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
+  });
+
+  it('records unsuppressed errors when given --suppress-all, without failing', async () => {
+    mockTscRun([]);
+    const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    vi.mocked(tscSuppressions.addSuppressions).mockReturnValue(suppressions);
+
+    await lintTsc(['--suppress-all']);
+
+    expect(tscSuppressions.addSuppressions).toHaveBeenCalledWith({
+      suppressions: {},
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.pruneSuppressions).not.toHaveBeenCalled();
+    expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
+      expect.objectContaining({ suppressions }),
+    );
+    expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('drops stale suppressions when given --prune-suppressions, without adding any', async () => {
+    mockTscRun([]);
+    const existing = { 'a.ts': { TS2322: { count: 5 } } };
+    const pruned = { 'a.ts': { TS2322: { count: 1 } } };
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue(existing);
+    vi.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+
+    await lintTsc(['--prune-suppressions']);
+
+    expect(tscSuppressions.addSuppressions).not.toHaveBeenCalled();
+    expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
+      suppressions: existing,
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
+      expect.objectContaining({ suppressions: pruned }),
+    );
+  });
+
+  it('both adds and prunes when given both flags', async () => {
+    mockTscRun([]);
+    const added = { 'a.ts': { TS2322: { count: 2 } } };
+    const pruned = { 'a.ts': { TS2322: { count: 1 } } };
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    vi.mocked(tscSuppressions.addSuppressions).mockReturnValue(added);
+    vi.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+
+    await lintTsc(['--suppress-all', '--prune-suppressions']);
+
+    expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
+      suppressions: added,
+      errors: [ERROR],
+    });
+    expect(tscSuppressions.writeSuppressions).toHaveBeenCalledWith(
+      expect.objectContaining({ suppressions: pruned }),
+    );
+  });
+});

@@ -22,6 +22,13 @@ export const SocialServiceErrorMessage = {
   FETCH_FOLLOWING_FAILED: 'SocialService: Following request failed',
   FETCH_FOLLOWING_INVALID_RESPONSE:
     'SocialService: Following returned invalid response',
+  FETCH_TRADER_FOLLOWING_FAILED:
+    'SocialService: Trader following request failed',
+  FETCH_TRADER_FOLLOWING_INVALID_RESPONSE:
+    'SocialService: Trader following returned invalid response',
+  FETCH_MY_FOLLOWERS_FAILED: 'SocialService: My followers request failed',
+  FETCH_MY_FOLLOWERS_INVALID_RESPONSE:
+    'SocialService: My followers returned invalid response',
   FOLLOW_FAILED: 'SocialService: Follow request failed',
   FOLLOW_INVALID_RESPONSE: 'SocialService: Follow returned invalid response',
   UNFOLLOW_FAILED: 'SocialService: Unfollow request failed',
@@ -30,4 +37,56 @@ export const SocialServiceErrorMessage = {
   FETCH_POSITION_BY_ID_FAILED: 'SocialService: Position request failed',
   FETCH_POSITION_BY_ID_INVALID_RESPONSE:
     'SocialService: Position returned invalid response',
+  LEADERBOARD_OPT_OUT_FAILED:
+    'SocialService: Leaderboard opt-out request failed',
+  LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
+  FETCH_FEED_FAILED: 'SocialService: Feed request failed',
+  FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
+  FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
+  FETCH_TRADER_FEED_INVALID_RESPONSE:
+    'SocialService: Trader feed returned invalid response',
+  FETCH_TOKEN_FEED_FAILED: 'SocialService: Token feed request failed',
+  FETCH_TOKEN_FEED_INVALID_RESPONSE:
+    'SocialService: Token feed returned invalid response',
+  REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
+  REACT_TO_COMMENT_INVALID_RESPONSE:
+    'SocialService: Comment reaction returned invalid response',
+  REMOVE_COMMENT_REACTION_FAILED:
+    'SocialService: Comment reaction removal request failed',
+  REMOVE_COMMENT_REACTION_INVALID_RESPONSE:
+    'SocialService: Comment reaction removal returned invalid response',
+  CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
+  CREATE_SWAP_COMMENT_INVALID_RESPONSE:
+    'SocialService: Swap comment returned invalid response',
+  TRANSLATE_COMMENT_FAILED: 'SocialService: Comment translation request failed',
+  TRANSLATE_COMMENT_INVALID_RESPONSE:
+    'SocialService: Comment translation returned invalid response',
+  CREATE_COPY_TRADE_INTENT_FAILED:
+    'SocialService: Copy-trade intent request failed',
+  CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE:
+    'SocialService: Copy-trade intent returned invalid response',
+  NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
+    'SocialService: Notification preferences cache refresh request failed',
+  BLOCK_FAILED: 'SocialService: Block request failed',
+  UNBLOCK_PROFILE_FAILED: 'SocialService: Unblock profile request failed',
+  FETCH_BLOCKED_PROFILES_FAILED:
+    'SocialService: Blocked profiles request failed',
+  FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
+    'SocialService: Blocked profiles returned invalid response',
+  FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
+  FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
+    'SocialService: Blocked content returned invalid response',
+  FETCH_MODERATION_STATUS_FAILED:
+    'SocialService: Moderation status request failed',
+  FETCH_MODERATION_STATUS_INVALID_RESPONSE:
+    'SocialService: Moderation status returned invalid response',
+  FETCH_QUOTE_TOKENS_FAILED: 'SocialService: Quote tokens request failed',
+  FETCH_QUOTE_TOKENS_INVALID_RESPONSE:
+    'SocialService: Quote tokens returned invalid response',
+  FETCH_TRENDING_GIFS_FAILED: 'SocialService: Trending GIFs request failed',
+  FETCH_TRENDING_GIFS_INVALID_RESPONSE:
+    'SocialService: Trending GIFs returned invalid response',
+  FETCH_SEARCH_GIFS_FAILED: 'SocialService: GIF search request failed',
+  FETCH_SEARCH_GIFS_INVALID_RESPONSE:
+    'SocialService: GIF search returned invalid response',
 } as const;

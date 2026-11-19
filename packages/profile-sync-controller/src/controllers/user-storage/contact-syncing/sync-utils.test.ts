@@ -1,5 +1,7 @@
-import { canPerformContactSyncing } from './sync-utils';
-import type { ContactSyncingOptions } from './types';
+import { describe, expect, it, vi } from 'vitest';
+
+import { canPerformContactSyncing } from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
 
 describe('user-storage/contact-syncing/sync-utils', () => {
   describe('canPerformContactSyncing', () => {
@@ -10,8 +12,8 @@ describe('user-storage/contact-syncing/sync-utils', () => {
       messengerCallCallback = () => true,
     }) => {
       const options: ContactSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest
+        getMessenger: vi.fn().mockReturnValue({
+          call: vi
             .fn()
             .mockImplementation((controllerAndActionName) =>
               controllerAndActionName === messengerCallControllerAndAction
@@ -19,7 +21,7 @@ describe('user-storage/contact-syncing/sync-utils', () => {
                 : null,
             ),
         }),
-        getUserStorageControllerInstance: jest.fn().mockReturnValue({
+        getUserStorageControllerInstance: vi.fn().mockReturnValue({
           state: {
             isBackupAndSyncEnabled,
             isContactSyncingEnabled,

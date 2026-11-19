@@ -1,17 +1,19 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import type { WalletMiddlewareParams } from '../wallet';
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   GetGrantedExecutionPermissionsResult,
   ProcessGetGrantedExecutionPermissionsHook,
-} from './wallet-get-granted-execution-permissions';
-import { createWalletGetGrantedExecutionPermissionsHandler } from './wallet-get-granted-execution-permissions';
+} from './wallet-get-granted-execution-permissions.js';
+import { createWalletGetGrantedExecutionPermissionsHandler } from './wallet-get-granted-execution-permissions.js';
 
 const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
   {
-    chainId: '0x01' as Hex,
-    from: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4' as Hex,
-    to: '0x016562aA41A8697720ce0943F003141f5dEAe006' as Hex,
+    chainId: '0x01',
+    from: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+    to: '0x016562aA41A8697720ce0943F003141f5dEAe006',
     permission: {
       type: 'native-token-allowance',
       isAdjustmentAllowed: true,
@@ -19,15 +21,14 @@ const RESULT_MOCK: GetGrantedExecutionPermissionsResult = [
         allowance: '0x1DCD65000000',
       },
     },
-    context:
-      '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715' as Hex,
+    context: '0x016562aA41A8697720ce0943F003141f5dEAe0060000771577157715',
     dependencies: [
       {
-        factory: '0x1234567890123456789012345678901234567890' as Hex,
-        factoryData: '0xabcdef' as Hex,
+        factory: '0x1234567890123456789012345678901234567890',
+        factoryData: '0xabcdef',
       },
     ],
-    delegationManager: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2' as Hex,
+    delegationManager: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2',
   },
 ];
 
@@ -37,7 +38,7 @@ const REQUEST_MOCK = {
 
 describe('wallet_getGrantedExecutionPermissions', () => {
   let request: JsonRpcRequest;
-  let processGetGrantedExecutionPermissionsMock: jest.MockedFunction<ProcessGetGrantedExecutionPermissionsHook>;
+  let processGetGrantedExecutionPermissionsMock: MockedFunction<ProcessGetGrantedExecutionPermissionsHook>;
   let context: WalletMiddlewareParams['context'];
 
   const callMethod = async (): Promise<Readonly<Json> | undefined> => {
@@ -49,7 +50,7 @@ describe('wallet_getGrantedExecutionPermissions', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = { ...REQUEST_MOCK };
 
@@ -57,7 +58,7 @@ describe('wallet_getGrantedExecutionPermissions', () => {
       ['origin', 'test-origin'],
     ]) as WalletMiddlewareParams['context'];
 
-    processGetGrantedExecutionPermissionsMock = jest.fn();
+    processGetGrantedExecutionPermissionsMock = vi.fn();
     processGetGrantedExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
   });
 
@@ -90,7 +91,7 @@ describe('wallet_getGrantedExecutionPermissions', () => {
       ['empty array', []],
       ['empty object', {}],
     ])('accepts params as %s', async (_description, params) => {
-      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      request = { ...REQUEST_MOCK, params };
       expect(await callMethod()).toStrictEqual(RESULT_MOCK);
     });
 

@@ -1,42 +1,102 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TransactionPayControllerMessenger } from '../..';
-import type { TransactionPayQuote } from '../../types';
-import { getFiatQuotes } from './fiat-quotes';
-import { submitFiatQuotes } from './fiat-submit';
-import { FiatStrategy } from './FiatStrategy';
-import type { FiatQuote } from './types';
+import type { TransactionPayControllerMessenger } from '../../index.js';
+import type { TransactionPayQuote } from '../../types.js';
+import { getFiatQuotes } from './fiat-quotes.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import { FiatStrategy } from './FiatStrategy.js';
+import type { FiatQuote } from './types.js';
 
-jest.mock('./fiat-quotes');
-jest.mock('./fiat-submit');
+vi.mock(import('./fiat-quotes.js'));
+vi.mock(import('./fiat-submit.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
 } as TransactionPayQuote<FiatQuote>;
 
+const MESSENGER_MOCK = {
+  call: vi.fn().mockReturnValue({ remoteFeatureFlags: {} }),
+} as unknown as TransactionPayControllerMessenger;
+
 describe('FiatStrategy', () => {
-  const getFiatQuotesMock = jest.mocked(getFiatQuotes);
-  const submitFiatQuotesMock = jest.mocked(submitFiatQuotes);
+  const getFiatQuotesMock = vi.mocked(getFiatQuotes);
+  const submitFiatQuotesMock = vi.mocked(submitFiatQuotes);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getFiatQuotesMock.mockResolvedValue([QUOTE_MOCK]);
   });
 
+  describe('supports', () => {
+    it('returns true for requests with an EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId: 'eip155:1:0x1',
+              sourceAssetId: 'eip155:1/slip44:60',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for requests with a non-EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(false);
+    });
+  });
+
   describe('getQuotes', () => {
-    it('returns result from util', async () => {
-      const result = new FiatStrategy().getQuotes({
-        messenger: {} as TransactionPayControllerMessenger,
+    it('delegates to getFiatQuotes', async () => {
+      const request = {
+        messenger: MESSENGER_MOCK,
         requests: [],
         transaction: {} as TransactionMeta,
-      });
+      };
 
-      expect(await result).toStrictEqual([QUOTE_MOCK]);
+      const result = await new FiatStrategy().getQuotes(request);
+
+      expect(result).toStrictEqual([QUOTE_MOCK]);
+      expect(getFiatQuotesMock).toHaveBeenCalledWith(request);
     });
   });
 
   describe('execute', () => {
-    it('calls util', async () => {
+    it('delegates to submitFiatQuotes', async () => {
+      submitFiatQuotesMock.mockResolvedValue({ transactionHash: '0x1234' });
+
       await new FiatStrategy().execute({
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],
@@ -48,6 +108,55 @@ describe('FiatStrategy', () => {
       expect(
         submitFiatQuotesMock.mock.calls[0][0].transaction.txParams.from,
       ).toBe('0x1');
+    });
+
+    it('prefixes execute errors with the Fiat prefix without replacing the Error object', async () => {
+      const error = new Error('Missing order ID');
+      submitFiatQuotesMock.mockRejectedValue(error);
+
+      const thrown = await new FiatStrategy()
+        .execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        })
+        .catch((caught) => caught);
+
+      expect(thrown).toBe(error);
+      expect(thrown.message).toBe('Fiat: Missing order ID');
+    });
+
+    it('throws if fiat submission returns no transaction hash', async () => {
+      submitFiatQuotesMock.mockResolvedValue({ transactionHash: undefined });
+
+      await expect(
+        new FiatStrategy().execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Fiat: Missing transaction hash');
+    });
+
+    it('preserves nested Post-Ramp and Vault prefixes', async () => {
+      submitFiatQuotesMock.mockRejectedValue(
+        new Error(
+          'Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
+        ),
+      );
+
+      await expect(
+        new FiatStrategy().execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow(
+        'Fiat: Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
+      );
     });
   });
 });

@@ -41,6 +41,9 @@ export const PERPS_CONSTANTS = {
   BalanceUpdateThrottleMs: 15000, // Update at most every 15 seconds to reduce state updates in PerpsConnectionManager
   InitialDataDelayMs: 100, // Delay to allow initial data to load after connection establishment
 
+  // Order submission timing
+  PlaceOrderTimeoutMs: 60_000, // Hard timeout for provider round-trip in TradingService.placeOrder
+
   // Deposit toast timing
   DepositTakingLongerToastDelayMs: 30_000, // Delay before showing "Deposit taking longer than usual" toast
 
@@ -56,6 +59,13 @@ export const PERPS_CONSTANTS = {
 
   // Historical data fetching constants
   FillsLookbackMs: 90 * 24 * 60 * 60 * 1000, // 3 months in milliseconds - limits REST API fills fetch
+
+  // Recently viewed markets
+  RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
+  RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
+
+  // Temporary order form draft
+  PendingTradeConfigurationTtlMs: 30_000, // Restore a draft only during a brief navigation away from the form
 } as const;
 
 /**
@@ -107,6 +117,84 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Defaults and bounds for the emulated `chase` placement.
+ *
+ * No supported venue exposes a chase as an API action — HyperLiquid documents it
+ * as running client-side — so the strategy is run here: a post-only order rests
+ * one tick inside the spread and is cancelled and re-placed as the touch moves.
+ * The poll floor limits request frequency; callers may also set explicit
+ * duration or repricing caps. Protocol-agnostic — a provider that gains a
+ * native chase ignores these entirely.
+ */
+export const CHASE_ORDER_CONFIG = {
+  /** Maximum submissions used to survive a touch moving before an ALO rests. */
+  InitialPlacementAttempts: 3,
+  /** How often the touch is re-read when the caller does not say. */
+  DefaultIntervalMs: 15000,
+  /** Floor on the poll interval, whatever the caller asks for. */
+  MinIntervalMs: 1000,
+  /**
+   * How many chases may run at once.
+   *
+   * HyperLiquid documents a cap of five simultaneously active chase orders. It
+   * is a venue rule rather than controller policy, but it is spelled here
+   * alongside the rest of the chase configuration because an emulated chase is
+   * the only thing that can enforce it.
+   */
+  MaxActiveSessions: 5,
+  /** How often a live chase list re-reads the provider's chase snapshots. */
+  RefreshIntervalMs: 1000,
+  /** Most ended chases a live chase list keeps in history, newest first. */
+  HistoryLimit: 50,
+  /**
+   * Reads a live chase list keeps a running chase that a read omits. An
+   * aggregated read drops a provider whose read failed, so one omission is not
+   * proof the chase is gone.
+   */
+  OmissionGraceReads: 1,
+} as const;
+
+/** Refresh cadence of a live TWAP list. */
+export const TWAP_ORDER_CONFIG = {
+  /**
+   * How often a live TWAP list re-reads while a schedule runs. The stream
+   * carries no slice fills, so only reads raise the execution totals.
+   */
+  RefreshIntervalMs: 5000,
+  /** Delay before re-reading when the stream lists a schedule no read has. */
+  StreamCatchUpIntervalMs: 1000,
+} as const;
+
+/** Thresholds for the price warnings shown on a resting order draft. */
+export const ORDER_PRICE_WARNING_CONFIG = {
+  /** Distance from the touch, as a fraction, past which a price is far from market. */
+  FarFromMarketRatio: 0.05,
+} as const;
+
+/** Public lifecycle states reported for an emulated Chase order. */
+export const CHASE_ORDER_STATUS = {
+  Active: 'active',
+  TerminationPending: 'termination_pending',
+  Backgrounded: 'backgrounded',
+  MaxDistanceReached: 'max_distance_reached',
+  DurationReached: 'duration_reached',
+  RepricingLimitReached: 'repricing_limit_reached',
+  Filled: 'filled',
+  Canceled: 'canceled',
+  Failed: 'failed',
+} as const;
+
+/**
+ * Bounds and step for the user-configurable max slippage preference (basis points).
+ * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
+ */
+export const MAX_SLIPPAGE_BOUNDS = {
+  MinBps: 10,
+  MaxBps: 1000,
+  StepBps: 10,
+} as const;
+
+/**
  * Max order amount buffer to reduce "Insufficient margin" rejections from the exchange.
  * When the user selects 100% (slider or Max), we cap the order at (1 - this) of the
  * theoretical max so that fees, rounding, and exchange-side margin checks are covered.
@@ -127,6 +215,9 @@ export const PERFORMANCE_CONFIG = {
   // Prevents excessive validation calls during rapid form input changes
   ValidationDebounceMs: 300,
 
+  // Freshness window for provider market metadata used by strategy capability reads
+  OrderCapabilitiesMetaFreshnessMs: 30_000,
+
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
   LiquidationPriceDebounceMs: 500,
@@ -134,6 +225,20 @@ export const PERFORMANCE_CONFIG = {
   // Candle subscription debounce delay (milliseconds)
   // Prevents WS subscription churn during rapid market switching (#28141)
   CandleConnectDebounceMs: 500,
+
+  // Order-form slippage estimate throttle (milliseconds)
+  // Updates the estimated-slippage value derived from the live L2 order book
+  // no more than once per window. Aggressive enough to keep the row reactive
+  // while the user edits the amount, conservative enough to avoid re-render
+  // pressure on every book tick.
+  SlippageEstimateThrottleMs: 250,
+
+  // Order-book levels sampled when estimating slippage
+  // Number of price levels (per side) walked by `calculateEstimatedSlippageBps`
+  // to fill the requested USD notional. Matches the L2 sample size used by the
+  // order-book panel and is enough depth for the typical order sizes we
+  // surface in the order form.
+  SlippageEstimateBookLevels: 10,
 
   // Candle WS teardown delay (milliseconds)
   // When the last subscriber for a cacheKey unsubscribes, wait this long before
@@ -222,6 +327,30 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
+ * Bounds applied to a HyperLiquid TWAP placement.
+ *
+ * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
+ * integer in `[5, 1440]` before signing, although the venue currently documents
+ * a maximum of seven days (`10080` minutes). The controller exposes the SDK's
+ * narrower cap until that dependency supports the venue limit, avoiding an
+ * opaque SDK error. `MinNotionalUsd` is the venue's documented minimum *total*
+ * order size for a TWAP, which it enforces instead of the per-order minimum —
+ * its suborders are its own business.
+ *
+ * Carries the venue prefix, like `HYPERLIQUID_ORDER_LIMITS`, because these are
+ * venue/SDK constraints rather than controller policy.
+ *
+ * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types
+ */
+export const HYPERLIQUID_TWAP_LIMITS = {
+  MinDurationMinutes: 5,
+  MaxDurationMinutes: 1440,
+  MinNotionalUsd: 100,
+  /** The venue sends one TWAP suborder every 30 seconds. */
+  SliceIntervalSeconds: 30,
+} as const;
+
+/**
  * HyperLiquid order limits based on leverage
  * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications
  */
@@ -286,6 +415,11 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
   // See: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/margin-and-pnl
   MarginRemovalSafetyBuffer: 0.1,
 
+  // Share of notional kept back from a margin removal for the mark price
+  // moving before the venue processes it; the exact boundary is rejected on
+  // any adverse tick
+  MarginRemovalPriceMoveBuffer: 0.01,
+
   // Fallback max leverage when market data is unavailable
   // Conservative value to prevent over-removal of margin
   // Most HyperLiquid assets support at least 50x leverage
@@ -299,6 +433,92 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
 export const DATA_LAKE_API_CONFIG = {
   // Order reporting endpoint - only used for mainnet perps trading
   OrdersEndpoint: 'https://perps.api.cx.metamask.io/api/v1/orders',
+} as const;
+
+/**
+ * Subscription benefits cache (stale-while-revalidate).
+ *
+ * The unified fee resolver never awaits the benefits read, so these bounds are
+ * what decide whether the cached snapshot may grant the perps fee waiver:
+ * - within `FreshMs` the snapshot is served as-is,
+ * - past `FreshMs` it is still served while a background refresh runs,
+ * - past `MaxStaleMs` it is no longer trusted to grant the waiver, and the
+ *   resolver falls back to the next-lowest fee source.
+ */
+export const SUBSCRIPTION_BENEFITS_CACHE = {
+  FreshMs: 60_000, // 1 minute – no refresh triggered
+  MaxStaleMs: 10 * 60 * 1000, // 10 minutes – ceiling for granting the waiver
+} as const;
+
+/**
+ * Client order ID marking for the ADR 0064 subscription fee waiver.
+ *
+ * A HyperLiquid cloid is 16 bytes. When the subscription source wins the fee
+ * comparison, the order's cloid is stamped so the fill can be attributed to the
+ * subscription program off the existing HL fill fan-out, with no dedicated
+ * builder address and no per-user approval:
+ *
+ * ```
+ * 0x <program marker: 4 bytes> <flags: 1 byte> <entropy: 11 bytes>
+ * ```
+ *
+ * The flag byte follows the leading marker rather than replacing it, so the
+ * marking composes with the cloid the Scale ladder already builds: a Scale rung
+ * keeps its own `4d4d5343` marker and its rung index, and only the flag byte is
+ * claimed, leaving group recovery and cancel-by-cloid intact.
+ *
+ * `ProgramId` is isolated in this one constant so every marking and decoding
+ * path reads the marker from a single place; see its own documentation below
+ * for the registered value and how it is encoded.
+ */
+export const SUBSCRIPTION_CLOID_CONFIG = {
+  /**
+   * Reserved program marker, 4 bytes as lowercase hex without the `0x`.
+   *
+   * The registry assigns perps subscriptions program_id `0x0100`, from the
+   * `0x0000`–`0x00FF`-adjacent range reserved for core protocol features. It is
+   * a 2-byte id, zero-extended big-endian into this 4-byte marker field so the
+   * rest of the layout — flag byte at a fixed offset, 11 bytes of entropy — is
+   * unchanged. No previously released client emitted a cloid starting with
+   * these bytes, and it cannot collide with the Scale marker (`4d4d5343`),
+   * which is what makes the decoder safe against historical fills.
+   */
+  ProgramId: '00000100',
+
+  /** Hex characters in the leading program marker (4 bytes). */
+  ProgramIdHexLength: 8,
+
+  /** Hex characters of trailing entropy in a marked cloid (11 bytes). */
+  EntropyHexLength: 22,
+} as const;
+
+/**
+ * Flag bits carried in the flag byte of a subscription-marked cloid.
+ */
+export const SUBSCRIPTION_CLOID_FLAGS = {
+  /** Bit 0 — a subscription fee reduction was applied to this order. */
+  FeeReductionApplied: 0x01,
+} as const;
+
+/**
+ * Remote feature flag that gates the subscription fee-waiver source.
+ *
+ * ADR 0064 Milestone 8 requires the subscription source to be killable on its
+ * own, without touching VIP, season, or the default builder fee. Absent or
+ * malformed, the flag reads as enabled so an unreachable flag service cannot
+ * silently drop a benefit the user pays for.
+ */
+export const SUBSCRIPTION_FEE_WAIVER_FLAG = 'perpsSubscriptionFeeWaiverEnabled';
+
+/**
+ * Terminal API configuration.
+ * The full endpoint URL is injected at runtime via
+ * `PerpsPlatformDependencies.terminalApi.marketDataUrl` from each client build
+ * (dev/uat/prd); only cache settings live here.
+ */
+export const TERMINAL_API_CONFIG = {
+  CacheTtlMs: 5 * 60 * 1000, // 5 minutes
+  FetchTimeoutMs: 10_000, // 10 seconds – degrade to provider on slow Terminal
 } as const;
 
 /**
@@ -317,6 +537,25 @@ export const DECIMAL_PRECISION_CONFIG = {
   // Using 6 as safe maximum to prevent crashes (covers most assets)
   // NOTE: This is NOT semantically correct - just a defensive measure
   FallbackSizeDecimals: 6,
+} as const;
+
+/**
+ * Decimal places kept by the shared TP/SL calculations.
+ *
+ * A calculated trigger price keeps the decimals of the first band whose
+ * `BelowPrice` it is under, else `TriggerPriceDefaultDecimals`, without
+ * trailing zeros: low-priced assets need more decimals. The provider rounds
+ * the price to the asset's submission precision when the order is sent.
+ */
+export const TP_SL_PRECISION_CONFIG = {
+  TriggerPriceBands: [
+    { BelowPrice: 0.01, Decimals: 8 },
+    { BelowPrice: 1, Decimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals },
+    { BelowPrice: 100, Decimals: 4 },
+  ],
+  TriggerPriceDefaultDecimals: 2,
+  // Decimal places of a calculated or displayed RoE or price-move percentage
+  PercentageDecimals: 2,
 } as const;
 
 /**
@@ -382,6 +621,134 @@ export type SortOptionId =
   (typeof MARKET_SORTING_CONFIG.SortOptions)[number]['id'];
 
 /**
+ * Perps interface mode.
+ *
+ * `Lite` is the simplified default experience; `Pro` exposes the advanced
+ * trading layout (chart, order book, inline order form).
+ */
+export enum PerpsMode {
+  Lite = 'lite',
+  Pro = 'pro',
+}
+
+/**
+ * Side filter for the Pro Positions list (long/short/all).
+ *
+ * Independent of `ordersSideFilter`. Shared across markets via
+ * `proLayoutPreferences.positionsSideFilter`.
+ */
+export type ProPositionsSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Positions list.
+ */
+export type ProPositionsSortField =
+  | 'positionValue'
+  | 'unrealizedPnl'
+  | 'fundingRate';
+
+/**
+ * Sort direction for the Pro Positions list.
+ */
+export type ProPositionsSortDirection = 'asc' | 'desc';
+
+/**
+ * Side filter for the Pro Orders list (long/short/all).
+ *
+ * Independent of `positionsSideFilter`. Shared across markets via
+ * `proLayoutPreferences.ordersSideFilter`.
+ */
+export type ProOrdersSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Orders list.
+ */
+export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
+
+/**
+ * Sort direction for the Pro Orders list.
+ */
+export type ProOrdersSortDirection = 'asc' | 'desc';
+
+/**
+ * Currency used by the Pro order-book size/total column.
+ */
+export type OrderBookListCurrency = 'base' | 'usd';
+
+/**
+ * Value shown by the Pro order-book size/total column.
+ */
+export type OrderBookListMetric = 'size' | 'total';
+
+/**
+ * Market-agnostic Pro order-book display preferences.
+ */
+export type OrderBookPreferences = {
+  currency: OrderBookListCurrency;
+  metric: OrderBookListMetric;
+};
+
+/**
+ * Default Pro order-book display preferences.
+ */
+export const DEFAULT_ORDER_BOOK_PREFERENCES: OrderBookPreferences = {
+  currency: 'usd',
+  metric: 'total',
+};
+
+/**
+ * Pro-mode layout preferences (network-independent).
+ *
+ * Flat object that persists across markets (unlike the per-market
+ * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
+ * reserved for future container-position UI. Positions and Orders each have
+ * their own side filter and sort so they survive market navigation and app
+ * restarts independently.
+ */
+export type ProLayoutPreferences = {
+  orderBookExpanded: boolean;
+  chartExpanded: boolean;
+  orderBookPosition: 'left' | 'right';
+  orderFormPosition: 'left' | 'right';
+  positionsSideFilter: ProPositionsSideFilter;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
+  ordersSideFilter: ProOrdersSideFilter;
+  ordersSortField: ProOrdersSortField;
+  ordersSortDirection: ProOrdersSortDirection;
+};
+
+/**
+ * Default pro-mode layout preferences.
+ *
+ * Shared by `getDefaultPerpsControllerState()`, the controller getter, and the
+ * selector so callers always receive a fully-populated object even when the
+ * persisted state predates this field.
+ */
+export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
+  orderBookExpanded: false,
+  chartExpanded: true,
+  orderBookPosition: 'left',
+  orderFormPosition: 'right',
+  positionsSideFilter: 'all',
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
+  ordersSideFilter: 'all',
+  ordersSortField: 'time',
+  ordersSortDirection: 'desc',
+};
+
+/**
+ * Default Perps interface mode.
+ */
+export const DEFAULT_PERPS_MODE: PerpsMode = PerpsMode.Lite;
+
+/**
+ * Default market-agnostic order type.
+ */
+export const DEFAULT_SELECTED_ORDER_TYPE = 'market' as const;
+
+/**
  * Funding rate display configuration
  * Controls how funding rates are formatted and displayed
  */
@@ -395,13 +762,73 @@ export const FUNDING_RATE_CONFIG = {
 } as const;
 
 /**
+ * Decimal places shown for each displayed perps value, shared by Mobile,
+ * Extension and Terminal. Pass one as the `decimals` option of the display
+ * formatters (`formatPercentage`, `formatCrossMarginRatio`, `formatPnl`,
+ * `formatPerpsFiat`, `formatFundingRate`, `formatFeeBps`,
+ * `formatLiquidationDistance`, `formatPerpsCompact`,
+ * `formatPerpsUsdInput`). Prices follow `PRICE_RANGES_UNIVERSAL` instead.
+ */
+export const PERPS_DISPLAY_PRECISION = {
+  // Generic percentage, such as the 24h change: "+5.25%"
+  Percentage: 2,
+  // Cross margin account ratio and usage, from a 0..1 ratio: "17.4%", "63%"
+  CrossMarginRatioPercent: 1,
+  // Return on equity: "+10.3%"
+  RoePercent: 1,
+  // Profit and loss in USD: "+$12.34"
+  Pnl: 2,
+  // Fee amount in USD: "$1.50"
+  Fee: 2,
+  // Fee rate as a percentage: "0.045%"
+  FeeRatePercent: 3,
+  // Funding rate as a percentage: "0.0125%"
+  FundingRatePercent: FUNDING_RATE_CONFIG.Decimals,
+  // Estimated slippage of an order as a percentage: "0.0021%"
+  SlippageEstimatePercent: 4,
+  // Most decimals a displayed price may have (Hyperliquid limit)
+  MaxPriceDecimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals,
+  // Most decimals of a fee in basis points: "4.5 bps", "1.44 bps"
+  FeeBps: 2,
+  // Distance from the liquidation price as a percentage: "30.00%"
+  LiquidationDistancePercent: 2,
+  // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
+  TwapProgressPercent: 2,
+  // Most decimals of a typed USD amount: "12.34"
+  UsdInput: 2,
+  // Most digits of a typed USD amount, integer and fraction together
+  UsdInputMaxDigits: 9,
+  // Volume and open interest from $1M up, and below $1K: "$1.23M", "$999.50"
+  VolumeCompact: 2,
+  // Volume and open interest in thousands: "$123K"
+  VolumeCompactThousands: 0,
+  // Order book size and total from 1K up: "$2.1K", "604.9K"
+  OrderBookCompact: 1,
+  // Most decimals of an abbreviated order book price: "$61.47K"
+  OrderBookAbbreviatedPriceMax: 3,
+  // Distance of an order book depth level from the mid price as a
+  // percentage: "+0.0125%"
+  OrderBookDepthRangePercent: 4,
+  // Most decimals of the depth chart zoom range as a percentage: "0.00125"
+  OrderBookDepthZoomRangePercentMax: 5,
+  // Most decimals of a TWAP sub-order's base-asset size: "0.00012"
+  TwapSuborderSize: 5,
+} as const;
+
+/**
  * Provider configuration for multi-provider support
  */
 export const PROVIDER_CONFIG = {
   /** Default perpetual DEX provider when no explicit selection exists */
   DefaultProvider: 'hyperliquid' as const,
-  /** Force MYX to testnet only (mainnet credentials not yet available) */
-  MYX_TESTNET_ONLY: false,
+  /**
+   * Force Lighter to testnet only. Off: Lighter follows the global network
+   * toggle — mainnet reads AND writes are enabled (the initial rollout
+   * write gate was removed once the write path was validated end-to-end
+   * on testnet). Flip on to pin Lighter to testnet regardless of the
+   * global network toggle.
+   */
+  LIGHTER_TESTNET_ONLY: false,
 } as const;
 
 // Disk-backed cold-start cache keys and throttle interval.
@@ -439,10 +866,10 @@ export function getProviderNetworkKey(state: {
 
 /**
  * Build a provider:network cache key for a specific provider id.
- * Accounts for MYX_TESTNET_ONLY: MYX is always on testnet regardless of the
- * global network flag.
+ * Accounts for LIGHTER_TESTNET_ONLY: when set, Lighter stays on testnet
+ * regardless of the global network flag.
  *
- * @param providerId - The provider identifier (e.g. "hyperliquid", "myx").
+ * @param providerId - The provider identifier (e.g. "hyperliquid", "lighter").
  * @param isTestnet - Global testnet flag from controller state.
  * @returns Cache key in the format "provider:mainnet" or "provider:testnet".
  */
@@ -450,9 +877,9 @@ export function buildProviderCacheKey(
   providerId: string,
   isTestnet: boolean,
 ): string {
-  const effectiveTestnet =
-    providerId === 'myx'
-      ? PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet
-      : isTestnet;
+  let effectiveTestnet = isTestnet;
+  if (providerId === 'lighter') {
+    effectiveTestnet = PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || isTestnet;
+  }
   return `${providerId}:${effectiveTestnet ? 'testnet' : 'mainnet'}`;
 }

@@ -5,10 +5,12 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerState,
 } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import { GetCallsStatusCode } from '../constants';
-import type { EIP5792Messenger } from '../types';
-import { getCallsStatus } from './getCallsStatus';
+import { GetCallsStatusCode } from '../constants.js';
+import type { EIP5792Messenger } from '../types.js';
+import { getCallsStatus } from './getCallsStatus.js';
 
 const CHAIN_ID_MOCK = '0x123';
 const BATCH_ID_MOCK = '0xf3472db2a4134607a17213b7e9ca26e3';
@@ -43,16 +45,16 @@ type AllActions = MessengerActions<EIP5792Messenger>;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
 describe('EIP-5792', () => {
-  const getTransactionControllerStateMock: jest.MockedFn<
+  const getTransactionControllerStateMock: MockedFunction<
     TransactionControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
   let rootMessenger: RootMessenger;
 
   let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
       namespace: MOCK_ANY_NAMESPACE,

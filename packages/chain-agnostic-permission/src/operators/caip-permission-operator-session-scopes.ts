@@ -1,19 +1,20 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
-import type { CaipAccountId, CaipChainId } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from '../scope/constants';
-import { mergeNormalizedScopes } from '../scope/transform';
+} from '../scope/constants.js';
+import { mergeNormalizedScopes } from '../scope/transform.js';
 import type {
   InternalScopesObject,
   NormalizedScopesObject,
-} from '../scope/types';
-import { parseScopeString } from '../scope/types';
+} from '../scope/types.js';
+import { parseScopeString } from '../scope/types.js';
+import { getEthAccounts } from './caip-permission-operator-accounts.js';
 
 /**
  * Converts an NormalizedScopesObject to a InternalScopesObject.
@@ -141,6 +142,51 @@ export const getSessionScopes = (
   }
 
   return mergedScopes;
+};
+
+/**
+ * Builds the session properties for an endowment:caip25 permission caveat value,
+ * hydrating the persisted session properties with an `eip155Capabilities` record
+ * that maps each permitted EVM account address to its per-chain capabilities.
+ *
+ * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the session properties from.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getCapabilities - A function that resolves the per-chain capabilities for a given address.
+ * @returns A promise that resolves to the session properties merged with an `eip155Capabilities` record keyed by account address.
+ */
+export const getSessionProperties = async (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes' | 'sessionProperties'
+  >,
+  {
+    getCapabilities,
+  }: {
+    getCapabilities: (params: {
+      address: string;
+    }) => Promise<Record<Hex, Record<string, Json>>>;
+  },
+): Promise<Record<string, Json>> => {
+  const addresses = getEthAccounts(caip25CaveatValue);
+
+  const eip155Capabilities: Record<Hex, Record<string, Json>> = {};
+
+  await Promise.all(
+    addresses.map(async (address) => {
+      try {
+        eip155Capabilities[address] = await getCapabilities({ address });
+      } catch (error) {
+        console.error(
+          `Error getting capabilities for address ${address}: ${String(error)}`,
+        );
+      }
+    }),
+  );
+
+  return {
+    ...caip25CaveatValue.sessionProperties,
+    eip155Capabilities,
+  };
 };
 
 /**

@@ -1,15 +1,29 @@
+import { Contract } from '@ethersproject/contracts';
+import {
+  safelyExecute,
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import BN from 'bn.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
-import * as ConstantsModule from '../constants';
-import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
-import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
-import type { GetBalancesResponse } from './types';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
+import {
+  accountAddressToCaipReference,
+  reduceInBatchesSerially,
+} from '../assetsUtil.js';
+import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants.js';
+import * as ConstantsModule from '../constants.js';
+import { AccountsApiBalanceFetcher } from './api-balance-fetcher.js';
+import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher.js';
+import { fetchMultiChainBalancesV4 } from './multi-chain-accounts.js';
+import type { GetBalancesResponse } from './types.js';
 
 // Mock dependencies that cause import issues
-jest.mock('../AssetsContractController', () => ({
+vi.mock('../AssetsContractController', () => ({
   STAKING_CONTRACT_ADDRESS_BY_CHAINID: {
     '0x1': '0x4FEF9D741011476750A243aC70b9789a63dd47Df',
     '0x4268': '0x4FEF9D741011476750A243aC70b9789a63dd47Df',
@@ -123,20 +137,20 @@ const MOCK_INTERNAL_ACCOUNTS: InternalAccount[] = [
 ];
 
 // Mock the imports
-jest.mock('@metamask/controller-utils', () => ({
-  safelyExecute: jest.fn(),
-  safelyExecuteWithTimeout: jest.fn(),
-  toHex: jest.fn(),
-  toChecksumHexAddress: jest.fn(),
+vi.mock('@metamask/controller-utils', () => ({
+  safelyExecute: vi.fn(),
+  safelyExecuteWithTimeout: vi.fn(),
+  toHex: vi.fn(),
+  toChecksumHexAddress: vi.fn(),
 }));
 
-jest.mock('./multi-chain-accounts', () => ({
-  fetchMultiChainBalancesV4: jest.fn(),
+vi.mock('./multi-chain-accounts', () => ({
+  fetchMultiChainBalancesV4: vi.fn(),
 }));
 
-jest.mock('../assetsUtil', () => ({
-  accountAddressToCaipReference: jest.fn(),
-  reduceInBatchesSerially: jest.fn(),
+vi.mock('../assetsUtil', () => ({
+  accountAddressToCaipReference: vi.fn(),
+  reduceInBatchesSerially: vi.fn(),
   SupportedStakedBalanceNetworks: {
     Mainnet: '0x1',
     Hoodi: '0x4268',
@@ -147,43 +161,33 @@ jest.mock('../assetsUtil', () => ({
   },
 }));
 
-jest.mock('@ethersproject/contracts', () => ({
-  Contract: jest.fn(),
+vi.mock('@ethersproject/contracts', () => ({
+  Contract: vi.fn(),
 }));
 
-jest.mock('@ethersproject/bignumber', () => ({
+vi.mock('@ethersproject/bignumber', () => ({
   BigNumber: {
-    from: jest.fn(),
+    from: vi.fn(),
   },
 }));
 
-jest.mock('@ethersproject/providers', () => ({
-  Web3Provider: jest.fn(),
+vi.mock('@ethersproject/providers', () => ({
+  Web3Provider: vi.fn(),
 }));
 
-const mockSafelyExecute = jest.requireMock(
-  '@metamask/controller-utils',
-).safelyExecute;
-const mockSafelyExecuteWithTimeout = jest.requireMock(
-  '@metamask/controller-utils',
-).safelyExecuteWithTimeout;
-const mockToHex = jest.requireMock('@metamask/controller-utils').toHex;
-const mockToChecksumHexAddress = jest.requireMock(
-  '@metamask/controller-utils',
-).toChecksumHexAddress;
-const mockFetchMultiChainBalancesV4 = jest.requireMock(
-  './multi-chain-accounts',
-).fetchMultiChainBalancesV4;
-const mockAccountAddressToCaipReference =
-  jest.requireMock('../assetsUtil').accountAddressToCaipReference;
-const mockReduceInBatchesSerially =
-  jest.requireMock('../assetsUtil').reduceInBatchesSerially;
+const mockSafelyExecute = safelyExecute as Mock;
+const mockSafelyExecuteWithTimeout = safelyExecuteWithTimeout as Mock;
+const mockToHex = toHex as Mock;
+const mockToChecksumHexAddress = toChecksumHexAddress as Mock;
+const mockFetchMultiChainBalancesV4 = fetchMultiChainBalancesV4 as Mock;
+const mockAccountAddressToCaipReference = accountAddressToCaipReference as Mock;
+const mockReduceInBatchesSerially = reduceInBatchesSerially as Mock;
 
 describe('AccountsApiBalanceFetcher', () => {
   let balanceFetcher: AccountsApiBalanceFetcher;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Setup default mock implementations
     mockToHex.mockImplementation((value: number | string) => {
@@ -210,7 +214,7 @@ describe('AccountsApiBalanceFetcher', () => {
         try {
           return await operation();
         } catch {
-          return undefined;
+          return;
         }
       },
     );
@@ -233,7 +237,7 @@ describe('AccountsApiBalanceFetcher', () => {
     });
 
     it('should create instance with getProvider function for staked balance functionality', () => {
-      const mockGetProvider = jest.fn();
+      const mockGetProvider = vi.fn();
       balanceFetcher = new AccountsApiBalanceFetcher(
         'extension',
         mockGetProvider,
@@ -255,7 +259,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
     it('should return false for unsupported chain IDs', () => {
       expect(balanceFetcher.supports(MOCK_UNSUPPORTED_CHAIN_ID)).toBe(false);
-      expect(balanceFetcher.supports('0x123' as ChainIdHex)).toBe(false);
+      expect(balanceFetcher.supports('0x123')).toBe(false);
     });
   });
 
@@ -268,7 +272,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -280,7 +284,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_UNSUPPORTED_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -307,7 +311,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -344,7 +348,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -378,7 +382,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -435,7 +439,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -515,7 +519,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -556,7 +560,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -590,7 +594,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -621,9 +625,9 @@ describe('AccountsApiBalanceFetcher', () => {
       mockFetchMultiChainBalancesV4.mockResolvedValue(MOCK_BALANCES_RESPONSE);
 
       await balanceFetcher.fetch({
-        chainIds: [MOCK_CHAIN_ID, '0x89' as ChainIdHex], // Ethereum and Polygon
+        chainIds: [MOCK_CHAIN_ID, '0x89'], // Ethereum and Polygon
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -655,7 +659,7 @@ describe('AccountsApiBalanceFetcher', () => {
       await mobileBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -688,7 +692,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -733,7 +737,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -772,7 +776,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -794,7 +798,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -835,7 +839,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -881,7 +885,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -938,7 +942,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -973,9 +977,9 @@ describe('AccountsApiBalanceFetcher', () => {
       );
 
       const result = await balanceFetcher.fetch({
-        chainIds: ['0x1', '0xa86a' as ChainIdHex],
+        chainIds: ['0x1', '0xa86a'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -993,27 +997,27 @@ describe('AccountsApiBalanceFetcher', () => {
   describe('staked balance functionality', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockProvider: any;
-    let mockGetProvider: jest.Mock;
+    let mockGetProvider: Mock;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockContract: any;
 
     beforeEach(() => {
       // Setup contract mock with required methods
       mockContract = {
-        getShares: jest.fn(),
-        convertToAssets: jest.fn(),
+        getShares: vi.fn(),
+        convertToAssets: vi.fn(),
       };
 
       // Mock the Contract constructor to return our mock contract
-      const mockContractConstructor = jest.requireMock(
-        '@ethersproject/contracts',
-      ).Contract;
-      mockContractConstructor.mockImplementation(() => mockContract);
+      const mockContractConstructor = vi.mocked(Contract);
+      mockContractConstructor.mockImplementation(function () {
+        return mockContract;
+      });
 
       mockProvider = {
-        call: jest.fn(),
+        call: vi.fn(),
       };
-      mockGetProvider = jest.fn().mockReturnValue(mockProvider);
+      mockGetProvider = vi.fn().mockReturnValue(mockProvider);
       balanceFetcher = new AccountsApiBalanceFetcher(
         'extension',
         mockGetProvider,
@@ -1024,7 +1028,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock successful staking contract calls with BigNumber-like objects
       const mockShares = {
         toString: (): string => '1000000000000000000', // 1 share
-        gt: jest.fn().mockReturnValue(true), // shares > 0
+        gt: vi.fn().mockReturnValue(true), // shares > 0
       };
       const mockAssets = {
         toString: (): string => '2000000000000000000', // 2 ETH equivalent
@@ -1038,7 +1042,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1058,7 +1062,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock staking contract calls to return zero shares
       const mockZeroShares = {
         toString: (): string => '0', // 0 shares
-        gt: jest.fn().mockReturnValue(false), // shares = 0, not > 0
+        gt: vi.fn().mockReturnValue(false), // shares = 0, not > 0
       };
       mockContract.getShares.mockResolvedValue(mockZeroShares);
 
@@ -1067,7 +1071,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1091,7 +1095,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1127,7 +1131,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_UNSUPPORTED_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1169,7 +1173,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [polygonChainId], // Polygon is API-supported but not staking-supported
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1200,8 +1204,8 @@ describe('AccountsApiBalanceFetcher', () => {
       const testChainId = '0x4268' as ChainIdHex; // Use the mock hoodi chain ID
 
       // Get the mocked module
-      const mockAssetsController = jest.requireMock(
-        '../AssetsContractController',
+      const mockAssetsController = vi.mocked(
+        await import('../AssetsContractController.js'),
       );
 
       // Store original mock
@@ -1246,7 +1250,7 @@ describe('AccountsApiBalanceFetcher', () => {
         const result = await balanceFetcher.fetch({
           chainIds: [testChainId], // 0x4268 is in mocked SupportedStakedBalanceNetworks but not in modified STAKING_CONTRACT_ADDRESS_BY_CHAINID
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         });
 
@@ -1282,15 +1286,13 @@ describe('AccountsApiBalanceFetcher', () => {
 
       // Setup mocks for contract creation failure
       const mockProvider2 = {
-        call: jest.fn(),
+        call: vi.fn(),
       };
-      const mockGetProvider2 = jest.fn().mockReturnValue(mockProvider2);
+      const mockGetProvider2 = vi.fn().mockReturnValue(mockProvider2);
 
       // Mock Contract constructor to throw an error
-      const mockContractConstructor = jest.requireMock(
-        '@ethersproject/contracts',
-      ).Contract;
-      mockContractConstructor.mockImplementation(() => {
+      const mockContractConstructor = vi.mocked(Contract);
+      mockContractConstructor.mockImplementation(function () {
         throw new Error('Contract creation failed');
       });
 
@@ -1300,7 +1302,9 @@ describe('AccountsApiBalanceFetcher', () => {
       );
 
       // Setup console.error spy to verify the error is logged
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       try {
         mockFetchMultiChainBalancesV4.mockResolvedValue(MOCK_BALANCES_RESPONSE);
@@ -1308,7 +1312,7 @@ describe('AccountsApiBalanceFetcher', () => {
         const result = await testFetcher.fetch({
           chainIds: [MOCK_CHAIN_ID], // Use mainnet which has staking support
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         });
 
@@ -1344,7 +1348,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await fetcherWithoutProvider.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1377,7 +1381,7 @@ describe('AccountsApiBalanceFetcher', () => {
       await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1392,7 +1396,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1420,7 +1424,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1437,19 +1441,19 @@ describe('AccountsApiBalanceFetcher', () => {
     it('should handle parallel fetching of API balances and staked balances', async () => {
       // Setup contract mock with required methods
       const localMockContract = {
-        getShares: jest.fn().mockResolvedValue({ toString: () => '0' }),
-        convertToAssets: jest.fn(),
+        getShares: vi.fn().mockResolvedValue({ toString: () => '0' }),
+        convertToAssets: vi.fn(),
       };
 
       // Mock the Contract constructor to return our mock contract
-      const mockContractConstructor = jest.requireMock(
-        '@ethersproject/contracts',
-      ).Contract;
-      mockContractConstructor.mockImplementation(() => localMockContract);
+      const mockContractConstructor = vi.mocked(Contract);
+      mockContractConstructor.mockImplementation(function () {
+        return localMockContract;
+      });
 
-      const mockGetProvider = jest.fn();
+      const mockGetProvider = vi.fn();
       const mockProvider = {
-        call: jest
+        call: vi
           .fn()
           .mockResolvedValue(
             '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1467,7 +1471,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await fetcherWithProvider.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1500,7 +1504,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1525,27 +1529,27 @@ describe('AccountsApiBalanceFetcher', () => {
   describe('staked balance internal method coverage', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockProvider: any;
-    let mockGetProvider: jest.Mock;
+    let mockGetProvider: Mock;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockContract: any;
 
     beforeEach(() => {
       // Setup contract mock with required methods
       mockContract = {
-        getShares: jest.fn(),
-        convertToAssets: jest.fn(),
+        getShares: vi.fn(),
+        convertToAssets: vi.fn(),
       };
 
       // Mock the Contract constructor to return our mock contract
-      const mockContractConstructor = jest.requireMock(
-        '@ethersproject/contracts',
-      ).Contract;
-      mockContractConstructor.mockImplementation(() => mockContract);
+      const mockContractConstructor = vi.mocked(Contract);
+      mockContractConstructor.mockImplementation(function () {
+        return mockContract;
+      });
 
       mockProvider = {
-        call: jest.fn(),
+        call: vi.fn(),
       };
-      mockGetProvider = jest.fn().mockReturnValue(mockProvider);
+      mockGetProvider = vi.fn().mockReturnValue(mockProvider);
       balanceFetcher = new AccountsApiBalanceFetcher(
         'extension',
         mockGetProvider,
@@ -1556,7 +1560,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock successful getShares call with BigNumber-like object
       const mockShares = {
         toString: (): string => '1000000000000000000', // 1 share
-        gt: jest.fn().mockReturnValue(true), // shares > 0
+        gt: vi.fn().mockReturnValue(true), // shares > 0
       };
       mockContract.getShares.mockResolvedValue(mockShares);
 
@@ -1575,7 +1579,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1601,7 +1605,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1617,7 +1621,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock successful getShares with BigNumber-like object
       const mockShares = {
         toString: (): string => '1000000000000000000',
-        gt: jest.fn().mockReturnValue(true), // shares > 0
+        gt: vi.fn().mockReturnValue(true), // shares > 0
       };
       mockContract.getShares.mockResolvedValue(mockShares);
 
@@ -1635,7 +1639,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1651,7 +1655,7 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock getShares returning zero with BigNumber-like object
       const mockZeroShares = {
         toString: (): string => '0',
-        gt: jest.fn().mockReturnValue(false), // shares = 0, not > 0
+        gt: vi.fn().mockReturnValue(false), // shares = 0, not > 0
       };
       mockContract.getShares.mockResolvedValue(mockZeroShares);
 
@@ -1664,7 +1668,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1681,11 +1685,11 @@ describe('AccountsApiBalanceFetcher', () => {
       // Mock different shares for different addresses with BigNumber-like objects
       const mockAddr1Shares = {
         toString: (): string => '1000000000000000000', // addr1: 1 share
-        gt: jest.fn().mockReturnValue(true), // shares > 0
+        gt: vi.fn().mockReturnValue(true), // shares > 0
       };
       const mockAddr2Shares = {
         toString: (): string => '0', // addr2: 0 shares
-        gt: jest.fn().mockReturnValue(false), // shares = 0
+        gt: vi.fn().mockReturnValue(false), // shares = 0
       };
 
       mockContract.getShares
@@ -1705,7 +1709,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1742,24 +1746,24 @@ describe('AccountsApiBalanceFetcher', () => {
       // Setup successful staking contract (but it won't be reached)
       const mockShares = {
         toString: (): string => '1000000000000000000',
-        gt: jest.fn().mockReturnValue(true),
+        gt: vi.fn().mockReturnValue(true),
       };
       const mockAssets = {
         toString: (): string => '2000000000000000000',
       };
 
       const localMockContract = {
-        getShares: jest.fn().mockResolvedValue(mockShares),
-        convertToAssets: jest.fn().mockResolvedValue(mockAssets),
+        getShares: vi.fn().mockResolvedValue(mockShares),
+        convertToAssets: vi.fn().mockResolvedValue(mockAssets),
       };
 
-      const mockContractConstructor = jest.requireMock(
-        '@ethersproject/contracts',
-      ).Contract;
-      mockContractConstructor.mockImplementation(() => localMockContract);
+      const mockContractConstructor = vi.mocked(Contract);
+      mockContractConstructor.mockImplementation(function () {
+        return localMockContract;
+      });
 
-      const mockProvider = { call: jest.fn() };
-      const mockGetProvider = jest.fn().mockReturnValue(mockProvider);
+      const mockProvider = { call: vi.fn() };
+      const mockGetProvider = vi.fn().mockReturnValue(mockProvider);
 
       const fetcherWithProvider = new AccountsApiBalanceFetcher(
         'extension',
@@ -1774,7 +1778,7 @@ describe('AccountsApiBalanceFetcher', () => {
         fetcherWithProvider.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
       ).rejects.toThrow('Accounts API request timed out or failed');
@@ -1808,10 +1812,9 @@ describe('AccountsApiBalanceFetcher', () => {
       mockFetchMultiChainBalancesV4.mockResolvedValue(highPrecisionResponse);
 
       const result = await balanceFetcher.fetch({
-        chainIds: ['0xa4b1' as ChainIdHex], // Arbitrum
+        chainIds: ['0xa4b1'], // Arbitrum
         queryAllAccounts: false,
-        selectedAccount:
-          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045' as ChecksumAddress,
+        selectedAccount: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1856,7 +1859,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1895,7 +1898,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1930,7 +1933,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1962,7 +1965,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1990,7 +1993,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2018,7 +2021,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2049,7 +2052,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2095,7 +2098,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2196,7 +2199,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -2307,7 +2310,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -2337,7 +2340,7 @@ describe('AccountsApiBalanceFetcher', () => {
         balanceFetcherNoStaking.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
       ).rejects.toThrow('Accounts API request timed out or failed');

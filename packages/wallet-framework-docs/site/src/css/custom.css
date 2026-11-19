@@ -1,0 +1,27 @@
+:root {
+  --doc-sidebar-width: 400px !important;
+}
+
+.prism-code {
+  max-height: 600px;
+}
+
+.token-line {
+  border-left: 4px solid transparent;
+}
+
+.code-block-diff-added-line {
+  background-color: oklch(from var(--ifm-color-success) l 0.15 h / 25%);
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+  border-left: 4px solid oklch(from var(--ifm-color-success) l 0.15 h / 70%);
+}
+
+.code-block-diff-deleted-line {
+  background-color: oklch(from var(--ifm-color-danger) l 0.15 h / 25%);
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+  border-left: 4px solid oklch(from var(--ifm-color-danger) l 0.15 h / 70%);
+}

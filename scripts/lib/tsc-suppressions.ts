@@ -1,0 +1,435 @@
+import fs from 'fs/promises';
+
+/**
+ * A diagnostic reported by `tsc`. Most belong to a file; those that report a
+ * broken build rather than a type error do not.
+ */
+export type TscDiagnostic = {
+  filePath?: string | undefined;
+  code: string;
+  message: string;
+};
+
+/**
+ * A type error reported by `tsc`, which always belongs to a file.
+ */
+export type TscError = TscDiagnostic & {
+  filePath: string;
+};
+
+/**
+ * The number of type errors of a given code that are knowingly ignored within a
+ * given file.
+ */
+export type Suppression = {
+  count: number;
+};
+
+/**
+ * All of the type errors that are knowingly ignored across the repo, keyed by
+ * file and then by error code.
+ *
+ * This mirrors the shape of `eslint-suppressions.json`. Note that error
+ * messages are deliberately left out of the key: their wording changes between
+ * TypeScript releases, which would invalidate the whole file at once.
+ */
+export type TscSuppressions = Record<string, Record<string, Suppression>>;
+
+/**
+ * A group of errors of the same code within the same file which exceeds the
+ * number of errors that are suppressed there.
+ */
+export type UnsuppressedError = {
+  filePath: string;
+  code: string;
+  count: number;
+  suppressedCount: number;
+  messages: string[];
+};
+
+/**
+ * A suppression that covers more errors than its file now produces, meaning
+ * that some of the errors it covers have been fixed.
+ */
+export type StaleSuppression = {
+  filePath: string;
+  code: string;
+  count: number;
+  suppressedCount: number;
+};
+
+/**
+ * The result of checking the type errors in the repo against the suppressions
+ * file.
+ */
+export type TscSuppressionsReport = {
+  unsuppressedErrors: UnsuppressedError[];
+  staleSuppressions: StaleSuppression[];
+  didPass: boolean;
+};
+
+/**
+ * Matches a line such as:
+ *
+ * `packages/foo/src/foo.test.ts(12,5): error TS2322: Type 'string' is not ...`
+ *
+ * The file is optional, as `tsc` reports some diagnostics without one:
+ *
+ * `error TS6053: File 'nope.ts' not found.`
+ *
+ * Lines that elaborate on a diagnostic are indented, so they never match.
+ */
+const DIAGNOSTIC_REGEXP =
+  /^((?<filePath>[^\s(][^(]*)\(\d+,\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
+
+/**
+ * Orders two strings by code unit, so that the suppressions file is written the
+ * same way on every machine. `localeCompare` would order it by the locale that
+ * happens to be set.
+ *
+ * @param stringA - The first string.
+ * @param stringB - The second string.
+ * @returns A negative number, zero, or a positive number, as `sort` expects.
+ */
+export function compareStrings(stringA: string, stringB: string): number {
+  if (stringA === stringB) {
+    return 0;
+  }
+  return stringA < stringB ? -1 : 1;
+}
+
+/**
+ * Builds the key under which errors are grouped, matching how suppressions are
+ * keyed.
+ *
+ * @param filePath - The path to the file, relative to the repo root.
+ * @param code - The TypeScript error code.
+ * @returns The key for that combination.
+ */
+function buildKey(filePath: string, code: string): string {
+  return `${filePath}::${code}`;
+}
+
+/**
+ * Extracts the diagnostics from the output of `tsc --pretty false`.
+ *
+ * @param lines - The lines of the combined stdout and stderr of a `tsc` run.
+ * @returns The diagnostics, in the order that `tsc` reported them.
+ */
+export function parseTscOutput(lines: Iterable<string>): TscDiagnostic[] {
+  const diagnostics: TscDiagnostic[] = [];
+
+  for (const line of lines) {
+    const match = DIAGNOSTIC_REGEXP.exec(line);
+    if (match?.groups) {
+      diagnostics.push({
+        filePath: match.groups.filePath,
+        code: String(match.groups.code),
+        message: String(match.groups.message),
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+/**
+ * Determines whether a diagnostic belongs to a file, and so is an ordinary type
+ * error that may be suppressed.
+ *
+ * The rest report a broken build rather than a type error — a missing config,
+ * an unresolvable project reference. `tsc --build` carries on typechecking the
+ * remaining projects after one fails to load, so those can otherwise hide
+ * behind the type errors that the other projects report.
+ *
+ * @param diagnostic - The diagnostic to check.
+ * @returns True if the diagnostic belongs to a file.
+ */
+export function isTscError(diagnostic: TscDiagnostic): diagnostic is TscError {
+  return diagnostic.filePath !== undefined;
+}
+
+/**
+ * Tallies errors by file and then by error code, sorting both so that the
+ * suppressions file produces a minimal diff from one run to the next.
+ *
+ * @param errors - The errors to tally.
+ * @returns Suppressions that cover exactly the given errors.
+ */
+export function buildSuppressions(
+  errors: readonly TscError[],
+): TscSuppressions {
+  const countsByFilePath = new Map<string, Map<string, number>>();
+
+  for (const error of errors) {
+    const countsByCode =
+      countsByFilePath.get(error.filePath) ?? new Map<string, number>();
+    countsByCode.set(error.code, (countsByCode.get(error.code) ?? 0) + 1);
+    countsByFilePath.set(error.filePath, countsByCode);
+  }
+
+  const sortedFilePaths = [...countsByFilePath.keys()].sort(compareStrings);
+
+  return sortedFilePaths.reduce<TscSuppressions>((suppressions, filePath) => {
+    const countsByCode = countsByFilePath.get(filePath) as Map<string, number>;
+    const sortedCodes = [...countsByCode.keys()].sort(compareStrings);
+
+    suppressions[filePath] = sortedCodes.reduce<Record<string, Suppression>>(
+      (suppressionsByCode, code) => {
+        suppressionsByCode[code] = {
+          count: countsByCode.get(code) as number,
+        };
+        return suppressionsByCode;
+      },
+      {},
+    );
+    return suppressions;
+  }, {});
+}
+
+/**
+ * Records the errors that are not suppressed yet, leaving every existing
+ * suppression alone even where it now covers more errors than occur.
+ *
+ * Splitting this from pruning mirrors Oxlint, and keeps the two intentions
+ * apart: adding parks an error that cannot be fixed today, whereas pruning
+ * banks one that has been fixed.
+ *
+ * @param args - The arguments to this function.
+ * @param args.suppressions - The suppressions as they now stand.
+ * @param args.errors - The errors from the current run.
+ * @returns The suppressions with any new errors added.
+ */
+export function addSuppressions({
+  suppressions,
+  errors,
+}: {
+  suppressions: TscSuppressions;
+  errors: readonly TscError[];
+}): TscSuppressions {
+  const found = buildSuppressions(errors);
+  const filePaths = [
+    ...new Set([...Object.keys(suppressions), ...Object.keys(found)]),
+  ].sort(compareStrings);
+
+  return filePaths.reduce<TscSuppressions>((merged, filePath) => {
+    const existingByCode = suppressions[filePath] ?? {};
+    const foundByCode = found[filePath] ?? {};
+    const codes = [
+      ...new Set([...Object.keys(existingByCode), ...Object.keys(foundByCode)]),
+    ].sort(compareStrings);
+
+    merged[filePath] = codes.reduce<Record<string, Suppression>>(
+      (byCode, code) => {
+        byCode[code] = {
+          count: Math.max(
+            existingByCode[code]?.count ?? 0,
+            foundByCode[code]?.count ?? 0,
+          ),
+        };
+        return byCode;
+      },
+      {},
+    );
+    return merged;
+  }, {});
+}
+
+/**
+ * Drops the suppressions that cover errors which no longer occur, leaving any
+ * error that is not suppressed yet unrecorded.
+ *
+ * @param args - The arguments to this function.
+ * @param args.suppressions - The suppressions as they now stand.
+ * @param args.errors - The errors from the current run.
+ * @returns The suppressions with the stale ones removed.
+ */
+export function pruneSuppressions({
+  suppressions,
+  errors,
+}: {
+  suppressions: TscSuppressions;
+  errors: readonly TscError[];
+}): TscSuppressions {
+  const found = buildSuppressions(errors);
+
+  return Object.entries(suppressions)
+    .sort(([filePathA], [filePathB]) => compareStrings(filePathA, filePathB))
+    .reduce<TscSuppressions>((pruned, [filePath, existingByCode]) => {
+      const foundByCode = found[filePath] ?? {};
+
+      const byCode = Object.entries(existingByCode)
+        .sort(([codeA], [codeB]) => compareStrings(codeA, codeB))
+        .reduce<Record<string, Suppression>>(
+          (codes, [code, { count: existingCount }]) => {
+            const count = Math.min(
+              existingCount,
+              foundByCode[code]?.count ?? 0,
+            );
+            if (count > 0) {
+              codes[code] = { count };
+            }
+            return codes;
+          },
+          {},
+        );
+
+      if (Object.keys(byCode).length > 0) {
+        pruned[filePath] = byCode;
+      }
+      return pruned;
+    }, {});
+}
+
+/**
+ * Checks the given errors against the given suppressions.
+ *
+ * An error is unsuppressed if its file produces more errors of its code than
+ * the suppressions allow. A suppression is stale if its file produces fewer
+ * errors of that code than it covers, which means that those errors have been
+ * fixed and the suppression should be removed.
+ *
+ * @param args - The arguments to this function.
+ * @param args.errors - The errors from the current run.
+ * @param args.suppressions - The suppressions to check against.
+ * @returns A report of what is new and what is stale.
+ */
+export function compareErrorsToSuppressions({
+  errors,
+  suppressions,
+}: {
+  errors: readonly TscError[];
+  suppressions: TscSuppressions;
+}): TscSuppressionsReport {
+  // Group the errors by file and code, keeping their messages so that the
+  // report can show what was actually found.
+  const groups = new Map<
+    string,
+    { filePath: string; code: string; messages: string[] }
+  >();
+  for (const error of errors) {
+    const group = groups.get(buildKey(error.filePath, error.code));
+    if (group) {
+      group.messages.push(error.message);
+    } else {
+      groups.set(buildKey(error.filePath, error.code), {
+        filePath: error.filePath,
+        code: error.code,
+        messages: [error.message],
+      });
+    }
+  }
+
+  const unsuppressedErrors: UnsuppressedError[] = [];
+  for (const { filePath, code, messages } of groups.values()) {
+    const suppressedCount = suppressions[filePath]?.[code]?.count ?? 0;
+    if (messages.length > suppressedCount) {
+      unsuppressedErrors.push({
+        filePath,
+        code,
+        count: messages.length,
+        suppressedCount,
+        messages,
+      });
+    }
+  }
+
+  const staleSuppressions: StaleSuppression[] = [];
+  for (const [filePath, suppressedByCode] of Object.entries(suppressions)) {
+    for (const [code, { count: suppressedCount }] of Object.entries(
+      suppressedByCode,
+    )) {
+      const count = groups.get(buildKey(filePath, code))?.messages.length ?? 0;
+      if (count < suppressedCount) {
+        staleSuppressions.push({ filePath, code, count, suppressedCount });
+      }
+    }
+  }
+
+  return {
+    unsuppressedErrors,
+    staleSuppressions,
+    didPass: unsuppressedErrors.length === 0 && staleSuppressions.length === 0,
+  };
+}
+
+/**
+ * Reads the suppressions file, treating a missing file as having no
+ * suppressions.
+ *
+ * @param filePath - The path to the suppressions file.
+ * @returns The suppressions that the file holds.
+ */
+export async function readSuppressions(
+  filePath: string,
+): Promise<TscSuppressions> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8')) as TscSuppressions;
+  } catch (error) {
+    // Checked structurally rather than with `instanceof`, as the errors Node
+    // raises do not always come from the same realm as this code.
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return {};
+    }
+    throw error;
+  }
+}
+
+/**
+ * Writes the suppressions file, formatted the way that Oxfmt expects so that
+ * `lint:misc` stays happy after the file is regenerated.
+ *
+ * @param args - The arguments to this function.
+ * @param args.filePath - The path to the suppressions file.
+ * @param args.suppressions - The suppressions to write.
+ */
+export async function writeSuppressions({
+  filePath,
+  suppressions,
+}: {
+  filePath: string;
+  suppressions: TscSuppressions;
+}): Promise<void> {
+  await fs.writeFile(filePath, `${JSON.stringify(suppressions, null, 2)}\n`);
+}
+
+/**
+ * Prints the results of checking type errors against the suppressions file.
+ *
+ * @param report - The report to print.
+ */
+export function printReport(report: TscSuppressionsReport): void {
+  if (report.didPass) {
+    console.log('✅ No new type errors detected. Good job!');
+    return;
+  }
+
+  if (report.unsuppressedErrors.length > 0) {
+    console.log('❌ Detected type errors that are not suppressed:\n');
+    for (const error of report.unsuppressedErrors) {
+      console.log(
+        `  ${error.filePath}: ${error.code} (${error.count} found, ${error.suppressedCount} suppressed)`,
+      );
+      for (const message of error.messages) {
+        console.log(`    - ${message}`);
+      }
+    }
+  }
+
+  if (report.staleSuppressions.length > 0) {
+    console.log(
+      '\n❌ Detected suppressions that cover type errors which no longer occur:\n',
+    );
+    for (const suppression of report.staleSuppressions) {
+      console.log(
+        `  ${suppression.filePath}: ${suppression.code} (${suppression.count} found, ${suppression.suppressedCount} suppressed)`,
+      );
+    }
+    console.log('\nRun `yarn lint:tsc:prune` to remove these suppressions.');
+  }
+}

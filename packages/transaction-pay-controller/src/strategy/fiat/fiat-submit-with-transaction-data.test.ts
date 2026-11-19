@@ -1,0 +1,480 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
+import { TransactionPayStrategy } from '../../constants.js';
+import type {
+  PayStrategyExecuteRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types.js';
+import {
+  getFiatFeeReserveMultiplier,
+  getFiatMaxRateDriftPercent,
+} from '../../utils/feature-flags.js';
+import { getTransaction, updateTransaction } from '../../utils/transaction.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
+import type { FiatQuote } from './types.js';
+
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/transaction.js'));
+vi.mock(import('../server/server-quotes.js'));
+vi.mock(import('../server/server-submit.js'));
+
+const TRANSACTION_ID_MOCK = 'tx-id';
+const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+
+const TRANSACTION_MOCK = {
+  id: TRANSACTION_ID_MOCK,
+  txParams: { from: WALLET_ADDRESS_MOCK },
+  type: TransactionType.batch,
+  nestedTransactions: [
+    { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+    { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+  ],
+} as unknown as TransactionMeta;
+
+const BASE_QUOTE_REQUEST_MOCK: QuoteRequest = {
+  from: WALLET_ADDRESS_MOCK,
+  sourceAccountId: `eip155:137:${WALLET_ADDRESS_MOCK}`,
+  sourceAssetId: 'eip155:137/slip44:966',
+  sourceBalanceRaw: '1000000000000000000',
+  sourceTokenAmount: '1000000000000000000',
+  targetAmountMinimum: '12000000',
+  targetChainId: '0x89',
+  targetTokenAddress: '0x2222222222222222222222222222222222222222',
+};
+
+const RELAY_QUOTE_MOCK = {
+  dust: { fiat: '0', usd: '0' },
+  estimatedDuration: 1,
+  fees: {
+    metaMask: { fiat: '0', usd: '0' },
+    provider: { fiat: '0', usd: '0' },
+    sourceNetwork: {
+      estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
+      max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+    },
+    targetNetwork: { fiat: '0', usd: '0' },
+  },
+  original: {
+    input: { raw: '1000000000000000000' },
+    output: { raw: '11900000' },
+  } as ServerQuote,
+  request: BASE_QUOTE_REQUEST_MOCK,
+  sourceAmount: {
+    fiat: '5.00',
+    human: '1',
+    raw: '1000000000000000000',
+    usd: '5.00',
+  },
+  strategy: TransactionPayStrategy.Relay,
+  targetAmount: { fiat: '4.85', usd: '4.85' },
+} as TransactionPayQuote<ServerQuote>;
+
+function buildFiatQuote({
+  sourceUsd = '5.00',
+  targetUsd = '4.85',
+}: {
+  sourceUsd?: string;
+  targetUsd?: string;
+} = {}): TransactionPayQuote<FiatQuote> {
+  return {
+    ...RELAY_QUOTE_MOCK,
+    original: {
+      rampsQuote: {} as never,
+      relayQuote: RELAY_QUOTE_MOCK.original,
+    },
+    sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: sourceUsd },
+    strategy: TransactionPayStrategy.Fiat,
+    targetAmount: { fiat: targetUsd, usd: targetUsd },
+  };
+}
+
+function buildCallMock({
+  getAmountDataUpdates = [
+    { nestedTransactionIndex: 0, data: '0xNewApprove' },
+    { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+  ],
+  featureFlags = {},
+}: {
+  getAmountDataUpdates?: { nestedTransactionIndex: number; data: string }[];
+  featureFlags?: Record<string, unknown>;
+} = {}): Mock {
+  return vi.fn((action: string) => {
+    if (action === 'TransactionPayController:getAmountData') {
+      return Promise.resolve({ updates: getAmountDataUpdates });
+    }
+    if (action === 'RemoteFeatureFlagController:getState') {
+      return { remoteFeatureFlags: featureFlags };
+    }
+    throw new Error(`Unexpected action: ${action}`);
+  });
+}
+
+function buildRequest({
+  callMock = buildCallMock(),
+  quotes = [buildFiatQuote()],
+  transaction = TRANSACTION_MOCK,
+}: {
+  callMock?: Mock;
+  quotes?: TransactionPayQuote<FiatQuote>[];
+  transaction?: TransactionMeta;
+} = {}): PayStrategyExecuteRequest<FiatQuote> {
+  return {
+    accountSupports7702: false,
+    isSmartTransaction: () => false,
+    messenger: { call: callMock } as never,
+    quotes,
+    transaction,
+  };
+}
+
+describe('submitWithCalldataReEncoding', () => {
+  const getRelayQuotesMock = vi.mocked(getServerQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitServerQuotes);
+  const getTransactionMock = vi.mocked(getTransaction);
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  const getFiatFeeReserveMultiplierMock = vi.mocked(
+    getFiatFeeReserveMultiplier,
+  );
+  const getFiatMaxRateDriftPercentMock = vi.mocked(getFiatMaxRateDriftPercent);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_MOCK]);
+    submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xabc' });
+    getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
+    getFiatFeeReserveMultiplierMock.mockReturnValue(1);
+    getFiatMaxRateDriftPercentMock.mockReturnValue(10);
+  });
+
+  it('performs three-phase flow: discovery, calldata re-encoding, delegation quote', async () => {
+    const request = buildRequest();
+
+    const result = await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // Phase 1: discovery (EXACT_INPUT)
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
+    expect(getRelayQuotesMock.mock.calls[0][0].requests[0]).toStrictEqual(
+      expect.objectContaining({
+        isPostQuote: true,
+        isMaxAmount: false,
+      }),
+    );
+
+    // Phase 3: delegation (EXACT_OUTPUT)
+    expect(getRelayQuotesMock.mock.calls[1][0].requests[0]).toStrictEqual(
+      expect.objectContaining({
+        isPostQuote: false,
+        isMaxAmount: false,
+      }),
+    );
+
+    expect(submitRelayQuotesMock).toHaveBeenCalledTimes(1);
+    expect(result).toStrictEqual({ transactionHash: '0xabc' });
+  });
+
+  it('reserves original relay fee from discovery source amount', async () => {
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // Fee quote: sourceUsd=5.00, targetUsd=4.85, sourceRaw=1e18
+    // feeUsd = 0.15, feeReserveRaw = 0.15 / (5.00/1e18) = 3e16
+    // discoverySource = 1e18 - 3e16 = 970000000000000000
+    const discoveryRequest = getRelayQuotesMock.mock.calls[0][0].requests[0];
+    expect(discoveryRequest.sourceTokenAmount).toBe('970000000000000000');
+    expect(discoveryRequest.sourceBalanceRaw).toBe('1000000000000000000');
+  });
+
+  it('applies fee reserve multiplier from feature flag', async () => {
+    getFiatFeeReserveMultiplierMock.mockReturnValue(1.5);
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // feeReserveRaw = 3e16 * 1.5 = 4.5e16
+    // discoverySource = 1e18 - 4.5e16 = 955000000000000000
+    const discoveryRequest = getRelayQuotesMock.mock.calls[0][0].requests[0];
+    expect(discoveryRequest.sourceTokenAmount).toBe('955000000000000000');
+  });
+
+  it('clamps discovery source to minimum 1 when fee reserve exceeds settled amount', async () => {
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '10000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // feeReserve (3e16) > settled (1e16) → clamped to 1
+    const discoveryRequest = getRelayQuotesMock.mock.calls[0][0].requests[0];
+    expect(discoveryRequest.sourceTokenAmount).toBe('1');
+  });
+
+  it('skips fee reserve when original relay quote has zero source USD', async () => {
+    const fiatQuote = buildFiatQuote({ sourceUsd: '0', targetUsd: '0' });
+
+    const request = buildRequest({ quotes: [fiatQuote] });
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // Zero USD → fee reserve = 0 → full amount used
+    const discoveryRequest = getRelayQuotesMock.mock.calls[0][0].requests[0];
+    expect(discoveryRequest.sourceTokenAmount).toBe('1000000000000000000');
+  });
+
+  it('skips fee reserve when original relay fee is not positive', async () => {
+    const fiatQuote = buildFiatQuote({ sourceUsd: '4.85', targetUsd: '5.00' });
+
+    const request = buildRequest({ quotes: [fiatQuote] });
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    const discoveryRequest = getRelayQuotesMock.mock.calls[0][0].requests[0];
+    expect(discoveryRequest.sourceTokenAmount).toBe('1000000000000000000');
+  });
+
+  it('adds discovery fee back to adjusted target amount', async () => {
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    // Discovery returns output.raw=11900000 with sourceUsd=5.00, targetUsd=4.85
+    // discoveryFeeUsd=0.15, usdPerTargetRaw=4.85/11900000
+    // discoveryFeeInTargetRaw=0.15/(4.85/11900000)=368041
+    // adjustedTarget=11900000+368041=12268041
+    const finalRequest = getRelayQuotesMock.mock.calls[1][0].requests[0];
+    expect(finalRequest.targetAmountMinimum).toBe('12268041');
+  });
+
+  it('passes adjusted target to getAmountData', async () => {
+    const callMock = buildCallMock();
+    const request = buildRequest({ callMock });
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.objectContaining({ amount: '12268041' }),
+    );
+  });
+
+  it('updates nested calldata and requiredAssets with adjusted amount', async () => {
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    const settledAmountCall = updateTransactionMock.mock.calls.find(
+      ([opts]) => opts.note === 'Fiat deposit: update settled amount',
+    );
+    expect(settledAmountCall).toBeDefined();
+
+    const txDraft = {
+      nestedTransactions: [
+        { to: '0xaaa', data: '0x1111' },
+        { to: '0xbbb', data: '0x2222' },
+      ],
+      requiredAssets: [{ address: '0xaaa', amount: '0x0' }],
+    } as unknown as TransactionMeta;
+
+    const updateFn = settledAmountCall?.[1];
+    (updateFn as (tx: TransactionMeta) => void)(txDraft);
+
+    expect(txDraft.nestedTransactions?.[0].data).toBe('0xNewApprove');
+    expect(txDraft.nestedTransactions?.[1].data).toBe('0xNewDeposit');
+    expect(txDraft.requiredAssets?.[0].amount).toBe('0xbb3209');
+  });
+
+  it('throws when discovery relay returns no quotes', async () => {
+    getRelayQuotesMock.mockResolvedValue([]);
+    const request = buildRequest();
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('No relay quotes returned for fiat discovery');
+  });
+
+  it('throws when final relay re-quote returns no quotes', async () => {
+    getRelayQuotesMock
+      .mockResolvedValueOnce([RELAY_QUOTE_MOCK])
+      .mockResolvedValueOnce([]);
+    const request = buildRequest();
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('No relay quotes returned for completed fiat order');
+  });
+
+  it('throws when getAmountData returns no updates', async () => {
+    const callMock = buildCallMock({ getAmountDataUpdates: [] });
+    const request = buildRequest({ callMock });
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow(
+      'getAmountData returned no updates for transaction with nested calldata',
+    );
+  });
+
+  it('throws when the original fiat quote is missing a relay quote', async () => {
+    const fiatQuote = buildFiatQuote();
+    fiatQuote.original.relayQuote = undefined;
+    const request = buildRequest({ quotes: [fiatQuote] });
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Missing Relay quote');
+  });
+
+  it('falls back to original transaction when getTransaction returns undefined', async () => {
+    getTransactionMock.mockReturnValue(undefined);
+    const request = buildRequest();
+
+    const result = await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(submitRelayQuotesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ transaction: TRANSACTION_MOCK }),
+    );
+    expect(result).toStrictEqual({ transactionHash: '0xabc' });
+  });
+
+  it('falls back to discovery minimum when discovery quote has zero target USD', async () => {
+    getRelayQuotesMock.mockResolvedValue([
+      {
+        ...RELAY_QUOTE_MOCK,
+        sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: '0' },
+        targetAmount: { fiat: '0', usd: '0' },
+      },
+    ]);
+
+    const callMock = buildCallMock();
+    const request = buildRequest({ callMock });
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.objectContaining({ amount: '11900000' }),
+    );
+  });
+
+  it('falls back to discovery minimum when discovery fee is not positive', async () => {
+    getRelayQuotesMock.mockResolvedValue([
+      {
+        ...RELAY_QUOTE_MOCK,
+        sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: '4.85' },
+        targetAmount: { fiat: '5.00', usd: '5.00' },
+      },
+    ]);
+
+    const callMock = buildCallMock();
+    const request = buildRequest({ callMock });
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.objectContaining({ amount: '11900000' }),
+    );
+  });
+
+  it('reads maxRateDriftPercent from feature flags', async () => {
+    getFiatMaxRateDriftPercentMock.mockReturnValue(15);
+    const request = buildRequest();
+
+    await submitWithTransactionData({
+      baseRequest: BASE_QUOTE_REQUEST_MOCK,
+      request,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getFiatMaxRateDriftPercentMock).toHaveBeenCalledWith(
+      request.messenger,
+    );
+  });
+});

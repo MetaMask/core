@@ -1,8 +1,10 @@
+import { describe, expect, it } from 'vitest';
+
+import type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController.js';
 import {
   analyticsDataRegulationControllerSelectors,
   getDefaultAnalyticsDataRegulationControllerState,
-} from '.';
-import type { AnalyticsDataRegulationControllerState } from './AnalyticsDataRegulationController';
+} from './index.js';
 
 describe('analyticsDataRegulationControllerSelectors', () => {
   describe('selectHasCollectedDataSinceDeletionRequest', () => {

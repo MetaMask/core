@@ -1,36 +1,60 @@
 import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
-import { validate } from '@metamask/superstruct';
+import {
+  array,
+  nullable,
+  number,
+  object,
+  optional,
+  string,
+  union,
+  validate,
+} from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { hexToBigInt } from '@metamask/utils';
 
-import type { WalletMiddlewareContext } from '../wallet';
-import { parseTypedMessage } from './normalize';
+import type { WalletMiddlewareContext } from '../wallet.js';
+import { parseTypedMessage } from './normalize.js';
+
+type GetNetworkClientById = (id: string) => {
+  configuration: { chainId: Hex };
+};
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
  * signature-related operations.
  *
  * @param address - The Ethereum address to validate and normalize.
+ * @param chainId - An explicit chain ID for the request, if any.
  * @param context - The context of the request.
  * @param options - The options for the validation.
- * @param options.getAccounts - The function to get the accounts for the origin.
+ * @param options.getAccounts - The function to get the accounts for the origin and scope.
+ * @param options.getNetworkClientById - The function to get a network client by ID.
  * @returns The normalized address, if valid. Otherwise, throws
  * an error
  */
 export async function validateAndNormalizeKeyholder(
   address: Hex,
+  chainId: string | number | undefined,
   context: WalletMiddlewareContext,
-  { getAccounts }: { getAccounts: (origin: string) => Promise<string[]> },
+  {
+    getAccounts,
+    getNetworkClientById,
+  }: {
+    getAccounts: (origin: string, scope: string) => Promise<string[]>;
+    getNetworkClientById: GetNetworkClientById;
+  },
 ): Promise<Hex> {
   if (
     typeof address === 'string' &&
     address.length > 0 &&
     resemblesAddress(address)
   ) {
+    const scope = getRequestScope(chainId, context, getNetworkClientById);
     // Ensure that an "unauthorized" error is thrown if the requester
     // does not have the `eth_accounts` permission.
-    const accounts = await getAccounts(context.assertGet('origin'));
+    const accounts = await getAccounts(context.assertGet('origin'), scope);
 
     const normalizedAccounts: string[] = accounts.map((_address) =>
       _address.toLowerCase(),
@@ -48,6 +72,37 @@ export async function validateAndNormalizeKeyholder(
   throw rpcErrors.invalidParams({
     message: `Invalid parameters: must provide an Ethereum address.`,
   });
+}
+
+/**
+ * Determines the CAIP-2 scope for a JSON-RPC request. Uses, in order
+ * of precedence: the given chain ID, the `scope` in the request context, and
+ * the chain ID of the request's network client.
+ *
+ * @param chainId - An explicit chain ID, if the request specifies one.
+ * @param context - The context of the request.
+ * @param getNetworkClientById - Hook to look up a network client by ID.
+ * @returns The CAIP-2 scope of the request.
+ */
+function getRequestScope(
+  chainId: string | number | undefined,
+  context: WalletMiddlewareContext,
+  getNetworkClientById: GetNetworkClientById,
+): string {
+  // This assumes all variants of chain ID can be parsed by the BigInt constructor
+  if (chainId) {
+    return `eip155:${BigInt(chainId).toString(10)}`;
+  }
+
+  const contextScope = context.get('scope');
+  if (contextScope) {
+    return contextScope;
+  }
+
+  const networkClient = getNetworkClientById(
+    context.assertGet('networkClientId'),
+  );
+  return `eip155:${hexToBigInt(networkClient.configuration.chainId).toString(10)}`;
 }
 
 /**
@@ -138,9 +193,7 @@ function checkObjectForPrototypePollution(obj: unknown): void {
   }
 
   if (typeof obj === 'object') {
-    for (const key of Object.getOwnPropertyNames(
-      obj as Record<string, unknown>,
-    )) {
+    for (const key of Object.getOwnPropertyNames(obj)) {
       if (isDangerousProperty(key)) {
         throw rpcErrors.invalidInput();
       }
@@ -233,4 +286,83 @@ export function validateTypedMessageKeys(data: string): void {
       throw rpcErrors.invalidInput();
     }
   }
+}
+
+// Numerical fields accept both hex strings and numbers, as some dapps send
+// numbers and `TransactionController` normalizes them downstream.
+const QuantityStruct = union([string(), number()]);
+
+export const TransactionParamsStruct = object({
+  accessList: optional(
+    nullable(
+      array(object({ address: string(), storageKeys: array(string()) })),
+    ),
+  ),
+  authorizationList: optional(
+    nullable(
+      array(
+        object({
+          address: string(),
+          chainId: optional(nullable(QuantityStruct)),
+          nonce: optional(nullable(QuantityStruct)),
+          r: optional(nullable(string())),
+          s: optional(nullable(string())),
+          yParity: optional(nullable(QuantityStruct)),
+        }),
+      ),
+    ),
+  ),
+  chainId: optional(nullable(QuantityStruct)),
+  data: optional(nullable(string())),
+  from: string(),
+  gas: optional(nullable(QuantityStruct)),
+  gasLimit: optional(nullable(QuantityStruct)),
+  gasPrice: optional(nullable(QuantityStruct)),
+  maxFeePerGas: optional(nullable(QuantityStruct)),
+  maxPriorityFeePerGas: optional(nullable(QuantityStruct)),
+  nonce: optional(nullable(QuantityStruct)),
+  to: optional(nullable(string())),
+  type: optional(nullable(string())),
+  value: optional(nullable(QuantityStruct)),
+});
+
+// Upper bound derived from the largest valid eth_sendTransaction payload:
+// EIP-3860 caps initcode at 49,152 bytes → hex-encoded in 'data' field ≈ 98 KB of JSON.
+// 200 KB is ~2× that ceiling, giving clear headroom above any protocol-legal
+// transaction while blocking the padding attacks this cap defends against.
+// TODO(CONF-1662): tighten once P99 production data is available.
+export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
+
+/**
+ * Validates `eth_sendTransaction` / `eth_signTransaction` params against the
+ * standard transaction schema and rejects payloads whose serialized size
+ * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
+ *
+ * Guards against two attack shapes:
+ * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *   millions of hex zeros) that exhaust memory in downstream code. Checked
+ *   first via `JSON.stringify` so oversized input is rejected before schema
+ *   work.
+ * - Structural: extraneous top-level keys or ill-typed fields (e.g.
+ *   `{ from, to, test: { b: { b: ... × 1200 } } }`) that would crash
+ *   downstream normalization / PPOM WASM with `RangeError: Maximum call
+ *   stack size exceeded`, silently bypassing security checks. Superstruct's
+ *   `object()` rejects unknown keys by name without accessing their values,
+ *   so hostile nested subtrees are never traversed by schema validation.
+ *
+ * @param params - The transaction params object supplied by the dapp.
+ * @throws rpcErrors.invalidParams() if params is an array or exceeds the
+ * serialized size limit.
+ * @throws rpcErrors.invalidInput() if params fails schema validation
+ * (wrong type, extraneous top-level key, or malformed nested field).
+ */
+export function validateTransactionParams(params: unknown): void {
+  if (
+    new TextEncoder().encode(JSON.stringify(params)).byteLength >
+    MAX_TRANSACTION_PARAMS_SIZE_BYTES
+  ) {
+    throw rpcErrors.invalidParams('Request too large');
+  }
+
+  validateParams(params, TransactionParamsStruct);
 }

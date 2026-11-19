@@ -3,9 +3,9 @@ import type { TransactionDescription } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { QuoteRequest } from '../../types';
-import { isSupportedAcrossPerpsDepositRequest } from './perps';
-import type { AcrossAction, AcrossActionArg } from './types';
+import type { QuoteRequest } from '../../types.js';
+import { isPerpsDepositRequest } from '../../utils/perps.js';
+import type { AcrossAction, AcrossActionArg } from './types.js';
 
 export const TOKEN_TRANSFER_SIGNATURE =
   'function transfer(address to, uint256 value)';
@@ -78,7 +78,7 @@ export function getAcrossDestination(
   transaction: TransactionMeta,
   request: QuoteRequest,
 ): AcrossDestination {
-  if (isSupportedAcrossPerpsDepositRequest(request, transaction.type)) {
+  if (isPerpsDepositRequest(request, transaction)) {
     return {
       actions: [],
       recipient: request.from,
@@ -151,9 +151,7 @@ function parseAcrossActionCall(data: Hex): ParsedAcrossActionCall {
 
 function serializeAcrossActionValue(value: unknown): AcrossActionArg['value'] {
   if (Array.isArray(value)) {
-    return value.map((entry) =>
-      serializeAcrossActionScalar(entry),
-    ) as AcrossActionArg['value'];
+    return value.map((entry) => serializeAcrossActionScalar(entry));
   }
 
   return serializeAcrossActionScalar(value);

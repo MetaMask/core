@@ -1,9 +1,10 @@
 import { bigIntToHex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   stringifyBalanceWithDecimals,
   parseBalanceWithDecimals,
-} from './stringify-balance';
+} from './stringify-balance.js';
 
 describe('stringifyBalanceWithDecimals', () => {
   it('returns the balance early if it is 0', () => {

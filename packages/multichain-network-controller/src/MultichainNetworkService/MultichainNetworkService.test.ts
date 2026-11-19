@@ -1,21 +1,18 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
-import { chunk } from 'lodash';
+import { chunk } from 'lodash-es';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
   MULTICHAIN_ACCOUNTS_BASE_URL,
-} from '../api/accounts-api';
-import type { ActiveNetworksResponse } from '../api/accounts-api';
-import { MultichainNetworkService } from './MultichainNetworkService';
+} from '../api/accounts-api.js';
+import type { ActiveNetworksResponse } from '../api/accounts-api.js';
+import { MultichainNetworkService } from './MultichainNetworkService.js';
 
 describe('MultichainNetworkService', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
-  const mockFetch = jest.fn();
+  const mockFetch = vi.fn();
   const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
   const MOCK_EVM_CHAIN_1 = '1';
   const MOCK_EVM_CHAIN_137 = '137';
@@ -90,7 +87,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 
@@ -131,7 +128,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 

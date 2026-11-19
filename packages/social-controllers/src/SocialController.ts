@@ -4,26 +4,33 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import { controllerName } from './social-constants';
+import { log } from './logger.js';
+import { controllerName } from './social-constants.js';
 import type {
+  CommentTranslation,
   FetchLeaderboardOptions,
   FollowOptions,
   FollowResponse,
   FollowingResponse,
   LeaderboardResponse,
   SocialControllerState,
+  TranslateCommentOptions,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import type { SocialControllerMethodActions } from './SocialController-method-action-types';
+} from './social-types.js';
+import type { SocialControllerMethodActions } from './SocialController-method-action-types.js';
 import type {
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceTranslateCommentAction,
   SocialServiceUnfollowAction,
-} from './SocialService-method-action-types';
+} from './SocialService-method-action-types.js';
 
 // === MESSENGER ===
 
@@ -32,6 +39,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'followTrader',
   'unfollowTrader',
   'updateFollowing',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
+  'translateComment',
 ] as const;
 
 // === ACTION TYPES ===
@@ -60,7 +70,10 @@ type AllowedActions =
   | SocialServiceFetchLeaderboardAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
-  | SocialServiceFetchFollowingAction;
+  | SocialServiceFetchFollowingAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction
+  | SocialServiceTranslateCommentAction;
 
 type AllowedEvents = never;
 
@@ -263,5 +276,51 @@ export class SocialController extends BaseController<
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optOutOfLeaderboard');
+  }
+
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
+  async optInToLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optInToLeaderboard');
+  }
+
+  /**
+   * Requests a translation of a swap comment (Call).
+   *
+   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate` through
+   * SocialService. social-api does not expose this route yet: a 404 is logged
+   * and rethrown.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.targetLanguage - AWS language code to translate into, for
+   * example `en`.
+   * @returns The detected source language and stored translations.
+   */
+  async translateComment(
+    options: TranslateCommentOptions,
+  ): Promise<CommentTranslation> {
+    // TODO: Remove this try/catch once the translation endpoint is ready.
+    try {
+      return await this.messenger.call(
+        'SocialService:translateComment',
+        options,
+      );
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 404) {
+        log('Translation endpoint does not exist yet');
+      } else {
+        log(error);
+      }
+      throw error;
+    }
   }
 }

@@ -11,10 +11,10 @@ import { extract as extractTar } from 'tar';
 import { Open } from 'unzipper';
 import type { Source, Entry } from 'unzipper';
 
-import { startDownload } from './download';
-import { Extension } from './types';
-import type { Binary } from './types';
-import { say } from './utils';
+import { startDownload } from './download.js';
+import { Extension } from './types.js';
+import type { Binary } from './types.js';
+import { say } from './utils.js';
 
 /**
  * Extracts the binaries from the given URL and writes them to the destination.
@@ -96,7 +96,7 @@ export async function extractFrom(
       await Promise.allSettled([rm(tempDir, rmOpts), rm(dir, rmOpts)])
     )
       .filter((r) => r.status === 'rejected')
-      .map((r) => (r as PromiseRejectedResult).reason);
+      .map((r) => r.reason);
 
     // if we failed to clean up, create an aggregate error message
     if (rmErrors.length) {
@@ -143,6 +143,9 @@ async function extractFromTar(
     extractTar(
       {
         cwd: dir,
+        // @ts-expect-error: Types here broke in `tar@7.5.12`, but it appears to
+        // work fine as-is.
+        // See: https://github.com/isaacs/node-tar/issues/459
         transform: (entry) => {
           const absolutePath = entry.absolute;
           if (!absolutePath) {
@@ -169,7 +172,7 @@ async function extractFromTar(
             path: absolutePath,
             binary: entry.path as Binary,
           });
-          return undefined;
+          return;
         },
       },
       binaries,

@@ -1,6 +1,6 @@
 import type { Json } from '@metamask/utils';
 
-import type { RampsErrorCode } from './rampsErrorCodes';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
 
 /**
  * Types of resources that can have loading/error states.

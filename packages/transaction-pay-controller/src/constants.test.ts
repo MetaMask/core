@@ -1,9 +1,11 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   CHAIN_ID_POLYGON,
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
   STABLECOINS,
-} from './constants';
+} from './constants.js';
 
 describe('STABLECOINS', () => {
   it('includes both Polygon USDC.e and Polymarket pUSD as Polygon stablecoins', () => {

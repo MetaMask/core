@@ -1,52 +1,56 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext } from '../types';
-import { getAllLegacyUserStorageAccounts } from '../user-storage';
-import { getLocalGroupsForEntropyWallet } from '../utils';
-import { createMultichainAccountGroupsBatch } from './group';
-import { performLegacyAccountSyncing } from './legacy';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type { BackupAndSyncContext } from '../types.js';
+import { getAllLegacyUserStorageAccounts } from '../user-storage/index.js';
+import { getLocalGroupsForEntropyWallet } from '../utils/index.js';
+import { createMultichainAccountGroupsBatch } from './group.js';
+import { performLegacyAccountSyncing } from './legacy.js';
 
-jest.mock('@metamask/accounts-controller');
-jest.mock('../user-storage');
-jest.mock('../utils', () => ({
-  getLocalGroupsForEntropyWallet: jest.fn(),
+vi.mock('@metamask/accounts-controller');
+vi.mock('../user-storage');
+vi.mock('../utils', () => ({
+  getLocalGroupsForEntropyWallet: vi.fn(),
 }));
-jest.mock('./group');
+vi.mock('./group');
 
 const mockGetUUIDFromAddressOfNormalAccount =
-  getUUIDFromAddressOfNormalAccount as jest.MockedFunction<
+  getUUIDFromAddressOfNormalAccount as MockedFunction<
     typeof getUUIDFromAddressOfNormalAccount
   >;
 const mockGetAllLegacyUserStorageAccounts =
-  getAllLegacyUserStorageAccounts as jest.MockedFunction<
+  getAllLegacyUserStorageAccounts as MockedFunction<
     typeof getAllLegacyUserStorageAccounts
   >;
 const mockGetLocalGroupsForEntropyWallet =
-  getLocalGroupsForEntropyWallet as jest.MockedFunction<
+  getLocalGroupsForEntropyWallet as MockedFunction<
     typeof getLocalGroupsForEntropyWallet
   >;
 const mockCreateMultichainAccountGroupsBatch =
-  createMultichainAccountGroupsBatch as jest.MockedFunction<
+  createMultichainAccountGroupsBatch as MockedFunction<
     typeof createMultichainAccountGroupsBatch
   >;
 
 describe('BackupAndSync - Syncing - Legacy', () => {
   let mockContext: BackupAndSyncContext;
+  let mockSetLocalWrite: Mock;
 
   beforeEach(() => {
+    mockSetLocalWrite = vi.fn();
+
     mockContext = {
       controller: {
-        setAccountGroupName: jest.fn(),
+        setAccountGroupName: vi.fn(),
       },
-      emitAnalyticsEventFn: jest.fn(),
+      emitAnalyticsEventFn: vi.fn(),
+      mutationTracker: {
+        setLocalWrite: mockSetLocalWrite,
+      },
     } as unknown as BackupAndSyncContext;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   describe('performLegacyAccountSyncing', () => {
@@ -151,6 +155,8 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         'Legacy Account 2',
         true,
       );
+      // Two renames -> two mutations marked.
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(2);
     });
 
     it('skips legacy accounts with missing name or address', async () => {
@@ -198,6 +204,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
 
       expect(mockContext.controller.setAccountGroupName).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('emits analytics event on completion', async () => {

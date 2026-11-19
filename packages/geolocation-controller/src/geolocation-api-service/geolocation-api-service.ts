@@ -1,17 +1,31 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { IDisposable } from 'cockatiel';
+import {
+  nullable,
+  object,
+  pattern as matches,
+  string,
+} from '@metamask/superstruct';
 
-import { Env } from '../types';
-import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
+import { Env } from '../types.js';
+import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types.js';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
-const ENDPOINT_PATH = '/geolocation';
+const ENDPOINT_PATH = '/v2/geolocation';
+
+const COUNTRY_PATTERN = /^[A-Z]{2}$/u;
+
+const REGION_PATTERN = /^[A-Z0-9]{1,3}$/u;
+
+const TIMEZONE_PATTERN = /^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/u;
 
 // === GENERAL ===
 
@@ -27,14 +41,90 @@ export const serviceName = 'GeolocationApiService';
  */
 export const UNKNOWN_LOCATION = 'UNKNOWN';
 
+/**
+ * Geolocation details returned by the geolocation API.
+ *
+ * Each field is `null` when the API omits it or returns a value that fails
+ * validation.
+ */
+export type GeolocationData = {
+  /** ISO 3166-1 alpha-2 country code (e.g. `US`, `FR`). */
+  country: string | null;
+  /** ISO 3166-2 subdivision code without the country prefix (e.g. `WA`). */
+  region: string | null;
+  /** IANA time zone name (e.g. `America/Los_Angeles`). */
+  timezone: string | null;
+};
+
+/**
+ * Constructs a {@link GeolocationData} with no known fields.
+ *
+ * @returns Geolocation data where every field is `null`.
+ */
+export function getUnknownGeolocationData(): GeolocationData {
+  return { country: null, region: null, timezone: null };
+}
+
+/**
+ * Country codes for which the location code includes the region. This mirrors
+ * the legacy `v1` geolocation endpoint, which only appended the subdivision for
+ * the United States and Canada (e.g. `US-NY`, `CA-ON`) and returned the country
+ * alone for everywhere else.
+ */
+/**
+ * Describes the validated shape of {@link GeolocationData}.
+ */
+const GeolocationDataStruct = object({
+  country: nullable(matches(string(), COUNTRY_PATTERN)),
+  region: nullable(matches(string(), REGION_PATTERN)),
+  timezone: nullable(matches(string(), TIMEZONE_PATTERN)),
+});
+
+const REGION_APPENDED_COUNTRIES = new Set(['US', 'CA']);
+
+/**
+ * Converts geolocation data to a location code.
+ *
+ * To preserve backwards compatibility with the legacy `v1` endpoint, the region
+ * is appended only for {@link REGION_APPENDED_COUNTRIES} (e.g. `US-NY`,
+ * `CA-ON`); all other countries return the country code alone (e.g. `FR`), even
+ * when a region is known.
+ *
+ * @param data - The geolocation data to convert.
+ * @returns The location code (e.g. `US-NY`, `FR`), or
+ * {@link UNKNOWN_LOCATION} when the country is unknown.
+ */
+export function toLocationCode(data: GeolocationData): string {
+  if (data.country === null) {
+    return UNKNOWN_LOCATION;
+  }
+
+  if (data.region !== null && REGION_APPENDED_COUNTRIES.has(data.country)) {
+    return `${data.country}-${data.region}`;
+  }
+
+  return data.country;
+}
+
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['fetchGeolocation'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchGeolocation',
+  'fetchGeolocationData',
+] as const;
+
+/**
+ * Invalidates cached queries for {@link GeolocationApiService}.
+ */
+export type GeolocationApiServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 /**
  * Actions that {@link GeolocationApiService} exposes to other consumers.
  */
-export type GeolocationApiServiceActions = GeolocationApiServiceMethodActions;
+export type GeolocationApiServiceActions =
+  | GeolocationApiServiceMethodActions
+  | GeolocationApiServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link GeolocationApiServiceMessenger}
@@ -43,9 +133,24 @@ export type GeolocationApiServiceActions = GeolocationApiServiceMethodActions;
 type AllowedActions = never;
 
 /**
+ * Published when {@link GeolocationApiService}'s cache is updated.
+ */
+export type GeolocationApiServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link GeolocationApiService}'s cache is
+ * updated.
+ */
+export type GeolocationApiServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link GeolocationApiService} exposes to other consumers.
  */
-export type GeolocationApiServiceEvents = never;
+export type GeolocationApiServiceEvents =
+  | GeolocationApiServiceCacheUpdatedEvent
+  | GeolocationApiServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link GeolocationApiService} subscribes
@@ -68,62 +173,108 @@ export type GeolocationApiServiceMessenger = Messenger<
 /**
  * Returns the base URL for the geolocation API for the given environment.
  *
+ * Served by API Platform's `geolocation-api` service, not the legacy
+ * Ramps-owned `on-ramp` endpoint this previously pointed to. API Platform has
+ * not yet provisioned a dedicated UAT deployment for this service, so UAT
+ * temporarily resolves to the production URL until one exists.
+ *
  * @param env - The environment to get the URL for.
  * @returns The full URL for the geolocation endpoint.
  */
 function getGeolocationUrl(env: Env): string {
-  const envPrefix = env === Env.PRD ? '' : `${env}-`;
-  return `https://on-ramp.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
+  const envPrefix = env === Env.DEV ? 'dev-' : '';
+  return `https://geolocation.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
+}
+
+/**
+ * Reads a string field from a parsed response body, keeping it only when it
+ * matches the expected format.
+ *
+ * @param body - The parsed response body.
+ * @param field - The name of the field to read.
+ * @param pattern - The pattern the field value must match.
+ * @returns The trimmed field value, or `null` when it is missing or invalid.
+ */
+function readValidatedField(
+  body: Record<string, unknown>,
+  field: string,
+  pattern: RegExp,
+): string | null {
+  const value = body[field];
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return pattern.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Parses and validates the geolocation API response body.
+ *
+ * The endpoint is expected to return JSON such as
+ * `{"country":"US","region":"WA","timezone":"America/Los_Angeles"}`. Anything
+ * that cannot be parsed, or any individual field that fails validation, is
+ * reported as unknown rather than throwing, so that consumers can keep working
+ * with partial or missing data.
+ *
+ * @param raw - The raw response body.
+ * @returns The validated geolocation data.
+ */
+function parseGeolocationResponse(raw: string): GeolocationData {
+  let body: unknown;
+
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return getUnknownGeolocationData();
+  }
+
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return getUnknownGeolocationData();
+  }
+
+  const record = body as Record<string, unknown>;
+
+  return {
+    country: readValidatedField(record, 'country', COUNTRY_PATTERN),
+    region: readValidatedField(record, 'region', REGION_PATTERN),
+    timezone: readValidatedField(record, 'timezone', TIMEZONE_PATTERN),
+  };
 }
 
 /**
  * Options accepted by {@link GeolocationApiService.fetchGeolocation}.
  */
 export type FetchGeolocationOptions = {
-  /** When true, the TTL cache is invalidated so the next request fetches fresh data. */
+  /** When true, ignores any cached result and fetches fresh data. */
   bypassCache?: boolean;
 };
 
 /**
- * Low-level data service that fetches a location code from the geolocation API.
+ * Low-level data service that fetches geolocation details from the geolocation
+ * API.
  *
  * Responsibilities:
  * - HTTP request to the geolocation endpoint (wrapped in a service policy)
- * - ISO 3166-2 response validation (country code with optional subdivision,
- *   e.g. `US`, `US-NY`, `CA-ON`)
- * - TTL-based in-memory cache
- * - Promise deduplication (concurrent callers share a single in-flight request)
+ * - Response validation of the country, region, and timezone fields
  *
  * This class is intentionally not a controller: it does not manage UI state.
- * Its {@link fetchGeolocation} method is automatically registered on the
- * messenger so that controllers and other packages can call it directly.
+ * Its {@link fetchGeolocation} and {@link fetchGeolocationData} methods are
+ * automatically registered on the messenger so that controllers and other
+ * packages can call them directly.
  */
-export class GeolocationApiService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  readonly #messenger: GeolocationApiServiceMessenger;
-
+export class GeolocationApiService extends BaseDataService<
+  typeof serviceName,
+  GeolocationApiServiceMessenger
+> {
   readonly #fetch: typeof globalThis.fetch;
 
   readonly #url: string;
 
   readonly #ttlMs: number;
-
-  /**
-   * The policy that wraps each HTTP request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
-
-  #cachedLocation: string = UNKNOWN_LOCATION;
-
-  #lastFetchedAt: number | null = null;
-
-  #fetchPromise: Promise<string> | null = null;
 
   /**
    * Constructs a new {@link GeolocationApiService}.
@@ -134,7 +285,8 @@ export class GeolocationApiService {
    * Defaults to PRD.
    * @param args.fetch - A function that can be used to make an HTTP request.
    * Defaults to the global fetch.
-   * @param args.ttlMs - Cache TTL in milliseconds. Defaults to 5 minutes.
+   * @param args.ttlMs - How long a fetched result is served from cache, in
+   * milliseconds. Defaults to 5 minutes.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
@@ -151,132 +303,78 @@ export class GeolocationApiService {
     ttlMs?: number;
     policyOptions?: CreateServicePolicyOptions;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({ name: serviceName, messenger, policyOptions });
     this.#url = getGeolocationUrl(env);
     this.#fetch = fetchFunction;
     this.#ttlMs = ttlMs ?? DEFAULT_TTL_MS;
-    this.#policy = createServicePolicy(policyOptions);
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
   }
 
   /**
-   * Registers a handler that will be called after a request returns a 5xx
-   * response, causing a retry.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called when requests are consistently
-   * failing or when a successful request takes longer than the degraded
-   * threshold.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    return this.#policy.onDegraded(listener);
-  }
-
-  /**
    * Returns the geolocation code. Serves from cache when the TTL has not
-   * expired, otherwise performs a network fetch. Concurrent callers are
-   * deduplicated to a single in-flight request.
+   * expired, otherwise performs a network fetch.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the TTL cache. If a
-   * request is already in-flight it will be reused (deduplication always
-   * applies).
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
    * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
    * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
    */
   async fetchGeolocation(options?: FetchGeolocationOptions): Promise<string> {
+    return toLocationCode(await this.fetchGeolocationData(options));
+  }
+
+  /**
+   * Returns the country, region, and timezone for the current client. Serves
+   * from cache when the TTL has not expired, otherwise performs a network
+   * fetch.
+   *
+   * @param options - Optional fetch options.
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
+   * @returns The geolocation data, where each field is `null` when the API
+   * omits it or returns a value that fails validation.
+   */
+  async fetchGeolocationData(
+    options?: FetchGeolocationOptions,
+  ): Promise<GeolocationData> {
+    const queryKey = [`${this.name}:fetchGeolocationData`] as const;
+
     if (options?.bypassCache) {
-      this.#lastFetchedAt = null;
+      await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
-    if (this.#isCacheValid()) {
-      return this.#cachedLocation;
-    }
-
-    if (this.#fetchPromise) {
-      return this.#fetchPromise;
-    }
-
-    const promise = this.#performFetch();
-    this.#fetchPromise = promise;
-
-    try {
-      return await promise;
-    } finally {
-      this.#fetchPromise = null;
-    }
-  }
-
-  /**
-   * Checks whether the cached geolocation is still within the TTL window.
-   *
-   * @returns True if the cache is valid.
-   */
-  #isCacheValid(): boolean {
-    return (
-      this.#lastFetchedAt !== null &&
-      Date.now() - this.#lastFetchedAt < this.#ttlMs
-    );
-  }
-
-  /**
-   * Performs the actual HTTP fetch, wrapped in the service policy for automatic
-   * retry and circuit-breaking, and validates the response.
-   *
-   * @returns The ISO 3166-2 location code string.
-   */
-  async #performFetch(): Promise<string> {
-    const response = await this.#policy.execute(async () => {
-      const localResponse = await this.#fetch(this.#url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Geolocation fetch failed: ${localResponse.status}`,
-        );
-      }
-      return localResponse;
+    const geolocation = await this.fetchQuery({
+      queryKey,
+      staleTime: this.#ttlMs,
+      responseStruct: GeolocationDataStruct,
+      gcTime: this.#ttlMs,
+      queryFn: async () => {
+        const response = await this.#fetch(this.#url);
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Geolocation fetch failed: ${response.status}`,
+          );
+        }
+        return parseGeolocationResponse((await response.text()).trim());
+      },
     });
 
-    const raw = (await response.text()).trim();
-    const location = /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/u.test(raw)
-      ? raw
-      : UNKNOWN_LOCATION;
-
-    if (location !== UNKNOWN_LOCATION) {
-      this.#cachedLocation = location;
-      this.#lastFetchedAt = Date.now();
+    // A partially-known result is worth keeping for the whole TTL. A
+    // fully-unknown one is marked stale so the next call retries it.
+    if (
+      geolocation.country === null &&
+      geolocation.region === null &&
+      geolocation.timezone === null
+    ) {
+      await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
-    return location;
+    return geolocation;
   }
 }

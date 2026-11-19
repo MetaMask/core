@@ -1,15 +1,16 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import * as assetsUtil from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
-import type { TokenListToken } from './TokenListController';
-import { buildTokenListMap, TokenListService } from './TokenListService';
+import * as assetsUtil from './assetsUtil.js';
+import { fetchTokenListByChainId } from './token-service.js';
+import type { TokenListToken } from './TokenListController.js';
+import { buildTokenListMap, TokenListService } from './TokenListService.js';
 
-jest.mock('./token-service', () => ({
-  fetchTokenListByChainId: jest.fn(),
+vi.mock('./token-service', () => ({
+  fetchTokenListByChainId: vi.fn(),
 }));
 
-const mockedFetchTokenListByChainId = jest.mocked(fetchTokenListByChainId);
+const mockedFetchTokenListByChainId = vi.mocked(fetchTokenListByChainId);
 
 describe('buildTokenListMap', () => {
   it('maps tokens by address and applies aggregator and icon formatting', () => {
@@ -44,7 +45,7 @@ describe('buildTokenListMap', () => {
   });
 
   it('returns an empty map when the token array is empty', () => {
-    expect(buildTokenListMap([], '0x1' as Hex)).toStrictEqual({});
+    expect(buildTokenListMap([], '0x1')).toStrictEqual({});
   });
 });
 
@@ -104,11 +105,8 @@ describe('TokenListService', () => {
     ];
     mockedFetchTokenListByChainId.mockResolvedValue(apiTokens);
 
-    const formatAggregatorsSpy = jest.spyOn(
-      assetsUtil,
-      'formatAggregatorNames',
-    );
-    const formatIconSpy = jest.spyOn(assetsUtil, 'formatIconUrlWithProxy');
+    const formatAggregatorsSpy = vi.spyOn(assetsUtil, 'formatAggregatorNames');
+    const formatIconSpy = vi.spyOn(assetsUtil, 'formatIconUrlWithProxy');
 
     const service = new TokenListService();
     await service.fetchTokensByChainId(chainId);
@@ -127,7 +125,7 @@ describe('TokenListService', () => {
     mockedFetchTokenListByChainId.mockResolvedValue(undefined);
 
     const service = new TokenListService();
-    expect(await service.fetchTokensByChainId('0x1' as Hex)).toStrictEqual({});
+    expect(await service.fetchTokensByChainId('0x1')).toStrictEqual({});
 
     service.destroy();
   });
@@ -147,7 +145,7 @@ describe('TokenListService', () => {
       async (_chainId, abortSignal) => {
         // Mirror token-service: aborted fetches resolve to undefined, not a list.
         if (abortSignal.aborted) {
-          return undefined;
+          return;
         }
         return [apiToken];
       },

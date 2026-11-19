@@ -1,16 +1,22 @@
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 
-import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
-import type { BridgeHistoryItem } from './types';
-import { getJwt } from './utils/authentication';
+import type {
+  BridgeStatusControllerMessenger,
+  FetchFunction,
+} from './types.js';
+import type { BridgeHistoryItem } from './types.js';
+import { getJwt } from './utils/authentication.js';
 import {
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
   translateIntentOrderToBridgeStatus,
-} from './utils/intent-api';
-import { getTransactionMetaById, updateTransaction } from './utils/transaction';
-import { IntentStatusResponse, IntentOrderStatus } from './utils/validators';
+} from './utils/intent-api.js';
+import {
+  getTransactionMetaById,
+  updateTransaction,
+} from './utils/transaction.js';
+import { IntentStatusResponse, IntentOrderStatus } from './utils/validators.js';
 
 type IntentStatuses = {
   orderStatus: IntentOrderStatus;

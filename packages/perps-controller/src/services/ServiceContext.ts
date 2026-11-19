@@ -1,5 +1,15 @@
-import type { PerpsControllerState } from '../PerpsController';
-import type { Order, Position } from '../types';
+import type { PerpsControllerState } from '../PerpsController.js';
+import type {
+  AccountState,
+  GetOrdersParams,
+  GetPositionsParams,
+  Order,
+  PerpsFeeResolution,
+  PerpsGlobalSnapshotRequest,
+  PerpsProviderType,
+  PerpsSubscriptionFeeWaiverStatus,
+  Position,
+} from '../types/index.js';
 
 /**
  * ServiceContext
@@ -57,13 +67,57 @@ export type ServiceContext = {
    * Query functions for dependent data
    * Required by: Operations that need to fetch related data
    */
-  getOpenOrders?: () => Promise<Order[]>;
-  getPositions?: () => Promise<Position[]>;
+  getOpenOrders?: (params?: GetOrdersParams) => Promise<Order[]>;
+  getPositions?: (params?: GetPositionsParams) => Promise<Position[]>;
 
   /**
-   * Callback functions for controller-specific operations
+   * Exact per-call identity and guards for adopting a global market snapshot.
+   * Omitted when the active provider or DEX configuration is not static.
    */
-  saveTradeConfiguration?: (symbol: string, leverage: number) => void;
+  globalSnapshot?: {
+    request: PerpsGlobalSnapshotRequest;
+    isCurrent: () => boolean;
+    isMarketAllowed: (symbol: string) => boolean;
+  };
+
+  /**
+   * Guards a REST account-state write against the venue that currently backs
+   * account reads. A response that resolves after the default venue changed
+   * must not overwrite the new venue's snapshot, so `isCurrent` compares the
+   * response's captured `providerId` with the current account-data context.
+   * Omitted for callers that do not route account reads by venue.
+   */
+  accountDataContext?: {
+    isCurrent: (accountState: AccountState) => boolean;
+  };
+
+  /**
+   * Cached subscription fee-waiver status for read-only fee previews.
+   * Read by the controller from `RewardsIntegrationService` — the same cached
+   * benefits snapshot the fee resolver uses — and omitted entirely when no
+   * subscription source is wired.
+   */
+  subscriptionFeeWaiver?: PerpsSubscriptionFeeWaiverStatus;
+
+  /**
+   * Unified fee resolution for the quote being previewed.
+   *
+   * Carries the same blended subscription rate the submit path will charge, so
+   * a preview quotes what the order actually pays rather than the undiscounted
+   * builder fee. Omitted when no resolution was computed.
+   */
+  feeResolution?: PerpsFeeResolution;
+
+  /**
+   * Callback functions for controller-specific operations. `providerId` is
+   * the venue the placement was routed to; it keys the persisted trade
+   * configuration so a value saved on one venue never applies to another.
+   */
+  saveTradeConfiguration?: (
+    symbol: string,
+    leverage: number,
+    providerId?: PerpsProviderType,
+  ) => void;
 
   /**
    * Feature flag configuration callbacks

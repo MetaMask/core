@@ -1,12 +1,21 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
+    }
   ],
   "include": ["../../types", "./src"]
 }

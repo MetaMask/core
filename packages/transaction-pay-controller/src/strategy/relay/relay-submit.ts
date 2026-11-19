@@ -1,58 +1,80 @@
 import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
+  BatchTransactionParams,
+  TransactionBatchRequest,
+  TransactionBatchSingleRequest,
   TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
+} from '../../types.js';
+import { accountSupports7702 } from '../../utils/account.js';
+import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
+} from '../../utils/feature-flags.js';
+import type { GasPayment } from '../../utils/gas-payment.js';
 import {
-  getLiveTokenBalance,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
+import {
+  submitPolymarketWithdraw,
+  sweepPolymarketDepositWallet,
+} from '../../utils/polymarket/withdraw.js';
+import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
+import {
+  getEvmQuoteSource,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
+  FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
-} from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
-import {
-  sweepPolymarketDepositWallet,
-  submitPolymarketWithdraw,
-} from './polymarket/withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
+} from './constants.js';
+import { getRelayDepositData } from './deposit-step.js';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
+import { getRelayStatus } from './relay-api.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
 import type {
-  RelayExecuteRequest,
+  RelayCompletionOutcome,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
-} from './types';
-
-const FALLBACK_HASH = '0x0' as Hex;
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const RELAY_ERROR_PREFIX = 'Relay: ';
+
+type RelaySubmitParams = {
+  allParams: TransactionParams[];
+  normalizedParams: TransactionParams[];
+};
+
+export type RelaySubmitCalls = { calls: TransactionParams[] };
 
 /**
  * Submits Relay quotes.
@@ -63,9 +85,40 @@ const log = createModuleLogger(projectLogger, 'relay-strategy');
 export async function submitRelayQuotes(
   request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitRelayQuotesInternal(request);
+  } catch (error) {
+    throw prefixError(error, RELAY_ERROR_PREFIX);
+  }
+}
+
+export async function getRelaySubmitCalls({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitCalls> {
+  const { allParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
+  return { calls: allParams };
+}
+
+async function submitRelayQuotesInternal(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+
+  if (!quotes.length) {
+    throw new Error('No quotes to submit');
+  }
 
   let transactionHash: Hex | undefined;
 
@@ -75,6 +128,11 @@ export async function submitRelayQuotes(
       messenger,
       transaction,
     ));
+  }
+
+  /* istanbul ignore if: concrete Relay submit paths return a hash/fallback or throw. */
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash');
   }
 
   return { transactionHash };
@@ -109,19 +167,32 @@ async function executeSingleQuote(
   );
 
   let polymarketPreSubmitUsdceBalance = 0n;
+  let submittedSourceHash: Hex | undefined;
+
+  // Shallow clone so the server-returned requestId can be written back (state is frozen by Immer).
+  const mutableOriginal: RelayQuote = { ...quote.original };
 
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
     const { sourceHash, preSubmitUsdceBalance } =
-      await submitPolymarketWithdraw(quote, quote.request.from, messenger);
+      await submitPolymarketWithdraw({
+        depositData: getRelayDepositData(quote.original),
+        from: quote.request.from,
+        messenger,
+        sourceAmountRaw: quote.sourceAmount.raw,
+      });
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    submittedSourceHash = await submitTransactions(
+      { ...quote, original: mutableOriginal },
+      transaction,
+      messenger,
+    );
   }
 
-  const completion = await waitForRelayCompletion(quote.original, messenger, {
+  const completion = await waitForRelayCompletion(mutableOriginal, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
@@ -132,16 +203,36 @@ async function executeSingleQuote(
   log('Relay request completed', completion);
 
   if (isPolymarket) {
-    await sweepPolymarketDepositWallet(quote.request.from, messenger, {
-      relayStatus: completion.status,
+    await sweepPolymarketDepositWallet({
+      from: quote.request.from,
+      isRefund:
+        completion.status === 'refund' || completion.status === 'refunded',
+      messenger,
       preSubmitUsdceBalance: polymarketPreSubmitUsdceBalance,
     });
 
     if (completion.status !== 'success') {
-      throw new Error(`Relay request failed with status: ${completion.status}`);
+      throw new Error(`Request failed with status: ${completion.status}`);
     }
   }
 
+  // Non-atomic flow: the quote bridged funds to `recipient` without embedding
+  // the second leg. Now that Relay has settled, resolve the settled amount from
+  // the on-chain Transfer log and submit the second-leg batch (approve + vault
+  // deposit) sponsored from `recipient`.
+  const { transactionHash: secondLegHash } =
+    quote.request.atomic === false && completion.status === 'success'
+      ? await submitPostNonAtomic({
+          completion,
+          messenger,
+          quote,
+          submittedSourceHash,
+          transaction,
+        })
+      : {};
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -153,7 +244,145 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: completion.targetHash };
+  return { transactionHash: secondLegHash ?? completion.targetHash };
+}
+
+/**
+ * Runs the second leg of a non-atomic Relay quote on the target chain from
+ * `quote.request.recipient`, where the funds settled (derived at quote time by
+ * `resolveNonAtomicRecipient`). Post-quote flows build their calls via the
+ * client `getPaymentOverrideData` callback; non-post-quote flows fall through
+ * to the transaction's own nested calls re-encoded via `getAmountData`.
+ *
+ * @param options - Submit options.
+ * @param options.completion - Outcome of `waitForRelayCompletion`.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - The Relay quote that was submitted.
+ * @param options.submittedSourceHash - Hash of the submitted source
+ * transaction, used as the settlement hash when Relay skips polling on
+ * same-chain flows.
+ * @param options.transaction - Original transaction meta.
+ * @returns Hash of the final submitted child transaction, if available.
+ */
+async function submitPostNonAtomic({
+  completion,
+  messenger,
+  quote,
+  submittedSourceHash,
+  transaction,
+}: {
+  completion: RelayCompletionOutcome;
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  submittedSourceHash?: Hex;
+  transaction: TransactionMeta;
+}): Promise<{ transactionHash?: Hex }> {
+  const { from, isPostQuote, recipient, targetChainId, targetTokenAddress } =
+    quote.request;
+
+  return await submitSecondLeg({
+    chainId: targetChainId,
+    from: recipient ?? from,
+    getCalls: isPostQuote
+      ? async (sourceAmountRaw): Promise<BatchTransactionParams[]> =>
+          await buildPostQuoteDepositCalls({
+            messenger,
+            quote,
+            sourceAmountRaw,
+            transaction,
+          })
+      : undefined,
+    messenger,
+    settlementHash: getSettlementHash({
+      completion,
+      quote,
+      submittedSourceHash,
+    }),
+    tokenAddress: targetTokenAddress,
+    transaction,
+  });
+}
+
+/**
+ * Builds the second-leg batch for a post-quote flow whose parent transaction
+ * carries no vault calls, via the client `getPaymentOverrideData` callback.
+ *
+ * @param options - Build options.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - The Relay quote that was submitted.
+ * @param options.sourceAmountRaw - Settled amount in raw units.
+ * @param options.transaction - Original transaction meta.
+ * @returns The batch calls.
+ */
+async function buildPostQuoteDepositCalls({
+  messenger,
+  quote,
+  sourceAmountRaw,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  sourceAmountRaw: string;
+  transaction: TransactionMeta;
+}): Promise<BatchTransactionParams[]> {
+  const { transactionData } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const { decimals } = quote.original.details.currencyOut.currency;
+  const amountHuman = new BigNumber(sourceAmountRaw)
+    .shiftedBy(-decimals)
+    .toFixed();
+
+  const { calls } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount: amountHuman,
+      transaction,
+      transactionData: transactionData[transaction.id],
+    },
+  );
+
+  return calls;
+}
+
+/**
+ * Resolves the hash of the transaction that delivered the funds to the
+ * recipient.
+ *
+ * Cross-chain relays surface the target-chain hash from polling. Same-chain
+ * relays skip polling, but the submitted source transaction itself moved the
+ * funds, so its hash is used instead. Relay execute submissions return
+ * `FALLBACK_HASH` rather than a real hash, leaving nothing to read.
+ *
+ * @param options - Resolution options.
+ * @param options.completion - Outcome of `waitForRelayCompletion`.
+ * @param options.quote - The Relay quote that was submitted.
+ * @param options.submittedSourceHash - Hash of the submitted source
+ * transaction.
+ * @returns The settlement hash, or `undefined` when none is available.
+ */
+function getSettlementHash({
+  completion,
+  quote,
+  submittedSourceHash,
+}: {
+  completion: RelayCompletionOutcome;
+  quote: TransactionPayQuote<RelayQuote>;
+  submittedSourceHash?: Hex;
+}): Hex | undefined {
+  if (completion.targetHash && completion.targetHash !== FALLBACK_HASH) {
+    return completion.targetHash;
+  }
+
+  const isSameChain =
+    getEvmQuoteSource(quote.request).chainId === quote.request.targetChainId;
+
+  if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
+    return submittedSourceHash;
+  }
+
+  return undefined;
 }
 
 function setRelaySourceHash(
@@ -173,11 +402,6 @@ function setRelaySourceHash(
     },
   );
 }
-
-type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
-  targetHash?: Hex;
-};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,
@@ -217,7 +441,7 @@ async function waitForRelayCompletion(
     let status: RelayStatusResponse | undefined;
 
     try {
-      status = await getRelayStatus(requestId);
+      status = await getRelayStatus(messenger, requestId);
     } catch (error) {
       log('Polling network error', error);
     }
@@ -233,7 +457,7 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
@@ -243,9 +467,9 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(`Relay request failed with status: ${status.status}`);
+          throw new Error(`Request failed with status: ${status.status}`);
         }
-        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+        throw new Error(`Unrecognized status: ${status.status}`);
       }
     }
 
@@ -255,7 +479,7 @@ async function waitForRelayCompletion(
         log('Relay polling timed out (tolerated)', statusDetail);
         return { status: 'timeout' };
       }
-      throw new Error(`Relay polling timed out${statusDetail}`);
+      throw new Error(`Polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
@@ -279,8 +503,14 @@ function normalizeParams(
     data: params.data,
     from: params.from,
     gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
-    maxFeePerGas: toHex(params.maxFeePerGas),
-    maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
+    maxFeePerGas:
+      params.maxFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxFeePerGas),
+    maxPriorityFeePerGas:
+      params.maxPriorityFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
@@ -289,9 +519,13 @@ function normalizeParams(
 /**
  * Validate the source token balance is sufficient for the relay deposit.
  *
- * Reads the live balance from TokenBalancesController and compares it against
- * the quote's required source amount to prevent submitting transactions that
- * will revert on-chain due to insufficient balance.
+ * Reads the live balance from the network and compares it against the quote's
+ * required source amount to prevent submitting transactions that will revert
+ * on-chain due to insufficient balance.
+ *
+ * This is a fast-fail optimisation, not a safety net: if the balance cannot be
+ * read the check is skipped and submission proceeds, since the Relay and the
+ * chain still reject an underfunded transaction.
  *
  * @param quote - Relay quote containing the required source amount.
  * @param messenger - Controller messenger.
@@ -300,7 +534,9 @@ async function validateSourceBalance(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
@@ -308,19 +544,22 @@ async function validateSourceBalance(
     TokenAddressTarget.MetaMask,
   );
 
-  let currentBalance: string;
+  const currentBalance = await getLiveTokenBalanceOrUndefined(
+    messenger,
+    from,
+    sourceChainId,
+    normalizedSourceTokenAddress,
+  );
 
-  try {
-    currentBalance = await getLiveTokenBalance(
-      messenger,
+  // An unreadable balance is unknown, not insufficient. Submit anyway and let
+  // the Relay and the chain reject a genuinely underfunded transaction.
+  if (currentBalance === undefined) {
+    log('Skipping source balance check: live balance unavailable', {
       from,
       sourceChainId,
-      normalizedSourceTokenAddress,
-    );
-  } catch (error) {
-    throw new Error(
-      `Cannot validate payment token balance - ${(error as Error).message}`,
-    );
+      sourceTokenAddress,
+    });
+    return;
   }
 
   const requiredAmount = new BigNumber(quote.sourceAmount.raw);
@@ -363,57 +602,18 @@ async function submitTransactions(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const { steps } = quote.original;
-  const txSteps = steps.filter(
-    (step): step is RelayTransactionStep => step.kind === 'transaction',
-  );
-  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
-  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
-  const invalidKind = steps.find(
-    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
-  )?.kind;
-
-  if (invalidKind) {
-    throw new Error(`Unsupported step kind: ${invalidKind}`);
-  }
-
   // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
   // the Safe — not the EOA — and only become available after the original tx
   // executes as part of the batch. Skip the EOA balance check here.
-  if (!quote.request.isPostQuote) {
+  if (!quote.request.isPostQuote && !quote.request.paymentOverride) {
     await validateSourceBalance(quote, messenger);
   }
 
-  const normalizedParams = params.map((singleParams) =>
-    normalizeParams(singleParams, messenger),
-  );
-
-  // For post-quote flows, prepend the original transaction so it gets
-  // included in the batch alongside the relay deposit(s).
-  // This always results in multiple params, so it takes the batch path.
-  // When an accountOverride is set (detected by `from` divergence between the
-  // quote and the original tx), the override account does not directly hold
-  // the funds for the original call, so the prepended tx is replaced with a
-  // delegation tx that redeems the original call on its behalf.
-  const { isPostQuote } = quote.request;
-  const hasAccountOverride =
-    quote.request.from.toLowerCase() !==
-    (transaction.txParams.from as Hex).toLowerCase();
-
-  let allParams = normalizedParams;
-
-  if (isPostQuote && transaction.txParams.to) {
-    const prependedParams = hasAccountOverride
-      ? await buildDelegatedOriginalParams(transaction, messenger)
-      : ({
-          data: transaction.txParams.data as Hex | undefined,
-          from: transaction.txParams.from,
-          to: transaction.txParams.to,
-          value: transaction.txParams.value as Hex | undefined,
-        } as TransactionParams);
-
-    allParams = [prependedParams, ...normalizedParams];
-  }
+  const { allParams, normalizedParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
 
   if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
@@ -433,6 +633,116 @@ async function submitTransactions(
   );
 }
 
+function getRelayTransactionStepData(
+  quote: TransactionPayQuote<RelayQuote>,
+): RelayTransactionStep['items'][0]['data'][] {
+  const { steps } = quote.original;
+  const supportedStepKinds = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !supportedStepKinds.includes(step.kind),
+  )?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
+
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+
+  return txSteps
+    .flatMap((step) => step.items)
+    .map((item) => item.data)
+    .filter((data): data is RelayTransactionStep['items'][0]['data'] =>
+      isRelayTransactionStepData(data),
+    );
+}
+
+async function buildRelaySubmitParams({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitParams> {
+  const params = getRelayTransactionStepData(quote);
+  const normalizedParams = params.map((singleParams) =>
+    normalizeParams(singleParams, messenger),
+  );
+
+  // For post-quote flows, prepend the original transaction so it gets
+  // included in the batch alongside the relay deposit(s).
+  // This always results in multiple params, so it takes the batch path.
+  // When an accountOverride is set (detected by `from` divergence between the
+  // quote and the original tx), the override account does not directly hold
+  // the funds for the original call, so the prepended tx is replaced with a
+  // delegation tx that redeems the original call on its behalf.
+  const { isPostQuote } = quote.request;
+  const hasAccountOverride =
+    quote.request.from.toLowerCase() !==
+    (transaction.txParams.from as Hex).toLowerCase();
+
+  // Non-atomic flows are excluded from the paymentOverride prepend: their
+  // second leg is submitted separately by `submitPostNonAtomic` after
+  // Relay completion, so prepending here would double-embed the vault deposit.
+  // Cross-chain atomic flows (e.g. `moneyAccountWithdraw` on Monad settling
+  // USDC on Arbitrum for Perps) still need the source-side vault withdraw +
+  // transfer prepended here so Relay has funds to bridge.
+  const isNonAtomic = quote.request.atomic === false;
+
+  let allParams = normalizedParams;
+
+  if (quote.request.paymentOverride && !isNonAtomic) {
+    const { transactionData } = messenger.call(
+      'TransactionPayController:getState',
+    );
+
+    const { calls: overrideTxs } = await messenger.call(
+      'TransactionPayController:getPaymentOverrideData',
+      {
+        amount: quote.sourceAmount.human,
+        transaction,
+        transactionData: transactionData[transaction.id],
+      },
+    );
+
+    if (overrideTxs.length > 0) {
+      allParams = [
+        ...(overrideTxs as TransactionParams[]),
+        ...normalizedParams,
+      ];
+    }
+  } else if (isPostQuote && transaction.txParams.to) {
+    const prependedParams = hasAccountOverride
+      ? await buildDelegatedOriginalParams(
+          transaction,
+          messenger,
+          normalizedParams[0],
+        )
+      : ({
+          data: transaction.txParams.data as Hex | undefined,
+          from: transaction.txParams.from,
+          maxFeePerGas: normalizedParams[0]?.maxFeePerGas,
+          maxPriorityFeePerGas: normalizedParams[0]?.maxPriorityFeePerGas,
+          to: transaction.txParams.to,
+          value: transaction.txParams.value as Hex | undefined,
+        } as TransactionParams);
+
+    allParams = [prependedParams, ...normalizedParams];
+  }
+
+  return { allParams, normalizedParams };
+}
+
+function isRelayTransactionStepData(
+  data: RelayTransactionStep['items'][0]['data'],
+): data is RelayTransactionStep['items'][0]['data'] {
+  const maybeStepData = data as { to?: unknown };
+  return maybeStepData.to !== undefined;
+}
+
 /**
  * Build TransactionParams for a delegation that redeems the original
  * post-quote transaction on behalf of the override account. Used when the
@@ -444,11 +754,13 @@ async function submitTransactions(
  *
  * @param transaction - Original transaction meta to be redeemed.
  * @param messenger - Controller messenger.
+ * @param relayParams - Optional relay params to copy gas fee fields from.
  * @returns Transaction params for the delegation tx.
  */
 async function buildDelegatedOriginalParams(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  relayParams?: TransactionParams,
 ): Promise<TransactionParams> {
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
@@ -459,101 +771,12 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
+    maxFeePerGas: relayParams?.maxFeePerGas,
+    maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,
     value: delegation.value,
   };
-}
-
-/**
- * Submit source transactions via Relay's /execute endpoint.
- *
- * Combines all source calls (approve + deposit, and optionally the
- * original transaction for post-quote flows) into a single EIP-7702
- * delegation transaction using getDelegationTransaction, then submits
- * it to Relay's /execute endpoint for gasless execution.
- *
- * @param quote - Relay quote.
- * @param transaction - Original transaction meta.
- * @param messenger - Controller messenger.
- * @param allParams - All source transaction params to combine.
- * @returns Fallback hash (actual hash comes from relay status polling).
- */
-async function submitViaRelayExecute(
-  quote: TransactionPayQuote<RelayQuote>,
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-  allParams: TransactionParams[],
-): Promise<Hex> {
-  const { from, sourceChainId } = quote.request;
-  const { requestId } = quote.original.steps[0];
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions: allParams.map((params) => ({
-      data: (params.data ?? '0x') as Hex,
-      to: params.to as Hex,
-      value: (params.value ?? '0x0') as Hex,
-    })),
-    txParams: {
-      ...transaction.txParams,
-      from,
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
-  );
-
-  log('Delegation result for source calls', delegation);
-
-  const executeBody: RelayExecuteRequest = {
-    executionKind: 'rawCalls',
-    data: {
-      chainId: Number(sourceChainId),
-      to: delegation.to,
-      data: delegation.data,
-      value: new BigNumber(delegation.value).toFixed(),
-      ...(delegation.authorizationList?.length
-        ? {
-            authorizationList: delegation.authorizationList.map((auth) => ({
-              chainId: Number(auth.chainId),
-              address: auth.address,
-              nonce: Number(auth.nonce),
-              yParity: Number(auth.yParity),
-              r: auth.r as Hex,
-              s: auth.s as Hex,
-            })),
-          }
-        : {}),
-    },
-    executionOptions: {
-      subsidizeFees: false,
-    },
-    requestId,
-  };
-
-  log('Submitting via Relay execute', { executeBody, from });
-
-  let result;
-  try {
-    result = await submitRelayExecute(messenger, executeBody);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
-  }
-
-  log('Relay execute response', result);
-
-  return FALLBACK_HASH;
 }
 
 /**
@@ -577,13 +800,11 @@ async function submitViaTransactionController(
   allParams: TransactionParams[],
 ): Promise<Hex> {
   const transactionIds: string[] = [];
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
-  const { isPostQuote } = quote.request;
+  const { from, isPostQuote } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
   log('Adding transactions', {
     normalizedParams: allParams,
@@ -615,26 +836,51 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
+  const gasPayment = resolveGasPayment({
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, from),
+      request: quote.request,
+      transaction,
+    },
+  });
+
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   log('Submitting transactions', {
     isPostQuote,
     gasFeeToken,
     allParamsCount: allParams.length,
+    gasPaymentMode: gasPayment.mode,
   });
 
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;
 
+  // Single-tx keeps address/chainId only — TransactionController re-signs with
+  // `from`. Batch may need a different signer (Money Account) than the batch
+  // payer (EOA account override), so preserve the full pre-signed list.
   const authorizationList: AuthorizationList | undefined =
     isSameChain && quote.original.request.authorizationList?.length
       ? quote.original.request.authorizationList.map((a) => ({
           address: a.address,
           chainId: toHex(a.chainId),
         }))
+      : undefined;
+
+  const hasAccountOverride =
+    quote.request.from.toLowerCase() !==
+    (transaction.txParams.from as Hex).toLowerCase();
+
+  const batchAuthorizationList =
+    isSameChain &&
+    hasAccountOverride &&
+    quote.original.request.authorizationList?.length
+      ? mapSignedQuoteAuthorizationList(
+          quote.original.request.authorizationList,
+        )
       : undefined;
 
   const { metamask } = quote.original;
@@ -651,59 +897,38 @@ async function submitViaTransactionController(
       'TransactionController:addTransaction',
       transactionParams,
       {
+        excludeNativeTokenForFee,
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
+        isInternal: true,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
     );
   } else {
-    const gasLimit7702 = metamask.is7702
-      ? toHex(metamask.gasLimits[0])
-      : undefined;
-
-    const transactions = allParams.map((singleParams, index) => {
-      const gasLimit = gasLimits[index];
-      const gas =
-        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
-
-      return {
-        params: {
-          data: singleParams.data as Hex,
-          gas,
-          maxFeePerGas: singleParams.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-          to: singleParams.to as Hex,
-          value: singleParams.value as Hex,
-        },
-        type: getTransactionType(
-          isPostQuote,
-          index,
-          getEffectiveTransactionType(transaction),
-          normalizedParams.length,
-        ),
-      };
-    });
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      disable7702: !gasLimit7702,
-      disableHook: Boolean(gasLimit7702),
-      disableSequential: Boolean(gasLimit7702),
-      gasFeeToken,
-      gasLimit7702,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      overwriteUpgrade: true,
-      requireApproval: false,
-      transactions,
-    });
+    await messenger.call(
+      'TransactionController:addTransactionBatch',
+      buildRelayTransactionBatchRequest({
+        allParams,
+        authorizationList: batchAuthorizationList,
+        gasPayment,
+        messenger,
+        normalizedParams,
+        quote,
+        transaction,
+      }),
+    );
   }
 
   end();
 
   log('Added transactions', transactionIds);
+
+  if (!transactionIds.length) {
+    throw new Error('No transactions submitted');
+  }
 
   if (result) {
     const txHash = await result.result;
@@ -716,33 +941,149 @@ async function submitViaTransactionController(
 
   log('All transactions confirmed', transactionIds);
 
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
+
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
+  if (!hash) {
+    throw new Error('Missing transaction hash');
+  }
+
   return hash as Hex;
+}
+
+function mapSignedQuoteAuthorizationList(
+  authorizationList: NonNullable<RelayQuote['request']['authorizationList']>,
+): AuthorizationList {
+  return authorizationList.map((a) => ({
+    address: a.address,
+    chainId: toHex(a.chainId),
+    nonce: toHex(a.nonce),
+    r: a.r,
+    s: a.s,
+    yParity: toHex(a.yParity),
+  }));
+}
+
+function buildRelayTransactionBatchRequest({
+  allParams,
+  authorizationList,
+  gasPayment,
+  messenger,
+  normalizedParams,
+  quote,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  authorizationList?: AuthorizationList;
+  gasPayment: GasPayment;
+  messenger: TransactionPayControllerMessenger;
+  normalizedParams: TransactionParams[];
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): TransactionBatchRequest {
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
+  const { metamask } = quote.original;
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+  const gasLimit7702 = getGasLimit7702(quote);
+
+  return {
+    from,
+    ...(authorizationList?.length ? { authorizationList } : {}),
+    disable7702: !gasLimit7702,
+    disableHook: Boolean(gasLimit7702),
+    disableSequential: Boolean(gasLimit7702),
+    excludeNativeTokenForFee: gasPayment.excludeNativeTokenForFee,
+    gasFeeToken: gasPayment.gasFeeToken,
+    gasLimit7702,
+    networkClientId,
+    origin: ORIGIN_METAMASK,
+    isInternal: true,
+    isGasFeeSponsored: gasPayment.isGasFeeSponsored,
+    overwriteUpgrade: true,
+    requireApproval: false,
+    transactions: buildRelayBatchTransactions({
+      allParams,
+      gasLimit7702,
+      gasLimits: metamask.gasLimits,
+      normalizedParams,
+      transaction,
+    }),
+  };
+}
+
+function buildRelayBatchTransactions({
+  allParams,
+  gasLimit7702,
+  gasLimits,
+  normalizedParams,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  gasLimit7702?: Hex;
+  gasLimits: number[];
+  normalizedParams: TransactionParams[];
+  transaction: TransactionMeta;
+}): TransactionBatchSingleRequest[] {
+  const prependCount = allParams.length - normalizedParams.length;
+
+  return allParams.map((singleParams, index) => {
+    const gasLimit = gasLimits[index];
+    const gas =
+      gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+    return {
+      params: {
+        data: singleParams.data as Hex,
+        gas,
+        maxFeePerGas: singleParams.maxFeePerGas as Hex,
+        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+        to: singleParams.to as Hex,
+        value: singleParams.value as Hex,
+      },
+      type: getTransactionType(
+        prependCount,
+        index,
+        getEffectiveTransactionType(transaction),
+        normalizedParams.length,
+      ),
+    };
+  });
+}
+
+function getGasLimit7702(
+  quote: TransactionPayQuote<RelayQuote>,
+): Hex | undefined {
+  const { gasLimits, is7702 } = quote.original.metamask;
+  const gasLimit = gasLimits[0];
+
+  return is7702 && gasLimit !== undefined ? toHex(gasLimit) : undefined;
 }
 
 /**
  * Determine the transaction type for a given index in the batch.
  *
- * @param isPostQuote - Whether this is a post-quote flow.
+ * @param prependCount - Number of non-relay txs prepended to the batch.
  * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for post-quote index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @param originalType - Type of the original transaction (used for prepended indices).
+ * @param relayParamCount - Number of relay-only params (excludes prepended txs).
  * @returns The transaction type.
  */
 function getTransactionType(
-  isPostQuote: boolean | undefined,
+  prependCount: number,
   index: number,
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  // Post-quote index 0 is the original transaction
-  if (isPostQuote && index === 0) {
+  if (prependCount > 0 && index < prependCount) {
     return originalType;
   }
 
-  // Adjust index for post-quote flows where original tx is prepended
-  const relayIndex = isPostQuote ? index - 1 : index;
+  const relayIndex = index - prependCount;
 
   const depositType = getRelayDepositType(originalType);
 

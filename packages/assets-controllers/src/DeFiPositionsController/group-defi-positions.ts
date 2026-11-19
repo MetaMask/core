@@ -7,7 +7,7 @@ import type {
   ProtocolToken,
   Underlying,
   Balance,
-} from './fetch-positions';
+} from './fetch-positions.js';
 
 export type GroupedDeFiPositions = {
   aggregatedMarketValue: number;

@@ -3,7 +3,13 @@
  * API: accounts.api.cx.metamask.io
  */
 
-import type { PageInfo } from '../shared-types';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+} from '@metamask/utils';
+
+import type { PageInfo } from '../shared-types.js';
 
 // ============================================================================
 // BALANCE TYPES
@@ -19,6 +25,11 @@ export type V5BalanceItem = {
   assetId: string;
   balance: string;
   accountId: string;
+  /**
+   * Token-level metadata such as Stellar trustline / native reserve fields.
+   * Present when the upstream balance row carries it.
+   */
+  metadata?: V6TokenBalanceMetadata;
 };
 
 /** V5 Multi-account balances response */
@@ -56,6 +67,126 @@ export type V4BalancesResponse = {
   unprocessedNetworks: number[];
 };
 
+/**
+ * Quote currency accepted by the v6 balances endpoint when `includePrices` is
+ * true. A superset of {@link SupportedCurrency} (adds e.g. `sol`, `xdr`,
+ * `xag`, `xau`, `bits`, `sats`). Defaults to `usd`.
+ */
+export type V6VsCurrency = string;
+
+/**
+ * Possible `positionType` values on DeFi rows in the v6 balances response.
+ * Categorizes the protocol module where the position is held.
+ * Link here: https://developers.zerion.io/api-reference/wallets/get-wallet-fungible-positions#parameter-filter-position-types
+ */
+export const V6_DEFI_POSITION_TYPES = [
+  'deposit',
+  'loan',
+  'locked',
+  'staked',
+  'reward',
+  'wallet',
+  'investment',
+] as const;
+
+/**
+ * The specific module or functionality within a DeFi protocol where a position
+ * is held.
+ */
+export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
+
+/**
+ * DeFi protocol metadata attached to an `object: defi` row in the v6 balances
+ * response (`BalanceMetadataV3ResponseDto`).
+ */
+export type V6BalanceMetadata = {
+  protocolId: string;
+  productName: string;
+  description: string;
+  protocolUrl: string;
+  protocolIconUrl?: string;
+  positionType: V6DeFiPositionType;
+  poolAddress: string;
+  groupId: string;
+};
+
+/**
+ * Stellar-specific token metadata (trustline and native reserve fields).
+ */
+export type V6StellarTokenBalanceMetadata = {
+  /** Stellar trustline limit. */
+  limit?: string;
+  /** Whether the Stellar trustline is authorized. */
+  authorized?: boolean;
+  /** Whether the Stellar trustline is sponsored. */
+  sponsored?: boolean;
+  /** Stellar native spendable balance (unscaled stroops). */
+  spendableBalance?: string;
+  /** Stellar native minimum / reserve balance (unscaled stroops). */
+  minimumReserveBalance?: string;
+};
+
+/**
+ * Token-level metadata attached to an `object: token` row in the v5/v6
+ * balances responses.
+ *
+ * Token decimals belong on the balance row (`decimals` / `assetsInfo`), not
+ * here. Compose additional chain-specific types into this alias as they ship
+ * (e.g. `V6StellarTokenBalanceMetadata & V6TronTokenBalanceMetadata`).
+ */
+export type V6TokenBalanceMetadata = V6StellarTokenBalanceMetadata;
+
+/**
+ * A single balance row in the v6 balances response (`BalanceV3ResponseDto`).
+ * `object: token` rows are token balances (and may carry
+ * {@link V6TokenBalanceMetadata}, e.g. Stellar trustline info). `object: defi` rows
+ * are flat DeFi positions and include {@link V6BalanceMetadata}.
+ */
+export type V6BalanceItem = {
+  accountId: string;
+  object: 'token' | 'defi';
+  /** Asset standard reported by the network (for example `native` or `erc20`). */
+  type: string;
+  assetId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+  /** Spot price in the requested `vsCurrency`. Present when `includePrices` is true. */
+  price?: string;
+  /** Asset metadata labels. Present when `includeLabels` is true. */
+  labels?: string[];
+  /** Canonical head asset ID. Present when `includeCanonicalHead` is true. */
+  canonicalHead?: string;
+  /**
+   * DeFi protocol metadata for `object: defi` rows; token-level metadata such
+   * as Stellar trustline info (e.g. `limit`, `authorized`) for `object: token`
+   * rows.
+   */
+  metadata?: V6BalanceMetadata | V6TokenBalanceMetadata;
+};
+
+/**
+ * V6 multi-account balances response (`MultiAccountBalancesV3ResponseDto`).
+ */
+export type V6BalancesResponse = {
+  /** CAIP-2 networks that could not be processed for this request. */
+  unprocessedNetworks: string[];
+  /**
+   * ERC-20 IDs from `includeAssetIds` that were not detected on any requested
+   * account, plus other IDs that still need a client fallback flow.
+   */
+  unprocessedIncludeAssetIds: string[];
+  /** Flat token and DeFi balance rows. */
+  balances: V6BalanceItem[];
+  /**
+   * CAIP-10 account IDs whose DeFi positions are still being indexed upstream;
+   * poll again shortly. DeFi balance rows for these accounts are omitted from
+   * `balances` until indexing completes.
+   */
+  processingDefiPositions?: string[];
+};
+
 // ============================================================================
 // SUPPORTED NETWORKS TYPES
 // ============================================================================
@@ -65,12 +196,10 @@ export type V1SupportedNetworksResponse = {
   supportedNetworks: number[];
 };
 
-/** V2 Supported networks response */
+/** V2 Supported networks response (CAIP-2 chain IDs). */
 export type V2SupportedNetworksResponse = {
-  fullSupport: number[];
-  partialSupport: {
-    balances: number[];
-  };
+  fullSupport: string[];
+  partialSupport: string[];
 };
 
 /** Active networks response */
@@ -136,6 +265,164 @@ export type V4MultiAccountTransactionsResponse = {
     endCursor?: string;
   };
   data: V1TransactionByHashResponse[];
+};
+
+/** Transaction header on a v5 multi-account transactions row. */
+export type V5Transaction = {
+  id: string;
+  /** CAIP-2 chain ID. */
+  chainId: CaipChainId;
+  status: string;
+  /** Unix timestamp in milliseconds. */
+  timestamp: number;
+  date: string;
+  from: string;
+  to: string | null;
+  blockNumber: string;
+  blockHash: string;
+  nonce?: string;
+  value?: string;
+  methodId?: string;
+  operationCount?: number;
+  memo?: string;
+  transactionType?: string;
+  transactionCategory?: string;
+  transactionProtocol?: string;
+  readable?: string;
+  readableExtended?: string;
+};
+
+/** Value transfer on a v5 transaction. */
+export type V5TransactionValueTransfer = {
+  assetClass: string;
+  from: string;
+  to: string;
+  /** CAIP-19 asset ID. */
+  assetId: CaipAssetType;
+  amount?: string;
+  decimal?: number;
+  symbol?: string;
+  name?: string;
+  tokenId?: string;
+};
+
+/** Non-transfer operation on a v5 transaction, such as a Stellar trustline update. */
+export type V5TransactionMiscOperation = {
+  type?: string;
+  /** CAIP-19 asset ID. */
+  assetId?: CaipAssetType;
+};
+
+/** Fee asset on a v5 transaction. */
+export type V5TransactionFeeAsset = {
+  /** CAIP-19 asset ID. */
+  assetId: CaipAssetType;
+  amount: string;
+  decimals: number;
+  symbol?: string;
+};
+
+/** Fee paid for a v5 transaction. `null` when the chain does not report one. */
+export type V5TransactionFee = {
+  /** CAIP-10 account ID of the fee payer. */
+  payer: CaipAccountId;
+  asset: V5TransactionFeeAsset;
+  unitsConsumed?: number;
+  unitPrice?: string;
+  baseFee?: string;
+  priorityFee?: string;
+  stroops?: number;
+};
+
+/** EVM log included when `includeLogs` is true. */
+export type V5TransactionLog = {
+  data: string;
+  topics: string[];
+  address: string;
+  logIndex: number;
+};
+
+/** One account's view of a transaction from `GET /v5/multiaccount/transactions`. */
+export type V5TransactionRecord = {
+  /** CAIP-10 account ID this row was fetched for. */
+  accountId: CaipAccountId;
+  tx: V5Transaction;
+  valueTransfers: V5TransactionValueTransfer[];
+  /** Present when `includeMiscOperations` is true. */
+  miscOperations?: V5TransactionMiscOperation[];
+  /** Present when `includeLogs` is true. */
+  logs?: V5TransactionLog[];
+  fee: V5TransactionFee | null;
+};
+
+/** Response of `GET /v5/accounts/{accountId}/transactions/{txId}`. */
+export type V5TransactionByIdResponse = {
+  data: V5TransactionRecord;
+};
+
+/** Query options for `GET /v5/accounts/{accountId}/transactions/{txId}`. */
+export type V5TransactionByIdQueryOptions = {
+  /** Whether to include transaction metadata (`readable`, category). */
+  includeTxMetadata?: boolean;
+  /** Whether to include logs. */
+  includeLogs?: boolean;
+  /** Whether to include miscellaneous operations (CAS-backed chains). */
+  includeMiscOperations?: boolean;
+  /** Language for the transaction category. Defaults to `en`. */
+  lang?: string;
+};
+
+/** V5 multi-account transactions response (`GetMultiAccountNetworkTransactionsV5Dto`). */
+export type V5MultiAccountTransactionsResponse = {
+  data: V5TransactionRecord[];
+  pageInfo: {
+    count: number;
+    hasNextPage: boolean;
+    endCursor?: string;
+  };
+  /** CAIP-10 account IDs that could not be processed for this request. */
+  unprocessedAccounts: CaipAccountId[];
+};
+
+/** Query filters for `GET /v5/multiaccount/transactions`. */
+export type V5MultiAccountTransactionsQueryOptions = {
+  /** CAIP-2 chain IDs. */
+  networks?: CaipChainId[];
+  /** CAIP-19 asset IDs. */
+  assetIds?: CaipAssetType[];
+  /** Start timestamp (epoch seconds). */
+  startTimestamp?: number;
+  /** End timestamp (epoch seconds). */
+  endTimestamp?: number;
+  /** Maximum number of transactions to return (1–50, default 20). */
+  limit?: number;
+  /** JWT containing the endCursor for the next page. */
+  after?: string;
+  /**
+   * Accepted by the API and ignored. V5 pages forward only.
+   */
+  before?: string;
+  sortDirection?: 'ASC' | 'DESC';
+  includeMiscOperations?: boolean;
+  includeTxMetadata?: boolean;
+  includeLogs?: boolean;
+  /**
+   * When true, drop transactions whose ERC-20 transfers are not in the Token API.
+   */
+  filterSupportedTokens?: boolean;
+  /**
+   * When true, drop a transaction only when every value transfer is paid to a
+   * watched account. Swaps are kept.
+   */
+  filterIncomingTransfers?: boolean;
+  /**
+   * When true, drop transactions whose protocol is `SPAM_TOKEN` or `SPAM`.
+   */
+  filterSpamTokens?: boolean;
+  /** Maximum number of logs per transaction. */
+  maxLogsPerTx?: number;
+  /** Language for the transaction category. Defaults to `en`. */
+  lang?: string;
 };
 
 // ============================================================================

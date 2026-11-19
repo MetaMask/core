@@ -1,24 +1,24 @@
-/* eslint-disable jest/expect-expect */
-
 import { TransactionType } from '@metamask/transaction-controller';
-import { cloneDeep } from 'lodash';
+/* eslint-disable vitest/expect-expect */
+import { cloneDeep } from 'lodash-es';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   UpdateUserOperationResponse,
-} from '../types';
+} from '../types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-} from '../UserOperationController';
+} from '../UserOperationController.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './validation';
+} from './validation.js';
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
@@ -33,9 +33,9 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
   networkClientId: 'testNetworkClientId',
   origin: 'test.com',
   smartContractAccount: {
-    prepareUserOperation: jest.fn(),
-    updateUserOperation: jest.fn(),
-    signUserOperation: jest.fn(),
+    prepareUserOperation: vi.fn(),
+    updateUserOperation: vi.fn(),
+    signUserOperation: vi.fn(),
   },
   swaps: {},
 };

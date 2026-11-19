@@ -1,9 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
+    {
+      "path": "../analytics-controller"
+    },
     {
       "path": "../authenticated-user-storage"
     },
@@ -18,6 +18,12 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

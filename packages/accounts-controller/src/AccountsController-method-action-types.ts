@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AccountsController } from './AccountsController';
+import type { AccountsController } from './AccountsController.js';
 
 /**
  * Returns the internal account object for the given account ID, if it exists.
@@ -176,6 +176,17 @@ export type AccountsControllerLoadBackupAction = {
 };
 
 /**
+ * Clears the controller state and resets to default values.
+ *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerClearStateAction = {
+  type: `AccountsController:clearState`;
+  handler: AccountsController['clearState'];
+};
+
+/**
  * Union of all AccountsController action types.
  */
 export type AccountsControllerMethodActions =
@@ -191,4 +202,5 @@ export type AccountsControllerMethodActions =
   | AccountsControllerSetAccountNameAndSelectAccountAction
   | AccountsControllerUpdateAccountMetadataAction
   | AccountsControllerUpdateAccountsAction
-  | AccountsControllerLoadBackupAction;
+  | AccountsControllerLoadBackupAction
+  | AccountsControllerClearStateAction;

@@ -1,1 +1,1 @@
-export type * from './notification';
+export type * from './notification.js';

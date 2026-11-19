@@ -1,29 +1,67 @@
 // Export controller class and state utilities
 export {
   AnalyticsController,
+  AnalyticsPurpose,
+  EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
-} from './AnalyticsController';
-export type { AnalyticsControllerOptions } from './AnalyticsController';
+} from './AnalyticsController.js';
+export type {
+  AnalyticsControllerInitialState,
+  AnalyticsControllerOptions,
+} from './AnalyticsController.js';
+
+export {
+  DEFAULT_ERROR_TRACKING_OPTIONS,
+  ERROR_OCCURRED_EVENT_NAME,
+} from './track-error-as-analytics.js';
+export type {
+  TrackErrorAsAnalyticsOptions,
+  TrackErrorVolumeControls,
+} from './track-error-as-analytics.js';
 
 // Export errors
-export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError';
+export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError.js';
 
 // Export types
 export type {
+  AnalyticsContext,
   AnalyticsEventProperties,
+  AnalyticsDeliveryOptions,
+  AnalyticsInvocationCallback,
+  AnalyticsLocationContext,
+  AnalyticsLocationField,
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
+
+// Export event fragment types
+export type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragmentFinalizeOptions,
+  AnalyticsEventFragmentOptions,
+  AnalyticsEventFragmentPayload,
+  AnalyticsEventFragments,
+  ReadonlyAnalyticsEventFragment,
+} from './EventFragment.types.js';
 
 // Export state types
-export type { AnalyticsControllerState } from './AnalyticsController';
+export type {
+  AnalyticsControllerState,
+  AnalyticsEventQueue,
+  AnalyticsEventsConfig,
+  AnalyticsQueuedEvent,
+  AnalyticsQueuedEventType,
+  AnalyticsQueuedTrackEvent,
+  AnalyticsQueuedIdentifyEvent,
+  AnalyticsQueuedViewEvent,
+} from './AnalyticsController.js';
 
 // Export selectors
-export { analyticsControllerSelectors } from './selectors';
+export { analyticsControllerSelectors } from './selectors.js';
 
 // Export messenger types
-export type { AnalyticsControllerMessenger } from './AnalyticsController';
+export type { AnalyticsControllerMessenger } from './AnalyticsController.js';
 
 // Export action and event types
 export type {
@@ -31,12 +69,26 @@ export type {
   AnalyticsControllerEvents,
   AnalyticsControllerGetStateAction,
   AnalyticsControllerStateChangeEvent,
-} from './AnalyticsController';
+} from './AnalyticsController.js';
 export type {
   AnalyticsControllerTrackEventAction,
+  AnalyticsControllerTrackErrorAsAnalyticsAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackViewAction,
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
+  AnalyticsControllerResetConsentDecisionAction,
+  AnalyticsControllerOptInToMarketingAction,
+  AnalyticsControllerOptOutOfMarketingAction,
+  AnalyticsControllerResetMarketingConsentDecisionAction,
+  AnalyticsControllerApplyRemoteMarketingConsentAction,
+  AnalyticsControllerClearMarketingConsentSyncPendingAction,
+  AnalyticsControllerSetMarketingCampaignCookieIdAction,
+  AnalyticsControllerCreateEventFragmentAction,
+  AnalyticsControllerUpsertEventFragmentAction,
+  AnalyticsControllerUpdateEventFragmentAction,
+  AnalyticsControllerGetEventFragmentByIdAction,
+  AnalyticsControllerDeleteEventFragmentAction,
+  AnalyticsControllerFinalizeEventFragmentAction,
   AnalyticsControllerMethodActions,
-} from './AnalyticsController-method-action-types';
+} from './AnalyticsController-method-action-types.js';

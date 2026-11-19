@@ -7,9 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ComplianceServiceInvalidateQueriesAction`, `ComplianceServiceCacheUpdatedEvent` and `ComplianceServiceGranularCacheUpdatedEvent`, also included in `ComplianceServiceActions` and `ComplianceServiceEvents` ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** `ComplianceService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10880](https://github.com/MetaMask/core/pull/10880))
+  - `ComplianceServiceMessenger` now includes the `ComplianceService:invalidateQueries` action and `ComplianceService:cacheUpdated` events. Messengers built from `ComplianceServiceActions` / `ComplianceServiceEvents` pick these up automatically.
+- Concurrent `checkWalletCompliance` / `checkWalletsCompliance` calls with identical arguments now share one request. Sequential calls still always hit the API ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Responses that do not match the expected shape now throw `Query function for "ComplianceService:<method>" returned an unexpected response: …`, instead of `Malformed response received from <api name>` ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Response bodies that are not valid JSON are now retried by the service policy and count toward opening the circuit breaker, instead of failing immediately. Valid JSON with an invalid shape still fails immediately ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Add dependency `@metamask/base-data-service` ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `ComplianceService` ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Remove the unused `@metamask/utils` dependency ([#10185](https://github.com/MetaMask/core/pull/10185))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.12.0` ([#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^13.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^1.2.0` to `^3.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [2.1.0]
+
+### Added
+
+- Add `ComplianceService` support for an explicit Compliance API URL ([#8820](https://github.com/MetaMask/core/pull/8820))
+- Add `selectAreAnyWalletsBlocked` ([#8820](https://github.com/MetaMask/core/pull/8820))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+### Fixed
+
+- Match EVM address casing consistently when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820))
 
 ## [2.0.1]
 
@@ -60,7 +107,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.1.0...@metamask/compliance-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.1...@metamask/compliance-controller@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.0...@metamask/compliance-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.2...@metamask/compliance-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.1...@metamask/compliance-controller@1.0.2

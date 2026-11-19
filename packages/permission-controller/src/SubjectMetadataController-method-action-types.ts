@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SubjectMetadataController } from './SubjectMetadataController';
+import type { SubjectMetadataController } from './SubjectMetadataController.js';
 
 /**
  * Clears the state of this controller. Also resets the cache of subjects

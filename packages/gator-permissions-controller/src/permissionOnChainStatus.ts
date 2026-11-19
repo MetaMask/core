@@ -1,19 +1,20 @@
+import type { EnforcerAddressesByName } from '@metamask/7715-permission-types';
 import { encodeSingle, decodeSingle } from '@metamask/abi-utils';
 import { decodeDelegations, hashDelegation } from '@metamask/delegation-core';
 import type { Delegation } from '@metamask/delegation-core';
 import { bytesToHex, getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { DeployedContractsByName } from './decodePermission/types';
 import {
-  extractExpiryFromCaveatTerms,
-  getChecksumEnforcersByChainId,
-} from './decodePermission/utils';
-import { controllerLog } from './logger';
+  delegationContractsByChainId,
+  toEnforcerAddressesByName,
+} from './decodePermission/enforcerAddresses.js';
+import { extractExpiryFromCaveatTerms } from './decodePermission/utils.js';
+import { controllerLog } from './logger.js';
 import type {
   PermissionInfoWithMetadata,
   GatorPermissionStatus,
-} from './types';
+} from './types.js';
 
 /** Function selector for `DelegationManager.disabledDelegations(bytes32)`. */
 const DISABLED_DELEGATIONS_SELECTOR = '0x2d40d052';
@@ -34,7 +35,6 @@ export type GetProviderForChainId = (
 
 export type PermissionOnChainStatusOptions = {
   getProviderForChainId: GetProviderForChainId;
-  contractsByChainId: Record<number, DeployedContractsByName>;
 };
 
 /**
@@ -97,18 +97,16 @@ export async function readLatestBlockTimestampSeconds(
  * Reads TimestampEnforcer expiry (unix seconds) from the leaf delegation's caveats.
  *
  * @param leaf - Leaf delegation (index 0 when decoded from permission context).
- * @param contracts - Deployed enforcer addresses for the chain.
+ * @param contracts - enforcer addresses for the chain.
  * @returns Expiry timestamp in seconds, or `null` if no valid timestamp caveat.
  */
 export function getExpiryFromDelegation(
   leaf: Delegation<Hex>,
-  contracts: DeployedContractsByName,
+  contracts: EnforcerAddressesByName,
 ): number | null {
-  const { timestampEnforcer } = getChecksumEnforcersByChainId(contracts);
-  const targetEnforcer = getChecksumAddress(timestampEnforcer).toLowerCase();
+  const targetEnforcer = getChecksumAddress(contracts.timestampEnforcer);
   const timestampCaveat = leaf.caveats.find(
-    (caveat) =>
-      getChecksumAddress(caveat.enforcer).toLowerCase() === targetEnforcer,
+    (caveat) => getChecksumAddress(caveat.enforcer) === targetEnforcer,
   );
   if (!timestampCaveat?.terms) {
     return null;
@@ -163,10 +161,11 @@ export async function resolveGrantedPermissionOnChainStatus(
     }
 
     const chainId = hexToNumber(entry.permissionResponse.chainId);
-    const contracts = options.contractsByChainId[chainId];
-    if (!contracts) {
+    const deploymentContracts = delegationContractsByChainId[chainId];
+    if (!deploymentContracts) {
       return { ...entry, status: originalStatus };
     }
+    const contracts = toEnforcerAddressesByName(deploymentContracts);
     const expiry = getExpiryFromDelegation(delegation, contracts);
     if (expiry === null) {
       return { ...entry, status: 'Active' };

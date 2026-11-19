@@ -11,8 +11,10 @@ import {
   MOCK_ANY_NAMESPACE,
   Messenger as MessengerImpl,
 } from '@metamask/messenger';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { MOCK_LOCAL_CONTACTS } from './mockContacts';
+import { MOCK_LOCAL_CONTACTS } from './mockContacts.js';
 
 /**
  * Test Utility - create a mock user storage messenger for contact syncing tests
@@ -28,22 +30,22 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
   };
 }): {
   messenger: {
-    call: jest.Mock;
-    registerActionHandler: jest.Mock;
+    call: Mock;
+    registerActionHandler: Mock;
     publish: unknown;
     subscribe: unknown;
     unsubscribe: unknown;
     clearEventSubscriptions: unknown;
-    registerInitialEventPayload: jest.Mock;
+    registerInitialEventPayload: Mock;
   };
   baseMessenger: MessengerImpl<
     MockAnyNamespace,
     ActionConstraint,
     EventConstraint
   >;
-  mockAddressBookList: jest.Mock;
-  mockAddressBookSet: jest.Mock;
-  mockAddressBookDelete: jest.Mock;
+  mockAddressBookList: Mock;
+  mockAddressBookSet: Mock;
+  mockAddressBookDelete: Mock;
   contactsUpdatedFromSync: AddressBookEntry[]; // Track contacts that were updated via sync
 } {
   // Start with a fresh messenger mock
@@ -53,11 +55,11 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
   const contactsUpdatedFromSync: AddressBookEntry[] = [];
 
   // Create our address book specific mocks
-  const mockAddressBookList = jest.fn().mockImplementation(() => {
+  const mockAddressBookList = vi.fn().mockImplementation(() => {
     return options?.addressBook?.contactsList || MOCK_LOCAL_CONTACTS.ONE;
   });
 
-  const mockAddressBookSet = jest
+  const mockAddressBookSet = vi
     .fn()
     .mockImplementation(
       (
@@ -80,11 +82,11 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
       },
     );
 
-  const mockAddressBookDelete = jest.fn().mockImplementation(() => true);
+  const mockAddressBookDelete = vi.fn().mockImplementation(() => true);
 
   // Create a complete mock implementation
   const messenger = {
-    call: jest.fn().mockImplementation((method: string, ...args: unknown[]) => {
+    call: vi.fn().mockImplementation((method: string, ...args: unknown[]) => {
       // Address book specific methods
       if (method === 'AddressBookController:list') {
         return mockAddressBookList(...args);
@@ -127,15 +129,15 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
         return { data: 'success' };
       }
 
-      return undefined;
+      return;
     }),
-    registerActionHandler: jest.fn(),
+    registerActionHandler: vi.fn(),
     publish: baseMessenger.publish.bind(baseMessenger),
     subscribe: baseMessenger.subscribe.bind(baseMessenger),
     unsubscribe: baseMessenger.unsubscribe.bind(baseMessenger),
     clearEventSubscriptions:
       baseMessenger.clearEventSubscriptions.bind(baseMessenger),
-    registerInitialEventPayload: jest.fn(),
+    registerInitialEventPayload: vi.fn(),
   };
 
   return {

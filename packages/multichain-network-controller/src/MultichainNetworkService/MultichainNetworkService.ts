@@ -1,14 +1,14 @@
 import { assert } from '@metamask/superstruct';
 import type { CaipAccountId } from '@metamask/utils';
-import { chunk } from 'lodash';
+import { chunk } from 'lodash-es';
 
 import {
   ActiveNetworksResponseStruct,
   buildActiveNetworksUrl,
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
-} from '../api/accounts-api';
-import type { ActiveNetworksResponse } from '../api/accounts-api';
+} from '../api/accounts-api.js';
+import type { ActiveNetworksResponse } from '../api/accounts-api.js';
 
 /**
  * Service responsible for fetching network activity data from the API.

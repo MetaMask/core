@@ -21,16 +21,21 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
+import { traceFallback } from '../analytics/index.js';
+import { TraceName } from '../analytics/traces.js';
+import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import type {
+  DeleteAccountsFailure,
+  DeleteAccountsResult,
+} from './BaseBip44AccountProvider.js';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
-} from './BaseBip44AccountProvider';
-import { withRetry, withTimeout } from './utils';
+  toDeleteAccountsResult,
+} from './BaseBip44AccountProvider.js';
+import { withRetry, withTimeout } from './utils.js';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -427,5 +432,133 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(): Promise<void> {
     // No-op for the EVM account provider, since keyring accounts are already on
     // the MetaMask side.
+  }
+
+  /**
+   * Delete an EVM account by id.
+   *
+   * Resolves the account's entropy source from the tracked account, then
+   * forwards to the v2 HD keyring's `deleteAccount(id)`. When this is the
+   * last account on a non-primary HD keyring, the keyring controller will
+   * automatically prune the empty keyring (see
+   * `KeyringController.#cleanUpEmptiedKeyringsAfter`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+    const entropySource = account.options.entropy.id;
+
+    await this.withKeyringV2<Keyring>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        await keyring.deleteAccount(id);
+      },
+    );
+
+    this.accounts.delete(id);
+  }
+
+  /**
+   * Delete many EVM accounts owned by a single entropy source.
+   *
+   * Deletes from the highest group index down under a single
+   * `withKeyringV2` lock. The v2 HD keyring only accepts deleting its last
+   * account ("Can only delete the last account in the HD keyring due to
+   * derivation index constraints."), so an ascending pass would throw for
+   * every account but the last one.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @throws If the accounts are not all owned by the same entropy source.
+   * @returns Whether every requested id was deleted.
+   */
+  async deleteAccounts(
+    ids: Bip44Account<KeyringAccount>['id'][],
+  ): Promise<DeleteAccountsResult> {
+    const failures: DeleteAccountsFailure[] = [];
+
+    const allAccounts = this.getAccounts();
+    const deletedIds = new Set(ids);
+    const deletedAccounts: Bip44Account<KeyringAccount>[] = [];
+    for (const account of allAccounts) {
+      if (deletedIds.has(account.id)) {
+        deletedAccounts.push(account);
+        deletedIds.delete(account.id);
+      }
+    }
+
+    // If we have some remaining IDs, that means those accounts could not be found among
+    // the tracked accounts.
+    if (deletedIds.size > 0) {
+      for (const id of deletedIds) {
+        failures.push({
+          id,
+          error: new Error(`Unable to find account: ${id}`),
+        });
+      }
+    }
+
+    // Those are the only accounts that we could fetch from the controller.
+    const accounts = deletedAccounts;
+
+    const [first] = accounts;
+    if (!first) {
+      // Nothing could be resolved, so there is no keyring to lock.
+      return toDeleteAccountsResult(failures);
+    }
+
+    // All IDs must share one entropy source so deletion runs under a single
+    // `withKeyringV2` lock (e.g. scoped to one HD keyring).
+    const entropySource = first.options.entropy.id;
+    assert(
+      accounts.every((account) => account.options.entropy.id === entropySource),
+      'Expected all accounts to be owned by the same entropy source',
+    );
+
+    // We need to sort accounts by descending group index to ensure that the
+    // last account in the HD keyring is deleted first.
+    accounts.sort(
+      (a, b) => b.options.entropy.groupIndex - a.options.entropy.groupIndex,
+    );
+
+    // IDs whose keyring deletion succeeded (or was never attempted).
+    const pending = new Set(accounts.map((account) => account.id));
+
+    try {
+      await this.withKeyringV2<Keyring>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          for (const account of accounts) {
+            try {
+              await keyring.deleteAccount(account.id);
+            } catch (error) {
+              // Remove from the set of pending deletions since this account failed.
+              pending.delete(account.id);
+              // We also add the reason why it failed now.
+              // NOTE: This failure will be reported immediately, rather than waiting
+              // for the overall `withKeyringV2` call to complete. It won't be reported
+              // multiple times for this account.
+              failures.push({ id: account.id, error });
+            }
+          }
+        },
+      );
+
+      // At this point, we have the guarantee that all deletions that could succeed
+      // have been attempted, so we can safely remove the successfully deleted accounts
+      // from local tracking.
+      for (const id of pending) {
+        this.accounts.delete(id);
+      }
+    } catch (error) {
+      // Either the keyring was never reached, or persisting failed and every
+      // keyring got rolled back. Both leave the accounts in place, so report
+      // the ones that were successfully deleted (but got rolled back).
+      for (const id of pending) {
+        failures.push({ id, error });
+      }
+    }
+
+    return toDeleteAccountsResult(failures);
   }
 }

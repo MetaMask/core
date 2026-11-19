@@ -1,20 +1,42 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
-import { TokensControllerState } from '@metamask/assets-controllers';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { Interface } from '@ethersproject/abi';
+import type { AssetsControllerState } from '@metamask/assets-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import {
+  createModuleLogger,
+  hexToBigInt,
+  KnownCaipNamespace,
+  numberToHex,
+  parseCaipAssetType,
+  toCaipAssetType,
+} from '@metamask/utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   SLIP44_COIN_TYPE_BY_CHAIN,
-  STABLECOINS,
-} from '../constants';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type {
+  EvmPaymentToken,
+  FiatRates,
+  QuoteRequest,
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../types.js';
+import { getStablecoins, isChainExcludedFromInfura } from './feature-flags.js';
+import { rpcRequest } from './provider.js';
+
+const log = createModuleLogger(projectLogger, 'token');
+
+/**
+ * Resolved CAIP-19 asset IDs, keyed by chain ID and lower-cased address.
+ *
+ * An asset ID is a static property of its chain and address, so one resolved
+ * from any state snapshot stays correct for the lifetime of the process.
+ */
+const assetIds = new Map<string, CaipAssetType>();
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -38,6 +60,101 @@ export function isSameToken(
 }
 
 /**
+ * Check if a payment token is on a non-EVM chain.
+ *
+ * The chain is derived from the CAIP-19 asset type of the payment token.
+ *
+ * @param paymentToken - Payment token to check.
+ * @returns True if the payment token is a non-EVM payment token.
+ */
+export function isNonEvmPaymentToken(
+  paymentToken: TransactionPaymentToken,
+): boolean {
+  return !getEvmAsset(paymentToken.assetId);
+}
+
+/**
+ * Check if the source asset of a quote request is on an EVM chain.
+ *
+ * Strategies use it to support or reject a request and to select their
+ * execution path, which is the only place the source protocol matters.
+ *
+ * @param request - Quote request to check.
+ * @returns True if the source asset is on an EVM chain.
+ */
+export function isEvmQuoteRequest(
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
+): boolean {
+  return Boolean(getEvmAsset(request.sourceAssetId));
+}
+
+/**
+ * Get the Hex chain ID and token address of the EVM source asset of a quote
+ * request, as used by the EVM quote and execution paths.
+ *
+ * @param request - Quote request.
+ * @returns The Hex chain ID and token address derived from `sourceAssetId`.
+ */
+export function getEvmQuoteSource(
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
+): { chainId: Hex; tokenAddress: Hex } {
+  const evmAsset = getEvmAsset(request.sourceAssetId);
+
+  if (!evmAsset) {
+    throw new Error(
+      `Unsupported non-EVM source asset: ${request.sourceAssetId}`,
+    );
+  }
+
+  return { chainId: evmAsset.chainId, tokenAddress: evmAsset.address };
+}
+
+/**
+ * Derive the Hex chain ID and token address of an EVM CAIP-19 asset type.
+ *
+ * A `slip44` native asset maps to the chain's native token address, so the
+ * result matches the address the EVM quote and balance paths expect.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @returns The Hex chain ID and token address, or undefined if the asset is
+ * not on an EVM chain.
+ */
+export function getEvmAsset(
+  assetId: CaipAssetType,
+): { address: Hex; chainId: Hex } | undefined {
+  const { chain, assetNamespace, assetReference } = parseCaipAssetType(assetId);
+
+  if (chain.namespace !== KnownCaipNamespace.Eip155) {
+    return undefined;
+  }
+
+  const chainId = numberToHex(Number(chain.reference));
+
+  const address =
+    assetNamespace === 'slip44'
+      ? getNativeToken(chainId)
+      : (assetReference as Hex);
+
+  return { address, chainId };
+}
+
+/**
+ * Add the Hex chain ID and token address derived from its asset type to an
+ * EVM payment token.
+ *
+ * @param paymentToken - Payment token, if any.
+ * @returns The payment token with its derived chain ID and address, or
+ * undefined if no payment token is provided or it is not an EVM token.
+ */
+export function getEvmPaymentToken(
+  paymentToken: TransactionPaymentToken | undefined,
+): EvmPaymentToken | undefined {
+  const evmAsset = paymentToken && getEvmAsset(paymentToken.assetId);
+
+  return evmAsset && { ...paymentToken, ...evmAsset };
+}
+
+/**
  * Get the token balance for a specific account and token.
  *
  * @param messenger - Controller messenger.
@@ -52,100 +169,132 @@ export function getTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): string {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { accountIdByAddress } = messenger.call('AccountsController:getState');
 
-  let tokenBalances;
-  let accountsByChainId;
-  if (assetsUnifyStateFeatureEnabled) {
-    const assetsControllerState = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    );
+  // Fall back to the lower-cased address, as a miss is usually attributable to
+  // a checksummed address being passed. Mirrors AccountsController#getAccountByAddress.
+  const accountId =
+    accountIdByAddress[account] ??
+    accountIdByAddress[account.toLowerCase() as Hex];
 
-    tokenBalances = assetsControllerState?.tokenBalances;
-    accountsByChainId = assetsControllerState?.accountsByChainId;
-  } else {
-    tokenBalances = messenger.call(
-      'TokenBalancesController:getState',
-    )?.tokenBalances;
-    accountsByChainId = messenger.call(
-      'AccountTrackerController:getState',
-    )?.accountsByChainId;
-  }
-
-  const normalizedAccount = account.toLowerCase() as Hex;
-  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
-  const isNative = normalizedTokenAddress === getNativeToken(chainId);
-
-  const balanceHex =
-    tokenBalances?.[normalizedAccount]?.[chainId]?.[normalizedTokenAddress];
-
-  if (!isNative && balanceHex === undefined) {
+  if (!accountId) {
     return '0';
   }
 
-  if (!isNative && balanceHex) {
-    return new BigNumber(balanceHex, 16).toString(10);
+  const { assetsBalance, assetsInfo } = messenger.call(
+    'AssetsController:getState',
+  );
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+
+  if (!assetId) {
+    return '0';
   }
 
-  const chainAccounts = accountsByChainId?.[chainId];
-
-  const checksumAccount = toChecksumHexAddress(normalizedAccount) as Hex;
-  const nativeBalanceHex = chainAccounts?.[checksumAccount]?.balance as Hex;
-
-  return new BigNumber(nativeBalanceHex ?? '0x0', 16).toString(10);
+  return getRawBalance(assetsBalance, assetsInfo, accountId, assetId);
 }
 
 /**
- * Get the token decimals for a specific token.
+ * Get the balance of a CAIP-19 asset held by an `InternalAccount`.
+ *
+ * @param messenger - Controller messenger.
+ * @param walletAccountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns Raw asset balance as a decimal string.
+ */
+export function getAssetBalance(
+  messenger: TransactionPayControllerMessenger,
+  walletAccountId: string,
+  assetId: CaipAssetType,
+): string {
+  const { assetsBalance, assetsInfo } = messenger.call(
+    'AssetsController:getState',
+  );
+
+  return getRawBalance(assetsBalance, assetsInfo, walletAccountId, assetId);
+}
+
+/**
+ * Get the decimals and symbol for a CAIP-19 asset.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns The asset decimals and symbol, or undefined if the asset is not found.
+ */
+export function getAssetInfo(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): { decimals: number; symbol: string } | undefined {
+  const { assetsInfo } = messenger.call('AssetsController:getState');
+  const asset = assetsInfo[assetId];
+
+  if (!asset) {
+    return undefined;
+  }
+
+  return { decimals: Number(asset.decimals), symbol: asset.symbol };
+}
+
+/**
+ * Get the fiat rates for a CAIP-19 asset.
+ *
+ * Configured EVM stablecoins are priced at exactly 1 USD.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns An object containing the USD and fiat rates, or undefined if rates are not available.
+ */
+export function getAssetFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): FiatRates | undefined {
+  const { assetsPrice } = messenger.call('AssetsController:getState');
+  const price = assetsPrice[assetId];
+
+  if (price?.assetPriceType !== 'fungible') {
+    return undefined;
+  }
+
+  const evmAsset = getEvmAsset(assetId);
+
+  const isStablecoin =
+    evmAsset &&
+    getStablecoins(messenger)[evmAsset.chainId]?.includes(
+      evmAsset.address.toLowerCase() as Hex,
+    );
+
+  return {
+    fiatRate: String(price.price),
+    usdRate: isStablecoin ? '1' : String(price.usdPrice),
+  };
+}
+
+/**
+ * Get the decimals and symbol for a specific token.
+ *
+ * `AssetsController` is the sole source of truth: a token absent from unified
+ * state is treated as non-existent rather than being reconstructed from network
+ * configuration. Consumers must therefore ensure unified asset state covers
+ * every chain Pay is used on.
  *
  * @param messenger - Controller messenger.
  * @param tokenAddress - Address of the token contract.
  * @param chainId - Id of the chain.
- * @returns The token decimals or undefined if the token is not found.
+ * @returns The token decimals and symbol, or undefined if the token is not found.
  */
 export function getTokenInfo(
   messenger: TransactionPayControllerMessenger,
   tokenAddress: Hex,
   chainId: Hex,
 ): { decimals: number; symbol: string } | undefined {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { assetsInfo } = messenger.call('AssetsController:getState');
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+  const token = assetId ? assetsInfo[assetId] : undefined;
 
-  let allTokens: TokensControllerState['allTokens'];
-  if (assetsUnifyStateFeatureEnabled) {
-    allTokens = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    )?.allTokens;
-  } else {
-    allTokens = messenger.call('TokensController:getState')?.allTokens;
-  }
-
-  const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
-
-  const isNative =
-    normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
-
-  const token = Object.values(allTokens?.[chainId] ?? {})
-    .flat()
-    .find(
-      (singleToken) =>
-        singleToken.address.toLowerCase() === normalizedTokenAddress,
-    );
-
-  if (!token && !isNative) {
+  if (!token) {
     return undefined;
   }
 
-  if (token && !isNative) {
-    return { decimals: Number(token.decimals), symbol: token.symbol };
-  }
-
-  const ticker = getTicker(chainId, messenger);
-
-  if (!ticker) {
-    return undefined;
-  }
-
-  return { decimals: 18, symbol: ticker };
+  return { decimals: Number(token.decimals), symbol: token.symbol };
 }
 
 /**
@@ -161,66 +310,24 @@ export function getTokenFiatRate(
   tokenAddress: Hex,
   chainId: Hex,
 ): FiatRates | undefined {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { assetsInfo, assetsPrice } = messenger.call(
+    'AssetsController:getState',
+  );
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+  const price = assetId ? assetsPrice[assetId] : undefined;
 
-  let marketData;
-  let currencyRates;
-  if (assetsUnifyStateFeatureEnabled) {
-    const assetsControllerState = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    );
-
-    marketData = assetsControllerState?.marketData;
-    currencyRates = assetsControllerState?.currencyRates;
-  } else {
-    marketData = messenger.call('TokenRatesController:getState')?.marketData;
-    currencyRates = messenger.call(
-      'CurrencyRateController:getState',
-    )?.currencyRates;
-  }
-
-  const ticker = getTicker(chainId, messenger);
-
-  if (!ticker) {
+  if (price?.assetPriceType !== 'fungible') {
     return undefined;
   }
 
-  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
-  const isNative = normalizedTokenAddress === getNativeToken(chainId);
-
-  const tokenToNativeRate =
-    marketData?.[chainId]?.[normalizedTokenAddress]?.price;
-
-  if (tokenToNativeRate === undefined && !isNative) {
-    return undefined;
-  }
-
-  const {
-    conversionRate: nativeToFiatRate,
-    usdConversionRate: nativeToUsdRate,
-  } = currencyRates?.[ticker] ?? {
-    conversionRate: null,
-    usdConversionRate: null,
-  };
-
-  if (nativeToFiatRate === null || nativeToUsdRate === null) {
-    return undefined;
-  }
-  const isStablecoin = STABLECOINS[chainId]?.includes(
+  const isStablecoin = getStablecoins(messenger)[chainId]?.includes(
     tokenAddress.toLowerCase() as Hex,
   );
 
-  const usdRate = isStablecoin
-    ? '1'
-    : new BigNumber(tokenToNativeRate ?? 1)
-        .multipliedBy(nativeToUsdRate)
-        .toString(10);
-
-  const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToFiatRate)
-    .toString(10);
-
-  return { usdRate, fiatRate };
+  return {
+    fiatRate: String(price.price),
+    usdRate: isStablecoin ? '1' : String(price.usdPrice),
+  };
 }
 
 /**
@@ -303,8 +410,12 @@ export function getNativeToken(chainId: Hex): Hex {
  * Get the live on-chain token balance via an RPC `eth_call` to the ERC-20
  * `balanceOf` function, or `eth_getBalance` for native tokens.
  *
- * Unlike {@link getTokenBalance}, this bypasses the cached state in
- * `TokenBalancesController` and reads directly from the chain.
+ * Unlike {@link getTokenBalance}, this bypasses cached AssetsController state
+ * and reads directly from the chain.
+ *
+ * Uses the Infura RPC endpoint for the chain when one is configured, falling
+ * back to the chain's default endpoint. This avoids errors on custom mainnet
+ * RPC endpoints that may not support pending block queries.
  *
  * @param messenger - Controller messenger.
  * @param account - Address of the account.
@@ -318,35 +429,111 @@ export async function getLiveTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): Promise<string> {
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  const { provider } = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
-
-  const ethersProvider = new Web3Provider(provider);
+  const options = {
+    preferInfura: !isChainExcludedFromInfura(messenger, chainId),
+  };
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
-  // Use `pending` blockTag to bypass the RPC block-cache middleware so callers
-  // always observe the latest balance instead of a value pinned to the last
-  // polled block.
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account, 'pending');
-    return balance.toString();
+    const result = await requestBalanceWithFallback((blockTag) =>
+      rpcRequest<string>({
+        messenger,
+        chainId,
+        method: 'eth_getBalance',
+        params: [account, blockTag],
+        options,
+      }),
+    );
+
+    return new BigNumber(result, 16).toString(10);
   }
 
-  const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account, { blockTag: 'pending' });
-  return balance.toString();
+  const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
+    account,
+  ]) as Hex;
+
+  const result = await requestBalanceWithFallback((blockTag) =>
+    rpcRequest<string>({
+      messenger,
+      chainId,
+      method: 'eth_call',
+      params: [{ to: tokenAddress, data: calldata }, blockTag],
+      options,
+    }),
+  );
+
+  return new BigNumber(result, 16).toString(10);
+}
+
+/**
+ * Read the live on-chain token balance, returning `undefined` instead of
+ * throwing when the RPC request fails.
+ *
+ * An RPC failure means the balance is *unknown*, which is not the same as the
+ * balance being *insufficient*. Callers use the balance to fail fast before
+ * simulation and submission; when it cannot be read they should skip that
+ * optimisation rather than block the user, since simulation and the on-chain
+ * transaction still catch a genuine shortfall.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - Address of the account.
+ * @param chainId - Chain ID.
+ * @param tokenAddress - Address of the token contract.
+ * @returns Raw token balance as a decimal string, or `undefined` if the
+ * balance could not be read.
+ */
+export async function getLiveTokenBalanceOrUndefined(
+  messenger: TransactionPayControllerMessenger,
+  account: Hex,
+  chainId: Hex,
+  tokenAddress: Hex,
+): Promise<string | undefined> {
+  try {
+    return await getLiveTokenBalance(messenger, account, chainId, tokenAddress);
+  } catch (error) {
+    log('Could not read live token balance, skipping balance check', {
+      account,
+      chainId,
+      error,
+      tokenAddress,
+    });
+
+    return undefined;
+  }
+}
+
+/**
+ * Request a balance using the `pending` block tag, falling back to `latest`
+ * if the `pending` query throws.
+ *
+ * Some custom RPC endpoints do not support `pending` block queries. When the
+ * `pending` request fails, retry with `latest` so a live balance can still be
+ * resolved.
+ *
+ * @param request - Function that performs the balance request for a given
+ * block tag.
+ * @returns Raw balance result as a hex string.
+ */
+async function requestBalanceWithFallback(
+  request: (blockTag: 'pending' | 'latest') => Promise<string>,
+): Promise<string> {
+  try {
+    return await request('pending');
+  } catch (error) {
+    log('Pending balance query failed, falling back to latest', error);
+    return request('latest');
+  }
 }
 
 /**
  * Build a CAIP-19 asset type identifier for an EVM token.
+ *
+ * The identifier is derived purely from its arguments, so it describes the
+ * token as the wider ecosystem names it rather than as this wallet happens to
+ * have indexed it. Use it for identifiers sent to third parties, such as Ramps
+ * order assets; use `AssetsController` state for anything read back from the
+ * wallet's own asset metadata, balances, or prices.
  *
  * For native tokens the SLIP-44 coin type is resolved automatically from
  * a built-in chain→coin-type map, falling back to 60 (ETH).  Callers can
@@ -378,27 +565,6 @@ export function buildCaipAssetType(
   }
 
   return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
-}
-
-function getTicker(
-  chainId: Hex,
-  messenger: TransactionPayControllerMessenger,
-): string | undefined {
-  try {
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
-
-    const networkConfiguration = messenger.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-
-    return networkConfiguration.configuration.ticker;
-  } catch {
-    return undefined;
-  }
 }
 
 export enum TokenAddressTarget {
@@ -446,4 +612,147 @@ export function normalizeTokenAddress(
   }
 
   return tokenAddress;
+}
+
+/**
+ * Read a raw balance from `AssetsController` state.
+ *
+ * `AssetsController` stores human-readable decimal amounts, whereas callers
+ * expect raw base units, so the amount is shifted by the asset decimals.
+ *
+ * @param assetsBalance - Asset balances keyed by account ID and CAIP-19 ID.
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param accountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in state.
+ * @returns Raw balance as a decimal string, or `'0'` if no balance or asset
+ * metadata is stored.
+ */
+function getRawBalance(
+  assetsBalance: AssetsControllerState['assetsBalance'],
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  accountId: string,
+  assetId: CaipAssetType,
+): string {
+  const amount = assetsBalance[accountId]?.[assetId]?.amount;
+  const decimals = assetsInfo[assetId]?.decimals;
+
+  if (amount === undefined || decimals === undefined) {
+    return '0';
+  }
+
+  return new BigNumber(amount)
+    .shiftedBy(Number(decimals))
+    .toFixed(0, BigNumber.ROUND_DOWN);
+}
+
+/**
+ * Locate an asset's key in `AssetsController` state, reusing a previously
+ * resolved identifier.
+ *
+ * A cached identifier is still confirmed against the given state, since an
+ * asset `AssetsController` has not indexed yet is unresolvable no matter how
+ * its identifier would be spelled. That check is a keyed read, so the cache
+ * saves the scan below without letting a stale identifier through.
+ *
+ * Only resolved checksummed identifiers are cached, so an asset missing at
+ * first lookup, or resolved only to a lowercase duplicate, is retried and
+ * picked up once `AssetsController` indexes its checksummed entry.
+ *
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param chainId - Hex chain ID.
+ * @param tokenAddress - Token address, or the native token address.
+ * @returns The CAIP-19 asset ID as keyed in state, or undefined when the asset
+ * is absent.
+ */
+function getControllerAssetId(
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  chainId: Hex,
+  tokenAddress: Hex,
+): CaipAssetType | undefined {
+  const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+  const cached = assetIds.get(cacheKey);
+
+  if (cached && assetsInfo[cached]) {
+    return cached;
+  }
+
+  const assetId = resolveControllerAssetId(assetsInfo, chainId, tokenAddress);
+
+  // Only cache checksummed (mixed-case) keys, so a lowercase duplicate seen
+  // before the canonical entry is indexed cannot stick for the session.
+  if (assetId && assetId !== assetId.toLowerCase()) {
+    assetIds.set(cacheKey, assetId);
+  }
+
+  return assetId;
+}
+
+/**
+ * Locate an asset's key in `AssetsController` state.
+ *
+ * An ERC-20 identifier is fully derivable from the chain and address, so for a
+ * checksummed address the derived form is tried against state first —
+ * client-selected tokens are already checksummed and hit immediately. Other
+ * addresses, such as lowercase ones recovered from transaction calldata, fall
+ * through to a case-insensitive search, which avoids paying for a checksum on
+ * the hot path. That search prefers the checksummed key, since state may also
+ * hold a stale lowercase duplicate without price or balance data.
+ *
+ * A native identifier cannot be derived, because MetaMask keys natives
+ * inconsistently across chains — `slip44:`, `erc20:` with the zero address, or
+ * a chain-specific sentinel address — so the chain's sole entry of type
+ * `native` is searched for instead.
+ *
+ * An asset absent from state is unresolvable rather than assumed, so a derived
+ * identifier state cannot confirm is never returned.
+ *
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param chainId - Hex chain ID.
+ * @param tokenAddress - Token address, or the native token address.
+ * @returns The CAIP-19 asset ID as keyed in state, or undefined when the asset
+ * is absent.
+ */
+function resolveControllerAssetId(
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  chainId: Hex,
+  tokenAddress: Hex,
+): CaipAssetType | undefined {
+  const chainPrefix = `eip155:${hexToBigInt(chainId)}/`;
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    for (const [key, metadata] of Object.entries(assetsInfo)) {
+      if (key.startsWith(chainPrefix) && metadata.type === 'native') {
+        return key as CaipAssetType;
+      }
+    }
+
+    return undefined;
+  }
+
+  const derivedAssetId = `${chainPrefix}erc20:${tokenAddress}` as CaipAssetType;
+  const target = derivedAssetId.toLowerCase();
+
+  // Mixed-case input is already checksummed, so an exact hit is canonical.
+  if (derivedAssetId !== target && assetsInfo[derivedAssetId]) {
+    return derivedAssetId;
+  }
+
+  // Prefer the checksummed (mixed-case) key over a lowercase duplicate.
+  let lowercaseMatch: CaipAssetType | undefined;
+
+  for (const key of Object.keys(assetsInfo)) {
+    if (key.toLowerCase() !== target) {
+      continue;
+    }
+
+    if (key !== target) {
+      return key as CaipAssetType;
+    }
+
+    lowercaseMatch = key as CaipAssetType;
+  }
+
+  return lowercaseMatch;
 }

@@ -6,7 +6,7 @@ import type {
   LendingMarketWithPosition,
   LendingPositionWithMarket,
   LendingPositionWithMarketReference,
-} from './EarnController';
+} from './EarnController.js';
 
 export const selectLendingMarkets = (
   state: EarnControllerState,
@@ -102,7 +102,10 @@ export const selectLendingPositionsByProtocolChainIdMarketId = createSelector(
 export const selectLendingMarketsWithPosition = createSelector(
   selectLendingPositionsByProtocolChainIdMarketId,
   selectLendingMarkets,
-  (positionsByProtocolChainIdMarketId, lendingMarkets) =>
+  (
+    positionsByProtocolChainIdMarketId,
+    lendingMarkets,
+  ): LendingMarketWithPosition[] =>
     lendingMarkets.map((market) => {
       const position =
         positionsByProtocolChainIdMarketId?.[market.protocol]?.[

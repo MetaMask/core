@@ -7,7 +7,7 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
@@ -18,16 +18,16 @@ import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types';
+import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types.js';
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
-} from './assetsUtil';
-import type { Call } from './multicall';
-import { multicallOrFallback } from './multicall';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+} from './assetsUtil.js';
+import type { Call } from './multicall.js';
+import { multicallOrFallback } from './multicall.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -72,6 +72,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.Moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.Robinhood]:
+    '0x1C0b2428d5C520EF51310dd1f93fBA6B58b47dA6',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
@@ -116,7 +118,7 @@ export type AssetsContractControllerEvents = never;
  */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction;
 

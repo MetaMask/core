@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { UserStorageController } from './UserStorageController';
+import type { UserStorageController } from './UserStorageController.js';
 
 /**
  * Allows retrieval of stored data. Data stored is string formatted.

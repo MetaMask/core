@@ -1,9 +1,10 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Runtime } from 'webextension-polyfill-ts';
 
-import { createStreamMiddleware, createEngineStream } from '.';
+import { createStreamMiddleware, createEngineStream } from './index.js';
 
 const artificialDelay = async (time = 0): Promise<unknown> =>
   new Promise((resolve) => setTimeout(resolve, time));
@@ -39,7 +40,7 @@ describe('createStreamMiddleware', () => {
         },
         (errorObj) => {
           try {
-            // eslint-disable-next-line jest/no-restricted-matchers
+            // eslint-disable-next-line vitest/no-restricted-matchers
             expect(errorObj).toBeFalsy();
             expect(initRes).toStrictEqual(res);
           } catch (error) {
@@ -161,9 +162,7 @@ describe('retry logic in middleware connected to a port', () => {
       },
     };
 
-    const connectionStream = new PortStream(
-      extensionPort as unknown as Runtime.Port,
-    );
+    const connectionStream = new PortStream(extensionPort);
 
     // connect both
     const clientSideStream = jsonRpcConnection.stream;

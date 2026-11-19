@@ -1,23 +1,17 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
     {
       "path": "../assets-controller"
     },
     {
-      "path": "../assets-controllers"
-    },
-    {
       "path": "../base-controller"
-    },
-    {
-      "path": "../bridge-controller"
-    },
-    {
-      "path": "../bridge-status-controller"
     },
     {
       "path": "../controller-utils"
@@ -36,7 +30,19 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../sentinel-api-service"
+    },
+    {
+      "path": "../utils"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

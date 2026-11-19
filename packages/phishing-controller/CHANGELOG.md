@@ -7,6 +7,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
+
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the chain-ID-to-scan-name map and `blast` from the token and address scan supported chains, as the network is being terminated ([#11600](https://github.com/MetaMask/core/pull/11600))
+
+## [18.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [18.3.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Enable Arc (`0x13b2`) token scanning now that the Security Alerts API supports Arc token verdicts ([#11144](https://github.com/MetaMask/core/pull/11144))
+
+### Changed
+
+- Stop publishing the `tests/utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^73.0.0` ([#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [18.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.2.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `ethereum-cryptography` from `^2.2.1` to `^3.2.0` ([#10599](https://github.com/MetaMask/core/pull/10599))
+
+### Fixed
+
+- Fix Node.js 24 compatibility by accessing `toASCII` through the CommonJS `punycode` module default export. ([#10812](https://github.com/MetaMask/core/pull/10812))
+
+## [18.2.0]
+
+### Added
+
+- Add optional request-source attribution parameters to `PhishingController.scanUrl` and `bulkScanUrls`, emitting an `x-request-source` header. ([#10357](https://github.com/MetaMask/core/pull/10357))
+
+### Changed
+
+- Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))
+- Bump `punycode` from `^2.1.1` to `^2.3.1` ([#10441](https://github.com/MetaMask/core/pull/10441))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
+
+## [18.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^72.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+
+## [18.1.0]
+
+### Added
+
+- Add `extractSignatureAddresses` utility, plus `ExtractedSignatureAddresses` and `ExtractSignatureAddressesOptions` types, to collect the `address`-typed values from an EIP-712 typed-data message for real-time address scanning ([#10170](https://github.com/MetaMask/core/pull/10170))
+  - Walks the `types` schema from `primaryType`, matching fields by declared type (`address`/`address[]`, including nested structs and arrays) rather than by field name, so custom and unknown message shapes are covered without per-protocol handling.
+  - Normalizes non-canonical `address` encodings (variable-length hex and decimal strings) into canonical lower-case 20-byte hex by taking the leading 20 bytes of the signer-compatible big-endian encoding, and de-duplicates case-insensitively.
+  - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
+  - Bounds work with a distinct-address cap (default 10, caller-overridable via `maxAddresses`, hard ceiling 50), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked. Exports `DEFAULT_MAX_SIGNATURE_ADDRESSES` and `MAX_SIGNATURE_ADDRESSES_CEILING`.
+  - Returns the field name each address was found under so callers can attribute alerts.
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^70.0.0` ([#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [17.4.1]
+
+### Changed
+
+- Optimize C2 domain blocklist lookups by switching internal storage from `Array` to `Set`, reducing per-lookup complexity from O(n) to O(1) ([#6388](https://github.com/MetaMask/core/pull/6388))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.8.0` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+
+### Fixed
+
+- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set ([#9943](https://github.com/MetaMask/core/pull/9943))
+
+## [17.4.0]
+
+### Added
+
+- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9946](https://github.com/MetaMask/core/pull/9946))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+
+## [17.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Fixed
+
+- Address poisoning known recipients now use the actual token recipient decoded from calldata for confirmed ERC-20/ERC-721/ERC-1155 token transfers, instead of the token contract address from `txParams.to` ([#9699](https://github.com/MetaMask/core/pull/9699))
+
+## [17.3.0]
+
+### Added
+
+- Extend `DEFAULT_CHAIN_ID_TO_NAME` with 19 additional chains: `xlayer`, `megaeth`, `tempo`, `tempo-testnet`, `kaia`, `robinhood`, `arc`, `plasma`, `mantle`, `katana`, `plume`, `kite-ai`, `monad-testnet`, `starknet`, `starknet-sepolia`, `stellar`, `bitcoin`, `sui`, `tron` ([#9506](https://github.com/MetaMask/core/pull/9506))
+- Add `TOKEN_SCAN_SUPPORTED_CHAINS` constant, `TokenScanSupportedChain` type, and `isTokenScanSupportedChain` type guard to gate `bulkScanTokens` per chain ([#9506](https://github.com/MetaMask/core/pull/9506))
+- Add `ADDRESS_SCAN_SUPPORTED_CHAINS` constant, `AddressScanSupportedChain` type, and `isAddressScanSupportedChain` type guard to gate `scanAddress` per chain ([#9506](https://github.com/MetaMask/core/pull/9506))
+
+### Changed
+
+- `bulkScanTokens` now returns `{}` without calling the security-alerts API when the resolved chain is not in `TOKEN_SCAN_SUPPORTED_CHAINS` ([#9506](https://github.com/MetaMask/core/pull/9506))
+- `scanAddress` now returns `{ result_type: 'ErrorResult', label: '' }` without calling the security-alerts API when the resolved chain is not in `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9506](https://github.com/MetaMask/core/pull/9506))
+
+## [17.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^69.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218), [#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
 ## [17.2.0]
 
 ### Added
@@ -601,7 +736,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...HEAD
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...@metamask/phishing-controller@18.3.1
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...@metamask/phishing-controller@18.3.0
+[18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0
+[18.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...@metamask/phishing-controller@18.1.1
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...@metamask/phishing-controller@18.0.0
+[17.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...@metamask/phishing-controller@17.4.1
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0
+[17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
+[17.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...@metamask/phishing-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.2...@metamask/phishing-controller@17.2.0
 [17.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.1...@metamask/phishing-controller@17.1.2
 [17.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.0...@metamask/phishing-controller@17.1.1

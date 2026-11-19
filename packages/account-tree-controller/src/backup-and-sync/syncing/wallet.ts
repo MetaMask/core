@@ -1,11 +1,14 @@
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { ProfileId } from '../authentication';
-import { UserStorageSyncedWalletSchema } from '../types';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import { pushWalletToUserStorage } from '../user-storage/network-operations';
-import { compareAndSyncMetadata } from './metadata';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type { ProfileId } from '../authentication/index.js';
+import { UserStorageSyncedWalletSchema } from '../types.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
+import { pushWalletToUserStorage } from '../user-storage/network-operations.js';
+import { compareAndSyncMetadata } from './metadata.js';
 
 /**
  * Syncs wallet metadata fields and determines if the wallet needs to be pushed to user storage.

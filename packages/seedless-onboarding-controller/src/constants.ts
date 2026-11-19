@@ -13,7 +13,18 @@ export enum Web3AuthNetwork {
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',
+  Telegram = 'telegram',
 }
+
+/**
+ * OIDC issuer namespaces for the social login providers in
+ * {@link AuthConnection}.
+ */
+export const AUTH_CONNECTION_BY_NAMESPACE: Record<string, AuthConnection> = {
+  'https://accounts.google.com': AuthConnection.Google,
+  'https://appleid.apple.com': AuthConnection.Apple,
+  'https://oauth.telegram.org': AuthConnection.Telegram,
+};
 
 export enum SecretType {
   Mnemonic = 'mnemonic',
@@ -43,6 +54,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidVaultData = `${controllerName} - Invalid vault data`,
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
+  VaultAlreadyExists = `${controllerName} - Vault already exists.`,
   InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   MissingKeyringId = `${controllerName} - Keyring ID is required to store SRP backups.`,
   FailedToEncryptAndStoreSecretData = `${controllerName} - Failed to encrypt and store secret data`,

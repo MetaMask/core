@@ -10,8 +10,8 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AccountId,
   ChainId,
@@ -21,24 +21,24 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
+} from '../types.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+} from './AbstractDataSource.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   StakedBalancePollingInput,
   StakedBalanceFetchResult,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import {
   StakedBalanceFetcher,
   getStakingContractAddress,
   getSupportedStakingChainIds,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
-const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
+const DEFAULT_POLL_INTERVAL = 3_600_000; // 1 hour
 
 /** Metadata for staked ETH (same symbol and decimals as native ETH). */
 const STAKED_ETH_METADATA: AssetMetadata = {
@@ -54,7 +54,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type StakedBalanceDataSourceConfig = {
   /** Whether staked balance fetching is enabled (default: true). */
   enabled?: boolean;
-  /** Polling interval in ms (default: 180s / 3 min). */
+  /** Polling interval in ms (default: 1 hour). */
   pollInterval?: number;
 };
 
@@ -130,7 +130,7 @@ function stakedAssetId(
   contractAddress: string,
 ): Caip19AssetId {
   const checksummed = toChecksumAddress(contractAddress);
-  return `${chainId}/erc20:${checksummed}` as Caip19AssetId;
+  return `${chainId}/erc20:${checksummed}`;
 }
 
 /**
@@ -204,11 +204,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
       this.#onTransactionConfirmed.bind(this),
-    );
-
-    this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onIncomingTransactions.bind(this),
     );
 
     this.#messenger.subscribe(
@@ -308,43 +303,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     if (toRefresh.length > 0) {
       this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
         log('Failed to refresh staked balance after transaction', { error });
-      });
-    }
-  }
-
-  /**
-   * When incoming transactions are received, refresh staked balance only for
-   * chains where at least one transaction is from or to the staking contract.
-   *
-   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId?, txParams? }).
-   */
-  #onIncomingTransactions(
-    payload: { chainId?: string; txParams?: { from?: string; to?: string } }[],
-  ): void {
-    if (!this.#enabled) {
-      return;
-    }
-    const chainIdsToRefresh = new Set<string>();
-    for (const item of payload ?? []) {
-      if (!item?.chainId) {
-        continue;
-      }
-      if (this.#isTransactionInvolvingStakingContract(item)) {
-        chainIdsToRefresh.add(item.chainId);
-      }
-    }
-    const caipChainIds = [...chainIdsToRefresh].map(
-      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
-    );
-    if (caipChainIds.length === 0) {
-      return;
-    }
-    const toRefresh = this.#getToRefreshForChains(caipChainIds);
-    if (toRefresh.length > 0) {
-      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
-        log('Failed to refresh staked balance after incoming transactions', {
-          error,
-        });
       });
     }
   }

@@ -1,10 +1,10 @@
-import type { PushNotificationEnv } from '../types';
+import type { PushNotificationEnv } from '../types/index.js';
 import type {
   CreateRegToken,
   DeleteRegToken,
-} from '../types/push-service-interface';
-import type { ENV } from './endpoints';
-import * as endpoints from './endpoints';
+} from '../types/push-service-interface.js';
+import type { ENV } from './endpoints.js';
+import * as endpoints from './endpoints.js';
 
 export type RegToken = {
   token: string;
@@ -153,6 +153,12 @@ export async function activatePushNotifications(
   const regToken = await createRegToken(env).catch(() => null);
   if (!regToken) {
     return null;
+  }
+
+  // The links API rejects an empty address list. Skipping that request still
+  // returns the token created above.
+  if (params.addresses.length === 0) {
+    return regToken;
   }
 
   await updateLinksAPI({

@@ -1,13 +1,15 @@
 import type { Hex } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   BatchTransactionParams,
   TransactionController,
   TransactionMeta,
-} from '..';
-import type { BatchTransaction } from '../types';
-import { TransactionType } from '../types';
-import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
+} from '../index.js';
+import type { BatchTransaction } from '../types.js';
+import { TransactionType } from '../types.js';
+import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook.js';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const SIGNED_TRANSACTION_2_MOCK = '0xfff' as Hex;
@@ -57,12 +59,12 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('ExtraTransactionsPublishHook', () => {
-  const addTransactionBatchMock: jest.MockedFn<
+  const addTransactionBatchMock: MockedFunction<
     TransactionController['addTransactionBatch']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getTransactionMock = jest.fn();
-  const originalPublishHookMock = jest.fn();
+  const getTransactionMock = vi.fn();
+  const originalPublishHookMock = vi.fn();
 
   /**
    * Creates an instance of ExtraTransactionsPublishHook with the provided mocks.
@@ -76,10 +78,6 @@ describe('ExtraTransactionsPublishHook', () => {
       originalPublishHook: originalPublishHookMock,
     });
   }
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
 
   it('creates batch transaction', async () => {
     const hook = createHook().getHook();
@@ -121,6 +119,7 @@ describe('ExtraTransactionsPublishHook', () => {
       disable7702: true,
       disableHook: false,
       disableSequential: true,
+      isInternal: true,
       requireApproval: false,
     });
   });

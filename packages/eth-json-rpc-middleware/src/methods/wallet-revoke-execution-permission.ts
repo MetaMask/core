@@ -5,8 +5,8 @@ import { object } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { validateParams } from '../utils/validation';
-import type { WalletMiddlewareContext } from '../wallet';
+import { validateParams } from '../utils/validation.js';
+import type { WalletMiddlewareContext } from '../wallet.js';
 
 export const RevokeExecutionPermissionResultStruct = object({});
 

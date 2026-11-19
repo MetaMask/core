@@ -1,10 +1,46 @@
+import type { KeyringTypes } from '@metamask/keyring-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
+
+/**
+ * Parent transaction types that represent a Hyperliquid perps deposit and
+ * share the same Arbitrum-USDC → Hypercore handling in pay strategies.
+ */
+export const PERPS_DEPOSIT_TYPES: TransactionType[] = [
+  TransactionType.perpsDeposit,
+  TransactionType.perpsDepositAndOrder,
+];
+
+/**
+ * Keyring types that support EIP-7702 authorization signing.
+ * Hardware wallets, snap keyrings, and custody keyrings are excluded.
+ */
+export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
+
+/**
+ * Keyring types whose signing requires multi-factor authentication.
+ *
+ * The MPC keyring splits its key across factors, so every signature it
+ * produces costs the user an MFA confirmation. Quote flows that would
+ * otherwise sign once per quote must avoid doing so for these accounts.
+ *
+ * The SRP-derived `Money Keyring` signs locally and is deliberately absent.
+ */
+export const KEYRING_TYPES_REQUIRING_MFA: `${KeyringTypes}`[] = [
+  'MPC Money Keyring',
+];
+
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
 export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
 export const CHAIN_ID_HYPERCORE = '0x539' as Hex;
+export const CHAIN_ID_MONAD = '0x8f' as Hex;
 
 export const NATIVE_TOKEN_ADDRESS =
   '0x0000000000000000000000000000000000000000' as Hex;
@@ -18,10 +54,17 @@ export const POLYGON_USDCE_ADDRESS =
 export const POLYGON_PUSD_ADDRESS =
   '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB' as Hex;
 
+export const MUSD_MONAD_ADDRESS =
+  '0xaca92e438df0b2401ff60da7e4337b687a2435da' as Hex;
+
 export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
 export const HYPERCORE_USDC_DECIMALS = 8;
 export const USDC_DECIMALS = 6;
+
+export const HYPERLIQUID_URL_BASE = 'https://api.hyperliquid.xyz';
+export const HYPERLIQUID_INFO_URL = `${HYPERLIQUID_URL_BASE}/info`;
+export const HYPERLIQUID_EXCHANGE_URL = `${HYPERLIQUID_URL_BASE}/exchange`;
 
 export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
   [CHAIN_ID_POLYGON]: 966, // POL
@@ -48,18 +91,47 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
   [CHAIN_ID_HYPERCORE]: [HYPERCORE_USDC_ADDRESS], // USDC
 };
 
-export enum TransactionPayStrategy {
-  Across = 'across',
-  Bridge = 'bridge',
-  Fiat = 'fiat',
-  Relay = 'relay',
-  Test = 'test',
+export enum PaymentOverride {
+  MoneyAccount = 'moneyAccount',
+  Perps = 'perps',
+  Predict = 'predict',
 }
 
-const VALID_STRATEGIES = new Set(Object.values(TransactionPayStrategy));
+/**
+ * Identifies the MetaMask client making MM Pay requests.
+ *
+ * Sent as the `X-Client-Id` header on requests to the intents API so the
+ * server can distinguish Mobile traffic from Extension traffic.
+ */
+export enum TransactionPayClientId {
+  Extension = 'extension',
+  Mobile = 'mobile',
+}
+
+/** Header used to identify the calling client to the intents API. */
+export const CLIENT_ID_HEADER = 'X-Client-Id';
+
+export enum TransactionPayStrategy {
+  Across = 'across',
+  Fiat = 'fiat',
+  /**
+   * Internal marker for no-op quotes generated when the controller determines
+   * that no conversion is needed. Not a routable strategy.
+   */
+  None = 'none',
+  Relay = 'relay',
+  Server = 'server',
+}
+
+const VALID_STRATEGIES: Set<TransactionPayStrategy> = new Set(
+  Object.values(TransactionPayStrategy).filter(
+    (strategy) => strategy !== TransactionPayStrategy.None,
+  ),
+);
 
 /**
- * Checks if a value is a valid transaction pay strategy.
+ * Checks if a value is a valid, routable transaction pay strategy.
+ * The internal no-op marker is not routable.
  *
  * @param strategy - Candidate strategy value.
  * @returns True if the value is a valid strategy.

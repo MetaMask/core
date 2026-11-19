@@ -1,50 +1,52 @@
-import { divideIntoBatches, reduceInBatchesSerially } from './batch';
+import { describe, expect, it } from 'vitest';
+
+import { divideIntoBatches, reduceInBatchesSerially } from './batch.js';
 
 describe('batch utilities', () => {
   describe('divideIntoBatches', () => {
-    it('should divide array into batches of specified size', () => {
+    it('divides array into batches of specified size', () => {
       const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const result = divideIntoBatches(values, { batchSize: 3 });
 
       expect(result).toStrictEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
     });
 
-    it('should return single batch when array is smaller than batch size', () => {
+    it('returns single batch when array is smaller than batch size', () => {
       const values = [1, 2, 3];
       const result = divideIntoBatches(values, { batchSize: 10 });
 
       expect(result).toStrictEqual([[1, 2, 3]]);
     });
 
-    it('should return single batch when array equals batch size', () => {
+    it('returns single batch when array equals batch size', () => {
       const values = [1, 2, 3, 4, 5];
       const result = divideIntoBatches(values, { batchSize: 5 });
 
       expect(result).toStrictEqual([[1, 2, 3, 4, 5]]);
     });
 
-    it('should return empty array when input is empty', () => {
+    it('returns empty array when input is empty', () => {
       const values: number[] = [];
       const result = divideIntoBatches(values, { batchSize: 3 });
 
       expect(result).toStrictEqual([]);
     });
 
-    it('should handle batch size of 1', () => {
+    it('handles batch size of 1', () => {
       const values = ['a', 'b', 'c'];
       const result = divideIntoBatches(values, { batchSize: 1 });
 
       expect(result).toStrictEqual([['a'], ['b'], ['c']]);
     });
 
-    it('should work with objects', () => {
+    it('works with objects', () => {
       const values = [{ id: 1 }, { id: 2 }, { id: 3 }];
       const result = divideIntoBatches(values, { batchSize: 2 });
 
       expect(result).toStrictEqual([[{ id: 1 }, { id: 2 }], [{ id: 3 }]]);
     });
 
-    it('should throw error when batch size is 0', () => {
+    it('throws error when batch size is 0', () => {
       const values = [1, 2, 3];
 
       expect(() => divideIntoBatches(values, { batchSize: 0 })).toThrow(
@@ -52,7 +54,7 @@ describe('batch utilities', () => {
       );
     });
 
-    it('should throw error when batch size is negative', () => {
+    it('throws error when batch size is negative', () => {
       const values = [1, 2, 3];
 
       expect(() => divideIntoBatches(values, { batchSize: -1 })).toThrow(
@@ -62,7 +64,7 @@ describe('batch utilities', () => {
   });
 
   describe('reduceInBatchesSerially', () => {
-    it('should reduce array in batches and return accumulated result', async () => {
+    it('reduces array in batches and returns accumulated result', async () => {
       const values = [1, 2, 3, 4, 5, 6];
       const result = await reduceInBatchesSerially<number, number[]>({
         values,
@@ -78,7 +80,7 @@ describe('batch utilities', () => {
       expect(result).toStrictEqual([3, 7, 11]);
     });
 
-    it('should handle async eachBatch function', async () => {
+    it('handles async eachBatch function', async () => {
       const values = ['a', 'b', 'c', 'd'];
       const result = await reduceInBatchesSerially<string, string>({
         values,
@@ -93,7 +95,7 @@ describe('batch utilities', () => {
       expect(result).toBe('abcd');
     });
 
-    it('should pass correct batch index to eachBatch', async () => {
+    it('passes correct batch index to eachBatch', async () => {
       const values = [1, 2, 3, 4, 5, 6];
       const capturedIndices: number[] = [];
 
@@ -110,7 +112,7 @@ describe('batch utilities', () => {
       expect(capturedIndices).toStrictEqual([0, 1, 2]);
     });
 
-    it('should return initial result for empty array', async () => {
+    it('returns initial result for empty array', async () => {
       const values: number[] = [];
       const result = await reduceInBatchesSerially<number, number[]>({
         values,
@@ -124,7 +126,7 @@ describe('batch utilities', () => {
       expect(result).toStrictEqual([42]);
     });
 
-    it('should process batches serially, not in parallel', async () => {
+    it('processes batches serially, not in parallel', async () => {
       const values = [1, 2, 3, 4];
       const executionOrder: number[] = [];
 
@@ -145,7 +147,7 @@ describe('batch utilities', () => {
       expect(executionOrder).toStrictEqual([0, 1]);
     });
 
-    it('should accumulate results correctly across batches', async () => {
+    it('accumulates results correctly across batches', async () => {
       type ResultType = { count: number; items: string[] };
       const values = ['apple', 'banana', 'cherry', 'date'];
 
@@ -168,7 +170,7 @@ describe('batch utilities', () => {
       });
     });
 
-    it('should handle single element batches', async () => {
+    it('handles single element batches', async () => {
       const values = [10, 20, 30];
       const result = await reduceInBatchesSerially<number, number>({
         values,
@@ -182,7 +184,7 @@ describe('batch utilities', () => {
       expect(result).toBe(60);
     });
 
-    it('should handle batch size larger than array', async () => {
+    it('handles batch size larger than array', async () => {
       const values = [1, 2, 3];
       const batchCount: number[] = [];
 

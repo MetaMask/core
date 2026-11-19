@@ -1,4 +1,6 @@
-import * as allExports from '.';
+import { describe, expect, it } from 'vitest';
+
+import * as allExports from './index.js';
 
 describe('@metamask/json-rpc-engine/v2', () => {
   it('has expected JavaScript exports', () => {

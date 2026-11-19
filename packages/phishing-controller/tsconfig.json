@@ -1,13 +1,24 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../transaction-controller" },
-    { "path": "../messenger" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../address-book-controller"
+    },
+    {
+      "path": "../eth-sig-util"
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

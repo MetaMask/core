@@ -1,4 +1,6 @@
-import { toErrorMessage } from './errors';
+import { describe, expect, it } from 'vitest';
+
+import { toErrorMessage } from './errors.js';
 
 describe('toErrorMessage', () => {
   it('returns the message property for Error instances', () => {

@@ -1,10 +1,11 @@
-import { createSandbox } from '@metamask/utils/node';
+import { createSandbox } from '@metamask/node-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
-import { checkActionTypesFiles } from './check';
-import { generateActionTypesContent } from './generate-content';
-import type { SourceInfo } from './parse-source';
+import { checkActionTypesFiles } from './check.js';
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
 
 const { withinSandbox } = createSandbox('messenger/check-action-types');
 
@@ -27,7 +28,9 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
 
@@ -52,8 +55,12 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -73,8 +80,12 @@ describe('checkActionTypesFiles', () => {
         methods: [{ name: 'doStuff', jsDoc: '' }],
       };
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -95,14 +106,18 @@ describe('checkActionTypesFiles', () => {
       };
 
       // Mock fs.promises.access to throw a non-ENOENT error
-      const accessSpy = jest
+      const accessSpy = vi
         .spyOn(fs.promises, 'access')
         .mockRejectedValue(
           Object.assign(new Error('EPERM'), { code: 'EPERM' }),
         );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(

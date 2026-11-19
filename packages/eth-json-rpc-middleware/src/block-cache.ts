@@ -5,20 +5,20 @@ import type {
 } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from './logging-utils';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
 import type {
   Block,
   BlockCache,
   // eslint-disable-next-line @typescript-eslint/no-shadow
   Cache,
-} from './types';
+} from './types.js';
 import {
   cacheIdentifierForRequest,
   blockTagForRequest,
   cacheTypeForMethod,
   canCache,
   CacheStrategy,
-} from './utils/cache';
+} from './utils/cache.js';
 
 const log = createModuleLogger(projectLogger, 'block-cache');
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925

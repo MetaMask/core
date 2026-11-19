@@ -3,14 +3,35 @@
  */
 
 import { QueryClient } from '@tanstack/query-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { AccountsApiClient } from './accounts';
-import { authQueryKeys } from './base-client';
+import { createMockResponse, mockFetch } from '../../tests/test-utils.js';
+import { AccountsApiClient } from './accounts/index.js';
+import { authQueryKeys } from './base-client.js';
+
+/**
+ * Reads the Authorization header from a recorded fetch call.
+ *
+ * @param callIndex - Index of the fetch call to inspect.
+ * @returns The Authorization header, or undefined if it was not sent.
+ */
+function authorizationHeaderOfCall(callIndex: number): string | undefined {
+  const headers = mockFetch.mock.calls[callIndex]?.[1]?.headers as Record<
+    string,
+    string
+  >;
+  return headers.Authorization;
+}
 
 describe('BaseApiClient', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
   describe('invalidateAuthToken', () => {
     it('calls resetQueries on the query client with auth bearer token key', async () => {
-      const mockResetQueries = jest.fn().mockResolvedValue(undefined);
+      const mockResetQueries = vi.fn().mockResolvedValue(undefined);
       const queryClient = {
         resetQueries: mockResetQueries,
       } as unknown as QueryClient;
@@ -58,6 +79,130 @@ describe('BaseApiClient', () => {
       // The default version is '1.0.0' - we can verify this indirectly
       // by checking the client was created successfully
       expect(client.queryClient).toBeInstanceOf(QueryClient);
+    });
+  });
+
+  describe('API URL overrides', () => {
+    beforeEach(() => {
+      mockFetch.mockReset();
+      mockFetch.mockResolvedValue(
+        createMockResponse({ supportedNetworks: [] }),
+      );
+    });
+
+    it('uses the production URL by default', async () => {
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+      });
+
+      await client.fetchV1SupportedNetworks();
+
+      expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(
+        'https://accounts.api.cx.metamask.io/',
+      );
+    });
+
+    it('uses the overridden URL when apiUrls is provided', async () => {
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+        apiUrls: { ACCOUNTS: 'https://accounts.dev-api.cx.metamask.io' },
+      });
+
+      await client.fetchV1SupportedNetworks();
+
+      expect(String(mockFetch.mock.calls[0]?.[0])).toMatch(
+        'https://accounts.dev-api.cx.metamask.io/',
+      );
+    });
+  });
+
+  describe('bearer token timeout', () => {
+    /**
+     * Creates a client whose token provider only resolves when told to.
+     *
+     * @param authTokenTimeout - Timeout to configure on the client.
+     * @returns The client and a function that resolves the pending token.
+     */
+    function setup(authTokenTimeout?: number): {
+      client: AccountsApiClient;
+      getBearerToken: Mock<(...args: []) => Promise<string>>;
+      resolveToken: (token: string) => void;
+    } {
+      let resolvedToken: string | undefined;
+      let pending: Promise<string> | undefined;
+      let settleToken: (token: string) => void = () => undefined;
+      const getBearerToken = vi.fn(async (): Promise<string> => {
+        if (resolvedToken !== undefined) {
+          return resolvedToken;
+        }
+        pending ??= new Promise<string>((resolve) => {
+          settleToken = (token: string): void => {
+            resolvedToken = token;
+            resolve(token);
+          };
+        });
+        return await pending;
+      });
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+        getBearerToken,
+        authTokenTimeout,
+        queryClient: new QueryClient({
+          defaultOptions: { queries: { retry: false, gcTime: 0 } },
+        }),
+      });
+      return {
+        client,
+        getBearerToken,
+        resolveToken: (token: string): void => settleToken(token),
+      };
+    }
+
+    beforeEach(() => {
+      mockFetch.mockReset();
+      mockFetch.mockResolvedValue(
+        createMockResponse({ supportedNetworks: [] }),
+      );
+    });
+
+    it('de-duplicates concurrent getBearerToken calls while the token is in flight', async () => {
+      const { client, getBearerToken } = setup(1);
+
+      await Promise.all([
+        client.fetchV1SupportedNetworks(),
+        client.fetchV1SupportedNetworks(),
+      ]);
+
+      expect(getBearerToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends the request unauthenticated when the token is not ready in time', async () => {
+      const { client } = setup(1);
+
+      await client.fetchV1SupportedNetworks();
+
+      expect(authorizationHeaderOfCall(0)).toBeUndefined();
+    });
+
+    it('authenticates later requests once the pending token resolves', async () => {
+      const { client, resolveToken } = setup(1);
+
+      await client.fetchV1SupportedNetworks();
+      resolveToken('late-token');
+      // staleTime 0 so the endpoint cache does not short-circuit the request
+      await client.fetchV1SupportedNetworks({ staleTime: 0 });
+
+      expect(authorizationHeaderOfCall(1)).toBe('Bearer late-token');
+    });
+
+    it('waits for the token when the timeout is disabled', async () => {
+      const { client, resolveToken } = setup(0);
+
+      const request = client.fetchV1SupportedNetworks();
+      resolveToken('slow-token');
+      await request;
+
+      expect(authorizationHeaderOfCall(0)).toBe('Bearer slow-token');
     });
   });
 });

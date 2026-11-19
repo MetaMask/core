@@ -1,12 +1,29 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Infer } from '@metamask/superstruct';
+import {
+  any,
+  array,
+  boolean,
+  nonempty,
+  nullable,
+  optional,
+  string,
+  type as looseObject,
+} from '@metamask/superstruct';
 
 import packageJson from '../package.json';
-import type { RampsServiceMethodActions } from './RampsService-method-action-types';
+import type { RampsClientIdentity } from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
+import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
  * Represents phone number information for a country.
@@ -108,6 +125,12 @@ export type ProviderLimits = {
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
@@ -117,6 +140,22 @@ export type Provider = {
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
   limits?: ProviderLimits;
+};
+
+/**
+ * Backend-defined ordering for providers.
+ */
+export type ProviderSortOrder = {
+  sortBy: string;
+  ids: string[];
+};
+
+/**
+ * Response from the region providers API.
+ */
+export type ProvidersResponse = {
+  providers: Provider[];
+  sorted?: ProviderSortOrder[];
 };
 
 /**
@@ -219,6 +258,27 @@ export type BuyWidget = {
    * Order ID if already created.
    */
   orderId?: string | null;
+  /**
+   * Hosted-flow entry to fall back to when the provider turns the user away
+   * inside an embedded checkout (e.g. Coinbase guest limits).
+   */
+  fallback?: BuyWidgetFallback;
+};
+
+/**
+ * Alternate buy-widget entry for the same provider and quote, attached by the
+ * quotes API when the primary flow is an embedded checkout that may reject the
+ * user. Resolve it with `RampsController:getFallbackBuyWidgetData`.
+ */
+export type BuyWidgetFallback = {
+  /**
+   * Buy-widget request URL (same shape as `buyURL`) that yields the hosted flow.
+   */
+  url: string;
+  /**
+   * The browser type to use for opening the hosted flow.
+   */
+  browser: ProviderBrowserType;
 };
 
 /**
@@ -623,6 +683,12 @@ export type RampsOrder = {
   partnerFees?: number;
   networkFees?: number;
   paymentDetails?: OrderPaymentDetail[];
+  /**
+   * Last-updated timestamp used by User Storage order sync for LWW conflict
+   * resolution. Set locally by {@link RampsController}; not returned by the V2
+   * ramps API.
+   */
+  lastUpdatedAt?: number;
 };
 
 /**
@@ -665,6 +731,7 @@ export enum RampsApiService {
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getDefaultRedirectCallbackUrl',
   'getGeolocation',
   'getCountries',
   'getTokens',
@@ -677,19 +744,44 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Invalidates cached queries in the service. See
+ * {@link BaseDataService.invalidateQueries}.
+ */
+export type RampsServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link RampsService} exposes to other consumers.
  */
-export type RampsServiceActions = RampsServiceMethodActions;
+export type RampsServiceActions =
+  | RampsServiceMethodActions
+  | RampsServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link RampsService} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+
+/**
+ * Published when the service's cache is updated.
+ */
+export type RampsServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published when a specific cache entry of the service is updated.
+ */
+export type RampsServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
 /**
  * Events that {@link RampsService} exposes to other consumers.
  */
-export type RampsServiceEvents = never;
+export type RampsServiceEvents =
+  | RampsServiceCacheUpdatedEvent
+  | RampsServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link RampsService} subscribes to.
@@ -705,6 +797,56 @@ export type RampsServiceMessenger = Messenger<
   RampsServiceActions | AllowedActions,
   RampsServiceEvents | AllowedEvents
 >;
+
+// === API RESPONSE SCHEMAS ===
+
+// The structs only check the parts of each response that the service relies on.
+// Unknown properties are kept as is.
+
+const GeolocationStruct = nonempty(string());
+
+const CountriesResponseStruct = array(
+  looseObject({
+    supported: looseObject({
+      buy: optional(boolean()),
+      sell: optional(boolean()),
+    }),
+    states: optional(nullable(array(any()))),
+  }),
+);
+type CountriesResponseBody = Infer<typeof CountriesResponseStruct>;
+
+const TokensResponseStruct = looseObject({
+  topTokens: array(any()),
+  allTokens: array(any()),
+});
+type TokensResponseBody = Infer<typeof TokensResponseStruct>;
+
+const ProvidersResponseStruct = looseObject({
+  providers: array(any()),
+  sorted: array(any()),
+});
+type ProvidersResponseBody = Infer<typeof ProvidersResponseStruct>;
+
+const PaymentMethodsResponseStruct = looseObject({ payments: array(any()) });
+type PaymentMethodsResponseBody = Infer<typeof PaymentMethodsResponseStruct>;
+
+const QuotesResponseStruct = looseObject({
+  success: array(any()),
+  sorted: array(any()),
+  error: array(any()),
+  customActions: array(any()),
+});
+type QuotesResponseBody = Infer<typeof QuotesResponseStruct>;
+
+const BuyWidgetResponseStruct = looseObject({ url: nonempty(string()) });
+type BuyWidgetResponseBody = Infer<typeof BuyWidgetResponseStruct>;
+
+const OrderResponseStruct = looseObject({});
+type OrderResponseBody = Infer<typeof OrderResponseStruct>;
+
+const OrderCallbackResponseStruct = looseObject({ id: optional(string()) });
+type OrderCallbackResponseBody = Infer<typeof OrderCallbackResponseStruct>;
 
 // === SERVICE DEFINITION ===
 
@@ -736,6 +878,53 @@ function getBaseUrl(
       return `https://on-ramp${cache}.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
+    default:
+      throw new Error(`Invalid environment: ${String(environment)}`);
+  }
+}
+
+/**
+ * The path served by the ramps content host that redirects back into the
+ * client once a non-native provider's widget flow completes.
+ */
+const FAKE_CALLBACK_PATH = '/regions/fake-callback';
+
+/**
+ * Derives the default redirect ("fake callback") URL for the widened Headless
+ * Buy quote fetch from the ramps environment.
+ *
+ * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+ * non-native provider needs) when a `redirectUrl` is present, so the widened
+ * aggregator path supplies this default when the caller omits one. Production
+ * and staging serve the callback from the `on-ramp-content` CDN hosts;
+ * development has no `on-ramp-content.dev-api` deployment, so it uses the
+ * `on-ramp.dev-api` host (which serves `/regions/fake-callback` and returns
+ * 200). This intentionally does not reuse {@link getBaseUrl}, whose Regions
+ * host is `on-ramp{-cache}`, not `on-ramp-content`.
+ *
+ * This is the canonical environment-to-callback map for the whole package.
+ * Prefer the `RampsService:getDefaultRedirectCallbackUrl` messenger action at
+ * runtime so the value always follows the environment the service is actually
+ * configured with. Call this function directly only where a synchronous,
+ * messenger-free value is needed (for example client UI that matches the
+ * callback URL in a WebView), and pass the same environment the service was
+ * constructed with.
+ *
+ * @param environment - The environment to derive the callback URL for.
+ * @returns The default redirect callback URL for that environment.
+ */
+export function getDefaultRedirectCallbackUrl(
+  environment: RampsEnvironment,
+): string {
+  switch (environment) {
+    case RampsEnvironment.Production:
+      return `https://on-ramp-content.api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Staging:
+      return `https://on-ramp-content.uat-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp.dev-api.cx.metamask.io${FAKE_CALLBACK_PATH}`;
+    case RampsEnvironment.Local:
+      return `http://localhost:3000${FAKE_CALLBACK_PATH}`;
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -794,30 +983,14 @@ function getApiPath(path: string, version: string = 'v2'): string {
  * // ... Do something with the geolocation ...
  * ```
  */
-export class RampsService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  /**
-   * The messenger suited for this service.
-   */
-  readonly #messenger: ConstructorParameters<
-    typeof RampsService
-  >[0]['messenger'];
-
+export class RampsService extends BaseDataService<
+  typeof serviceName,
+  RampsServiceMessenger
+> {
   /**
    * A function that can be used to make an HTTP request.
    */
-  readonly #fetch: ConstructorParameters<typeof RampsService>[0]['fetch'];
-
-  /**
-   * The policy that wraps the request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
+  readonly #fetch: typeof fetch;
 
   /**
    * The environment used for API requests.
@@ -834,6 +1007,8 @@ export class RampsService {
    */
   readonly #baseUrlOverride?: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   /**
    * Constructs a new RampsService object.
    *
@@ -848,6 +1023,8 @@ export class RampsService {
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    * @param args.baseUrlOverride - Optional base URL override for local development.
+   * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
+   * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
    */
   constructor({
     messenger,
@@ -856,6 +1033,8 @@ export class RampsService {
     fetch: fetchFunction,
     policyOptions = {},
     baseUrlOverride,
+    clientProduct,
+    clientVersion,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -863,16 +1042,20 @@ export class RampsService {
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
+    clientProduct?: string;
+    clientVersion?: string;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+    };
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -892,57 +1075,51 @@ export class RampsService {
   }
 
   /**
-   * Registers a handler that will be called after a request returns a non-500
-   * response, causing a retry. Primarily useful in tests where timers are being
-   * mocked.
+   * Returns the default redirect ("fake callback") URL for this service's
+   * environment.
    *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
+   * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+   * non-native provider needs) when a `redirectUrl` is present, so callers
+   * that omit one (MM Pay's widened Headless Buy fetch) use this value.
+   * Exposing it here makes the service's environment the single runtime source
+   * of truth, so the callback can never point at a different environment than
+   * the one the quotes themselves came from.
+   *
+   * `baseUrlOverride` deliberately does not apply. That option overrides the
+   * ramps API base URL for local development. In production and staging the
+   * callback lives on a different host (`on-ramp-content` versus
+   * `on-ramp{-cache}`), so an API override says nothing about where
+   * `/regions/fake-callback` lives. In development the callback already shares
+   * the API host family (`on-ramp.dev-api`). The redirect URL is also handed
+   * to the provider and matched by client UI to detect flow completion, so
+   * returning an unrelated local API origin here would break completion
+   * detection rather than help it. Point `environment` at
+   * {@link RampsEnvironment.Local} for a localhost callback, noting that URL
+   * is pinned to `http://localhost:3000` and does not follow a non-3000
+   * `baseUrlOverride`.
+   *
+   * @returns The default redirect callback URL for the configured environment.
    */
-  onRetry(
-    listener: Parameters<ServicePolicy['onRetry']>[0],
-  ): ReturnType<ServicePolicy['onRetry']> {
-    return this.#policy.onRetry(listener);
+  getDefaultRedirectCallbackUrl(): string {
+    return getDefaultRedirectCallbackUrl(this.#environment);
   }
 
   /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
+   * Builds the request headers for authenticated ramps API calls.
    *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
+   * Fetches a bearer token from `AuthenticationController` and returns it as
+   * an `Authorization` header. Throws if the token is unavailable (e.g. the
+   * wallet is locked or the user is signed out).
+   *
+   * @returns Headers containing the `Authorization: Bearer <token>` entry.
    */
-  onBreak(
-    listener: Parameters<ServicePolicy['onBreak']>[0],
-  ): ReturnType<ServicePolicy['onBreak']> {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called under one of two circumstances:
-   *
-   * 1. After a set number of retries prove that requests to the API
-   * consistently result in one of the following failures:
-   *    1. A connection initiation error
-   *    2. A connection reset error
-   *    3. A timeout error
-   *    4. A non-JSON response
-   *    5. A 502, 503, or 504 response
-   * 2. After a successful request is made to the API, but the response takes
-   * longer than a set duration to return.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): ReturnType<ServicePolicy['onDegraded']> {
-    return this.#policy.onDegraded(listener);
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    const bearerToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return {
+      Authorization: `Bearer ${bearerToken}`,
+    };
   }
 
   /**
@@ -958,43 +1135,45 @@ export class RampsService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
   /**
-   * Makes an API request with retry policy and error handling.
+   * Builds the URL for an API request, including the common parameters.
    *
    * @param service - The API service type (determines base URL).
    * @param path - The endpoint path.
-   * @param options - Request options.
-   * @param options.action - The ramp action type (optional).
-   * @param options.responseType - How to parse the response ('json' or 'text').
-   * @returns The parsed response data.
+   * @param action - The ramp action type (optional).
+   * @returns The request URL.
    */
-  async #request<TResponse>(
-    service: RampsApiService,
-    path: string,
-    options: {
-      action?: RampAction;
-      responseType: 'json' | 'text';
-    },
-  ): Promise<TResponse> {
-    return this.#policy.execute(async () => {
-      const baseUrl = this.#getBaseUrl(service);
-      const url = new URL(path, baseUrl);
-      this.#addCommonParams(url, options.action);
+  #buildUrl(service: RampsApiService, path: string, action?: RampAction): URL {
+    const url = new URL(path, this.#getBaseUrl(service));
+    this.#addCommonParams(url, action);
+    return url;
+  }
 
-      const response = await this.#fetch(url);
-      if (!response.ok) {
-        throw new HttpError(
-          response.status,
-          `Fetching '${url.toString()}' failed with status '${response.status}'`,
-        );
-      }
-
-      return options.responseType === 'json'
-        ? (response.json() as Promise<TResponse>)
-        : (response.text() as Promise<TResponse>);
-    });
+  /**
+   * Makes a request and throws an `HttpError` for a non-2xx response. Only
+   * call this from inside a query function, so that the request goes through
+   * the service policy.
+   *
+   * @param url - The URL to request.
+   * @param init - Optional request options.
+   * @returns The response.
+   */
+  async #fetchOk(url: URL, init?: RequestInit): Promise<Response> {
+    const response = init
+      ? await this.#fetch(url, init)
+      : await this.#fetch(url);
+    if (!response.ok) {
+      throw new HttpError(
+        response.status,
+        `Fetching '${url.toString()}' failed with status '${response.status}'`,
+      );
+    }
+    return response;
   }
 
   /**
@@ -1004,18 +1183,18 @@ export class RampsService {
    * @returns The user's country/region code (e.g., "US-UT" for Utah, USA).
    */
   async getGeolocation(): Promise<string> {
-    const textResponse = await this.#request<string>(
-      RampsApiService.Orders,
-      'geolocation',
-      { responseType: 'text' },
-    );
+    const url = this.#buildUrl(RampsApiService.Orders, 'geolocation');
 
-    const trimmedResponse = textResponse.trim();
-    if (trimmedResponse.length > 0) {
-      return trimmedResponse;
-    }
-
-    throw new Error('Malformed response received from geolocation API');
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getGeolocation`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: GeolocationStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        return (await response.text()).trim();
+      },
+    });
   }
 
   /**
@@ -1026,15 +1205,21 @@ export class RampsService {
    * @returns An array of countries filtered by aggregator support.
    */
   async getCountries(): Promise<Country[]> {
-    const countries = await this.#request<Country[]>(
+    const url = this.#buildUrl(
       RampsApiService.Regions,
       getApiPath('regions/countries'),
-      { responseType: 'json' },
     );
 
-    if (!Array.isArray(countries)) {
-      throw new Error('Malformed response received from countries API');
-    }
+    const countries = (await this.fetchQuery({
+      queryKey: [`${this.name}:getCountries`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: CountriesResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        return (await response.json()) as CountriesResponseBody;
+      },
+    })) as unknown as Country[];
 
     return countries.filter((country) => {
       const isCountrySupported =
@@ -1070,11 +1255,11 @@ export class RampsService {
     },
   ): Promise<TokensResponse> {
     const normalizedRegion = region.toLowerCase().trim();
-    const url = new URL(
+    const url = this.#buildUrl(
+      RampsApiService.Regions,
       getApiPath(`regions/${normalizedRegion}/topTokens`),
-      this.#getBaseUrl(RampsApiService.Regions),
+      action,
     );
-    this.#addCommonParams(url, action);
 
     if (options?.provider) {
       const providerIds = Array.isArray(options.provider)
@@ -1083,40 +1268,27 @@ export class RampsService {
       providerIds.forEach((id) => url.searchParams.append('provider', id));
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<TokensResponse>;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getTokens`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: TokensResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        return (await response.json()) as TokensResponseBody;
+      },
     });
-
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from tokens API');
-    }
-
-    if (
-      !Array.isArray(response.topTokens) ||
-      !Array.isArray(response.allTokens)
-    ) {
-      throw new Error('Malformed response received from tokens API');
-    }
-
-    return response;
   }
 
   /**
    * Fetches the list of providers for a given region.
-   * Supports optional query filters: provider, crypto, fiat, payments.
+   * Supports optional query filters: provider, crypto, payments.
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
    *
    * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
    * @param options - Optional query parameters for filtering providers.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1125,16 +1297,14 @@ export class RampsService {
     options?: {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const normalizedRegion = regionCode.toLowerCase().trim();
-    const url = new URL(
+    const url = this.#buildUrl(
+      RampsApiService.Regions,
       getApiPath(`regions/${normalizedRegion}/providers`),
-      this.#getBaseUrl(RampsApiService.Regions),
     );
-    this.#addCommonParams(url);
 
     if (options?.provider) {
       const providerIds = Array.isArray(options.provider)
@@ -1150,13 +1320,6 @@ export class RampsService {
       cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
     }
 
-    if (options?.fiat) {
-      const fiatIds = Array.isArray(options.fiat)
-        ? options.fiat
-        : [options.fiat];
-      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
-    }
-
     if (options?.payments) {
       const paymentIds = Array.isArray(options.payments)
         ? options.payments
@@ -1164,76 +1327,60 @@ export class RampsService {
       paymentIds.forEach((id) => url.searchParams.append('payments', id));
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getProviders`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: ProvidersResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        const body = (await response.json()) as ProvidersResponseBody;
+        // Keep the lenient handling of a missing `sorted` list.
+        if (body && typeof body === 'object' && !Array.isArray(body.sorted)) {
+          return { ...body, sorted: [] };
+        }
+        return body;
+      },
     });
-
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from providers API');
-    }
-
-    if (!Array.isArray(response.providers)) {
-      throw new Error('Malformed response received from providers API');
-    }
-
-    return response;
   }
 
   /**
    * Fetches the list of payment methods for a given region, asset, and provider.
    *
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
+   *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.fiat - Fiat currency code (e.g., "usd").
-   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier. Kept on the
+   * caller contract for local cache/staleness; not sent — `/payments` is scoped
+   * to provider + region (the API ignores `crypto`).
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
-    fiat: string;
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
     const normalizedRegion = options.region.toLowerCase().trim();
-    const url = new URL(
+    const url = this.#buildUrl(
+      RampsApiService.Regions,
       getApiPath(`regions/${normalizedRegion}/payments`),
-      this.#getBaseUrl(RampsApiService.Regions),
     );
-    this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
-    url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<PaymentMethodsResponse>;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getPaymentMethods`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: PaymentMethodsResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        return (await response.json()) as PaymentMethodsResponseBody;
+      },
     });
-
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from paymentMethods API');
-    }
-
-    if (!Array.isArray(response.payments)) {
-      throw new Error('Malformed response received from paymentMethods API');
-    }
-
-    return response;
   }
 
   /**
@@ -1257,6 +1404,11 @@ export class RampsService {
     const normalizedFiat = params.fiat.toLowerCase().trim();
     const action = params.action ?? 'buy';
 
+    // The API builds the response's `buyURL` from the host that served this
+    // request, and `getBuyWidgetUrl` only accepts that origin (see
+    // `#assertBuyWidgetUrlOrigin`). So this must keep using the environment
+    // URL rather than `#getBaseUrl`: honoring `baseUrlOverride` here would
+    // return buy URLs that the widget fetch then rejects.
     const url = new URL(
       getApiPath('quotes'),
       getBaseUrl(this.#environment, RampsApiService.Orders),
@@ -1269,6 +1421,8 @@ export class RampsService {
     url.searchParams.set('crypto', params.assetId);
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
+
+    const headers = await this.#getRequestHeaders();
 
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
@@ -1285,31 +1439,45 @@ export class RampsService {
       url.searchParams.set('redirectUrl', params.redirectUrl);
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<QuotesResponse>;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getQuotes`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: QuotesResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url, { headers });
+        return (await response.json()) as QuotesResponseBody;
+      },
     });
+  }
 
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from quotes API');
+  /**
+   * Ensures that a buy widget URL points at the ramps API origin for this
+   * service's environment.
+   *
+   * `buyUrl` comes from the ramps quotes API response, so a malicious or
+   * compromised response could otherwise redirect the bearer token in the
+   * request headers to an arbitrary host. The check runs before common
+   * parameters are added and before the bearer token is requested, so a
+   * rejected URL never sees the token and never makes a request.
+   *
+   * `baseUrlOverride` deliberately does not apply, consistent with
+   * {@link RampsService.getDefaultRedirectCallbackUrl}. `getQuotes` uses
+   * `getBaseUrl(environment, RampsApiService.Orders)` rather than the override,
+   * so the buy URLs in its response are expected to share that origin.
+   *
+   * @param url - The parsed buy widget URL.
+   */
+  #assertBuyWidgetUrlOrigin(url: URL): void {
+    const expectedOrigin = new URL(
+      getBaseUrl(this.#environment, RampsApiService.Orders),
+    ).origin;
+
+    if (url.origin !== expectedOrigin) {
+      throw new Error(
+        `Refusing to request buy widget URL with origin '${url.origin}': expected the ramps API origin '${expectedOrigin}'`,
+      );
     }
-
-    if (
-      !Array.isArray(response.success) ||
-      !Array.isArray(response.sorted) ||
-      !Array.isArray(response.error) ||
-      !Array.isArray(response.customActions)
-    ) {
-      throw new Error('Malformed response received from quotes API');
-    }
-
-    return response;
   }
 
   /**
@@ -1317,29 +1485,32 @@ export class RampsService {
    * Makes a request to the buyURL (as provided in a quote) to get the actual
    * provider widget URL, browser type, and order ID.
    *
+   * The URL must be on the ramps API origin for this service's environment
+   * (for example `https://on-ramp.api.cx.metamask.io` in production). A URL
+   * from any other origin is rejected before the request is made, because the
+   * request carries the bearer token. `baseUrlOverride` does not change the
+   * origin a buy URL may use.
+   *
    * @param buyUrl - The full buy URL endpoint to fetch from.
    * @returns The buy widget data containing the provider widget URL.
    */
   async getBuyWidgetUrl(buyUrl: string): Promise<BuyWidget> {
     const url = new URL(buyUrl);
+    this.#assertBuyWidgetUrlOrigin(url);
     this.#addCommonParams(url);
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<BuyWidget>;
+    const headers = await this.#getRequestHeaders();
+
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getBuyWidgetUrl`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: BuyWidgetResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url, { headers });
+        return (await response.json()) as BuyWidgetResponseBody;
+      },
     });
-
-    if (!response || typeof response !== 'object' || !response.url) {
-      throw new Error('Malformed response received from buy widget URL API');
-    }
-
-    return response;
   }
 
   /**
@@ -1370,31 +1541,24 @@ export class RampsService {
     wallet: string,
   ): Promise<RampsOrder> {
     const segment = this.#toProviderSegment(providerCode);
-    const url = new URL(
+    const url = this.#buildUrl(
+      RampsApiService.Orders,
       getApiPath(`providers/${segment}/orders/${orderCode}`),
-      this.#getBaseUrl(RampsApiService.Orders),
     );
-    this.#addCommonParams(url);
     if (wallet) {
       url.searchParams.set('wallet', wallet);
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<RampsOrder>;
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getOrder`, url.toString()],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: OrderResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(url);
+        return (await response.json()) as OrderResponseBody;
+      },
     });
-
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from order API');
-    }
-
-    return response;
   }
 
   /**
@@ -1419,25 +1583,27 @@ export class RampsService {
     const segment = this.#toProviderSegment(providerCode);
     // Step 1: Send the callback URL to the backend to extract the order ID.
     // The backend parses it using provider-specific logic.
-    const callbackApiUrl = new URL(
+    const callbackApiUrl = this.#buildUrl(
+      RampsApiService.Orders,
       getApiPath(`providers/${segment}/callback`),
-      this.#getBaseUrl(RampsApiService.Orders),
     );
-    this.#addCommonParams(callbackApiUrl);
     callbackApiUrl.searchParams.set('url', callbackUrl);
 
-    const callbackResponse = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(callbackApiUrl);
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${callbackApiUrl.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<{ id: string }>;
+    const callbackResponse = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:getOrderFromCallback`,
+        callbackApiUrl.toString(),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: OrderCallbackResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetchOk(callbackApiUrl);
+        return (await response.json()) as OrderCallbackResponseBody;
+      },
     });
 
-    const rawOrderId = callbackResponse?.id;
+    const rawOrderId = callbackResponse.id;
     if (!rawOrderId) {
       throw new Error(
         'Could not extract order ID from callback URL via provider',

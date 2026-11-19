@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SeedlessOnboardingController } from './SeedlessOnboardingController';
+import type { SeedlessOnboardingController } from './SeedlessOnboardingController.js';
 
 export type SeedlessOnboardingControllerFetchMetadataAccessCredsAction = {
   type: `SeedlessOnboardingController:fetchMetadataAccessCreds`;
@@ -68,6 +68,24 @@ export type SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction 
 export type SeedlessOnboardingControllerAddNewSecretDataAction = {
   type: `SeedlessOnboardingController:addNewSecretData`;
   handler: SeedlessOnboardingController['addNewSecretData'];
+};
+
+/**
+ * Run any pending seedless onboarding migrations.
+ *
+ * This method should be called by clients after the controller is unlocked
+ * to ensure legacy data is migrated to the latest format.
+ *
+ * Migrations are idempotent - running this multiple times is safe.
+ * The migration version is tracked in state to prevent re-running migrations.
+ *
+ * @returns A promise that resolves to `true` if data was actually migrated
+ * (items were updated on the server), `false` otherwise.
+ * @throws If the password is outdated (changed on another device).
+ */
+export type SeedlessOnboardingControllerRunMigrationsAction = {
+  type: `SeedlessOnboardingController:runMigrations`;
+  handler: SeedlessOnboardingController['runMigrations'];
 };
 
 /**
@@ -152,6 +170,21 @@ export type SeedlessOnboardingControllerSubmitPasswordAction = {
   type: `SeedlessOnboardingController:submitPassword`;
   handler: SeedlessOnboardingController['submitPassword'];
 };
+
+/**
+ * Identify an incomplete or mismatched primary SRP backup.
+ *
+ * This method must only be called after the controller has been unlocked.
+ *
+ * @param password - The password used to export the local primary SRP.
+ * @returns A promise that resolves after identification and telemetry have
+ * completed.
+ */
+export type SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction =
+  {
+    type: `SeedlessOnboardingController:identifyIncompleteMetadataBackup`;
+    handler: SeedlessOnboardingController['identifyIncompleteMetadataBackup'];
+  };
 
 /**
  * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
@@ -350,12 +383,14 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerAuthenticateAction
   | SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction
   | SeedlessOnboardingControllerAddNewSecretDataAction
+  | SeedlessOnboardingControllerRunMigrationsAction
   | SeedlessOnboardingControllerFetchAllSecretDataAction
   | SeedlessOnboardingControllerChangePasswordAction
   | SeedlessOnboardingControllerUpdateBackupMetadataStateAction
   | SeedlessOnboardingControllerVerifyVaultPasswordAction
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
+  | SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction
   | SeedlessOnboardingControllerSetLockedAction
   | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
   | SeedlessOnboardingControllerSubmitGlobalPasswordAction

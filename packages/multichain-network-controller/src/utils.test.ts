@@ -1,7 +1,8 @@
-import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, EthScope, XlmScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   isEvmCaipChainId,
@@ -12,7 +13,7 @@ import {
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
   isKnownCaipNamespace,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   describe('getChainIdForNonEvm', () => {
@@ -29,6 +30,11 @@ describe('utils', () => {
       expect(getChainIdForNonEvm(scopes)).toBe(BtcScope.Testnet);
     });
 
+    it('returns Stellar chain ID for Stellar scopes', () => {
+      const scopes = [XlmScope.Pubnet, XlmScope.Testnet];
+      expect(getChainIdForNonEvm(scopes)).toBe(XlmScope.Pubnet);
+    });
+
     it('throws error if network is not found', () => {
       const scopes = ['unknown:scope' as CaipChainId];
       expect(() => getChainIdForNonEvm(scopes)).toThrow(
@@ -41,6 +47,8 @@ describe('utils', () => {
     it('returns true for supported CAIP chain IDs', () => {
       expect(checkIfSupportedCaipChainId(SolScope.Mainnet)).toBe(true);
       expect(checkIfSupportedCaipChainId(BtcScope.Mainnet)).toBe(true);
+      expect(checkIfSupportedCaipChainId(XlmScope.Pubnet)).toBe(true);
+      expect(checkIfSupportedCaipChainId(XlmScope.Testnet)).toBe(true);
     });
 
     it('returns false for non-CAIP IDs', () => {
@@ -84,7 +92,6 @@ describe('utils', () => {
         rpcEndpoints: [
           {
             url: 'https://mainnet.infura.io/',
-            failoverUrls: [],
             networkClientId: 'random-id',
             // @ts-expect-error - network-controller does not export RpcEndpointType
             type: 'custom',

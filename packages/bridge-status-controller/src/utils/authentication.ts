@@ -1,4 +1,4 @@
-import type { BridgeStatusControllerMessenger } from '../types';
+import type { BridgeStatusControllerMessenger } from '../types.js';
 
 export const getJwt = async (
   messenger: BridgeStatusControllerMessenger,

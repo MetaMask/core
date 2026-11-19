@@ -1,13 +1,17 @@
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TransactionMeta } from '..';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { getNativeBalance, isNativeBalanceSufficientForGas } from './balance';
-import { rpcRequest } from './provider';
+import type { TransactionMeta } from '../index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import {
+  getNativeBalance,
+  isNativeBalanceSufficientForGas,
+} from './balance.js';
+import { rpcRequest } from './provider.js';
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
@@ -23,10 +27,10 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('Balance Utils', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rpcRequestMock.mockResolvedValue(toHex(BALANCE_MOCK));
   });
@@ -71,6 +75,41 @@ describe('Balance Utils', () => {
       );
 
       expect(result).toBe(false);
+    });
+
+    it('returns false if gas estimate is missing', async () => {
+      const result = await isNativeBalanceSufficientForGas(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            gas: undefined,
+          },
+        },
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(result).toBe(false);
+      expect(rpcRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('returns false if max fee per gas is missing', async () => {
+      const result = await isNativeBalanceSufficientForGas(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            maxFeePerGas: undefined,
+            gasPrice: undefined,
+          },
+        },
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(result).toBe(false);
+      expect(rpcRequestMock).not.toHaveBeenCalled();
     });
   });
 });

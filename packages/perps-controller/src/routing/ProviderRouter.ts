@@ -9,7 +9,7 @@
  * are deferred to Phase 3.
  */
 
-import type { PerpsProviderType, RoutingStrategy } from '../types';
+import type { PerpsProviderType, RoutingStrategy } from '../types/index.js';
 
 /**
  * Parameters for selecting a provider for an operation
@@ -34,7 +34,7 @@ export type RouterSelectParams = {
  * const router = new ProviderRouter({ defaultProvider: 'hyperliquid' });
  *
  * // With explicit provider
- * router.selectProvider({ providerId: 'myx' }); // Returns 'myx'
+ * router.selectProvider({ providerId: 'lighter' }); // Returns 'lighter'
  *
  * // Without explicit provider
  * router.selectProvider({ symbol: 'BTC' }); // Returns 'hyperliquid' (default)

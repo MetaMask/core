@@ -1,6 +1,6 @@
 import { createProjectLogger, createModuleLogger } from '@metamask/utils';
 
-import { toErrorMessage } from './utils';
+import { toErrorMessage } from './utils.js';
 
 export const projectLogger = createProjectLogger('multichain-account-service');
 

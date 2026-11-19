@@ -9,6 +9,7 @@ import type {
   CaipChainId,
   SolScope,
   TrxScope,
+  XlmScope,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -22,8 +23,8 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 
-import type { ActiveNetworksByAddress } from './api/accounts-api';
-import type { MultichainNetworkControllerMethodActions } from './MultichainNetworkController/MultichainNetworkController-method-action-types';
+import type { ActiveNetworksByAddress } from './api/accounts-api.js';
+import type { MultichainNetworkControllerMethodActions } from './MultichainNetworkController/MultichainNetworkController-method-action-types.js';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -43,7 +44,9 @@ export type SupportedCaipChainId =
   | SolScope.Devnet
   | TrxScope.Mainnet
   | TrxScope.Nile
-  | TrxScope.Shasta;
+  | TrxScope.Shasta
+  | XlmScope.Pubnet
+  | XlmScope.Testnet;
 
 export type CommonNetworkConfiguration = {
   /**

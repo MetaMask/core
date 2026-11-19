@@ -3,11 +3,11 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-import type { TransactionControllerMessenger } from './TransactionController';
+import type { TransactionControllerMessenger } from './TransactionController.js';
 
 /**
  * Given a record, ensures that each property matches the `Json` type.
@@ -230,6 +230,12 @@ export type TransactionMeta = {
   isGasFeeSponsored?: boolean;
 
   /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when `isGasFeeSponsored` is true and the simulation names a sponsor.
+   */
+  gasFeeSponsor?: string;
+
+  /**
    * Whether the transaction has no lifecycle and is not signed or published.
    */
   isStateOnly?: boolean;
@@ -324,6 +330,9 @@ export type TransactionMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /**
    * The original dapp proposed token approval amount before edit by user.
@@ -616,6 +625,9 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * ID of the JSON-RPC request from DAPP.
    */
@@ -785,6 +797,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction to top-up Money Account balance to the required threshold.
+   */
+  membershipSubscription = 'membershipSubscription',
+
+  /**
    * A transaction that deposits funds into a money account.
    */
   moneyAccountDeposit = 'moneyAccountDeposit',
@@ -824,6 +841,21 @@ export enum TransactionType {
    * Supports paying with any token, not just native assets.
    */
   perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
+   * Deposit funds to be available for trading via Perps on Lighter.
+   */
+  perpsLighterDeposit = 'perpsLighterDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps on Lighter.
+   */
+  perpsLighterDepositAndOrder = 'perpsLighterDepositAndOrder',
+
+  /**
+   * Withdraw funds from Perps on Lighter.
+   */
+  perpsLighterWithdraw = 'perpsLighterWithdraw',
 
   /**
    * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
@@ -1134,6 +1166,12 @@ export type TransactionReceipt = {
   blockNumber?: string;
 
   /**
+   * DA footprint gas scalar from OP Stack Jovian receipts (including Mantle).
+   * Its presence selects the Jovian operator fee formula.
+   */
+  daFootprintGasScalar?: string;
+
+  /**
    * Effective gas price the transaction was charged at.
    */
   effectiveGasPrice?: string;
@@ -1144,9 +1182,28 @@ export type TransactionReceipt = {
   gasUsed?: string;
 
   /**
-   * Total used gas in hex.
+   * Layer 1 data fee in hex wei (native token units on Mantle).
    */
   l1Fee?: string;
+
+  /**
+   * Operator fee constant from OP Stack / Mantle Arsia receipts, in hex wei.
+   */
+  operatorFeeConstant?: string;
+
+  /**
+   * Operator fee scalar from OP Stack / Mantle Arsia receipts, in hex.
+   * Used as `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant` on
+   * Jovian, and `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`
+   * on Isthmus.
+   */
+  operatorFeeScalar?: string;
+
+  /**
+   * ETH/MNT token ratio from Mantle receipts. Informational only —
+   * receipt `l1Fee` is already denominated in the native token.
+   */
+  tokenRatio?: string;
 
   /**
    * All the logs emitted by this transaction.
@@ -1221,7 +1278,6 @@ export interface RemoteTransactionSourceRequest {
 
 /**
  * An object capable of fetching transaction data from a remote source.
- * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -1252,13 +1308,15 @@ export type DappSuggestedGasFees = {
 };
 
 /**
- * Gas values saved by the user for a specific chain.
+ * Gas values saved by the user for a specific chain and account.
  */
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface SavedGasFees {
-  maxBaseFee: string;
-  priorityFee: string;
+  level?: UserFeeLevel | GasFeeEstimateLevel;
+  maxBaseFee?: string;
+  priorityFee?: string;
+  gasPrice?: string;
 }
 
 /**
@@ -1301,16 +1359,6 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
-
-/**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
 
 /**
  * Specifies the shape of the base transaction parameters.
@@ -1530,8 +1578,8 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
-  /** RPC Provider instance. */
-  provider: Provider;
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
@@ -1834,6 +1882,16 @@ export type TransactionBatchRequest = {
    */
   atomic?: boolean;
 
+  /**
+   * Pre-signed or unsigned EIP-7702 authorizations to include on the batch
+   * type-4 transaction, in addition to any upgrade authorization generated for
+   * `from` when the batch payer is not yet upgraded.
+   *
+   * Used when vaulting/delegation requires upgrading a different account than
+   * `from` (e.g. Money Account deposits paid by an EOA with account override).
+   */
+  authorizationList?: AuthorizationList;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
@@ -1873,6 +1931,9 @@ export type TransactionBatchRequest = {
 
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
+
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
@@ -2073,6 +2134,13 @@ export type GasFeeToken = {
   /** Account address to send the token to. */
   recipient: Hex;
 
+  /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when the simulation reports the gas fee as sponsored.
+   * Prefer `TransactionMeta.gasFeeSponsor`, which also respects a caller-provided `isGasFeeSponsored`.
+   */
+  sponsor?: string;
+
   /** Symbol of the token. */
   symbol: string;
 
@@ -2121,20 +2189,6 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
-
-/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */
@@ -2164,6 +2218,12 @@ export type AssetsFiatValues = {
 
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
+  /**
+   * ID of an `InternalAccount` overriding the default account for the transaction.
+   * Output recipient when `isPostQuote` is true, funding payer when false.
+   */
+  accountOverride?: string;
+
   /** Total fee from any bridge transactions, in fiat currency. */
   bridgeFeeFiat?: string;
 
@@ -2187,8 +2247,18 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /**
+   * Timestamp (ms since epoch) set by the pay controller when it starts
+   * resuming this transaction after a restart. Used as a once-only guard —
+   * TC does not read this field.
+   */
+  resumeAttemptedAt?: number;
+
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
+
+  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
+  strategy?: string;
 
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
@@ -2202,6 +2272,9 @@ export type MetamaskPayMetadata = {
 
 /**
  * Parameters for the transaction simulation API.
+ *
+ * Lets consumers rewrite the simulation request URL (for example to route
+ * through the MetaMask Shield proxy) via the returned `newUrl`.
  */
 export type GetSimulationConfig = (
   url: string,
@@ -2210,7 +2283,6 @@ export type GetSimulationConfig = (
   },
 ) => Promise<{
   newUrl?: string;
-  authorization?: string;
 }>;
 
 /**
@@ -2266,6 +2338,9 @@ export type AddTransactionOptions = {
 
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
@@ -2340,6 +2415,15 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
 };
 
 /**

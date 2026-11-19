@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TokensController } from './TokensController';
+import type { TokensController } from './TokensController.js';
 
 /**
  * Adds a token to the stored token list.

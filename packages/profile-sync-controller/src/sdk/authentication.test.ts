@@ -1,21 +1,30 @@
 import type { Eip1193Provider } from 'ethers';
+import { describe, expect, it, vi } from 'vitest';
 
-import { Env, Platform } from '../shared/env';
-import { arrangeAuthAPIs } from './__fixtures__/auth';
-import type { MockVariable } from './__fixtures__/test-utils';
-import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
-import { JwtBearerAuth } from './authentication';
-import * as AuthServices from './authentication-jwt-bearer/services';
-import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
+import { Env, Platform } from '../shared/env.js';
+import { arrangeAuthAPIs, handleMockSocialLogin } from './__fixtures__/auth.js';
+import type { MockVariable } from './__fixtures__/test-utils.js';
+import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils.js';
+import * as AuthServices from './authentication-jwt-bearer/services.js';
+import type { LoginResponse, Pair } from './authentication-jwt-bearer/types.js';
+import { JwtBearerAuth } from './authentication.js';
 import {
   NonceRetrievalError,
+  PairConflictError,
   PairError,
   SignInError,
+  SocialIdentifierNotPairedError,
   UnsupportedAuthTypeError,
   ValidationError,
-} from './errors';
-import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth';
-import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
+} from './errors.js';
+import {
+  MOCK_ACCESS_JWT,
+  MOCK_MFA_ASSERTION_JWT,
+  MOCK_OIDC_TOKEN_RESPONSE,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
+  MOCK_SRP_LOGIN_RESPONSE,
+} from './mocks/auth.js';
+import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -213,9 +222,9 @@ describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUs
     arrangeAuthAPIs();
 
     // Spy on the service methods to count how many times they're called
-    const getNonceSpy = jest.spyOn(AuthServices, 'getNonce');
-    const authenticateSpy = jest.spyOn(AuthServices, 'authenticate');
-    const authorizeOIDCSpy = jest.spyOn(AuthServices, 'authorizeOIDC');
+    const getNonceSpy = vi.spyOn(AuthServices, 'getNonce');
+    const authenticateSpy = vi.spyOn(AuthServices, 'authenticate');
+    const authorizeOIDCSpy = vi.spyOn(AuthServices, 'authorizeOIDC');
 
     // Make three concurrent login attempts
     const loginPromise1 = auth.getAccessToken();
@@ -595,7 +604,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
 
 describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', () => {
   const arrangeProvider = () => {
-    const mockRequest = jest.fn().mockImplementation((arg) => {
+    const mockRequest = vi.fn().mockImplementation((arg) => {
       if (arg.params.request.method === 'getPublicKey') {
         return MOCK_SRP;
       }
@@ -607,7 +616,7 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
       throw new Error('MOCK - unsupported mock implementation');
     });
 
-    const mockGetProvider = jest
+    const mockGetProvider = vi
       .spyOn(Eip6963MetamaskProvider, 'getMetaMaskProviderEIP6963')
       .mockResolvedValue({
         request: mockRequest,
@@ -659,6 +668,118 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
   });
 });
 
+describe('Authentication - pairSocialIdentifier()', () => {
+  it('pairs a Google identifier', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockPairSocialIdentifierUrl } = arrangeAuthAPIs();
+
+    expect(
+      await auth.pairSocialIdentifier(
+        {
+          identifierType: 'GOOGLE',
+          socialJwt: 'social-jwt',
+          email: 'user@example.com',
+        },
+        'primary-srp-token',
+      ),
+    ).toBeUndefined();
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('throws PairConflictError when the identifier is already owned', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    arrangeAuthAPIs({
+      mockPairSocialIdentifier: {
+        status: 409,
+        body: {
+          message: 'Identifier already belongs to another profile',
+          error: 'conflict',
+        },
+      },
+    });
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(PairConflictError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
+  });
+});
+
+describe('Authentication - exchangeSocialAccessToken()', () => {
+  it('exchanges the social token for an access token and the canonical profile', async () => {
+    const { auth, mockSetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
+    const requests: { body: unknown; authorization: string }[] = [];
+    const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+      requests.push(request),
+    );
+    const { mockOAuth2TokenUrl } = arrangeAuthAPIs();
+
+    const result = await auth.exchangeSocialAccessToken({
+      identifierType: 'GOOGLE',
+      socialJwt: 'social-jwt',
+    });
+
+    expect(mockSocialLoginUrl.isDone()).toBe(true);
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(requests).toStrictEqual([
+      {
+        body: { identifier_type: 'GOOGLE' },
+        authorization: 'Bearer social-jwt',
+      },
+    ]);
+    expect(result.token.accessToken).toBe(
+      MOCK_OIDC_TOKEN_RESPONSE.access_token,
+    );
+    expect(result.profile).toStrictEqual({
+      identifierId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.identifier_id,
+      metaMetricsId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.metametrics_id,
+      profileId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      canonicalProfileId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      pairedIdentifierIds: undefined,
+    });
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
+  });
+
+  it('throws SocialIdentifierNotPairedError when the identifier is not paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    handleMockSocialLogin({
+      status: 404,
+      body: { message: 'social identifier is not paired to any profile' },
+    });
+
+    await expect(
+      auth.exchangeSocialAccessToken({
+        identifierType: 'APPLE',
+        socialJwt: 'social-jwt',
+      }),
+    ).rejects.toThrow(SocialIdentifierNotPairedError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.exchangeSocialAccessToken({
+        identifierType: 'APPLE',
+        socialJwt: 'social-jwt',
+      }),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
+  });
+});
+
 describe('Authentication - rejects when calling unrelated methods', () => {
   it('rejects when calling SRP methods in SiWE flow', async () => {
     const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
@@ -679,6 +800,80 @@ describe('Authentication - rejects when calling unrelated methods', () => {
         signMessage: async () => 'MOCK_SIWE_SIGNATURE',
       }),
     ).toThrow(UnsupportedAuthTypeError);
+  });
+});
+
+describe('MFA authentication facade', () => {
+  it('forwards MFA operations to the SRP implementation', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const endpoints = arrangeAuthAPIs();
+    const registration = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        attestationObject: 'attestation',
+        clientDataJSON: 'client-data',
+      },
+    } as const;
+    const assertion = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    } as const;
+
+    expect(await auth.beginMfaEnrollment('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaEnrollment('flow-id', {
+        type: 'passkey',
+        attestation: registration,
+      }),
+    ).toStrictEqual({ token: MOCK_MFA_ASSERTION_JWT, expiresIn: 900 });
+    expect(await auth.beginMfaVerification('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'verify-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaVerification('flow-id', {
+        type: 'passkey',
+        assertion,
+      }),
+    ).toMatchObject({
+      token: expect.any(String),
+      expiresIn: 900,
+    });
+    expect(await auth.getMfaCredentials()).toHaveLength(2);
+    expect(
+      await auth.beginMfaVerification('passkey', undefined, 'given-token'),
+    ).toMatchObject({ flowId: 'verify-passkey-flow-id' });
+    expect(
+      await auth.completeMfaVerification(
+        'flow-id',
+        { type: 'passkey', assertion },
+        undefined,
+        'given-token',
+      ),
+    ).toMatchObject({ expiresIn: 900 });
+    expect(await auth.getMfaCredentials(undefined, 'given-token')).toHaveLength(
+      2,
+    );
+    expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
+      accessToken: MOCK_ACCESS_JWT,
+    });
+
+    expect(endpoints.mockMfaEnrollUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaEnrollCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
   });
 });
 

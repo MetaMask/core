@@ -12,7 +12,7 @@ import { is, number, type } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
+import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types.js';
 
 // === GENERAL ===
 

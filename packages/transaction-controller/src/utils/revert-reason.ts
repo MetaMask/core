@@ -2,10 +2,10 @@ import { defaultAbiCoder } from '@ethersproject/abi';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { Revert, TransactionParams } from '../types';
-import { rpcRequest } from './provider';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { Revert, TransactionParams } from '../types.js';
+import { rpcRequest } from './provider.js';
 
 const log = createModuleLogger(projectLogger, 'revert-reason');
 

@@ -1,8 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
-  "references": [{ "path": "../messenger" }],
+  "references": [
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

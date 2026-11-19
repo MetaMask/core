@@ -1,10 +1,12 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   decryptWithKey,
   deriveEncryptionKey,
   encryptWithKey,
   randomBytesToBase64URL,
-} from './crypto';
-import { base64URLToBytes } from './encoding';
+} from './crypto.js';
+import { base64URLToBytes } from './encoding.js';
 
 describe('crypto', () => {
   describe('randomBytesToBase64URL', () => {

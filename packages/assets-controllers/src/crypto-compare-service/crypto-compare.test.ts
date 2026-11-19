@@ -1,6 +1,7 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
-import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare';
+import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare.js';
 
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';
 
@@ -96,7 +97,7 @@ describe('CryptoCompare', () => {
       .replyWithError('Example network error');
 
     await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
-      'Example network error',
+      /fetch failed/u,
     );
   });
 

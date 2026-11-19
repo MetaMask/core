@@ -1,15 +1,11 @@
 export {
   decodeAggregate3Response,
   encodeAggregate3,
+} from './aggregate3Codec.js';
+export {
   MulticallClient,
   type MulticallClientConfig,
-} from './MulticallClient';
-
-export {
-  TokensApiClient,
-  type TokensApiClientConfig,
-  type TokenListQueryClient,
-} from './TokensApiClient';
+} from './MulticallClient.js';
 
 // Re-export provider types from types module
-export type { GetProviderFunction, Provider } from '../types';
+export type { GetProviderFunction, Provider } from '../types/index.js';

@@ -1,6 +1,6 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
 
-import type { AbstractMessageParams } from './AbstractMessageManager';
+import type { AbstractMessageParams } from './AbstractMessageManager.js';
 
 // Below types are have been moved into KeyringController, but are still exported here for backwards compatibility.
 

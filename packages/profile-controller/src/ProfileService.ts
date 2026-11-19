@@ -1,0 +1,690 @@
+import { BaseDataService } from '@metamask/base-data-service';
+import type {
+  CreateServicePolicyOptions,
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import {
+  array,
+  boolean,
+  enums,
+  intersection,
+  nullable,
+  optional,
+  sensitive,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
+import { CaipAccountIdStruct } from '@metamask/utils';
+
+import { readProfileApiError } from './errors/parseErrorResponse.js';
+import { ProfileServiceError } from './errors/ProfileServiceError.js';
+import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
+
+export const serviceName = 'ProfileService';
+
+// ---------------------------------------------------------------------------
+// Error messages
+// ---------------------------------------------------------------------------
+
+/** Human-readable error messages for each ProfileService operation. */
+export const ProfileServiceErrorMessage = {
+  GET_PROFILE_FAILED: 'ProfileService: failed to fetch profile',
+  CREATE_PROFILE_FAILED: 'ProfileService: failed to create profile',
+  REPLACE_PROFILE_FAILED: 'ProfileService: failed to replace profile',
+  UPDATE_PROFILE_FAILED: 'ProfileService: failed to update profile',
+  DELETE_PROFILE_FAILED: 'ProfileService: failed to delete profile',
+  CHECK_USERNAME_AVAILABILITY_FAILED:
+    'ProfileService: failed to check username availability',
+  CHECK_DISPLAY_NAME_VALIDITY_FAILED:
+    'ProfileService: failed to check display name validity',
+  CHECK_BIO_VALIDITY_FAILED: 'ProfileService: failed to check bio validity',
+  CHECK_EARLY_ACCESS_FAILED:
+    'ProfileService: failed to check early access status',
+  GET_X_AUTH_URL_FAILED: 'ProfileService: failed to get X authentication URL',
+  CONNECT_X_FAILED: 'ProfileService: failed to connect X account',
+  GET_X_ACCOUNT_FAILED: 'ProfileService: failed to get X account',
+  DISCONNECT_X_FAILED: 'ProfileService: failed to disconnect X account',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Superstruct schemas
+// ---------------------------------------------------------------------------
+
+const TradingPrivacyStruct = enums(['public', 'private'] as const);
+
+const ProfileApiResponseStruct = structType({
+  profile_id: string(),
+  username: string(),
+  display_name: string(),
+  bio: nullable(string()),
+  linked_addresses: array(CaipAccountIdStruct),
+  avatar_url: string(),
+  trading_privacy: TradingPrivacyStruct,
+  connected_to_x: boolean(),
+  // Optional for compatibility with servers that predate profile verification.
+  verified: optional(boolean()),
+  created_at: string(),
+  updated_at: string(),
+});
+
+const FieldValidityResponseStruct = structType({
+  valid: boolean(),
+});
+
+const EarlyAccessResponseStruct = structType({
+  hasAccess: boolean(),
+});
+
+const UsernameAvailabilityErrorStruct = structType({
+  code: string(),
+  message: string(),
+});
+
+const UsernameAvailabilityResponseStruct = structType({
+  username: string(),
+  available: boolean(),
+  valid: boolean(),
+  normalized: string(),
+  errors: array(UsernameAvailabilityErrorStruct),
+});
+
+const XAuthUrlResponseStruct = structType({
+  url: sensitive(string()),
+  state: sensitive(string()),
+});
+
+const ConnectXResponseStruct = structType({
+  x_user_id: string(),
+  x_profile_url: string(),
+  username: string(),
+  display_name: string(),
+  avatar_url: string(),
+  created_at: string(),
+  updated_at: string(),
+});
+
+const CreateProfileResponseStruct = intersection([
+  ProfileApiResponseStruct,
+  structType({ x_profile: optional(ConnectXResponseStruct) }),
+]);
+
+const ConnectXParamsStruct = structType({
+  code: sensitive(string()),
+  state: sensitive(string()),
+});
+
+const CreateProfileParamsStruct = structType({
+  profile_id: string(),
+  username: string(),
+  display_name: string(),
+  bio: optional(nullable(string())),
+  linked_addresses: array(CaipAccountIdStruct),
+  avatar_url: optional(string()),
+  trading_privacy: TradingPrivacyStruct,
+});
+
+const ReplaceProfileParamsStruct = structType({
+  username: string(),
+  display_name: string(),
+  bio: optional(nullable(string())),
+  linked_addresses: array(CaipAccountIdStruct),
+  avatar_url: optional(string()),
+  trading_privacy: TradingPrivacyStruct,
+});
+
+const UpdateProfileParamsStruct = structType({
+  username: optional(string()),
+  display_name: optional(string()),
+  bio: optional(nullable(string())),
+  linked_addresses: optional(array(CaipAccountIdStruct)),
+  avatar_url: optional(string()),
+  trading_privacy: optional(TradingPrivacyStruct),
+});
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+const MESSENGER_EXPOSED_METHODS = [
+  'getProfile',
+  'createProfile',
+  'replaceProfile',
+  'updateProfile',
+  'deleteProfile',
+  'checkUsernameAvailability',
+  'checkDisplayNameValidity',
+  'checkBioValidity',
+  'checkEarlyAccess',
+  'getXAuthUrl',
+  'connectX',
+  'getXAccount',
+  'disconnectX',
+] as const;
+
+/** The shape of a profile returned by the MetaMask Profile API. */
+export type ProfileApiResponse = Infer<typeof ProfileApiResponseStruct>;
+
+/** The response shape for createProfile — includes an optional linked X profile if the user had already connected X. */
+export type CreateProfileResponse = Infer<typeof CreateProfileResponseStruct>;
+
+/** The response shape for a username availability check. */
+export type UsernameAvailabilityResponse = Infer<
+  typeof UsernameAvailabilityResponseStruct
+>;
+
+/** The response shape for display name and bio validity checks. */
+export type FieldValidityResponse = Infer<typeof FieldValidityResponseStruct>;
+
+/** The response shape for the early access check. */
+export type EarlyAccessResponse = Infer<typeof EarlyAccessResponseStruct>;
+
+/** The response shape returned when connecting or fetching an X account. */
+export type ConnectXResponse = Infer<typeof ConnectXResponseStruct>;
+
+/** The response shape returned when requesting the X OAuth authentication URL. */
+export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
+
+/** Alias for {@link ConnectXResponse} returned when fetching the linked X account. */
+export type XAccountResponse = ConnectXResponse;
+
+/** Parameters for creating a new MetaMask profile. */
+export type CreateProfileParams = Infer<typeof CreateProfileParamsStruct>;
+
+/** Parameters for fully replacing an existing MetaMask profile (PUT). */
+export type ReplaceProfileParams = Infer<typeof ReplaceProfileParamsStruct>;
+
+/** Parameters for partially updating an existing MetaMask profile (PATCH). */
+export type UpdateProfileParams = Infer<typeof UpdateProfileParamsStruct>;
+
+/** Parameters for completing the X OAuth PKCE flow. */
+export type ConnectXParams = Infer<typeof ConnectXParamsStruct>;
+
+// ---------------------------------------------------------------------------
+// Messenger types
+// ---------------------------------------------------------------------------
+
+/** Union of all actions exposed by ProfileService, including cache invalidation. */
+export type ProfileServiceActions =
+  | ProfileServiceMethodActions
+  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/** Event emitted when the ProfileService query cache is updated. */
+export type ProfileServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/** Event emitted with per-query granularity when the ProfileService cache is updated. */
+export type ProfileServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/** Union of all events emitted by ProfileService. */
+export type ProfileServiceEvents =
+  | ProfileServiceCacheUpdatedEvent
+  | ProfileServiceGranularCacheUpdatedEvent;
+
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+
+type AllowedEvents = never;
+
+/** Messenger type for ProfileService, scoped to its actions and events. */
+export type ProfileServiceMessenger = Messenger<
+  typeof serviceName,
+  ProfileServiceActions | AllowedActions,
+  ProfileServiceEvents | AllowedEvents
+>;
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+/**
+ * Communicates with the MetaMask Profile API and exposes all operations via
+ * the messenger.
+ *
+ * Failed requests throw a {@link ProfileServiceError}, an `HttpError` that
+ * also carries the API error envelope.
+ */
+export class ProfileService extends BaseDataService<
+  typeof serviceName,
+  ProfileServiceMessenger
+> {
+  readonly #baseUrl: string;
+
+  get #v1Url(): string {
+    return `${this.#baseUrl}/v1`;
+  }
+
+  /**
+   * Creates a new ProfileService instance.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger scoped to ProfileService.
+   * @param options.baseUrl - Base URL for the MetaMask Profile API.
+   * @param options.policyOptions - Optional service policy configuration.
+   */
+  constructor({
+    messenger,
+    baseUrl,
+    policyOptions,
+  }: {
+    messenger: ProfileServiceMessenger;
+    baseUrl: string;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    super({ name: serviceName, messenger, policyOptions });
+    this.#baseUrl = baseUrl;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Gets the authentication headers for the request.
+   *
+   * @returns The authentication headers.
+   */
+  async #getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
+   * Executes an authenticated HTTP request and returns the parsed JSON response.
+   *
+   * @param endpoint - The path relative to the v1 base URL.
+   * @param options - Request options.
+   * @param options.method - The HTTP method. Defaults to 'GET'.
+   * @param options.error - The error message to use if the response is not OK.
+   * @param options.json - Optional JSON body. If provided, sets Content-Type and serializes as body.
+   * @returns The parsed JSON response.
+   * @throws {ProfileServiceError} If the response is not a 2xx status code.
+   * The error carries the API error envelope and includes the API-provided
+   * message when the response body contains one.
+   */
+  async #fetch(
+    endpoint: string,
+    options: { method: 'DELETE'; error: string },
+  ): Promise<null>;
+
+  async #fetch<ResponseType extends Json>(
+    endpoint: string,
+    options: {
+      method?: string;
+      error: string;
+      json?: unknown;
+      searchParams?: Record<string, string>;
+    },
+  ): Promise<ResponseType>;
+
+  async #fetch<ResponseType extends Json>(
+    endpoint: string,
+    {
+      method = 'GET',
+      error,
+      json,
+      searchParams,
+    }: {
+      method?: string;
+      error: string;
+      json?: unknown;
+      searchParams?: Record<string, string>;
+    },
+  ): Promise<ResponseType | null> {
+    const authHeaders = await this.#getAuthHeaders();
+    const url = new URL(`${this.#v1Url}/${endpoint}`);
+    if (searchParams) {
+      for (const [key, value] of Object.entries(searchParams)) {
+        url.searchParams.append(key, value);
+      }
+    }
+    const response = await fetch(url.toString(), {
+      ...(method === 'GET' ? {} : { method }),
+      headers: {
+        ...authHeaders,
+        ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      ...(json === undefined ? {} : { body: JSON.stringify(json) }),
+    });
+    if (!response.ok) {
+      const apiError = await readProfileApiError(response);
+      const apiMessage = Array.isArray(apiError?.message)
+        ? apiError.message.map(String).join('; ')
+        : apiError?.message;
+      throw new ProfileServiceError(
+        response.status,
+        apiMessage
+          ? `${error}: ${response.status}: ${apiMessage}`
+          : `${error}: ${response.status}`,
+        apiError,
+      );
+    }
+    if (method === 'DELETE') {
+      return null;
+    }
+    return (await response.json()) as ResponseType;
+  }
+
+  /**
+   * Fetches a profile by its identifier.
+   *
+   * @param profileId - The profile identifier to fetch.
+   * @returns The profile data from the API.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async getProfile(profileId: string): Promise<ProfileApiResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
+      queryFn: async () =>
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            error: ProfileServiceErrorMessage.GET_PROFILE_FAILED,
+          },
+        ),
+    });
+  }
+
+  /**
+   * Creates a new MetaMask profile.
+   *
+   * @param params - The profile creation parameters.
+   * @returns The created profile data.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response do not match the expected shape.
+   */
+  async createProfile(
+    params: CreateProfileParams,
+  ): Promise<CreateProfileResponse> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:createProfile`],
+      responseStruct: CreateProfileResponseStruct,
+      mutationFn: async () =>
+        this.#fetch<CreateProfileResponse>('profiles', {
+          method: 'POST',
+          error: ProfileServiceErrorMessage.CREATE_PROFILE_FAILED,
+          json: params,
+        }),
+    });
+  }
+
+  /**
+   * Fully replaces an existing profile (PUT).
+   *
+   * @param profileId - The identifier of the profile to replace.
+   * @param params - The replacement profile data.
+   * @returns The updated profile data.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response do not match the expected shape.
+   */
+  async replaceProfile(
+    profileId: string,
+    params: ReplaceProfileParams,
+  ): Promise<ProfileApiResponse> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:replaceProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
+      mutationFn: async () =>
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            method: 'PUT',
+            error: ProfileServiceErrorMessage.REPLACE_PROFILE_FAILED,
+            json: params,
+          },
+        ),
+    });
+  }
+
+  /**
+   * Partially updates an existing profile (PATCH).
+   *
+   * @param profileId - The identifier of the profile to update.
+   * @param params - The fields to update.
+   * @returns The updated profile data.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response do not match the expected shape.
+   */
+  async updateProfile(
+    profileId: string,
+    params: UpdateProfileParams,
+  ): Promise<ProfileApiResponse> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:updateProfile`, profileId],
+      responseStruct: ProfileApiResponseStruct,
+      mutationFn: async () =>
+        this.#fetch<ProfileApiResponse>(
+          `profiles/${encodeURIComponent(profileId)}`,
+          {
+            method: 'PATCH',
+            error: ProfileServiceErrorMessage.UPDATE_PROFILE_FAILED,
+            json: params,
+          },
+        ),
+    });
+  }
+
+  /**
+   * Deletes a profile by its identifier.
+   *
+   * @param profileId - The identifier of the profile to delete.
+   * @returns The result of the mutation.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   */
+  async deleteProfile(profileId: string): Promise<void> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:deleteProfile`, profileId],
+      mutationFn: async () =>
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}`, {
+          method: 'DELETE',
+          error: ProfileServiceErrorMessage.DELETE_PROFILE_FAILED,
+        }),
+    });
+  }
+
+  /**
+   * Checks whether a username is available.
+   *
+   * @param username - The username to check.
+   * @returns Availability details including validity and normalized form.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkUsernameAvailability(
+    username: string,
+  ): Promise<UsernameAvailabilityResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkUsernameAvailability`, username],
+      staleTime: 0,
+      responseStruct: UsernameAvailabilityResponseStruct,
+      queryFn: async () =>
+        this.#fetch<UsernameAvailabilityResponse>(
+          'profiles/username/availability',
+          {
+            error:
+              ProfileServiceErrorMessage.CHECK_USERNAME_AVAILABILITY_FAILED,
+            searchParams: { username },
+          },
+        ),
+    });
+  }
+
+  /**
+   * Checks whether a display name is valid.
+   *
+   * @param displayName - The display name to validate.
+   * @returns An object with a `valid` boolean.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkDisplayNameValidity(
+    displayName: string,
+  ): Promise<FieldValidityResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkDisplayNameValidity`, displayName],
+      staleTime: 0,
+      responseStruct: FieldValidityResponseStruct,
+      queryFn: async () =>
+        this.#fetch<FieldValidityResponse>('profiles/display-name/validity', {
+          error: ProfileServiceErrorMessage.CHECK_DISPLAY_NAME_VALIDITY_FAILED,
+          searchParams: { display_name: displayName },
+        }),
+    });
+  }
+
+  /**
+   * Checks whether a bio is valid.
+   *
+   * @param bio - The bio to validate.
+   * @returns An object with a `valid` boolean.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkBioValidity(bio: string): Promise<FieldValidityResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkBioValidity`, bio],
+      staleTime: 0,
+      responseStruct: FieldValidityResponseStruct,
+      queryFn: async () =>
+        this.#fetch<FieldValidityResponse>('profiles/bio/validity', {
+          error: ProfileServiceErrorMessage.CHECK_BIO_VALIDITY_FAILED,
+          searchParams: { bio },
+        }),
+    });
+  }
+
+  /**
+   * Checks whether the authenticated profile has early access.
+   * The profile is resolved server-side from the verified bearer token.
+   *
+   * @returns An object with a `hasAccess` boolean.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkEarlyAccess(): Promise<EarlyAccessResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkEarlyAccess`],
+      staleTime: 0,
+      responseStruct: EarlyAccessResponseStruct,
+      queryFn: async () =>
+        this.#fetch<EarlyAccessResponse>('early-access', {
+          error: ProfileServiceErrorMessage.CHECK_EARLY_ACCESS_FAILED,
+        }),
+    });
+  }
+
+  /**
+   * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+   * The profile is resolved server-side from the verified bearer token.
+   *
+   * @returns An object containing the authorization URL and the state token.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async getXAuthUrl(): Promise<XAuthUrlResponse> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:getXAuthUrl`],
+      responseStruct: XAuthUrlResponseStruct,
+      mutationFn: async () =>
+        this.#fetch<XAuthUrlResponse>('profiles/x/authentication-url', {
+          error: ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
+        }),
+    });
+  }
+
+  /**
+   * Completes the X OAuth PKCE flow and links the X account to the profile.
+   * The profile is resolved server-side from the verified bearer token.
+   *
+   * @param params - The OAuth callback code and state from the X redirect.
+   * @returns The linked X account data.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async connectX(params: ConnectXParams): Promise<ConnectXResponse> {
+    const response = await this.executeMutation({
+      mutationKey: [`${this.name}:connectX`],
+      responseStruct: ConnectXResponseStruct,
+      mutationFn: async () =>
+        this.#fetch<ConnectXResponse>('profiles/x/connect', {
+          method: 'POST',
+          error: ProfileServiceErrorMessage.CONNECT_X_FAILED,
+          json: params,
+        }),
+    });
+    // The response does not identify the profile, so drop every cached
+    // profile: `connected_to_x` is now out of date.
+    await this.invalidateQueries({ queryKey: [`${this.name}:getProfile`] });
+    return response;
+  }
+
+  /**
+   * Fetches the X account currently linked to the authenticated profile.
+   * The profile is resolved server-side from the verified bearer token.
+   *
+   * @returns The linked X account data.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async getXAccount(): Promise<XAccountResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getXAccount`],
+      staleTime: 0,
+      responseStruct: ConnectXResponseStruct,
+      queryFn: async () =>
+        this.#fetch<ConnectXResponse>('profiles/x/account', {
+          error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
+        }),
+    });
+  }
+
+  /**
+   * Disconnects the X account linked to the authenticated profile.
+   * Identity is resolved server-side from the verified bearer token, so the
+   * request targets the shared account endpoint rather than a profile-scoped
+   * path.
+   * A `404` response is treated as success (no X account is linked), making
+   * the operation idempotent.
+   *
+   * @param profileId - The ID of the profile whose cached data should be
+   * invalidated after the disconnection. The API resolves the linked X account
+   * from the bearer token, not from this value.
+   * @returns The result of the mutation.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response other than `404`.
+   */
+  async disconnectX(profileId: string): Promise<void> {
+    await this.executeMutation({
+      mutationKey: [`${this.name}:disconnectX`, profileId],
+      mutationFn: async () => {
+        try {
+          return await this.#fetch('profiles/x/account', {
+            method: 'DELETE',
+            error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
+          });
+        } catch (error) {
+          if (error instanceof HttpError && error.httpStatus === 404) {
+            return null;
+          }
+          throw error;
+        }
+      },
+    });
+    // The cached profile no longer reflects `connected_to_x`.
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getProfile`, profileId],
+    });
+  }
+}

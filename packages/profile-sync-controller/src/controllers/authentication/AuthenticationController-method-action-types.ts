@@ -3,11 +3,30 @@
  * Do not edit manually.
  */
 
-import type { AuthenticationController } from './AuthenticationController';
+import type { AuthenticationController } from './AuthenticationController.js';
 
 export type AuthenticationControllerPerformSignInAction = {
   type: `AuthenticationController:performSignIn`;
   handler: AuthenticationController['performSignIn'];
+};
+
+/**
+ * Exchanges the social access token SeedlessOnboarding holds for the
+ * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+ * access token and the canonical profile it is paired to. Shows no UI and
+ * stores nothing: SRP sessions remain the source of truth for
+ * `getBearerToken`.
+ *
+ * Throws when the wallet has no social login (no known `authConnection`,
+ * whether or not the vault is written yet) or no social token, and
+ * `SocialIdentifierNotPairedError` when the identifier was never paired to
+ * a profile.
+ *
+ * @returns The access token and canonical profile.
+ */
+export type AuthenticationControllerExchangeSocialAccessTokenAction = {
+  type: `AuthenticationController:exchangeSocialAccessToken`;
+  handler: AuthenticationController['exchangeSocialAccessToken'];
 };
 
 /**
@@ -20,9 +39,211 @@ export type AuthenticationControllerRequestProfilePairingAction = {
   handler: AuthenticationController['requestProfilePairing'];
 };
 
+/**
+ * Refreshes credentials enrolled on the canonical profile.
+ *
+ * @returns The current supported credentials.
+ */
+export type AuthenticationControllerRefreshEnrolledCredentialsAction = {
+  type: `AuthenticationController:refreshEnrolledCredentials`;
+  handler: AuthenticationController['refreshEnrolledCredentials'];
+};
+
+/**
+ * Removes a credential from the profile and caches the credentials left.
+ *
+ * The server requires a verification proven with another type of credential
+ * (`cross_type_step_up_required` otherwise) and refuses to remove the last
+ * one (`last_credential`). This sends the verification session: without
+ * one, it throws a `StepUpRequiredError` (`aal2_required`) without calling
+ * the server. The caller verifies with another method through the client
+ * MFA kit first, which decides how recent that verification must be.
+ *
+ * @param request - The credential's `id`, and the trace reason.
+ * @returns The credentials left.
+ */
+export type AuthenticationControllerRemoveCredentialAction = {
+  type: `AuthenticationController:removeCredential`;
+  handler: AuthenticationController['removeCredential'];
+};
+
+/**
+ * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+ * credential.
+ *
+ * @param request - Credential, optional email address, and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginCredentialEnrollmentAction = {
+  type: `AuthenticationController:beginCredentialEnrollment`;
+  handler: AuthenticationController['beginCredentialEnrollment'];
+};
+
+/**
+ * Completes credential enrollment and refreshes the credential cache.
+ *
+ * It is sent with the verification token that began the enrollment, if
+ * any: once a factor is enrolled, the server requires AAL2 for both steps.
+ *
+ * The server returns an assertion for the new credential, which opens a
+ * verification session like `completeCredentialVerification`, replacing
+ * any earlier one. If that exchange fails, the earlier session is kept:
+ * the credential is enrolled either way.
+ *
+ * A cache-refresh failure does not undo successful enrollment. Email
+ * enrollment invalidates the primary SRP session *after* refresh so the
+ * credentials call can reuse the still-valid access token; the next token
+ * fetch then includes the newly verified email claim. That invalidation
+ * happens even if the session ends mid-request: the enrollment succeeded
+ * on the server, so a token cached across a lock must not be reused
+ * without the new claim.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The refreshed credentials, or the existing cache if refresh fails.
+ */
+export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
+  type: `AuthenticationController:completeCredentialEnrollment`;
+  handler: AuthenticationController['completeCredentialEnrollment'];
+};
+
+/**
+ * Begins verification with an enrolled credential.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginCredentialVerificationAction = {
+  type: `AuthenticationController:beginCredentialVerification`;
+  handler: AuthenticationController['beginCredentialVerification'];
+};
+
+/**
+ * Completes verification and opens a short-lived verification session.
+ *
+ * The assertion returned by the MFA service is exchanged at Hydra for an
+ * access token. Its assurance level is not checked: the services receiving
+ * the token enforce their own requirements. The token itself never enters
+ * controller state.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The verification token.
+ */
+export type AuthenticationControllerCompleteCredentialVerificationAction = {
+  type: `AuthenticationController:completeCredentialVerification`;
+  handler: AuthenticationController['completeCredentialVerification'];
+};
+
+/**
+ * Refreshes the credentials enrolled on the profile a social login is
+ * paired to, while the wallet is locked, for the recovery of a social login
+ * wallet.
+ *
+ * Takes its access token from the social login (see
+ * `exchangeSocialAccessToken`), so no keyring or signing is involved. Throws
+ * when the wallet is unlocked: unlocked features use
+ * `refreshEnrolledCredentials`. Nothing is cached.
+ *
+ * @returns The current supported credentials.
+ */
+export type AuthenticationControllerRefreshSocialLoginCredentialsAction = {
+  type: `AuthenticationController:refreshSocialLoginCredentials`;
+  handler: AuthenticationController['refreshSocialLoginCredentials'];
+};
+
+/**
+ * Begins verification with an enrolled credential, while the wallet is
+ * locked, for the recovery of a social login wallet.
+ *
+ * Takes its access token from the social login, like
+ * `refreshSocialLoginCredentials`. Throws when the wallet is unlocked:
+ * unlocked features use `beginCredentialVerification`.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginSocialLoginVerificationAction = {
+  type: `AuthenticationController:beginSocialLoginVerification`;
+  handler: AuthenticationController['beginSocialLoginVerification'];
+};
+
+/**
+ * Completes verification while the wallet is locked and returns the
+ * verification token, for the recovery of a social login wallet.
+ *
+ * Unlike `completeCredentialVerification`, no verification session is
+ * opened: the token goes to the caller alone, so nothing proven here is
+ * readable once the wallet unlocks. Takes its access token from the social
+ * login. Throws when the wallet is unlocked.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The verification token.
+ */
+export type AuthenticationControllerCompleteSocialLoginVerificationAction = {
+  type: `AuthenticationController:completeSocialLoginVerification`;
+  handler: AuthenticationController['completeSocialLoginVerification'];
+};
+
+/**
+ * Returns the active verification token when it meets the requested
+ * freshness.
+ *
+ * Low-level: features should go through the client MFA kit
+ * (`verifyOrEnroll`), which reuses a matching session without showing any
+ * screen and checks which method proved it. Read the token directly only
+ * from code that cannot show UI, and treat `null` as "let the UI layer
+ * ask".
+ *
+ * @param request - Optional maximum session age in milliseconds, measured
+ * from when the token was obtained. Zero always requires a new ceremony.
+ * @returns A live verification token, or null when no reusable session
+ * exists.
+ */
+export type AuthenticationControllerGetVerificationTokenAction = {
+  type: `AuthenticationController:getVerificationToken`;
+  handler: AuthenticationController['getVerificationToken'];
+};
+
+/**
+ * Requests an approval bound to one request (`POST /api/v2/mfa/approvals`),
+ * for the services in `audiences`, such as recovery or signing.
+ *
+ * Shows no UI. When `requireVerification` is set, the approval proves the
+ * verification session: without one, this throws a `StepUpRequiredError`
+ * (`aal2_required`) without calling the server. The server answers the same
+ * way when the verification is too old for it, and that session is then
+ * dropped. Either way, the caller verifies through the client MFA kit
+ * (`verifyOrEnroll`), which runs a new ceremony, and calls again.
+ *
+ * @param request - Request digest, audiences, whether a recent verification
+ * is required, whether to return identifiers, and the trace reason.
+ * @returns The approval, its lifetime and the recovery identifiers.
+ */
+export type AuthenticationControllerRequestMfaApprovalAction = {
+  type: `AuthenticationController:requestMfaApproval`;
+  handler: AuthenticationController['requestMfaApproval'];
+};
+
+/**
+ * Clears every in-memory verification session and its expiration timer,
+ * and the tokens kept for enrollments in progress.
+ */
+export type AuthenticationControllerClearVerificationSessionAction = {
+  type: `AuthenticationController:clearVerificationSession`;
+  handler: AuthenticationController['clearVerificationSession'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
+};
+
+/**
+ * Resets the controller to `defaultState`. Clients call this on wallet reset
+ * so the next wallet starts unsigned with both pairing gates re-armed.
+ */
+export type AuthenticationControllerClearStateAction = {
+  type: `AuthenticationController:clearState`;
+  handler: AuthenticationController['clearState'];
 };
 
 /**
@@ -85,6 +306,40 @@ export type AuthenticationControllerGetUserProfileLineageAction = {
   handler: AuthenticationController['getUserProfileLineage'];
 };
 
+/**
+ * Returns a Customer Service specific access token for the specified SRP,
+ * logging in if needed.
+ *
+ * Exchanges the OIDC access token for a short-lived token scoped to the
+ * customer-service audience. Customer Service tooling consumes this token to
+ * identify and authenticate the user.
+ *
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The customer-service access token.
+ */
+export type AuthenticationControllerGetCustomerServiceTokenAction = {
+  type: `AuthenticationController:getCustomerServiceToken`;
+  handler: AuthenticationController['getCustomerServiceToken'];
+};
+
+/**
+ * Mints a partner identity token for the specified SRP, logging in if needed.
+ *
+ * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+ * the minted `access_token`. Email on live tokens is under JWT `ext`.
+ * HTTP 422 throws `EmailRequiredError` when this profile has no
+ * verified email.
+ *
+ * @param claims - Claim names to embed. Only `email` is supported.
+ * @param audience - Partner audience (`kyc` or `iron`).
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The partner identity access token.
+ */
+export type AuthenticationControllerGetPartnerIdentityTokenAction = {
+  type: `AuthenticationController:getPartnerIdentityToken`;
+  handler: AuthenticationController['getPartnerIdentityToken'];
+};
+
 export type AuthenticationControllerIsSignedInAction = {
   type: `AuthenticationController:isSignedIn`;
   handler: AuthenticationController['isSignedIn'];
@@ -95,10 +350,26 @@ export type AuthenticationControllerIsSignedInAction = {
  */
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerExchangeSocialAccessTokenAction
   | AuthenticationControllerRequestProfilePairingAction
+  | AuthenticationControllerRefreshEnrolledCredentialsAction
+  | AuthenticationControllerRemoveCredentialAction
+  | AuthenticationControllerBeginCredentialEnrollmentAction
+  | AuthenticationControllerCompleteCredentialEnrollmentAction
+  | AuthenticationControllerBeginCredentialVerificationAction
+  | AuthenticationControllerCompleteCredentialVerificationAction
+  | AuthenticationControllerRefreshSocialLoginCredentialsAction
+  | AuthenticationControllerBeginSocialLoginVerificationAction
+  | AuthenticationControllerCompleteSocialLoginVerificationAction
+  | AuthenticationControllerGetVerificationTokenAction
+  | AuthenticationControllerRequestMfaApprovalAction
+  | AuthenticationControllerClearVerificationSessionAction
   | AuthenticationControllerPerformSignOutAction
+  | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
+  | AuthenticationControllerGetCustomerServiceTokenAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
   | AuthenticationControllerIsSignedInAction;

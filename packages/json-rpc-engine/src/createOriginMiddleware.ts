@@ -1,6 +1,6 @@
 import { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { JsonRpcMiddleware } from './JsonRpcEngine';
+import { JsonRpcMiddleware } from './JsonRpcEngine.js';
 
 /**
  * Create a middleware function that adds `origin` to the request object.

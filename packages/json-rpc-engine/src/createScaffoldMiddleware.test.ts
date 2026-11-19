@@ -4,9 +4,10 @@ import {
   assertIsJsonRpcSuccess,
   assertIsJsonRpcFailure,
 } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import type { JsonRpcMiddleware } from '.';
-import { JsonRpcEngine, createScaffoldMiddleware } from '.';
+import type { JsonRpcMiddleware } from './index.js';
+import { JsonRpcEngine, createScaffoldMiddleware } from './index.js';
 
 describe('createScaffoldMiddleware', () => {
   it('basic middleware test', async () => {

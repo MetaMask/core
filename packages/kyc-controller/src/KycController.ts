@@ -1,0 +1,1731 @@
+import type {
+  AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
+  IdentitySharingAudience,
+} from '@metamask/authenticated-user-storage';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
+import { stringToBytes, wrapError } from '@metamask/utils';
+
+import type {
+  KycAnalyticsStatus,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
+import { generateKeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
+import type { KycControllerMethodActions } from './KycController-method-action-types.js';
+import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import type {
+  CapabilityAuthorization,
+  EncryptionSchema,
+} from './KycService.js';
+import {
+  getEmailFromPartnerIdentityToken,
+  isEmailRequiredError,
+} from './partnerIdentityToken.js';
+import {
+  isSumSubFlowFailed,
+  isSumSubPreSubmissionStatus,
+  isSumSubSubmissionStatus,
+} from './providers/sumsub.js';
+import type { KycSumSubLauncher } from './providers/sumsub.js';
+import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
+import {
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
+  KYC_CURRENT_STEPS,
+  KYC_STATUSES,
+} from './types.js';
+import type {
+  KycConsentRecord,
+  KycDataShare,
+  KycDisclaimer,
+  KycDisclaimersCatalog,
+  KycProviderDisclaimersAccepted,
+  KycSessionDisclaimers,
+  KycSessionStatus,
+  KycVendor,
+  KycVendorDisclaimersAccepted,
+  KycVendorSigning,
+} from './types.js';
+import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
+import type { UkycClientMaterial } from './ukyc/deriveClientMaterial.js';
+import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
+import type { Jwk } from './ukyc/jwtChain.js';
+import {
+  getOrCreateLocalUserSecret,
+  UkycLocalUserSecretStore,
+} from './ukyc/localUserSecret.js';
+import {
+  encodeStorageAccessTokenForHeader,
+  signStorageAccessToken,
+} from './ukyc/storageAccessToken.js';
+import type { UkycStorageOperation } from './ukyc/storageAccessToken.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import {
+  areVendorDisclaimersCompleted,
+  recordVendorDisclaimerAcceptance,
+} from './vendorDisclaimers.js';
+
+// === GENERAL ===
+
+export const controllerName = 'KycController';
+
+export const KYC_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+/**
+ * Durable outcome of the identity-provider flow.
+ *
+ * Unlike the KYC session's `finalStatus`, this distinguishes a newly-created
+ * pending session from a provider flow that the customer actually submitted.
+ */
+export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
+
+// Lifetime of the read-only `ukyc_capability_token` minted when creating a
+// UKYC session. The storage-and-auth spec requires the token's `expires_at` to
+// cover the KYC session's expected lifetime — including the provider journey —
+// rather than a fixed short window, so this is a session-scoped window.
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
+
+// Lifetime of the `delete`-scoped `ukyc_capability_token`. The token is minted
+// and presented immediately, so four hours is enough.
+const UKYC_DELETE_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+
+// First wait between UKYC session-status polls. Each later wait grows by this
+// step, so the delays are 10s, 20s, 30s, and so on.
+const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
+
+// After a SumSub close that looks like a submit, how many times, and how far
+// apart, the session status is fetched to see whether idOS left the `kyc` step.
+const SUBMISSION_CHECK_ATTEMPTS = 3;
+const SUBMISSION_CHECK_INTERVAL_MS = 1_000;
+
+/**
+ * Whether idOS still has the applicant on the `kyc` step with no decision,
+ * which means it has not received a SumSub submission.
+ *
+ * @param sessionStatus - Session status from the kyc-api.
+ * @returns Whether the applicant still has documents to submit.
+ */
+function isAwaitingSubmission(sessionStatus: KycSessionStatus): boolean {
+  return (
+    sessionStatus.currentStep === KYC_CURRENT_STEPS.kyc &&
+    !FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)
+  );
+}
+
+// === STATE ===
+
+/**
+ * Describes the shape of the state object for {@link KycController}.
+ */
+export type KycControllerState = {
+  /** Email associated with the session (sourced from the account). */
+  email: string | null;
+
+  vendor: KycVendor | null;
+
+  /** Resolved ISO 3166-1 alpha-3 country code. */
+  geoCountry: string | null;
+
+  /** Latest UKYC session status, or `null` when none has been fetched. */
+  sessionStatus: KycSessionStatus | null;
+
+  /** Last durable identity-provider flow outcome for this session. */
+  providerFlowStatus: KycProviderFlowStatus;
+
+  // TODO: Check if we need truly need to persist these accepted disclaimers
+  /**
+   * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
+   * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
+   * `disclaimerIds`.
+   */
+  vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
+  /**
+   * KYC-provider disclaimer documents the customer accepted during the last
+   * terms acceptance (persisted `{ key, version }` records under `sumsub`).
+   * Consents-path vendors require this when resuming a session. `null` for
+   * acceptance recorded before this field existed (treated as requiring
+   * reacceptance).
+   */
+  providerDisclaimersAccepted: KycProviderDisclaimersAccepted;
+  /**
+   * idOS disclaimer documents the customer accepted during the last terms
+   * acceptance (persisted `{ key, version }` records). Consents-path vendors
+   * require this when resuming a session. `null` for acceptance recorded
+   * before this field existed (treated as requiring reacceptance).
+   */
+  idosDisclaimersAccepted: KycConsentRecord[] | null;
+  /**
+   * Whether the customer consented to reuse existing idOS credentials
+   * during this session. Applied when recording session-scoped disclaimers.
+   * Not persisted: a new UKYC session must collect reuse consent again.
+   * `null` when never set (treated as `false`).
+   */
+  credentialReusabilityConsentGiven: boolean | null;
+};
+
+const kycControllerMetadata = {
+  email: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: false,
+  },
+  vendor: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  geoCountry: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  sessionStatus: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  providerFlowStatus: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  vendorDisclaimersAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  providerDisclaimersAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  idosDisclaimersAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  credentialReusabilityConsentGiven: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+} satisfies StateMetadata<KycControllerState>;
+
+/**
+ * Constructs the default {@link KycVendorDisclaimersAccepted} value.
+ *
+ * @returns The default vendor-disclaimer acceptance map.
+ */
+export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAccepted {
+  return { moonpay: null, iron: null };
+}
+
+/**
+ * Constructs the default {@link KycProviderDisclaimersAccepted} value.
+ *
+ * @returns The default provider-disclaimer acceptance map.
+ */
+export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
+  return { sumsub: null };
+}
+
+/**
+ * Constructs the default {@link KycController} state.
+ *
+ * @returns The default state.
+ */
+export function getDefaultKycControllerState(): KycControllerState {
+  return {
+    email: null,
+    vendor: null,
+    geoCountry: null,
+    sessionStatus: null,
+    providerFlowStatus: 'not_started',
+    vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
+    providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
+    idosDisclaimersAccepted: null,
+    credentialReusabilityConsentGiven: null,
+  };
+}
+
+/**
+ * Parameters for {@link KycController.fetchSessionDisclaimers}. Provide
+ * exactly one of `sessionId` or `country`.
+ */
+export type FetchSessionDisclaimersParams =
+  | {
+      /** UKYC session id from `KycService.createUkycSession`. */
+      sessionId: string;
+      country?: never;
+    }
+  | {
+      /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
+      country: string;
+      sessionId?: never;
+    };
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'ensureLocalUserSecret',
+  'startSession',
+  'reset',
+  'clearState',
+  'getSessionStatusForVendor',
+  'getDataShares',
+  'getProviderFlowStatus',
+  'refreshSessionStatus',
+  'readSessionStatus',
+  'fetchSessionStatusOnce',
+  'startSessionStatusPolling',
+  'fetchSessionDisclaimers',
+  'recordSessionDisclaimers',
+  'hasCompletedSessionDisclaimers',
+  'fetchVendorDisclaimers',
+  'recordVendorDisclaimers',
+  'hasCompletedVendorDisclaimers',
+  'launchProviderFlow',
+  'deleteEncryptedStorage',
+] as const;
+
+export type KycControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  KycControllerState
+>;
+
+export type KycControllerActions =
+  | KycControllerGetStateAction
+  | KycControllerMethodActions;
+
+type AllowedActions =
+  | KycServiceMethodActions
+  | UserStorageControllerPerformGetStorageAction
+  | UserStorageControllerPerformSetStorageAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
+  | AuthenticatedUserStorageServicePutIdentitySharingConsentAction;
+
+export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  KycControllerState
+>;
+
+export type KycControllerEvents = KycControllerStateChangeEvent;
+
+type AllowedEvents = never;
+
+export type KycControllerMessenger = Messenger<
+  typeof controllerName,
+  KycControllerActions | AllowedActions,
+  KycControllerEvents | AllowedEvents
+>;
+
+/**
+ * Options for constructing a {@link KycController}.
+ */
+export type KycControllerOptions = {
+  messenger: KycControllerMessenger;
+  state?: Partial<KycControllerState>;
+  /**
+   * Platform adapter that presents the SumSub SDK. Injected by each client so
+   * the controller stays platform-agnostic.
+   */
+  sumsubLauncher: KycSumSubLauncher;
+  /**
+   * Optional client callbacks that record KYC analytics. Omitted clients
+   * record nothing. See {@link KycAnalyticsTrackers}.
+   */
+  trackKycAnalytics?: KycAnalyticsTrackers;
+};
+
+// === CONTROLLER DEFINITION ===
+
+/**
+ * `KycController` orchestrates the vendor-backed KYC / identity-verification
+ * flow (MoonPay identity + SumSub documents) behind a vendor-neutral, per
+ * product surface used by ramps and card. It owns all state and HTTP
+ * orchestration (via `KycService`), while vendor protocol handling and
+ * platform-specific presentation (WebView/iframe, SumSub SDK) are delegated.
+ */
+export class KycController extends BaseController<
+  typeof controllerName,
+  KycControllerState,
+  KycControllerMessenger
+> {
+  readonly #sumsubLauncher: KycSumSubLauncher;
+
+  readonly #localUserSecretStore: UkycLocalUserSecretStore;
+
+  readonly #trackKycAnalytics?: KycAnalyticsTrackers;
+
+  /** Handle for the scheduled next session-status poll, or `null`. */
+  #sessionStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Monotonic polling token. Bumped when the loop stops so an in-flight fetch
+   * neither writes state nor schedules a follow-up.
+   */
+  #sessionStatusPollToken = 0;
+
+  /**
+   * Constructs a new {@link KycController}.
+   *
+   * @param options - The constructor options.
+   * @param options.messenger - The messenger suited for this controller.
+   * @param options.state - Partial initial state; merged over defaults.
+   * @param options.sumsubLauncher - The platform SumSub launcher adapter.
+   * @param options.trackKycAnalytics - Optional callbacks that record KYC analytics.
+   */
+  constructor({
+    messenger,
+    state,
+    sumsubLauncher,
+    trackKycAnalytics,
+  }: KycControllerOptions) {
+    super({
+      messenger,
+      metadata: kycControllerMetadata,
+      name: controllerName,
+      state: { ...getDefaultKycControllerState(), ...state },
+    });
+
+    this.#sumsubLauncher = sumsubLauncher;
+    this.#trackKycAnalytics = trackKycAnalytics;
+    this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Records identity-sharing consent for the vendor's audience, then mints a
+   * partner identity token and reads the verified email claim from JWT `ext`.
+   *
+   * @param vendor - Identity vendor whose partner audience to request.
+   * @returns The minted token and its verified email, or `null` when the
+   * profile has no verified email (HTTP 422 / `EmailRequiredError`).
+   */
+  async #getPartnerIdentityForVendor(vendor: KycVendor): Promise<{
+    partnerIdentityToken: string;
+    email: string;
+  } | null> {
+    // TODO: Fix this typing. Safe for now as only Iron is used
+    const audience = vendor as IdentitySharingAudience;
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+      { audience, granted: true },
+    );
+    let partnerIdentityToken: string;
+    try {
+      partnerIdentityToken = await this.messenger.call(
+        'AuthenticationController:getPartnerIdentityToken',
+        ['email'],
+        audience,
+      );
+    } catch (error) {
+      if (isEmailRequiredError(error)) {
+        return null;
+      }
+      throw error;
+    }
+    return {
+      partnerIdentityToken,
+      email: getEmailFromPartnerIdentityToken(partnerIdentityToken),
+    };
+  }
+
+  /**
+   * Creates the UKYC `local_user_secret` and stores it in Encrypted User
+   * Storage when one does not already exist.
+   *
+   * Call this after the user has expressed intent to onboard and before
+   * {@link startSession}. Persisting the secret here moves generation and the
+   * storage write off the `startSession` path. `startSession` still reads the
+   * secret, and still creates it when this has not been called.
+   *
+   * Await this call, or attach a rejection handler. A failure does not block
+   * onboarding: {@link startSession} creates the secret if it is still missing.
+   *
+   * The operation is idempotent and uses the same primary entropy source as
+   * session creation. The plaintext secret is not returned and is not sent to
+   * idOS. Only the encrypted User Storage copy is synced.
+   *
+   * @throws When Encrypted User Storage cannot be read or written, or when a
+   * stored secret has an unexpected length.
+   */
+  async ensureLocalUserSecret(): Promise<void> {
+    await getOrCreateLocalUserSecret(this.#localUserSecretStore);
+  }
+
+  /**
+   * Starts a KYC session for the given vendor. Reuses a latest vendor session
+   * when one exists; otherwise creates a UKYC session.
+   *
+   * The verified email stored on controller state comes from the partner
+   * identity token. When that request returns HTTP 422, a stored email is
+   * kept for an existing session. Creating a vendor customer and UKYC session
+   * requires the token, which both requests send as `partnerIdentityToken`.
+   *
+   * Session creation derives client material from the UKYC
+   * `local_user_secret`. Call {@link ensureLocalUserSecret} after the user
+   * has expressed intent to onboard so that secret is generated and stored
+   * before this method runs.
+   *
+   * @param params - The session parameters.
+   * @param params.vendor - Identity vendor for the session.
+   * @param params.aal2Token - AAL2 authentication token. Required only when a
+   * UKYC session must be created, where it is sent as the Authorization bearer
+   * value. Omit it when reusing an existing session.
+   * @returns The current or newly created session status.
+   */
+  async startSession(params: {
+    vendor: KycVendor;
+    aal2Token?: string;
+  }): Promise<KycSessionStatus> {
+    const partnerIdentity = await this.#getPartnerIdentityForVendor(
+      params.vendor,
+    );
+    const email = partnerIdentity?.email ?? this.state.email;
+    if (!email) {
+      throw new Error('KycController missing verified email for vendor');
+    }
+    if (this.state.email !== null && this.state.email !== email) {
+      throw new Error(
+        'KycController already initialized with a different email',
+      );
+    }
+    if (this.state.vendor !== null && this.state.vendor !== params.vendor) {
+      throw new Error(
+        'KycController already initialized with a different vendor',
+      );
+    }
+
+    const geoCountry = await this.messenger.call('KycService:getGeoCountry');
+    if (
+      this.state.geoCountry !== null &&
+      this.state.geoCountry !== geoCountry
+    ) {
+      throw new Error(
+        'KycController already initialized with a different geoCountry',
+      );
+    }
+
+    this.update((state) => {
+      state.email = email;
+      state.vendor = params.vendor;
+      state.geoCountry = geoCountry;
+      if (state.sessionStatus === null) {
+        state.providerFlowStatus = 'not_started';
+      }
+    });
+
+    if (this.state.sessionStatus === null) {
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatusForVendor',
+        params.vendor,
+      );
+      if (sessionStatus !== null) {
+        this.update((state) => {
+          state.sessionStatus = sessionStatus;
+        });
+        return this.#refreshAuthorizationsIfNeeded();
+      }
+
+      // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
+      // It's assumed that if the session does not exist, the customer does not exist either
+      if (!params.aal2Token) {
+        throw new Error(
+          'KycController.startSession: aal2Token is required to create a KYC session.',
+        );
+      }
+
+      if (!partnerIdentity) {
+        throw new Error(
+          'KycController missing partner identity token for vendor',
+        );
+      }
+
+      await this.messenger.call('KycService:createVendorCustomer', {
+        vendor: params.vendor,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+      });
+
+      return this.#createUkycSession({
+        vendor: params.vendor,
+        geoCountry,
+        aal2Token: params.aal2Token,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+      });
+    }
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId: this.state.sessionStatus.id },
+    );
+
+    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+    // TODO: Should we resume polling here?
+    return this.#refreshAuthorizationsIfNeeded();
+  }
+
+  /**
+   * Stops session-status polling and restores default controller state.
+   */
+  async reset(): Promise<void> {
+    this.#stopSessionStatusPolling();
+    this.clearState();
+  }
+
+  /**
+   * Restores the controller to its default state.
+   */
+  clearState(): void {
+    this.#stopSessionStatusPolling();
+    this.update((state) => {
+      state.email = null;
+      state.vendor = null;
+      state.geoCountry = null;
+      state.sessionStatus = null;
+      state.providerFlowStatus = 'not_started';
+      state.vendorDisclaimersAccepted =
+        getDefaultKycVendorDisclaimersAccepted();
+      state.providerDisclaimersAccepted =
+        getDefaultKycProviderDisclaimersAccepted();
+      state.idosDisclaimersAccepted = null;
+      state.credentialReusabilityConsentGiven = null;
+    });
+  }
+
+  /**
+   * Fetches the latest UKYC session status for a vendor.
+   *
+   * @param vendor - Identity vendor whose latest session should be queried.
+   * @returns The session status, or `null` when none exists.
+   */
+  getSessionStatusForVendor(
+    vendor: KycVendor,
+  ): Promise<KycSessionStatus | null> {
+    return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
+  }
+
+  /**
+   * Fetches the vendors this customer's verified identity data has been shared
+   * with, newest first.
+   *
+   * The external user id comes from the session status on state. When no
+   * session has been stored yet, the latest session for the vendor on state is
+   * fetched first (without writing it to state). An unresolvable session — no
+   * vendor on state, or no latest session for it — yields an empty list rather
+   * than an error, so consumers can render an empty "shared with" list.
+   *
+   * @returns The data shares, newest first; empty when no session can be
+   * resolved.
+   */
+  async getDataShares(): Promise<KycDataShare[]> {
+    let externalUserId = this.state.sessionStatus?.externalUserId;
+
+    if (!externalUserId) {
+      const { vendor } = this.state;
+      if (!vendor) {
+        return [];
+      }
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatusForVendor',
+        vendor,
+      );
+      if (!sessionStatus) {
+        return [];
+      }
+      externalUserId = sessionStatus.externalUserId;
+    }
+
+    return this.messenger.call('KycService:getDataShares', { externalUserId });
+  }
+
+  /**
+   * Returns the durable outcome of the identity-provider flow.
+   *
+   * @returns The latest provider-flow status.
+   */
+  getProviderFlowStatus(): KycProviderFlowStatus {
+    return this.state.providerFlowStatus;
+  }
+
+  // TODO: Perhaps this should be renamed to resumeSession()?
+  /**
+   * Returns the session already stored on state.
+   *
+   * Starts session-status polling when `finalStatus` is not `approved`,
+   * `rejected`, or `retry`. Does not fetch status or refresh capability
+   * authorization.
+   *
+   * @returns The session status stored at call time.
+   * @throws If there is no session on state.
+   */
+  refreshSessionStatus(): KycSessionStatus {
+    if (!this.state.sessionStatus) {
+      throw new Error('No session was found');
+    }
+    if (
+      !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
+    ) {
+      this.startSessionStatusPolling();
+    }
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Returns the persisted session status.
+   *
+   * Does not call the network and does not start session-status polling.
+   *
+   * @returns The session on state, or `null` when none is stored.
+   */
+  readSessionStatus(): KycSessionStatus | null {
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+   *
+   * Does not start the session-status polling timer.
+   *
+   * @param sessionId - UKYC session id.
+   * @returns The fetched session status.
+   */
+  async fetchSessionStatusOnce(sessionId: string): Promise<KycSessionStatus> {
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+    return sessionStatus;
+  }
+
+  /**
+   * Starts polling `GET /sessions/{id}/status` for
+   * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
+   * the result onto state only when the payload changed. The first poll runs
+   * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+   * after every poll, including a failed one. Starting the loop again resets
+   * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+   * or `retry`, or when {@link reset} / {@link clearState} runs.
+   *
+   * @throws If there is no current session id to poll.
+   */
+  startSessionStatusPolling(): void {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!sessionId) {
+      throw new Error('No session was found');
+    }
+
+    this.#stopSessionStatusPolling();
+    const token = this.#sessionStatusPollToken;
+    let completedPolls = 0;
+
+    const tick = async (): Promise<void> => {
+      const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
+      if (shouldStop) {
+        return;
+      }
+      completedPolls += 1;
+      this.#sessionStatusPollTimer = setTimeout(() => {
+        this.#sessionStatusPollTimer = null;
+        // `tick` swallows its own errors and therefore never rejects.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        tick();
+      }, SESSION_STATUS_POLL_INTERVAL_MS * completedPolls);
+      this.#sessionStatusPollTimer.unref?.();
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    tick();
+  }
+
+  /**
+   * Fetches session status for the polled session and records it when it
+   * differs from state.
+   *
+   * @param sessionId - Session the loop started for.
+   * @param token - Polling token captured when the loop started.
+   * @returns Whether the loop should stop.
+   */
+  async #pollSessionStatusOnce(
+    sessionId: string,
+    token: number,
+  ): Promise<boolean> {
+    try {
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatus',
+        { sessionId },
+      );
+      if (this.#sessionStatusPollToken !== token) {
+        return true;
+      }
+
+      // TODO: This check seems fragile
+      if (
+        JSON.stringify(this.state.sessionStatus) !==
+        JSON.stringify(sessionStatus)
+      ) {
+        this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+      }
+
+      if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
+        this.#stopSessionStatusPolling();
+        return true;
+      }
+      return false;
+    } catch {
+      return this.#sessionStatusPollToken !== token;
+    }
+  }
+
+  // === ANALYTICS ===
+  //
+  // The private methods from here to `#stopSessionStatusPolling` only compute
+  // analytics payloads and call `trackKycAnalytics`. Business methods call the
+  // `...AndTrackAnalytics` wrappers in place of a plain `this.update`, so the
+  // state write itself is unchanged and the analytics step is named at each
+  // call site.
+
+  /**
+   * Computes the analytics KYC status from the current state.
+   *
+   * @returns The analytics KYC status.
+   */
+  #getKycAnalyticsStatus(): KycAnalyticsStatus {
+    return getKycAnalyticsStatus(this.state.sessionStatus);
+  }
+
+  /**
+   * Reports one SumSub launch outcome through `trackKycAnalytics`.
+   *
+   * A callback exception is ignored. The KYC outcome is already stored, and
+   * analytics must not replace it or skip the polling that follows a submit.
+   *
+   * @param status - The launch outcome.
+   */
+  #trackAnalyticsVerificationOutcome(
+    status: KycAnalyticsVerificationOutcomePayload['status'],
+  ): void {
+    try {
+      this.#trackKycAnalytics?.verificationOutcome({
+        status,
+        kycStatus: this.#getKycAnalyticsStatus(),
+        providerFlowStatus: this.state.providerFlowStatus,
+        vendor: this.state.vendor,
+      });
+    } catch {
+      // The host's tracker failed. The launch outcome stays as written.
+    }
+  }
+
+  /**
+   * Reports an analytics KYC status change when it differs from the status
+   * before the causing write.
+   *
+   * A callback exception is ignored, so a tracker failure cannot keep a
+   * finished session polling.
+   *
+   * @param previousAnalyticsStatus - Analytics KYC status before the causing write.
+   */
+  #trackAnalyticsStatusIfChanged(
+    previousAnalyticsStatus: KycAnalyticsStatus,
+  ): void {
+    const kycStatus = this.#getKycAnalyticsStatus();
+    if (kycStatus === previousAnalyticsStatus) {
+      return;
+    }
+    try {
+      this.#trackKycAnalytics?.statusChanged({
+        previousKycStatus: previousAnalyticsStatus,
+        kycStatus,
+        providerFlowStatus: this.state.providerFlowStatus,
+        vendor: this.state.vendor,
+      });
+    } catch {
+      // The host's tracker failed. The stored session stays as written.
+    }
+  }
+
+  /**
+   * Replaces the stored session status, then reports an analytics KYC status
+   * change when one occurred. State is written before the callback runs.
+   *
+   * Writes that load a session into an empty slot must not use this helper, so
+   * an already-decided session found on a fresh install is not reported.
+   *
+   * A stored `submitted` outcome becomes `abandoned` when idOS shows that the
+   * submission never arrived, so a client that recorded one can resume.
+   *
+   * @param sessionStatus - The session status to store.
+   */
+  #updateSessionStatusAndTrackAnalytics(sessionStatus: KycSessionStatus): void {
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+      if (
+        state.providerFlowStatus === 'submitted' &&
+        isAwaitingSubmission(sessionStatus)
+      ) {
+        state.providerFlowStatus = 'abandoned';
+      }
+    });
+    this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
+  }
+
+  /**
+   * Applies the state write for one SumSub launch attempt, then reports the
+   * launch outcome and, if the write changed the analytics KYC status (a
+   * submitted launch moves it to `pending`), the status change. Every attempt
+   * is reported, including a repeat of the previous outcome. Pass no `update`
+   * for failures that must not write state.
+   *
+   * @param status - The launch outcome.
+   * @param update - Optional state write applied before the callbacks run.
+   */
+  #recordLaunchOutcomeAndTrackAnalytics(
+    status: 'submitted' | 'abandoned' | 'failed',
+    update?: (state: KycControllerState) => void,
+  ): void {
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
+    if (update) {
+      this.update(update);
+    }
+    this.#trackAnalyticsVerificationOutcome(status);
+    this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
+  }
+
+  /**
+   * Stops the session-status polling loop.
+   */
+  #stopSessionStatusPolling(): void {
+    this.#sessionStatusPollToken += 1;
+    if (this.#sessionStatusPollTimer !== null) {
+      clearTimeout(this.#sessionStatusPollTimer);
+      this.#sessionStatusPollTimer = null;
+    }
+  }
+
+  /**
+   * Creates or reuses a UKYC session, wraps the `data_encryption_key` and
+   * `ukyc_capability_token` against the returned encryption schemas, and
+   * submits both via authorizations. Stores the resulting session status.
+   * kyc-api returns the existing session if one with the same vendor and
+   * canonicalUserId already exists.
+   *
+   * @param params - Vendor, country, and tokens used to create the session.
+   * @param params.vendor - Identity vendor for the UKYC session.
+   * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for session creation.
+   * @param params.partnerIdentityToken - Partner identity token minted for
+   * the vendor's audience.
+   * @returns The created or refreshed session status.
+   */
+  async #createUkycSession(params: {
+    vendor: KycVendor;
+    geoCountry: string;
+    aal2Token: string;
+    partnerIdentityToken: string;
+  }): Promise<KycSessionStatus> {
+    // Establish a per-session X25519 keypair used to seal both secrets. The
+    // private half stays on the device; the public half is registered on the
+    // session so the server can open later authorizations. Each encryption
+    // schema from session creation supplies the matching server public key.
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
+    // Residence is the ISO 3166-1 alpha-3 country already resolved for
+    // disclaimers / KYC-required; fetch it if this sub-flow started without
+    // that earlier step.
+    const {
+      sessionId,
+      encryptionDataKey: encryptionDataKeySchema,
+      ukycCapabilityToken: capabilityTokenSchema,
+    } = await this.messenger.call('KycService:createUkycSession', {
+      sessionClientPublicKey,
+      residenceCountry: params.geoCountry,
+      vendor: params.vendor,
+      aal2Token: params.aal2Token,
+      partnerIdentityToken: params.partnerIdentityToken,
+    });
+
+    return this.#setAuthorizations({
+      sessionId,
+      sessionClientPrivateKey,
+      sessionClientPublicKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    });
+  }
+
+  /**
+   * Verifies encryption schemas, wraps the `data_encryption_key` and
+   * `ukyc_capability_token`, and submits both via
+   * {@link KycService.setAuthorizations}. Stores the resulting session status.
+   *
+   * @param params - Session key material and encryption schemas.
+   * @param params.sessionId - UKYC session id to authorize.
+   * @param params.sessionClientPrivateKey - Per-session X25519 private key
+   * used to seal both secrets.
+   * @param params.sessionClientPublicKey - Matching public key registered on
+   * the session (must correspond to `sessionClientPrivateKey`).
+   * @param params.encryptionDataKeySchema - Encryption schema for the data
+   * encryption key.
+   * @param params.capabilityTokenSchema - Encryption schema for the capability
+   * token.
+   * @returns The session status after authorizations are applied.
+   */
+  async #setAuthorizations(params: {
+    sessionId: string;
+    sessionClientPrivateKey: Uint8Array;
+    sessionClientPublicKey: string;
+    encryptionDataKeySchema: EncryptionSchema;
+    capabilityTokenSchema: EncryptionSchema;
+  }): Promise<KycSessionStatus> {
+    const {
+      sessionId,
+      sessionClientPrivateKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    } = params;
+
+    await this.#verifyWrappingKeys(
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    );
+
+    const { wrappedEncryptionDataKey, wrappedUkycCapabilityToken } =
+      await this.#generateWrappedAuthorizations(
+        sessionClientPrivateKey,
+        encryptionDataKeySchema,
+        capabilityTokenSchema,
+      );
+
+    const sessionStatus = await this.messenger.call(
+      'KycService:setAuthorizations',
+      {
+        sessionId,
+        wrappedEncryptionDataKey,
+        wrappedUkycCapabilityToken,
+      },
+    );
+
+    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+
+    return sessionStatus;
+  }
+
+  /**
+   * Mints a new per-session X25519 keypair, reissues wrapping keys for the
+   * current session, and submits wrapped authorizations.
+   *
+   * @returns The session status after authorizations are applied.
+   * @throws If there is no session on state.
+   */
+  async #refreshAuthorizations(): Promise<KycSessionStatus> {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!sessionId) {
+      throw new Error('No session was found');
+    }
+
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
+
+    const {
+      encryptionDataKey: encryptionDataKeySchema,
+      ukycCapabilityToken: capabilityTokenSchema,
+    } = await this.messenger.call('KycService:resetWrappingKeys', {
+      sessionId,
+      sessionClientPublicKey,
+    });
+
+    return this.#setAuthorizations({
+      sessionId,
+      sessionClientPrivateKey,
+      sessionClientPublicKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    });
+  }
+
+  /**
+   * Refreshes and resubmits the UKYC capability authorization when the current
+   * session reports it as `new` or `expired`. Uses the `sessionStatus` already
+   * on state (callers are responsible for refreshing status when needed).
+   * No-ops when KYC has already finished (`finalStatus` is `approved` or
+   * `rejected`) or the capability token is `pending`, `stored`, or `wiped`.
+   *
+   * @returns The current or refreshed session status.
+   * @throws If there is no session on state when a refresh is required.
+   */
+  async #refreshAuthorizationsIfNeeded(): Promise<KycSessionStatus> {
+    const { sessionStatus } = this.state;
+    if (!sessionStatus) {
+      throw new Error('No session was found');
+    }
+
+    if (!needsCapabilityAuthorizationRefresh(sessionStatus)) {
+      return sessionStatus;
+    }
+    return this.#refreshAuthorizations();
+  }
+
+  /**
+   * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+   * `sessionId` or `country`:
+   *
+   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+   *   (`GET /sessions/{sessionId}/disclaimers`)
+   * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+   *   (`GET /disclaimers?country=`)
+   *
+   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+   *
+   * @param params - The parameters. Provide exactly one of `sessionId` or
+   * `country`.
+   * @param params.sessionId - The UKYC session id.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog. Session fetches include consent state; country
+   * fetches do not.
+   */
+  async fetchSessionDisclaimers(
+    params: FetchSessionDisclaimersParams,
+  ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
+    const { sessionId, country } = params as {
+      sessionId?: string;
+      country?: string;
+    };
+    if (sessionId && country) {
+      throw new Error(
+        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+      );
+    }
+
+    if (country) {
+      return this.messenger.call(
+        'KycService:fetchSessionDisclaimersByCountry',
+        { country },
+      );
+    }
+
+    if (!sessionId) {
+      throw new Error(
+        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+      );
+    }
+
+    const catalog = await this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      { sessionId },
+    );
+    return catalog;
+  }
+
+  /**
+   * Fetches the session-scoped disclaimer catalog and records consents
+   * derived from the T&C2 flags. Already-consented catalog rows are omitted
+   * from the POST. A 409 is re-checked with a GET: continue only when every
+   * accepted document is now consented, otherwise fail closed.
+   *
+   * @param params - Accepted session-disclaimer records.
+   * @param params.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+   * @param params.credentialReusabilityConsentGiven - Whether credential
+   * reuse was accepted.
+   */
+  async recordSessionDisclaimers(params: {
+    providerDisclaimersAccepted: KycConsentRecord[];
+    idosDisclaimersAccepted: KycConsentRecord[];
+    credentialReusabilityConsentGiven: boolean;
+  }): Promise<void> {
+    if (!this.state.sessionStatus) {
+      throw new Error('No session was found');
+    }
+
+    // TODO: Check if these can simply be mapped to `{key, version}` pairs instead
+    const disclaimers = await this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      { sessionId: this.state.sessionStatus.id },
+    );
+
+    const idOS = consentRecordsFromAcceptedList(
+      disclaimers.idOS,
+      params.idosDisclaimersAccepted,
+    );
+    const kycProvider = consentRecordsFromAcceptedList(
+      disclaimers.kycProvider,
+      params.providerDisclaimersAccepted,
+    );
+
+    try {
+      await this.messenger.call('KycService:submitSessionDisclaimers', {
+        sessionId: this.state.sessionStatus.id,
+        idOS,
+        kycProvider,
+        credentialReusabilityConsentGiven:
+          params.credentialReusabilityConsentGiven,
+      });
+    } catch {
+      // A 409 means the session already recorded these consents.
+    }
+    this.update((state) => {
+      // TODO: This shouldn't be hardcoded to sumsub
+      state.providerDisclaimersAccepted.sumsub =
+        params.providerDisclaimersAccepted;
+      state.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
+      state.credentialReusabilityConsentGiven =
+        params.credentialReusabilityConsentGiven;
+    });
+  }
+
+  /**
+   * Fetches the current session status and reports whether consent was given.
+   *
+   * @returns Whether `consentStatus` is `given`.
+   * @throws If there is no session on state.
+   */
+  async hasCompletedSessionDisclaimers(): Promise<boolean> {
+    if (!this.state.sessionStatus) {
+      throw new Error('No session was found');
+    }
+
+    // TODO: remove this explicit call to the service and use the state directly
+    // after we have established the pattern for resuming a session after wallet
+    // restart more concretely
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId: this.state.sessionStatus.id },
+    );
+
+    return sessionStatus.consentStatus === 'given';
+  }
+
+  /**
+   * Fetches the vendor T&Cs the customer must accept before a session is
+   * created (`GET /vendors/{vendor}/disclaimers?country=`).
+   *
+   * @param params - The parameters.
+   * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The disclaimers.
+   */
+  async fetchVendorDisclaimers(params: {
+    vendor?: KycVendor;
+    country: string;
+  }): Promise<KycDisclaimer[]> {
+    return this.messenger.call('KycService:fetchVendorDisclaimers', params);
+  }
+
+  /**
+   * Records vendor T&C acceptance via {@link KycService.submitVendorDisclaimers}
+   * and persists the accepted ids on state.
+   *
+   * @param params - The parameters.
+   * @param params.disclaimerIds - Accepted vendor T&C ids.
+   * @returns The vendor signing records.
+   * @throws If `vendor` is missing from state.
+   */
+  async recordVendorDisclaimers(params: {
+    disclaimerIds: string[];
+  }): Promise<KycVendorSigning[]> {
+    if (!this.state.vendor) {
+      throw new Error('No vendor was found');
+    }
+
+    if (!this.state.email) {
+      throw new Error('No email was found');
+    }
+
+    const { vendor } = this.state;
+
+    const signings = await this.messenger.call(
+      'KycService:submitVendorDisclaimers',
+      {
+        vendor,
+        disclaimerIds: params.disclaimerIds,
+      },
+    );
+
+    // TODO: this only works for Iron right now
+    this.update((state) => {
+      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
+        state.vendorDisclaimersAccepted,
+        vendor,
+        {
+          disclaimerIds: params.disclaimerIds,
+        },
+      );
+    });
+
+    return signings;
+  }
+
+  /**
+   * Fetches the current vendor T&C catalog and returns whether every document
+   * is already recorded in {@link KycControllerState.vendorDisclaimersAccepted}.
+   *
+   * @returns Whether persisted acceptance covers the fetched catalog.
+   * @throws If `vendor` or `geoCountry` is missing from state.
+   */
+  async hasCompletedVendorDisclaimers(): Promise<boolean> {
+    if (!this.state.vendor) {
+      throw new Error('No vendor was found');
+    }
+    if (!this.state.geoCountry) {
+      throw new Error('No geoCountry was found');
+    }
+
+    const fetched = await this.fetchVendorDisclaimers({
+      vendor: this.state.vendor,
+      country: this.state.geoCountry,
+    });
+
+    // TODO: this only works for Iron right now
+    return areVendorDisclaimersCompleted(
+      this.state.vendorDisclaimersAccepted,
+      this.state.vendor,
+      fetched,
+    );
+  }
+
+  /**
+   * Deletes the caller's encrypted KYC blobs from MetaMask servers.
+   *
+   * Mints a fresh X25519 keypair, fetches a wrapping key from
+   * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
+   * lifetime, client-presented) for that key, and submits it to
+   * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+   * with `params.aal2Token`. Does not clear controller state.
+   *
+   * @param params - The deletion parameters.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for both deletion requests.
+   */
+  async deleteEncryptedStorage(params: { aal2Token: string }): Promise<void> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycController.deleteEncryptedStorage: aal2Token is required to delete encrypted KYC storage.',
+      );
+    }
+
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
+
+    const { deletionId, ukycCapabilityToken: capabilityTokenSchema } =
+      await this.messenger.call('KycService:createDeletion', {
+        sessionClientPublicKey,
+        aal2Token: params.aal2Token,
+      });
+
+    await this.#verifyCapabilityTokenSchema(capabilityTokenSchema);
+
+    const clientMaterial = await this.#getClientMaterial();
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
+      clientMaterial,
+      sessionClientPrivateKey,
+      serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
+      operations: ['delete'],
+      expiresAt: new Date(Date.now() + UKYC_DELETE_CAPABILITY_TOKEN_TTL_MS),
+    });
+
+    await this.messenger.call('KycService:completeDeletion', {
+      deletionId,
+      wrappedUkycCapabilityToken,
+      aal2Token: params.aal2Token,
+    });
+  }
+
+  /**
+   * Presents the identity-provider verification UI. Currently launches SumSub.
+   *
+   * @param params - Optional SDK presentation options.
+   * @param params.locale - BCP-47 locale for the SDK UI.
+   * @param params.debug - Enables SDK debug logging.
+   * @returns The durable provider-flow outcome.
+   */
+  launchProviderFlow({
+    locale,
+    debug,
+  }: {
+    locale?: string;
+    debug?: boolean;
+  }): Promise<KycProviderFlowStatus> {
+    // Currently only sumsub is supported and must be used for Iron
+    return this.#launchSumsubFlow({ locale, debug });
+  }
+
+  /**
+   * Runs the SumSub document-verification sub-flow end to end:
+   *
+   *  1. fetches the SumSub applicant access token; and
+   *  2. presents the SDK via the injected launcher.
+   *
+   * Capability authorization must already be valid on
+   * {@link KycControllerState.sessionStatus} (see
+   * {@link KycController.#refreshAuthorizationsIfNeeded}).
+   *
+   * @param params - Optional parameters.
+   * @param params.locale - BCP-47 locale for the SDK UI.
+   * @param params.debug - Enables SDK debug logging.
+   * @returns The durable provider-flow outcome.
+   */
+  async #launchSumsubFlow(params?: {
+    locale?: string;
+    debug?: boolean;
+  }): Promise<KycProviderFlowStatus> {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
+      this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
+        state.providerFlowStatus = 'failed';
+      });
+      return 'failed';
+    }
+
+    try {
+      // TODO: check if the sumsub and idos disclaimers are accepted
+      const { applicantAccessToken } = await this.messenger.call(
+        'KycService:createJourney',
+        sessionId,
+      );
+
+      // Whether the applicant submitted during this launch, and whether the SDK
+      // reported its own failure. A resolved `launch` alone does not imply
+      // success: the applicant may have abandoned the flow, or the SDK may
+      // have reported that it could not run.
+      let submitted = false;
+      let sdkFailed = false;
+
+      const result = await this.#sumsubLauncher.launch({
+        applicantAccessToken,
+        onTokenExpiration: async () => {
+          const journey = await this.messenger.call(
+            'KycService:createJourney',
+            sessionId,
+          );
+          return journey.applicantAccessToken;
+        },
+        onStatusChange: (_prev, next) => {
+          // A review decision keeps the previous value, so a decision the SDK
+          // opens on is not a submission but one that follows it still is.
+          if (isSumSubSubmissionStatus(next)) {
+            submitted = true;
+          } else if (isSumSubPreSubmissionStatus(next)) {
+            submitted = false;
+          }
+          if (isSumSubFlowFailed(next)) {
+            sdkFailed = true;
+          }
+        },
+        locale: params?.locale ?? 'en',
+        debug: params?.debug ?? false,
+      });
+
+      // Some native SDKs resolve with their final status without first
+      // delivering the corresponding state-change callback.
+      submitted ||= isSumSubSubmissionStatus(result.status);
+      sdkFailed ||= isSumSubFlowFailed(result.status);
+
+      const currentSessionStatus = this.state.sessionStatus;
+      if (currentSessionStatus?.id !== sessionId) {
+        this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+        return 'failed';
+      }
+
+      if (sdkFailed) {
+        this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
+          state.providerFlowStatus = 'failed';
+        });
+        return 'failed';
+      }
+
+      if (submitted) {
+        const unsubmittedSessionStatus =
+          await this.#getUnsubmittedSessionStatus(sessionId);
+        const latestSessionStatus = this.state.sessionStatus;
+        if (latestSessionStatus?.id !== sessionId) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+          return 'failed';
+        }
+
+        if (unsubmittedSessionStatus) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
+            state.sessionStatus = unsubmittedSessionStatus;
+            state.providerFlowStatus = 'abandoned';
+          });
+          return 'abandoned';
+        }
+
+        // Once the SDK completes, the authoritative verification decision comes
+        // from the UKYC backend, not the SDK result.
+        this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {
+          state.sessionStatus = {
+            ...latestSessionStatus,
+            finalStatus: KYC_STATUSES.pending,
+            // The applicant has submitted documents, so the session is in
+            // vendor processing rather than still on the `kyc` step.
+            currentStep: KYC_CURRENT_STEPS.processing,
+          };
+          state.providerFlowStatus = 'submitted';
+        });
+        this.startSessionStatusPolling();
+        return 'submitted';
+      }
+
+      this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
+        state.providerFlowStatus = 'abandoned';
+      });
+      return 'abandoned';
+    } catch {
+      if (this.state.sessionStatus?.id === sessionId) {
+        this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
+          state.providerFlowStatus = 'failed';
+        });
+      } else {
+        this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+      }
+      return 'failed';
+    }
+  }
+
+  /**
+   * Checks whether idOS received a SumSub submission. SumSub reports `Pending`
+   * on some pages partway through its flow, so closing there looks like a
+   * submit, while idOS keeps the session on the `kyc` step with no decision.
+   * The status is fetched up to {@link SUBMISSION_CHECK_ATTEMPTS} times so a
+   * real submit that idOS has not processed yet still counts.
+   *
+   * @param sessionId - Session the SDK ran for.
+   * @returns The last status when idOS still has the applicant on the `kyc`
+   * step, or `null` when it shows a submission or a request fails.
+   */
+  async #getUnsubmittedSessionStatus(
+    sessionId: string,
+  ): Promise<KycSessionStatus | null> {
+    let sessionStatus: KycSessionStatus | null = null;
+    for (let attempt = 0; attempt < SUBMISSION_CHECK_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, SUBMISSION_CHECK_INTERVAL_MS),
+        );
+      }
+      try {
+        sessionStatus = await this.messenger.call(
+          'KycService:getSessionStatus',
+          { sessionId },
+        );
+      } catch {
+        return null;
+      }
+      if (!isAwaitingSubmission(sessionStatus)) {
+        return null;
+      }
+    }
+    return sessionStatus;
+  }
+
+  /**
+   * Verifies the deletion wrapping key. A deletion response carries only the
+   * `ukycCapabilityToken` schema, attested by the idOS relay.
+   *
+   * Fetch and verification failures are rethrown as a short message suitable
+   * for display. The original error is preserved on `cause`.
+   *
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When the relay signing keys cannot be fetched, or the schema's
+   * `jwtChain` does not verify.
+   */
+  async #verifyCapabilityTokenSchema(
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<void> {
+    let idosRelayKeys: Jwk[];
+    try {
+      ({ keys: idosRelayKeys } = await this.messenger.call(
+        'KycService:fetchIdosRelayJwks',
+      ));
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyCapabilityTokenSchema: Unable to fetch JWKS needed to verify wrapping keys.',
+      );
+    }
+
+    try {
+      await assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyCapabilityTokenSchema: Failed to verify the wrapping keys.',
+      );
+    }
+  }
+
+  /**
+   * Verifies each schema's jwtChain against the matching issuer JWKS, then
+   * confirms the returned server public key matches the value attested inside
+   * the verified JWT payload before trusting it for wrapping.
+   * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
+   * by the idOS relay.
+   *
+   * Fetch and verification failures are rethrown as a short message suitable
+   * for display. The original error is preserved on `cause`.
+   *
+   * @param encryptionDataKey - Encryption schema for the data encryption key.
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When the issuer signing keys cannot be fetched, or a schema's
+   * `jwtChain` does not verify.
+   */
+  async #verifyWrappingKeys(
+    encryptionDataKey: EncryptionSchema,
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<void> {
+    let idosEnclaveKeys: Jwk[];
+    let idosRelayKeys: Jwk[];
+    try {
+      [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      ]);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+      );
+    }
+
+    try {
+      await Promise.all([
+        assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+        assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+      ]);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+      );
+    }
+  }
+
+  /**
+   * Derives the `data_encryption_key` from the `local_user_secret`, mints a
+   * capability token, and wraps both for the session server. Only the wrapped
+   * (encrypted) material ever leaves the device.
+   *
+   * Only the client holds the signing key derived from `local_user_secret`, so
+   * only the client can mint the token.
+   *
+   * @param sessionClientPrivateKey - Per-session X25519 private key used to
+   * seal both secrets.
+   * @param encryptionDataKey - Encryption schema for the data encryption key.
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @returns The wrapped encryption key and capability token.
+   */
+  async #generateWrappedAuthorizations(
+    sessionClientPrivateKey: Uint8Array,
+    encryptionDataKey: EncryptionSchema,
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<{
+    wrappedEncryptionDataKey: CapabilityAuthorization;
+    wrappedUkycCapabilityToken: CapabilityAuthorization;
+  }> {
+    const clientMaterial = await this.#getClientMaterial();
+    const wrappedEncryptionDataKey = wrapEncryptionKey(
+      sessionClientPrivateKey,
+      encryptionDataKey.serverPublicKey.x,
+      clientMaterial.dataEncryptionKey,
+    );
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
+      clientMaterial,
+      sessionClientPrivateKey,
+      serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
+      // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
+      operations: ['read', 'write'],
+      expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
+    });
+
+    return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
+  }
+
+  /**
+   * Loads the stored `local_user_secret`, creating one when none exists, and
+   * derives the UKYC client material from it.
+   *
+   * @returns Client material derived from `local_user_secret`.
+   */
+  async #getClientMaterial(): Promise<UkycClientMaterial> {
+    const localUserSecret = await getOrCreateLocalUserSecret(
+      this.#localUserSecretStore,
+    );
+    return deriveClientMaterial(localUserSecret);
+  }
+
+  /**
+   * Mints a client-presented `ukyc_capability_token` and seals it for the
+   * server public key from a capability-token encryption schema.
+   *
+   * The operation list and lifetime stay with the caller: session
+   * authorizations grant `read` and `write` for the session lifetime, while
+   * deletion grants `delete` alone for a short window.
+   *
+   * @param params - Key material and token claims.
+   * @param params.clientMaterial - Client material derived from
+   * `local_user_secret`.
+   * @param params.sessionClientPrivateKey - X25519 private key used to seal
+   * the token.
+   * @param params.serverPublicKeyX - Server X25519 public key (unpadded
+   * base64url) from the capability-token schema.
+   * @param params.operations - Storage operations the token authorizes.
+   * `delete` must be the sole operation.
+   * @param params.expiresAt - Token expiry. Must be after the issue time.
+   * @returns The wrapped capability token.
+   */
+  async #wrapCapabilityToken(params: {
+    clientMaterial: UkycClientMaterial;
+    sessionClientPrivateKey: Uint8Array;
+    serverPublicKeyX: string;
+    operations: UkycStorageOperation[];
+    expiresAt: Date;
+  }): Promise<CapabilityAuthorization> {
+    const ukycCapabilityToken = await signStorageAccessToken({
+      material: params.clientMaterial,
+      operations: params.operations,
+      expiresAt: params.expiresAt,
+    });
+    return wrapEncryptionKey(
+      params.sessionClientPrivateKey,
+      params.serverPublicKeyX,
+      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
+    );
+  }
+}

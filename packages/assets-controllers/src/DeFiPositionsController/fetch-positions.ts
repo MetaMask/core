@@ -1,4 +1,4 @@
-import { timeoutWithRetry } from '../utils/timeout-with-retry';
+import { timeoutWithRetry } from '../utils/timeout-with-retry.js';
 
 export type DefiPositionResponse = AdapterResponse<{
   tokens: ProtocolToken[];

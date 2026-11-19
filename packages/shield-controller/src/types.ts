@@ -37,15 +37,6 @@ export type CheckSignatureCoverageRequest = {
   signatureRequest: SignatureRequest;
 };
 
-export type ShieldBackend = {
-  logSignature: (req: LogSignatureRequest) => Promise<void>;
-  logTransaction: (req: LogTransactionRequest) => Promise<void>;
-  checkCoverage: (req: CheckCoverageRequest) => Promise<CoverageResult>;
-  checkSignatureCoverage: (
-    req: CheckSignatureCoverageRequest,
-  ) => Promise<CoverageResult>;
-};
-
 export type NormalizeSignatureRequestFn = (
   signatureRequest: SignatureRequest,
 ) => SignatureRequest;

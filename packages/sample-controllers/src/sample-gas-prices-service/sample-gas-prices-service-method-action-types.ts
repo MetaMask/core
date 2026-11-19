@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SampleGasPricesService } from './sample-gas-prices-service';
+import type { SampleGasPricesService } from './sample-gas-prices-service.js';
 
 /**
  * Makes a request to the API in order to retrieve gas prices for a particular

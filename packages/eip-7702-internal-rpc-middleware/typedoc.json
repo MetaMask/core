@@ -1,6 +1,6 @@
 {
   "entryPoints": ["src/index.ts"],
-  "out": "docs",
+  "out": "api-docs",
   "exclude": ["**/*.test.ts"],
   "excludeExternals": true,
   "excludePrivate": true,

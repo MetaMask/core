@@ -1,25 +1,26 @@
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-} from '../types';
+} from '../types.js';
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
-} from '../types';
-import { rpcRequest } from '../utils/provider';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './LineaGasFeeFlow';
+} from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './LineaGasFeeFlow.js';
 
-jest.mock('../utils/provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('../utils/provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
@@ -62,7 +63,7 @@ const DEFAULT_RESPONSE_MOCK: GasFeeFlowResponse = {
 };
 
 describe('LineaGasFeeFlow', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   let request: GasFeeFlowRequest;
 
@@ -71,7 +72,7 @@ describe('LineaGasFeeFlow', () => {
       gasFeeControllerData: GAS_FEE_CONTROLLER_DATA_MOCK,
       messenger: {} as TransactionControllerMessenger,
       transactionMeta: TRANSACTION_META_MOCK,
-    } as GasFeeFlowRequest;
+    };
 
     rpcRequestMock.mockResolvedValue(LINEA_RESPONSE_MOCK);
   });
@@ -144,11 +145,11 @@ describe('LineaGasFeeFlow', () => {
     });
 
     it('uses default flow if error', async () => {
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockResolvedValue(DEFAULT_RESPONSE_MOCK);
+      vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockResolvedValue(
+        DEFAULT_RESPONSE_MOCK,
+      );
 
-      const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
+      const defaultGasFeeFlowGetGasFeesMock = vi.mocked(
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
@@ -164,11 +165,11 @@ describe('LineaGasFeeFlow', () => {
     });
 
     it('throws if default flow fallback fails', async () => {
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockRejectedValue(new Error('TestError'));
+      vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockRejectedValue(
+        new Error('TestError'),
+      );
 
-      const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
+      const defaultGasFeeFlowGetGasFeesMock = vi.mocked(
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 

@@ -24,7 +24,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { Caip25Caveat, GetCaveatForOriginHook } from './types';
+import type { Caip25Caveat, GetCaveatForOriginHook } from './types.js';
 
 export type WalletRevokeSessionHooks = GetCaveatForOriginHook & {
   revokePermissionForOrigin: (
@@ -107,14 +107,14 @@ function partialRevokePermissions(
     getCaipAccountIdsFromCaip25CaveatValue(updatedCaveatValue);
 
   // We fully revoke permission if no accounts are left after scope removal loop.
-  if (!caipAccountIds.length) {
-    hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
-  } else {
+  if (caipAccountIds.length) {
     hooks.updateCaveat(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
       updatedCaveatValue,
     );
+  } else {
+    hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
   }
 }
 

@@ -1,0 +1,336 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { KycService } from './KycService.js';
+
+/**
+ * Resolves the customer's country from the geolocation source and converts it
+ * to an ISO 3166-1 alpha-3 code.
+ *
+ * @returns The alpha-3 country code.
+ * @throws If the country cannot be determined or mapped.
+ */
+export type KycServiceGetGeoCountryAction = {
+  type: `KycService:getGeoCountry`;
+  handler: KycService['getGeoCountry'];
+};
+
+/**
+ * Fetches the disclaimers the customer must accept before a session is
+ * created.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The disclaimers.
+ */
+export type KycServiceFetchVendorDisclaimersAction = {
+  type: `KycService:fetchVendorDisclaimers`;
+  handler: KycService['fetchVendorDisclaimers'];
+};
+
+/**
+ * Creates a MoonPay vendor session via the UKYC backend.
+ *
+ * @param params - The session parameters.
+ * @returns The created session token.
+ */
+export type KycServiceCreateMoonpaySessionAction = {
+  type: `KycService:createMoonpaySession`;
+  handler: KycService['createMoonpaySession'];
+};
+
+/**
+ * Creates (or resumes) an empty-shell customer for the authenticated
+ * canonical user on the given identity vendor. Must run before showing
+ * vendor T&C so the customer exists and resume logic can key off vendor
+ * status.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
+ * @param params.partnerIdentityToken - Partner identity token minted by
+ * `AuthenticationController:getPartnerIdentityToken`.
+ * @returns The vendor customer record (subset validated for controller use).
+ */
+export type KycServiceCreateVendorCustomerAction = {
+  type: `KycService:createVendorCustomer`;
+  handler: KycService['createVendorCustomer'];
+};
+
+/**
+ * Records vendor T&C acceptance (`POST /vendors/{vendor}/disclaimers`).
+ * For Iron this creates content signings from the disclaimer ids the
+ * customer accepted. Session-scoped idOS / KYC-provider consents are
+ * recorded separately via {@link submitSessionDisclaimers}. Retries re-POST
+ * the same ids, matching the legacy `POST /consents` signing step.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron`).
+ * @param params.disclaimerIds - Accepted vendor T&C ids.
+ * @returns The vendor signing records.
+ */
+export type KycServiceSubmitVendorDisclaimersAction = {
+  type: `KycService:submitVendorDisclaimers`;
+  handler: KycService['submitVendorDisclaimers'];
+};
+
+/**
+ * Fetches the global idOS + KYC-provider disclaimer catalog
+ * (`GET /disclaimers?country=`). Carries no consent state — per-document
+ * `consented` flags and `credentialReusabilityConsentGiven` are
+ * session-scoped via {@link fetchSessionDisclaimersBySessionId}. Vendor T&Cs continue to
+ * come from {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog documents.
+ */
+export type KycServiceFetchSessionDisclaimersByCountryAction = {
+  type: `KycService:fetchSessionDisclaimersByCountry`;
+  handler: KycService['fetchSessionDisclaimersByCountry'];
+};
+
+/**
+ * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
+ * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+ * `consented` flags and `credentialReusabilityConsentGiven`. For the
+ * pre-session global catalog use {@link fetchSessionDisclaimersByCountry}.
+ * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The catalog, including which documents are already consented.
+ */
+export type KycServiceFetchSessionDisclaimersBySessionIdAction = {
+  type: `KycService:fetchSessionDisclaimersBySessionId`;
+  handler: KycService['fetchSessionDisclaimersBySessionId'];
+};
+
+/**
+ * Records idOS + KYC-provider consents for a UKYC session
+ * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
+ * match the current catalog from {@link fetchSessionDisclaimersBySessionId}. A 409
+ * means those document versions were already recorded for the session.
+ *
+ * @param params - The consent parameters.
+ * @returns The updated catalog after recording.
+ */
+export type KycServiceSubmitSessionDisclaimersAction = {
+  type: `KycService:submitSessionDisclaimers`;
+  handler: KycService['submitSessionDisclaimers'];
+};
+
+/**
+ * Fetches the idOS enclave JWKS used to verify the
+ * `encryptionDataKey` schema's `jwtChain` from
+ * {@link KycService.createUkycSession}.
+ *
+ * This is an unauthenticated request to a well-known path on the idOS enclave
+ * host, distinct from the UKYC base URL. A successful response is cached in
+ * the service query cache for 24 hours.
+ *
+ * @returns The JWKS keys.
+ */
+export type KycServiceFetchIdosEnclaveJwksAction = {
+  type: `KycService:fetchIdosEnclaveJwks`;
+  handler: KycService['fetchIdosEnclaveJwks'];
+};
+
+/**
+ * Fetches the idOS relay JWKS used to verify the `ukycCapabilityToken`
+ * schema's `jwtChain` from {@link KycService.createUkycSession}.
+ *
+ * This is an unauthenticated request to a well-known path on the idOS relay
+ * host, distinct from both the UKYC base URL and the idOS enclave. A
+ * successful response is cached in the service query cache for 24 hours.
+ *
+ * @returns The JWKS keys.
+ */
+export type KycServiceFetchIdosRelayJwksAction = {
+  type: `KycService:fetchIdosRelayJwks`;
+  handler: KycService['fetchIdosRelayJwks'];
+};
+
+/**
+ * Creates a UKYC session for the SumSub document-verification sub-flow.
+ *
+ * The client registers its per-session X25519 public key so the server can
+ * later open boxes sealed with the matching private key, and supplies the
+ * customer's ISO 3166-1 alpha-3 country of residence. The response
+ * carries per-secret encryption schemas (`encryptionDataKey` and
+ * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
+ * the read-only `ukyc_capability_token` and submit them via
+ * {@link KycService.setAuthorizations}.
+ *
+ * Session creation is authenticated with `params.aal2Token` as the
+ * `Authorization` bearer value, instead of the wallet bearer token.
+ *
+ * @param params - The session parameters.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ * @param params.partnerIdentityToken - Optional partner identity token for
+ * the session's vendor audience, sent as `partnerIdentityToken`.
+ * @returns The UKYC session id and encryption schemas.
+ */
+export type KycServiceCreateUkycSessionAction = {
+  type: `KycService:createUkycSession`;
+  handler: KycService['createUkycSession'];
+};
+
+/**
+ * Reissues wrapping keys for an existing UKYC session
+ * (`POST /sessions/{sessionId}/wrapping-keys`).
+ *
+ * The client registers a new per-session X25519 public key so the server can
+ * open boxes sealed with the matching private key. The response matches
+ * {@link KycService.createUkycSession}: a session id plus per-secret
+ * encryption schemas (`encryptionDataKey` and `ukycCapabilityToken`) used to
+ * wrap and submit authorizations.
+ *
+ * @param params - The session whose wrapping keys should be reset.
+ * @param params.sessionId - UKYC session id.
+ * @param params.sessionClientPublicKey - Per-session X25519 public key
+ * (unpadded base64url) registered on the session.
+ * @returns The session id and fresh encryption schemas.
+ */
+export type KycServiceResetWrappingKeysAction = {
+  type: `KycService:resetWrappingKeys`;
+  handler: KycService['resetWrappingKeys'];
+};
+
+/**
+ * Submits the wrapped `data_encryption_key` and wrapped
+ * `ukyc_capability_token` for a UKYC session. Both secrets are sealed with
+ * `wrapEncryptionKey` against the encryption schemas returned by
+ * {@link KycService.createUkycSession}.
+ *
+ * @param params - The wrapped authorizations.
+ * @returns The session status after the authorizations are applied.
+ */
+export type KycServiceSetAuthorizationsAction = {
+  type: `KycService:setAuthorizations`;
+  handler: KycService['setAuthorizations'];
+};
+
+/**
+ * Prepares deletion of the caller's encrypted KYC blobs
+ * (`POST /deletions`).
+ *
+ * The client registers a fresh X25519 public key. The response carries the
+ * deletion id and the `ukycCapabilityToken` encryption schema used to wrap
+ * a `delete`-scoped capability token and submit it via
+ * {@link KycService.completeDeletion}.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The deletion parameters.
+ * @param params.sessionClientPublicKey - Per-request X25519 public key
+ * (unpadded base64url).
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ * @returns The deletion id and the capability-token encryption schema.
+ */
+export type KycServiceCreateDeletionAction = {
+  type: `KycService:createDeletion`;
+  handler: KycService['createDeletion'];
+};
+
+/**
+ * Completes a prepared deletion (`DELETE /deletions/{deletionId}`) by
+ * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
+ * redacts the encrypted blobs for the user named by that token.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The wrapped deletion.
+ * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
+ * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ */
+export type KycServiceCompleteDeletionAction = {
+  type: `KycService:completeDeletion`;
+  handler: KycService['completeDeletion'];
+};
+
+/**
+ * Creates (or refreshes) the SumSub verification journey for a UKYC session,
+ * returning the applicant access token used to launch the SDK.
+ *
+ * @param sessionId - The UKYC session id from `createUkycSession`.
+ * @returns The applicant access token and status.
+ */
+export type KycServiceCreateJourneyAction = {
+  type: `KycService:createJourney`;
+  handler: KycService['createJourney'];
+};
+
+/**
+ * Fetches the current status of a UKYC session. Polled after the SumSub SDK
+ * completes to determine the final verification decision.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The session status.
+ */
+export type KycServiceGetSessionStatusAction = {
+  type: `KycService:getSessionStatus`;
+  handler: KycService['getSessionStatus'];
+};
+
+/**
+ * Fetches the latest UKYC session status for an identity vendor
+ * (`GET /sessions/latest/status/{vendor}`).
+ *
+ * @param vendor - Identity vendor whose latest session should be queried.
+ * @returns The session status, or `null` when no latest session exists.
+ */
+export type KycServiceGetSessionStatusForVendorAction = {
+  type: `KycService:getSessionStatusForVendor`;
+  handler: KycService['getSessionStatusForVendor'];
+};
+
+/**
+ * Fetches the vendors the customer's verified identity data has been shared
+ * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
+ * relay), newest first.
+ *
+ * Reads metadata only, so shares remain listed after the relay redacts the
+ * underlying session (14 days).
+ *
+ * @param params - The parameters.
+ * @param params.externalUserId - The vendor-agnostic external user id.
+ * @returns The data shares, newest first.
+ */
+export type KycServiceGetDataSharesAction = {
+  type: `KycService:getDataShares`;
+  handler: KycService['getDataShares'];
+};
+
+/**
+ * Union of all KycService action types.
+ */
+export type KycServiceMethodActions =
+  | KycServiceGetGeoCountryAction
+  | KycServiceFetchVendorDisclaimersAction
+  | KycServiceCreateMoonpaySessionAction
+  | KycServiceCreateVendorCustomerAction
+  | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchSessionDisclaimersByCountryAction
+  | KycServiceFetchSessionDisclaimersBySessionIdAction
+  | KycServiceSubmitSessionDisclaimersAction
+  | KycServiceFetchIdosEnclaveJwksAction
+  | KycServiceFetchIdosRelayJwksAction
+  | KycServiceCreateUkycSessionAction
+  | KycServiceResetWrappingKeysAction
+  | KycServiceSetAuthorizationsAction
+  | KycServiceCreateDeletionAction
+  | KycServiceCompleteDeletionAction
+  | KycServiceCreateJourneyAction
+  | KycServiceGetSessionStatusAction
+  | KycServiceGetSessionStatusForVendorAction
+  | KycServiceGetDataSharesAction;

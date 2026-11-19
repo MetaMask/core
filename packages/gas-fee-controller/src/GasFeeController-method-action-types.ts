@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GasFeeController } from './GasFeeController';
+import type { GasFeeController } from './GasFeeController.js';
 
 /**
  * Resets the polling interval by stopping and restarting polling
@@ -78,6 +78,16 @@ export type GasFeeControllerDisableNonRPCGasFeeApisAction = {
   handler: GasFeeController['disableNonRPCGasFeeApis'];
 };
 
+export type GasFeeControllerStartPollingAction = {
+  type: `GasFeeController:startPolling`;
+  handler: GasFeeController['startPolling'];
+};
+
+export type GasFeeControllerStopPollingByPollingTokenAction = {
+  type: `GasFeeController:stopPollingByPollingToken`;
+  handler: GasFeeController['stopPollingByPollingToken'];
+};
+
 /**
  * Union of all GasFeeController action types.
  */
@@ -89,4 +99,6 @@ export type GasFeeControllerMethodActions =
   | GasFeeControllerStopPollingAction
   | GasFeeControllerGetTimeEstimateAction
   | GasFeeControllerEnableNonRPCGasFeeApisAction
-  | GasFeeControllerDisableNonRPCGasFeeApisAction;
+  | GasFeeControllerDisableNonRPCGasFeeApisAction
+  | GasFeeControllerStartPollingAction
+  | GasFeeControllerStopPollingByPollingTokenAction;

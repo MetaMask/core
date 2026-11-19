@@ -12,24 +12,24 @@ import type {
   JsonRpcEngine,
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
-} from './JsonRpcEngine';
-import type { JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine';
-import { mergeMiddleware } from './mergeMiddleware';
-import type { ContextConstraint, MiddlewareContext } from './v2';
+} from './JsonRpcEngine.js';
+import type { JsonRpcMiddleware as LegacyMiddleware } from './JsonRpcEngine.js';
+import { mergeMiddleware } from './mergeMiddleware.js';
 import {
   deepClone,
   fromLegacyRequest,
   propagateToContext,
   propagateToRequest,
   deserializeError,
-} from './v2/compatibility-utils';
+} from './v2/compatibility-utils.js';
+import type { ContextConstraint, MiddlewareContext } from './v2/index.js';
 import type {
   // Used in docs.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngineV2,
   JsonRpcMiddleware,
   ResultConstraint,
-} from './v2/JsonRpcEngineV2';
+} from './v2/JsonRpcEngineV2.js';
 
 /**
  * Convert a legacy {@link JsonRpcEngine} into a {@link JsonRpcEngineV2} middleware.

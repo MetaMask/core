@@ -7,6 +7,118 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
+
+## [28.2.2]
+
+### Changed
+
+- Bump `@metamask/eth-hd-keyring` from `^15.0.0` to `^16.0.0` ([#11532](https://github.com/MetaMask/core/pull/11532))
+- Bump `@metamask/eth-simple-keyring` from `^13.0.0` to `^13.0.3` ([#11532](https://github.com/MetaMask/core/pull/11532))
+
+## [28.2.1]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/eth-sig-util` from `^9.0.0` to `^10.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [28.2.0]
+
+### Added
+
+- Add `KeyringTypes.mpcMoney` and `KeyringTypes.mpc` keyring types ([#10577](https://github.com/MetaMask/core/pull/10577), [#10849](https://github.com/MetaMask/core/pull/10849))
+
+### Changed
+
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `ethereumjs-wallet` from `^1.0.1` to `^1.0.2` ([#10486](https://github.com/MetaMask/core/pull/10486))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `ulid` from `^2.3.0` to `^2.4.0` ([#10533](https://github.com/MetaMask/core/pull/10533))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+
+## [28.1.0]
+
+### Added
+
+- Add entropy ID selectors ([#10284](https://github.com/MetaMask/core/pull/10284))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `immer` from `^9.0.6` to `^9.0.21` ([#10331](https://github.com/MetaMask/core/pull/10331))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [27.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^24.0.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390), [#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Add missing dependency `@metamask/controller-utils` (`^12.3.0`) ([#8384](https://github.com/MetaMask/core/pull/8384))
+- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^12.0.0` ([#9676](https://github.com/MetaMask/core/pull/9676), [#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/eth-hd-keyring` from `^14.1.1` to `^15.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/eth-simple-keyring` from `^12.0.2` to `^13.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [27.1.0]
+
+### Added
+
+- Add `isKeyringControllerError` predicate ([#9095](https://github.com/MetaMask/core/pull/9095))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Remove use of `instanceof` for `isKeyringNotFoundError` ([#9095](https://github.com/MetaMask/core/pull/9095))
+  - Using `instanceof` causes a lot of issue if we have 2 major `@metamask/keyring-controller` major versions in the dependency tree, `class KeyringControllerError` could be different classes and this, making the check to fail.
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+
+### Fixed
+
+- Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#8951](https://github.com/MetaMask/core/pull/8951))
+  - Previously, draining a keyring of all its accounts via these APIs left an empty keyring entry in `state.keyrings` and persisted it in the vault.
+  - Pre-existing empty keyrings (e.g. those created intentionally via `addNewKeyring` without subsequent account creation) are still preserved, matching the behavior of `removeAccount`.
+  - The primary keyring is never auto-removed, even if drained; this preserves the existing `removeAccount` invariant against losing the primary keyring.
+
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
+  - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
+- Deprecate `KeyringTypes` ([#8907](https://github.com/MetaMask/core/pull/8907))
+  - Use `KeyringTypes` from `@metamask/keyring-api/v2` if your keyring has a v2 builder.
+
 ## [25.5.0]
 
 ### Added
@@ -1008,7 +1120,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.2...HEAD
+[28.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.1...@metamask/keyring-controller@28.2.2
+[28.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...@metamask/keyring-controller@28.2.1
+[28.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...@metamask/keyring-controller@28.2.0
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...@metamask/keyring-controller@27.1.1
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...@metamask/keyring-controller@27.1.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...@metamask/keyring-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
 [25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
 [25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0

@@ -9,7 +9,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [3.2.1]
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^2.3.1` to `^2.4.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
+
+## [3.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/money-account-api-data-service` from `^2.1.0` to `^2.3.1` ([#10827](https://github.com/MetaMask/core/pull/10827), [#11016](https://github.com/MetaMask/core/pull/11016), [#11146](https://github.com/MetaMask/core/pull/11146))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [3.1.2]
+
+### Fixed
+
+- Stop including balance amounts in `MoneyAccountBalanceValidationError` messages, which are reported via the messenger's `captureException` ([#10619](https://github.com/MetaMask/core/pull/10619))
+
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^2.0.0` to `^2.1.0` ([#10544](https://github.com/MetaMask/core/pull/10544))
+
+## [3.1.0]
+
+### Added
+
+- Surface Money API freshness on `fetchBalanceWithFallback` results (`asOfBlock`, `asOfTimestamp`, `dataFreshness`, `indexerLagSeconds`, `musdBalanceUpdatedAt`) when `source` is `api` ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Add optional `FetchBalanceWithFallbackOptions` (`minBlock`, `fresh`): when the API `as_of_block` is behind `minBlock`, throw `MoneyAccountBalanceStaleError` and fall back to RPC without reporting a defect; `minBlock` implies a fresh positions read, and explicit `fresh` is also forwarded to `fetchPositions` ([#10455](https://github.com/MetaMask/core/pull/10455))
+- Export `MoneyAccountBalanceStaleError` ([#10455](https://github.com/MetaMask/core/pull/10455))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@metamask/money-account-api-data-service` from `^1.0.0` to `^2.0.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^7.0.0` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/money-account-api-data-service` from `^0.4.1` to `^1.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [2.4.3]
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/money-account-api-data-service` from `^0.4.0` to `^0.4.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [2.4.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
+## [2.4.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [2.4.0]
+
+### Changed
+
+- Convert all Veda vault APR values returned by `getVaultApy` to compounded APY using daily compounding before exposing them to consumers. ([#9684](https://github.com/MetaMask/core/pull/9684))
+- Bump `@metamask/money-account-api-data-service` from `^0.3.0` to `^0.4.0` ([#9677](https://github.com/MetaMask/core/pull/9677))
+- Bump `@metamask/money-account-api-data-service` from `^0.2.0` to `^0.3.0` ([#9592](https://github.com/MetaMask/core/pull/9592))
+
+## [2.3.0]
+
+### Added
+
+- Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `rpc` = RPC primary with Money API fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; reports validation/unavailable source defects via messenger `captureException`; throws `MoneyAccountBalanceFetchError` when all eligible sources fail. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Permit `MoneyAccountApiDataService:fetchPositions` on the balance service messenger so the facade can read Money API balances. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Export `CanonicalMoneyAccountBalanceResponse`, balance-source constants/types, and `MoneyAccountBalanceFetchError` / `MoneyAccountBalanceUnavailableError` / `MoneyAccountBalanceValidationError`. ([#9554](https://github.com/MetaMask/core/pull/9554))
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^0.1.0` to `^0.2.0` ([#9573](https://github.com/MetaMask/core/pull/9573))
+
+## [2.2.0]
+
+### Added
+
+- Add optional `trace` constructor option to `MoneyAccountBalanceService` for tracing network requests (RPC calls and the Veda APY API fetch). Tracing is best-effort and does not affect query results if it fails. ([#9434](https://github.com/MetaMask/core/pull/9434))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [2.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [2.1.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [2.1.0]
+
+### Changed
+
+- Fetch on-chain Money account balances at the `pending` block tag instead of `latest`, so a balance refetch triggered by `TransactionController:transactionConfirmed` returns the post-transaction balance immediately rather than stale data for up to ~20 seconds. ([#9163](https://github.com/MetaMask/core/pull/9163))
+  - Applies to `getMoneyAccountBalance`, `getMusdBalance`, `getVmusdBalance`, and `getMusdEquivalentValue`. As a result these reads now reflect pending (mempool-inclusive) state. `getExchangeRate` and the on-chain `Accountant.base()` token-address lookup intentionally remain on `latest`.
+
+## [2.0.0]
+
+### Added
+
+- Add `getMoneyAccountBalance` method that fetches the account's mUSD wallet balance and vault shares valued in mUSD in a single Multicall3 `aggregate3` request. ([#9100](https://github.com/MetaMask/core/pull/9100))
+- Add optional `underlyingToken` field to `VaultConfig` (validated by `VaultConfigStruct`). When present, `getMusdBalance` reads the underlying mUSD token address from config and skips the on-chain `Accountant.base()` call; when absent it falls back to reading `base()` on-chain. ([#9100](https://github.com/MetaMask/core/pull/9100))
+- Add support for configuring the balance `staleTime` at runtime via the `moneyAccountBalanceStaletime` remote feature flag. The flag is read during `init()` and updated on `RemoteFeatureFlagController:stateChange`; absent or malformed values fall back to the default of 60 seconds. ([#9100](https://github.com/MetaMask/core/pull/9100))
+
+### Changed
+
+- **BREAKING:** Rename `musdSHFvd` to `vmusd` across the public API to align with the vmUSD token name: ([#9100](https://github.com/MetaMask/core/pull/9100))
+  - `getMusdSHFvdBalance` method → `getVmusdBalance`
+  - `MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction` type → `MoneyAccountBalanceServiceGetVmusdBalanceAction`
+  - `MoneyAccountBalanceService:getMusdSHFvdBalance` messenger action string → `MoneyAccountBalanceService:getVmusdBalance`
+  - `MoneyAccountBalanceResponse.musdSHFvdValueInMusd` property → `vmusdValueInMusd`
+- Increase the default `staleTime` for on-chain balance reads (`getMusdBalance`, `getVmusdBalance`, `getMusdEquivalentValue`, and the default for `getExchangeRate`) from 30 seconds to 60 seconds. This default is now overridable via the `moneyAccountBalanceStaletime` remote feature flag. ([#9100](https://github.com/MetaMask/core/pull/9100))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#8986](https://github.com/MetaMask/core/pull/8986))
 
 ## [1.0.2]
 
@@ -60,7 +216,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.1...HEAD
+[3.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.0...@metamask/money-account-balance-service@3.2.1
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.2...@metamask/money-account-balance-service@3.2.0
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.1...@metamask/money-account-balance-service@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.0...@metamask/money-account-balance-service@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...@metamask/money-account-balance-service@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...@metamask/money-account-balance-service@3.0.0
+[2.4.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...@metamask/money-account-balance-service@2.4.3
+[2.4.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...@metamask/money-account-balance-service@2.4.2
+[2.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.0...@metamask/money-account-balance-service@2.4.1
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.3.0...@metamask/money-account-balance-service@2.4.0
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...@metamask/money-account-balance-service@2.3.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.2...@metamask/money-account-balance-service@2.2.0
+[2.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.1...@metamask/money-account-balance-service@2.1.2
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.0...@metamask/money-account-balance-service@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.0.0...@metamask/money-account-balance-service@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...@metamask/money-account-balance-service@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.1...@metamask/money-account-balance-service@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.0...@metamask/money-account-balance-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.2.0...@metamask/money-account-balance-service@1.0.0

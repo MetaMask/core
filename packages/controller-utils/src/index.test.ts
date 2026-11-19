@@ -1,9 +1,12 @@
-import * as allExports from '.';
+import { describe, expect, it } from 'vitest';
+
+import * as allExports from './index.js';
 
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
+        "encodeFunctionData",
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",

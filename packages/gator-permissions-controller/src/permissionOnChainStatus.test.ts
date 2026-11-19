@@ -11,8 +11,10 @@ import {
 } from '@metamask/delegation-deployments';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
+import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
+import { toEnforcerAddressesByName } from './decodePermission/enforcerAddresses.js';
 import {
   encodeDisabledDelegationsCalldata,
   getExpiryFromDelegation,
@@ -20,13 +22,19 @@ import {
   readLatestBlockTimestampSeconds,
   resolveGrantedPermissionOnChainStatus,
   updateGrantedPermissionsStatus,
-} from './permissionOnChainStatus';
-import type { PermissionInfoWithMetadata } from './types';
+} from './permissionOnChainStatus.js';
+import type { PermissionInfoWithMetadata } from './types.js';
+import type { DelegationDeploymentsEnforcerAddressesByName } from './types.js';
 
-const contracts =
+const sepoliaContracts =
   DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
 
-const { TimestampEnforcer, NativeTokenStreamingEnforcer } = contracts;
+const delegationContracts =
+  sepoliaContracts as DelegationDeploymentsEnforcerAddressesByName;
+
+const enforcerAddresses = toEnforcerAddressesByName(delegationContracts);
+
+const { TimestampEnforcer, NativeTokenStreamingEnforcer } = delegationContracts;
 
 describe('permissionOnChainStatus', () => {
   describe('encodeDisabledDelegationsCalldata', () => {
@@ -70,7 +78,7 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      const result = getExpiryFromDelegation(delegation, contracts);
+      const result = getExpiryFromDelegation(delegation, enforcerAddresses);
       expect(result).toBe(expirySeconds);
     });
 
@@ -94,7 +102,7 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      expect(getExpiryFromDelegation(delegation, contracts)).toBeNull();
+      expect(getExpiryFromDelegation(delegation, enforcerAddresses)).toBeNull();
     });
 
     it('returns null when TimestampEnforcer terms fail to decode', () => {
@@ -113,14 +121,14 @@ describe('permissionOnChainStatus', () => {
         salt: 0n,
         signature: '0x' as const,
       };
-      expect(getExpiryFromDelegation(delegation, contracts)).toBeNull();
+      expect(getExpiryFromDelegation(delegation, enforcerAddresses)).toBeNull();
     });
   });
 
   describe('readDelegationDisabledOnChain', () => {
     it('returns true when eth_call result is bool true', async () => {
       const provider = {
-        request: jest
+        request: vi
           .fn()
           .mockResolvedValue(
             '0x0000000000000000000000000000000000000000000000000000000000000001',
@@ -129,7 +137,7 @@ describe('permissionOnChainStatus', () => {
       expect(
         await readDelegationDisabledOnChain({
           provider,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
           delegationHash:
             '0x1111111111111111111111111111111111111111111111111111111111111111',
         }),
@@ -141,7 +149,7 @@ describe('permissionOnChainStatus', () => {
     it('returns the block timestamp in seconds', async () => {
       const timestamp = 1_700_000_000;
       const provider = {
-        request: jest.fn().mockResolvedValue({
+        request: vi.fn().mockResolvedValue({
           timestamp: numberToHex(timestamp),
         }),
       };
@@ -150,7 +158,7 @@ describe('permissionOnChainStatus', () => {
 
     it('throws when the block payload has no timestamp', async () => {
       const provider = {
-        request: jest.fn().mockResolvedValue({}),
+        request: vi.fn().mockResolvedValue({}),
       };
       await expect(readLatestBlockTimestampSeconds(provider)).rejects.toThrow(
         'Latest block missing timestamp',
@@ -159,11 +167,8 @@ describe('permissionOnChainStatus', () => {
   });
 
   describe('resolveGrantedPermissionOnChainStatus', () => {
-    const contractsByChainId =
-      DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
-
     it('returns Revoked when revocationMetadata is present without calling the network', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -180,7 +185,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
@@ -189,7 +194,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Revoked');
@@ -197,7 +201,7 @@ describe('permissionOnChainStatus', () => {
     });
 
     it('preserves prior status when decoded context does not contain exactly one delegation', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -214,7 +218,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
@@ -222,7 +226,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Expired');
@@ -230,7 +233,7 @@ describe('permissionOnChainStatus', () => {
     });
 
     it('defaults missing entry status to Active when preserving after a resolution error', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -247,7 +250,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         // status is missing, so we must add type assertion
@@ -255,7 +258,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -299,14 +301,14 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -319,7 +321,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -373,14 +374,14 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -393,7 +394,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Expired');
@@ -436,14 +436,14 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Active',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000001';
           }
@@ -453,7 +453,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Revoked');
@@ -482,7 +481,7 @@ describe('permissionOnChainStatus', () => {
       const context = encodeDelegations([delegation]);
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
-          chainId: numberToHex(CHAIN_ID.sepolia),
+          chainId: numberToHex(999999),
           from: delegation.delegator,
           permission: {
             type: 'native-token-stream',
@@ -496,14 +495,14 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -513,7 +512,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId: {},
       });
 
       expect(result.status).toBe('Expired');
@@ -567,14 +565,14 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context,
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://example.org',
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -587,7 +585,6 @@ describe('permissionOnChainStatus', () => {
 
       const result = await resolveGrantedPermissionOnChainStatus(entry, {
         getProviderForChainId,
-        contractsByChainId,
       });
 
       expect(result.status).toBe('Active');
@@ -596,10 +593,7 @@ describe('permissionOnChainStatus', () => {
 
   describe('updateGrantedPermissionsStatus', () => {
     it('resolves each permission entry', async () => {
-      const getProviderForChainId = jest.fn();
-      const contractsByChainId =
-        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
-
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -616,7 +610,7 @@ describe('permissionOnChainStatus', () => {
             },
           },
           context: '0x00000000',
-          delegationManager: contracts.DelegationManager,
+          delegationManager: sepoliaContracts.DelegationManager,
         },
         siteOrigin: 'https://a.example',
         status: 'Active',
@@ -625,7 +619,7 @@ describe('permissionOnChainStatus', () => {
 
       const results = await updateGrantedPermissionsStatus(
         [entry, { ...entry, siteOrigin: 'https://b.example' }],
-        { getProviderForChainId, contractsByChainId },
+        { getProviderForChainId },
       );
 
       expect(results).toHaveLength(2);

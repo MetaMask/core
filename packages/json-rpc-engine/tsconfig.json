@@ -1,17 +1,18 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../..",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "target": "es2020"
+    "noUncheckedIndexedAccess": true
   },
   "references": [
     {
-      "path": "../messenger/tsconfig.json"
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

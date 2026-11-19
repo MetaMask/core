@@ -1,12 +1,13 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { JsonRpcServer } from './JsonRpcServer';
-import type { MiddlewareContext } from './MiddlewareContext';
-import type { JsonRpcNotification, JsonRpcRequest } from './utils';
-import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
+import { JsonRpcServer } from './JsonRpcServer.js';
+import type { MiddlewareContext } from './MiddlewareContext.js';
+import type { JsonRpcNotification, JsonRpcRequest } from './utils.js';
+import { isRequest, JsonRpcEngineError, stringify } from './utils.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -181,7 +182,7 @@ describe('JsonRpcServer', () => {
   });
 
   it('calls onError for a failed request', async () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     const server = new JsonRpcServer({
       engine: makeEngine(),
       onError,
@@ -220,7 +221,7 @@ describe('JsonRpcServer', () => {
   });
 
   it('calls onError for a failed notification', async () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     const server = new JsonRpcServer({
       engine: makeEngine(),
       onError,
@@ -255,7 +256,7 @@ describe('JsonRpcServer', () => {
   });
 
   it('errors if passed a notification when only requests are supported', async () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcRequest>>({
       middleware: [(): null => null],
       onError,
@@ -274,7 +275,7 @@ describe('JsonRpcServer', () => {
   });
 
   it('errors if passed a request when only notifications are supported', async () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     const server = new JsonRpcServer<JsonRpcMiddleware<JsonRpcNotification>>({
       middleware: [(): undefined => undefined],
       onError,
@@ -367,9 +368,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({
@@ -392,9 +393,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({
@@ -420,7 +421,7 @@ describe('JsonRpcServer', () => {
   ])(
     'errors if the request is not minimally conformant',
     async (malformedRequest) => {
-      const onError = jest.fn();
+      const onError = vi.fn();
       const server = new JsonRpcServer({
         engine: makeEngine(),
         onError,
@@ -431,9 +432,9 @@ describe('JsonRpcServer', () => {
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(
         rpcErrors.invalidRequest({
-          data: {
+          data: expect.objectContaining({
             request: malformedRequest,
-          },
+          }),
         }),
       );
     },

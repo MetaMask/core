@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [27.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/json-rpc-engine` from `^10.5.0` to `^11.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [26.1.7]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [26.1.6]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [26.1.5]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [26.1.4]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
 ## [26.1.3]
 
 ### Changed
@@ -493,7 +553,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.0.0...@metamask/selected-network-controller@27.1.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.7...@metamask/selected-network-controller@27.0.0
+[26.1.7]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.6...@metamask/selected-network-controller@26.1.7
+[26.1.6]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.5...@metamask/selected-network-controller@26.1.6
+[26.1.5]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.4...@metamask/selected-network-controller@26.1.5
+[26.1.4]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.3...@metamask/selected-network-controller@26.1.4
 [26.1.3]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.2...@metamask/selected-network-controller@26.1.3
 [26.1.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.1...@metamask/selected-network-controller@26.1.2
 [26.1.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.0...@metamask/selected-network-controller@26.1.1

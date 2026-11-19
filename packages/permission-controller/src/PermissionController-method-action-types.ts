@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PermissionController } from './PermissionController';
+import type { PermissionController } from './PermissionController.js';
 
 /**
  * Checks whether the given method was declared as unrestricted at

@@ -13,26 +13,30 @@ import {
   EarnApiService,
   EarnEnvironments,
   ChainId,
+  isSupportedLendingChain,
+  isSupportedPooledStakingChain,
 } from '@metamask/stake-sdk';
 import type {
   PooledStakingApiService,
   LendingApiService,
   LendingMarket,
 } from '@metamask/stake-sdk';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
-import type { TransactionMeta } from '../../transaction-controller/src';
+import type { TransactionMeta } from '../../transaction-controller/src/index.js';
 import {
   TransactionStatus,
   TransactionType,
-} from '../../transaction-controller/src';
+} from '../../transaction-controller/src/index.js';
 import {
   EarnController,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
-} from './EarnController';
+} from './EarnController.js';
 import type {
   EarnControllerState,
   EarnControllerMessenger,
-} from './EarnController';
+} from './EarnController.js';
 
 type AllEarnControllerActions = MessengerActions<EarnControllerMessenger>;
 
@@ -44,43 +48,43 @@ type RootMessenger = Messenger<
   AllEarnControllerEvents
 >;
 
-jest.mock('@metamask/stake-sdk', () => ({
+vi.mock('@metamask/stake-sdk', () => ({
   EarnSdk: {
-    create: jest.fn().mockImplementation(() => ({
+    create: vi.fn().mockImplementation(() => ({
       contracts: {
         pooledStaking: {
-          connectSignerOrProvider: jest.fn(),
+          connectSignerOrProvider: vi.fn(),
         },
         lending: {
           aave: {
             '0x123': {
-              connectSignerOrProvider: jest.fn(),
-              encodeDepositTransactionData: jest.fn(),
-              encodeWithdrawTransactionData: jest.fn(),
-              encodeUnderlyingTokenApproveTransactionData: jest.fn(),
-              underlyingTokenAllowance: jest.fn(),
-              maxWithdraw: jest.fn(),
-              maxDeposit: jest.fn(),
+              connectSignerOrProvider: vi.fn(),
+              encodeDepositTransactionData: vi.fn(),
+              encodeWithdrawTransactionData: vi.fn(),
+              encodeUnderlyingTokenApproveTransactionData: vi.fn(),
+              underlyingTokenAllowance: vi.fn(),
+              maxWithdraw: vi.fn(),
+              maxDeposit: vi.fn(),
             },
           },
         },
       },
     })),
   },
-  EarnApiService: jest.fn().mockImplementation(() => ({
+  EarnApiService: vi.fn().mockImplementation(() => ({
     pooledStaking: {
-      getPooledStakes: jest.fn(),
-      getPooledStakingEligibility: jest.fn(),
-      getVaultData: jest.fn(),
-      getVaultDailyApys: jest.fn(),
-      getVaultApyAverages: jest.fn(),
-      getUserDailyRewards: jest.fn(),
+      getPooledStakes: vi.fn(),
+      getPooledStakingEligibility: vi.fn(),
+      getVaultData: vi.fn(),
+      getVaultDailyApys: vi.fn(),
+      getVaultApyAverages: vi.fn(),
+      getUserDailyRewards: vi.fn(),
     },
     lending: {
-      getMarkets: jest.fn(),
-      getPositions: jest.fn(),
-      getPositionHistory: jest.fn(),
-      getHistoricMarketApys: jest.fn(),
+      getMarkets: vi.fn(),
+      getPositions: vi.fn(),
+      getPositionHistory: vi.fn(),
+      getHistoricMarketApys: vi.fn(),
     },
   })),
   ChainId: {
@@ -91,8 +95,8 @@ jest.mock('@metamask/stake-sdk', () => ({
     PROD: 'prod',
     DEV: 'dev',
   },
-  isSupportedLendingChain: jest.fn().mockReturnValue(true),
-  isSupportedPooledStakingChain: jest.fn().mockReturnValue(true),
+  isSupportedLendingChain: vi.fn().mockReturnValue(true),
+  isSupportedPooledStakingChain: vi.fn().mockReturnValue(true),
 }));
 
 /**
@@ -675,31 +679,29 @@ const mockUserDailyRewards = [
 const setupController = async ({
   options = {},
 
-  mockGetNetworkClientById = jest.fn(() => ({
+  mockGetNetworkClientById = vi.fn(() => ({
     configuration: { chainId: '0x1' },
     provider: {
-      request: jest.fn(),
-      on: jest.fn(),
-      removeListener: jest.fn(),
+      request: vi.fn(),
+      on: vi.fn(),
+      removeListener: vi.fn(),
     },
   })),
 
-  mockGetNetworkControllerState = jest.fn(() => ({
+  mockGetNetworkControllerState = vi.fn(() => ({
     ...getDefaultNetworkControllerState(),
     selectedNetworkClientId: '1',
   })),
 
-  mockGetAccountsFromSelectedAccountGroup = jest.fn(() => [
-    mockInternalAccount1,
-  ]),
+  mockGetAccountsFromSelectedAccountGroup = vi.fn(() => [mockInternalAccount1]),
 
-  addTransactionFn = jest.fn(),
+  addTransactionFn = vi.fn(),
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
-  mockGetNetworkClientById?: jest.Mock;
-  mockGetNetworkControllerState?: jest.Mock;
-  mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
-  addTransactionFn?: jest.Mock;
+  mockGetNetworkClientById?: Mock;
+  mockGetNetworkControllerState?: Mock;
+  mockGetAccountsFromSelectedAccountGroup?: Mock;
+  addTransactionFn?: Mock;
 } = {}): Promise<{ controller: EarnController; messenger: RootMessenger }> => {
   const messenger = buildMessenger();
 
@@ -732,30 +734,29 @@ const setupController = async ({
   return { controller, messenger };
 };
 
-const EarnApiServiceMock = jest.mocked(EarnApiService);
+const EarnApiServiceMock = vi.mocked(EarnApiService);
 
 type MockedEarnApiService = {
-  pooledStaking?: Partial<jest.Mocked<PooledStakingApiService>>;
-  lending?: Partial<jest.Mocked<LendingApiService>>;
+  pooledStaking?: Partial<Mocked<PooledStakingApiService>>;
+  lending?: Partial<Mocked<LendingApiService>>;
+  tronStaking?: Partial<Mocked<EarnApiService['tronStaking']>>;
 };
 
 let mockedEarnApiService: MockedEarnApiService;
 
-const isSupportedLendingChainMock = jest.requireMock(
-  '@metamask/stake-sdk',
-).isSupportedLendingChain;
-const isSupportedPooledStakingChainMock = jest.requireMock(
-  '@metamask/stake-sdk',
-).isSupportedPooledStakingChain;
+const isSupportedLendingChainMock = vi.mocked(isSupportedLendingChain);
+const isSupportedPooledStakingChainMock = vi.mocked(
+  isSupportedPooledStakingChain,
+);
 
 describe('EarnController', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     isSupportedLendingChainMock.mockReturnValue(true);
     isSupportedPooledStakingChainMock.mockReturnValue(true);
     // Apply EarnSdk mock before initializing EarnController`
-    (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+    (EarnSdk.create as Mock).mockImplementation(() => ({
       contracts: {
         pooledStaking: null,
         lending: null,
@@ -764,37 +765,37 @@ describe('EarnController', () => {
 
     mockedEarnApiService = {
       pooledStaking: {
-        getPooledStakes: jest.fn().mockResolvedValue({
+        getPooledStakes: vi.fn().mockResolvedValue({
           accounts: [mockPooledStakes],
           exchangeRate: '1.5',
         }),
-        getPooledStakingEligibility: jest.fn().mockResolvedValue({
+        getPooledStakingEligibility: vi.fn().mockResolvedValue({
           eligible: true,
         }),
-        getVaultData: jest.fn().mockResolvedValue(mockVaultMetadata),
-        getVaultDailyApys: jest
+        getVaultData: vi.fn().mockResolvedValue(mockVaultMetadata),
+        getVaultDailyApys: vi
           .fn()
           .mockResolvedValue(mockPooledStakingVaultDailyApys),
-        getVaultApyAverages: jest
+        getVaultApyAverages: vi
           .fn()
           .mockResolvedValue(mockPooledStakingVaultApyAverages),
-        getUserDailyRewards: jest.fn().mockResolvedValue(mockUserDailyRewards),
-      } as Partial<jest.Mocked<PooledStakingApiService>>,
+        getUserDailyRewards: vi.fn().mockResolvedValue(mockUserDailyRewards),
+      },
       lending: {
-        getMarkets: jest.fn().mockResolvedValue(mockLendingMarkets),
-        getPositions: jest.fn().mockResolvedValue(mockLendingPositions),
-        getPositionHistory: jest
+        getMarkets: vi.fn().mockResolvedValue(mockLendingMarkets),
+        getPositions: vi.fn().mockResolvedValue(mockLendingPositions),
+        getPositionHistory: vi
           .fn()
           .mockResolvedValue(mockLendingPositionHistory),
-        getHistoricMarketApys: jest
+        getHistoricMarketApys: vi
           .fn()
           .mockResolvedValue(mockLendingHistoricMarketApys),
-      } as Partial<jest.Mocked<LendingApiService>>,
+      },
     };
 
-    EarnApiServiceMock.mockImplementation(
-      () => mockedEarnApiService as EarnApiService,
-    );
+    EarnApiServiceMock.mockImplementation(function () {
+      return mockedEarnApiService as EarnApiService;
+    });
   });
 
   describe('constructor', () => {
@@ -874,7 +875,7 @@ describe('EarnController', () => {
       expect(EarnSdk.create).toHaveBeenCalledTimes(1);
       expect(
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
-      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI) from the first init()
+      ).toHaveBeenCalledTimes(1); // 1 chain (ETH only) from the first init()
     });
 
     it('does not re-run initialization when called concurrently before init has completed', async () => {
@@ -884,31 +885,31 @@ describe('EarnController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn(() => ({
+        vi.fn(() => ({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: '1',
         })),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn(() => ({
+        vi.fn(() => ({
           configuration: { chainId: toHex(1) },
           provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
+            request: vi.fn(),
+            on: vi.fn(),
+            removeListener: vi.fn(),
           },
-        })) as unknown as jest.Mock,
+        })) as unknown as Mock,
       );
       rootMessenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        jest.fn(() => [mockInternalAccount1]),
+        vi.fn(() => [mockInternalAccount1]),
       );
 
       const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
       const controller = new EarnController({
         messenger: earnControllerMessenger,
-        addTransactionFn: jest.fn(),
+        addTransactionFn: vi.fn(),
       });
 
       // Fire two concurrent init() calls — neither has settled yet.
@@ -919,14 +920,14 @@ describe('EarnController', () => {
       expect(EarnSdk.create).toHaveBeenCalledTimes(1);
       expect(
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
-      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI), not doubled to 4
+      ).toHaveBeenCalledTimes(1); // 1 chain (ETH only), not doubled to 2
     });
 
     it('allows retry when init fails', async () => {
       const rootMessenger = buildMessenger();
 
       // First call to NetworkController:getState throws, second succeeds.
-      const mockGetState = jest
+      const mockGetState = vi
         .fn()
         .mockImplementationOnce(() => {
           throw new Error('NetworkController not ready');
@@ -942,24 +943,24 @@ describe('EarnController', () => {
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn(() => ({
+        vi.fn(() => ({
           configuration: { chainId: toHex(1) },
           provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
+            request: vi.fn(),
+            on: vi.fn(),
+            removeListener: vi.fn(),
           },
-        })) as unknown as jest.Mock,
+        })) as unknown as Mock,
       );
       rootMessenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        jest.fn(() => [mockInternalAccount1]),
+        vi.fn(() => [mockInternalAccount1]),
       );
 
       const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
       const controller = new EarnController({
         messenger: earnControllerMessenger,
-        addTransactionFn: jest.fn(),
+        addTransactionFn: vi.fn(),
       });
 
       // First init() should reject and clear #initPromise.
@@ -974,7 +975,7 @@ describe('EarnController', () => {
       expect(EarnSdk.create).toHaveBeenCalledTimes(1);
       expect(
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
-      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI)
+      ).toHaveBeenCalledTimes(1); // 1 chain (ETH only)
     });
 
     describe('when no EVM account is available at init time', () => {
@@ -990,7 +991,7 @@ describe('EarnController', () => {
       };
 
       it('defers portfolio refresh until AccountTreeController:stateChange fires with a non-empty selectedAccountGroup', async () => {
-        const mockGetAccounts = jest
+        const mockGetAccounts = vi
           .fn()
           .mockReturnValueOnce([]) // No account during init
           .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
@@ -1024,7 +1025,7 @@ describe('EarnController', () => {
 
       it('does not trigger portfolio refresh when selectedAccountGroup is empty', async () => {
         const { messenger } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         messenger.publish(
@@ -1044,7 +1045,7 @@ describe('EarnController', () => {
 
       it('does not trigger portfolio refresh when selectedAccountGroup only contains non-EVM accounts', async () => {
         // Always returns no accounts, simulating a non-EVM-only group (e.g. Bitcoin-only)
-        const mockGetAccounts = jest.fn(() => []);
+        const mockGetAccounts = vi.fn(() => []);
 
         const { messenger } = await setupController({
           mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
@@ -1067,7 +1068,7 @@ describe('EarnController', () => {
       });
 
       it('stays subscribed and fires when an EVM account eventually appears after a non-EVM-only state change', async () => {
-        const mockGetAccounts = jest
+        const mockGetAccounts = vi
           .fn()
           .mockReturnValueOnce([]) // No account during init
           .mockReturnValueOnce([]) // Still no EVM account on first stateChange (non-EVM group)
@@ -1106,7 +1107,7 @@ describe('EarnController', () => {
       });
 
       it('unsubscribes after the first non-empty selectedAccountGroup event', async () => {
-        const mockGetAccounts = jest
+        const mockGetAccounts = vi
           .fn()
           .mockReturnValueOnce([]) // No account during init
           .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
@@ -1152,8 +1153,10 @@ describe('EarnController', () => {
     });
 
     it('handles SDK initialization failure gracefully by avoiding known errors', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      (EarnSdk.create as jest.Mock).mockImplementationOnce(() => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      (EarnSdk.create as Mock).mockImplementationOnce(() => {
         throw new Error('Unsupported chainId');
       });
 
@@ -1164,8 +1167,10 @@ describe('EarnController', () => {
     });
 
     it('handles SDK initialization failure gracefully by logging error', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      (EarnSdk.create as jest.Mock).mockImplementationOnce(() => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      (EarnSdk.create as Mock).mockImplementationOnce(() => {
         throw new Error('Network error');
       });
 
@@ -1192,12 +1197,12 @@ describe('EarnController', () => {
     it('reinitializes SDK with correct environment when network changes', async () => {
       const { messenger } = await setupController({
         options: { env: EarnEnvironments.DEV },
-        mockGetNetworkClientById: jest.fn(() => ({
+        mockGetNetworkClientById: vi.fn(() => ({
           configuration: { chainId: '0x2' },
           provider: {
-            request: jest.fn(),
-            on: jest.fn(),
-            removeListener: jest.fn(),
+            request: vi.fn(),
+            on: vi.fn(),
+            removeListener: vi.fn(),
           },
         })),
       });
@@ -1216,7 +1221,7 @@ describe('EarnController', () => {
 
     it('does not initialize sdk if the provider is null', async () => {
       await setupController({
-        mockGetNetworkClientById: jest.fn(() => ({
+        mockGetNetworkClientById: vi.fn(() => ({
           provider: null,
           configuration: { chainId: '0x1' },
         })),
@@ -1251,8 +1256,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First 2 calls occur during setupController()
-          3,
+          // First call occurs during setupController()
+          2,
           [mockAccount1Address],
           1,
           false,
@@ -1266,8 +1271,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First 2 calls occur during setupController()
-          3,
+          // First call occurs during setupController()
+          2,
           [mockAccount1Address],
           1,
           true,
@@ -1283,8 +1288,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First 2 calls occur during setupController()
-          3,
+          // First call occurs during setupController()
+          2,
           [mockAccount2Address],
           1,
           false,
@@ -1292,37 +1297,37 @@ describe('EarnController', () => {
       });
 
       it('handles API errors gracefully', async () => {
-        const consoleErrorSpy = jest
+        const consoleErrorSpy = vi
           .spyOn(console, 'error')
-          .mockImplementation();
+          .mockImplementation(() => undefined);
         mockedEarnApiService = {
           pooledStaking: {
-            getPooledStakes: jest.fn().mockImplementation(() => {
+            getPooledStakes: vi.fn().mockImplementation(() => {
               throw new Error('API Error getPooledStakes');
             }),
-            getPooledStakingEligibility: jest.fn().mockImplementation(() => {
+            getPooledStakingEligibility: vi.fn().mockImplementation(() => {
               throw new Error('API Error getPooledStakingEligibility');
             }),
-            getVaultData: jest.fn().mockImplementation(() => {
+            getVaultData: vi.fn().mockImplementation(() => {
               throw new Error('API Error getVaultData');
             }),
-            getVaultDailyApys: jest.fn().mockImplementation(() => {
+            getVaultDailyApys: vi.fn().mockImplementation(() => {
               throw new Error('API Error getVaultDailyApys');
             }),
-            getVaultApyAverages: jest.fn().mockImplementation(() => {
+            getVaultApyAverages: vi.fn().mockImplementation(() => {
               throw new Error('API Error getVaultApyAverages');
             }),
-          } as Partial<jest.Mocked<PooledStakingApiService>>,
+          },
         };
 
-        EarnApiServiceMock.mockImplementation(
-          () => mockedEarnApiService as EarnApiService,
-        );
+        EarnApiServiceMock.mockImplementation(function () {
+          return mockedEarnApiService as EarnApiService;
+        });
 
         const { controller } = await setupController();
 
         await expect(controller.refreshPooledStakingData()).rejects.toThrow(
-          'Failed to refresh some staking data: API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
+          'Failed to refresh some staking data: API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
         );
         expect(consoleErrorSpy).toHaveBeenCalled();
         consoleErrorSpy.mockRestore();
@@ -1331,7 +1336,7 @@ describe('EarnController', () => {
       // if no account is selected, it should not fetch stakes data but still update vault metadata, vault daily apys and vault apy averages.
       it('does not fetch staking data if no account is selected', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         expect(
@@ -1360,11 +1365,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ resetCache: false });
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1375,11 +1380,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1390,11 +1395,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ resetCache: true });
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           true,
@@ -1405,11 +1410,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1420,21 +1425,21 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ address: mockAccount2Address });
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(3, [mockAccount2Address], 1, false);
+        ).toHaveBeenNthCalledWith(2, [mockAccount2Address], 1, false);
       });
 
       it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1446,11 +1451,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ chainId: 2 });
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1461,11 +1466,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ chainId: ChainId.HOODI });
 
-        // Assertion on third call since the first two are part of controller setup.
+        // Assertion on second call since the first one is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          3,
+          2,
           [mockAccount1Address],
           ChainId.HOODI,
           false,
@@ -1499,7 +1504,7 @@ describe('EarnController', () => {
 
       it('returns early without fetching when no address is available', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         await controller.refreshEarnEligibility();
@@ -1517,7 +1522,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenCalledTimes(3);
+        ).toHaveBeenCalledTimes(2);
       });
 
       it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
@@ -1526,7 +1531,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(3, ChainId.ETHEREUM);
+        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
       });
 
       it('fetches using Ethereum Mainnet fallback if pooled-staking does not support provided chainId', async () => {
@@ -1536,7 +1541,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(3, ChainId.ETHEREUM);
+        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
       });
 
       it('fetches using Ethereum Hoodi if it is the provided chainId', async () => {
@@ -1545,7 +1550,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(3, ChainId.HOODI);
+        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
       });
     });
 
@@ -1556,7 +1561,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenCalledTimes(3);
+        ).toHaveBeenCalledTimes(2);
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1572,7 +1577,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(3, 1, 180, 'desc');
+        ).toHaveBeenNthCalledWith(2, 1, 180, 'desc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1588,7 +1593,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(3, 1, 365, 'asc');
+        ).toHaveBeenNthCalledWith(2, 1, 365, 'asc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1604,7 +1609,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(3, 1, 180, 'asc');
+        ).toHaveBeenNthCalledWith(2, 1, 180, 'asc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1617,7 +1622,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(3, 1, 365, 'desc');
+        ).toHaveBeenNthCalledWith(2, 1, 365, 'desc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1632,7 +1637,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(3, ChainId.HOODI, 365, 'desc');
+        ).toHaveBeenNthCalledWith(2, ChainId.HOODI, 365, 'desc');
         expect(
           controller.state.pooled_staking[ChainId.HOODI].vaultDailyApys,
         ).toStrictEqual(mockPooledStakingVaultDailyApys);
@@ -1673,7 +1678,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenCalledTimes(3);
+        ).toHaveBeenCalledTimes(2);
         expect(
           controller.state.pooled_staking[1].vaultApyAverages,
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
@@ -1686,7 +1691,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(3, 1);
+        ).toHaveBeenNthCalledWith(2, 1);
         expect(
           controller.state.pooled_staking[1].vaultApyAverages,
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
@@ -1699,7 +1704,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(3, ChainId.HOODI);
+        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
       });
 
       it('uses default chain state when refreshing vault apy averages for uninitialized chain', async () => {
@@ -1737,17 +1742,20 @@ describe('EarnController', () => {
       it('updates vault data when network changes', async () => {
         const { controller, messenger } = await setupController();
 
-        jest
-          .spyOn(controller, 'refreshPooledStakingVaultMetadata')
-          .mockResolvedValue();
-        jest
-          .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
-          .mockResolvedValue();
-        jest
-          .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
-          .mockResolvedValue();
+        vi.spyOn(
+          controller,
+          'refreshPooledStakingVaultMetadata',
+        ).mockResolvedValue();
+        vi.spyOn(
+          controller,
+          'refreshPooledStakingVaultDailyApys',
+        ).mockResolvedValue();
+        vi.spyOn(
+          controller,
+          'refreshPooledStakingVaultApyAverages',
+        ).mockResolvedValue();
 
-        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        vi.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
         messenger.publish('NetworkController:networkDidChange', {
           ...getDefaultNetworkControllerState(),
@@ -1768,12 +1776,22 @@ describe('EarnController', () => {
     });
 
     describe('On selected account group change', () => {
-      it('updates earn eligibility, pooled stakes, and lending positions', async () => {
-        const { controller, messenger } = await setupController();
+      it('updates earn eligibility, pooled stakes, and lending positions when the resolved address changed', async () => {
+        // setupController() already runs init() for mockAccount1Address, so
+        // resolve a different address (mockAccount2Address) on the group
+        // change to simulate an actual account switch.
+        const mockGetAccounts = vi.fn().mockReturnValue([mockInternalAccount1]);
+        const { controller, messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
 
-        jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
-        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
-        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+        vi.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
+        vi.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        vi.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+
+        mockGetAccounts.mockReturnValue([
+          createMockInternalAccount({ address: mockAccount2Address }),
+        ]);
 
         messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
@@ -1781,16 +1799,37 @@ describe('EarnController', () => {
           '',
         );
 
-        // Expect address argument to be the EVM address from mockGetAccountsFromSelectedAccountGroup
         expect(controller.refreshEarnEligibility).toHaveBeenNthCalledWith(1, {
-          address: mockAccount1Address,
+          address: mockAccount2Address,
         });
         expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
-          address: mockAccount1Address,
+          address: mockAccount2Address,
         });
         expect(controller.refreshLendingPositions).toHaveBeenNthCalledWith(1, {
-          address: mockAccount1Address,
+          address: mockAccount2Address,
         });
+      });
+
+      it('does not re-fetch when the resolved address is unchanged from the last refresh', async () => {
+        // setupController() already runs init() -> #refreshEarnPortfolio for
+        // mockAccount1Address. A selectedAccountGroupChange firing again
+        // with the same resolved address (e.g. during startup hydration)
+        // should be a no-op.
+        const { controller, messenger } = await setupController();
+
+        vi.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
+        vi.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        vi.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+
+        messenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          'keyring:test/0',
+          '',
+        );
+
+        expect(controller.refreshEarnEligibility).not.toHaveBeenCalled();
+        expect(controller.refreshPooledStakes).not.toHaveBeenCalled();
+        expect(controller.refreshLendingPositions).not.toHaveBeenCalled();
       });
     });
 
@@ -1802,8 +1841,8 @@ describe('EarnController', () => {
         const earnController = await setupController();
         controller = earnController.controller;
         messenger = earnController.messenger;
-        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
-        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+        vi.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        vi.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
       });
 
       it('updates pooled stakes for staking deposit transaction type', () => {
@@ -1932,7 +1971,7 @@ describe('EarnController', () => {
 
       it('returns early without fetching when no address is available', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         await controller.refreshLendingPositions();
@@ -1986,7 +2025,7 @@ describe('EarnController', () => {
 
         (
           (mockedEarnApiService.lending as LendingApiService)
-            .getPositionHistory as jest.Mock
+            .getPositionHistory as Mock
         ).mockResolvedValue(mockPositionHistory);
 
         const result = await controller.getLendingPositionHistory({
@@ -1994,7 +2033,7 @@ describe('EarnController', () => {
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual(mockPositionHistory);
@@ -2014,14 +2053,14 @@ describe('EarnController', () => {
 
       it('returns empty array if no address is provided', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
         const result = await controller.getLendingPositionHistory({
           chainId: 1,
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual([]);
@@ -2036,7 +2075,7 @@ describe('EarnController', () => {
           positionId: '1',
           marketId: 'market1',
           marketAddress: '0x123',
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
         });
 
         expect(result).toStrictEqual([]);
@@ -2069,12 +2108,12 @@ describe('EarnController', () => {
         }
 
         (
-          mockedEarnApiService.lending.getHistoricMarketApys as jest.Mock
+          mockedEarnApiService.lending.getHistoricMarketApys as Mock
         ).mockResolvedValue(mockApysAndAverages);
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
           chainId: 1,
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
           marketId: 'market1',
         });
 
@@ -2090,7 +2129,7 @@ describe('EarnController', () => {
 
         const result = await controller.getLendingMarketDailyApysAndAverages({
           chainId: 2,
-          protocol: 'aave' as LendingMarket['protocol'],
+          protocol: 'aave',
           marketId: 'market1',
         });
 
@@ -2107,11 +2146,11 @@ describe('EarnController', () => {
           gasLimit: 100000,
         };
         const mockLendingContract = {
-          encodeDepositTransactionData: jest
+          encodeDepositTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2121,7 +2160,7 @@ describe('EarnController', () => {
           },
         }));
 
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
           addTransactionFn,
         });
@@ -2151,6 +2190,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2163,11 +2203,11 @@ describe('EarnController', () => {
           gasLimit: 0,
         };
         const mockLendingContract = {
-          encodeDepositTransactionData: jest
+          encodeDepositTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2176,7 +2216,7 @@ describe('EarnController', () => {
             },
           },
         }));
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
 
         const { controller } = await setupController({
           addTransactionFn,
@@ -2207,6 +2247,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2214,12 +2255,12 @@ describe('EarnController', () => {
       it('handles error when encodeDepositTransactionData throws', async () => {
         const contractError = new Error('Contract Error');
         const mockLendingContract = {
-          encodeDepositTransactionData: jest
+          encodeDepositTransactionData: vi
             .fn()
             .mockRejectedValue(contractError),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2269,12 +2310,12 @@ describe('EarnController', () => {
           gasLimit: 100000,
         };
         const mockLendingContract = {
-          encodeDepositTransactionData: jest
+          encodeDepositTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2285,7 +2326,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
+          mockGetNetworkControllerState: vi.fn(() => ({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: '',
           })),
@@ -2307,7 +2348,7 @@ describe('EarnController', () => {
 
       it('handles no selected account address found', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
         await expect(
           controller.executeLendingDeposit({
@@ -2334,12 +2375,12 @@ describe('EarnController', () => {
         };
 
         const mockLendingContract = {
-          encodeWithdrawTransactionData: jest
+          encodeWithdrawTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2349,7 +2390,7 @@ describe('EarnController', () => {
           },
         }));
 
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
           addTransactionFn,
         });
@@ -2378,6 +2419,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2391,12 +2433,12 @@ describe('EarnController', () => {
         };
 
         const mockLendingContract = {
-          encodeWithdrawTransactionData: jest
+          encodeWithdrawTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2406,7 +2448,7 @@ describe('EarnController', () => {
           },
         }));
 
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
           addTransactionFn,
         });
@@ -2435,6 +2477,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2463,12 +2506,12 @@ describe('EarnController', () => {
           gasLimit: 100000,
         };
         const mockLendingContract = {
-          encodeWithdrawTransactionData: jest
+          encodeWithdrawTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2479,7 +2522,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
+          mockGetNetworkControllerState: vi.fn(() => ({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: '',
           })),
@@ -2501,7 +2544,7 @@ describe('EarnController', () => {
 
       it('handles no selected account address found', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
         await expect(
           controller.executeLendingWithdraw({
@@ -2528,12 +2571,12 @@ describe('EarnController', () => {
         };
 
         const mockLendingContract = {
-          encodeUnderlyingTokenApproveTransactionData: jest
+          encodeUnderlyingTokenApproveTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2543,7 +2586,7 @@ describe('EarnController', () => {
           },
         }));
 
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
           addTransactionFn,
         });
@@ -2572,6 +2615,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2585,12 +2629,12 @@ describe('EarnController', () => {
         };
 
         const mockLendingContract = {
-          encodeUnderlyingTokenApproveTransactionData: jest
+          encodeUnderlyingTokenApproveTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2600,7 +2644,7 @@ describe('EarnController', () => {
           },
         }));
 
-        const addTransactionFn = jest.fn().mockResolvedValue('successfulhash');
+        const addTransactionFn = vi.fn().mockResolvedValue('successfulhash');
         const { controller } = await setupController({
           addTransactionFn,
         });
@@ -2629,6 +2673,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2657,12 +2702,12 @@ describe('EarnController', () => {
           gasLimit: 100000,
         };
         const mockLendingContract = {
-          encodeUnderlyingTokenApproveTransactionData: jest
+          encodeUnderlyingTokenApproveTransactionData: vi
             .fn()
             .mockResolvedValue(mockTransactionData),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2673,7 +2718,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetNetworkControllerState: jest.fn(() => ({
+          mockGetNetworkControllerState: vi.fn(() => ({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: '',
           })),
@@ -2695,7 +2740,7 @@ describe('EarnController', () => {
 
       it('handles no selected account address found', async () => {
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
         await expect(
           controller.executeLendingTokenApprove({
@@ -2717,10 +2762,10 @@ describe('EarnController', () => {
         const mockAllowance = '1000';
 
         const mockLendingContract = {
-          underlyingTokenAllowance: jest.fn().mockResolvedValue(mockAllowance),
+          underlyingTokenAllowance: vi.fn().mockResolvedValue(mockAllowance),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2745,10 +2790,10 @@ describe('EarnController', () => {
 
       it('doesn`t call underlyingTokenAllowance if no account address found', async () => {
         const mockLendingContract = {
-          underlyingTokenAllowance: jest.fn().mockResolvedValue(0),
+          underlyingTokenAllowance: vi.fn().mockResolvedValue(0),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2759,7 +2804,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         await controller.getLendingTokenAllowance(
@@ -2778,10 +2823,10 @@ describe('EarnController', () => {
         const mockMaxWithdraw = '1000';
 
         const mockLendingContract = {
-          maxWithdraw: jest.fn().mockResolvedValue(mockMaxWithdraw),
+          maxWithdraw: vi.fn().mockResolvedValue(mockMaxWithdraw),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2806,10 +2851,10 @@ describe('EarnController', () => {
 
       it('doesn`t call maxWithdraw if no account address found', async () => {
         const mockLendingContract = {
-          maxWithdraw: jest.fn().mockResolvedValue(0),
+          maxWithdraw: vi.fn().mockResolvedValue(0),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2820,7 +2865,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         await controller.getLendingTokenMaxWithdraw(
@@ -2837,10 +2882,10 @@ describe('EarnController', () => {
         const mockMaxDeposit = '1000';
 
         const mockLendingContract = {
-          maxDeposit: jest.fn().mockResolvedValue(mockMaxDeposit),
+          maxDeposit: vi.fn().mockResolvedValue(mockMaxDeposit),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2865,10 +2910,10 @@ describe('EarnController', () => {
 
       it('doesn`t call maxDeposit if no account address found', async () => {
         const mockLendingContract = {
-          maxDeposit: jest.fn().mockResolvedValue(0),
+          maxDeposit: vi.fn().mockResolvedValue(0),
         };
 
-        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+        (EarnSdk.create as Mock).mockImplementation(() => ({
           contracts: {
             lending: {
               aave: {
@@ -2879,7 +2924,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+          mockGetAccountsFromSelectedAccountGroup: vi.fn(() => []),
         });
 
         await controller.getLendingTokenMaxDeposit(
@@ -2897,7 +2942,7 @@ describe('EarnController', () => {
       it('updates state with fetched APY data', async () => {
         const { controller } = await setupController();
         const mockApy = '3.35';
-        const mockApyFetcher = jest.fn().mockResolvedValue(mockApy);
+        const mockApyFetcher = vi.fn().mockResolvedValue(mockApy);
 
         await controller.refreshTronStakingApy(mockApyFetcher);
 
@@ -2914,7 +2959,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         await controller.refreshTronStakingApy(
-          jest.fn().mockResolvedValue('3.35'),
+          vi.fn().mockResolvedValue('3.35'),
         );
 
         const firstLastUpdated = controller.state.tron_staking?.lastUpdated;
@@ -2922,7 +2967,7 @@ describe('EarnController', () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
 
         await controller.refreshTronStakingApy(
-          jest.fn().mockResolvedValue('4.0'),
+          vi.fn().mockResolvedValue('4.0'),
         );
 
         expect(controller.state.tron_staking?.apy).toBe('4.0');
@@ -2934,7 +2979,7 @@ describe('EarnController', () => {
       it('handles apyFetcher errors', async () => {
         const { controller } = await setupController();
         const mockError = new Error('Failed to fetch APY');
-        const mockApyFetcher = jest.fn().mockRejectedValue(mockError);
+        const mockApyFetcher = vi.fn().mockRejectedValue(mockError);
 
         await expect(
           controller.refreshTronStakingApy(mockApyFetcher),
@@ -2949,7 +2994,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         await controller.refreshTronStakingApy(
-          jest.fn().mockResolvedValue('3.35'),
+          vi.fn().mockResolvedValue('3.35'),
         );
 
         const result = controller.getTronStakingApy();
@@ -2999,13 +3044,6 @@ describe('EarnController', () => {
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
         '1': {
-          pooledStakes: mockPooledStakes,
-          exchangeRate: '1.5',
-          vaultMetadata: mockVaultMetadata,
-          vaultDailyApys: mockPooledStakingVaultDailyApys,
-          vaultApyAverages: mockPooledStakingVaultApyAverages,
-        },
-        '560048': {
           pooledStakes: mockPooledStakes,
           exchangeRate: '1.5',
           vaultMetadata: mockVaultMetadata,
@@ -3098,13 +3136,6 @@ describe('EarnController', () => {
           vaultDailyApys: mockPooledStakingVaultDailyApys,
           vaultApyAverages: mockPooledStakingVaultApyAverages,
         },
-        '560048': {
-          pooledStakes: mockPooledStakes,
-          exchangeRate: '1.5',
-          vaultMetadata: mockVaultMetadata,
-          vaultDailyApys: mockPooledStakingVaultDailyApys,
-          vaultApyAverages: mockPooledStakingVaultApyAverages,
-        },
         isEligible: true,
       });
       expect(derivedTronStaking).toBeNull();
@@ -3184,13 +3215,6 @@ describe('EarnController', () => {
       } = derivedState;
       expect(derivedPooledStaking).toStrictEqual({
         '1': {
-          pooledStakes: mockPooledStakes,
-          exchangeRate: '1.5',
-          vaultMetadata: mockVaultMetadata,
-          vaultDailyApys: mockPooledStakingVaultDailyApys,
-          vaultApyAverages: mockPooledStakingVaultApyAverages,
-        },
-        '560048': {
           pooledStakes: mockPooledStakes,
           exchangeRate: '1.5',
           vaultMetadata: mockVaultMetadata,

@@ -2,19 +2,22 @@
  * Accounts API Client Tests - accounts.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient';
-import { API_URLS, HttpError } from '../shared-types';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from '../test-utils';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS, HttpError } from '../shared-types.js';
 import type {
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
   V2BalancesResponse,
   V5BalancesResponse,
-} from './types';
+  V6BalancesResponse,
+} from './types.js';
 
 describe('AccountsApiClient', () => {
   let client: ApiPlatformClient;
@@ -41,8 +44,13 @@ describe('AccountsApiClient', () => {
 
     it('fetches v2 supported networks', async () => {
       const mockResponse: V2SupportedNetworksResponse = {
-        fullSupport: [1, 137],
-        partialSupport: { balances: [56] },
+        fullSupport: ['eip155:1', 'eip155:137', 'eip155:59144'],
+        partialSupport: [
+          'tron:728126428',
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+          'stellar:pubnet',
+        ],
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
@@ -178,6 +186,97 @@ describe('AccountsApiClient', () => {
       );
     });
 
+    it('appends a fresh random bypassServerCache param on each v5 fetch when bypassServerCache is true', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+
+      // Two network calls prove the client-side query cache was bypassed too.
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a bypassServerCache param to v5 fetches without bypassServerCache', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('bypassServerCache');
+    });
+
+    it('appends a fresh random bypassServerCache param on each v6 fetch when bypassServerCache is true', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a bypassServerCache param to v6 fetches without bypassServerCache', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('bypassServerCache');
+    });
+
     it('fetches v2 balances with additional options', async () => {
       const mockResponse: V2BalancesResponse = {
         count: 1,
@@ -251,6 +350,90 @@ describe('AccountsApiClient', () => {
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    it('fetches v6 multi-account balances with token and defi rows', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: ['eip155:1329'],
+        unprocessedIncludeAssetIds: ['eip155:1/erc20:0xabc'],
+        balances: [
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'token',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0xc02aaa39',
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+            balance: '0.283549083429656057',
+            price: '2119.66',
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'token',
+            type: 'erc20',
+            assetId:
+              'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 7,
+            balance: '10.5',
+            metadata: {
+              limit: '9223372036854775807',
+              authorized: true,
+            },
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'defi',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0x4fef9d74',
+            name: 'MetaMask Swaps',
+            symbol: 'MMS',
+            decimals: 18,
+            balance: '1.0',
+            metadata: {
+              protocolId: 'metamask',
+              productName: 'MetaMask Swaps',
+              groupId: 'group-1',
+              description: 'MetaMask Swaps on ethereum',
+              protocolUrl: 'https://metamask.io/',
+              protocolIconUrl: 'https://example.com/icon.jpg',
+              positionType: 'deposit',
+              poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+            },
+          },
+        ],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        {
+          includeDeFiBalances: true,
+          includePrices: true,
+          vsCurrency: 'usd',
+          includeAssetIds: ['eip155:1/erc20:0xabc'],
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).toContain('/v6/multiaccount/balances');
+      expect(calledUrl).toContain('includeDeFiBalances=true');
+      expect(calledUrl).toContain('includePrices=true');
+      expect(calledUrl).toContain('vsCurrency=usd');
+    });
+
+    it('returns empty balances for empty accountIds in v6', async () => {
+      const result = await client.accounts.fetchV6MultiAccountBalances([]);
+
+      expect(result).toStrictEqual({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Transactions', () => {
@@ -280,6 +463,126 @@ describe('AccountsApiClient', () => {
         expect.stringContaining('/v1/networks/1/transactions/0xabc'),
         expect.any(Object),
       );
+    });
+
+    it('fetches a v5 transaction by id', async () => {
+      const accountId =
+        'eip155:137:0xcc765934f460bf4ba43244a36f7561cbf618daca' as const;
+      const txId =
+        '0xe4c664be6a9518384cd9de7c4ed75736267b4c8423fcf4cdb94a2fcf1892413d';
+      const mockResponse = {
+        data: {
+          accountId,
+          tx: {
+            id: txId,
+            chainId: 'eip155:137',
+            status: 'confirmed',
+            timestamp: 1791544969000,
+            date: '2026-10-09T11:22:49.000Z',
+            from: '0xcc765934f460bf4ba43244a36f7561cbf618daca',
+            to: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
+            blockNumber: '95226500',
+            blockHash:
+              '0x7a33a4d4cf8b6df980e1671e3305dc01a8d2c6846eba342e1fe5049288a9825a',
+          },
+          valueTransfers: [
+            {
+              assetClass: 'ft',
+              from: '0xcc765934f460bf4ba43244a36f7561cbf618daca',
+              to: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
+              assetId: 'eip155:137/slip44:966',
+              amount: '5000000000000000000',
+              decimal: 18,
+              symbol: 'POL',
+              name: 'Polygon Ecosystem Token',
+            },
+          ],
+          fee: {
+            payer: accountId,
+            asset: {
+              assetId: 'eip155:137/slip44:966',
+              amount: '85120590887535808',
+              decimals: 18,
+              symbol: 'POL',
+            },
+          },
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.accounts.fetchV5TransactionById(
+        accountId,
+        txId,
+        {
+          includeLogs: false,
+          includeMiscOperations: true,
+          includeTxMetadata: true,
+          lang: 'en',
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `/v5/accounts/${accountId}/transactions/${txId}`,
+        ),
+        expect.any(Object),
+      );
+      const requestUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(requestUrl).toContain('includeTxMetadata=true');
+      expect(requestUrl).toContain('includeMiscOperations=true');
+      expect(requestUrl).toContain('includeLogs=false');
+      expect(requestUrl).toContain('lang=en');
+      expect(requestUrl).not.toContain('%3A');
+    });
+
+    it('returns query options for a v5 transaction by id usable with fetchQuery', async () => {
+      const accountId = 'stellar:pubnet:GABC' as const;
+      const txId = '8d0f';
+      const mockResponse = {
+        data: {
+          accountId,
+          tx: {
+            id: txId,
+            chainId: 'stellar:pubnet',
+            status: 'confirmed',
+            timestamp: 1714440000000,
+            date: '2024-04-30T01:20:00.000Z',
+            from: 'GABC',
+            to: 'GDEF',
+            blockNumber: '50123456',
+            blockHash: '0xabc',
+          },
+          valueTransfers: [],
+          fee: null,
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const queryOptions = client.accounts.getV5TransactionByIdQueryOptions(
+        accountId,
+        txId,
+        { includeTxMetadata: true },
+      );
+
+      expect(queryOptions).toMatchObject({
+        queryKey: [
+          'accounts',
+          'transactions',
+          'v5ById',
+          {
+            accountId,
+            txId,
+            options: { includeTxMetadata: true },
+          },
+        ],
+      });
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions.staleTime).toBe(30 * 1000);
+      expect(queryOptions.gcTime).toBe(5 * 60 * 1000);
+
+      const result = await client.queryClient.fetchQuery(queryOptions);
+      expect(result).toStrictEqual(mockResponse);
     });
 
     it('fetches account transactions', async () => {
@@ -471,6 +774,328 @@ describe('AccountsApiClient', () => {
 
         expect(result.staleTime).toBe(60_000);
         expect(result.gcTime).toBe(120_000);
+      });
+
+      it('queryFn fetches paginated transactions and getNextPageParam uses endCursor', async () => {
+        const mockResponse = {
+          unprocessedNetworks: [],
+          pageInfo: {
+            count: 1,
+            hasNextPage: true,
+            endCursor: 'cursor-page-2',
+          },
+          data: [
+            {
+              hash: '0xabc123',
+              timestamp: '2024-01-01T00:00:00Z',
+              chainId: 1,
+              blockNumber: 12345,
+              blockHash: '0xdef',
+              gas: 21000,
+              gasUsed: 21000,
+              gasPrice: '20000000000',
+              effectiveGasPrice: '20000000000',
+              nonce: 0,
+              cumulativeGasUsed: 21000,
+              value: '1000000000000000000',
+              to: '0x456',
+              from: '0x123',
+            },
+          ],
+        };
+        mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+        const queryOptions =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions(
+            {
+              accountAddresses: ['eip155:1:0x123'],
+              networks: ['eip155:1'],
+              sortDirection: 'DESC',
+              includeLogs: true,
+              includeTxMetadata: true,
+              maxLogsPerTx: 10,
+              lang: 'en',
+            },
+            { initialPageParam: 'cursor-page-1' },
+          );
+
+        expect(typeof queryOptions.queryFn).toBe('function');
+        expect(queryOptions.getNextPageParam).toBeDefined();
+
+        const page = await queryOptions.queryFn({
+          pageParam: 'cursor-page-1',
+          signal: undefined,
+        });
+        expect(page).toStrictEqual(mockResponse);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/v4/multiaccount/transactions'),
+          expect.objectContaining({
+            method: 'GET',
+            signal: undefined,
+          }),
+        );
+        expect(mockFetch.mock.calls[0]?.[0]).toContain('cursor=cursor-page-1');
+        expect(mockFetch.mock.calls[0]?.[0]).toContain(
+          'accountAddresses=eip155%3A1%3A0x123',
+        );
+
+        expect(queryOptions.getNextPageParam?.(mockResponse)).toBe(
+          'cursor-page-2',
+        );
+        expect(
+          queryOptions.getNextPageParam?.({
+            ...mockResponse,
+            pageInfo: { count: 1, hasNextPage: false },
+          }),
+        ).toBeUndefined();
+      });
+    });
+
+    it('fetches v5 multi-account transactions', async () => {
+      const mockResponse = {
+        unprocessedAccounts: [],
+        pageInfo: { count: 1, hasNextPage: false },
+        data: [
+          {
+            accountId: 'eip155:1:0x123',
+            tx: {
+              id: '0xabc123',
+              chainId: 'eip155:1',
+              status: 'confirmed',
+              timestamp: 1704067200000,
+              date: '2024-01-01T00:00:00.000Z',
+              from: '0x123',
+              to: '0x456',
+              blockNumber: '12345',
+              blockHash: '0xdef',
+              value: '0',
+            },
+            valueTransfers: [],
+            fee: null,
+          },
+        ],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.accounts.fetchV5MultiAccountTransactions(
+        ['eip155:1:0x123', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:abc'],
+        {
+          networks: ['eip155:1'],
+          assetIds: ['eip155:1/slip44:60'],
+          sortDirection: 'DESC',
+          includeLogs: true,
+          includeTxMetadata: true,
+          includeMiscOperations: true,
+          filterSupportedTokens: true,
+          filterIncomingTransfers: true,
+          filterSpamTokens: true,
+          limit: 20,
+          lang: 'en',
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/v5/multiaccount/transactions'),
+        expect.any(Object),
+      );
+      const requestUrl = mockFetch.mock.calls[0]?.[0];
+      expect(requestUrl).toContain(
+        'accountIds=eip155%3A1%3A0x123%2Csolana%3A5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp%3Aabc',
+      );
+      expect(requestUrl).toContain('networks=eip155%3A1');
+      expect(requestUrl).toContain('assetIds=eip155%3A1%2Fslip44%3A60');
+      expect(requestUrl).toContain('includeLogs=true');
+      expect(requestUrl).toContain('filterSpamTokens=true');
+      expect(requestUrl).not.toContain('cursor=');
+    });
+
+    it('returns query options for v5 multi-account transactions usable with fetchQuery', async () => {
+      const mockResponse = {
+        unprocessedAccounts: [],
+        pageInfo: { count: 0, hasNextPage: false },
+        data: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const queryOptions =
+        client.accounts.getV5MultiAccountTransactionsQueryOptions(
+          ['eip155:1:0xzzz', 'eip155:1:0xaaa'],
+          {
+            networks: ['eip155:137', 'eip155:1'],
+            assetIds: ['eip155:1/erc20:0xbbb', 'eip155:1/erc20:0xaaa'],
+            sortDirection: 'DESC',
+          },
+        );
+
+      expect(queryOptions).toMatchObject({
+        queryKey: [
+          'accounts',
+          'transactions',
+          'v5MultiAccount',
+          {
+            accountIds: ['eip155:1:0xaaa', 'eip155:1:0xzzz'],
+            options: {
+              networks: ['eip155:1', 'eip155:137'],
+              assetIds: ['eip155:1/erc20:0xaaa', 'eip155:1/erc20:0xbbb'],
+              sortDirection: 'DESC',
+            },
+          },
+        ],
+      });
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions.staleTime).toBe(30 * 1000);
+      expect(queryOptions.gcTime).toBe(5 * 60 * 1000);
+
+      const result = await client.queryClient.fetchQuery(queryOptions);
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    describe('getV5MultiAccountTransactionsInfiniteQueryOptions', () => {
+      it('returns a stable queryKey', () => {
+        const result =
+          client.accounts.getV5MultiAccountTransactionsInfiniteQueryOptions({
+            accountIds: ['eip155:1:0xzzz', 'eip155:1:0xaaa'],
+            networks: ['eip155:137', 'eip155:1'],
+            assetIds: ['eip155:1/erc20:0xbbb', 'eip155:1/erc20:0xaaa'],
+            sortDirection: 'DESC',
+            limit: 20,
+            filterSpamTokens: true,
+          });
+
+        expect(result.queryKey).toStrictEqual([
+          'accounts',
+          'transactions',
+          'v5MultiAccount',
+          {
+            accountIds: ['eip155:1:0xaaa', 'eip155:1:0xzzz'],
+            networks: ['eip155:1', 'eip155:137'],
+            assetIds: ['eip155:1/erc20:0xaaa', 'eip155:1/erc20:0xbbb'],
+            startTimestamp: undefined,
+            endTimestamp: undefined,
+            limit: 20,
+            sortDirection: 'DESC',
+            includeMiscOperations: undefined,
+            includeTxMetadata: undefined,
+            includeLogs: undefined,
+            filterSupportedTokens: undefined,
+            filterIncomingTransfers: undefined,
+            filterSpamTokens: true,
+            maxLogsPerTx: undefined,
+            lang: undefined,
+          },
+        ]);
+      });
+
+      it('uses STALE_TIMES.TRANSACTIONS and GC_TIMES.DEFAULT by default', () => {
+        const result =
+          client.accounts.getV5MultiAccountTransactionsInfiniteQueryOptions({
+            accountIds: ['eip155:1:0xabc'],
+          });
+
+        expect(result.staleTime).toBe(30 * 1000);
+        expect(result.gcTime).toBe(5 * 60 * 1000);
+      });
+
+      it('allows overriding staleTime and gcTime via options', () => {
+        const result =
+          client.accounts.getV5MultiAccountTransactionsInfiniteQueryOptions(
+            { accountIds: ['eip155:1:0xabc'] },
+            { staleTime: 60_000, gcTime: 120_000 },
+          );
+
+        expect(result.staleTime).toBe(60_000);
+        expect(result.gcTime).toBe(120_000);
+      });
+
+      it('queryFn pages with after and getNextPageParam uses endCursor', async () => {
+        const mockResponse = {
+          unprocessedAccounts: ['stellar:pubnet:GABC'],
+          pageInfo: {
+            count: 1,
+            hasNextPage: true,
+            endCursor: 'cursor-page-2',
+          },
+          data: [
+            {
+              accountId: 'stellar:pubnet:GABC',
+              tx: {
+                id: '8d0f',
+                chainId: 'stellar:pubnet',
+                status: 'confirmed',
+                timestamp: 1714440000000,
+                date: '2024-04-30T01:20:00.000Z',
+                from: 'GABC',
+                to: 'GDEF',
+                blockNumber: '50123456',
+                blockHash: '0xabc',
+              },
+              valueTransfers: [],
+              fee: {
+                payer: 'stellar:pubnet:GABC',
+                asset: {
+                  assetId: 'stellar:pubnet/slip44:148',
+                  amount: '100',
+                  decimals: 7,
+                  symbol: 'XLM',
+                },
+              },
+            },
+          ],
+        };
+        mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+        const queryOptions =
+          client.accounts.getV5MultiAccountTransactionsInfiniteQueryOptions({
+            accountIds: ['stellar:pubnet:GABC'],
+            networks: ['stellar:pubnet'],
+            sortDirection: 'DESC',
+            includeLogs: true,
+            includeTxMetadata: true,
+            maxLogsPerTx: 10,
+            lang: 'en',
+          });
+
+        // FetchInfiniteQueryOptions only exposes getNextPageParam when `pages`
+        // is set, so read the callbacks through a local view.
+        const infiniteQuery = queryOptions as unknown as {
+          queryFn: (context: {
+            pageParam?: string;
+            signal?: AbortSignal;
+          }) => Promise<typeof mockResponse>;
+          getNextPageParam: (page: typeof mockResponse) => string | undefined;
+        };
+
+        const page = await infiniteQuery.queryFn({
+          pageParam: 'cursor-page-1',
+          signal: undefined,
+        });
+        expect(page).toStrictEqual(mockResponse);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/v5/multiaccount/transactions'),
+          expect.objectContaining({
+            method: 'GET',
+            signal: undefined,
+          }),
+        );
+        const requestUrl = mockFetch.mock.calls[0]?.[0];
+        expect(requestUrl).toContain('after=cursor-page-1');
+        expect(requestUrl).toContain('accountIds=stellar%3Apubnet%3AGABC');
+        expect(requestUrl).not.toContain('cursor=');
+
+        expect(infiniteQuery.getNextPageParam(mockResponse)).toBe(
+          'cursor-page-2',
+        );
+        expect(
+          infiniteQuery.getNextPageParam({
+            ...mockResponse,
+            pageInfo: {
+              count: 1,
+              hasNextPage: false,
+              endCursor: 'cursor-page-2',
+            },
+          }),
+        ).toBeUndefined();
       });
     });
   });
@@ -678,6 +1303,32 @@ describe('AccountsApiClient', () => {
       ]);
     });
 
+    it('getV6MultiAccountBalancesQueryOptions includes sorted networks, includeAssetIds and excludeAssetIds in queryKey when provided', () => {
+      const options = client.accounts.getV6MultiAccountBalancesQueryOptions(
+        ['eip155:1:0xzzz', 'eip155:1:0xaaa'],
+        {
+          networks: ['eip155:137', 'eip155:1'],
+          includeAssetIds: ['eip155:1/erc20:0xddd', 'eip155:1/erc20:0xccc'],
+          excludeAssetIds: ['eip155:1/erc20:0xbbb', 'eip155:1/erc20:0xaaa'],
+          includeDeFiBalances: true,
+        },
+      );
+      expect(options.queryKey).toStrictEqual([
+        'accounts',
+        'balances',
+        'v6',
+        {
+          accountIds: ['eip155:1:0xaaa', 'eip155:1:0xzzz'],
+          options: {
+            networks: ['eip155:1', 'eip155:137'],
+            includeAssetIds: ['eip155:1/erc20:0xccc', 'eip155:1/erc20:0xddd'],
+            excludeAssetIds: ['eip155:1/erc20:0xaaa', 'eip155:1/erc20:0xbbb'],
+            includeDeFiBalances: true,
+          },
+        },
+      ]);
+    });
+
     it('getV2AccountNftsQueryOptions includes sorted networks in queryKey when queryOptions.networks provided', () => {
       const options = client.accounts.getV2AccountNftsQueryOptions('0x123', {
         networks: [137, 1],
@@ -790,6 +1441,27 @@ describe('AccountsApiClient', () => {
         count: 0,
         balances: [],
         unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV6MultiAccountBalancesQueryOptions queryFn returns empty result for empty accountIds without calling fetch', async () => {
+      const options = client.accounts.getV6MultiAccountBalancesQueryOptions([]);
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });

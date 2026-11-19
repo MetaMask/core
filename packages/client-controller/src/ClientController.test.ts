@@ -1,16 +1,17 @@
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import type {
   ClientControllerActions,
   ClientControllerEvents,
   ClientControllerMessenger,
-} from './ClientController';
+} from './ClientController.js';
 import {
   ClientController,
   controllerName,
   getDefaultClientControllerState,
-} from './ClientController';
-import { clientControllerSelectors } from './selectors';
+} from './ClientController.js';
+import { clientControllerSelectors } from './selectors.js';
 
 describe('ClientController', () => {
   type RootMessenger = Messenger<

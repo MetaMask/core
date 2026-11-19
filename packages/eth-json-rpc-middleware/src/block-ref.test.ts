@@ -1,6 +1,6 @@
 import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createBlockRefMiddleware } from '.';
 import {
   createMockParamsWithBlockParamAt,
   stubProviderRequests,
@@ -12,7 +12,8 @@ import {
   createProviderAndBlockTracker,
   createEngine,
   createRequest,
-} from '../test/util/helpers';
+} from '../test/util/helpers.js';
+import { createBlockRefMiddleware } from './index.js';
 
 describe('createBlockRefMiddleware', () => {
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];
@@ -197,7 +198,7 @@ describe('createBlockRefMiddleware', () => {
           'if the block param is something other than "latest", like %o',
           (blockParam) => {
             // Using custom expect helper
-            // eslint-disable-next-line jest/expect-expect
+            // eslint-disable-next-line vitest/expect-expect
             it('does not make a direct request through the provider', async () => {
               const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 
@@ -270,7 +271,7 @@ describe('createBlockRefMiddleware', () => {
 
   describe('when the RPC method does not take a block parameter', () => {
     // Using custom expect helper
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not make a direct request through the provider', async () => {
       const finalMiddleware = createFinalMiddlewareWithDefaultResult();
 

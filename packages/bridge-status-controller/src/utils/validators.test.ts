@@ -1,4 +1,6 @@
-import { validateBridgeStatusResponse } from './validators';
+import { describe, expect, it } from 'vitest';
+
+import { validateBridgeStatusResponse } from './validators.js';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {
@@ -319,7 +321,7 @@ describe('validators', () => {
     ])(
       'should throw for invalid response for $description',
       ({ input }: { input: unknown }) => {
-        // eslint-disable-next-line jest/require-to-throw-message
+        // eslint-disable-next-line vitest/require-to-throw-message
         expect(() => validateBridgeStatusResponse(input)).toThrow();
       },
     );

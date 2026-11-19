@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   RequestStatus,
   createCacheKey,
@@ -6,7 +8,7 @@ import {
   createSuccessState,
   createErrorState,
   DEFAULT_REQUEST_CACHE_TTL,
-} from './RequestCache';
+} from './RequestCache.js';
 
 describe('RequestCache', () => {
   describe('createCacheKey', () => {

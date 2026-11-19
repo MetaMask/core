@@ -5,9 +5,9 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { UpgradeAccountParams } from './types';
-import { UpgradeAccountParamsStruct } from './types';
-import { validateParams, validateAndNormalizeAddress } from './utils';
+import type { UpgradeAccountParams } from './types.js';
+import { UpgradeAccountParamsStruct } from './types.js';
+import { validateParams, validateAndNormalizeAddress } from './utils.js';
 
 export type WalletUpgradeAccountHooks = {
   upgradeAccount: (

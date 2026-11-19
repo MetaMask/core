@@ -4,11 +4,27 @@ import {
   MOCK_SRP_LOGIN_RESPONSE as SDK_MOCK_SRP_LOGIN_RESPONSE,
   MOCK_OIDC_TOKEN_RESPONSE as SDK_MOCK_OIDC_TOKEN_RESPONSE,
   MOCK_PAIR_PROFILES_RESPONSE as SDK_MOCK_PAIR_PROFILES_RESPONSE,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE as SDK_MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE as SDK_MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE as SDK_MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   MOCK_NONCE_URL,
   MOCK_SRP_LOGIN_URL,
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_PROFILES_URL,
-} from '../../../sdk/mocks/auth';
+  MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
+  MOCK_CUSTOMER_SERVICE_TOKEN_URL,
+  MOCK_PARTNER_IDENTITY_TOKEN_URL,
+  MOCK_MFA_CREDENTIALS_RESPONSE as SDK_MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_MFA_CREDENTIALS_URL,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE as SDK_MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_URL,
+  MOCK_MFA_ENROLL_PASSKEY_RESPONSE as SDK_MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  MOCK_MFA_ENROLL_URL,
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE as SDK_MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_URL,
+  MOCK_MFA_VERIFY_PASSKEY_RESPONSE as SDK_MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  MOCK_MFA_VERIFY_URL,
+} from '../../../sdk/mocks/auth.js';
 
 type MockResponse = {
   url: string;
@@ -54,8 +70,10 @@ export const getMockAuthLoginResponse = (): MockResponse => {
     response: (requestJsonBody?: {
       raw_message: string;
     }): typeof MOCK_LOGIN_RESPONSE => {
-      const splittedRawMessage = requestJsonBody?.raw_message.split(':');
-      const e2eIdentifier = splittedRawMessage?.[splittedRawMessage.length - 2];
+      // Format: metamask:<nonce>:<pubkey>[:<tag>]. Nonce (index 1) carries the
+      // e2e identifier set by getMockAuthNonceResponse — stable across the
+      // optional login tag segment.
+      const e2eIdentifier = requestJsonBody?.raw_message.split(':')[1];
 
       return {
         ...MOCK_LOGIN_RESPONSE,
@@ -124,6 +142,17 @@ export const getMockAuthPairResponse = (): MockResponse => {
   } satisfies MockResponse;
 };
 
+export const MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE =
+  SDK_MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE;
+
+export const getMockAuthPairSocialIdentifierResponse = (): MockResponse => {
+  return {
+    url: MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
+    requestMethod: 'POST',
+    response: MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  } satisfies MockResponse;
+};
+
 export const getMockAuthAccessTokenResponse = (): MockResponse => {
   return {
     url: MOCK_OIDC_TOKEN_URL,
@@ -144,3 +173,55 @@ export const getMockAuthAccessTokenResponse = (): MockResponse => {
     },
   } satisfies MockResponse;
 };
+
+export const MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE =
+  SDK_MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE;
+
+export const getMockCustomerServiceTokenResponse = (): MockResponse => {
+  return {
+    url: MOCK_CUSTOMER_SERVICE_TOKEN_URL,
+    requestMethod: 'POST',
+    response: MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  } satisfies MockResponse;
+};
+
+export const MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE =
+  SDK_MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE;
+
+export const getMockPartnerIdentityTokenResponse = (): MockResponse => {
+  return {
+    url: MOCK_PARTNER_IDENTITY_TOKEN_URL,
+    requestMethod: 'POST',
+    response: MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
+  } satisfies MockResponse;
+};
+
+export const getMockMfaEnrollResponse = (): MockResponse => ({
+  url: MOCK_MFA_ENROLL_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+});
+
+export const getMockMfaEnrollCompleteResponse = (): MockResponse => ({
+  url: MOCK_MFA_ENROLL_COMPLETE_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+});
+
+export const getMockMfaVerifyResponse = (): MockResponse => ({
+  url: MOCK_MFA_VERIFY_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+});
+
+export const getMockMfaVerifyCompleteResponse = (): MockResponse => ({
+  url: MOCK_MFA_VERIFY_COMPLETE_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+});
+
+export const getMockMfaCredentialsResponse = (): MockResponse => ({
+  url: MOCK_MFA_CREDENTIALS_URL,
+  requestMethod: 'GET',
+  response: SDK_MOCK_MFA_CREDENTIALS_RESPONSE,
+});

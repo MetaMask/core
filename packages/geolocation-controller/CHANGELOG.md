@@ -7,9 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `GeolocationApiServiceInvalidateQueriesAction`, `GeolocationApiServiceCacheUpdatedEvent` and `GeolocationApiServiceGranularCacheUpdatedEvent`, also included in `GeolocationApiServiceActions` and `GeolocationApiServiceEvents` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- **BREAKING:** `GeolocationApiService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
+  - `GeolocationApiServiceMessenger` now includes the `GeolocationApiService:invalidateQueries` action and `GeolocationApiService:cacheUpdated` events. Messengers built from `GeolocationApiServiceActions` / `GeolocationApiServiceEvents` pick these up automatically.
+  - The hand-rolled TTL cache and in-flight deduplication are replaced by the `BaseDataService` query cache. `ttlMs` and `bypassCache` keep their existing behaviour.
+- Add dependency `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Add dependency `@metamask/superstruct` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `GeolocationApiService` ([#10881](https://github.com/MetaMask/core/pull/10881))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Resolve the user's country, region, and timezone via the `v2` geolocation endpoint through new `GeolocationController:getGeolocationData` and `GeolocationApiService:fetchGeolocationData` actions that return a `GeolocationData` object, along with matching `GeolocationControllerState` fields ([#9691](https://github.com/MetaMask/core/pull/9691))
+  - `GeolocationController` now delegates to `GeolocationApiService:fetchGeolocationData`; the location code returned by `getGeolocation`/`fetchGeolocation` preserves the legacy `v1` behavior of appending the region only for the US and Canada (e.g. `US-NY`, `CA-ON`) and returning the country alone elsewhere
+- Point `GeolocationApiService` at API Platform's `geolocation-api` service instead of the legacy Ramps-owned `on-ramp` geolocation endpoint, which is slated for deprecation ([#9417](https://github.com/MetaMask/core/pull/9417))
+  - UAT temporarily resolves to the production URL since API Platform has not yet provisioned a dedicated UAT deployment for this service
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [0.1.3]
 
@@ -38,7 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8037](https://github.com/MetaMask/core/pull/8037))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@1.0.0...@metamask/geolocation-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.3...@metamask/geolocation-controller@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.2...@metamask/geolocation-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...@metamask/geolocation-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.0...@metamask/geolocation-controller@0.1.1

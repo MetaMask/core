@@ -1,15 +1,30 @@
+import type { Infer } from '@metamask/superstruct';
 import {
   array,
   assert,
+  assign,
   boolean,
+  enums,
+  literal,
   number,
   optional,
   pattern,
+  refine,
+  size,
   string,
   type,
 } from '@metamask/superstruct';
+import { CaipAssetTypeStruct } from '@metamask/utils';
 
-import type { DelegationResponse, NotificationPreferences } from './types';
+import type {
+  AgenticCliPreference,
+  DelegationResponse,
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
+  MarketingConsent,
+  NotificationPreferences,
+  PriceAlertPreference,
+} from './types.js';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -71,7 +86,6 @@ const PerpsWatchlistExchangeSchema = type({
 
 const PerpsWatchlistMarketsSchema = type({
   hyperliquid: PerpsWatchlistExchangeSchema,
-  myx: PerpsWatchlistExchangeSchema,
 });
 
 const PerpsPreferenceSchema = type({
@@ -87,12 +101,107 @@ const SocialAIPreferenceSchema = type({
   mutedTraderProfileIds: array(string()),
 });
 
+const AgenticCliPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
+const PriceAlertPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
+  agenticCli: AgenticCliPreferenceSchema,
+  priceAlerts: PriceAlertPreferenceSchema,
 });
+
+const MarketingConsentSchema = type({
+  marketingConsentEnabled: boolean(),
+});
+
+const IdentitySharingConsentSchema = type({
+  kyc: optional(boolean()),
+  iron: optional(boolean()),
+});
+
+const IdentitySharingConsentWriteSchema = type({
+  audience: enums(['kyc', 'iron']),
+  granted: boolean(),
+});
+
+/**
+ * Default Agentic CLI notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default price-alert notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Maximum number of entries allowed in an assets-watchlist on write. Reads
+ * are lenient: a server payload exceeding this size will still validate as
+ * an `AssetsWatchlistBlob`. Encoded into
+ * {@link AssetsWatchlistBlobWriteSchema}.
+ */
+export const ASSETS_WATCHLIST_MAX_ASSETS = 100;
+
+/**
+ * The shape we accept on the way **in** from the server. Lenient by design:
+ * a malformed payload throws, but a well-formed payload with more than
+ * {@link ASSETS_WATCHLIST_MAX_ASSETS} assets is still considered valid so we
+ * don't reject existing server-side data.
+ */
+const AssetsWatchlistBlobSchema = type({
+  version: literal(1),
+  assets: array(string()),
+});
+
+/**
+ * The shape we accept on the way **out** to the server. Extends
+ * {@link AssetsWatchlistBlobSchema} with a hard cap on `assets.length`.
+ * Validation failures throw a `StructError`, e.g.
+ * `"At path: assets -- Expected a array with a length between \`0\` and
+ * \`100\` but received one with a length of \`N\`"`.
+ */
+const AssetsWatchlistBlobWriteSchema = assign(
+  AssetsWatchlistBlobSchema,
+  type({
+    assets: size(array(string()), 0, ASSETS_WATCHLIST_MAX_ASSETS),
+  }),
+);
+
+/**
+ * The authenticated user's assets-watchlist: a mutable per-user singleton
+ * blob.
+ *
+ * Each entry is a CAIP-19 asset identifier
+ * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`).
+ *
+ * The `version` literal is carried inside the blob (not in the URL) so the
+ * schema can evolve in a backwards-compatible way; bumping the version
+ * indicates a different `assets` element shape.
+ *
+ * Inferred from {@link AssetsWatchlistBlobSchema} so the runtime schema and
+ * the static type stay in lock-step. The size constraint on writes is
+ * enforced by {@link AssetsWatchlistBlobWriteSchema} and is not encoded in
+ * this static type (TypeScript cannot express "array of length ≤ N").
+ */
+export type AssetsWatchlistBlob = Infer<typeof AssetsWatchlistBlobSchema>;
 
 /**
  * Asserts that the given value is a valid `DelegationResponse[]`.
@@ -116,4 +225,183 @@ export function assertNotificationPreferences(
   data: unknown,
 ): asserts data is NotificationPreferences {
   assert(data, NotificationPreferencesSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `MarketingConsent`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertMarketingConsent(
+  data: unknown,
+): asserts data is MarketingConsent {
+  assert(data, MarketingConsentSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `IdentitySharingConsent`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertIdentitySharingConsent(
+  data: unknown,
+): asserts data is IdentitySharingConsent {
+  assert(data, IdentitySharingConsentSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `IdentitySharingConsentWrite`
+ * before it is sent to the API.
+ *
+ * @param data - The unknown value to validate.
+ * @throws A `StructError` if `audience` is not `kyc` or `iron`, or if
+ * `granted` is missing or not a boolean.
+ */
+export function assertIdentitySharingConsentForWrite(
+  data: unknown,
+): asserts data is IdentitySharingConsentWrite {
+  assert(data, IdentitySharingConsentWriteSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `AssetsWatchlistBlob` (read-side,
+ * lenient).
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertAssetsWatchlistBlob(
+  data: unknown,
+): asserts data is AssetsWatchlistBlob {
+  assert(data, AssetsWatchlistBlobSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `AssetsWatchlistBlob` for
+ * **writes**. In addition to the structural checks performed by
+ * {@link assertAssetsWatchlistBlob}, this enforces that `assets` contains at
+ * most {@link ASSETS_WATCHLIST_MAX_ASSETS} entries.
+ *
+ * @param data - The unknown value to validate.
+ * @throws A `StructError` if the value does not match the expected schema
+ * (including the size constraint).
+ */
+export function assertAssetsWatchlistBlobForWrite(
+  data: unknown,
+): asserts data is AssetsWatchlistBlob {
+  assert(data, AssetsWatchlistBlobWriteSchema);
+}
+
+// ---------------------------------------------------------------------------
+// User assets (custom tokens)
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape we accept on the way **in** from the server. Lenient by design:
+ * a malformed payload throws, but a well-formed payload whose entries are
+ * not valid CAIP-19 asset identifiers is still considered valid so we don't
+ * reject existing server-side data.
+ */
+const UserAssetsBlobSchema = type({
+  version: literal(1),
+  importedAssets: array(string()),
+  hiddenAssets: array(string()),
+});
+
+/**
+ * The maximum number of entries per list (`importedAssets`/`hiddenAssets`)
+ * accepted on writes, mirroring the custom-tokens API's server-side cap.
+ */
+export const USER_ASSETS_MAX_ASSETS = 100;
+
+/** Write-side schema: CAIP-19 entries, capped per list. */
+const UserAssetsBlobWriteSchema = type({
+  version: literal(1),
+  importedAssets: size(array(CaipAssetTypeStruct), 0, USER_ASSETS_MAX_ASSETS),
+  hiddenAssets: size(array(CaipAssetTypeStruct), 0, USER_ASSETS_MAX_ASSETS),
+});
+
+/**
+ * Normalized write schema: additionally enforces mutual exclusivity — no
+ * identifier may appear in both lists. Applied to the normalized blob only,
+ * so it can never reject user input; normalization resolves conflicts first.
+ */
+const UserAssetsBlobNormalizedWriteSchema = refine(
+  UserAssetsBlobWriteSchema,
+  'MutuallyExclusiveUserAssets',
+  (blob) =>
+    blob.hiddenAssets.every(
+      (assetId) => !blob.importedAssets.includes(assetId),
+    ) || 'An identifier may not appear in both importedAssets and hiddenAssets',
+);
+
+/**
+ * The authenticated user's custom tokens: mutually exclusive lists of
+ * CAIP-19 asset identifiers the user chose to import or hide.
+ */
+export type UserAssetsBlob = Infer<typeof UserAssetsBlobSchema>;
+
+/**
+ * Asserts that the given value is a `UserAssetsBlob` (lenient read side).
+ *
+ * @param data - The value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertUserAssetsBlob(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobSchema);
+}
+
+/**
+ * Asserts that the given value is a `UserAssetsBlob` safe to write, with
+ * CAIP-19 asset identifiers in both lists.
+ *
+ * @param data - The value to validate.
+ * @throws A `StructError` if the value does not match the expected schema.
+ */
+export function assertUserAssetsBlobForWrite(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobWriteSchema);
+}
+
+/**
+ * Asserts that a normalized `UserAssetsBlob` is safe to send: structurally
+ * valid and mutually exclusive (no identifier in both lists).
+ *
+ * @param blob - The normalized blob to validate.
+ * @throws A `StructError` if the blob is invalid or contains a conflict.
+ */
+export function assertUserAssetsBlobNormalized(blob: UserAssetsBlob): void {
+  assert(blob, UserAssetsBlobNormalizedWriteSchema);
+}
+
+/**
+ * Asserts that every entry is a CAIP-19 asset identifier.
+ *
+ * @param ids - The identifiers to validate.
+ * @throws A `StructError` if any entry is invalid.
+ */
+export function assertUserAssetIds(ids: string[]): void {
+  assert(ids, array(CaipAssetTypeStruct));
+}
+
+/**
+ * Normalizes a `UserAssetsBlob` for persistence: de-duplicates both lists
+ * (order-preserving) and resolves conflicts fail-open — an identifier in
+ * both lists stays in `importedAssets` and is dropped from `hiddenAssets`.
+ *
+ * @param blob - The blob to normalize.
+ * @returns A new, normalized blob; the input is not mutated.
+ */
+export function normalizeUserAssetsBlob(blob: UserAssetsBlob): UserAssetsBlob {
+  const importedAssets = [...new Set(blob.importedAssets)];
+  const importedAssetIds = new Set(importedAssets);
+  const hiddenAssets = [...new Set(blob.hiddenAssets)].filter(
+    (assetId) => !importedAssetIds.has(assetId),
+  );
+  return { version: 1, importedAssets, hiddenAssets };
 }

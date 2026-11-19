@@ -1,0 +1,405 @@
+import {
+  array,
+  assert,
+  boolean,
+  enums,
+  integer,
+  literal,
+  min,
+  nullable,
+  object,
+  optional,
+  pattern,
+  refine,
+  sensitive,
+  size,
+  string,
+  StructError,
+  type,
+  union,
+} from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
+
+import { VerificationTokenInvalidError, MfaError } from '../../errors.js';
+import { asRecord } from '../../utils/as-record.js';
+
+export const MFA_CREDENTIAL_TYPES = ['passkey', 'email_otp', 'totp'] as const;
+
+export const MfaCredentialTypeStruct = enums(MFA_CREDENTIAL_TYPES);
+
+const CredentialDescriptorStruct = type({
+  type: literal('public-key'),
+  id: string(),
+  transports: optional(array(string())),
+});
+
+const ExtensionsStruct = type({});
+
+export const PublicKeyCredentialCreationOptionsJSONStruct = type({
+  rp: type({
+    id: string(),
+    name: string(),
+  }),
+  user: type({
+    id: sensitive(string()),
+    name: sensitive(string()),
+    displayName: sensitive(string()),
+  }),
+  challenge: sensitive(string()),
+  pubKeyCredParams: array(
+    type({
+      type: literal('public-key'),
+      alg: integer(),
+    }),
+  ),
+  excludeCredentials: optional(array(CredentialDescriptorStruct)),
+  authenticatorSelection: optional(
+    type({
+      authenticatorAttachment: optional(string()),
+      residentKey: optional(string()),
+      requireResidentKey: optional(boolean()),
+      userVerification: optional(string()),
+    }),
+  ),
+  attestation: optional(string()),
+  timeout: optional(integer()),
+  extensions: optional(ExtensionsStruct),
+});
+
+export const PublicKeyCredentialRequestOptionsJSONStruct = type({
+  challenge: sensitive(string()),
+  rpId: optional(string()),
+  allowCredentials: optional(array(CredentialDescriptorStruct)),
+  userVerification: optional(string()),
+  timeout: optional(integer()),
+  extensions: optional(ExtensionsStruct),
+});
+
+export const PasskeyCreateDataStruct = type({
+  publicKey: PublicKeyCredentialCreationOptionsJSONStruct,
+});
+
+export const PasskeyRequestDataStruct = type({
+  publicKey: PublicKeyCredentialRequestOptionsJSONStruct,
+});
+
+export const RegistrationResponseJSONStruct = sensitive(
+  type({
+    id: string(),
+    rawId: string(),
+    type: literal('public-key'),
+    response: type({
+      attestationObject: string(),
+      clientDataJSON: string(),
+      transports: optional(array(string())),
+      publicKeyAlgorithm: optional(integer()),
+      publicKey: optional(string()),
+      authenticatorData: optional(string()),
+    }),
+    authenticatorAttachment: optional(nullable(string())),
+    clientExtensionResults: optional(ExtensionsStruct),
+  }),
+);
+
+export const AuthenticationResponseJSONStruct = sensitive(
+  type({
+    id: string(),
+    rawId: string(),
+    type: literal('public-key'),
+    response: type({
+      authenticatorData: string(),
+      clientDataJSON: string(),
+      signature: string(),
+      userHandle: optional(nullable(string())),
+    }),
+    authenticatorAttachment: optional(nullable(string())),
+    clientExtensionResults: optional(ExtensionsStruct),
+  }),
+);
+
+/**
+ * Only the assertion JWT is consumed from the verification response; the
+ * profile fields on the wire duplicate what the login flow already resolved.
+ */
+export const MfaVerifyCompleteResponseStruct = type({
+  token: sensitive(string()),
+
+  expires_in: integer(),
+});
+
+/** Base32 secret for an authenticator app, as `totp_secret` sends it. */
+const TotpSecretStruct = sensitive(pattern(string(), /^[A-Z2-7]+=*$/u));
+
+/**
+ * QR code for an authenticator app, as `totp_qr` sends it: a PNG data URL that
+ * clients can render as-is. It encodes the secret, so it is just as sensitive.
+ * Case-insensitive, like the scheme and media type of any data URL.
+ */
+const TotpQrCodeStruct = sensitive(
+  pattern(string(), /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/iu),
+);
+
+export const MfaEnrollResponseStruct = type({
+  flow_id: string(),
+
+  expires_at: string(),
+
+  passkey_create_data: optional(sensitive(string())),
+
+  totp_secret: optional(TotpSecretStruct),
+
+  totp_qr: optional(TotpQrCodeStruct),
+});
+
+/**
+ * Enrollment returns the same assertion as verification, proving the
+ * credential just enrolled.
+ */
+export const MfaEnrollCompleteResponseStruct = MfaVerifyCompleteResponseStruct;
+
+export const MfaVerifyResponseStruct = type({
+  flow_id: string(),
+
+  expires_at: string(),
+
+  passkey_request_data: optional(sensitive(string())),
+});
+
+export const MfaPasskeyDetailStruct = type({
+  display_name: optional(sensitive(string())),
+
+  added_at: optional(string()),
+});
+
+export const MfaEmailDetailStruct = type({
+  address: optional(sensitive(string())),
+  verified: optional(boolean()),
+});
+
+export const MfaCredentialStruct = type({
+  // Intentionally accepts strings so future server credential types and
+  // statuses can be ignored without making the complete response invalid.
+
+  credential_id: string(),
+  credential_type: string(),
+  status: string(),
+
+  enrolled_at: optional(string()),
+  last_used_at: optional(string()),
+  passkey: optional(MfaPasskeyDetailStruct),
+  email: optional(MfaEmailDetailStruct),
+});
+
+export const MfaCredentialsResponseStruct = type({
+  credentials: array(MfaCredentialStruct),
+});
+
+export const MfaErrorResponseStruct = type({
+  code: optional(string()),
+  message: string(),
+  retry_after_seconds: optional(integer()),
+});
+
+/**
+ * A recovery identifier of the canonical profile, for the approval's
+ * recipients. Only the fields every identifier has are checked: the others
+ * pass through unchanged.
+ */
+export const MfaApprovalIdentifierStruct = type({
+  type: string(),
+  namespace: string(),
+  value: string(),
+});
+
+export const MfaApprovalResponseStruct = type({
+  approval: sensitive(string()),
+
+  expires_in: min(integer(), 1),
+
+  identifiers: optional(array(MfaApprovalIdentifierStruct)),
+});
+
+export const TokenReasonStruct = object({
+  operation: pattern(string(), /^[A-Za-z0-9_.:-]{1,64}$/u),
+});
+
+export const BeginEnrollmentRequestStruct = refine(
+  object({
+    type: MfaCredentialTypeStruct,
+    email: optional(sensitive(size(string(), 3, 254))),
+    reason: TokenReasonStruct,
+    maxSessionAgeMs: optional(min(integer(), 0)),
+  }),
+  'BeginEnrollmentRequest',
+  (value) => {
+    if (value.type === 'email_otp' && value.email === undefined) {
+      return 'email is required for email_otp enrollment';
+    }
+    if (value.type !== 'email_otp' && value.email !== undefined) {
+      return `email is not accepted for ${value.type} enrollment`;
+    }
+    return true;
+  },
+);
+
+/** A 6-digit code, from an email or an authenticator app. */
+const OtpCodeStruct = sensitive(pattern(string(), /^\d{6}$/u));
+
+const EnrollmentProofStruct = union([
+  object({
+    type: literal('passkey'),
+    attestation: RegistrationResponseJSONStruct,
+  }),
+  object({
+    type: enums(['email_otp', 'totp']),
+    code: OtpCodeStruct,
+  }),
+]);
+
+export const CompleteEnrollmentRequestStruct = object({
+  flowId: string(),
+  proof: EnrollmentProofStruct,
+  reason: TokenReasonStruct,
+});
+
+export const BeginVerificationRequestStruct = object({
+  type: MfaCredentialTypeStruct,
+  reason: TokenReasonStruct,
+});
+
+const VerificationProofStruct = union([
+  object({
+    type: literal('passkey'),
+    assertion: AuthenticationResponseJSONStruct,
+  }),
+  object({
+    type: enums(['email_otp', 'totp']),
+    code: OtpCodeStruct,
+  }),
+]);
+
+export const CompleteVerificationRequestStruct = object({
+  flowId: string(),
+  proof: VerificationProofStruct,
+  reason: TokenReasonStruct,
+});
+
+export const RequestMfaApprovalRequestStruct = object({
+  requestHash: pattern(string(), /^0x[0-9a-f]{64}$/u),
+  audiences: size(array(size(string(), 1, Infinity)), 1, Infinity),
+  requireVerification: optional(boolean()),
+  includeIdentifiers: optional(boolean()),
+  reason: TokenReasonStruct,
+});
+
+export const RemoveCredentialRequestStruct = object({
+  credentialId: size(string(), 1, Infinity),
+  reason: TokenReasonStruct,
+});
+
+export const GetVerificationTokenRequestStruct = object({
+  maxSessionAgeMs: optional(min(integer(), 0)),
+});
+
+// No `aal` check: the assurance level a verification yields is the server's
+// policy, and the services receiving the token enforce it themselves.
+export const VerificationTokenClaimsStruct = sensitive(
+  type({
+    sub: string(),
+    exp: integer(),
+    // Any method name: the server may verify with methods this client cannot
+    // enroll, and an unknown name must not invalidate the token.
+    amr: union([string(), array(string())]),
+  }),
+);
+
+function formatStructError(error: StructError): string {
+  return error
+    .failures()
+    .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+    .join(', ');
+}
+
+/**
+ * Validates data received from the authentication service.
+ *
+ * @param value - Untrusted response data.
+ * @param struct - Expected response structure.
+ * @throws MfaError if the response does not match the structure.
+ */
+export function assertValidMfaResponse<Value>(
+  value: unknown,
+  struct: Struct<Value>,
+): asserts value is Value {
+  try {
+    assert(value, struct);
+  } catch (error) {
+    if (error instanceof StructError) {
+      throw new MfaError('invalid_response', formatStructError(error));
+    }
+    /* istanbul ignore next */
+    throw error;
+  }
+}
+
+/**
+ * Validates data received from an untyped controller boundary.
+ *
+ * @param value - Untrusted request data.
+ * @param struct - Expected request structure.
+ * @throws MfaError if the request does not match the structure.
+ */
+export function assertValidMfaRequest<Value>(
+  value: unknown,
+  struct: Struct<Value>,
+): asserts value is Value {
+  try {
+    assert(value, struct);
+  } catch (error) {
+    if (error instanceof StructError) {
+      throw new MfaError('invalid_request', formatStructError(error));
+    }
+    /* istanbul ignore next */
+    throw error;
+  }
+}
+
+/**
+ * Validates and normalizes claims from a verification access token.
+ *
+ * Hydra places hook-supplied claims under `ext` unless they are promoted to
+ * the top level, so `amr` is read from either location.
+ *
+ * @param payload - Decoded JWT payload.
+ * @returns Validated claims with `amr` represented as an array.
+ * @throws VerificationTokenInvalidError if claims are missing or invalid.
+ */
+export function parseVerificationTokenClaims(payload: unknown): {
+  sub: string;
+  exp: number;
+  amr: string[];
+} {
+  const record = asRecord(payload);
+  const ext = asRecord(record?.ext);
+  const value: unknown = {
+    sub: record?.sub,
+    exp: record?.exp,
+    amr: record?.amr ?? ext?.amr,
+  };
+
+  try {
+    assert(value, VerificationTokenClaimsStruct);
+  } catch (error) {
+    if (error instanceof StructError) {
+      throw new VerificationTokenInvalidError(formatStructError(error));
+    }
+    /* istanbul ignore next */
+    throw error;
+  }
+
+  return {
+    sub: value.sub,
+    exp: value.exp,
+    amr: Array.isArray(value.amr) ? value.amr : [value.amr],
+  };
+}

@@ -1,35 +1,59 @@
-import type { TransactionType } from '@metamask/transaction-controller';
+import {
+  hasTransactionType,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { uniq } from 'lodash';
+import { BigNumber } from 'bignumber.js';
+import { uniq } from 'lodash-es';
 
-import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
-import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+import {
+  isTransactionPayStrategy,
+  STABLECOINS,
+  TransactionPayStrategy,
+} from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
-} from '../strategy/fiat/constants';
+  FIAT_ENABLED_TYPES,
+} from '../strategy/fiat/constants.js';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
-} from '../strategy/relay/constants';
-import type { TransactionPayControllerMessenger } from '../types';
+} from '../strategy/relay/constants.js';
+import {
+  SERVER_POLLING_INTERVAL,
+  SERVER_URL_BASE,
+} from '../strategy/server/constants.js';
+import { DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES } from '../strategy/server/server-support.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
 
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
 export const DEFAULT_GAS_BUFFER = 1.0;
+export const DEFAULT_GAS_STATION_COST_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -85,11 +109,40 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
+  enabledTransactionTypes: TransactionType[];
+  feeReserveMultiplier?: number;
+  maxRateDriftPercent?: number;
+  orderPollIntervalMs?: number;
+  orderPollTimeoutMs?: number;
+  vaultDisabled?: boolean;
+};
+
+type HyperliquidActivationFeeFlag = {
+  enabled?: boolean;
+  amountUsd?: number;
+};
+
+type PostQuoteConfig = {
+  hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
+};
+
+type PostQuoteFeatureFlags = {
+  default?: PostQuoteConfig;
+  overrides?: Record<string, PostQuoteConfig>;
+};
+
+export type HyperliquidActivationFeeConfig = {
+  enabled: boolean;
+  amountUsd: number;
 };
 
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
+      enabled: boolean;
+    };
+    server: {
       enabled: boolean;
     };
     relay: {
@@ -139,16 +192,61 @@ export type PayStrategiesConfigRaw = {
   };
 };
 
+export type RelayValidationEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
+export type AtomicMaxEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
+export type MaxBalanceRefreshIntervalConfig = {
+  [key in TransactionType]?: number;
+};
+
+export type ServerValidationEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
+  excludeChainIdsFromInfura?: Hex[];
+  gasStationCostBuffer?: number;
+  maxBalanceRefreshInterval?: MaxBalanceRefreshIntervalConfig;
   payStrategies?: {
     relay?: {
+      atomicMaxEnabled?: AtomicMaxEnabledConfig;
       gaslessEnabled?: boolean;
+      validationEnabled?: RelayValidationEnabledConfig;
+    };
+    server?: {
+      enabled?: boolean;
+      enabledTransactionTypes?: string[];
+      baseUrl?: string;
+      gaslessEnabled?: boolean;
+      pollingInterval?: number;
+      pollingTimeout?: number;
+      validationEnabled?: ServerValidationEnabledConfig;
     };
   };
 };
 
+type EIP7702FeatureFlag = {
+  contracts?: Record<Hex, { address: Hex; signature: Hex }[]>;
+  supportedChains?: Hex[];
+};
+
 export type PayStrategiesConfig = {
   across: AcrossConfig;
+  server: {
+    enabled: boolean;
+    enabledTransactionTypes: TransactionType[];
+    baseUrl: string;
+    pollingInterval: number;
+    pollingTimeout?: number;
+  };
   relay: {
     enabled: boolean;
   };
@@ -156,6 +254,28 @@ export type PayStrategiesConfig = {
 
 function normalizeHex(value: string | undefined): Hex | undefined {
   return value?.toLowerCase() as Hex | undefined;
+}
+
+/**
+ * Convert raw remote-flag transaction type strings into known transaction
+ * types, discarding any value the client does not recognise.
+ *
+ * @param values - Raw transaction type strings from the remote feature flag.
+ * @returns Recognised transaction types, or the default allowlist when the
+ * flag is absent.
+ */
+function normalizeTransactionTypes(
+  values: string[] | undefined,
+): TransactionType[] {
+  if (!Array.isArray(values)) {
+    return DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES;
+  }
+
+  const knownTypes = Object.values(TransactionType) as string[];
+
+  return uniq(values.filter((value) => knownTypes.includes(value))).map(
+    (value) => value as TransactionType,
+  );
 }
 
 function normalizeStrategy(
@@ -238,6 +358,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
+  extendedFeatureFlags: FeatureFlagsExtendedRaw,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -245,6 +366,9 @@ function normalizeStrategyRoutingConfig(
     payStrategies: {
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
+      },
+      server: {
+        enabled: extendedFeatureFlags.payStrategies?.server?.enabled ?? false,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -273,8 +397,15 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {});
+  return normalizeStrategyRoutingConfig(
+    featureFlags ?? {},
+    extendedFeatureFlags,
+  );
 }
 
 function filterEnabledStrategies(
@@ -288,6 +419,10 @@ function filterEnabledStrategies(
 
     if (strategy === TransactionPayStrategy.Relay) {
       return routingConfig.payStrategies.relay.enabled;
+    }
+
+    if (strategy === TransactionPayStrategy.Server) {
+      return routingConfig.payStrategies.server.enabled;
     }
 
     return true;
@@ -419,10 +554,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -451,6 +589,62 @@ export function getFeatureFlags(
 }
 
 /**
+ * Get the stablecoins map from the `stableTokens` feature flag.
+ * Falls back to the hardcoded {@link STABLECOINS} constant when the flag is
+ * absent or not a valid object.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Stablecoins keyed by chain ID.
+ */
+export function getStablecoins(
+  messenger: TransactionPayControllerMessenger,
+): Record<Hex, Hex[]> {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const flag = state.remoteFeatureFlags?.stableTokens;
+
+  if (flag && typeof flag === 'object' && !Array.isArray(flag)) {
+    const raw = flag as Record<string, string[]>;
+    return Object.entries(raw).reduce<Record<Hex, Hex[]>>(
+      (acc, [chainId, addresses]) => {
+        if (Array.isArray(addresses)) {
+          acc[chainId.toLowerCase() as Hex] = addresses.map(
+            (a) => a.toLowerCase() as Hex,
+          );
+        }
+        return acc;
+      },
+      {},
+    );
+  }
+
+  return STABLECOINS;
+}
+
+export function getMaxBalanceRefreshInterval(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): number | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const config = featureFlags.maxBalanceRefreshInterval ?? {};
+
+  for (const [transactionType, interval] of Object.entries(config) as [
+    TransactionType,
+    number | undefined,
+  ][]) {
+    if (hasTransactionType(transaction, [transactionType])) {
+      return interval;
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Get Pay Strategies configuration.
  *
  * @param messenger - Controller messenger.
@@ -464,9 +658,15 @@ export function getPayStrategiesConfig(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
   const payStrategies = featureFlags.payStrategies ?? {};
+  const extendedPayStrategies = extendedFeatureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
+  const serverRaw = extendedPayStrategies.server ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -479,12 +679,23 @@ export function getPayStrategiesConfig(
     },
   };
 
+  const server = {
+    enabled: serverRaw.enabled ?? false,
+    enabledTransactionTypes: normalizeTransactionTypes(
+      serverRaw.enabledTransactionTypes,
+    ),
+    baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
+    pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
+    pollingTimeout: serverRaw.pollingTimeout,
+  };
+
   const relay = {
     enabled: relayRaw.enabled ?? true,
   };
 
   return {
     across,
+    server,
     relay,
   };
 }
@@ -504,6 +715,154 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether Relay quote validation is enabled for a given transaction.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Relay quotes are
+ * surfaced without being simulated/validated.
+ *
+ * Configured via the `payStrategies.relay.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transactions (omitted = `false`);
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any of its nested transactions, has that type.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being validated. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if Relay quote validation is enabled.
+ */
+export function isRelayValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.validationEnabled,
+    transaction,
+  );
+}
+
+/**
+ * Whether the server strategy may request gasless quotes.
+ *
+ * Acts as a kill switch, configured via the `payStrategies.server.gaslessEnabled`
+ * flag. Enabled by default.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if gasless server quotes are enabled.
+ */
+export function isServerGaslessEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return featureFlags.payStrategies?.server?.gaslessEnabled ?? true;
+}
+
+/**
+ * Whether Server quote validation is enabled for a given transaction.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Server quotes are
+ * surfaced without being simulated/validated.
+ *
+ * Configured via the `payStrategies.server.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transactions (omitted = `false`);
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any of its nested transactions, has that type.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being validated. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if Server quote validation is enabled.
+ */
+export function isServerValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.server?.validationEnabled,
+    transaction,
+  );
+}
+
+/**
+ * Whether atomic max quotes are enabled for a given transaction.
+ *
+ * Gates subsidized max deposits using atomic exact-output quotes.
+ *
+ * Configured via the `payStrategies.relay.atomicMaxEnabled` flag, an
+ * object `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any nested transaction, has that type.
+ *
+ * When the flag or its default is absent, atomic max is disabled unless a
+ * matching transaction type override enables it.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being quoted. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if atomic max quotes are enabled.
+ */
+export function isAtomicMaxEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.atomicMaxEnabled,
+    transaction,
+  );
+}
+
+/**
+ * Whether a chain is excluded from preferring Infura for balance queries.
+ *
+ * When a chain ID appears in the `confirmations_pay_extended.excludeChainIdsFromInfura`
+ * feature flag array, the Infura RPC endpoint should not be forced for that chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to check.
+ * @returns True if the chain should skip the Infura preference.
+ */
+export function isChainExcludedFromInfura(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const excludedChains = featureFlags.excludeChainIdsFromInfura ?? [];
+
+  return excludedChains.some(
+    (excluded) => excluded.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**
@@ -566,6 +925,30 @@ export function getRelayPollingTimeout(
 }
 
 /**
+ * Get the server strategy status polling interval in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling interval in milliseconds.
+ */
+export function getServerPollingInterval(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  return getPayStrategiesConfig(messenger).server.pollingInterval;
+}
+
+/**
+ * Get the server strategy status polling timeout in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling timeout in milliseconds, or undefined when not configured.
+ */
+export function getServerPollingTimeout(
+  messenger: TransactionPayControllerMessenger,
+): number | undefined {
+  return getPayStrategiesConfig(messenger).server.pollingTimeout;
+}
+
+/**
  * Get fallback gas limits for quote/submit flows.
  *
  * @param messenger - Controller messenger.
@@ -599,6 +982,29 @@ export function getGasBuffer(
     featureFlags.gasBuffer?.default ??
     DEFAULT_GAS_BUFFER
   );
+}
+
+/**
+ * Get the multiplier applied to the estimated gas station cost when reserving
+ * source token for gas in a max-amount quote.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Gas station cost buffer multiplier.
+ */
+export function getGasStationCostBuffer(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const buffer = featureFlags.gasStationCostBuffer;
+
+  return typeof buffer === 'number' && buffer >= 1
+    ? buffer
+    : DEFAULT_GAS_STATION_COST_BUFFER;
 }
 
 /**
@@ -637,31 +1043,6 @@ export function getSlippage(
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
   log('Using default slippage', { chainId, tokenAddress, slippage });
   return slippage;
-}
-
-/**
- * Get the AssetsUnifyState feature flag state.
- *
- * @param messenger - Controller messenger.
- * @returns True if the assets unify state feature is enabled, false otherwise.
- */
-export function getAssetsUnifyStateFeature(
-  messenger: TransactionPayControllerMessenger,
-): boolean {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const assetsUnifyState = state.remoteFeatureFlags.assetsUnifyState as
-    | {
-        enabled: boolean;
-        featureVersion: string | null;
-      }
-    | undefined;
-
-  const AssetsUnifyStateFeatureVersion = '1';
-
-  return (
-    Boolean(assetsUnifyState?.enabled) &&
-    assetsUnifyState?.featureVersion === AssetsUnifyStateFeatureVersion
-  );
 }
 
 /**
@@ -720,6 +1101,183 @@ export function getFiatAssetPerTransactionType(
 }
 
 /**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the fee reserve multiplier for fiat three-phase submit.
+ *
+ * Controls how much of the original relay fee is reserved from the discovery
+ * quote source amount to prevent EXACT_OUTPUT cost overruns.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The fee reserve multiplier.
+ */
+export function getFiatFeeReserveMultiplier(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const multiplier = fiatFlags?.feeReserveMultiplier;
+
+  return typeof multiplier === 'number' && multiplier > 0
+    ? multiplier
+    : DEFAULT_FEE_RESERVE_MULTIPLIER;
+}
+
+/**
+ * Returns the maximum allowed relay rate drift percentage for fiat submit.
+ *
+ * Controls how much the relay exchange rate can drift between the original
+ * quoting phase and the post-settlement discovery quote before failing.
+ * Defaults to 10%.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The maximum rate drift percentage.
+ */
+export function getFiatMaxRateDriftPercent(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const maxDrift = fiatFlags?.maxRateDriftPercent;
+
+  return typeof maxDrift === 'number' && maxDrift > 0
+    ? maxDrift
+    : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+export function getDirectMoneyMusdEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+export function getFiatVaultDisabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.vaultDisabled === true;
+}
+
+/**
+ * Returns the fiat order poll interval in milliseconds.
+ *
+ * Controls how frequently the fiat order status is polled during
+ * the on-ramp completion wait loop. Defaults to 1 000 ms.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll interval in milliseconds.
+ */
+export function getFiatOrderPollIntervalMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const interval = fiatFlags?.orderPollIntervalMs;
+
+  return typeof interval === 'number' && interval > 0
+    ? interval
+    : DEFAULT_ORDER_POLL_INTERVAL_MS;
+}
+
+/**
+ * Returns the fiat order poll timeout in milliseconds.
+ *
+ * Controls how long the fiat order polling loop waits for a terminal
+ * status before timing out. Defaults to 600 000 ms (10 minutes).
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll timeout in milliseconds.
+ */
+export function getFiatOrderPollTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const timeout = fiatFlags?.orderPollTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_ORDER_POLL_TIMEOUT_MS;
+}
+
+/**
+ * Get the HyperLiquid activation-fee configuration from the
+ * `confirmations_pay_post_quote` feature flag for a transaction type.
+ *
+ * Resolves the transaction type's
+ * `overrides.<transactionType>.hyperliquidActivationFee`, falling back to
+ * `default.hyperliquidActivationFee`.
+ *
+ * When enabled, an unactivated HyperCore account withdrawing via Pay has the
+ * one-time activation fee reserved from the amount sent to HyperLiquid (so the
+ * `sendAsset` step retains enough balance) and surfaced as part of the
+ * provider fee. Defaults to disabled with a $1 fee.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Parent transaction type used to resolve overrides.
+ * @returns The activation-fee configuration.
+ */
+export function getHyperliquidActivationFeeConfig(
+  messenger: TransactionPayControllerMessenger,
+  transactionType?: string,
+): HyperliquidActivationFeeConfig {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFeatureFlags | undefined;
+
+  const override = transactionType
+    ? featureFlags?.overrides?.[transactionType]
+    : undefined;
+  const config =
+    override?.hyperliquidActivationFee ??
+    featureFlags?.default?.hyperliquidActivationFee;
+
+  const { amountUsd } = config ?? {};
+
+  return {
+    enabled: config?.enabled ?? false,
+    amountUsd:
+      typeof amountUsd === 'number' && amountUsd > 0
+        ? amountUsd
+        : DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  };
+}
+
+/**
  * Checks if a chain supports EIP-7702.
  *
  * @param messenger - Controller messenger.
@@ -732,7 +1290,7 @@ export function isEIP7702Chain(
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
+    | EIP7702FeatureFlag
     | undefined;
 
   const supportedChains = eip7702Flags?.supportedChains ?? [];
@@ -740,4 +1298,56 @@ export function isEIP7702Chain(
   return supportedChains.some(
     (supported) => supported.toLowerCase() === chainId.toLowerCase(),
   );
+}
+
+/**
+ * Get the EIP-7702 upgrade contract address for a chain from the
+ * `confirmations_eip_7702.contracts` feature flag, if any.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to resolve the upgrade contract for.
+ * @returns The upgrade contract address, or `undefined` when none is set.
+ */
+export function getEIP7702UpgradeContractAddress(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): Hex | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | EIP7702FeatureFlag
+    | undefined;
+
+  const contracts = getCaseInsensitive(eip7702Flags?.contracts, chainId);
+
+  return contracts?.[0]?.address;
+}
+
+/**
+ * Resolve a per-transaction-type toggle.
+ *
+ * A per-type override wins over the global `default` toggle. An override
+ * matches when the transaction, or any nested transaction, has that type.
+ *
+ * @param config - Toggle configuration.
+ * @param transaction - Transaction to match against the type overrides.
+ * @returns The resolved toggle, or `false` when neither matches.
+ */
+function isEnabledForTransaction(
+  config:
+    | {
+        default?: boolean;
+        transactionTypes?: Partial<Record<TransactionType, boolean>>;
+      }
+    | undefined,
+  transaction: TransactionMeta | undefined,
+): boolean {
+  for (const [type, enabled] of Object.entries(
+    config?.transactionTypes ?? {},
+  )) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  return config?.default ?? false;
 }

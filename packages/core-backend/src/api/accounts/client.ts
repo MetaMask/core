@@ -4,22 +4,23 @@
  * Handles all account-related API calls including:
  * - Supported networks
  * - Active networks
- * - Balances (v2, v4, v5)
- * - Transactions
+ * - Balances (v2, v4, v5, v6)
+ * - Transactions (v1, v4, v5)
  * - Relationships
  * - NFTs
  * - Token discovery
  */
 
+import type { CaipAccountId } from '@metamask/utils';
 import type {
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
+import { getQueryOptionsOverrides } from '../shared-types.js';
+import type { FetchOptions } from '../shared-types.js';
 import type {
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,
@@ -27,13 +28,30 @@ import type {
   V2BalancesResponse,
   V4BalancesResponse,
   V5BalancesResponse,
+  V6BalancesResponse,
+  V6VsCurrency,
   V1TransactionByHashResponse,
   V1AccountTransactionsResponse,
   V4MultiAccountTransactionsResponse,
+  V5MultiAccountTransactionsQueryOptions,
+  V5MultiAccountTransactionsResponse,
+  V5TransactionByIdQueryOptions,
+  V5TransactionByIdResponse,
   V1AccountRelationshipResult,
   V2NftsResponse,
   V2TokensResponse,
-} from './types';
+} from './types.js';
+
+/**
+ * Generate a short random value for the `bypassServerCache` query param. The
+ * Accounts API's server-side cache keys on the full URL including query
+ * params, so a unique value forces a cache miss ("hard refresh").
+ *
+ * @returns An 8-character alphanumeric string.
+ */
+function generateBypassServerCache(): string {
+  return Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+}
 
 /**
  * Accounts API Client.
@@ -79,7 +97,7 @@ export class AccountsApiClient extends BaseApiClient {
       queryKey: ['accounts', 'v1SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1SupportedNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v1/supportedNetworks',
           { signal },
         ),
@@ -116,7 +134,7 @@ export class AccountsApiClient extends BaseApiClient {
       queryKey: ['accounts', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V2SupportedNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v2/supportedNetworks',
           { signal },
         ),
@@ -128,6 +146,7 @@ export class AccountsApiClient extends BaseApiClient {
 
   /**
    * Get list of supported networks (v2 endpoint).
+   * Returns CAIP-2 chain IDs in both `fullSupport` and `partialSupport`.
    *
    * @param options - Fetch options including cache settings.
    * @returns The list of supported networks.
@@ -179,7 +198,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { activeNetworks: [] };
         }
         return this.fetch<V2ActiveNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v2/activeNetworks',
           {
             signal,
@@ -270,7 +289,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, balances: [], unprocessedNetworks: [] };
         }
         return this.fetch<V2BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/balances`,
           {
             signal,
@@ -354,7 +373,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, balances: [], unprocessedNetworks: [] };
         }
         return this.fetch<V4BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/balances',
           {
             signal,
@@ -438,7 +457,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, unprocessedNetworks: [], balances: [] };
         }
         return this.fetch<V5BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v5/multiaccount/balances',
           {
             signal,
@@ -447,12 +466,17 @@ export class AccountsApiClient extends BaseApiClient {
               networks: queryOptions?.networks,
               filterMMListTokens: queryOptions?.filterMMListTokens,
               includeStakedAssets: queryOptions?.includeStakedAssets,
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
+                : undefined,
             },
           },
         );
       },
       ...getQueryOptionsOverrides(options),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      staleTime:
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
@@ -489,6 +513,165 @@ export class AccountsApiClient extends BaseApiClient {
     );
   }
 
+  /**
+   * Returns the TanStack Query options object for v6 multi-account balances.
+   * The v6 endpoint returns token balances and, optionally, DeFi positions and
+   * spot prices.
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Comma-separated CAIP-2 chain IDs to filter by.
+   * @param queryOptions.filterSupportedTokens - Whether to filter the assets to only tokens existing in the Token API.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.includeLabels - Whether to include asset metadata labels in the response.
+   * @param queryOptions.includeCanonicalHead - Whether to include the canonical head asset ID in the response.
+   * @param queryOptions.includeDeFiBalances - Whether to include DeFi positions (token balances are always returned).
+   * @param queryOptions.forceFetchDeFiPositions - Whether to fetch DeFi positions for all accounts, skipping the cached non-DeFi-user check.
+   * @param queryOptions.includePrices - Whether to include spot prices for each token and DeFi position asset.
+   * @param queryOptions.vsCurrency - Quote currency for spot prices when `includePrices` is true (default `usd`).
+   * @param queryOptions.includeAssetIds - ERC-20 CAIP-19 asset IDs to confirm detection for; undetected IDs are returned in `unprocessedIncludeAssetIds`.
+   * @param queryOptions.excludeAssetIds - ERC-20 CAIP-19 asset IDs to exclude from balance results.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV6MultiAccountBalancesQueryOptions(
+    accountIds: string[],
+    queryOptions?: {
+      networks?: string[];
+      filterSupportedTokens?: boolean;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      includeLabels?: boolean;
+      includeCanonicalHead?: boolean;
+      includeDeFiBalances?: boolean;
+      forceFetchDeFiPositions?: boolean;
+      includePrices?: boolean;
+      vsCurrency?: V6VsCurrency;
+      includeAssetIds?: string[];
+      excludeAssetIds?: string[];
+    },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V6BalancesResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'balances',
+        'v6',
+        {
+          accountIds: [...accountIds].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+            includeAssetIds:
+              queryOptions.includeAssetIds &&
+              [...queryOptions.includeAssetIds].sort(),
+            excludeAssetIds:
+              queryOptions.excludeAssetIds &&
+              [...queryOptions.excludeAssetIds].sort(),
+          },
+        },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V6BalancesResponse> => {
+        if (accountIds.length === 0) {
+          return {
+            unprocessedNetworks: [],
+            unprocessedIncludeAssetIds: [],
+            balances: [],
+          };
+        }
+        return this.fetch<V6BalancesResponse>(
+          this.apiUrls.ACCOUNTS,
+          '/v6/multiaccount/balances',
+          {
+            signal,
+            params: {
+              accountIds,
+              networks: queryOptions?.networks,
+              filterSupportedTokens: queryOptions?.filterSupportedTokens,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
+              includeLabels: queryOptions?.includeLabels,
+              includeCanonicalHead: queryOptions?.includeCanonicalHead,
+              includeDeFiBalances: queryOptions?.includeDeFiBalances,
+              forceFetchDeFiPositions: queryOptions?.forceFetchDeFiPositions,
+              includePrices: queryOptions?.includePrices,
+              vsCurrency: queryOptions?.vsCurrency,
+              includeAssetIds: queryOptions?.includeAssetIds,
+              excludeAssetIds: queryOptions?.excludeAssetIds,
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
+                : undefined,
+            },
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime:
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get balances and DeFi positions for multiple accounts using CAIP-10 IDs
+   * (v6 endpoint).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Comma-separated CAIP-2 chain IDs to filter by.
+   * @param queryOptions.filterSupportedTokens - Whether to filter the assets to only tokens existing in the Token API.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.includeLabels - Whether to include asset metadata labels in the response.
+   * @param queryOptions.includeCanonicalHead - Whether to include the canonical head asset ID in the response.
+   * @param queryOptions.includeDeFiBalances - Whether to include DeFi positions (token balances are always returned).
+   * @param queryOptions.forceFetchDeFiPositions - Whether to fetch DeFi positions for all accounts, skipping the cached non-DeFi-user check.
+   * @param queryOptions.includePrices - Whether to include spot prices for each token and DeFi position asset.
+   * @param queryOptions.vsCurrency - Quote currency for spot prices when `includePrices` is true (default `usd`).
+   * @param queryOptions.includeAssetIds - ERC-20 CAIP-19 asset IDs to confirm detection for; undetected IDs are returned in `unprocessedIncludeAssetIds`.
+   * @param queryOptions.excludeAssetIds - ERC-20 CAIP-19 asset IDs to exclude from balance results.
+   * @param options - Fetch options including cache settings.
+   * @returns The multi-account balances and DeFi positions response.
+   */
+  async fetchV6MultiAccountBalances(
+    accountIds: string[],
+    queryOptions?: {
+      networks?: string[];
+      filterSupportedTokens?: boolean;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      includeLabels?: boolean;
+      includeCanonicalHead?: boolean;
+      includeDeFiBalances?: boolean;
+      forceFetchDeFiPositions?: boolean;
+      includePrices?: boolean;
+      vsCurrency?: V6VsCurrency;
+      includeAssetIds?: string[];
+      excludeAssetIds?: string[];
+    },
+    options?: FetchOptions,
+  ): Promise<V6BalancesResponse> {
+    if (accountIds.length === 0) {
+      return {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV6MultiAccountBalancesQueryOptions(
+        accountIds,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
   // ==========================================================================
   // TRANSACTIONS
   // ==========================================================================
@@ -496,6 +679,9 @@ export class AccountsApiClient extends BaseApiClient {
   /**
    * Returns the TanStack Query options object for v1 transaction by hash.
    *
+   * @deprecated Fetch the transaction with {@link getV5TransactionByIdQueryOptions}.
+   * `GET /v1/networks/{chainId}/transactions/{txHash}` is replaced by
+   * `GET /v5/accounts/{accountId}/transactions/{txId}`.
    * @param chainId - The chain ID.
    * @param txHash - The transaction hash.
    * @param queryOptions - Query filter options.
@@ -526,7 +712,7 @@ export class AccountsApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1TransactionByHashResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/networks/${chainId}/transactions/${txHash}`,
           {
             signal,
@@ -547,6 +733,9 @@ export class AccountsApiClient extends BaseApiClient {
   /**
    * Get a specific transaction by hash (v1 endpoint).
    *
+   * @deprecated Fetch the transaction with {@link fetchV5TransactionById}.
+   * `GET /v1/networks/{chainId}/transactions/{txHash}` is replaced by
+   * `GET /v5/accounts/{accountId}/transactions/{txId}`.
    * @param chainId - The chain ID.
    * @param txHash - The transaction hash.
    * @param queryOptions - Query filter options.
@@ -623,7 +812,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [], pageInfo: { count: 0, hasNextPage: false } };
         }
         return this.fetch<V1AccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/accounts/${address}/transactions`,
           {
             signal,
@@ -731,7 +920,7 @@ export class AccountsApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V4MultiAccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/transactions',
           {
             signal,
@@ -823,7 +1012,7 @@ export class AccountsApiClient extends BaseApiClient {
         signal?: AbortSignal;
       }) =>
         this.fetch<V4MultiAccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/transactions',
           {
             signal,
@@ -898,6 +1087,246 @@ export class AccountsApiClient extends BaseApiClient {
     );
   }
 
+  /**
+   * Returns the TanStack Query options object for v5 multi-account transactions.
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getV5MultiAccountTransactionsQueryOptions(
+    accountIds: CaipAccountId[],
+    queryOptions?: V5MultiAccountTransactionsQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V5MultiAccountTransactionsResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5MultiAccount',
+        {
+          accountIds: [...accountIds].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+            assetIds:
+              queryOptions.assetIds && [...queryOptions.assetIds].sort(),
+          },
+        },
+      ],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V5MultiAccountTransactionsResponse>(
+          this.apiUrls.ACCOUNTS,
+          '/v5/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountIds,
+              networks: queryOptions?.networks,
+              assetIds: queryOptions?.assetIds,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
+              limit: queryOptions?.limit,
+              after: queryOptions?.after,
+              before: queryOptions?.before,
+              sortDirection: queryOptions?.sortDirection,
+              includeMiscOperations: queryOptions?.includeMiscOperations,
+              includeTxMetadata: queryOptions?.includeTxMetadata,
+              includeLogs: queryOptions?.includeLogs,
+              filterSupportedTokens: queryOptions?.filterSupportedTokens,
+              filterIncomingTransfers: queryOptions?.filterIncomingTransfers,
+              filterSpamTokens: queryOptions?.filterSpamTokens,
+              maxLogsPerTx: queryOptions?.maxLogsPerTx,
+              lang: queryOptions?.lang,
+            },
+          },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Returns TanStack Query options for v5 multi-account transactions,
+   * designed for use with `useInfiniteQuery`. Pages forward via `after`.
+   *
+   * @param params - API endpoint parameters (excluding pagination cursors).
+   * @param params.accountIds - Array of CAIP-10 account IDs.
+   * @param options - Fetch options including cache settings.
+   * @returns Options object compatible with `useInfiniteQuery`.
+   */
+  getV5MultiAccountTransactionsInfiniteQueryOptions(
+    params: Omit<V5MultiAccountTransactionsQueryOptions, 'after' | 'before'> & {
+      accountIds: CaipAccountId[];
+    },
+    options?: FetchOptions,
+  ): FetchInfiniteQueryOptions<
+    V5MultiAccountTransactionsResponse,
+    Error,
+    V5MultiAccountTransactionsResponse,
+    readonly unknown[],
+    string | undefined
+  > {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5MultiAccount',
+        {
+          accountIds: [...params.accountIds].sort(),
+          networks: params.networks && [...params.networks].sort(),
+          assetIds: params.assetIds && [...params.assetIds].sort(),
+          startTimestamp: params.startTimestamp,
+          endTimestamp: params.endTimestamp,
+          limit: params.limit,
+          sortDirection: params.sortDirection,
+          includeMiscOperations: params.includeMiscOperations,
+          includeTxMetadata: params.includeTxMetadata,
+          includeLogs: params.includeLogs,
+          filterSupportedTokens: params.filterSupportedTokens,
+          filterIncomingTransfers: params.filterIncomingTransfers,
+          filterSpamTokens: params.filterSpamTokens,
+          maxLogsPerTx: params.maxLogsPerTx,
+          lang: params.lang,
+        },
+      ] as const,
+      queryFn: ({
+        pageParam,
+        signal,
+      }: {
+        pageParam?: string;
+        signal?: AbortSignal;
+      }) =>
+        this.fetch<V5MultiAccountTransactionsResponse>(
+          this.apiUrls.ACCOUNTS,
+          '/v5/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountIds: params.accountIds,
+              networks: params.networks,
+              assetIds: params.assetIds,
+              startTimestamp: params.startTimestamp,
+              endTimestamp: params.endTimestamp,
+              limit: params.limit,
+              after: pageParam,
+              sortDirection: params.sortDirection,
+              includeMiscOperations: params.includeMiscOperations,
+              includeTxMetadata: params.includeTxMetadata,
+              includeLogs: params.includeLogs,
+              filterSupportedTokens: params.filterSupportedTokens,
+              filterIncomingTransfers: params.filterIncomingTransfers,
+              filterSpamTokens: params.filterSpamTokens,
+              maxLogsPerTx: params.maxLogsPerTx,
+              lang: params.lang,
+            },
+          },
+        ),
+      getNextPageParam: ({ pageInfo }: V5MultiAccountTransactionsResponse) =>
+        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+      initialPageParam: options?.initialPageParam,
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get multi-account transactions (v5 endpoint).
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param options - Fetch options including cache settings.
+   * @returns The multi-account transactions response.
+   */
+  async fetchV5MultiAccountTransactions(
+    accountIds: CaipAccountId[],
+    queryOptions?: V5MultiAccountTransactionsQueryOptions,
+    options?: FetchOptions,
+  ): Promise<V5MultiAccountTransactionsResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV5MultiAccountTransactionsQueryOptions(
+        accountIds,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for a single v5 transaction.
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   * The record matches one row of `GET /v5/multiaccount/transactions`.
+   *
+   * @param accountId - CAIP-10 account ID.
+   * @param txId - Transaction id (hash on EVM, chain-native id otherwise).
+   * @param queryOptions - Query options.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getV5TransactionByIdQueryOptions(
+    accountId: CaipAccountId,
+    txId: string,
+    queryOptions?: V5TransactionByIdQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V5TransactionByIdResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5ById',
+        { accountId, txId, options: queryOptions },
+      ],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V5TransactionByIdResponse>(
+          this.apiUrls.ACCOUNTS,
+          `/v5/accounts/${accountId}/transactions/${txId}`,
+          {
+            signal,
+            params: {
+              includeTxMetadata: queryOptions?.includeTxMetadata,
+              includeLogs: queryOptions?.includeLogs,
+              includeMiscOperations: queryOptions?.includeMiscOperations,
+              lang: queryOptions?.lang,
+            },
+          },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get one transaction for an account (v5 endpoint).
+   *
+   * @param accountId - CAIP-10 account ID.
+   * @param txId - Transaction id (hash on EVM, chain-native id otherwise).
+   * @param queryOptions - Query options.
+   * @param options - Fetch options including cache settings.
+   * @returns The transaction record for that account.
+   */
+  async fetchV5TransactionById(
+    accountId: CaipAccountId,
+    txId: string,
+    queryOptions?: V5TransactionByIdQueryOptions,
+    options?: FetchOptions,
+  ): Promise<V5TransactionByIdResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV5TransactionByIdQueryOptions(
+        accountId,
+        txId,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
   // ==========================================================================
   // RELATIONSHIPS
   // ==========================================================================
@@ -923,7 +1352,7 @@ export class AccountsApiClient extends BaseApiClient {
         signal,
       }: QueryFunctionContext): Promise<V1AccountRelationshipResult> =>
         this.fetch<V1AccountRelationshipResult>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/networks/${chainId}/accounts/${from}/relationships/${to}`,
           { signal },
         ),
@@ -992,7 +1421,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [], pageInfo: { count: 0, hasNextPage: false } };
         }
         return this.fetch<V2NftsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/nfts`,
           {
             signal,
@@ -1070,7 +1499,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [] };
         }
         return this.fetch<V2TokensResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/tokens`,
           {
             signal,

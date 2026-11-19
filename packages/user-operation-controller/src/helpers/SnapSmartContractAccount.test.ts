@@ -1,17 +1,19 @@
 import type { KeyringController } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked, MockedFunction } from 'vitest';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationRequest,
   SignUserOperationResponse,
   UpdateUserOperationRequest,
   UpdateUserOperationResponse,
-} from '../types';
-import type { PrepareUserOperationRequest } from '../types';
-import type { UserOperationControllerMessenger } from '../UserOperationController';
-import { toEip155ChainId } from '../utils/chain-id';
-import { SnapSmartContractAccount } from './SnapSmartContractAccount';
+} from '../types.js';
+import type { PrepareUserOperationRequest } from '../types.js';
+import type { UserOperationControllerMessenger } from '../UserOperationController.js';
+import { toEip155ChainId } from '../utils/chain-id.js';
+import { SnapSmartContractAccount } from './SnapSmartContractAccount.js';
 
 const PREPARE_USER_OPERATION_REQUEST_MOCK: PrepareUserOperationRequest = {
   chainId: '0x1',
@@ -79,21 +81,21 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
  */
 function createMessengerMock() {
   return {
-    call: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+    call: vi.fn(),
+  } as unknown as Mocked<UserOperationControllerMessenger>;
 }
 
 describe('SnapSmartContractAccount', () => {
-  let messengerMock: jest.Mocked<UserOperationControllerMessenger>;
-  let prepareMock: jest.MockedFn<KeyringController['prepareUserOperation']>;
-  let patchMock: jest.MockedFn<KeyringController['patchUserOperation']>;
-  let signMock: jest.MockedFn<KeyringController['signUserOperation']>;
+  let messengerMock: Mocked<UserOperationControllerMessenger>;
+  let prepareMock: MockedFunction<KeyringController['prepareUserOperation']>;
+  let patchMock: MockedFunction<KeyringController['patchUserOperation']>;
+  let signMock: MockedFunction<KeyringController['signUserOperation']>;
 
   beforeEach(() => {
     messengerMock = createMessengerMock();
-    prepareMock = jest.fn();
-    patchMock = jest.fn();
-    signMock = jest.fn();
+    prepareMock = vi.fn();
+    patchMock = vi.fn();
+    signMock = vi.fn();
 
     messengerMock.call.mockImplementation(async (method: string, ...args) => {
       switch (method) {

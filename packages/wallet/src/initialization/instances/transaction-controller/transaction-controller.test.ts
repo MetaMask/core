@@ -1,0 +1,189 @@
+import { Messenger } from '@metamask/messenger';
+import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { TransactionController } from '@metamask/transaction-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import type { WalletOptions } from '../../../types.js';
+import { Wallet } from '../../../Wallet.js';
+import { defaultConfigurations } from '../../defaults.js';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../../defaults.js';
+import { AlwaysOnlineAdapter } from '../connectivity-controller/always-online-adapter.js';
+import { transactionController } from './transaction-controller.js';
+
+const controllers: TransactionController[] = [];
+const wallets: Wallet[] = [];
+
+const REMOTE_FEATURE_FLAG_OPTIONS = {
+  clientConfigApiService: {
+    fetchRemoteFeatureFlags: async (): Promise<{
+      remoteFeatureFlags: Record<string, boolean>;
+      cacheTimestamp: number;
+    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+  },
+};
+
+type ActionHandler = (...args: unknown[]) => unknown;
+
+type AnyMessenger = Messenger<string>;
+
+describe('transactionController', () => {
+  afterEach(async () => {
+    for (const controller of controllers.splice(0)) {
+      controller.destroy();
+    }
+
+    await Promise.all(wallets.splice(0).map((wallet) => wallet.destroy()));
+  });
+
+  it('is registered as a default initialization configuration', () => {
+    expect(Object.values(defaultConfigurations)).toContain(
+      transactionController,
+    );
+  });
+
+  it('initializes a TransactionController with default state', () => {
+    const rootMessenger = getRootMessenger();
+    const messenger = transactionController.getMessenger(rootMessenger);
+
+    const instance = transactionController.init({
+      state: undefined,
+      messenger,
+      options: {},
+    });
+    controllers.push(instance);
+
+    expect(instance).toBeInstanceOf(TransactionController);
+    expect(rootMessenger.call('TransactionController:getState')).toStrictEqual({
+      batchTransactionCounts: {},
+      methodData: {},
+      transactions: [],
+      transactionBatches: [],
+      lastFetchedBlockNumbers: {},
+      submitHistory: [],
+    });
+  });
+
+  it('is initialized by the default Wallet configuration', () => {
+    const wallet = new Wallet({
+      instanceOptions: getInstanceOptions(),
+    });
+    wallets.push(wallet);
+
+    expect(wallet.getInstance('TransactionController')).toBeInstanceOf(
+      TransactionController,
+    );
+  });
+
+  it('delegates SentinelApiService:simulateTransactions to the controller messenger', async () => {
+    const rootMessenger = getRootMessenger();
+    const simulateTransactions = vi
+      .fn()
+      .mockResolvedValue({ transactions: [] });
+
+    registerActionHandler(
+      rootMessenger,
+      'SentinelApiService',
+      'SentinelApiService:simulateTransactions',
+      simulateTransactions,
+    );
+
+    const messenger = transactionController.getMessenger(rootMessenger);
+
+    const result = await messenger.call(
+      'SentinelApiService:simulateTransactions',
+      '0x1',
+      { transactions: [] },
+    );
+
+    expect(result).toStrictEqual({ transactions: [] });
+    expect(simulateTransactions).toHaveBeenCalledWith('0x1', {
+      transactions: [],
+    });
+  });
+
+  it('forwards the provided state to the controller', () => {
+    const rootMessenger = getRootMessenger();
+    const messenger = transactionController.getMessenger(rootMessenger);
+
+    const instance = transactionController.init({
+      state: {
+        lastFetchedBlockNumbers: { '0x1': 123 },
+      },
+      messenger,
+      options: {},
+    });
+    controllers.push(instance);
+
+    expect(instance.state.lastFetchedBlockNumbers).toStrictEqual({
+      '0x1': 123,
+    });
+  });
+});
+
+function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
+  const rootMessenger = new Messenger<'Root', DefaultActions, DefaultEvents>({
+    namespace: 'Root',
+  });
+
+  registerActionHandler(
+    rootMessenger,
+    'NetworkController',
+    'NetworkController:getNetworkClientRegistry',
+    vi.fn().mockReturnValue({}),
+  );
+
+  return rootMessenger;
+}
+
+function getInstanceOptions(): WalletOptions['instanceOptions'] {
+  return {
+    analyticsController: {
+      platformAdapter: {
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
+      },
+      analyticsId: '11111111-1111-4111-8111-111111111111',
+    },
+    connectivityController: {
+      connectivityAdapter: new AlwaysOnlineAdapter(),
+    },
+    gasFeeController: {
+      clientId: 'test',
+    },
+    networkController: {
+      infuraProjectId: 'test-infura-project-id',
+    },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
+    },
+    storageService: {
+      storage: new InMemoryStorageAdapter(),
+    },
+    remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {},
+  };
+}
+
+function registerActionHandler(
+  parent: RootMessenger<DefaultActions, DefaultEvents>,
+  namespace: string,
+  actionType: string,
+  handler: ActionHandler,
+): void {
+  const messenger = new Messenger({
+    namespace,
+    parent: parent as unknown as AnyMessenger,
+  });
+
+  (
+    messenger as unknown as {
+      registerActionHandler(type: string, handler: ActionHandler): void;
+    }
+  ).registerActionHandler(actionType, handler);
+}

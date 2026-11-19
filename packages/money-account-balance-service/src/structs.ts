@@ -20,16 +20,21 @@ export const VaultConfigStruct = type({
   lensAddress: StrictHexStruct,
   tellerAddress: StrictHexStruct,
   chainId: StrictHexStruct,
+  // Optional so flags deployed before this field existed still validate. When
+  // present it lets the service skip the on-chain `Accountant.base()` read.
+  underlyingToken: optional(StrictHexStruct),
 });
 
 /**
- * Superstruct schema for {@link NormalizedVaultApyResponse}.
+ * Superstruct schema for the raw Veda vault performance response.
  *
  * Uses `type()` (loose validation) so that unknown fields returned by the
  * Veda API do not cause validation failures.
  *
- * Only `apy` and `timestamp` are required — all other fields are optional
- * because the Veda API omits some fields when the vault has no activity.
+ * APY fields are APR values despite their API names. They are converted to
+ * compounded APY values by {@link normalizeVaultApyResponse}. Only `apy` and
+ * `timestamp` are required — all other fields are optional because the Veda
+ * API omits some fields when the vault has no activity.
  */
 export const VaultApyRawResponseStruct = type({
   Response: type({

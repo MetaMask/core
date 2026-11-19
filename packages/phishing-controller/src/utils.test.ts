@@ -1,17 +1,24 @@
-import { ListKeys, ListNames } from './PhishingController';
-import type { PhishingListState } from './PhishingController';
-import type { TokenScanResultType } from './types';
+import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ListKeys, ListNames } from './PhishingController.js';
+import type { PhishingListState } from './PhishingController.js';
+import type { TokenScanResultType } from './types.js';
 import {
   applyDiffs,
   buildCacheKey,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
+  getAddressScanSupportedChain,
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
   getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChain,
+  isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
+  isTokenScanSupportedChain,
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
@@ -20,7 +27,7 @@ import {
   sha256Hash,
   splitCacheHits,
   validateConfig,
-} from './utils';
+} from './utils.js';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
@@ -80,15 +87,12 @@ const exampleRemoveDiff = {
 
 describe('fetchTimeNow', () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
@@ -96,7 +100,7 @@ describe('fetchTimeNow', () => {
 
 describe('applyDiffs', () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('adds a valid addition diff to the state then sets lastUpdated to be the time of the latest diff', () => {
@@ -126,10 +130,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -141,10 +142,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if the removal diff is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -166,10 +164,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -184,10 +179,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -561,10 +553,10 @@ describe('domainToParts', () => {
 });
 
 describe('processConfigs', () => {
-  let consoleErrorMock: jest.SpyInstance;
+  let consoleErrorMock: MockInstance;
 
   beforeEach(() => {
-    consoleErrorMock = jest.spyOn(console, 'error');
+    consoleErrorMock = vi.spyOn(console, 'error');
   });
 
   afterEach(() => {
@@ -723,10 +715,12 @@ describe('processConfigs', () => {
 });
 
 describe('processDomainList', () => {
-  let consoleWarnMock: jest.SpyInstance;
+  let consoleWarnMock: MockInstance;
 
   beforeEach(() => {
-    consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation();
+    consoleWarnMock = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -1242,9 +1236,100 @@ describe('resolveChainName', () => {
   });
 });
 
+describe('isTokenScanSupportedChain', () => {
+  it('returns true for chains supported by token scanning', () => {
+    expect(isTokenScanSupportedChain('ethereum')).toBe(true);
+    expect(isTokenScanSupportedChain('polygon')).toBe(true);
+    expect(isTokenScanSupportedChain('solana')).toBe(true);
+    expect(isTokenScanSupportedChain('bitcoin')).toBe(true);
+    expect(isTokenScanSupportedChain('kaia')).toBe(true);
+  });
+
+  it('returns false for chains not supported by token scanning', () => {
+    expect(isTokenScanSupportedChain('gnosis')).toBe(false);
+    expect(isTokenScanSupportedChain('worldchain')).toBe(false);
+    expect(isTokenScanSupportedChain('flow-evm')).toBe(false);
+  });
+
+  it('returns false for unknown chains', () => {
+    expect(isTokenScanSupportedChain('unknown-chain')).toBe(false);
+    expect(isTokenScanSupportedChain('')).toBe(false);
+  });
+});
+
+describe('isAddressScanSupportedChain', () => {
+  it('returns true for chains supported by address scanning', () => {
+    expect(isAddressScanSupportedChain('ethereum')).toBe(true);
+    expect(isAddressScanSupportedChain('polygon')).toBe(true);
+    expect(isAddressScanSupportedChain('gnosis')).toBe(true);
+    expect(isAddressScanSupportedChain('flow-evm')).toBe(true);
+    expect(isAddressScanSupportedChain('mantle')).toBe(true);
+  });
+
+  it('returns false for chains not supported by address scanning', () => {
+    expect(isAddressScanSupportedChain('solana')).toBe(false);
+    expect(isAddressScanSupportedChain('bitcoin')).toBe(false);
+    expect(isAddressScanSupportedChain('hedera')).toBe(false);
+    expect(isAddressScanSupportedChain('stellar')).toBe(false);
+  });
+
+  it('returns false for unknown chains', () => {
+    expect(isAddressScanSupportedChain('unknown-chain')).toBe(false);
+    expect(isAddressScanSupportedChain('')).toBe(false);
+  });
+});
+
+describe('getAddressScanSupportedChain', () => {
+  it('returns the chain name for an address-scan supported hex chain ID', () => {
+    expect(getAddressScanSupportedChain('0x1')).toBe('ethereum');
+    expect(getAddressScanSupportedChain('0x1237')).toBe('robinhood');
+  });
+
+  it('matches chain IDs case-insensitively', () => {
+    expect(getAddressScanSupportedChain('0X1')).toBe('ethereum');
+  });
+
+  it('returns null for a mapped chain that is not address-scan supported', () => {
+    expect(getAddressScanSupportedChain('0x343b')).toBeNull();
+  });
+
+  it('returns null for an unmapped chain ID', () => {
+    expect(getAddressScanSupportedChain('0xa4ec')).toBeNull();
+    expect(getAddressScanSupportedChain('0xdeadbeef')).toBeNull();
+  });
+
+  it('returns null for non-EVM chain names that are not address-scan supported', () => {
+    expect(getAddressScanSupportedChain('solana')).toBeNull();
+  });
+});
+
+describe('isAddressScanSupportedChainId', () => {
+  it('returns true for address-scan supported hex chain IDs', () => {
+    expect(isAddressScanSupportedChainId('0x1')).toBe(true);
+    expect(isAddressScanSupportedChainId('0x1237')).toBe(true);
+  });
+
+  it('matches chain IDs case-insensitively', () => {
+    expect(isAddressScanSupportedChainId('0X1')).toBe(true);
+  });
+
+  it('returns false for a mapped chain that is not address-scan supported', () => {
+    expect(isAddressScanSupportedChainId('0x343b')).toBe(false);
+  });
+
+  it('returns false for an unmapped chain ID', () => {
+    expect(isAddressScanSupportedChainId('0xa4ec')).toBe(false);
+    expect(isAddressScanSupportedChainId('0xdeadbeef')).toBe(false);
+  });
+
+  it('returns false for non-EVM chain names that are not address-scan supported', () => {
+    expect(isAddressScanSupportedChainId('solana')).toBe(false);
+  });
+});
+
 describe('splitCacheHits', () => {
   const mockCache = {
-    get: jest.fn(),
+    get: vi.fn(),
   };
 
   beforeEach(() => {

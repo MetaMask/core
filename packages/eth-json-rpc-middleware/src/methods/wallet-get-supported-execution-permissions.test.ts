@@ -1,11 +1,13 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import type { WalletMiddlewareParams } from '../wallet';
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   GetSupportedExecutionPermissionsResult,
   ProcessGetSupportedExecutionPermissionsHook,
-} from './wallet-get-supported-execution-permissions';
-import { createWalletGetSupportedExecutionPermissionsHandler } from './wallet-get-supported-execution-permissions';
+} from './wallet-get-supported-execution-permissions.js';
+import { createWalletGetSupportedExecutionPermissionsHandler } from './wallet-get-supported-execution-permissions.js';
 
 const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   'native-token-allowance': {
@@ -28,7 +30,7 @@ const REQUEST_MOCK = {
 
 describe('wallet_getSupportedExecutionPermissions', () => {
   let request: JsonRpcRequest;
-  let processGetSupportedExecutionPermissionsMock: jest.MockedFunction<ProcessGetSupportedExecutionPermissionsHook>;
+  let processGetSupportedExecutionPermissionsMock: MockedFunction<ProcessGetSupportedExecutionPermissionsHook>;
   let context: WalletMiddlewareParams['context'];
 
   const callMethod = async (): Promise<Readonly<Json> | undefined> => {
@@ -40,7 +42,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = { ...REQUEST_MOCK };
 
@@ -48,7 +50,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
       ['origin', 'test-origin'],
     ]) as WalletMiddlewareParams['context'];
 
-    processGetSupportedExecutionPermissionsMock = jest.fn();
+    processGetSupportedExecutionPermissionsMock = vi.fn();
     processGetSupportedExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
   });
 
@@ -81,7 +83,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
       ['empty array', []],
       ['empty object', {}],
     ])('accepts params as %s', async (_description, params) => {
-      request = { ...REQUEST_MOCK, params } as unknown as JsonRpcRequest;
+      request = { ...REQUEST_MOCK, params };
       expect(await callMethod()).toStrictEqual(RESULT_MOCK);
     });
 

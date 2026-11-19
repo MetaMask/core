@@ -1,0 +1,298 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+
+### Fixed
+
+- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting ([#11463](https://github.com/MetaMask/core/pull/11463))
+  - A review decision the SDK opens on (`TemporarilyDeclined`, `FinallyRejected` or `Approved`) now counts as a submission only when the SDK reported `Pending`, `Completed` or `ActionCompleted` earlier in the same launch
+  - A `Pending` that SumSub reports partway through a level is cleared by a later `Ready`, `Initial` or `Incomplete`
+  - After a close that looks like a submit, the session status is fetched up to three times, one second apart. If idOS still has the applicant on the `kyc` step with no decision, the launch reports `abandoned` and stores that status
+  - A stored `submitted` outcome becomes `abandoned` when a fetched session status shows the applicant still on the `kyc` step with no decision, so a session already stuck on `submitted` can resume
+
+## [0.16.0]
+
+### Changed
+
+- **BREAKING:** `KycController.deleteEncryptedStorage` now requires `{ aal2Token }` instead of taking no arguments ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Pass an AAL2 token (one whose `ext.aal` is at least 2): `deleteEncryptedStorage({ aal2Token })`
+  - The token is sent as the `Authorization` bearer value for both deletion requests. An empty token throws before any request is made
+- **BREAKING:** `KycService.createDeletion` and `KycService.completeDeletion` require an `aal2Token` parameter, which is sent as the `Authorization` bearer value ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Callers of the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions must pass `aal2Token` alongside the existing parameters
+  - Both methods throw if the token is empty
+
+## [0.15.0]
+
+### Added
+
+- Add `KycController.deleteEncryptedStorage`, which deletes the caller's encrypted KYC blobs ([#11262](https://github.com/MetaMask/core/pull/11262))
+  - `KycService.createDeletion` posts `POST /deletions` with a fresh client public key and returns `deletionId` plus the `ukycCapabilityToken` wrapping key
+  - The controller mints a client-presented `delete`-scoped uKYC capability token with a 4 hour lifetime, wraps it with that key, and `KycService.completeDeletion` sends it to `DELETE /deletions/{deletionId}`
+  - Both service methods are exposed as the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions, and the controller method as `KycController:deleteEncryptedStorage`
+  - Controller state is left unchanged
+
+## [0.14.0]
+
+### Added
+
+- Add optional `currentStep` to `KycSessionStatus`. Known values are `processing`, `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`, `kyc`, `approved`, and `rejected` ([#11094](https://github.com/MetaMask/core/pull/11094))
+  - `KycService.getSessionStatus`, `KycService.getSessionStatusForVendor`, and `KycService.setAuthorizations` read `currentStep` from the kyc-api session response
+  - A missing `currentStep` is left unset. Any other value, including one this package does not know, is returned as sent. Sessions saved before this field existed keep working until the next status fetch
+  - Export `KYC_CURRENT_STEPS` and `KycCurrentStep`
+- Add `KycController.ensureLocalUserSecret` and the `KycController:ensureLocalUserSecret` messenger action, which create and store the UKYC `local_user_secret` when one does not already exist ([#11099](https://github.com/MetaMask/core/pull/11099))
+  - Call it after the user has expressed intent to onboard and before `startSession`, so secret generation and the Encrypted User Storage write happen before session creation
+  - `startSession` still creates the secret when this method has not been called
+  - The secret is not returned
+- Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
+  - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
+  - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
+  - Both methods are exposed as the `KycService:getDataShares` and `KycController:getDataShares` messenger actions
+- Export the `KycDataShare` and `GetDataSharesParams` types and the `KycServiceGetDataSharesAction` and `KycControllerGetDataSharesAction` action types ([#11158](https://github.com/MetaMask/core/pull/11158))
+
+### Changed
+
+- When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted. ([#11094](https://github.com/MetaMask/core/pull/11094))
+  - After the SumSub SDK completes, the stored session is `finalStatus` `pending` with `currentStep` `processing`
+
+## [0.13.0]
+
+### Added
+
+- Add an optional `trackKycAnalytics` constructor option for KYC analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
+  - `verificationOutcome` is called after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
+  - `statusChanged` is called after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus`, `kycStatus`, `providerFlowStatus` and `vendor`. `previousKycStatus` is always present and is `none` when nothing was stored before, which covers both a session that was just created and a stored `finalStatus` outside `KYC_ANALYTICS_STATUSES`, so an absent field never has to be read as "first observation"
+  - Loading a session into an empty slot (for example after a reinstall) calls neither callback
+  - Neither payload carries session id, email, disclaimer or token data
+  - A callback that throws leaves the stored KYC outcome unchanged. `launchProviderFlow` still returns the outcome it wrote, and polling still stops when a session reaches `approved`, `rejected`, or `retry`
+- Export `getKycAnalyticsStatus`, `KYC_ANALYTICS_STATUSES` and the `KycAnalyticsTrackers`, `KycAnalyticsStatus`, `KycAnalyticsVerificationOutcome`, `KycAnalyticsVerificationOutcomePayload` and `KycAnalyticsStatusChangedPayload` types
+
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [0.12.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [0.12.0]
+
+### Added
+
+- Add optional `partnerIdentityToken` to `CreateUkycSessionParams`; `KycService.createUkycSession` sends it on `POST /sessions` when provided ([#10872](https://github.com/MetaMask/core/pull/10872))
+  - `KycController.startSession` now forwards the partner identity token minted for the selected vendor when creating a UKYC session
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
+  - `KycService:invalidateQueries` drops the cached keys
+- Session creation and capability-authorization refresh throw a short, displayable error when fetching issuer signing keys fails or an encryption schema's `jwtChain` does not verify. The original error is preserved on `cause` ([#10834](https://github.com/MetaMask/core/pull/10834))
+
+## [0.11.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+### Removed
+
+- **BREAKING:** Remove `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` ([#10850](https://github.com/MetaMask/core/pull/10850))
+  - Clients that embedded MoonPay Check/Auth frames must implement that protocol themselves
+
+## [0.10.0]
+
+### Added
+
+- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency ([#10452](https://github.com/MetaMask/core/pull/10452))
+
+### Changed
+
+- **BREAKING:** `KycController` now requires messenger actions `AuthenticatedUserStorageService:putIdentitySharingConsent` and `AuthenticationController:getPartnerIdentityToken` ([#10452](https://github.com/MetaMask/core/pull/10452))
+- **BREAKING:** `KycService.createVendorCustomer` and `KycService.createMoonpaySession` take `partnerIdentityToken` instead of a plaintext `email` ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - `POST /vendors/{vendor}/customers` sends `{ partnerIdentityToken }`
+  - `POST /vendors/moonpay/sessions` sends `partnerIdentityToken` instead of `email`
+  - `KycController.startSession` forwards the token minted by `AuthenticationController:getPartnerIdentityToken`
+- Remove the `email` parameter from `KycController.startSession` and the `KycController:startSession` messenger action ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - Email is resolved from a partner identity token. The token's `ext.email` is used only when `ext.email_verified` is `true`
+  - If that request returns HTTP 422 (`EmailRequiredError`), `startSession` throws when it must create a vendor customer or the controller has no stored email
+- `KycService.createUkycSession` no longer sends a `jwtToken` field on `POST /sessions` ([#10630](https://github.com/MetaMask/core/pull/10630))
+
+## [0.9.0]
+
+### Added
+
+- Add `KycService.resetWrappingKeys`, which posts `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey` and returns `UkycSessionResponse` ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Export `CAPABILITY_AUTHORIZATION_STATUSES`, `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`, `FINAL_STATUSES_TO_SKIP_AUTH_REFRESH`, `needsCapabilityAuthorizationRefresh`, `KYC_STATUSES`, and `FINAL_STATUSES_TO_STOP_POLLING` ([#10692](https://github.com/MetaMask/core/pull/10692))
+
+### Changed
+
+- Refresh and resubmit the UKYC capability authorization when `capabilityAuthorizationStatus` is `new` or `expired` while resuming a session in `startSession` (skipped when `finalStatus` is `approved` or `rejected`) ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Space `KycController` session-status polls with a linear backoff. The first poll is immediate, the next waits 10 seconds, and each later wait grows by 10 seconds. Starting polling again resets the delay ([#10764](https://github.com/MetaMask/core/pull/10764))
+
+## [0.8.0]
+
+### Added
+
+- Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
+
+### Changed
+
+- `KycController.hasCompletedSessionDisclaimers` now reports completion from session `consentStatus === 'given'` instead of fetching the session disclaimer catalog ([#10760](https://github.com/MetaMask/core/pull/10760))
+  - This no longer throws a 409 when the session is already in a terminal state
+- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
+## [0.7.0]
+
+### Added
+
+- Add `KycController.readSessionStatus`, which returns `state.sessionStatus` and does not start polling, and `KycController.fetchSessionStatusOnce`, which calls `getSessionStatus` once, writes the result onto state, and does not start the session-status timer. Both are messenger actions ([#10749](https://github.com/MetaMask/core/pull/10749))
+- Add optional `aal2Token` parameter to `KycController.startSession` and the `KycController:startSession` messenger action ([#10632](https://github.com/MetaMask/core/pull/10632))
+
+### Changed
+
+- **BREAKING:** `KycService.createUkycSession` and the `KycService:createUkycSession` messenger action now require an `aal2Token` parameter, which is sent as the `Authorization` bearer value for `POST /sessions` instead of the wallet bearer token from `AuthenticationController:getBearerToken` ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Other `KycService` requests continue to use the wallet bearer token
+- **BREAKING:** `KycController.startSession` now throws if no existing session is found and `aal2Token` is not provided ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
+  - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
+- Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
+- Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
+
+## [0.6.1]
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [0.6.0]
+
+### Added
+
+- Add the persisted `providerFlowStatus` state field and `KycController:getProviderFlowStatus` messenger action to distinguish provider flows that were submitted, abandoned, or failed ([#10457](https://github.com/MetaMask/core/pull/10457))
+
+### Changed
+
+- **BREAKING:** `KycController.launchProviderFlow` and its messenger action now return the durable provider-flow outcome instead of `void` ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Treat a SumSub SDK `Failed` status as `failed` instead of `abandoned` ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+
+## [0.5.0]
+
+### Changed
+
+- `KycService` GET endpoints now call `fetch` directly instead of `fetchQuery`, so read responses are no longer cached in the service `QueryClient` ([#10375](https://github.com/MetaMask/core/pull/10375))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^33.0.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+
+## [0.4.0]
+
+### Added
+
+- Export `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` so clients can own MoonPay Check/Auth frames after those methods left `KycController` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `sessionStatus` (`KycSessionStatus | null`) to `KycControllerState` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycService.getSessionStatusForVendor`, which fetches `GET /sessions/latest/status/{vendor}` and returns `KycSessionStatus` or `null` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.fetchVendorDisclaimers`, which loads vendor T&Cs via `KycService.fetchVendorDisclaimers` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.hasCompletedVendorDisclaimers`, which fetches the vendor T&C catalog and returns whether persisted `vendorDisclaimersAccepted` covers every fetched disclaimer ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.recordVendorDisclaimers`, which records vendor T&Cs via `KycService.submitVendorDisclaimers` and persists accepted ids on state ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.startSession`, which reuses the latest vendor session when one exists and otherwise creates the vendor customer and a UKYC session ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.launchProviderFlow`, which presents the identity-provider (SumSub) verification UI ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Add `KycController.startSessionStatusPolling`, which polls `GET /sessions/{id}/status` for `state.sessionStatus.id` until `finalStatus` is `approved`, `rejected`, or `retry` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Expose current `KycController` methods as messenger actions: `startSession`, `reset`, `clearState`, `getSessionStatusForVendor`, `refreshSessionStatus`, `startSessionStatusPolling`, `fetchSessionDisclaimers`, `recordSessionDisclaimers`, `hasCompletedSessionDisclaimers`, `fetchVendorDisclaimers`, `recordVendorDisclaimers`, `hasCompletedVendorDisclaimers`, and `launchProviderFlow` ([#10293](https://github.com/MetaMask/core/pull/10293))
+
+### Changed
+
+- **BREAKING:** Add required `id` to `KycSessionStatus` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Rename `CreateSessionParams` to `CreateMoonpaySessionParams`, and `KycService.createSession` / `KycService:createSession` to `createMoonpaySession` / `KycService:createMoonpaySession` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- `MoonPayFrameHandler.buildCheckFrameUrl` no longer sets the `skipKyc` query parameter ([#10293](https://github.com/MetaMask/core/pull/10293))
+- Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
+
+### Removed
+
+- **BREAKING:** Remove unused `KycCustomerIdentity` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove `sessionStatusPollIntervalMs` and `userStatusPollIntervalMs` from `KycControllerOptions`, and stop automatic session-status and user-status polling. Session-status polling is now opt-in through `startSessionStatusPolling` or `refreshSessionStatus` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove the `reselect` dependency ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove the `polling` value from `KycSumSubStatus` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove MoonPay Check/Auth frame methods from `KycController`: `handleFrameMessage`, `buildCheckFrameUrl`, `buildAuthFrameUrl`, and `buildResetFrameUrl`. Use `MoonPayFrameHandler` directly for frame protocol, URLs, and message handling ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove `KycService.checkKycRequired`, `CheckKycRequiredParams`, and the `KycService:checkKycRequired` messenger action ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Remove `KycService.fetchKycStatus`, `KycService:fetchKycStatus`, `KycController.refreshKycStatus`, `KycController:refreshKycStatus`, `KycUserStatus`, `KycUserStatusResponse`, and `KycController:statusChanged` (`KycControllerStatusChangedEvent`) ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Replace the previous `KycController` messenger method actions. Removed: `initialize`, `createVendorCustomer`, `loadDisclaimers`, `acceptTermsAndStartSession`, `clearSavedTerms`, `checkKycRequired`, `getKycStatus`, `getCustomerIdentity`, `startSumSub`, and `getSessionStatus` ([#10293](https://github.com/MetaMask/core/pull/10293))
+- **BREAKING:** Replace `selectKycPhase`, `selectKycSumSub`, and `selectIsKycRequiredForProduct` with `selectKycVendor` and `selectKycSessionStatus` ([#10293](https://github.com/MetaMask/core/pull/10293))
+
+## [0.3.0]
+
+### Added
+
+- Add `KycController.fetchSessionDisclaimers`, which fetches the idOS + KYC-provider disclaimers by `{ sessionId }` or `{ country }`. ([#10162](https://github.com/MetaMask/core/pull/10162))
+
+### Changed
+
+- **BREAKING:** Rename `KycService.fetchDisclaimersCatalog` to `fetchSessionDisclaimersByCountry`. ([#10162](https://github.com/MetaMask/core/pull/10162))
+  - Rename `FetchDisclaimersCatalogParams` to `FetchSessionDisclaimersByCountryParams`.
+  - Rename the messenger action `KycService:fetchDisclaimersCatalog` to `KycService:fetchSessionDisclaimersByCountry`.
+- **BREAKING:** Rename `KycService.fetchSessionDisclaimers` to `fetchSessionDisclaimersBySessionId` ([#10162](https://github.com/MetaMask/core/pull/10162))
+  - Rename `FetchSessionDisclaimersParams` to `FetchSessionDisclaimersBySessionIdParams`.
+  - Rename the messenger action `KycService:fetchSessionDisclaimers` to `KycService:fetchSessionDisclaimersBySessionId`.
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.1.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10184](https://github.com/MetaMask/core/pull/10184))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [0.2.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/geolocation-controller` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [0.1.0]
+
+### Added
+
+- Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.16.0...HEAD
+[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.15.0...@metamask/kyc-controller@0.16.0
+[0.15.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.14.0...@metamask/kyc-controller@0.15.0
+[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...@metamask/kyc-controller@0.14.0
+[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...@metamask/kyc-controller@0.13.0
+[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
+[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...@metamask/kyc-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...@metamask/kyc-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...@metamask/kyc-controller@0.7.0
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.5.0...@metamask/kyc-controller@0.6.0
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.4.0...@metamask/kyc-controller@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.3.0...@metamask/kyc-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.2.0...@metamask/kyc-controller@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.1.0...@metamask/kyc-controller@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/kyc-controller@0.1.0

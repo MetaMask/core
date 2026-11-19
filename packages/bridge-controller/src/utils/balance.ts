@@ -6,7 +6,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { isNativeAddress } from './bridge';
+import { isNativeAddress } from './bridge.js';
 
 export const fetchTokenBalance = async (
   address: string,

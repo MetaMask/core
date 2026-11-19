@@ -1,25 +1,25 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type {
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+  SentinelSimulationTransaction,
+} from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   GasFeeToken,
   TransactionControllerMessenger,
   TransactionMeta,
-} from '..';
-import { simulateTransactions } from '../api/simulation-api';
-import type { SimulationRequestTransaction } from '../api/simulation-api';
-import type {
-  SimulationResponse,
-  SimulationResponseTransaction,
-} from '../api/simulation-api';
-import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
-import { isNativeBalanceSufficientForGas } from './balance';
-import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
-import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
+} from '../index.js';
+import { projectLogger } from '../logger.js';
+import type { GetSimulationConfig } from '../types.js';
+import { isNativeBalanceSufficientForGas } from './balance.js';
+import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch.js';
+import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702.js';
+import { getEIP7702UpgradeContractAddress } from './feature-flags.js';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -28,7 +28,7 @@ export type GetGasFeeTokensRequest = {
   isEIP7702GasFeeTokensEnabled: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
   transactionMeta: TransactionMeta;
@@ -40,20 +40,21 @@ export type GetGasFeeTokensRequest = {
  * @param request - The request object.
  * @param request.chainId - The chain ID of the transaction.
  * @param request.isEIP7702GasFeeTokensEnabled - Callback to check if EIP-7702 gas fee tokens are enabled.
+ * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.transactionMeta - The transaction metadata.
- * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns An array of gas fee tokens.
  */
 export async function getGasFeeTokens({
   chainId,
   isEIP7702GasFeeTokensEnabled,
+  getSimulationConfig,
   messenger,
   publicKeyEIP7702,
   transactionMeta,
-  getSimulationConfig,
 }: GetGasFeeTokensRequest): Promise<{
+  gasFeeSponsor?: string;
   gasFeeTokens: GasFeeToken[];
   isGasFeeSponsored: boolean;
 }> {
@@ -73,7 +74,7 @@ export async function getGasFeeTokens({
     is7702GasFeeTokensEnabled && doesChainSupportEIP7702(chainId, messenger);
 
   let authorizationList:
-    | SimulationRequestTransaction['authorizationList']
+    | SentinelSimulationTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
     from,
@@ -89,23 +90,30 @@ export async function getGasFeeTokens({
   }
 
   try {
-    const response = await simulateTransactions(chainId, {
-      getSimulationConfig,
-      transactions: [
-        {
-          authorizationList,
-          data,
-          from,
-          to,
-          value,
+    const response = await simulateTransactions(
+      messenger,
+      chainId,
+      {
+        transactions: [
+          {
+            authorizationList,
+            data,
+            from,
+            to,
+            value,
+          },
+        ],
+        suggestFees: {
+          withTransfer: true,
+          withFeeTransfer: true,
+          with7702,
+          // The EIP-7702 publish hook always restricts redemption to the relay
+          // signers via a RedeemerEnforcer caveat, so include it in the estimate.
+          withRedeemerEnforcer: with7702,
         },
-      ],
-      suggestFees: {
-        withTransfer: true,
-        withFeeTransfer: true,
-        with7702,
       },
-    });
+      { getSimulationConfig },
+    );
 
     log('Response', response);
 
@@ -146,37 +154,60 @@ export async function checkGasFeeTokenBeforePublish({
     fn: (tx: TransactionMeta) => void,
   ) => void;
 }): Promise<void> {
-  const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
+  const {
+    excludeNativeTokenForFee,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
 
-  if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
+  if (
+    !selectedGasFeeToken ||
+    (!isGasFeeTokenIgnoredIfBalance && !excludeNativeTokenForFee)
+  ) {
     return;
   }
 
   log('Checking gas fee token before publish', { selectedGasFeeToken });
 
-  const hasNativeBalance = await isNativeBalanceSufficientForGas(
-    transaction,
-    messenger,
-    networkClientId,
-  );
-
-  if (hasNativeBalance) {
-    log(
-      'Ignoring gas fee token before publish due to sufficient native balance',
+  if (!excludeNativeTokenForFee) {
+    const hasNativeBalance = await isNativeBalanceSufficientForGas(
+      transaction,
+      messenger,
+      networkClientId,
     );
 
-    updateTransaction(transaction.id, (tx) => {
-      tx.isExternalSign = false;
-      tx.selectedGasFeeToken = undefined;
-    });
+    if (hasNativeBalance) {
+      log(
+        'Ignoring gas fee token before publish due to sufficient native balance',
+      );
 
-    return;
+      updateTransaction(transaction.id, (tx) => {
+        tx.isExternalSign = false;
+        tx.selectedGasFeeToken = undefined;
+      });
+
+      return;
+    }
   }
 
   const gasFeeTokens = await fetchGasFeeTokens({
     ...transaction,
     isExternalSign: true,
   });
+
+  const isSelectedGasFeeTokenAvailable = gasFeeTokens?.some(
+    (token) =>
+      token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+  );
+
+  if (!isSelectedGasFeeTokenAvailable) {
+    updateTransaction(transaction.id, (tx) => {
+      tx.gasFeeTokens = gasFeeTokens;
+      tx.isExternalSign = false;
+    });
+
+    throw new Error('Gas fee token not found and insufficient native balance');
+  }
 
   updateTransaction(transaction.id, (tx) => {
     tx.gasFeeTokens = gasFeeTokens;
@@ -185,16 +216,6 @@ export async function checkGasFeeTokenBeforePublish({
   });
 
   log('Updated gas fee tokens before publish', gasFeeTokens);
-
-  if (
-    !gasFeeTokens?.some(
-      (token) =>
-        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
-    )
-  ) {
-    throw new Error('Gas fee token not found and insufficient native balance');
-  }
-
   log('Publishing with selected gas fee token', { selectedGasFeeToken });
 }
 
@@ -202,20 +223,23 @@ export async function checkGasFeeTokenBeforePublish({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
+ * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored. gasFeeSponsor: Who pays the gas fee if sponsored.
  */
-function parseGasFeeTokens(response: SimulationResponse): {
+function parseGasFeeTokens(response: SentinelSimulationResponse): {
+  gasFeeSponsor?: string;
   gasFeeTokens: GasFeeToken[];
   isGasFeeSponsored: boolean;
 } {
   const feeLevel = response.transactions?.[0]
-    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+    ?.fees?.[0] as Required<SentinelSimulationResponseTransaction>['fees'][0];
 
   const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
+  const sponsor = isGasFeeSponsored ? response.sponsorship?.sponsor : undefined;
 
   const tokenFees = feeLevel?.tokenFees ?? [];
 
   return {
+    ...(sponsor ? { gasFeeSponsor: sponsor } : {}),
     gasFeeTokens: tokenFees.map((tokenFee) => ({
       amount: tokenFee.balanceNeededToken,
       balance: tokenFee.currentBalanceToken,
@@ -227,6 +251,7 @@ function parseGasFeeTokens(response: SimulationResponse): {
       maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
       rateWei: tokenFee.rateWei,
       recipient: tokenFee.feeRecipient,
+      ...(sponsor ? { sponsor } : {}),
       symbol: tokenFee.token.symbol,
       tokenAddress: tokenFee.token.address,
     })),
@@ -254,7 +279,7 @@ function buildAuthorizationList({
   from: Hex;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
-}): SimulationRequestTransaction['authorizationList'] | undefined {
+}): SentinelSimulationTransaction['authorizationList'] | undefined {
   if (!publicKeyEIP7702) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
   }

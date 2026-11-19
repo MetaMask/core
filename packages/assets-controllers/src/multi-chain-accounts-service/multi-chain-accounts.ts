@@ -6,7 +6,7 @@ import type {
   GetBalancesQueryParamsV4,
   GetBalancesResponse,
   GetSupportedNetworksResponse,
-} from './types';
+} from './types.js';
 
 export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
 

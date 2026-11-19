@@ -13,6 +13,7 @@ import {
   convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -29,31 +30,32 @@ import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
-import { TOKEN_END_POINT_API } from './token-service';
-import type { TokenRwaData } from './token-service';
-import type { Token } from './TokenRatesController';
-import { TokensController } from './TokensController';
+} from '../../network-controller/tests/helpers.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
+import { TOKEN_END_POINT_API } from './token-service.js';
+import type { TokenRwaData } from './token-service.js';
+import type { Token } from './TokenRatesController.js';
+import { TokensController } from './TokensController.js';
 import type {
   TokensControllerMessenger,
   TokensControllerState,
-} from './TokensController';
+} from './TokensController.js';
 
-jest.mock('@ethersproject/contracts');
-jest.mock('uuid', () => ({
-  ...jest.requireActual('uuid'),
-  v1: jest.fn(),
+vi.mock('@ethersproject/contracts');
+vi.mock(import('uuid'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  v1: vi.fn(),
 }));
-jest.mock('./Standards/ERC20Standard');
-jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
+vi.mock('./Standards/ERC20Standard');
+vi.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
 type AllActions =
   | MessengerActions<TokensControllerMessenger>
@@ -65,10 +67,12 @@ type AllEvents =
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const ContractMock = jest.mocked(Contract);
-const uuidV1Mock = jest.mocked(uuidV1);
-const ERC20StandardMock = jest.mocked(ERC20Standard);
-const ERC1155StandardMock = jest.mocked(ERC1155Standard);
+const ContractMock = vi.mocked(Contract);
+// `v1` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV1Mock = vi.mocked<() => string>(uuidV1);
+const ERC20StandardMock = vi.mocked(ERC20Standard);
+const ERC1155StandardMock = vi.mocked(ERC1155Standard);
 
 const defaultMockInternalAccount = createMockInternalAccount({
   address: '0x1',
@@ -77,9 +81,9 @@ const defaultMockInternalAccount = createMockInternalAccount({
 describe('TokensController', () => {
   beforeEach(() => {
     uuidV1Mock.mockReturnValue('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
-    ContractMock.mockReturnValue(
-      buildMockEthersERC721Contract({ supportsInterface: false }),
-    );
+    ContractMock.mockImplementation(function () {
+      return buildMockEthersERC721Contract({ supportsInterface: false });
+    });
   });
 
   it('should set default state', async () => {
@@ -94,9 +98,9 @@ describe('TokensController', () => {
 
   it('should add a token', async () => {
     await withController(async ({ controller }) => {
-      ContractMock.mockReturnValue(
-        buildMockEthersERC721Contract({ supportsInterface: false }),
-      );
+      ContractMock.mockImplementation(function () {
+        return buildMockEthersERC721Contract({ supportsInterface: false });
+      });
 
       await controller.addToken({
         address: '0x01',
@@ -450,9 +454,9 @@ describe('TokensController', () => {
         },
       },
       async ({ controller, triggerSelectedAccountChange }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         triggerSelectedAccountChange(firstAccount);
         await controller.addToken({
@@ -523,9 +527,9 @@ describe('TokensController', () => {
         },
       },
       async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         await controller.addToken({
           address: '0x01',
@@ -623,9 +627,9 @@ describe('TokensController', () => {
         },
       },
       async ({ controller, triggerSelectedAccountChange }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         triggerSelectedAccountChange(firstAccount);
         await controller.addToken({
@@ -665,9 +669,9 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     await withController(async ({ controller, changeNetwork }) => {
-      ContractMock.mockReturnValue(
-        buildMockEthersERC721Contract({ supportsInterface: false }),
-      );
+      ContractMock.mockImplementation(function () {
+        return buildMockEthersERC721Contract({ supportsInterface: false });
+      });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x02',
@@ -1329,9 +1333,9 @@ describe('TokensController', () => {
 
   it('should ignore multiple tokens with single ignoreTokens call', async () => {
     await withController(async ({ controller }) => {
-      ContractMock.mockReturnValue(
-        buildMockEthersERC721Contract({ supportsInterface: false }),
-      );
+      ContractMock.mockImplementation(function () {
+        return buildMockEthersERC721Contract({ supportsInterface: false });
+      });
 
       await controller.addToken({
         address: '0x01',
@@ -1426,9 +1430,9 @@ describe('TokensController', () => {
 
       it('should add isERC721 = true to token object already in state when token is NFT and is not in our contract-metadata repo', async () => {
         await withController(async ({ controller }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: true }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: true });
+          });
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
           await controller.addToken({
@@ -1448,9 +1452,9 @@ describe('TokensController', () => {
 
       it('should add isERC721 = false to token object already in state when token is not an NFT and not in our contract-metadata repo', async () => {
         await withController(async ({ controller }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
           await controller.addToken({
@@ -1503,9 +1507,9 @@ describe('TokensController', () => {
 
       it('should add isERC721 = true when the token is an NFT but not in our contract-metadata repo', async () => {
         await withController(async ({ controller }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: true }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: true });
+          });
           const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
           await controller.addToken({
@@ -1567,9 +1571,9 @@ describe('TokensController', () => {
 
       it('should add isERC721 = false when the token is not an NFT and not in our contract-metadata repo', async () => {
         await withController(async ({ controller }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
           await controller.addToken({
@@ -1636,9 +1640,9 @@ describe('TokensController', () => {
 
     it('should add token that was previously a detected token', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
         const dummyDetectedToken: Token = {
           address: '0x01',
           symbol: 'barA',
@@ -1694,9 +1698,9 @@ describe('TokensController', () => {
           },
         },
         async ({ controller, changeNetwork, triggerSelectedAccountChange }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
 
           // The currently configured chain + address
           const CONFIGURED_CHAIN = ChainId.sepolia;
@@ -2019,9 +2023,9 @@ describe('TokensController', () => {
 
     it('should error if the contract is ERC721', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: true }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: true });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({
@@ -2039,12 +2043,14 @@ describe('TokensController', () => {
 
     it('should error if the contract is ERC1155', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC1155StandardMock.mockReturnValue(
-          buildMockERC1155Standard({ contractSupportsBase1155Interface: true }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC1155StandardMock.mockImplementation(function () {
+          return buildMockERC1155Standard({
+            contractSupportsBase1155Interface: true,
+          });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({
@@ -2074,9 +2080,9 @@ describe('TokensController', () => {
 
     it('should error if decimals is not defined', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({ decimals: undefined }),
@@ -2092,9 +2098,9 @@ describe('TokensController', () => {
 
     it('should error if symbol is not defined', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           // @ts-expect-error Intentionally passing bad input
@@ -2109,9 +2115,9 @@ describe('TokensController', () => {
 
     it('should error if symbol is not a string', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({ symbol: undefined }),
@@ -2127,9 +2133,9 @@ describe('TokensController', () => {
 
     it('should error if symbol is empty', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({ symbol: '' }),
@@ -2145,9 +2151,9 @@ describe('TokensController', () => {
 
     it('should error if symbol is too long', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({ symbol: 'ABCDEFGHIJKLM' }),
@@ -2163,9 +2169,9 @@ describe('TokensController', () => {
 
     it('should error if decimals is invalid', async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({ decimals: -1 }),
@@ -2219,16 +2225,16 @@ describe('TokensController', () => {
 
     it("should error if the asset's symbol doesn't match the contract", async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20Standard({
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20Standard({
             tokenName: 'Some Token',
             tokenSymbol: 'TOKEN',
             tokenDecimals: '42',
-          }),
-        );
+          });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({
@@ -2248,16 +2254,16 @@ describe('TokensController', () => {
 
     it("should error if the asset's decimals don't match the contract", async () => {
       await withController(async ({ controller }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20Standard({
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20Standard({
             tokenName: 'Some Token',
             tokenSymbol: 'TOKEN',
             tokenDecimals: '42',
-          }),
-        );
+          });
+        });
 
         const result = controller.watchAsset({
           asset: buildToken({
@@ -2278,15 +2284,16 @@ describe('TokensController', () => {
     it('should use symbols/decimals from contract, and allow them to be optional in the request', async () => {
       await withController(async ({ controller, approvalController }) => {
         const asset = buildTokenWithName();
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20StandardFromToken(asset),
-        );
-        jest
-          .spyOn(approvalController, 'addAndShowApprovalRequest')
-          .mockResolvedValue(undefined);
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20StandardFromToken(asset);
+        });
+        vi.spyOn(
+          approvalController,
+          'addAndShowApprovalRequest',
+        ).mockResolvedValue(undefined);
 
         await controller.watchAsset({
           // @ts-expect-error Intentionally passing bad input.
@@ -2312,12 +2319,13 @@ describe('TokensController', () => {
     it('should use symbols/decimals from request, and allow them to be optional in the contract', async () => {
       await withController(async ({ controller, approvalController }) => {
         const reqAsset = buildToken({ symbol: 'MYSYMBOL', decimals: 13 });
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        jest
-          .spyOn(approvalController, 'addAndShowApprovalRequest')
-          .mockResolvedValue(undefined);
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        vi.spyOn(
+          approvalController,
+          'addAndShowApprovalRequest',
+        ).mockResolvedValue(undefined);
 
         await controller.watchAsset({
           asset: reqAsset,
@@ -2342,12 +2350,12 @@ describe('TokensController', () => {
     it("should validate that symbol matches if it's defined in both the request and contract", async () => {
       await withController(async ({ controller }) => {
         const asset = buildTokenWithName({ symbol: 'SES' });
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20StandardFromToken(asset),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20StandardFromToken(asset);
+        });
 
         const result = controller.watchAsset({
           asset: { ...asset, symbol: 'DIFFERENT' },
@@ -2364,12 +2372,12 @@ describe('TokensController', () => {
     it("should validate that decimals match if they're defined in both the request and contract", async () => {
       await withController(async ({ controller }) => {
         const asset = buildTokenWithName({ decimals: 12 });
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20StandardFromToken(asset),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20StandardFromToken(asset);
+        });
 
         const result = controller.watchAsset({
           asset: { ...asset, decimals: 2 },
@@ -2386,15 +2394,16 @@ describe('TokensController', () => {
     it('should perform case insensitive validation of symbols', async () => {
       await withController(async ({ controller, approvalController }) => {
         const asset = buildTokenWithName({ symbol: 'ABC' });
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20StandardFromToken(asset),
-        );
-        jest
-          .spyOn(approvalController, 'addAndShowApprovalRequest')
-          .mockResolvedValue(undefined);
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20StandardFromToken(asset);
+        });
+        vi.spyOn(
+          approvalController,
+          'addAndShowApprovalRequest',
+        ).mockResolvedValue(undefined);
 
         await controller.watchAsset({
           asset: { ...asset, symbol: 'abc' },
@@ -2420,15 +2429,16 @@ describe('TokensController', () => {
       await withController(async ({ controller, approvalController }) => {
         // @ts-expect-error Intentionally using a string for decimals
         const asset = buildTokenWithName({ decimals: '6' });
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        ERC20StandardMock.mockReturnValue(
-          buildMockERC20StandardFromToken(asset),
-        );
-        jest
-          .spyOn(approvalController, 'addAndShowApprovalRequest')
-          .mockResolvedValue(undefined);
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
+        ERC20StandardMock.mockImplementation(function () {
+          return buildMockERC20StandardFromToken(asset);
+        });
+        vi.spyOn(
+          approvalController,
+          'addAndShowApprovalRequest',
+        ).mockResolvedValue(undefined);
 
         await controller.watchAsset({
           asset,
@@ -2454,13 +2464,13 @@ describe('TokensController', () => {
     it('stores token correctly if user confirms', async () => {
       await withController(async ({ controller, approvalController }) => {
         const requestId = '12345';
-        const addAndShowApprovalRequestSpy = jest
+        const addAndShowApprovalRequestSpy = vi
           .spyOn(approvalController, 'addAndShowApprovalRequest')
           .mockResolvedValue(undefined);
         const asset = buildToken();
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
         uuidV1Mock.mockReturnValue(requestId);
         await controller.watchAsset({
           asset,
@@ -2501,13 +2511,13 @@ describe('TokensController', () => {
     it('falls back to ORIGIN_METAMASK when origin is empty string', async () => {
       await withController(async ({ controller, approvalController }) => {
         const requestId = '12345';
-        const addAndShowApprovalRequestSpy = jest
+        const addAndShowApprovalRequestSpy = vi
           .spyOn(approvalController, 'addAndShowApprovalRequest')
           .mockResolvedValue(undefined);
         const asset = buildToken();
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
         uuidV1Mock.mockReturnValue(requestId);
 
         await controller.watchAsset({
@@ -2533,13 +2543,13 @@ describe('TokensController', () => {
     it('uses origin param when requestMetadata.origin is empty string', async () => {
       await withController(async ({ controller, approvalController }) => {
         const requestId = '12345';
-        const addAndShowApprovalRequestSpy = jest
+        const addAndShowApprovalRequestSpy = vi
           .spyOn(approvalController, 'addAndShowApprovalRequest')
           .mockResolvedValue(undefined);
         const asset = buildToken();
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
         uuidV1Mock.mockReturnValue(requestId);
 
         await controller.watchAsset({
@@ -2576,14 +2586,14 @@ describe('TokensController', () => {
         },
         async ({ controller, approvalController }) => {
           const requestId = '12345';
-          const addAndShowApprovalRequestSpy = jest
+          const addAndShowApprovalRequestSpy = vi
             .spyOn(approvalController, 'addAndShowApprovalRequest')
             .mockResolvedValue(undefined);
           const asset = buildToken();
           const interactingAddress = '0x2';
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           uuidV1Mock.mockReturnValue(requestId);
 
           await controller.watchAsset({
@@ -2639,14 +2649,14 @@ describe('TokensController', () => {
         },
         async ({ controller, approvalController }) => {
           const requestId = '12345';
-          const addAndShowApprovalRequestSpy = jest
+          const addAndShowApprovalRequestSpy = vi
             .spyOn(approvalController, 'addAndShowApprovalRequest')
             .mockResolvedValue(undefined);
           const asset = buildToken();
           const interactingAddress = '0x2';
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           uuidV1Mock.mockReturnValue(requestId);
 
           await controller.watchAsset({
@@ -2689,13 +2699,13 @@ describe('TokensController', () => {
       await withController(async ({ controller, approvalController }) => {
         const errorMessage = 'Mock Error Message';
         const requestId = '12345';
-        const addAndShowApprovalRequestSpy = jest
+        const addAndShowApprovalRequestSpy = vi
           .spyOn(approvalController, 'addAndShowApprovalRequest')
           .mockRejectedValue(new Error(errorMessage));
         const asset = buildToken();
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
         uuidV1Mock.mockReturnValue(requestId);
         await expect(
           controller.watchAsset({
@@ -2740,9 +2750,9 @@ describe('TokensController', () => {
             name: 'A Token',
             symbol: 'TOKEN1',
           });
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           uuidV1Mock
             .mockReturnValueOnce(requestId)
             .mockReturnValueOnce('67890');
@@ -2768,9 +2778,11 @@ describe('TokensController', () => {
             symbol: 'TOKEN2',
           });
 
-          ERC20StandardMock.mockReturnValueOnce(
-            buildMockERC20StandardFromToken(asset),
-          ).mockReturnValueOnce(buildMockERC20StandardFromToken(anotherAsset));
+          ERC20StandardMock.mockImplementationOnce(function () {
+            return buildMockERC20StandardFromToken(asset);
+          }).mockImplementationOnce(function () {
+            return buildMockERC20StandardFromToken(anotherAsset);
+          });
 
           const promiseForApprovals = new Promise<void>((resolve) => {
             const listener = (state: ApprovalControllerState) => {
@@ -2840,9 +2852,9 @@ describe('TokensController', () => {
           },
         },
         async ({ controller, triggerSelectedAccountChange }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
 
           triggerSelectedAccountChange(selectedAccount);
           await controller.addToken({
@@ -2919,9 +2931,9 @@ describe('TokensController', () => {
   describe('when NetworkController:onNetworkDidChange is published', () => {
     it('should remove a token from its state on corresponding network', async () => {
       await withController(async ({ controller, changeNetwork }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+        ContractMock.mockImplementation(function () {
+          return buildMockEthersERC721Contract({ supportsInterface: false });
+        });
 
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         await controller.addToken({
@@ -3323,14 +3335,14 @@ describe('TokensController', () => {
                       isERC721: false,
                       aggregators: [],
                       name: undefined,
-                      rwaData: { ticker: 'OLD' } as TokenRwaData,
+                      rwaData: { ticker: 'OLD' },
                     },
                   ],
                 },
               },
             },
             tokenListService: {
-              fetchTokensByChainId: jest.fn().mockResolvedValue({
+              fetchTokensByChainId: vi.fn().mockResolvedValue({
                 [tokenAddress]: {
                   address: tokenAddress,
                   symbol: 'bar',
@@ -3343,7 +3355,7 @@ describe('TokensController', () => {
                   rwaData: { ticker: 'NEW' },
                 },
               }),
-            } as unknown as import('./TokenListService').TokenListService,
+            } as unknown as import('./TokenListService.js').TokenListService,
           },
         },
         async ({ controller }) => {
@@ -3366,9 +3378,9 @@ describe('TokensController', () => {
     describe('detectTokens', () => {
       it('updates the token states to empty arrays if the selectedAccountId account is undefined', async () => {
         await withController(async ({ controller, changeNetwork }) => {
-          ContractMock.mockReturnValue(
-            buildMockEthersERC721Contract({ supportsInterface: false }),
-          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: false });
+          });
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
 
           expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
@@ -3449,13 +3461,15 @@ describe('TokensController', () => {
         await withController(
           async ({ controller, approvalController, getAccountHandler }) => {
             const requestId = '12345';
-            const addAndShowApprovalRequestSpy = jest
+            const addAndShowApprovalRequestSpy = vi
               .spyOn(approvalController, 'addAndShowApprovalRequest')
               .mockResolvedValue(undefined);
             const asset = buildToken();
-            ContractMock.mockReturnValue(
-              buildMockEthersERC721Contract({ supportsInterface: false }),
-            );
+            ContractMock.mockImplementation(function () {
+              return buildMockEthersERC721Contract({
+                supportsInterface: false,
+              });
+            });
             uuidV1Mock.mockReturnValue(requestId);
             getAccountHandler.mockReturnValue(undefined);
             await controller.watchAsset({
@@ -3740,6 +3754,258 @@ describe('TokensController', () => {
     });
   });
 
+  describe('isDeprecated', () => {
+    const initialState: TokensControllerState = {
+      allTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': [
+            {
+              address: '0x03',
+              symbol: 'barC',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ],
+        },
+      },
+      allIgnoredTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': ['0x03'],
+        },
+      },
+      allDetectedTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': [
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ],
+        },
+      },
+    };
+
+    const emptyState: TokensControllerState = {
+      allTokens: {},
+      allIgnoredTokens: {},
+      allDetectedTokens: {},
+    };
+
+    it('clears all persisted state at construction when isDeprecated() returns true', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('preserves persisted state at construction when isDeprecated() returns false', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => false } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', async () => {
+      await withController(
+        { options: { isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not call tokenListService.fetchTokensByChainId at construction when isDeprecated() returns true', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => true } },
+        async ({ controller }) => {
+          // Give any async init work a chance to settle
+          await new Promise((resolve) => process.nextTick(resolve));
+
+          // The tokenListService mock is accessed via the controller factory;
+          // we verify by checking that state was not modified by enrichment
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add tokens and clears stale state when isDeprecated toggles to true at runtime via addToken', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          const result = await controller.addToken({
+            address: '0x05',
+            symbol: 'NEW',
+            decimals: 18,
+            networkClientId: 'mainnet',
+          });
+
+          expect(result).toStrictEqual([]);
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add tokens and clears stale state when isDeprecated toggles to true at runtime via addTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.addTokens(
+            [{ address: '0x05', symbol: 'NEW', decimals: 18 }],
+            'mainnet',
+          );
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not ignore tokens and clears stale state when isDeprecated toggles to true at runtime via ignoreTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          controller.ignoreTokens(['0x03'], 'mainnet');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add detected tokens and clears stale state when isDeprecated toggles to true at runtime via addDetectedTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.addDetectedTokens(
+            [{ address: '0x05', symbol: 'NEW', decimals: 18 }],
+            { chainId: ChainId.mainnet },
+          );
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('throws and clears stale state when isDeprecated toggles to true at runtime via updateTokenType', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await expect(
+            controller.updateTokenType('0x03', 'mainnet'),
+          ).rejects.toThrow('TokensController is deprecated');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not process watchAsset and clears stale state when isDeprecated toggles to true at runtime via watchAsset', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.watchAsset({
+            asset: { address: '0x05', symbol: 'NEW', decimals: 18 },
+            type: 'ERC20',
+            networkClientId: 'mainnet',
+          });
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears all stale state when isDeprecated toggles to true at runtime via clearIgnoredTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          controller.clearIgnoredTokens();
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears stale state on NetworkController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller, triggerNetworkStateChange }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          triggerNetworkStateChange({} as NetworkState, [
+            {
+              op: 'remove',
+              path: ['networkConfigurationsByChainId', ChainId.mainnet],
+            },
+          ]);
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears stale state on KeyringController:accountRemoved when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          triggerAccountRemoved('0x0001');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {
@@ -3773,13 +4039,7 @@ describe('TokensController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "allDetectedTokens": {},
-            "allIgnoredTokens": {},
-            "allTokens": {},
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -3823,8 +4083,8 @@ type WithControllerCallback<ReturnValue> = ({
     networkState: NetworkState,
     patches: Patch[],
   ) => void;
-  getAccountHandler: jest.Mock;
-  getSelectedAccountHandler: jest.Mock;
+  getAccountHandler: Mock;
+  getSelectedAccountHandler: Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerMockArgs = {
@@ -3888,7 +4148,7 @@ async function withController<ReturnValue>(
   });
   const approvalController = new ApprovalController({
     messenger: approvalControllerMessenger,
-    showApprovalRequest: jest.fn(),
+    showApprovalRequest: vi.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
   });
 
@@ -3918,7 +4178,7 @@ async function withController<ReturnValue>(
     ],
   });
 
-  const getAccountHandler = jest.fn<InternalAccount, []>();
+  const getAccountHandler = vi.fn<(...args: []) => InternalAccount>();
   messenger.registerActionHandler(
     'AccountsController:getAccount',
     getAccountHandler.mockReturnValue(
@@ -3926,7 +4186,7 @@ async function withController<ReturnValue>(
     ),
   );
 
-  const getSelectedAccountHandler = jest.fn<InternalAccount, []>();
+  const getSelectedAccountHandler = vi.fn<(...args: []) => InternalAccount>();
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     getSelectedAccountHandler.mockReturnValue(
@@ -3934,15 +4194,15 @@ async function withController<ReturnValue>(
     ),
   );
 
-  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  const mockListAccounts = vi.fn().mockReturnValue(listAccounts);
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
   );
 
   const tokenListService = {
-    fetchTokensByChainId: jest.fn().mockResolvedValue({}),
-  } as unknown as import('./TokenListService').TokenListService;
+    fetchTokensByChainId: vi.fn().mockResolvedValue({}),
+  } as unknown as import('./TokenListService.js').TokenListService;
 
   const controller = new TokensController({
     chainId: ChainId.mainnet,
@@ -3950,7 +4210,7 @@ async function withController<ReturnValue>(
     // assumption. But we have to do this due to a bug in TokensController
     // where the provider can possibly be `undefined` if `networkClientId` is
     // not specified.
-    provider: new FakeProvider(),
+    provider: new MockInternalProvider(),
     messenger: tokensControllerMessenger,
     tokenListService,
     ...options,

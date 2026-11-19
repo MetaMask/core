@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnnouncementController } from './AnnouncementController';
+import type { AnnouncementController } from './AnnouncementController.js';
 
 /**
  * Resets the isShown status for all announcements

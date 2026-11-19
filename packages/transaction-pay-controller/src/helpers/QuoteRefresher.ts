@@ -1,15 +1,18 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
+import { TransactionPayStrategy } from '../constants.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
-} from '..';
-import { TransactionPayStrategy } from '../constants';
-import { projectLogger } from '../logger';
-import type { UpdateTransactionDataCallback } from '../types';
-import { refreshQuotes } from '../utils/quotes';
+} from '../index.js';
+import { projectLogger } from '../logger.js';
+import type {
+  GetBalanceCallback,
+  UpdateTransactionDataCallback,
+} from '../types.js';
+import { refreshQuotes } from '../utils/quotes.js';
 
 const CHECK_INTERVAL = 1000; // 1 Second
 
@@ -28,17 +31,22 @@ export class QuoteRefresher {
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #getBalance?: GetBalanceCallback;
+
   readonly #updateTransactionData: UpdateTransactionDataCallback;
 
   constructor({
+    getBalance,
     getStrategies,
     messenger,
     updateTransactionData,
   }: {
+    getBalance?: GetBalanceCallback;
     getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
     messenger: TransactionPayControllerMessenger;
     updateTransactionData: UpdateTransactionDataCallback;
   }) {
+    this.#getBalance = getBalance;
     this.#getStrategies = getStrategies;
     this.#messenger = messenger;
     this.#isRunning = false;
@@ -81,6 +89,7 @@ export class QuoteRefresher {
         this.#messenger,
         this.#updateTransactionData,
         this.#getStrategies,
+        this.#getBalance,
       );
     } catch (error) {
       log('Error refreshing quotes', error);
@@ -106,8 +115,11 @@ export class QuoteRefresher {
   }
 
   #onStateChange(state: TransactionPayControllerState): void {
+    // No-op quotes never refresh, so they don't need the refresh loop.
     const hasQuotes = Object.values(state.transactionData).some((transaction) =>
-      Boolean(transaction.quotes?.length),
+      transaction.quotes?.some(
+        (quote) => quote.strategy !== TransactionPayStrategy.None,
+      ),
     );
 
     if (hasQuotes && !this.#isRunning) {

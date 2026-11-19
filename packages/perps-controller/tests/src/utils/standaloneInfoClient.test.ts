@@ -1,0 +1,358 @@
+/* eslint-disable */
+import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
+import type { ClearinghouseStateResponse } from '../../../src/types/hyperliquid-types.js';
+import {
+  createStandaloneInfoClient,
+  queryStandaloneClearinghouseStates,
+  queryStandaloneOpenOrders,
+} from '../../../src/utils/standaloneInfoClient.js';
+
+// Mock instances — must use 'mock' prefix for Jest hoisting
+const mockHttpTransportInstance = { url: 'http://mock' };
+const mockInfoClientInstance = {
+  clearinghouseState: vi.fn(),
+  frontendOpenOrders: vi.fn(),
+};
+
+vi.mock('@nktkas/hyperliquid', () => ({
+  HttpTransport: vi.fn(function () {
+    return mockHttpTransportInstance;
+  }),
+  InfoClient: vi.fn(function () {
+    return mockInfoClientInstance;
+  }),
+}));
+
+// After vi.mock hoisting, these imports are the mocked constructors
+const MockedHttpTransport = HttpTransport as unknown as Mock;
+const MockedInfoClient = InfoClient as unknown as Mock;
+
+/**
+ * Factory for mock ClearinghouseStateResponse.
+ * Returns a minimal valid shape; callers can spread overrides.
+ * @param overrides
+ */
+const createMockClearinghouseResponse = (
+  overrides: Partial<ClearinghouseStateResponse> = {},
+): ClearinghouseStateResponse =>
+  ({
+    marginSummary: {
+      totalMarginUsed: '0',
+      accountValue: '1000',
+    },
+    withdrawable: '1000',
+    assetPositions: [],
+    ...overrides,
+  }) as ClearinghouseStateResponse;
+
+describe('standaloneInfoClient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    MockedHttpTransport.mockImplementation(function () {
+      return mockHttpTransportInstance;
+    });
+    MockedInfoClient.mockImplementation(function () {
+      return mockInfoClientInstance;
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // createStandaloneInfoClient
+  // ----------------------------------------------------------------
+  describe('createStandaloneInfoClient', () => {
+    it('creates HttpTransport with mainnet config and default timeout', () => {
+      createStandaloneInfoClient({ isTestnet: false });
+
+      expect(MockedHttpTransport).toHaveBeenCalledWith({
+        isTestnet: false,
+        timeout: 10_000,
+      });
+    });
+
+    it('creates HttpTransport with testnet config', () => {
+      createStandaloneInfoClient({ isTestnet: true });
+
+      expect(MockedHttpTransport).toHaveBeenCalledWith({
+        isTestnet: true,
+        timeout: 10_000,
+      });
+    });
+
+    it('creates HttpTransport with custom timeout', () => {
+      createStandaloneInfoClient({ isTestnet: false, timeout: 5000 });
+
+      expect(MockedHttpTransport).toHaveBeenCalledWith({
+        isTestnet: false,
+        timeout: 5000,
+      });
+    });
+
+    it('passes HttpTransport instance to InfoClient', () => {
+      createStandaloneInfoClient({ isTestnet: false });
+
+      expect(MockedInfoClient).toHaveBeenCalledWith({
+        transport: mockHttpTransportInstance,
+      });
+    });
+
+    it('returns the InfoClient instance', () => {
+      const result = createStandaloneInfoClient({ isTestnet: false });
+
+      expect(result).toBe(mockInfoClientInstance);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // queryStandaloneClearinghouseStates
+  // ----------------------------------------------------------------
+  describe('queryStandaloneClearinghouseStates', () => {
+    const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
+
+    let mockInfoClient: Mocked<Pick<InfoClient, 'clearinghouseState'>>;
+
+    beforeEach(() => {
+      mockInfoClient = {
+        clearinghouseState: vi.fn(),
+      };
+    });
+
+    it('calls clearinghouseState for each DEX in the list', async () => {
+      const dexs: (string | null)[] = [null, 'xyz', 'abc'];
+      mockInfoClient.clearinghouseState.mockResolvedValue(
+        createMockClearinghouseResponse(),
+      );
+
+      await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        dexs,
+      );
+
+      expect(mockInfoClient.clearinghouseState).toHaveBeenCalledTimes(3);
+    });
+
+    it('passes user address without dex param for null DEX entries', async () => {
+      mockInfoClient.clearinghouseState.mockResolvedValue(
+        createMockClearinghouseResponse(),
+      );
+
+      await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null],
+      );
+
+      expect(mockInfoClient.clearinghouseState).toHaveBeenCalledWith({
+        user: userAddress,
+      });
+    });
+
+    it('passes user address with dex param for non-null DEX entries', async () => {
+      mockInfoClient.clearinghouseState.mockResolvedValue(
+        createMockClearinghouseResponse(),
+      );
+
+      await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        ['xyz'],
+      );
+
+      expect(mockInfoClient.clearinghouseState).toHaveBeenCalledWith({
+        user: userAddress,
+        dex: 'xyz',
+      });
+    });
+
+    it('returns all clearinghouseState responses in order', async () => {
+      const responseA = createMockClearinghouseResponse({
+        withdrawable: '100',
+      });
+      const responseB = createMockClearinghouseResponse({
+        withdrawable: '200',
+      });
+      const responseC = createMockClearinghouseResponse({
+        withdrawable: '300',
+      });
+
+      mockInfoClient.clearinghouseState
+        .mockResolvedValueOnce(responseA)
+        .mockResolvedValueOnce(responseB)
+        .mockResolvedValueOnce(responseC);
+
+      const results = await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null, 'xyz', 'abc'],
+      );
+
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'xyz', data: responseB },
+          { dex: 'abc', data: responseC },
+        ],
+        failedDexs: [],
+      });
+    });
+
+    it('returns single response for main-DEX-only list', async () => {
+      const response = createMockClearinghouseResponse();
+      mockInfoClient.clearinghouseState.mockResolvedValue(response);
+
+      const results = await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null],
+      );
+
+      expect(mockInfoClient.clearinghouseState).toHaveBeenCalledTimes(1);
+      expect(results).toStrictEqual({
+        results: [{ dex: null, data: response }],
+        failedDexs: [],
+      });
+    });
+
+    it('returns no results for an empty DEX list', async () => {
+      const results = await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [],
+      );
+
+      expect(mockInfoClient.clearinghouseState).not.toHaveBeenCalled();
+      expect(results).toStrictEqual({ results: [], failedDexs: [] });
+    });
+
+    it('reports the DEXs that failed alongside the successful results', async () => {
+      const responseA = createMockClearinghouseResponse({
+        withdrawable: '100',
+      });
+      const responseC = createMockClearinghouseResponse({
+        withdrawable: '300',
+      });
+
+      mockInfoClient.clearinghouseState
+        .mockResolvedValueOnce(responseA)
+        .mockRejectedValueOnce(new Error('HIP-3 DEX timeout'))
+        .mockResolvedValueOnce(responseC);
+
+      const results = await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null, 'failing-dex', 'healthy-dex'],
+      );
+
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'healthy-dex', data: responseC },
+        ],
+        failedDexs: [
+          { dex: 'failing-dex', error: new Error('HIP-3 DEX timeout') },
+        ],
+      });
+    });
+
+    it('reports every DEX as failed when all queries fail', async () => {
+      mockInfoClient.clearinghouseState.mockRejectedValue(
+        new Error('Network timeout'),
+      );
+
+      const results = await queryStandaloneClearinghouseStates(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null, 'dex-a'],
+      );
+
+      expect(results.results).toStrictEqual([]);
+      expect(results.failedDexs.map(({ dex }) => dex)).toStrictEqual([
+        null,
+        'dex-a',
+      ]);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // queryStandaloneOpenOrders
+  // ----------------------------------------------------------------
+  describe('queryStandaloneOpenOrders', () => {
+    const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
+
+    let mockInfoClient: {
+      frontendOpenOrders: Mock;
+    };
+
+    beforeEach(() => {
+      mockInfoClient = {
+        frontendOpenOrders: vi.fn(),
+      };
+    });
+
+    it('returns orders from all DEXs combined', async () => {
+      const ordersA = [{ oid: 1, coin: 'BTC', side: 'A' }];
+      const ordersB = [{ oid: 2, coin: 'ETH', side: 'B' }];
+
+      mockInfoClient.frontendOpenOrders
+        .mockResolvedValueOnce(ordersA)
+        .mockResolvedValueOnce(ordersB);
+
+      const results = await queryStandaloneOpenOrders(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null, 'xyz'],
+      );
+
+      expect(results).toEqual([ordersA, ordersB]);
+      expect(mockInfoClient.frontendOpenOrders).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns only fulfilled results when some DEX queries fail', async () => {
+      const ordersA = [{ oid: 1, coin: 'BTC', side: 'A' }];
+
+      mockInfoClient.frontendOpenOrders
+        .mockResolvedValueOnce(ordersA)
+        .mockRejectedValueOnce(new Error('DEX timeout'));
+
+      const results = await queryStandaloneOpenOrders(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null, 'failing-dex'],
+      );
+
+      expect(results).toEqual([ordersA]);
+    });
+
+    it('omits dex param when DEX is null', async () => {
+      mockInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+      await queryStandaloneOpenOrders(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        [null],
+      );
+
+      expect(mockInfoClient.frontendOpenOrders).toHaveBeenCalledWith({
+        user: userAddress,
+      });
+    });
+
+    it('passes dex param for non-null DEX', async () => {
+      mockInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+      await queryStandaloneOpenOrders(
+        mockInfoClient as unknown as InfoClient,
+        userAddress,
+        ['xyz'],
+      );
+
+      expect(mockInfoClient.frontendOpenOrders).toHaveBeenCalledWith({
+        user: userAddress,
+        dex: 'xyz',
+      });
+    });
+  });
+});

@@ -3,36 +3,67 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
+import type { GeolocationControllerGetGeolocationDataAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { SeedlessOnboardingControllerGetIsUserAuthenticatedAction } from '@metamask/seedless-onboarding-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+import deepEqual from 'fast-deep-equal';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
   controllerName,
   DEFAULT_POLLING_INTERVAL,
+  REFUND_ELIGIBLE_COUNTRIES,
   SubscriptionControllerErrorMessage,
-} from './constants';
-import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types';
-import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
+  SubscriptionDelegationServiceErrorMessage,
+} from './constants.js';
+import { createModuleLogger, projectLogger } from './logger.js';
+import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
+import type {
+  SubscriptionServiceAssignUserToCohortAction,
+  SubscriptionServiceCancelSubscriptionAction,
+  SubscriptionServiceGetBillingPortalUrlAction,
+  SubscriptionServiceGetBenefitsAction,
+  SubscriptionServiceGetPricingAction,
+  SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceGetSubscriptionsEligibilitiesAction,
+  SubscriptionServiceLinkRewardsAction,
+  SubscriptionServiceStartSubscriptionWithCardAction,
+  SubscriptionServiceStartSubscriptionWithCryptoAction,
+  SubscriptionServiceSubmitSponsorshipIntentsAction,
+  SubscriptionServiceSubmitUserEventAction,
+  SubscriptionServiceUnCancelSubscriptionAction,
+  SubscriptionServiceUpdatePaymentMethodCardAction,
+  SubscriptionServiceUpdatePaymentMethodCryptoAction,
+} from './SubscriptionService-method-action-types.js';
+import {
+  CRYPTO_AUTH_METHODS,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
+} from './types.js';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
+  CryptoAuthMethod,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   GetSubscriptionsEligibilitiesRequest,
+  GetSubscriptionsResponse,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
+  SubmitSubscriptionCryptoApprovalRequest,
   SubmitUserEventRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
   CachedLastSelectedPaymentMethod,
+  CacheLastSelectedPaymentMethodRequest,
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
   SubscriptionStatus,
@@ -40,20 +71,27 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
   CancelSubscriptionRequest,
-} from './types';
+  PricingCryptoPaymentMethod,
+  SubscriptionBenefitsResponse,
+  SubscriptionBenefitsState,
+} from './types.js';
 import type {
-  ISubscriptionService,
   PricingResponse,
   ProductType,
+  ProductEntitlements,
   StartSubscriptionRequest,
   Subscription,
-} from './types';
+} from './types.js';
+
+const log = createModuleLogger(projectLogger, controllerName);
 
 export type SubscriptionControllerState = {
   customerId?: string;
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
+  productEntitlements?: ProductEntitlements;
   pricing?: PricingResponse;
+  benefits?: SubscriptionBenefitsState;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
   /** The reward account ID if user has linked rewards to the subscription. */
@@ -63,9 +101,8 @@ export type SubscriptionControllerState = {
    * This is used to display the last selected payment method in the UI.
    * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
    */
-  lastSelectedPaymentMethod?: Record<
-    ProductType,
-    CachedLastSelectedPaymentMethod
+  lastSelectedPaymentMethod?: Partial<
+    Record<ProductType, CachedLastSelectedPaymentMethod>
   >;
 };
 
@@ -77,9 +114,25 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerMethodActions;
 
-export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
-  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
+type AllowedActions =
+  | SubscriptionServiceGetPricingAction
+  | SubscriptionServiceGetSubscriptionsAction
+  | SubscriptionServiceGetBenefitsAction
+  | SubscriptionServiceGetSubscriptionsEligibilitiesAction
+  | SubscriptionServiceCancelSubscriptionAction
+  | SubscriptionServiceUnCancelSubscriptionAction
+  | SubscriptionServiceStartSubscriptionWithCardAction
+  | SubscriptionServiceStartSubscriptionWithCryptoAction
+  | SubscriptionServiceUpdatePaymentMethodCardAction
+  | SubscriptionServiceUpdatePaymentMethodCryptoAction
+  | SubscriptionServiceGetBillingPortalUrlAction
+  | SubscriptionServiceSubmitSponsorshipIntentsAction
+  | SubscriptionServiceSubmitUserEventAction
+  | SubscriptionServiceAssignUserToCohortAction
+  | SubscriptionServiceLinkRewardsAction
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction
+  | SeedlessOnboardingControllerGetIsUserAuthenticatedAction
+  | GeolocationControllerGetGeolocationDataAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -89,8 +142,7 @@ export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
 export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
-export type AllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
+type AllowedEvents = never;
 
 // Messenger
 export type SubscriptionControllerMessenger = Messenger<
@@ -109,11 +161,6 @@ export type SubscriptionControllerOptions = {
    * Initial state to set on this controller.
    */
   state?: Partial<SubscriptionControllerState>;
-
-  /**
-   * Subscription service to use for the subscription controller.
-   */
-  subscriptionService: ISubscriptionService;
 
   /**
    * Polling interval to use for the subscription controller.
@@ -150,6 +197,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
+    productEntitlements: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
     lastSubscription: {
       includeInStateLogs: false,
       persist: true,
@@ -180,6 +233,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: true,
       usedInUi: true,
     },
+    benefits: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
     lastSelectedPaymentMethod: {
       includeInStateLogs: false,
       persist: true,
@@ -189,15 +248,20 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
   };
 
 const MESSENGER_EXPOSED_METHODS = [
+  'startPolling',
+  'stopPollingByPollingToken',
   'getPricing',
   'getSubscriptions',
+  'getBenefits',
   'getSubscriptionByProduct',
+  'isUserEligibleForTrial',
   'getSubscriptionsEligibilities',
   'cancelSubscription',
   'unCancelSubscription',
-  'startShieldSubscriptionWithCard',
+  'startSubscriptionWithCard',
   'startSubscriptionWithCrypto',
-  'submitShieldSubscriptionCryptoApproval',
+  'stopAllPolling',
+  'submitSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',
   'getBillingPortalUrl',
@@ -218,23 +282,20 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   SubscriptionControllerState,
   SubscriptionControllerMessenger
 > {
-  readonly #subscriptionService: ISubscriptionService;
-
   /**
    * Creates a new SubscriptionController instance.
    *
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.subscriptionService - The subscription service for communicating with subscription server.
    * @param options.pollingInterval - The polling interval to use for the subscription controller.
    */
-  constructor({
-    messenger,
-    state,
-    subscriptionService,
-    pollingInterval = DEFAULT_POLLING_INTERVAL,
-  }: SubscriptionControllerOptions) {
+  constructor(options: SubscriptionControllerOptions) {
+    const {
+      messenger,
+      state,
+      pollingInterval = DEFAULT_POLLING_INTERVAL,
+    } = options;
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
@@ -246,7 +307,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     });
 
     this.setIntervalLength(pollingInterval);
-    this.#subscriptionService = subscriptionService;
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -259,7 +319,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The pricing information.
    */
   async getPricing(): Promise<PricingResponse> {
-    const pricing = await this.#subscriptionService.getPricing();
+    const pricing = await this.messenger.call('SubscriptionService:getPricing');
     this.update((state) => {
       state.pricing = pricing;
     });
@@ -267,47 +327,100 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   async getSubscriptions(): Promise<Subscription[]> {
+    return await this.#getSubscriptions();
+  }
+
+  async #getSubscriptions({
+    refreshBenefits = true,
+  }: { refreshBenefits?: boolean } = {}): Promise<Subscription[]> {
     const currentSubscriptions = this.state.subscriptions;
     const currentTrialedProducts = this.state.trialedProducts;
     const currentCustomerId = this.state.customerId;
     const currentLastSubscription = this.state.lastSubscription;
     const currentRewardAccountId = this.state.rewardAccountId;
+    const currentProductEntitlements = this.state.productEntitlements;
+    const currentSubscriptionState: GetSubscriptionsResponse = {
+      customerId: currentCustomerId,
+      subscriptions: currentSubscriptions,
+      trialedProducts: currentTrialedProducts,
+      lastSubscription: currentLastSubscription,
+      rewardAccountId: currentRewardAccountId,
+      productEntitlements: currentProductEntitlements,
+    };
 
+    const newSubscriptionState = await this.messenger.call(
+      'SubscriptionService:getSubscriptions',
+    );
+
+    this.#updateSubscriptionStateIfChanged(
+      currentSubscriptionState,
+      newSubscriptionState,
+    );
+
+    await this.#refreshBenefitsIfActive(refreshBenefits);
+
+    return newSubscriptionState.subscriptions;
+  }
+
+  /**
+   * Updates the subscription state and refreshes the access token when the
+   * fetched subscription state differs from the current state.
+   *
+   * @param currentState - The subscription state captured before the request.
+   * @param newState - The subscription state returned by the service.
+   */
+  #updateSubscriptionStateIfChanged(
+    currentState: GetSubscriptionsResponse,
+    newState: GetSubscriptionsResponse,
+  ): void {
+    const {
+      subscriptions: currentSubscriptions,
+      trialedProducts: currentTrialedProducts,
+      customerId: currentCustomerId,
+      lastSubscription: currentLastSubscription,
+      rewardAccountId: currentRewardAccountId,
+      productEntitlements: currentProductEntitlements,
+    } = currentState;
     const {
       customerId: newCustomerId,
       subscriptions: newSubscriptions,
       trialedProducts: newTrialedProducts,
       lastSubscription: newLastSubscription,
       rewardAccountId: newRewardAccountId,
-    } = await this.#subscriptionService.getSubscriptions();
+      productEntitlements: newProductEntitlements,
+    } = newState;
 
-    // check if the new subscriptions are different from the current subscriptions
     const areSubscriptionsEqual = this.#areSubscriptionsEqual(
       currentSubscriptions,
       newSubscriptions,
     );
-    // check if the new trialed products are different from the current trialed products
     const areTrialedProductsEqual = this.#areTrialedProductsEqual(
       currentTrialedProducts,
       newTrialedProducts,
     );
-    // check if the new last subscription is different from the current last subscription
     const isLastSubscriptionEqual = this.#isSubscriptionEqual(
       currentLastSubscription,
       newLastSubscription,
     );
-
     const areCustomerIdsEqual = currentCustomerId === newCustomerId;
     const areRewardAccountIdsEqual =
       currentRewardAccountId === newRewardAccountId;
+    const areProductEntitlementsEqual = this.#areProductEntitlementsEqual(
+      currentProductEntitlements,
+      newProductEntitlements,
+    );
     // only update the state if the subscriptions or trialed products are different
     // this prevents unnecessary state updates events, easier for the clients to handle
+
+    // Only update the state if any subscription-related field changed. This
+    // prevents unnecessary state change events for clients to handle.
     if (
       !areSubscriptionsEqual ||
       !isLastSubscriptionEqual ||
       !areTrialedProductsEqual ||
       !areCustomerIdsEqual ||
-      !areRewardAccountIdsEqual
+      !areRewardAccountIdsEqual ||
+      !areProductEntitlementsEqual
     ) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
@@ -315,12 +428,49 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
         state.rewardAccountId = newRewardAccountId;
+        // Omitted entitlements are an empty map so selectors fail closed
+        // instead of keeping last-known paid-feature flags.
+        state.productEntitlements = newProductEntitlements ?? {};
       });
-      // trigger access token refresh to ensure the user has the latest access token if subscription state change
+      // Trigger an access token refresh to ensure the user has the latest
+      // access token after a subscription state change.
       this.triggerAccessTokenRefresh();
     }
+  }
 
-    return newSubscriptions;
+  /**
+   * Gets and stores the user's subscription benefits.
+   *
+   * An ineligible response is a normal result. Persisted benefits are cleared
+   * and the response is returned so callers can branch on `eligible`. That
+   * includes a provisional subscription whose benefits are not ready yet,
+   * which is distinct from having no active Money Account Plus subscription.
+   *
+   * @returns The benefits response, including when `eligible` is false.
+   * @throws If the user is not an active Money Account Plus subscriber.
+   */
+  async getBenefits(): Promise<SubscriptionBenefitsResponse> {
+    this.#assertIsActiveMoneyAccountPlusSubscriber();
+
+    const benefits = await this.messenger.call(
+      'SubscriptionService:getBenefits',
+    );
+
+    // The subscription may have become inactive while the benefits request
+    // was in flight. Re-check before persisting the response so stale
+    // benefits cannot be restored after entitlement ends.
+    this.#assertIsActiveMoneyAccountPlusSubscriber();
+
+    this.update((state) => {
+      state.benefits = benefits.eligible
+        ? {
+            billingPeriodId: benefits.billingPeriodId,
+            ...benefits.products,
+          }
+        : undefined;
+    });
+
+    return benefits;
   }
 
   /**
@@ -336,6 +486,41 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Whether the user is eligible to start a trial for the given product.
+   *
+   * Shield is eligible when the user has not trialed Shield before.
+   * Money Account Plus is eligible when the user has not trialed it before
+   * and is authenticated with social login. Only an unlocked wallet can
+   * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+   * sufficient social-login check.
+   *
+   * @param productType - The product to check.
+   * @returns Whether the user is eligible for a trial.
+   */
+  async isUserEligibleForTrial(productType: ProductType): Promise<boolean> {
+    if (this.state.trialedProducts.includes(productType)) {
+      return false;
+    }
+
+    switch (productType) {
+      case PRODUCT_TYPES.SHIELD:
+        return true;
+      case PRODUCT_TYPES.MONEY_ACCOUNT_PLUS:
+        return await this.messenger.call(
+          'SeedlessOnboardingController:getIsUserAuthenticated',
+        );
+      default: {
+        // `productType` is `never` here. A new `PRODUCT_TYPES` member fails
+        // compilation until this switch handles it.
+        const unexpectedProduct: never = productType;
+        throw new Error(
+          `Unexpected product type: ${String(unexpectedProduct)}`,
+        );
+      }
+    }
+  }
+
+  /**
    * Get the subscriptions eligibilities.
    *
    * @param request - Optional request object containing user balance to check cohort eligibility.
@@ -344,7 +529,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async getSubscriptionsEligibilities(
     request?: GetSubscriptionsEligibilitiesRequest,
   ): Promise<SubscriptionEligibility[]> {
-    return await this.#subscriptionService.getSubscriptionsEligibilities(
+    return await this.messenger.call(
+      'SubscriptionService:getSubscriptionsEligibilities',
       request,
     );
   }
@@ -352,8 +538,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription(request);
+    const cancelledSubscription = await this.messenger.call(
+      'SubscriptionService:cancelSubscription',
+      request,
+    );
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -363,6 +551,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
     });
 
+    try {
+      await this.#getSubscriptions();
+    } catch (error) {
+      log('Failed to refresh subscriptions after cancellation', error);
+
+      // Preserve the existing best-effort benefits refresh behavior if the
+      // canonical subscription refresh is unavailable.
+      await this.#refreshBenefitsIfActive();
+    }
+
     this.triggerAccessTokenRefresh();
   }
 
@@ -371,59 +569,175 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    const uncancelledSubscription =
-      await this.#subscriptionService.unCancelSubscription({
+    const uncancelledSubscription = await this.messenger.call(
+      'SubscriptionService:unCancelSubscription',
+      {
         subscriptionId: request.subscriptionId,
-      });
+      },
+    );
 
+    // Replace rather than merge: optional fields the response omits (e.g.
+    // `cancelAtPeriodEnd`, `canceledAt`) must not survive from the
+    // pending-cancellation state.
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, ...uncancelledSubscription }
+          ? uncancelledSubscription
           : subscription,
       );
     });
 
+    try {
+      await this.#getSubscriptions();
+    } catch (error) {
+      log('Failed to refresh subscriptions after uncancellation', error);
+
+      // Preserve the existing best-effort benefits refresh behavior if the
+      // canonical subscription refresh is unavailable.
+      await this.#refreshBenefitsIfActive();
+    }
+
     this.triggerAccessTokenRefresh();
   }
 
-  async startShieldSubscriptionWithCard(
+  /**
+   * Starts a card-paid subscription checkout session for the requested products
+   * (e.g. Shield or Money Account Plus).
+   *
+   * `isTrialRequested` on the request is ignored and overwritten from
+   * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+   * when it has not been trialed. Money Account Plus is eligible when it has
+   * not been trialed and the user is authenticated with social login.
+   *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
+   * @param request - The start subscription request.
+   * @returns The checkout session response.
+   */
+  async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
+    // get the latest subscriptions state before computing trial eligibility
+    await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
+    const isTrialRequested = await this.#getIsTrialRequested(
+      request.products,
+      request.recurringInterval,
+    );
 
-    const response =
-      await this.#subscriptionService.startSubscriptionWithCard(request);
+    const response = await this.messenger.call(
+      'SubscriptionService:startSubscriptionWithCard',
+      {
+        ...request,
+        isTrialRequested,
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
+      },
+    );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
   }
 
+  /**
+   * Starts a crypto-paid subscription for the requested products
+   * (e.g. Shield or Money Account Plus). Unlike card checkout, this
+   * creates the subscription immediately, so local state is refreshed
+   * afterwards.
+   *
+   * `isTrialRequested` on the request is ignored and overwritten from
+   * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+   * when it has not been trialed. Money Account Plus is eligible when it has
+   * not been trialed and the user is authenticated with social login.
+   *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
+   * @param request - The start crypto subscription request.
+   * @returns The start crypto subscription response.
+   * @throws If `products` is empty.
+   */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
+    // get the latest subscriptions state before computing trial eligibility
+    await this.#getSubscriptions({ refreshBenefits: false });
     this.#assertIsUserNotSubscribed({ products: request.products });
-    const response =
-      await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    const isTrialRequested = await this.#getIsTrialRequested(
+      request.products,
+      request.recurringInterval,
+    );
+    if (
+      request.assertTrialEligibility &&
+      request.isTrialRequested !== isTrialRequested
+    ) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.TrialEligibilityChanged,
+      );
+    }
+    const {
+      assertTrialEligibility: _assertTrialEligibility,
+      ...subscriptionRequest
+    } = request;
+    const response = await this.messenger.call(
+      'SubscriptionService:startSubscriptionWithCrypto',
+      {
+        ...subscriptionRequest,
+        isTrialRequested,
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
+      },
+    );
+
+    // Crypto start creates the subscription immediately (unlike card checkout).
+    await this.getSubscriptions();
 
     return response;
   }
 
   /**
-   * Handles shield subscription crypto approval transactions.
+   * Submits a Shield ERC-20 crypto approval transaction to start or update a
+   * crypto subscription.
    *
-   * @param txMeta - The transaction metadata.
-   * @param isSponsored - Whether the transaction is sponsored.
-   * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
+   * This handler is Shield / `TransactionType.shieldSubscriptionApprove` only.
+   * Delegation-based products (e.g. Money Account) must call
+   * `startSubscriptionWithCrypto` instead.
+   *
+   * @param request - The crypto approval request.
+   * @param request.productType - The subscription product. Typed as
+   * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more
+   * product).
+   * @param request.txMeta - The transaction metadata. Must have type
+   * `TransactionType.shieldSubscriptionApprove`.
+   * @param request.isSponsored - Whether the transaction is sponsored.
+   * @param request.rewardAccountId - The account ID of the reward subscription
+   * to link.
+   * @throws If `productType` is not Shield or `txMeta.type` is not
+   * `shieldSubscriptionApprove`.
    * @returns void
    */
-  async submitShieldSubscriptionCryptoApproval(
-    txMeta: TransactionMeta,
-    isSponsored?: boolean,
-    rewardAccountId?: CaipAccountId,
+  async submitSubscriptionCryptoApproval(
+    request: SubmitSubscriptionCryptoApprovalRequest,
   ): Promise<void> {
-    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
-      return;
+    const { productType, txMeta, isSponsored, rewardAccountId } = request;
+    if (
+      // Widen for the runtime guard: JS / unsound callers may still pass a
+      // non-Shield product.
+      (productType as ProductType) !== PRODUCT_TYPES.SHIELD ||
+      txMeta.type !== TransactionType.shieldSubscriptionApprove
+    ) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
+      );
     }
 
     const { chainId, rawTx } = txMeta;
@@ -431,34 +745,33 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Chain ID or raw transaction not found');
     }
 
-    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
+    const { pricing, lastSelectedPaymentMethod } = this.state;
     if (!pricing) {
       throw new Error('Subscription pricing not found');
     }
     if (!lastSelectedPaymentMethod) {
       throw new Error('Last selected payment method not found');
     }
-    const lastSelectedPaymentMethodShield =
-      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
-    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
+    const lastSelectedPaymentMethodForProduct =
+      lastSelectedPaymentMethod[productType];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodForProduct);
 
     const productPrice = this.#getProductPriceByProductAndPlan(
-      PRODUCT_TYPES.SHIELD,
-      lastSelectedPaymentMethodShield.plan,
+      productType,
+      lastSelectedPaymentMethodForProduct.plan,
     );
-    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-    // get the latest subscriptions state to check if the user has an active shield subscription
-    await this.getSubscriptions();
-    const currentSubscription = this.state.subscriptions.find((subscription) =>
-      subscription.products.some(
-        (product) => product.name === PRODUCT_TYPES.SHIELD,
-      ),
+    // get the latest subscriptions state before computing trial eligibility
+    await this.#getSubscriptions({ refreshBenefits: false });
+    const isTrialRequested = await this.#getIsTrialRequested(
+      [productType],
+      lastSelectedPaymentMethodForProduct.plan,
     );
+    const currentSubscription = this.getSubscriptionByProduct(productType);
 
     this.#assertValidSubscriptionStateForCryptoApproval({
-      productType: PRODUCT_TYPES.SHIELD,
+      productType,
     });
-    // if shield subscription exists, this transaction is for changing payment method
+    // if subscription exists, this transaction is for changing payment method
     const isChangePaymentMethod = Boolean(currentSubscription);
 
     if (isChangePaymentMethod) {
@@ -467,30 +780,31 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         subscriptionId: (currentSubscription as Subscription).id,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
       });
     } else {
-      const params = {
-        products: [PRODUCT_TYPES.SHIELD],
-        isTrialRequested: !isTrialed,
+      const params: StartCryptoSubscriptionRequest = {
+        products: [productType],
+        isTrialRequested,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
         isSponsored,
-        useTestClock: lastSelectedPaymentMethodShield.useTestClock,
+        useTestClock: lastSelectedPaymentMethodForProduct.useTestClock,
         rewardAccountId,
       };
       await this.startSubscriptionWithCrypto(params);
     }
 
     // update the subscriptions state after subscription created in server
-    await this.getSubscriptions();
+    await this.#getSubscriptions({ refreshBenefits: false });
   }
 
   /**
@@ -524,8 +838,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Price not found');
     }
 
-    const chainsPaymentInfo = pricing.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+    const chainsPaymentInfo = this.#findCryptoPaymentMethod(
+      request.productType,
+      CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -563,12 +878,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   ): Promise<UpdatePaymentMethodCardResponse | Subscription[]> {
     if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
-      return await this.#subscriptionService.updatePaymentMethodCard(
+      return await this.messenger.call(
+        'SubscriptionService:updatePaymentMethodCard',
         cardRequest,
       );
     } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
-      await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
+      await this.messenger.call(
+        'SubscriptionService:updatePaymentMethodCrypto',
+        cryptoRequest,
+      );
       return await this.getSubscriptions();
     }
     throw new Error('Invalid payment type');
@@ -580,23 +899,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns The billing portal URL
    */
   async getBillingPortalUrl(): Promise<BillingPortalResponse> {
-    return await this.#subscriptionService.getBillingPortalUrl();
+    return await this.messenger.call('SubscriptionService:getBillingPortalUrl');
   }
 
   /**
    * Cache the last selected payment method for a specific product.
    *
-   * @param product - The product to cache the payment method for.
-   * @param paymentMethod - The payment method to cache.
-   * @param paymentMethod.type - The type of the payment method.
-   * @param paymentMethod.paymentTokenAddress - The payment token address.
-   * @param paymentMethod.plan - The plan of the payment method.
-   * @param paymentMethod.product - The product of the payment method.
+   * @param request - The request object.
+   * @param request.product - The product to cache the payment method for.
+   * @param request.paymentMethod - The payment method to cache.
+   * @param request.paymentMethod.type - The type of the payment method.
+   * @param request.paymentMethod.paymentTokenAddress - The payment token address.
+   * @param request.paymentMethod.plan - The plan of the payment method.
    */
   cacheLastSelectedPaymentMethod(
-    product: ProductType,
-    paymentMethod: CachedLastSelectedPaymentMethod,
+    request: CacheLastSelectedPaymentMethodRequest,
   ): void {
+    const { product, paymentMethod } = request;
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
       (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)
@@ -623,8 +942,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.update((state) => {
       if (state.lastSelectedPaymentMethod) {
         const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
-        state.lastSelectedPaymentMethod =
-          rest as typeof state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod = rest;
       }
     });
   }
@@ -642,7 +960,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *   recurringInterval: RecurringInterval.Month,
    *   billingCycles: 1,
    * }
-   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false otherwise
+   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false if the chain does not support sponsorship or the user has already trialed
+   * @throws If the crypto payment method or chain is missing from pricing
    */
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsMethodParams,
@@ -659,10 +978,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.state.lastSelectedPaymentMethod?.[request.products[0]];
     this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
 
+    const cryptoAuthMethod =
+      selectedPaymentMethod.cryptoAuthMethod ??
+      CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
     const isEligibleForTrialedSponsorship =
       this.#getIsEligibleForTrialedSponsorship(
         request.chainId,
         request.products,
+        cryptoAuthMethod,
       );
     if (!isEligibleForTrialedSponsorship) {
       return false;
@@ -676,7 +999,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
     const billingCycles = productPrice.minBillingCycles;
 
-    await this.#subscriptionService.submitSponsorshipIntents({
+    await this.messenger.call('SubscriptionService:submitSponsorshipIntents', {
       ...request,
       paymentTokenSymbol,
       billingCycles,
@@ -692,7 +1015,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
   async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
-    await this.#subscriptionService.submitUserEvent(request);
+    await this.messenger.call('SubscriptionService:submitUserEvent', request);
   }
 
   /**
@@ -702,7 +1025,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @example { cohort: 'post_tx' }
    */
   async assignUserToCohort(request: AssignCohortRequest): Promise<void> {
-    await this.#subscriptionService.assignUserToCohort(request);
+    await this.messenger.call(
+      'SubscriptionService:assignUserToCohort',
+      request,
+    );
   }
 
   /**
@@ -721,9 +1047,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     // link rewards to the subscription
-    const response = await this.#subscriptionService.linkRewards({
-      rewardAccountId: request.rewardAccountId,
-    });
+    const response = await this.messenger.call(
+      'SubscriptionService:linkRewards',
+      {
+        rewardAccountId: request.rewardAccountId,
+      },
+    );
     if (!response.success) {
       throw new Error(SubscriptionControllerErrorMessage.LinkRewardsFailed);
     }
@@ -731,6 +1060,27 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   async _executePoll(): Promise<void> {
     await this.getSubscriptions();
+  }
+
+  async #refreshBenefitsIfActive(refreshBenefits = true): Promise<void> {
+    if (!this.#hasActiveMoneyAccountPlusSubscription()) {
+      if (this.state.benefits) {
+        this.update((state) => {
+          state.benefits = undefined;
+        });
+      }
+      return;
+    }
+
+    if (!refreshBenefits) {
+      return;
+    }
+
+    try {
+      await this.getBenefits();
+    } catch (error) {
+      log('Failed to refresh subscription benefits', error);
+    }
   }
 
   /**
@@ -776,8 +1126,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate[
-        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      tokenPaymentInfo.conversionRate?.[
+        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -804,8 +1154,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate[
-        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      tokenPaymentInfo.conversionRate?.[
+        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -871,6 +1221,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       !subscription ||
       (
         [
+          SUBSCRIPTION_STATUSES.awaitingFunds,
           SUBSCRIPTION_STATUSES.pastDue,
           SUBSCRIPTION_STATUSES.unpaid,
           SUBSCRIPTION_STATUSES.paused,
@@ -899,6 +1250,17 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
   }
 
+  #assertIsActiveMoneyAccountPlusSubscriber(): void {
+    if (!this.#hasActiveMoneyAccountPlusSubscription()) {
+      if (this.state.benefits) {
+        this.update((state) => {
+          state.benefits = undefined;
+        });
+      }
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
+  }
+
   #assertIsUserSubscribed(request: { subscriptionId: string }): void {
     if (
       !this.state.subscriptions.find(
@@ -912,12 +1274,19 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Asserts that the value is a valid crypto payment method.
    *
+   * After this assert, `cryptoAuthMethod` and `useTestClock` remain optional
+   * because persisted cache entries may omit them.
+   *
    * @param value - The value to assert.
    * @throws an error if the value is not a valid crypto payment method.
    */
   #assertIsPaymentMethodCrypto(
     value: CachedLastSelectedPaymentMethod | undefined,
-  ): asserts value is Required<CachedLastSelectedPaymentMethod> {
+  ): asserts value is CachedLastSelectedPaymentMethod & {
+    type: typeof PAYMENT_TYPES.byCrypto;
+    paymentTokenAddress: Hex;
+    paymentTokenSymbol: string;
+  } {
     if (
       value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
@@ -929,19 +1298,34 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
   }
 
+  #hasActiveMoneyAccountPlusSubscription(): boolean {
+    return this.state.subscriptions.some(
+      (subscription) =>
+        subscription.products.some(
+          (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ) && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status),
+    );
+  }
+
   /**
    * Determines if the user is eligible for trialed sponsorship for the given chain and products.
    * The user is eligible if the chain supports sponsorship and the user has not trialed the provided products before.
    *
    * @param chainId - The chain ID
    * @param products - The products to check eligibility for
+   * @param cryptoAuthMethod - The crypto authorization method of the selected payment method
    * @returns True if the user is eligible for trialed sponsorship, false otherwise
    */
   #getIsEligibleForTrialedSponsorship(
     chainId: Hex,
     products: ProductType[],
+    cryptoAuthMethod: CryptoAuthMethod,
   ): boolean {
-    const isSponsorshipSupported = this.#getChainSupportsSponsorship(chainId);
+    const isSponsorshipSupported = this.#getChainSupportsSponsorship(
+      chainId,
+      products[0],
+      cryptoAuthMethod,
+    );
 
     // verify if the user has trialed the provided products before
     const hasTrialedBefore = this.state.trialedProducts.some((product) =>
@@ -951,15 +1335,177 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return isSponsorshipSupported && !hasTrialedBefore;
   }
 
-  #getChainSupportsSponsorship(chainId: Hex): boolean {
-    const cryptoPaymentInfo = this.state.pricing?.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+  /**
+   * Whether a trial should be requested for the given products and plan.
+   * True only when every product is eligible via `isUserEligibleForTrial`
+   * and its price has `trialPeriodDays > 0`.
+   *
+   * @param products - The products to check.
+   * @param plan - The recurring interval to look up pricing for.
+   * @returns Whether a trial should be requested.
+   */
+  async #getIsTrialRequested(
+    products: ProductType[],
+    plan: RecurringInterval,
+  ): Promise<boolean> {
+    const results = await Promise.all(
+      products.map(async (productType) => {
+        if (!(await this.isUserEligibleForTrial(productType))) {
+          return false;
+        }
+
+        const productPrice = this.#getProductPriceByProductAndPlan(
+          productType,
+          plan,
+        );
+        return productPrice.trialPeriodDays > 0;
+      }),
     );
 
-    const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(
+    return results.every(Boolean);
+  }
+
+  /**
+   * Returns the caller-provided refund eligibility when set. Otherwise
+   * resolves it from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
+   * @param isEligibleForRefund - Caller-provided eligibility, if any.
+   * @returns Whether the user is eligible for a refund.
+   */
+  async #getIsEligibleForRefund(
+    isEligibleForRefund?: boolean,
+  ): Promise<boolean> {
+    if (isEligibleForRefund !== undefined) {
+      return isEligibleForRefund;
+    }
+
+    try {
+      const { country } = await this.messenger.call(
+        'GeolocationController:getGeolocationData',
+      );
+      return (
+        country !== null && REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
+      );
+    } catch (error) {
+      log('Failed to resolve geolocation for refund eligibility', error);
+      return false;
+    }
+  }
+
+  #findCryptoPaymentMethod(
+    productType: ProductType,
+    cryptoAuthMethod: CryptoAuthMethod,
+  ): PricingCryptoPaymentMethod | undefined {
+    const matches: {
+      method: PricingCryptoPaymentMethod;
+      explicit: boolean;
+    }[] = [];
+
+    for (const paymentMethod of this.state.pricing?.paymentMethods ?? []) {
+      if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
+        continue;
+      }
+
+      const resolved = this.#resolveCryptoPaymentMethodDefaults(paymentMethod);
+      if (!resolved) {
+        continue;
+      }
+
+      if (
+        resolved.cryptoAuthMethod === cryptoAuthMethod &&
+        resolved.products.includes(productType)
+      ) {
+        matches.push({
+          method: paymentMethod,
+          explicit: resolved.explicit,
+        });
+      }
+    }
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+
+    const explicitMatches = matches.filter((match) => match.explicit);
+    const candidates = explicitMatches.length > 0 ? explicitMatches : matches;
+
+    if (candidates.length > 1) {
+      throw new Error('Multiple matching crypto payment methods found');
+    }
+
+    return candidates[0].method;
+  }
+
+  /**
+   * Resolves omitted `products` / `cryptoAuthMethod` on a crypto pricing row.
+   * Legacy Shield + `erc20_approval` defaults apply only when both fields are
+   * absent. If `products` is present, the list must be non-empty and
+   * `cryptoAuthMethod` must be explicit; otherwise the row is ignored.
+   *
+   * @param paymentMethod - The crypto pricing row.
+   * @returns Resolved products and auth method, or `undefined` if the row is
+   * incomplete.
+   */
+  #resolveCryptoPaymentMethodDefaults(
+    paymentMethod: PricingCryptoPaymentMethod,
+  ):
+    | {
+        products: ProductType[];
+        cryptoAuthMethod: CryptoAuthMethod;
+        explicit: boolean;
+      }
+    | undefined {
+    const productsPresent = paymentMethod.products !== undefined;
+    const authPresent = paymentMethod.cryptoAuthMethod !== undefined;
+
+    if (!productsPresent && !authPresent) {
+      return {
+        products: [PRODUCT_TYPES.SHIELD],
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
+        explicit: false,
+      };
+    }
+
+    if (!paymentMethod.products?.length || !paymentMethod.cryptoAuthMethod) {
+      return undefined;
+    }
+
+    return {
+      products: paymentMethod.products,
+      cryptoAuthMethod: paymentMethod.cryptoAuthMethod,
+      explicit: true,
+    };
+  }
+
+  /**
+   * Whether the given chain supports sponsorship for the product and auth method.
+   *
+   * @param chainId - The chain ID
+   * @param productType - The product type
+   * @param cryptoAuthMethod - The crypto authorization method to look up
+   * @returns True if the chain row has sponsorship enabled, false if it is explicitly not sponsored
+   * @throws If the crypto payment method or chain row is missing from pricing
+   */
+  #getChainSupportsSponsorship(
+    chainId: Hex,
+    productType: ProductType,
+    cryptoAuthMethod: CryptoAuthMethod,
+  ): boolean {
+    const cryptoPaymentInfo = this.#findCryptoPaymentMethod(
+      productType,
+      cryptoAuthMethod,
+    );
+    if (!cryptoPaymentInfo) {
+      throw new Error('Chains payment info not found');
+    }
+
+    const chainPaymentInfo = cryptoPaymentInfo.chains?.find(
       (chain) => chain.chainId === chainId,
-    )?.isSponsorshipSupported;
-    return Boolean(isSponsorshipSupported);
+    );
+    if (!chainPaymentInfo) {
+      throw new Error('Invalid chain id');
+    }
+    return Boolean(chainPaymentInfo.isSponsorshipSupported);
   }
 
   /**
@@ -978,6 +1524,25 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       oldTrialedProducts.every((product) =>
         newTrialedProducts?.includes(product),
       )
+    );
+  }
+
+  /**
+   * Compares product entitlement maps without treating object key order as a
+   * change. Insertion-order-sensitive `JSON.stringify` can otherwise treat an
+   * equivalent API payload as different and trigger `performSignOut`.
+   *
+   * @param oldProductEntitlements - Stored product entitlements.
+   * @param newProductEntitlements - Freshly fetched product entitlements.
+   * @returns True if the maps are equal regardless of key order.
+   */
+  #areProductEntitlementsEqual(
+    oldProductEntitlements?: ProductEntitlements,
+    newProductEntitlements?: ProductEntitlements,
+  ): boolean {
+    return deepEqual(
+      oldProductEntitlements ?? {},
+      newProductEntitlements ?? {},
     );
   }
 

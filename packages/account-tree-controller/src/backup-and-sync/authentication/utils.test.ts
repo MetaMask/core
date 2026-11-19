@@ -1,20 +1,22 @@
-import type { AccountTreeController } from '../../AccountTreeController';
-import type { BackupAndSyncContext } from '../types';
-import { getProfileId } from './utils';
+import { describe, expect, it, vi } from 'vitest';
+
+import type { AccountTreeController } from '../../AccountTreeController.js';
+import type { BackupAndSyncContext } from '../types.js';
+import { getProfileId } from './utils.js';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {
     const mockMessenger = {
-      call: jest.fn(),
+      call: vi.fn(),
     };
 
     const mockContext: BackupAndSyncContext = {
       messenger: mockMessenger as unknown as BackupAndSyncContext['messenger'],
       controller: {} as AccountTreeController,
-      controllerStateUpdateFn: jest.fn(),
-      traceFn: jest.fn(),
+      controllerStateUpdateFn: vi.fn(),
+      traceFn: vi.fn(),
       groupIdToWalletId: new Map(),
-      emitAnalyticsEventFn: jest.fn(),
+      emitAnalyticsEventFn: vi.fn(),
     };
 
     const mockEntropySourceId = 'entropy-123';

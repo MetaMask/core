@@ -2,14 +2,20 @@
  * Token API Client Tests - token.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient';
-import { API_URLS, GC_TIMES, STALE_TIMES } from '../shared-types';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from '../test-utils';
-import type { NetworkInfo, TokenMetadata, TokenSearchResponse } from './types';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS, GC_TIMES, STALE_TIMES } from '../shared-types.js';
+import type {
+  NetworkInfo,
+  TokenMetadata,
+  TokenSearchResponse,
+} from './types.js';
 
 describe('TokenApiClient', () => {
   let client: ApiPlatformClient;
@@ -131,6 +137,39 @@ describe('TokenApiClient', () => {
       const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
       expect(calledUrl).toContain('includeIconUrl=true');
       expect(calledUrl).toContain('includeOccurrences=true');
+    });
+
+    it('forwards occurrence floor and native/rwa flags', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
+
+      await client.token.fetchTokenList(1, {
+        occurrenceFloor: 3,
+        includeNativeAssets: false,
+        includeRwaData: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${API_URLS.TOKEN}/tokens/1?occurrenceFloor=3&includeNativeAssets=false&includeRwaData=true`,
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe('Supported Networks', () => {
+    it('fetches v2 supported networks from the token API', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: ['eip155:59144'],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchV2SupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${API_URLS.TOKEN}/v2/supportedNetworks`,
+        expect.any(Object),
+      );
     });
   });
 
@@ -456,6 +495,37 @@ describe('TokenApiClient', () => {
         expect.stringContaining('/v1/suggestedOccurrenceFloors'),
         expect.any(Object),
       );
+    });
+  });
+
+  describe('fetchV2Assets', () => {
+    it('fetches v2 assets with launchpad and security flags', async () => {
+      const mockResponse = [
+        {
+          assetId: 'eip155:56/erc20:0xabc',
+          symbol: 'ABC',
+          name: 'Abc',
+          decimals: 18,
+          launchpad: 'flap',
+        },
+      ];
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchV2Assets(
+        ['eip155:56/erc20:0xabc'],
+        { includeLaunchpadData: true, includeTokenSecurityData: true },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain('/v2/assets');
+      expect(url).toContain('includeLaunchpadData=true');
+      expect(url).toContain('includeTokenSecurityData=true');
+    });
+
+    it('returns an empty array without fetching when no asset IDs are given', async () => {
+      expect(await client.token.fetchV2Assets([])).toStrictEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

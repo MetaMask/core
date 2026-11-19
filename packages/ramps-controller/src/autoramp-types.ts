@@ -1,0 +1,118 @@
+/**
+ * Non-PII deposit readiness summary from a neo-bank autoramp response.
+ * Full deposit rail details (IBAN, etc.) should be re-fetched when needed.
+ */
+export type AutorampDepositRailsSummary = {
+  /** Source currency code when known (e.g. EUR). */
+  currency?: string;
+  /** True when the autoramp is approved and deposit details may be shared. */
+  ready: boolean;
+};
+
+/**
+ * Minimal remote snapshot from `GET /neobank/autoramps/{id}` (or a push payload).
+ * Identity fields may be omitted on partial proxy responses.
+ */
+export type AutorampRemoteSnapshot = {
+  id: string;
+  customerId?: string;
+  walletAddress?: string;
+  status: string;
+  depositRailsSummary?: AutorampDepositRailsSummary;
+};
+
+/**
+ * PIX "Copia e Cola" instructions from an autoramp `deposit_rails` entry.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type PixDepositInstructions = {
+  /** EMV BR Code the payer pastes into their bank app. */
+  brCode: string;
+  /** Human-readable payer guidance from MoonPay. */
+  instruction: string;
+  /** Bare PIX key, when MoonPay includes one. */
+  pixKey?: string;
+  /** Expiry of a one-time QR code. Absent for a reusable code. */
+  expiresAt?: string;
+};
+
+/**
+ * MoonPay `deposit_rails` types for a USD virtual account. They share the same
+ * fields.
+ */
+export type UsBankDepositRail = 'ACH' | 'Wire' | 'RTP' | 'FedNow';
+
+/**
+ * US bank transfer details from an autoramp `deposit_rails` entry.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type UsBankDepositInstructions = {
+  /** Which US rail these details came from. */
+  rail: UsBankDepositRail;
+  /** Account holder name, matching the customer's verified identity. */
+  accountHolder: string;
+  /** ABA routing number. */
+  routingNumber: string;
+  /** Virtual account number. */
+  accountNumber: string;
+  /** Name of the issuing bank. */
+  bankName: string;
+  /** Address of the issuing bank, when MoonPay includes one. */
+  bankAddress?: string;
+  /** Account holder address, when MoonPay includes one. */
+  accountHolderAddress?: string;
+};
+
+/**
+ * SEPA transfer details from an autoramp `deposit_rails` entry (EUR), plus the
+ * autoramp's inbound payment reference when MoonPay uses pay-by-reference.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type SepaDepositInstructions = {
+  /** The customer's IBAN, no spaces. Always present. */
+  iban: string;
+  /** The bank's BIC, when MoonPay includes one. */
+  bic?: string;
+  /** Account holder: the customer's verified name, when present. */
+  accountHolder?: string;
+  /** Name of the bank that holds the account, when present. */
+  bankName?: string;
+  /** Address of that bank, when present. */
+  bankAddress?: string;
+  /**
+   * Reference to include in the SEPA payment reference so MoonPay can match
+   * the deposit, when the autoramp uses pay-by-reference. Backed by the
+   * autoramp's `inbound_payment_reference`.
+   */
+  paymentReference?: string;
+  /**
+   * Whether the autoramp accepts third-party payments; false means only a
+   * transfer from a bank account in the customer's own name is accepted.
+   * Backed by the autoramp's `is_third_party`.
+   */
+  isThirdParty?: boolean;
+};
+
+/**
+ * Deposit details for an autoramp, discriminated by `type`.
+ */
+export type AutorampDepositInstructions =
+  | ({ type: 'Pix' } & PixDepositInstructions)
+  | ({ type: 'UsBank' } & UsBankDepositInstructions)
+  | ({ type: 'Sepa' } & SepaDepositInstructions);
+
+/**
+ * Polling summary of one autoramp transaction.
+ * `status` is MoonPay `transaction_status` (`Completed`, `Failed`, …).
+ */
+export type AutorampTransactionSummary = {
+  id: string;
+  autorampId: string;
+  status: string;
+  /** Source amount decimal string, when present (BRL for this flow). */
+  sourceAmount?: string;
+  /** Destination amount decimal string, when present (mUSD). */
+  destinationAmount?: string;
+  /** MoonPay `created_at` when present, for newest-first client selection. */
+  createdAt?: string;
+};

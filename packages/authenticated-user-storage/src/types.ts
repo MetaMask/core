@@ -69,6 +69,11 @@ export type WalletActivityAccount = {
   enabled: boolean;
 };
 
+export type AgenticCliPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 export type WalletActivityPreference = {
   inAppNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
@@ -87,7 +92,6 @@ export type PerpsWatchlistExchange = {
 
 export type PerpsWatchlistMarkets = {
   hyperliquid: PerpsWatchlistExchange;
-  myx: PerpsWatchlistExchange;
 };
 
 export type PerpsPreference = {
@@ -103,13 +107,70 @@ export type SocialAIPreference = {
   mutedTraderProfileIds: string[];
 };
 
-/** Notification preferences for the authenticated user. */
+export type PriceAlertPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
+/**
+ * Notification preferences for the authenticated user.
+ */
 export type NotificationPreferences = {
   walletActivity: WalletActivityPreference;
   marketing: MarketingPreference;
   perps: PerpsPreference;
   socialAI: SocialAIPreference;
+  agenticCli: AgenticCliPreference;
+  priceAlerts: PriceAlertPreference;
 };
+
+// ---------------------------------------------------------------------------
+// Marketing consent
+// ---------------------------------------------------------------------------
+
+/** Marketing consent for the authenticated user (master toggle). */
+export type MarketingConsent = {
+  marketingConsentEnabled: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Identity-sharing consent
+// ---------------------------------------------------------------------------
+
+/** Partner audience that may receive verified identity claims. */
+export type IdentitySharingAudience = 'kyc' | 'iron';
+
+/**
+ * Granted identity-sharing audiences for the authenticated user.
+ * Only granted keys are present; a missing key is not granted.
+ */
+export type IdentitySharingConsent = {
+  kyc?: boolean;
+  iron?: boolean;
+};
+
+/** Body for granting or revoking a single identity-sharing audience. */
+export type IdentitySharingConsentWrite = {
+  audience: IdentitySharingAudience;
+  granted: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Assets watchlist
+// ---------------------------------------------------------------------------
+
+// `AssetsWatchlistBlob` is inferred from `AssetsWatchlistBlobSchema` in
+// `./validators` and re-exported here so the public type surface remains in
+// `./types`. Keeping the runtime schema and the static type co-located in
+// one file keeps the two in lock-step.
+export type { AssetsWatchlistBlob } from './validators.js';
+
+// ---------------------------------------------------------------------------
+// User assets (custom tokens)
+// ---------------------------------------------------------------------------
+
+// Re-exported from './validators' so the public type surface stays in './types'.
+export type { UserAssetsBlob } from './validators.js';
 
 // ---------------------------------------------------------------------------
 // Shared

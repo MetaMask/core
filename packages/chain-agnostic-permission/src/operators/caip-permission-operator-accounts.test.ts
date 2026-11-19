@@ -1,16 +1,18 @@
 import type { CaipAccountId } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
-import type { InternalScopesObject } from '../scope/types';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
+import type { InternalScopesObject } from '../scope/types.js';
 import {
   getEthAccounts,
+  getEthAccountsForScope,
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   getCaipAccountIdsFromScopesObjects,
   getCaipAccountIdsFromCaip25CaveatValue,
   isCaipAccountIdInPermittedAccountIds,
   isInternalAccountInPermittedAccountIds,
-} from './caip-permission-operator-accounts';
+} from './caip-permission-operator-accounts.js';
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {
@@ -84,6 +86,55 @@ describe('CAIP-25 eth_accounts adapters', () => {
         '0x100',
         '0x5',
       ]);
+    });
+  });
+
+  describe('getEthAccountsForScope', () => {
+    it('returns an empty array if the scope is not present', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0x1'] } },
+          optionalScopes: {},
+        },
+        'eip155:2',
+      );
+      expect(ethAccounts).toStrictEqual([]);
+    });
+
+    it('returns an empty array if the scope has no accounts', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: { 'eip155:1': { accounts: [] } },
+          optionalScopes: {},
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual([]);
+    });
+
+    it('returns the accounts from the required scope', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: {
+            'eip155:1': { accounts: ['eip155:1:0x1', 'eip155:1:0x2'] },
+            'eip155:2': { accounts: ['eip155:2:0x3'] },
+          },
+          optionalScopes: {},
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual(['0x1', '0x2']);
+    });
+
+    it('returns the accounts from the optional scope', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: {},
+          optionalScopes: { 'eip155:1': { accounts: ['eip155:1:0x1'] } },
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual(['0x1']);
     });
   });
 
@@ -471,7 +522,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
           },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': {
             accounts: [
@@ -482,7 +533,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
           wallet: {
             accounts: [],
           },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -502,10 +553,10 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const caveatValue: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': { accounts: [] },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': { accounts: [] },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -516,8 +567,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
 
     it('returns an empty array if both required and optional scopes are empty', () => {
       const caveatValue: Caip25CaveatValue = {
-        requiredScopes: {} as InternalScopesObject,
-        optionalScopes: {} as InternalScopesObject,
+        requiredScopes: {},
+        optionalScopes: {},
         sessionProperties: {},
         isMultichainOrigin: false,
       };
@@ -535,12 +586,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
           'eip155:5': {
             accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
           },
-        } as InternalScopesObject,
+        },
         optionalScopes: {
           'eip155:5': {
             accounts: ['eip155:5:0x3456789012345678901234567890123456789012'],
           },
-        } as InternalScopesObject,
+        },
         sessionProperties: {},
         isMultichainOrigin: false,
       };

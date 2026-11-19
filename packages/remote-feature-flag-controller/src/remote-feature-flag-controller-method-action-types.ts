@@ -3,12 +3,14 @@
  * Do not edit manually.
  */
 
-import type { RemoteFeatureFlagController } from './remote-feature-flag-controller';
+import type { RemoteFeatureFlagController } from './remote-feature-flag-controller.js';
 
 /**
  * Retrieves the remote feature flags, fetching from the API if necessary.
  * Uses caching to prevent redundant API calls and handles concurrent fetches.
  *
+ * @param force - When `true`, fetch even if the cache has not expired.
+ * Defaults to `false`. Has no effect when the controller is disabled.
  * @returns A promise that resolves to the current set of feature flags.
  */
 export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {

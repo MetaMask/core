@@ -1,6 +1,6 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { ContentfulResult } from '../services/feature-announcements';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { ContentfulResult } from '../services/feature-announcements.js';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
 
 /**
  * Mocking Utility - create a mock normalized feature announcement

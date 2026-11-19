@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
+import type { UpgradeConfig } from '../types.js';
 
 /**
  * Context supplied to each step when it is run.
@@ -8,12 +9,27 @@ import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgr
 export type StepContext = {
   messenger: MoneyAccountUpgradeControllerMessenger;
   address: Hex;
+  /**
+   * The current address of the Money Account that `address` succeeds. Only
+   * set when upgrading a successor, in which case the address is linked to
+   * it as part of the upgrade.
+   */
+  predecessorAddress?: Hex;
+  /**
+   * The address the Money Account at `address` is expected to migrate to.
+   * Only set when registering migration intents, which are only signed when
+   * CHOMP reports this same successor.
+   */
+  successorAddress?: Hex;
   chainId: Hex;
+  allowedCalldataEnforcer: Hex;
+  allowedTargetsEnforcer: Hex;
   boringVaultAddress: Hex;
   delegateAddress: Hex;
   delegatorImplAddress: Hex;
   erc20TransferAmountEnforcer: Hex;
   musdTokenAddress: Hex;
+  premiumVault?: UpgradeConfig['premiumVault'];
   redeemerEnforcer: Hex;
   valueLteEnforcer: Hex;
   vedaVaultAdapterAddress: Hex;

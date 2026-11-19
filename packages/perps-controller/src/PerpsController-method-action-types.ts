@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PerpsController } from './PerpsController';
+import type { PerpsController } from './PerpsController.js';
 
 /**
  * Read cached market data for the currently active provider (or aggregated).
@@ -37,6 +37,18 @@ export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
 };
 
 /**
+ * Fetch, validate, and atomically cache a complete user-data snapshot.
+ * This remains callable after mount so consumers can seed their live channel
+ * from one coherent positions/orders/account result.
+ *
+ * @returns The accepted user-data snapshot.
+ */
+export type PerpsControllerGetUserDataSnapshotAction = {
+  type: `PerpsController:getUserDataSnapshot`;
+  handler: PerpsController['getUserDataSnapshot'];
+};
+
+/**
  * Initialize the PerpsController providers
  * Must be called before using any other methods
  * Prevents double initialization with promise caching
@@ -62,6 +74,19 @@ export type PerpsControllerGetActiveProviderAction = {
 };
 
 /**
+ * Return whether the selected account can submit actions through the active
+ * provider route. Providers without an account-support check remain
+ * supported for backward compatibility.
+ *
+ * @param params - Optional provider route.
+ * @returns The provider-owned account support result.
+ */
+export type PerpsControllerGetAccountSupportAction = {
+  type: `PerpsController:getAccountSupport`;
+  handler: PerpsController['getAccountSupport'];
+};
+
+/**
  * Get the currently active provider, returning null if not available
  * Use this method when the caller can gracefully handle a missing provider
  * (e.g., UI components during initialization or reconnection)
@@ -71,6 +96,44 @@ export type PerpsControllerGetActiveProviderAction = {
 export type PerpsControllerGetActiveProviderOrNullAction = {
   type: `PerpsController:getActiveProviderOrNull`;
   handler: PerpsController['getActiveProviderOrNull'];
+};
+
+/**
+ * Get order capabilities through the active provider route used by order
+ * placement. The query waits for in-flight initialization and reports an
+ * explicit unavailable status when no provider route can answer reliably.
+ *
+ * @param params - Market and optional provider route.
+ * @returns Provider-owned order capabilities.
+ */
+export type PerpsControllerGetOrderCapabilitiesAction = {
+  type: `PerpsController:getOrderCapabilities`;
+  handler: PerpsController['getOrderCapabilities'];
+};
+
+/**
+ * Get the margin mode the market is currently locked to by an open
+ * position or resting order, through the active provider route used by
+ * order placement. Never throws; failures report an unavailable status.
+ *
+ * @param params - Market and optional provider route.
+ * @returns The provider-reported margin-mode lock.
+ */
+export type PerpsControllerGetMarginModeLockAction = {
+  type: `PerpsController:getMarginModeLock`;
+  handler: PerpsController['getMarginModeLock'];
+};
+
+/**
+ * Build a Scale price ladder using the active provider's venue rules.
+ *
+ * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+ * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+ * @throws When bounds or sizing violate the provider's venue rules.
+ */
+export type PerpsControllerGetScalePriceLadderAction = {
+  type: `PerpsController:getScalePriceLadder`;
+  handler: PerpsController['getScalePriceLadder'];
 };
 
 /**
@@ -109,11 +172,75 @@ export type PerpsControllerCancelOrderAction = {
 };
 
 /**
+ * Read venue-backed TWAP lifecycle records through the active provider.
+ * Providers without native TWAP history return an empty list.
+ *
+ * @returns Current and terminal TWAP schedules with slice fills.
+ */
+export type PerpsControllerGetTwapOrdersAction = {
+  type: `PerpsController:getTwapOrders`;
+  handler: PerpsController['getTwapOrders'];
+};
+
+/**
+ * Read the active provider's retained Chase lifecycle snapshots.
+ * Providers without an emulated Chase implementation return an empty list.
+ *
+ * @returns Current Chase session snapshots.
+ */
+export type PerpsControllerGetChaseOrdersAction = {
+  type: `PerpsController:getChaseOrders`;
+  handler: PerpsController['getChaseOrders'];
+};
+
+/**
+ * Observe durable ownership for an exact Chase handle through one provider.
+ * Starts no signing, transport, continuation, cancellation or durable writes.
+ * Original owner/child IDs are observations, never permission for cleanup in
+ * a different context. Providers without durable history report unsupported.
+ *
+ * @param input - Opaque handle, explicit route and optional original owner.
+ * @returns Complete local child history, unsupported, or explicit absence.
+ * @throws On corrupt storage or account/network/provider/lifetime changes.
+ */
+export type PerpsControllerGetChaseOrderOwnershipAction = {
+  type: `PerpsController:getChaseOrderOwnership`;
+  handler: PerpsController['getChaseOrderOwnership'];
+};
+
+/**
+ * Reconcile one retained exact Chase cancellation without any new cancellation.
+ * Unsupported providers are never routed to ordinary financial cancellation.
+ *
+ * @param input - Original handle, owner, child and transaction identity.
+ * @returns Proven terminal state, unresolved cleanup or unsupported capability.
+ * @throws On invalid ownership or stale provider/account/network lifetime.
+ */
+export type PerpsControllerReconcileChaseOrderCancellationAction = {
+  type: `PerpsController:reconcileChaseOrderCancellation`;
+  handler: PerpsController['reconcileChaseOrderCancellation'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+ * children resting. The bounded Lighter probe attempts exact cancellation and
+ * reports canceled or termination_pending rather than a resting status.
+ *
+ * @returns Chase snapshots after suspension.
+ * @throws If an aggregated provider cannot suspend every active venue. Other
+ * providers may already be suspended; callers can retry to reconcile them.
+ */
+export type PerpsControllerSuspendChaseOrdersAction = {
+  type: `PerpsController:suspendChaseOrders`;
+  handler: PerpsController['suspendChaseOrders'];
+};
+
+/**
  * Cancel multiple orders in parallel
  * Batch version of cancelOrder() that cancels multiple orders simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch cancellation results for each order.
+ * @returns Per-order results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerCancelOrdersAction = {
   type: `PerpsController:cancelOrders`;
@@ -137,7 +264,7 @@ export type PerpsControllerClosePositionAction = {
  * Batch version of closePosition() that closes multiple positions simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch close results for each position.
+ * @returns Per-position results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerClosePositionsAction = {
   type: `PerpsController:closePositions`;
@@ -153,6 +280,20 @@ export type PerpsControllerClosePositionsAction = {
 export type PerpsControllerUpdatePositionTPSLAction = {
   type: `PerpsController:updatePositionTPSL`;
   handler: PerpsController['updatePositionTPSL'];
+};
+
+/**
+ * Replace only the take profit or only the stop loss of an existing
+ * position. The other leg is left as it is, and the new leg keeps protecting
+ * the whole position. Providers that cannot do this reject with
+ * `TPSL_LEG_REPLACE_UNSUPPORTED`.
+ *
+ * @param params - The leg, its new trigger price and optional limit price.
+ * @returns The order result from the leg replacement.
+ */
+export type PerpsControllerReplacePositionTPSLLegAction = {
+  type: `PerpsController:replacePositionTPSLLeg`;
+  handler: PerpsController['replacePositionTPSLLeg'];
 };
 
 /**
@@ -317,6 +458,142 @@ export type PerpsControllerGetOrderFillsAction = {
 };
 
 /**
+ * List TP/SL protection changes the active provider parked for
+ * explicit manual re-establishment. Providers without durable
+ * settlement state return an empty list. Lighter includes previous-key and
+ * pre-initialization journals for the selected wallet/account, waits for any
+ * in-flight key selection and keeps failed-setup obligations visible. A
+ * current-key update does not clear an earlier key's unfinished journal.
+ *
+ * @returns Pending manual-recovery entries.
+ */
+export type PerpsControllerGetPendingManualRecoveriesAction = {
+  type: `PerpsController:getPendingManualRecoveries`;
+  handler: PerpsController['getPendingManualRecoveries'];
+};
+
+/**
+ * Review native attached lifecycle through provider-owned read authority.
+ *
+ * @returns Exact venue identities without financial replay or key registration.
+ */
+export type PerpsControllerReviewAttachedOrderGroupsAction = {
+  type: `PerpsController:reviewAttachedOrderGroups`;
+  handler: PerpsController['reviewAttachedOrderGroups'];
+};
+
+/**
+ * List durable attached identities for the selected provider and account.
+ *
+ * @returns Stored intent without venue writes, signer setup or automatic replay.
+ */
+export type PerpsControllerGetAttachedOrderGroupsAction = {
+  type: `PerpsController:getAttachedOrderGroups`;
+  handler: PerpsController['getAttachedOrderGroups'];
+};
+
+/**
+ * READ-ONLY list of the active provider's recovered-dispatch outcomes
+ * (previously ambiguous submissions later resolved). Providers without
+ * durable dispatch state return an empty list. Lighter scans the bounded
+ * local trading-slot range, including skipped keys, without signing or
+ * changing quarantine. After controller initialization, this works before
+ * Lighter signer initialization and after signer setup failure; an in-flight
+ * selection settles first. Preserve opaque recovery IDs exactly. Raw pending
+ * dispatches report unknown with acknowledgeable:false and cannot be cleared
+ * by acknowledgment, including current-session in-flight submissions. Listing
+ * starts no background reconciliation. A later financial action re-checks
+ * authoritative state for all account slots before dispatch and remains
+ * blocked while an obligation is unresolved.
+ *
+ * @returns Pending recovered-dispatch outcomes, with their original key slot
+ * when supplied by the provider.
+ */
+export type PerpsControllerGetRecoveredDispatchesAction = {
+  type: `PerpsController:getRecoveredDispatches`;
+  handler: PerpsController['getRecoveredDispatches'];
+};
+
+/**
+ * Execute an explicit successor for one selected durable protection obligation.
+ *
+ * @param params - Owning provider, opaque source ID and new protection intent.
+ * @returns Settled, unresolved or unsupported recovery result.
+ */
+export type PerpsControllerResolveRecoveryProtectionAction = {
+  type: `PerpsController:resolveRecoveryProtection`;
+  handler: PerpsController['resolveRecoveryProtection'];
+};
+
+/**
+ * Read durable Scale groups without placing or replaying any child.
+ * @returns Groups belonging to the issuing controller context.
+ */
+export type PerpsControllerGetScaleOrderGroupsAction = {
+  type: `PerpsController:getScaleOrderGroups`;
+  handler: PerpsController['getScaleOrderGroups'];
+};
+
+/**
+ * Reconcile durable Scale groups for an explicitly selected provider.
+ * @param params - Issuing provider route.
+ * @param params.providerId - Provider to review.
+ * @returns Fresh durable groups; never replays placement.
+ */
+export type PerpsControllerReviewScaleOrderGroupsAction = {
+  type: `PerpsController:reviewScaleOrderGroups`;
+  handler: PerpsController['reviewScaleOrderGroups'];
+};
+
+/**
+ * Review fresh venue positions and orders for one issuing provider context.
+ * Auth signing may be required; registration and financial writes are forbidden.
+ *
+ * @param params - Owning provider route.
+ * @param params.providerId - Explicit provider identifier.
+ * @returns Strict venue review or honest unsupported capability.
+ */
+export type PerpsControllerReviewRecoveryVenueAction = {
+  type: `PerpsController:reviewRecoveryVenue`;
+  handler: PerpsController['reviewRecoveryVenue'];
+};
+
+/**
+ * Explicit non-financial reconciliation with local persistence. Never signs,
+ * retries or acknowledges dispatches. Unsupported providers return their local
+ * listed state, or an empty list when neither capability is available.
+ * Rejects account, network or provider changes while controller readiness,
+ * reconciliation or fallback listing completes. Provider rejections propagate
+ * unchanged.
+ *
+ * @returns Newly scoped pending and recovered dispatches.
+ */
+export type PerpsControllerReconcileRecoveredDispatchesAction = {
+  type: `PerpsController:reconcileRecoveredDispatches`;
+  handler: PerpsController['reconcileRecoveredDispatches'];
+};
+
+/**
+ * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+ * refreshing venue state. Throws when the active provider has no
+ * durable dispatch state or the id no longer matches. Lighter scopes IDs to
+ * wallet/network/account/key and accepts legacy IDs only when unambiguous
+ * across local account ledgers. Acknowledgment removes one stored outcome,
+ * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
+ * Rejects account, network, provider or lifecycle changes while readiness or
+ * acknowledgment completes. A stale rejection after provider success does
+ * not undo removal in the issuing account. Re-list outcomes before acting
+ * again. Provider rejections propagate unchanged.
+ *
+ * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
+ * @returns Resolves when the outcome is acknowledged.
+ */
+export type PerpsControllerAcknowledgeRecoveredDispatchAction = {
+  type: `PerpsController:acknowledgeRecoveredDispatch`;
+  handler: PerpsController['acknowledgeRecoveredDispatch'];
+};
+
+/**
  * Get historical user orders (order lifecycle)
  * Thin delegation to MarketDataService
  *
@@ -404,13 +681,18 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
- * Get market data with prices (includes price, volume, 24h change)
+ * Get market data with prices (includes price, volume, 24h change).
+ * Optionally filter by category, sort, and limit the results.
  *
  * For standalone mode, bypasses getActiveProvider() to allow market data queries
  * without full perps initialization (e.g., for background preloading on app start)
  *
  * @param params - The operation parameters.
  * @param params.standalone - Whether to use standalone mode.
+ * @param params.categories - Filter to markets matching any of these categories.
+ * @param params.sortBy - Sort results by this field.
+ * @param params.direction - Sort direction (default: desc).
+ * @param params.limit - Maximum number of results to return.
  * @returns A promise that resolves to the market data.
  */
 export type PerpsControllerGetMarketDataWithPricesAction = {
@@ -476,6 +758,19 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
+ * Project the isolated position that would remain after a proposed order.
+ * Margin and liquidation availability are independent: a missing liquidation
+ * does not hide a valid margin projection. Cross-margin returns unsupported.
+ *
+ * @param params - Live position plus the proposed order.
+ * @returns Discriminated preview of the resulting position.
+ */
+export type PerpsControllerPreviewPositionModifyAction = {
+  type: `PerpsController:previewPositionModify`;
+  handler: PerpsController['previewPositionModify'];
+};
+
+/**
  * Calculate maintenance margin for a specific asset
  * Returns a percentage (e.g., 0.0125 for 1.25%)
  *
@@ -491,6 +786,7 @@ export type PerpsControllerCalculateMaintenanceMarginAction = {
  * Get maximum leverage allowed for an asset
  *
  * @param asset - The asset identifier.
+ * @param providerId - Optional provider route for aggregated markets.
  * @returns A promise that resolves to the numeric result.
  */
 export type PerpsControllerGetMaxLeverageAction = {
@@ -542,6 +838,35 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
+ * Set the transient UTM / discovery attribution context.
+ * Replaces any previously set context. Held in-memory only — not persisted.
+ *
+ * @param context - The attribution context (UTM fields) to store.
+ */
+export type PerpsControllerSetAttributionContextAction = {
+  type: `PerpsController:setAttributionContext`;
+  handler: PerpsController['setAttributionContext'];
+};
+
+/**
+ * Get a copy of the current attribution context.
+ *
+ * @returns A shallow copy of the stored attribution context.
+ */
+export type PerpsControllerGetAttributionContextAction = {
+  type: `PerpsController:getAttributionContext`;
+  handler: PerpsController['getAttributionContext'];
+};
+
+/**
+ * Clear the stored attribution context.
+ */
+export type PerpsControllerClearAttributionContextAction = {
+  type: `PerpsController:clearAttributionContext`;
+  handler: PerpsController['clearAttributionContext'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -565,6 +890,23 @@ export type PerpsControllerSwitchProviderAction = {
 };
 
 /**
+ * Set the default provider used by aggregated-mode routing.
+ *
+ * Persists the choice and, when the active provider is the aggregated
+ * wrapper, updates its routing default in place. Unlike `switchProvider`
+ * this never re-initializes the controller or reconnects provider transports:
+ * default-routed streams move, but both venues stay connected and per-venue
+ * writes are unaffected.
+ *
+ * @param providerId - The provider to use as the aggregated default.
+ * @returns The result with the new default provider.
+ */
+export type PerpsControllerSetDefaultProviderAction = {
+  type: `PerpsController:setDefaultProvider`;
+  handler: PerpsController['setDefaultProvider'];
+};
+
+/**
  * Get current network (mainnet/testnet)
  *
  * @returns Either 'mainnet' or 'testnet' based on the current configuration.
@@ -572,6 +914,18 @@ export type PerpsControllerSwitchProviderAction = {
 export type PerpsControllerGetCurrentNetworkAction = {
   type: `PerpsController:getCurrentNetwork`;
   handler: PerpsController['getCurrentNetwork'];
+};
+
+/**
+ * Get the ordered list of all market categories for HIP-3 markets.
+ * Returns a stable, explicitly ordered array so the UI can render
+ * category filter tabs without deriving order from config insertion.
+ *
+ * @returns Ordered array of {@link MarketTypeFilter} values. Does not include the 'all' or 'new' sentinels — those are separate UI controls.
+ */
+export type PerpsControllerGetMarketCategoriesAction = {
+  type: `PerpsController:getMarketCategories`;
+  handler: PerpsController['getMarketCategories'];
 };
 
 /**
@@ -595,6 +949,34 @@ export type PerpsControllerGetWebSocketConnectionStateAction = {
 export type PerpsControllerSubscribeToConnectionStateAction = {
   type: `PerpsController:subscribeToConnectionState`;
   handler: PerpsController['subscribeToConnectionState'];
+};
+
+/**
+ * Get one provider's health, in any mode: aggregated mode reports each
+ * venue separately, so a Lighter outage never reads as HyperLiquid's.
+ *
+ * @param providerId - Provider to report on.
+ * @returns Its health; `unavailable` when it is not registered.
+ */
+export type PerpsControllerGetProviderHealthAction = {
+  type: `PerpsController:getProviderHealth`;
+  handler: PerpsController['getProviderHealth'];
+};
+
+/**
+ * Watch one provider's health. The callback receives the current value at
+ * once, then each change. In an aggregated session a controller
+ * re-initialization rebinds it to the replacement provider; otherwise
+ * callers resubscribe after re-initialization, as with other streams.
+ *
+ * @param params - Provider to watch and the callback.
+ * @param params.providerId - Provider to watch.
+ * @param params.callback - Receives each health snapshot.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToProviderHealthAction = {
+  type: `PerpsController:subscribeToProviderHealth`;
+  handler: PerpsController['subscribeToProviderHealth'];
 };
 
 /**
@@ -640,6 +1022,48 @@ export type PerpsControllerSubscribeToOrderFillsAction = {
 };
 
 /**
+ * Stream TWAP lifecycle updates through the active provider.
+ *
+ * Providers without a native TWAP push channel do not implement this; the
+ * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
+ * without branching on provider identity.
+ *
+ * @param params - Subscription parameters including callback and account ID.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToTwapOrdersAction = {
+  type: `PerpsController:subscribeToTwapOrders`;
+  handler: PerpsController['subscribeToTwapOrders'];
+};
+
+/**
+ * Keep one merged, live TWAP list for the active provider: reads and the
+ * venue stream merged by schedule, execution totals raised from slice
+ * fills, and re-reads while a schedule runs. Split it with
+ * `partitionTwapOrders`. Follows the selected account.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads and the stream.
+ */
+export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
+  type: `PerpsController:subscribeToLiveTwapOrders`;
+  handler: PerpsController['subscribeToLiveTwapOrders'];
+};
+
+/**
+ * Keep running and history chase lists for the active provider. Ended
+ * chases stay in history after the provider drops them, up to
+ * `CHASE_ORDER_CONFIG.HistoryLimit`.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads.
+ */
+export type PerpsControllerSubscribeToChaseOrderListsAction = {
+  type: `PerpsController:subscribeToChaseOrderLists`;
+  handler: PerpsController['subscribeToChaseOrderLists'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -676,6 +1100,77 @@ export type PerpsControllerSubscribeToOrderBookAction = {
 };
 
 /**
+ * Stream one market's per-side available to trade, as the venue reports it,
+ * through the provider route used by order placement. The venue pushes a
+ * new value when the market's position, leverage or mark price changes.
+ *
+ * The callback only ever receives venue values. Until the first arrives the
+ * value is unknown (`undefined` in clients). When no provider is active, the
+ * route conflicts with the active provider, or the provider cannot read the
+ * value from its venue, this returns a no-op cleanup and the value stays
+ * unknown.
+ *
+ * @param params - Market, optional route/account, callback and error handler.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToAvailableToTradeAction = {
+  type: `PerpsController:subscribeToAvailableToTrade`;
+  handler: PerpsController['subscribeToAvailableToTrade'];
+};
+
+/**
+ * Read a market's most recent public trades (every user's trades, not only
+ * the account's fills), newest first, from the active provider.
+ *
+ * Every trade has the same shape on every provider and carries its
+ * `providerId`. If the active provider changes before the venue answers,
+ * or in aggregated mode the default provider changes before an unrouted
+ * read answers, this resolves to an empty list, so a previous provider's
+ * trades never reach a client that already moved on.
+ *
+ * @param params - Market, optional limit (default 50) and provider route.
+ * @returns The trades, newest first.
+ * @throws When no provider is initialized, the route conflicts with the
+ * active provider (`PROVIDER_NOT_FOUND`), the provider has no public trade
+ * feed, `limit` is not a positive integer, or the venue request fails.
+ */
+export type PerpsControllerGetPublicTradesAction = {
+  type: `PerpsController:getPublicTrades`;
+  handler: PerpsController['getPublicTrades'];
+};
+
+/**
+ * Stream a market's public trades (every user's trades) from the active
+ * provider, like the other market-data subscriptions.
+ *
+ * The callback receives each batch of new trades the venue pushes, newest
+ * first. Only a subscription that opens the venue channel may first
+ * receive the venue's recent trades; one that joins a market another
+ * subscription already streams receives only new trades. Seed the list with
+ * `getPublicTrades` and dedupe batches on `id`. Nothing is delivered
+ * after the returned cleanup runs, after the provider that opened the
+ * stream stops being the active one (provider
+ * switch, testnet toggle, reinitialization), or for any other symbol.
+ * Subscribe again once the new provider is active. In aggregated mode an
+ * unrouted stream follows the default provider: `setDefaultProvider` moves
+ * it to the new venue, like `subscribeToCandles`. On Hyperliquid, like
+ * `subscribeToCandles`, the stream is not restored after the client
+ * service reconnects its WebSocket and `onError` is not called, so
+ * resubscribe after a reconnect.
+ *
+ * When no provider is active, the route conflicts with the active
+ * provider, or the provider has no public trade feed, this returns a no-op
+ * cleanup and never calls back.
+ *
+ * @param params - Market, optional route, callback and error handler.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToPublicTradesAction = {
+  type: `PerpsController:subscribeToPublicTrades`;
+  handler: PerpsController['subscribeToPublicTrades'];
+};
+
+/**
  * Subscribe to live candle updates
  *
  * @param params - The operation parameters.
@@ -709,8 +1204,9 @@ export type PerpsControllerSetLiveDataConfigAction = {
 };
 
 /**
- * Calculate trading fees for the active provider
- * Each provider implements its own fee structure
+ * Calculate trading fees through the active provider route.
+ * Each provider owns its fee policy. An explicit provider route overrides
+ * the active/default provider used by placement.
  *
  * @param params - The operation parameters.
  * @returns The fee calculation result for the trade.
@@ -718,6 +1214,112 @@ export type PerpsControllerSetLiveDataConfigAction = {
 export type PerpsControllerCalculateFeesAction = {
   type: `PerpsController:calculateFees`;
   handler: PerpsController['calculateFees'];
+};
+
+/**
+ * Sign HyperLiquid L1 actions (orders, cancels, leverage, ...) for a main
+ * account on a network with an approved agent, or pin them to the main
+ * account with null (`getAgentSigner` is then not asked for that account and
+ * network until `clearAgentSigners`). User-signed actions stay on the main
+ * account, and the agent is never used for another account or network. The
+ * controller keeps the binding across provider re-creation (a provider or
+ * network switch, or re-initialization), so it can also be set before
+ * `init`. Like every controller action, it is available through the
+ * messenger once `init` has run.
+ *
+ * @param account - The main account and network the agent is approved for.
+ * @param agentSigner - The host-owned agent signer, or null to pin the main
+ * account.
+ */
+export type PerpsControllerSetAgentSignerAction = {
+  type: `PerpsController:setAgentSigner`;
+  handler: PerpsController['setAgentSigner'];
+};
+
+/**
+ * Forget every HyperLiquid agent, set or resolved, so the next L1 action
+ * asks `providerCredentials.hyperliquid.getAgentSigner` again; an answer
+ * still pending is discarded too. Call it when the wallet locks (with
+ * `getAgentSigner` returning null while locked) and nothing signs with an
+ * agent until it returns one again. Like every controller action, it is
+ * available through the messenger once `init` has run.
+ */
+export type PerpsControllerClearAgentSignersAction = {
+  type: `PerpsController:clearAgentSigners`;
+  handler: PerpsController['clearAgentSigners'];
+};
+
+/**
+ * Run the active provider's deferred trading setup ahead of the first order
+ * (HyperLiquid account migration, builder fee and referral; Lighter
+ * venue-key registration), so its signatures happen in one guided session,
+ * such as agent setup, instead of at order time. The builder fee and
+ * Lighter's registration are signed by the main account; with an agent,
+ * the referral and the account migration are L1 actions the agent signs.
+ *
+ * @returns `ready: true` when none of these steps will need a signature
+ * again before the first order, and only while an account is selected and
+ * the main account can sign, whichever provider answered (including
+ * providers without deferred setup, for example in aggregated mode). A
+ * HyperLiquid referral whose MetaMask referral code is not ready yet is
+ * checked again at the next call, not before orders, so it does not hold
+ * it back. Otherwise `ready: false`, without an error while a step will
+ * be asked again (a declined HyperLiquid migration, builder fee or Lighter
+ * registration, or a step the agent could not sign), or with:
+ * - `KEYRING_LOCKED` when the main account cannot sign, before or during
+ * setup;
+ * - `EXCHANGE_ACCOUNT_NOT_FOUND` for a wallet with no account on the venue
+ * yet;
+ * - `NO_ACCOUNT_SELECTED` when no account is selected;
+ * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
+ * changed during setup;
+ * - provider-tagged `UNKNOWN_ERROR` when HyperLiquid refused the builder fee
+ * approval for a reason signing again cannot fix (for example the builder
+ * wallet cannot be approved). The venue sentence stays on the error cause
+ * and in the debug log; it is not logged to Sentry, and the approval is not
+ * asked for again until the provider disconnects;
+ * - otherwise a provider-tagged code for the error that stopped setup,
+ * which is logged. Text that is not a known code becomes `UNKNOWN_ERROR`.
+ * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
+ * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
+ * when no active provider is available.
+ */
+export type PerpsControllerPrepareTradingWalletAction = {
+  type: `PerpsController:prepareTradingWallet`;
+  handler: PerpsController['prepareTradingWallet'];
+};
+
+/**
+ * Approve the dedicated subscription builder outside order submission.
+ *
+ * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+ * marking on the standard builder, so there is nothing left to approve. Kept
+ * as a no-op so clients still calling it keep building while they migrate;
+ * remove it once cloid marking is verified in shadow mode.
+ *
+ * Resolves `true`, not `false`. The method answers "is the subscription
+ * builder ready?", and the honest answer is now "nothing needs approving" —
+ * a `false` would read as a setup failure to a caller that branches on it and
+ * could block a waiver that is already fully in effect.
+ * @returns Always `true`; no approval is required.
+ */
+export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
+  type: `PerpsController:approveSubscriptionBuilderFee`;
+  handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
+ * Drop the cached subscription benefits snapshot.
+ *
+ * Call this when the identity behind the benefits changes — sign-out, or a
+ * profile switch. The snapshot carries no profile identity of its own, so
+ * without this it keeps answering for the previous profile until the next
+ * successful refresh. The next fee resolution reports the waiver as
+ * unavailable, so it is withheld until preview or lifecycle hydration.
+ */
+export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
+  type: `PerpsController:invalidateSubscriptionBenefits`;
+  handler: PerpsController['invalidateSubscriptionBenefits'];
 };
 
 /**
@@ -811,9 +1413,12 @@ export type PerpsControllerClearPendingTransactionRequestsAction = {
 };
 
 /**
- * Get saved trade configuration for a market
+ * Get saved trade configuration for a market on a venue
  *
  * @param symbol - The trading pair symbol.
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns The resulting string value.
  */
 export type PerpsControllerGetTradeConfigurationAction = {
@@ -822,10 +1427,13 @@ export type PerpsControllerGetTradeConfigurationAction = {
 };
 
 /**
- * Save trade configuration for a market
+ * Save trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
  * @param leverage - Leverage value
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSaveTradeConfigurationAction = {
   type: `PerpsController:saveTradeConfiguration`;
@@ -834,7 +1442,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
 
 /**
  * Save pending trade configuration for a market
- * This is a temporary configuration that expires after 5 minutes
+ * This is a temporary configuration that expires after 30 seconds.
  *
  * @param symbol - Market symbol
  * @param config - Pending trade configuration (includes optional selected payment token from Pay row)
@@ -844,7 +1452,12 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.stopLossPrice - The stop loss price.
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
+ * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
   type: `PerpsController:savePendingTradeConfiguration`;
@@ -853,9 +1466,12 @@ export type PerpsControllerSavePendingTradeConfigurationAction = {
 
 /**
  * Get pending trade configuration for a market
- * Returns undefined if config doesn't exist or has expired (more than 5 minutes old)
+ * Returns undefined if config doesn't exist or has expired.
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns Pending trade configuration or undefined
  */
 export type PerpsControllerGetPendingTradeConfigurationAction = {
@@ -864,9 +1480,12 @@ export type PerpsControllerGetPendingTradeConfigurationAction = {
 };
 
 /**
- * Clear pending trade configuration for a market
+ * Clear pending trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerClearPendingTradeConfigurationAction = {
   type: `PerpsController:clearPendingTradeConfiguration`;
@@ -896,6 +1515,119 @@ export type PerpsControllerSaveMarketFilterPreferencesAction = {
 };
 
 /**
+ * Get the user's max slippage tolerance in basis points.
+ *
+ * @returns The configured max slippage bps, or undefined if never set (callers should default to 300 bps / 3%).
+ */
+export type PerpsControllerGetMaxSlippageAction = {
+  type: `PerpsController:getMaxSlippage`;
+  handler: PerpsController['getMaxSlippage'];
+};
+
+/**
+ * Set the user's max slippage tolerance in basis points.
+ *
+ * @param bps - Max slippage in basis points (e.g. 300 = 3%). Clamped to 10–1000, snapped to step of 10.
+ */
+export type PerpsControllerSetMaxSlippageAction = {
+  type: `PerpsController:setMaxSlippage`;
+  handler: PerpsController['setMaxSlippage'];
+};
+
+/**
+ * Get market-agnostic Pro order-book display preferences.
+ *
+ * @returns The current order-book display preferences.
+ */
+export type PerpsControllerGetOrderBookPreferencesAction = {
+  type: `PerpsController:getOrderBookPreferences`;
+  handler: PerpsController['getOrderBookPreferences'];
+};
+
+/**
+ * Update market-agnostic Pro order-book display preferences.
+ *
+ * @param patch - Partial order-book preferences to update.
+ */
+export type PerpsControllerSetOrderBookPreferencesAction = {
+  type: `PerpsController:setOrderBookPreferences`;
+  handler: PerpsController['setOrderBookPreferences'];
+};
+
+/**
+ * Get the selected order type shared by every market.
+ *
+ * @returns The selected order type.
+ */
+export type PerpsControllerGetSelectedOrderTypeAction = {
+  type: `PerpsController:getSelectedOrderType`;
+  handler: PerpsController['getSelectedOrderType'];
+};
+
+/**
+ * Set the selected order type shared by every market.
+ *
+ * @param orderType - The selected order type.
+ */
+export type PerpsControllerSetSelectedOrderTypeAction = {
+  type: `PerpsController:setSelectedOrderType`;
+  handler: PerpsController['setSelectedOrderType'];
+};
+
+/**
+ * Get the number of candles shown in Lite and Pro chart viewports.
+ *
+ * @returns The visible candle count.
+ */
+export type PerpsControllerGetVisibleCandleCountAction = {
+  type: `PerpsController:getVisibleCandleCount`;
+  handler: PerpsController['getVisibleCandleCount'];
+};
+
+/**
+ * Set the number of candles shown in Lite and Pro chart viewports.
+ *
+ * @param count - Requested visible candle count.
+ */
+export type PerpsControllerSetVisibleCandleCountAction = {
+  type: `PerpsController:setVisibleCandleCount`;
+  handler: PerpsController['setVisibleCandleCount'];
+};
+
+/**
+ * Get the user's pro-mode layout preferences (network-independent).
+ *
+ * @returns The current pro-mode layout preferences.
+ */
+export type PerpsControllerGetProLayoutPreferencesAction = {
+  type: `PerpsController:getProLayoutPreferences`;
+  handler: PerpsController['getProLayoutPreferences'];
+};
+
+/**
+ * Update the user's pro-mode layout preferences.
+ *
+ * Patch-style setter: only the provided fields are updated, the rest are
+ * preserved. This keeps the signature stable as new layout fields are added.
+ *
+ * @param patch - Partial set of pro-mode layout preferences to update.
+ */
+export type PerpsControllerSetProLayoutPreferencesAction = {
+  type: `PerpsController:setProLayoutPreferences`;
+  handler: PerpsController['setProLayoutPreferences'];
+};
+
+/**
+ * Set the Perps interface mode (lite/pro).
+ *
+ * @param mode - The mode to switch to.
+ */
+export type PerpsControllerSetPerpsModeAction = {
+  type: `PerpsController:setPerpsMode`;
+  handler: PerpsController['setPerpsMode'];
+};
+
+/**
  * Set the selected payment token for the Perps order/deposit flow.
  * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
  * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -920,6 +1652,8 @@ export type PerpsControllerResetSelectedPaymentTokenAction = {
  * Get saved order book grouping for a market
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the grouping was saved for. Defaults to
+ * the live effective venue (active/saved default before initialization).
  * @returns The saved grouping value or undefined if not set
  */
 export type PerpsControllerGetOrderBookGroupingAction = {
@@ -928,10 +1662,12 @@ export type PerpsControllerGetOrderBookGroupingAction = {
 };
 
 /**
- * Save order book grouping for a market
+ * Save order book grouping for a market on a venue
  *
  * @param symbol - Market symbol
  * @param grouping - Price grouping value
+ * @param providerId - Optional venue to key the grouping under. Defaults to
+ * the live effective venue (active/saved default before initialization).
  */
 export type PerpsControllerSaveOrderBookGroupingAction = {
   type: `PerpsController:saveOrderBookGrouping`;
@@ -939,8 +1675,45 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
- * Toggle watchlist status for a market
- * Watchlist markets are stored per network (testnet/mainnet)
+ * Get the saved margin mode (Isolated/Cross) for a market on the current
+ * network. Clients should still let a venue-enforced mode take priority.
+ *
+ * @param symbol - Market symbol
+ * @param providerId - Optional venue the mode was saved for. Defaults to the
+ * live effective venue (active/saved default before initialization).
+ * @returns The saved margin mode or undefined if not set
+ */
+export type PerpsControllerGetMarginModeAction = {
+  type: `PerpsController:getMarginMode`;
+  handler: PerpsController['getMarginMode'];
+};
+
+/**
+ * Save the margin mode (Isolated/Cross) picked for a market on a venue on
+ * the current network. Values other than `isolated` or `cross` are ignored.
+ *
+ * @param symbol - Market symbol
+ * @param marginMode - Margin mode to persist
+ * @param providerId - Optional venue to key the mode under. Defaults to the
+ * live effective venue (active/saved default before initialization).
+ */
+export type PerpsControllerSaveMarginModeAction = {
+  type: `PerpsController:saveMarginMode`;
+  handler: PerpsController['saveMarginMode'];
+};
+
+/**
+ * Toggle watchlist status for a market.
+ *
+ * Updates local state immediately (optimistic UI) and then syncs the new
+ * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+ * the local state is reverted so it stays consistent with AUS.
+ *
+ * When the user is unauthenticated, or the active provider is not yet
+ * supported by the AUS schema, the controller continues operating with
+ * local-persisted state only — no error is surfaced to the caller.
+ *
+ * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
  */
@@ -971,6 +1744,35 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 };
 
 /**
+ * Record that the user viewed a market.
+ *
+ * The symbol is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same symbol is removed first so there are no
+ * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ *
+ * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+ */
+export type PerpsControllerRecordMarketViewedAction = {
+  type: `PerpsController:recordMarketViewed`;
+  handler: PerpsController['recordMarketViewed'];
+};
+
+/**
+ * Get recently viewed markets for the current network.
+ *
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within the last
+ * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+ * array when no qualifying entries exist.
+ *
+ * @returns Ordered array of market symbols.
+ */
+export type PerpsControllerGetRecentlyViewedMarketsAction = {
+  type: `PerpsController:getRecentlyViewedMarkets`;
+  handler: PerpsController['getRecentlyViewedMarkets'];
+};
+
+/**
  * Check if the controller is currently reinitializing
  *
  * @returns true if providers are being reinitialized
@@ -986,16 +1788,27 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 export type PerpsControllerMethodActions =
   | PerpsControllerGetCachedMarketDataForActiveProviderAction
   | PerpsControllerGetCachedUserDataForActiveProviderAction
+  | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
+  | PerpsControllerGetAccountSupportAction
   | PerpsControllerGetActiveProviderOrNullAction
+  | PerpsControllerGetOrderCapabilitiesAction
+  | PerpsControllerGetMarginModeLockAction
+  | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetTwapOrdersAction
+  | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerGetChaseOrderOwnershipAction
+  | PerpsControllerReconcileChaseOrderCancellationAction
+  | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
   | PerpsControllerUpdatePositionTPSLAction
+  | PerpsControllerReplacePositionTPSLLegAction
   | PerpsControllerUpdateMarginAction
   | PerpsControllerFlipPositionAction
   | PerpsControllerDepositWithConfirmationAction
@@ -1009,6 +1822,16 @@ export type PerpsControllerMethodActions =
   | PerpsControllerWithdrawAction
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
+  | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerReviewAttachedOrderGroupsAction
+  | PerpsControllerGetAttachedOrderGroupsAction
+  | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerResolveRecoveryProtectionAction
+  | PerpsControllerGetScaleOrderGroupsAction
+  | PerpsControllerReviewScaleOrderGroupsAction
+  | PerpsControllerReviewRecoveryVenueAction
+  | PerpsControllerReconcileRecoveredDispatchesAction
+  | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction
   | PerpsControllerGetFundingAction
@@ -1021,28 +1844,47 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAvailableDexsAction
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerPreviewPositionModifyAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction
   | PerpsControllerValidateClosePositionAction
   | PerpsControllerValidateWithdrawalAction
   | PerpsControllerGetWithdrawalRoutesAction
+  | PerpsControllerSetAttributionContextAction
+  | PerpsControllerGetAttributionContextAction
+  | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
+  | PerpsControllerSetDefaultProviderAction
   | PerpsControllerGetCurrentNetworkAction
+  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
+  | PerpsControllerGetProviderHealthAction
+  | PerpsControllerSubscribeToProviderHealthAction
   | PerpsControllerReconnectAction
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
+  | PerpsControllerSubscribeToTwapOrdersAction
+  | PerpsControllerSubscribeToLiveTwapOrdersAction
+  | PerpsControllerSubscribeToChaseOrderListsAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction
+  | PerpsControllerSubscribeToAvailableToTradeAction
+  | PerpsControllerGetPublicTradesAction
+  | PerpsControllerSubscribeToPublicTradesAction
   | PerpsControllerSubscribeToCandlesAction
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerSetAgentSignerAction
+  | PerpsControllerClearAgentSignersAction
+  | PerpsControllerPrepareTradingWalletAction
+  | PerpsControllerApproveSubscriptionBuilderFeeAction
+  | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction
@@ -1060,11 +1902,26 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClearPendingTradeConfigurationAction
   | PerpsControllerGetMarketFilterPreferencesAction
   | PerpsControllerSaveMarketFilterPreferencesAction
+  | PerpsControllerGetMaxSlippageAction
+  | PerpsControllerSetMaxSlippageAction
+  | PerpsControllerGetOrderBookPreferencesAction
+  | PerpsControllerSetOrderBookPreferencesAction
+  | PerpsControllerGetSelectedOrderTypeAction
+  | PerpsControllerSetSelectedOrderTypeAction
+  | PerpsControllerGetVisibleCandleCountAction
+  | PerpsControllerSetVisibleCandleCountAction
+  | PerpsControllerGetProLayoutPreferencesAction
+  | PerpsControllerSetProLayoutPreferencesAction
+  | PerpsControllerSetPerpsModeAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
   | PerpsControllerSaveOrderBookGroupingAction
+  | PerpsControllerGetMarginModeAction
+  | PerpsControllerSaveMarginModeAction
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction
+  | PerpsControllerRecordMarketViewedAction
+  | PerpsControllerGetRecentlyViewedMarketsAction
   | PerpsControllerIsCurrentlyReinitializingAction;

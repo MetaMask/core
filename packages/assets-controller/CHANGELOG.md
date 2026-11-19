@@ -7,14 +7,833 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Added
+
+- Add optional `bypassServerCache` parameter to `addCustomAsset` (and the `AssetsController:addCustomAsset` action) ([#11613](https://github.com/MetaMask/core/pull/11613))
+  - When `true`, the force-fetch of the asset's chain also bypasses server-side HTTP caches such as the Accounts API's 60s cache. It only applies when the account is in the selected account group.
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
-- Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
-- Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
+- **BREAKING:** Remove `getAssetsState` from `AccountsApiDataSourceOptions`. Include and exclude asset IDs come from `getAssetVisibility`.
+- **BREAKING:** Balance data sources always use the Accounts API v6 path. `isBalanceV6Enabled` is no longer accepted. Fetches use the v6 balances endpoint and `full` snapshots, and the stale-asset RPC supplement is removed. The `assetsAccountsApiV6` remote feature flag is no longer read ([#11564](https://github.com/MetaMask/core/pull/11564))
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` and `includeCustomAssetGraduation`. A reported balance no longer removes a pin from `customAssets` ([#11564](https://github.com/MetaMask/core/pull/11564))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the EVM RPC Multicall3 address map, as the network is being terminated ([#11598](https://github.com/MetaMask/core/pull/11598))
+
+## [20.4.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+- Bump `@metamask/assets-controllers` from `^113.3.1` to `^113.3.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/network-enablement-controller` from `^7.1.2` to `^7.1.3` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/phishing-controller` from `^18.3.0` to `^18.3.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [20.4.0]
+
+### Added
+
+- Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are reported via the messenger's `captureException` and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
+- Add `assetsBackgroundLoadingStatus` to `AssetsControllerState`, a transient per-account status of the background (Snap + RPC) fetch that runs after the initial balance has resolved ([#11412](https://github.com/MetaMask/core/pull/11412))
+  - Unlike `assetsLoadingStatus`, which only tracks an account's first load, it is set to `'loading'` on every forced fetch that has slow-pipeline chains and settles to `'loaded'` once every overlapping background fetch for the account has finished, whether it succeeded or failed.
+- Add `getAccountBackgroundLoadingStatus`, `isAccountBackgroundLoading`, `getAccountGroupBackgroundLoadingStatus`, `isAccountGroupBackgroundLoading` and `getIsAssetsBackgroundLoadingForSelectedAccountGroup` selectors ([#11412](https://github.com/MetaMask/core/pull/11412))
+- Log `assetsLoadingStatus` and `assetsBackgroundLoadingStatus` transitions, and accounts skipped because their first load already settled, under the `metamask:assets-controller:trackAssetsLoading` debug namespace ([#11412](https://github.com/MetaMask/core/pull/11412))
+
+### Changed
+
+- Enrich native asset metadata (name, decimals, image) from the config registry via `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, and upgrade previously emitted imageless native metadata stubs with the registry image ([#11420](https://github.com/MetaMask/core/pull/11420))
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.2` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
+## [20.3.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/assets-controllers` from `^113.3.0` to `^113.3.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-enablement-controller` from `^7.1.0` to `^7.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [20.3.0]
+
+### Added
+
+- Add Matchain (`eip155:698`) and Nomina (`eip155:166`) to `NATIVE_ASSETS` with `slip44:714` and the synthetic `slip44:11111166`, matching the Price API ([#11383](https://github.com/MetaMask/core/pull/11383))
+  - chainid.network lists the testnet `slip44:1` for Nomina, so without this entry its native asset resolved to a wrong ID.
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^113.2.0` to `^113.3.0` ([#11385](https://github.com/MetaMask/core/pull/11385))
+
+## [20.2.3]
+
+### Changed
+
+- Include `assetsInfo`, `assetsBalance`, `assetsPrice`, `customAssets`, `assetPreferences` and `selectedCurrency` in state logs (`includeInStateLogs: true`) so support can investigate asset issues ([#11319](https://github.com/MetaMask/core/pull/11319))
+- Bump `@metamask/assets-controllers` from `^113.1.1` to `^113.2.0` ([#11326](https://github.com/MetaMask/core/pull/11326))
+
+## [20.2.2]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^13.0.0` to `^14.0.0` ([#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/assets-controllers` from `^113.1.0` to `^113.1.1` ([#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
 
 ### Fixed
 
+- Fix the launchpad spam check throwing `TypeError: apiClient.token.fetchV2Assets is not a function` during the unlock spam cleanup, which stopped any spam tokens from being removed ([#11300](https://github.com/MetaMask/core/pull/11300))
+  - The check calls `TokenApiClient.fetchV2Assets`, which first ships in `@metamask/core-backend` 14.0.0; the previous `^13.0.0` range could not resolve to a version that has it.
+
+## [20.2.1]
+
+### Fixed
+
+- Stop removing launchpad tokens as spam: EVM ERC-20s below the occurrence floor are now kept when Token API `/v2/assets` identifies them as launchpad tokens and their security data does not classify them as malicious ([#11251](https://github.com/MetaMask/core/pull/11251))
+  - Applies to metadata enrichment, websocket balance updates, and the unlock spam cleanup.
+
+## [20.2.0]
+
+### Changed
+
+- Use SLIP-44 coin type 16661 for the 0G native asset ([#11221](https://github.com/MetaMask/core/pull/11221))
+- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.1.0` ([#11255](https://github.com/MetaMask/core/pull/11255))
+
+## [20.1.0]
+
+### Added
+
+- Add optional `pricePercentChange5m` and `pricePercentChange4h` to `FungibleAssetPrice` ([#11201](https://github.com/MetaMask/core/pull/11201))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^113.0.0` to `^113.0.1` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/core-backend` from `^12.3.0` to `^13.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/network-enablement-controller` from `^7.0.2` to `^7.1.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/phishing-controller` from `^18.2.1` to `^18.3.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/transaction-controller` from `^72.3.0` to `^73.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+
+## [20.0.2]
+
+### Fixed
+
+- Use hand-rolled Multicall3 `aggregate3` codecs for balance batches, while retaining the Ethers codecs for byte-identical comparison ([#11078](https://github.com/MetaMask/core/pull/11078))
+
+## [20.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/assets-controllers` from `^112.2.0` to `^113.0.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+
+## [20.0.0]
+
+### Added
+
+- Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state ([#10892](https://github.com/MetaMask/core/pull/10892))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Fetch token metadata again when stored metadata is missing a field that controller logic or a client reads (`symbol`, `name`, `decimals`, `image`, `aggregators`, or `occurrences`), instead of treating an `image` as complete
+- **BREAKING:** Remove `DetectionMiddleware`. A balance refresh prices balances on the current response only when they have no stored price, and excludes hidden assets. The price poll still refreshes stored prices for held balances and custom assets, and does not price metadata that has no balance. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets ([#10892](https://github.com/MetaMask/core/pull/10892))
+- **BREAKING:** Remove `assetsForPriceUpdate` from `getAssets` options. Refresh an explicit asset list with `syncAssetsPrices` instead ([#10892](https://github.com/MetaMask/core/pull/10892))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.2.0` ([#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Removed
+
+- **BREAKING:** Remove the `AssetsController:assetsDetected` event and the `AssetsControllerAssetsDetectedEvent` type. No client subscribed to it ([#10892](https://github.com/MetaMask/core/pull/10892))
+- **BREAKING:** Remove `detectedAssets` from `DataResponse` and the unused `AssetsDetectedEvent` type. Newly detected tokens still arrive as balances and metadata ([#10892](https://github.com/MetaMask/core/pull/10892))
+
+## [19.1.0]
+
+### Changed
+
+- Temporarily extend `SnapDataSource` v6 balance fetches, in a deletable block, to also request every token already stored in balance state for the requested chains, so a rollback to Snaps still refreshes tokens that Accounts API and the websocket already support. Remove that block once balance reads fully move to Accounts API ([#10819](https://github.com/MetaMask/core/pull/10819))
+- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.2` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/phishing-controller` from `^18.2.0` to `^18.2.1` ([#10813](https://github.com/MetaMask/core/pull/10813))
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
+- Poll staked balances every hour instead of every 3 minutes. Subscribe still fetches immediately, and a confirmed transaction that touches the staking contract still refreshes the balance right away ([#10782](https://github.com/MetaMask/core/pull/10782))
+- Remove staked balances from the fast asset pipeline ([#10782](https://github.com/MetaMask/core/pull/10782))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Copy Accounts API v5 fetch errors onto the asset pipeline context so unprocessed and timed-out chains are retried by RPC fallback and the slow pipeline ([#10782](https://github.com/MetaMask/core/pull/10782))
+
+## [19.0.0]
+
+### Added
+
+- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks an account as `loading` from its first user-visible assets fetch until that fetch settles, and never re-marks it on later refreshes, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
+
+### Changed
+
+- **BREAKING:** `RpcDataSource` requires `queryApiClient` and no longer accepts `queryClient`. `AssetsController` passes its existing `queryApiClient` ([#10672](https://github.com/MetaMask/core/pull/10672))
+  - RPC token detection now loads supported networks, occurrence floors, and per-chain token lists through `queryApiClient.token` (`GET /v2/supportedNetworks`, `GET /v1/suggestedOccurrenceFloors`, `GET /tokens/{chainId}`), replacing the local `TokensApiClient`.
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/assets-controllers` from `^112.1.1` to `^112.1.2` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.1.0` ([#10662](https://github.com/MetaMask/core/pull/10662), [#10788](https://github.com/MetaMask/core/pull/10788))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-enablement-controller` from `^7.0.1` to `^7.0.2` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
+  - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
+  - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
+
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.1` ([#10633](https://github.com/MetaMask/core/pull/10633), [#10648](https://github.com/MetaMask/core/pull/10648))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+### Fixed
+
+- Fix `PriceDataSource` supported-network filtering so it reads the object-shaped `partialSupport` returned by the Price API `/v2/supportedNetworks` endpoint ([#10582](https://github.com/MetaMask/core/pull/10582))
+- On the v5 balance path, stop seeding every enabled chain's native onto an account when the update arrives after that account is no longer selected ([#10567](https://github.com/MetaMask/core/pull/10567))
+- On unlock, drop stored balances whose chain namespace is outside the selected account's scopes ([#10567](https://github.com/MetaMask/core/pull/10567))
+
+## [17.0.0]
+
+### Added
+
+- Add `getZeroNativeAssetBalance` and `getZeroTokenAssetBalance` so Stellar native zeros include spendable/reserve metadata and Stellar token zeros include empty trustline metadata. `getZeroAssetBalance` picks between them with `isNativeAssetId`
+
+### Changed
+
+- **BREAKING:** Split asset fetching into two paths behind `assetsAccountsApiV6` ([#9651](https://github.com/MetaMask/core/pull/9651))
+  - **Architecture:** The v5 path keeps production behavior — the API decides the returned set, and results are merged. The v6 path has the client declare the visible set (`includeAssetIds` / `excludeAssetIds`) and write an authoritative `full` snapshot for covered chains. Visibility is computed from controller state and shared by Accounts API, Snap, RPC, and RPC fallback. The flag is read only in `AssetsController` and injected as `isBalanceV6Enabled`. Hide/unhide re-evaluates live subscriptions so the next poll uses the new set.
+  - **Why this is breaking:**
+    - `'update'` is removed from `AssetsUpdateMode`; use `'full'` or `'merge'`
+    - `getAssets` no longer accepts `updateMode`; the data source sets it on the response
+    - `getAssetsState` is removed from pipeline `Context`, `SubscriptionRequest`, and `PriceDataSource.fetch`; inject it on data-source and middleware constructors instead
+    - `getAssetsState` and `getAssetVisibility` are required on Accounts API, Snap, and RPC data sources
+    - `isBalanceV6Enabled` is required on `SnapDataSource`
+    - `unhideAsset` is now async and force-fetches the asset's chain, matching `addCustomAsset`
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+
+### Fixed
+
+- Treat `assetsAccountsApiV6` as enabled when it is `true`, not a nested `{ value }` object ([#9651](https://github.com/MetaMask/core/pull/9651))
+
+## [16.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [16.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^72.0.0` ([#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/assets-controllers` from `^112.0.2` to `^112.0.3` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/network-enablement-controller` from `^7.0.0` to `^7.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/phishing-controller` from `^18.1.0` to `^18.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+### Fixed
+
+- `AccountActivityDataSource` now applies websocket balance amounts without writing `assetsInfo` ([#10410](https://github.com/MetaMask/core/pull/10410))
+- `AccountActivityDataSource` now requests `metadata` and `price` enrichment, so assets first seen in a websocket balance update get metadata and a spot price in the same pipeline pass instead of waiting for the next price poll ([#10410](https://github.com/MetaMask/core/pull/10410))
+- Seed `NATIVE_ASSETS` with Bitcoin mainnet (`bip122:000000000019d6689c085ae165831e93/slip44:0`) so `#getNativeAssetForChain` no longer falls back to a bogus `erc20:0x000…000` ID on Bitcoin mainnet ([#10410](https://github.com/MetaMask/core/pull/10410))
+- Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
+- `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
+## [16.1.0]
+
+### Added
+
+- Add optional `metadata` on fungible `assetsBalance` entries from the Accounts API and Account Activity websocket ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Register the Solana, Stellar and Tron native assets (SOL, XLM, TRX) so accounts holding no assets on those networks now surface a zero-balance native entry, matching the existing EVM behavior ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.2` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
+- `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/assets-controllers` from `^111.2.0` to `^112.0.0` ([#10152](https://github.com/MetaMask/core/pull/10152), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/client-controller` from `^1.0.1` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/config-registry-controller` from `^3.1.0` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/core-backend` from `^9.1.1` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-enablement-controller` from `^6.0.5` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/phishing-controller` from `^17.4.1` to `^18.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/preferences-controller` from `^23.1.0` to `^24.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [15.1.0]
+
+### Changed
+
+- Enhance spam asset cleanup to collect candidates from `assetsBalance` and remove swept assets from `assetsPrice` ([#10095](https://github.com/MetaMask/core/pull/10095))
+- Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.1` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/account-tree-controller` from `^8.1.0` to `^9.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/assets-controllers` from `^111.1.3` to `^111.1.4` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+### Fixed
+
+- Fix `#start()` re-entrancy so a second unlock/init/state-change trigger can't run a duplicate startup asset refresh while the first one is still in flight ([#10131](https://github.com/MetaMask/core/pull/10131))
+- Filter asset IDs by supported networks before calling the Price API v3 spot-prices endpoint. Prevent HTTP 400 errors ([#10132](https://github.com/MetaMask/core/pull/10132))
+
+## [15.0.0]
+
+### Added
+
+- Add `bypassServerCache` option to `getAssets` ([#10068](https://github.com/MetaMask/core/pull/10068))
+  - When true (only meaningful together with `forceUpdate`), the Accounts API request also bypasses the API's server-side 60s cache via a random `bypassServerCache` query param, instead of only the client-side query cache.
+
+### Changed
+
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- Bump `@metamask/phishing-controller` from `^17.4.0` to `^17.4.1` ([#10080](https://github.com/MetaMask/core/pull/10080))
+- **BREAKING:** `AssetsControllerMessenger` now requires `AccountTreeController:isInitialized`, `ClientController:getState`, and `KeyringController:isUnlocked` so lifecycle checks read controller state on demand instead of mirroring it from events ([#10059](https://github.com/MetaMask/core/pull/10059))
+  - Hosts that restrict which actions flow through the `AssetsController` messenger must delegate these three actions
+  - `AccountTreeController:stateChange` is no longer subscribed to; remove it from allowed events if your messenger wiring lists events explicitly
+- Revert to `selectedAccountGroupChange` for account-group switches; snap accounts added mid-session are picked up on restart ([#10059](https://github.com/MetaMask/core/pull/10059))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.1.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
+
+### Fixed
+
+- Exclude assets that have no `assetsInfo` metadata from the aggregated balance selectors ([#10084](https://github.com/MetaMask/core/pull/10084))
+  - `getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, and `calculateBalanceChangeForAccountGroup` previously included such assets in `entries` (without `symbol`/`name`/`decimals`) and in fiat totals; a balance now only counts once its metadata is known
+- Run `RpcFallbackMiddleware` on Accounts API poll updates (`handleAssetsUpdate`), not only in the forced `getAssets` fast pipeline, so a stale amount for tokens omitted from poll responses no longer survives between forced refreshes while the wallet sits open ([#10078](https://github.com/MetaMask/core/pull/10078))
+  - WebSocket, RPC, and Snap updates are excluded: WebSocket pushes are incremental single-asset updates where absence is not staleness, and RPC/Snap updates must not re-trigger RPC
+- Fix stale balances shown right after a transaction confirms: the post-confirmation refresh now calls `getAssets` with `bypassServerCache: true`, since WebSocket events do not invalidate the Accounts API's server-side cache and a plain refetch within its 60s window returns the pre-transaction snapshot ([#10068](https://github.com/MetaMask/core/pull/10068))
+- Fix stale balances surviving in state when the Accounts API returns no entry for an asset it does not index (or reports an untrusted `0`), which the `merge` update kept as the previous amount ([#10061](https://github.com/MetaMask/core/pull/10061))
+  - `RpcFallbackMiddleware` now re-reads EVM assets tracked in state (`assetsBalance` or `customAssets`) whose balance is empty in the current response, passing them to `RpcDataSource` as `customAssets`, in addition to its existing retry of chains in `response.errors`. Staking vault assets and assets on chains outside the request or the account's supported set are excluded.
+  - Balances from chains the RPC read itself failed on are discarded instead of merged, so a transient RPC failure can no longer overwrite a correct upstream balance with the failure stub's native `0` (or, previously, falsely clear the chain's error as "recovered"). The chain's error is kept only when it was already errored upstream.
+  - `RpcDataSource.assetsMiddleware` now propagates per-chain fetch errors onto the pipeline response (previously it only used them internally), which is what lets `RpcFallbackMiddleware` identify the failed chains.
+
+## [14.0.3]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Fixed
+
+- Clean up spam assets on keyring unlock, gated behind the `assetsUnifyState` remote feature flag's `useUnlockCleanup` property (disabled unless the flag explicitly enables it) ([#9973](https://github.com/MetaMask/core/pull/9973))
+- Skip transaction-driven force `getAssets` refreshes on chains where AccountActivity already provides live WebSocket balance updates, avoiding a race with the Accounts API that could overwrite correct balances ([#10030](https://github.com/MetaMask/core/pull/10030))
+
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/assets-controllers` from `^111.1.2` to `^111.1.3` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-enablement-controller` from `^6.0.4` to `^6.0.5` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.6.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/assets-controllers` from `^111.1.1` to `^111.1.2` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/core-backend` from `^8.1.2` to `^9.0.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+
+### Fixed
+
+- Read token balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
+- Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
+  - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountTreeController:initialized` and `AccountTreeController:uninitialized`
+- Reduce Accounts API calls on startup and refresh:
+  - Skip `AccountsApiDataSource` subscribe-time initial poll after a forced `getAssets` balance fetch
+  - Ignore init-time `AccountTreeController:selectedAccountGroupChange` (including same-group re-emits and events before tracking starts) so `:initialized` owns first start; only refresh on real group switches while tracking
+  - Skip Accounts API middleware when `dataTypes` does not include `balance` (e.g. price-only refreshes)
+- Bump `@metamask/config-registry-controller` from `^2.0.1` to `^3.0.0` ([#9923](https://github.com/MetaMask/core/pull/9923))
+- Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
+
+## [13.1.4]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.1` to `^8.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+### Fixed
+
+- Revert `AccountsApiDataSource` `forceUpdate` balance fetch cache window from `staleTime`/`gcTime` of `100`ms back to `0`/`0` (undoes [#9591](https://github.com/MetaMask/core/pull/9591)) so forced refreshes truly bypass the TanStack cache instead of reusing a short-lived entry ([#9870](https://github.com/MetaMask/core/pull/9870))
+- Fix Arc native USDC never appearing until the account receives its first deposit, by default-tracking the native asset id (`eip155:5042/slip44:5042`) instead of the `0x3600...` ERC20 identity so `assetsInfo` metadata is seeded up front ([#9869](https://github.com/MetaMask/core/pull/9869))
+
+## [13.1.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+### Fixed
+
+- Properly filter empty (`''`) selected account group event ([#9825](https://github.com/MetaMask/core/pull/9825))
+
+## [13.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/network-enablement-controller` from `^6.0.2` to `^6.0.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/assets-controllers` from `^111.0.0` to `^111.1.0` ([#9793](https://github.com/MetaMask/core/pull/9793))
+
+### Fixed
+
+- Apply occurrence-floor spam filtering to tokens received through account-activity (websocket) updates: new tokens are enriched with Token API occurrence counts before detection and dropped when below the per-chain suggested floor, and stub metadata of filtered-out assets is stripped from the pipeline response so spam tokens never persist to state ([#9803](https://github.com/MetaMask/core/pull/9803))
+- Checksum the lower-case ERC-20 asset IDs delivered by `AccountActivityDataSource` before they enter the assets pipeline, so middleware comparisons against state (which keys assets by checksummed ID) no longer treat an existing holding as a brand-new asset — previously such balance updates could be re-detected, or dropped entirely by spam filtering, and never reach state ([#9803](https://github.com/MetaMask/core/pull/9803))
+- Preserve pooled-staking balances across Accounts API chain-slice updates (e.g. network switch / `replaceCoveredChainBalances`): exclude staking contract asset IDs from `AccountsApiDataSource` v5/v6 balance processing, and keep prior staked amounts when a merge replace omits them so Accounts API cannot reset staked ETH to missing/0 ([#9753](https://github.com/MetaMask/core/pull/9753))
+
+## [13.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/config-registry-controller` from `^2.0.0` to `^2.0.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/assets-controllers` from `^110.1.0` to `^111.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779), [#9788](https://github.com/MetaMask/core/pull/9788))
+- Bump `@metamask/account-tree-controller` from `^7.5.5` to `^7.6.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/phishing-controller` from `^17.3.0` to `^17.3.1` ([#9746](https://github.com/MetaMask/core/pull/9746))
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-internal-api` from `^11.0.2` to `^12.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-snap-client` from `^9.2.1` to `^10.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [13.1.0]
+
+### Added
+
+- Add Somnia (`5031`/`0x13a7`) in `MulticallClient` ([#9665](https://github.com/MetaMask/core/pull/9665))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.3` to `^110.1.0` ([#9743](https://github.com/MetaMask/core/pull/9743))
+
+## [13.0.0]
+
+### Added
+
+- Add `getAccountAssetsByIDs(accountId, assetIds)` and `getAccountAssetsByScope(accountId, scope)` methods to look up several of an account's assets in one call — by a list of CAIP-19 asset IDs or by a CAIP-2 chain scope (e.g. `eip155:1`). Both return a record of combined `Asset`s keyed by CAIP-19 asset ID, omitting assets that are not renderable (missing balance/metadata, or hidden). ([#9738](https://github.com/MetaMask/core/pull/9738))
+
+### Changed
+
+- **BREAKING:** Rename `getAsset` to `getAccountAssetByID` ([#9738](https://github.com/MetaMask/core/pull/9738))
+- **BREAKING:** `AssetsControllerMessenger` now requires the `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated ([#9717](https://github.com/MetaMask/core/pull/9717))
+  - `AssetsController` now uses `ConfigRegistryController:getNetworkConfigByCaip2ChainId` to resolve the multicall3 contract address using `@metamask/config-registry-controller` as primary source, falling back to `MulticallClient`'s hardcoded default addresses for known chains.
+- Bump `@metamask/config-registry-controller` from `^1.0.1` to `^2.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+- Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.2` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** `AccountActivityDataSource` is now the highest-priority balance data source and participates in chain-claiming: chains it reports as "up" from `AccountActivityService:statusChanged`. The `AssetsController` messenger must now allow the `AccountActivityService:statusChanged` event ([#9517](https://github.com/MetaMask/core/pull/9517))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/assets-controllers` from `^110.0.2` to `^110.0.3` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-enablement-controller` from `^6.0.0` to `^6.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+### Removed
+
+- **BREAKING:** Remove `BackendWebsocketDataSource` and its factory/types (`BackendWebsocketDataSource`, `createBackendWebsocketDataSource`, `BackendWebsocketDataSourceOptions`, `BackendWebsocketDataSourceState`). Real-time balance updates and per-chain status are now consumed from `AccountActivityService` via `AccountActivityDataSource`, which manages the WebSocket connection and subscriptions. Consumers no longer need to delegate `BackendWebSocketService` actions/events to the `AssetsController` messenger ([#9517](https://github.com/MetaMask/core/pull/9517))
+
+## [11.3.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.1` to `^110.0.2` ([#9706](https://github.com/MetaMask/core/pull/9706))
+- Bump `@metamask/network-enablement-controller` from `^5.6.0` to `^6.0.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+
+## [11.3.0]
+
+### Added
+
+- `SnapDataSource` now preserves optional balance `metadata` from snap keyrings into `assetsBalance` when handling `AccountsController:accountBalancesUpdated` and `getAccountBalances` results ([#9564](https://github.com/MetaMask/core/pull/9564))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^110.0.0` to `^110.0.1` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.3.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Nest AssetsController Sentry spans (`AssetsDataSourceTiming`, `AssetsDataSourceError`, `AssetsControllerFirstInitFetch`, pipeline summaries) as subspans under parent `AssetsFullFetch` / `AssetsUpdatePipeline` / `AssetsBackgroundFetch` traces, and emit a single `AggregatedBalanceSelector` span for `calculateBalanceForAllWallets` instead of one root span per account group, to avoid Sentry rate limits ([#9672](https://github.com/MetaMask/core/pull/9672))
+  - Pipeline / data-source / update enrichment spans emit only on the unlock (first-init) fetch per session; later polls, force updates, and subscription enrichment skip tracing.
+  - Tracing helpers live in `utils/trace.ts` (`emitTrace` / `withTrace`); omit `trace` to no-op so call sites stay free of gating `if`s. Fast and background fetch lanes are sibling `withTrace` calls (not nested).
+  - Dashboard-facing spans (`AssetsFullFetch`, `AssetsUpdatePipeline`, `AggregatedBalanceSelector`, etc.) record `duration_ms` as a Sentry measurement (and backdate `startTime`) so Spans widgets charting `p95(duration_ms)` receive data. Nesting parents use `AssetsFetchPipeline` / `AssetsUpdateEnrichment` / `AssetsBackgroundFetch` / `AggregatedBalance`.
+  - `AggregatedBalanceSelector` is nested under an `AggregatedBalance` parent span via `parentContext`.
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-internal-api` from `^11.0.1` to `^11.0.2` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/keyring-snap-client` from `^9.2.0` to `^9.2.1` ([#9676](https://github.com/MetaMask/core/pull/9676))
+
+### Fixed
+
+- `withTrace` treats a rejected parent `trace` promise as best-effort (like `emitTrace`), so Sentry/adapter failures cannot fail full fetches or `handleAssetsUpdate` enrichment ([#9672](https://github.com/MetaMask/core/pull/9672))
+- `SnapDataSource` now delivers snap-sourced balance updates directly to `AssetsController` via a constructor-supplied `onAssetsUpdate` callback instead of fanning out to `activeSubscriptions`, so updates (e.g. Tron energy/bandwidth) are no longer dropped when no active subscription is tracked for the chain in the SnapDataSource ([#9656](https://github.com/MetaMask/core/pull/9656))
+- Balance aggregation selectors (`getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, `calculateBalanceChangeForAccountGroup`) no longer rescale balances whose amount is greater than or equal to `10^decimals`. Amounts in `assetsBalance` state are always human-readable, so the removed raw-vs-human magnitude heuristic corrupted legitimately large balances (e.g. 54.06B tokens with 9 decimals were divided by `10^9`), excluding them from aggregated fiat totals ([#9653](https://github.com/MetaMask/core/pull/9653))
+
+## [11.2.1]
+
+### Fixed
+
+- Fetch spot prices immediately on price-subscription updates and after seeding native / default tracked assets so held assets are not left unpriced until the next poll after onboarding ([#9631](https://github.com/MetaMask/core/pull/9631))
+
+## [11.2.0]
+
+### Added
+
+- Add stage-gated ingestion of the Snaps → AssetsController migration networks (Solana, Stellar, Tron) ([#9534](https://github.com/MetaMask/core/pull/9534))
+  - `AssetsController` and `AccountsApiDataSource` now resolve a per-network migration stage from `RemoteFeatureFlagController` state (via `RemoteFeatureFlagController:getState`) using the `networkAssetsSnapsMigrationSolana`, `networkAssetsSnapsMigrationStellar`, and `networkAssetsSnapsMigrationTron` flags. Migration networks are only ingested and surfaced as active chains from `SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback` onward, and left to the Snap when the stage is `Off` (the fail-safe when the flag is missing). Non-migration namespaces (e.g. `eip155`) are never gated.
+
+### Fixed
+
+- `AccountsApiDataSource` `forceUpdate` balance fetches now use `staleTime`/`gcTime` of `100`ms (previously `0`/`0`) so bursts of near-simultaneous forced refreshes are de-duplicated by TanStack Query into a single Accounts API request instead of one request per trigger ([#9591](https://github.com/MetaMask/core/pull/9591))
+
+## [11.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.1.0` to `^69.2.1` ([#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/assets-controllers` from `^109.4.1` to `^110.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/core-backend` from `^6.5.0` to `^7.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+
+### Fixed
+
+- `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547) ([#9584](https://github.com/MetaMask/core/pull/9584))
+
+## [11.1.0]
+
+### Added
+
+- `AccountsApiDataSource` now selects the Accounts API balances endpoint version from the `RemoteFeatureFlagController` (`assetsAccountsApiV6` flag, read per fetch off the shared messenger, default v5) so the v6 endpoint is gated consistently across clients (extension, mobile) without each client wiring a getter. The flag is read as a JSON variation shaped `{ value: boolean }` (same shape as `backendWebSocketConnection`). Adds a required `messenger` option and `RemoteFeatureFlagController:getState` to `AccountsApiDataSourceAllowedActions`. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5 ([#9344](https://github.com/MetaMask/core/pull/9344))
+- Add `getAsset(accountId, assetId)` method and `AssetsController:getAsset` messenger action that returns the combined `Asset` (balance, metadata, price) for a single account/asset pair from controller state, or `undefined` when a complete renderable asset is not available ([#9521](https://github.com/MetaMask/core/pull/9521))
+
+### Changed
+
+- Persist `assetsPrice` in `AssetsController` state so last-known prices survive app restart / state rehydration (refreshed on the next price fetch via existing `PriceDataSource` TTL) ([#9566](https://github.com/MetaMask/core/pull/9566))
+- Memoize hot-path asset ID / legacy-format conversions to cut repeated keccak256 (`toChecksumAddress`) and CAIP parsing ([#9546](https://github.com/MetaMask/core/pull/9546), [#9555](https://github.com/MetaMask/core/pull/9555))
+  - `normalizeAssetId` uses lodash `memoize` so already-normalized IDs skip re-checksumming across the pipeline
+  - `formatExchangeRatesForBridge` caches the last result on input identity (`===` for BaseController slices, lodash `isEqual` for rebuilt native maps); exports `FormatExchangeRatesForBridgeParams`
+  - `formatStateForTransactionPay` caches the last result the same way (`isEqual` for rebuilt `accounts` / `nativeAssetIdentifiers`) and freezes the cached result so later mutations cannot poison the cache; exports `FormatStateForTransactionPayParams`
+  - `#getNativeAssetMap` returns a stable empty object when uncached so memoized formatters are not busted by `?? {}` identity churn
+- `TokenDataSource` EVM spam filtering now uses per-chain floors from Token API `GET /v1/suggestedOccurrenceFloors` (`queryApiClient.token.fetchV1SuggestedOccurrenceFloors`) instead of a hardcoded minimum of 3 occurrences. Chains missing from the response (or a failed floors fetch) still fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
+- `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
+- Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
+- Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.1.0` ([#9568](https://github.com/MetaMask/core/pull/9568))
+
+### Fixed
+
+- `TokenDataSource` now also fetches token metadata for assets present in `assetsBalance` that are missing `assetsInfo` (previously only detected assets without metadata were enriched) ([#9547](https://github.com/MetaMask/core/pull/9547))
+
+## [11.0.0]
+
+### Fixed
+
+- **BREAKING:** Subscribe to exported `AccountTreeController:stateChange`, `ClientController:stateChange`, and `NetworkEnablementController:stateChange` messenger events instead of locally constructed `:stateChanged` aliases ([#9478](https://github.com/MetaMask/core/pull/9478))
+
+## [10.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/assets-controllers` from `^109.4.0` to `^109.4.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.5.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/phishing-controller` from `^17.2.0` to `^17.2.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [10.2.0]
+
+### Added
+
+- Add Robinhood Chain (`4663`/`0x1237`) in `MulticallClient` ([#9443](https://github.com/MetaMask/core/pull/9443))
+
+### Changed
+
+- `MulticallClient` memoizes `balanceOf` and `getEthBalance` call encodings per account address when building multicall batches, reducing redundant ABI encoding for wallets with many tokens ([#9425](https://github.com/MetaMask/core/pull/9425))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.4.0` ([#9429](https://github.com/MetaMask/core/pull/9429), [#9450](https://github.com/MetaMask/core/pull/9450))
+
+## [10.1.0]
+
+### Added
+
+- Add temporary `tempMigrateAssetsInfoMetadataAssets3346` constructor option that heals `assetsInfo` metadata (and custom-asset tracking) wiped by a prior defect for tokens on niche EVM chains, using legacy `TokensController` state provided by the host ([#9393](https://github.com/MetaMask/core/pull/9393))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Fetch balances when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/assets-controllers` from `^109.2.2` to `^109.3.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/core-backend` from `^6.4.0` to `^6.5.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-enablement-controller` from `^5.4.0` to `^5.4.1` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** `AssetsController` messenger must now allow `AccountActivityService:balanceUpdated` so unified `assetsBalance` state receives real-time websocket balance updates when `AccountActivityService` owns the server subscription ([#9273](https://github.com/MetaMask/core/pull/9273))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
+### Fixed
+
+- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch and serializes overlapping refresh work ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `AccountsApiDataSource` bypasses the TanStack Query balance cache when `forceUpdate` is true so forced refreshes return up-to-date balances instead of 60-second cached values ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `BackendWebsocketDataSource` re-subscribes when subscribed accounts change (case-insensitive EVM address matching), serializes subscribe/unsubscribe to prevent races on account switch, and registers channel callbacks as a fallback when server `subscriptionId` values do not match ([#9265](https://github.com/MetaMask/core/pull/9265))
+- Remove the 120-second websocket balance freshness guard that blocked force-refresh and polling updates from correcting stale websocket balances ([#9273](https://github.com/MetaMask/core/pull/9273))
+- `BackendWebsocketDataSource` registers subscription handlers before the subscribe handshake so in-flight account-activity notifications are not dropped, cleans up subscription state on subscribe failure, and resolves balance updates from stored subscription state when notifications arrive with stale subscription IDs ([#9273](https://github.com/MetaMask/core/pull/9273))
+- `AssetsController` refreshes data-source `activeChains`, re-subscribes, and force-fetches balances for the newly selected EVM chain when the user switches networks via `NetworkController:networkDidChange`
+- `AssetsController` bypasses the price deduper cache and fetches spot prices for assets on a newly selected or added EVM network only when those assets have no entry in `assetsPrice` yet; `DetectionMiddleware` queues newly detected assets for the same pipeline price fetch so RPC-detected tokens are priced without waiting for the poll interval
+- `AssetsController` merge updates from `getAssets({ forceUpdate: true })` now replace balances on API-covered chains so unlock/startup reflects the fresh Accounts API snapshot instead of preserving stale pre-lock tokens; subscription-driven merges are unchanged
+
+## [9.1.0]
+
+### Added
+
+- Add `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup` selectors for computing wallet- and group-level balances from the unified `AssetsController` state ([#9230](https://github.com/MetaMask/core/pull/9230))
+- Add `priceFreshnessTtlMs` option to `PriceDataSourceConfig` controlling how long a fetched price is considered fresh before it is re-fetched (defaults to the poll interval, 60 000 ms) ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Add `PriceDataSource.invalidatePriceCache()` to force the next fetch to bypass the freshness cache; `AssetsController` now calls it when the selected currency changes so cached prices in the previous currency are refreshed ([#9189](https://github.com/MetaMask/core/pull/9189))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
+### Fixed
+
+- Deduplicate price fetches in `PriceDataSource` so overlapping triggers (enrichment middleware, subscription polls, and manual refreshes) no longer issue duplicate price API requests for the same asset; assets fetched within the freshness TTL are skipped and concurrent in-flight fetches are joined ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Remove a redundant one-time balance fetch in `AssetsController` when the enabled network list changes, since subscription refresh and the enabled-networks handler already cover those fetches ([#9189](https://github.com/MetaMask/core/pull/9189))
+- `DetectionMiddleware` no longer triggers redundant metadata and price fetches for assets already present in `assetsBalance` or `assetsInfo` state ([#9215](https://github.com/MetaMask/core/pull/9215))
+- `AccountsApiDataSource` and `SnapDataSource` now use `merge` update mode instead of `full`, preventing assets on custom or partially-supported networks from being incorrectly wiped on each poll ([#9215](https://github.com/MetaMask/core/pull/9215))
+
+## [9.0.2]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.2.1` ([#9110](https://github.com/MetaMask/core/pull/9110), [#9202](https://github.com/MetaMask/core/pull/9202), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.1.1` ([#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-enablement-controller` from `^5.3.0` to `^5.4.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+### Fixed
+
+- `AssetsController` reconciliate and self-heals stale assetInfo metadata types ([#9099](https://github.com/MetaMask/core/pull/9099))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [9.0.0]
+
+### Added
+
+- Add USDC on ARC mainnet (`eip155:5042/erc20:0x3600000000000000000000000000000000000000`) to default tokens to display on ARC ([#9011](https://github.com/MetaMask/core/pull/9011))
+
+### Changed
+
+- **BREAKING:** `RpcDataSourceOptions`, `TokenDataSourceOptions`, and `BackendWebsocketDataSourceOptions` no longer accept `isNativeAsset: (assetId) => boolean`; replace it with `getAssetType: (assetId) => 'native' | 'erc20' | 'spl'` ([#9063](https://github.com/MetaMask/core/pull/9063))
+- Token detection via `TokensApiClient` is now gated behind the `/v2/supportedNetworks` endpoint; chains absent from the supported-networks list are skipped and return an empty token list, and token-list request failures return an empty array instead of throwing ([#9063](https://github.com/MetaMask/core/pull/9063))
+- Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
+- Bump `@metamask/assets-controllers` from `^108.6.0` to `^109.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `AssetsController` allowed events and `RpcDataSourceAllowedEvents`; remove associated balance refresh on incoming transactions ([#9012](https://github.com/MetaMask/core/pull/9012))
+
+### Fixed
+
+- `RpcDataSource`, `TokenDataSource`, and `BackendWebsocketDataSource` now correctly classify native tokens exposed via a non-zero-address ERC-20 interface (e.g. Immutable zkEVM's IMX, Arc's USDC at `0x3600…0000`) as `type: 'native'` instead of `type: 'erc20'` ([#9063](https://github.com/MetaMask/core/pull/9063))
+
+## [8.3.3]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+- Bump `@metamask/account-tree-controller` from `^7.5.1` to `^7.5.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/assets-controllers` from `^108.5.0` to `^108.6.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [8.3.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/assets-controllers` from `^108.4.0` to `^108.5.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/core-backend` from `^6.3.1` to `^6.3.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [8.3.1]
+
+### Fixed
+
+- Fix sub-`1e-7` dust balance amounts being serialized in scientific-notation form (e.g. `"1e-18"`) instead of plain decimal, which caused crashes in downstream `BigInt()`-based consumers ([#8982](https://github.com/MetaMask/core/pull/8982))
+
+## [8.3.0]
+
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) in `MulticallClient` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.4.0` ([#8981](https://github.com/MetaMask/core/pull/8981))
+
+## [8.2.0]
+
+### Changed
+
+- `MulticallClient` no longer falls back to individual RPC calls by default; it retries and returns failed responses when retries are exhausted. Pass `{ fallbackToSingleCalls: true }` to `batchBalanceOf` to opt into per-token RPC fallback after retries (used by balance fetching, not token detection) ([#8925](https://github.com/MetaMask/core/pull/8925))
+- Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.3.0` ([#8941](https://github.com/MetaMask/core/pull/8941))
+
+## [8.1.0]
+
+### Changed
+
+- `AssetsController` now re-evaluates the `isEnabled` callback when handling data-source active chain updates, instead of snapshotting its return value at construction ([#8914](https://github.com/MetaMask/core/pull/8914))
+- `AssetsController` no longer skips constructor initialization when `isEnabled` returns false at construction time, so the controller can handle active chain updates after `isEnabled` later becomes true ([#8914](https://github.com/MetaMask/core/pull/8914))
+
+## [8.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [8.0.1]
+
+### Fixed
+
+- Add the previously declared `SnapControllerSnapInstalledEvent` to the `AssetsControllerMessenger` allowed events ([#8868](https://github.com/MetaMask/core/pull/8868))
+- `addCustomAsset` now immediately seeds `assetsBalance` with a zero amount for the newly added asset, so the UI can render it before the next pipeline fetch ([#8872](https://github.com/MetaMask/core/pull/8872))
+
+## [8.0.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+- Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
+- Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
+- Bump `@metamask/network-enablement-controller` from `^5.1.1` to `^5.2.0` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+### Fixed
+
+- `AccountsApiDataSource` no longer treats non-EVM chains (e.g. Solana) returned by the Accounts API as active chains; only `eip155:` networks are now included ([#8864](https://github.com/MetaMask/core/pull/8864))
+- **BREAKING:** **SnapDataSource:** `SnapControllerSnapInstalledEvent` has been added to `SnapDataSourceAllowedEvents`. Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `SnapController:snapInstalled`; failing to do so will prevent snap chain re-discovery after install. Re-run keyring snap discovery when a new snap is installed so that snap-backed chains (Bitcoin, Solana, Tron, etc.) become available immediately after install ([#8862](https://github.com/MetaMask/core/pull/8862))
 - Non-EVM assets with a `slip44` asset namespace (e.g. Bitcoin, Solana native, TRON) are now correctly typed as `native` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 - Solana SPL tokens (CAIP-19 `solana:.../token:<address>`) are now correctly typed as `spl` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 
@@ -33,7 +852,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `decimals: 0` is treated as valid; `name` and `symbol` are not required.
   - Decimals resolution in `#handleBalanceUpdate` and the manual-fetch path no longer relies on `??` to fall through from state to pipeline metadata. A new `#pickValidDecimals` helper picks the first source whose `decimals` is finite and non-negative, so a stale `decimals: NaN` (or `decimals: -1`) in state can no longer shadow the chain-status stub's `decimals: 18` and silently produce `amount: '0'` while `assetsInfo` reports `decimals: 18`.
   - `#convertToHumanReadable` now defensively returns `'0'` when `decimals` isn't a finite non-negative number or when the raw balance can't be parsed, matching the existing safe fallback used in the error path.
-- The mUSD (`MetaMask USD`) contract address stored in `defaults.ts` is now EIP-55 checksummed (`0xacA92E438df0B2401fF60dA7E4337B687a2435DA`) ([#8786](https://github.com/MetaMask/core/pull/8786)). Previously the address was all-lowercase, causing the CAIP-19 keys pre-seeded into `assetsInfo` by `buildDefaultAssetsInfo()` to differ from the checksummed keys written by data sources (which always normalise asset IDs via `normalizeAssetId`). The mismatch resulted in two separate `assetsInfo` entries for the same token after the first balance or token-data poll.
+- The mUSD (`MetaMask USD`) contract address stored in `defaults.ts` is now EIP-55 checksummed (`0xacA92E438df0B2401fF60dA7E4337B687a2435DA`). Previously the address was all-lowercase, causing the CAIP-19 keys pre-seeded into `assetsInfo` by `buildDefaultAssetsInfo()` to differ from the checksummed keys written by data sources (which always normalise asset IDs via `normalizeAssetId`). The mismatch resulted in two separate `assetsInfo` entries for the same token after the first balance or token-data poll. ([#8786](https://github.com/MetaMask/core/pull/8786))
 
 ## [7.1.1]
 
@@ -508,7 +1327,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...@metamask/assets-controller@21.0.0
+[20.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...@metamask/assets-controller@20.4.1
+[20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0
+[20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
+[20.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.3...@metamask/assets-controller@20.3.0
+[20.2.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.2...@metamask/assets-controller@20.2.3
+[20.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.1...@metamask/assets-controller@20.2.2
+[20.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.0...@metamask/assets-controller@20.2.1
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.1.0...@metamask/assets-controller@20.2.0
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.2...@metamask/assets-controller@20.1.0
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...@metamask/assets-controller@20.0.2
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.0...@metamask/assets-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.1.0...@metamask/assets-controller@20.0.0
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.0.0...@metamask/assets-controller@19.1.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...@metamask/assets-controller@19.0.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.0...@metamask/assets-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...@metamask/assets-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...@metamask/assets-controller@17.0.0
+[16.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.1...@metamask/assets-controller@16.1.2
+[16.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...@metamask/assets-controller@16.1.1
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0
+[14.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.2...@metamask/assets-controller@14.0.3
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.1...@metamask/assets-controller@14.0.2
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...@metamask/assets-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.4...@metamask/assets-controller@14.0.0
+[13.1.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.3...@metamask/assets-controller@13.1.4
+[13.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...@metamask/assets-controller@13.1.3
+[13.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.1...@metamask/assets-controller@13.1.2
+[13.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...@metamask/assets-controller@13.1.1
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...@metamask/assets-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.1...@metamask/assets-controller@12.0.0
+[11.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.3.0...@metamask/assets-controller@11.3.1
+[11.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.1...@metamask/assets-controller@11.3.0
+[11.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.2.0...@metamask/assets-controller@11.2.1
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.1...@metamask/assets-controller@11.2.0
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.1.0...@metamask/assets-controller@11.1.1
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.0.0...@metamask/assets-controller@11.1.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.1...@metamask/assets-controller@11.0.0
+[10.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.0...@metamask/assets-controller@10.2.1
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.1.0...@metamask/assets-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.1...@metamask/assets-controller@10.1.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.0...@metamask/assets-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.1.0...@metamask/assets-controller@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.2...@metamask/assets-controller@9.1.0
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.1...@metamask/assets-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.0...@metamask/assets-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.3...@metamask/assets-controller@9.0.0
+[8.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.2...@metamask/assets-controller@8.3.3
+[8.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.1...@metamask/assets-controller@8.3.2
+[8.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.0...@metamask/assets-controller@8.3.1
+[8.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.2.0...@metamask/assets-controller@8.3.0
+[8.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.1.0...@metamask/assets-controller@8.2.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.2...@metamask/assets-controller@8.1.0
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.1...@metamask/assets-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.0...@metamask/assets-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.2...@metamask/assets-controller@8.0.0
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.1...@metamask/assets-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.0...@metamask/assets-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.0.1...@metamask/assets-controller@7.1.0

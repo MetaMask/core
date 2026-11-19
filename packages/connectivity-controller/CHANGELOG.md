@@ -9,13 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [0.3.0]
+
+### Added
+
 - Add `connectivityControllerSelectors` with `selectConnectivityStatus` and `selectIsOffline` selectors ([#7701](https://github.com/MetaMask/core/pull/7701))
   - `selectConnectivityStatus` returns the current connectivity status from the controller state
   - `selectIsOffline` is a memoized selector that returns `true` when the device is offline
 
 ### Changed
 
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/messenger` from `^1.0.0` to `^2.0.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [0.2.0]
@@ -42,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7623](https://github.com/MetaMask/core/pull/7623))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.3.0...@metamask/connectivity-controller@1.0.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.2.0...@metamask/connectivity-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.1.0...@metamask/connectivity-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/connectivity-controller@0.1.0

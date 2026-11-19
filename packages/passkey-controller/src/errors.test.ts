@@ -1,8 +1,10 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-import { PasskeyControllerError } from './errors';
+} from './constants.js';
+import { PasskeyControllerError } from './errors.js';
 
 describe('PasskeyControllerError', () => {
   it('sets code and cause from options', () => {

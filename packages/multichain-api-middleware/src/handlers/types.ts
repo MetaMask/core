@@ -7,7 +7,7 @@ import type {
   Caveat,
 } from '@metamask/permission-controller';
 import type { MultichainRoutingService } from '@metamask/snaps-controllers';
-import type { CaipAccountId } from '@metamask/utils';
+import type { CaipAccountId, Hex, Json } from '@metamask/utils';
 
 /**
  * Multichain API notifications currently supported by/known to the wallet.
@@ -32,4 +32,10 @@ export type GetNonEvmSupportedMethodsHook = {
 
 export type SortAccountIdsByLastSelectedHook = {
   sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
+};
+
+export type GetCapabilitiesHook = {
+  getCapabilities: (params: {
+    address: string;
+  }) => Promise<Record<Hex, Record<string, Json>>>;
 };

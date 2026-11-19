@@ -3,7 +3,10 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type {
   BatchTransactionParams,
   TransactionMeta,
@@ -12,27 +15,34 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { PERPS_DEPOSIT_TYPES } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { accountSupports7702 } from '../../utils/7702';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getGasBuffer } from '../../utils/feature-flags';
+} from '../../types.js';
+import { accountSupports7702 } from '../../utils/account.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getGasBuffer } from '../../utils/feature-flags.js';
+import {
+  GasPaymentMode,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
+import { getNetworkClientId } from '../../utils/provider.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
-  isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
   getAcrossOrderedTransactions,
   getOriginalTransactionGas,
-} from './transactions';
-import type { AcrossQuote } from './types';
+} from './transactions.js';
+import type { AcrossQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 const ACROSS_STATUS_POLL_INTERVAL = 1000;
@@ -125,7 +135,17 @@ async function submitTransactions(
   const { swapTx } = quote.original.quote;
   const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
   const { from } = quote.request;
+  const { tokenAddress: sourceTokenAddress } = getEvmQuoteSource(quote.request);
   const chainId = toHex(swapTx.chainId);
+
+  // Across has no relayer-paid delegation flow and is never sponsored, so the
+  // only lift available is the gas station collecting gas in the source token.
+  const gasPayment = resolveGasPayment({
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress,
+  });
+  const isGasFeeTokenPayment = gasPayment.mode === GasPaymentMode.GasFeeToken;
+
   const orderedTransactions = getAcrossOrderedTransactions({
     quote: quote.original.quote,
     swapType: acrossDepositType,
@@ -141,10 +161,7 @@ async function submitTransactions(
   const transactionCount =
     orderedTransactions.length + (shouldPrependOriginalTransaction ? 1 : 0);
 
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, chainId);
 
   const is7702Batch = is7702 && transactionCount > 1;
   const canUseQuotedBatchGasLimit =
@@ -165,10 +182,11 @@ async function submitTransactions(
     parentTransaction.txParams.authorizationList?.length,
   );
 
-  const shouldUseGasFeeToken7702Submit = shouldEstimate7702SubmitBatch(
+  const shouldUseGasFeeToken7702Submit = shouldEstimate7702SubmitBatch({
+    isGasFeeTokenPayment,
     parentTransaction,
     quote,
-  )
+  })
     ? accountSupports7702(messenger, from)
     : false;
   const shouldUse7702Submit = [
@@ -259,10 +277,7 @@ async function submitTransactions(
   );
 
   let result: { result: Promise<string> } | undefined;
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? quote.request.sourceTokenAddress
-    : undefined;
-  const excludeNativeTokenForFee = gasFeeToken ? true : undefined;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   try {
     if (transactions.length === 1) {
@@ -274,6 +289,7 @@ async function submitTransactions(
           gasFeeToken,
           networkClientId,
           origin: ORIGIN_METAMASK,
+          isInternal: true,
           requireApproval: false,
           type: transactions[0].type,
         },
@@ -294,6 +310,7 @@ async function submitTransactions(
         gasLimit7702,
         networkClientId,
         origin: ORIGIN_METAMASK,
+        isInternal: true,
         requireApproval: false,
         transactions: batchTransactions,
       });
@@ -309,6 +326,11 @@ async function submitTransactions(
 
   await Promise.all(
     transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+  );
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
   );
 
   const hash = transactionIds.length
@@ -417,18 +439,25 @@ async function waitForAcrossCompletion(
  * gas with the source token, because the final submit batch can differ from the
  * batch shape that Across quoted.
  *
- * @param parentTransaction - Original transaction metadata.
- * @param quote - Across quote selected for execution.
+ * @param args - Check arguments.
+ * @param args.isGasFeeTokenPayment - Whether source-chain gas is paid with a gas fee token.
+ * @param args.parentTransaction - Original transaction metadata.
+ * @param args.quote - Across quote selected for execution.
  * @returns Whether submit should try to estimate the final 7702 batch gas.
  */
-function shouldEstimate7702SubmitBatch(
-  parentTransaction: TransactionMeta,
-  quote: TransactionPayQuote<AcrossQuote>,
-): boolean {
+function shouldEstimate7702SubmitBatch({
+  isGasFeeTokenPayment,
+  parentTransaction,
+  quote,
+}: {
+  isGasFeeTokenPayment: boolean;
+  parentTransaction: TransactionMeta;
+  quote: TransactionPayQuote<AcrossQuote>;
+}): boolean {
   return (
-    isPredictWithdrawTransaction(parentTransaction) &&
+    hasTransactionType(parentTransaction, [TransactionType.predictWithdraw]) &&
     quote.request.isPostQuote === true &&
-    quote.fees.isSourceGasFeeToken === true
+    isGasFeeTokenPayment
   );
 }
 
@@ -497,7 +526,15 @@ async function estimateSubmitBatchGasLimit7702({
       },
     );
 
-    if (result.gasLimits.length !== 1) {
+    // Older TransactionController versions return no `mode`, so detect a
+    // combined EIP-7702 gas limit from the number of gas limits instead.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const is7702Result =
+      result.mode === undefined
+        ? result.gasLimits.length === 1
+        : result.mode === 'eip7702';
+
+    if (!is7702Result) {
       return undefined;
     }
 
@@ -529,7 +566,7 @@ function buildOriginalTransaction(
       gas: gasLimit === undefined ? undefined : toHex(gasLimit),
       to: transaction.txParams.to,
       value: transaction.txParams.value,
-    } as TransactionParams,
+    },
     type: getOriginalTransactionType(transaction),
   };
 }
@@ -543,7 +580,7 @@ function buildOriginalTransaction(
 function getOriginalTransactionType(
   transaction: TransactionMeta,
 ): TransactionMeta['type'] {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictWithdraw;
   }
 
@@ -567,19 +604,21 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
  * @returns Across-specific transaction type for known flows, or the original type.
  */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictAcrossWithdraw;
   }
 
+  if (transaction.type && PERPS_DEPOSIT_TYPES.includes(transaction.type)) {
+    return TransactionType.perpsAcrossDeposit;
+  }
+
   switch (transaction.type) {
-    case TransactionType.perpsDeposit:
-      return TransactionType.perpsAcrossDeposit;
     case TransactionType.predictDeposit:
       return TransactionType.predictAcrossDeposit;
     case undefined:
       return TransactionType.perpsAcrossDeposit;
     default:
-      return transaction.type as TransactionType;
+      return transaction.type;
   }
 }
 

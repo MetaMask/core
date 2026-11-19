@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NotificationServicesController } from './NotificationServicesController';
+import type { NotificationServicesController } from './NotificationServicesController.js';
 
 export type NotificationServicesControllerInitAction = {
   type: `NotificationServicesController:init`;
@@ -36,6 +36,10 @@ export type NotificationServicesControllerCheckAccountsPresenceAction = {
  *
  * **Action** - used in the notification settings to enable/disable feature announcements.
  *
+ * @deprecated Feature announcements follow marketing consent (the AUS
+ * `marketing.inAppNotificationsEnabled` preference). Nothing in this
+ * controller reads the flag this sets, and it will be removed.
+ *
  * @param featureAnnouncementsEnabled - A boolean value indicating the desired enabled state of the feature announcements.
  * @async
  * @throws {Error} If fails to update
@@ -55,11 +59,13 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * {@link AuthenticatedUserStorageService} has no stored preferences yet.
  * Existing preferences are left as-is.
  *
+ * When preferences are initialized, both marketing channels (push, and
+ * in-app feature announcements) follow `AnalyticsController` marketing
+ * consent.
+ *
  * @param opts - optional options to mutate this functionality
- * @param opts.hasMarketingConsent - The user's marketing-consent flag.
- * Used only during initialization to seed marketing push notifications.
- * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
- * Used only during initialization to seed marketing in-app notifications.
+ * @param opts.hasMarketingConsent - Deprecated and ignored.
+ * @param opts.productAnnouncementEnabled - Deprecated and ignored.
  * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
@@ -95,16 +101,14 @@ export type NotificationServicesControllerDisableNotificationServicesAction = {
 };
 
 /**
- * Deletes on-chain triggers associated with a specific account/s.
- * This method performs several key operations:
- * 1. Validates Auth
- * 2. Deletes accounts
- * (note) We do not need to look through push notifications as we've deleted triggers
+ * Disables wallet-activity subscriptions for the given accounts.
  *
- * **Action** - When a user disables notifications for a given account in settings.
+ * This only writes the Trigger API. The device's FCM links stay in place,
+ * because those links deliver every notification source for an address.
  *
- * @param accounts - The account for which on-chain triggers are to be deleted.
- * @returns A promise that resolves to void or an object containing a success message.
+ * **Action** - When a user disables wallet activity for a given account.
+ *
+ * @param accounts - The accounts whose wallet-activity subscriptions are disabled.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
 export type NotificationServicesControllerDisableAccountsAction = {
@@ -113,18 +117,14 @@ export type NotificationServicesControllerDisableAccountsAction = {
 };
 
 /**
- * Updates/Creates on-chain triggers for a specific account.
+ * Enables wallet-activity subscriptions for the given accounts.
  *
- * This method performs several key operations:
- * 1. Validates Auth & Storage
- * 2. Finds and creates any missing triggers associated with the account
- * 3. Enables any related push notifications
- * 4. Updates Storage to reflect new state.
+ * This only writes the Trigger API. Linking the device token is handled
+ * when the account is added or when notifications are enabled.
  *
- * **Action** - When a user enables notifications for an account
+ * **Action** - When a user enables wallet activity for an account.
  *
- * @param accounts - List of accounts you want to update.
- * @returns A promise that resolves to the updated user storage.
+ * @param accounts - List of accounts to subscribe.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
 export type NotificationServicesControllerEnableAccountsAction = {
@@ -224,6 +224,35 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
   };
 
 /**
+ * Saves a change to the user's notification preferences in Authenticated
+ * User Storage. Sections and fields left out keep their stored value, so
+ * callers send only what they change.
+ *
+ * Marketing notifications require marketing consent, so an update that
+ * turns a marketing channel on while the user has not consented is
+ * rejected. Only the fields in the update are checked: a marketing channel
+ * already on in storage doesn't block updates to other preferences. Turning
+ * consent off turns marketing channels off on its own (see
+ * `MarketingConsentSyncService`).
+ *
+ * Read preferences from `AuthenticatedUserStorageService:getNotificationPreferences`
+ * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to
+ * date; write them through this method so the consent rule is enforced.
+ *
+ * @param update - The sections and fields to change.
+ * @returns The saved preferences.
+ * @throws {MarketingConsentRequiredError} If the update turns a marketing
+ * channel on without marketing consent.
+ * @throws If notification preferences have not been set up yet; they are
+ * created when notifications are first enabled.
+ */
+export type NotificationServicesControllerUpdateNotificationPreferencesAction =
+  {
+    type: `NotificationServicesController:updateNotificationPreferences`;
+    handler: NotificationServicesController['updateNotificationPreferences'];
+  };
+
+/**
  * Union of all NotificationServicesController action types.
  */
 export type NotificationServicesControllerMethodActions =
@@ -243,4 +272,5 @@ export type NotificationServicesControllerMethodActions =
   | NotificationServicesControllerDeleteNotificationsByIdAction
   | NotificationServicesControllerMarkMetamaskNotificationsAsReadAction
   | NotificationServicesControllerUpdateMetamaskNotificationsListAction
-  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction;
+  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction
+  | NotificationServicesControllerUpdateNotificationPreferencesAction;

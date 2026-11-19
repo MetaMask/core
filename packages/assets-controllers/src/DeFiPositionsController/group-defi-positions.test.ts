@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { describe, expect, it } from 'vitest';
 
 import {
   MOCK_DEFI_RESPONSE_BORROW,
@@ -6,9 +7,9 @@ import {
   MOCK_DEFI_RESPONSE_FAILED_ENTRY,
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
-} from './__fixtures__/mock-responses';
-import { MOCK_EXPECTED_RESULT } from './__fixtures__/mock-result';
-import { groupDeFiPositions } from './group-defi-positions';
+} from './__fixtures__/mock-responses.js';
+import { MOCK_EXPECTED_RESULT } from './__fixtures__/mock-result.js';
+import { groupDeFiPositions } from './group-defi-positions.js';
 
 describe('groupDeFiPositions', () => {
   it('groups multiple chains', () => {

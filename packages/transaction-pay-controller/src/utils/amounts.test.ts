@@ -1,6 +1,7 @@
 import { BigNumber } from 'bignumber.js';
+import { describe, expect, it } from 'vitest';
 
-import { getFiatValueFromUsd, sumAmounts } from './amounts';
+import { getFiatValueFromUsd, sumAmounts } from './amounts.js';
 
 describe('Amounts utils', () => {
   describe('sumAmounts', () => {

@@ -2,40 +2,48 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
-import { updateFiatPayment } from './actions/update-fiat-payment';
-import { updatePaymentToken } from './actions/update-payment-token';
+import { updateFiatPayment } from './actions/update-fiat-payment.js';
+import { updatePaymentToken } from './actions/update-payment-token.js';
 import {
   CONTROLLER_NAME,
   isTransactionPayStrategy,
   TransactionPayStrategy,
-} from './constants';
-import { QuoteRefresher } from './helpers/QuoteRefresher';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
+} from './constants.js';
+import type { TransactionPayClientId } from './constants.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
+  GetAmountDataCallback,
+  GetBalanceCallback,
   GetDelegationTransactionCallback,
+  GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
+  TransactionPayFiatOptions,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
-} from './types';
-import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
-import { buildCaipAssetType } from './utils/token';
+} from './types.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
+import { updateQuotes } from './utils/quotes.js';
+import { updateSourceAmounts } from './utils/source-amounts.js';
+import { getEvmPaymentToken } from './utils/token.js';
 import {
-  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getAmountData',
+  'getClientId',
   'getDelegationTransaction',
+  'getFiatOptions',
+  'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -62,7 +70,17 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #clientId?: TransactionPayClientId;
+
+  readonly #fiatOptions?: TransactionPayFiatOptions;
+
+  readonly #getAmountData?: GetAmountDataCallback;
+
+  readonly #getBalance?: GetBalanceCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
@@ -75,7 +93,12 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    clientId,
+    fiatOptions,
+    getAmountData,
+    getBalance,
     getDelegationTransaction,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
@@ -89,7 +112,12 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#clientId = clientId;
+    this.#fiatOptions = fiatOptions;
+    this.#getAmountData = getAmountData;
+    this.#getBalance = getBalance;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
@@ -113,6 +141,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getBalance: this.#getBalance,
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
@@ -133,26 +162,23 @@ export class TransactionPayController extends BaseController<
     callback: TransactionConfigCallback,
   ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      const config = {
-        isMaxAmount: transactionData.isMaxAmount,
-        isPostQuote: transactionData.isPostQuote,
-        isHyperliquidSource: transactionData.isHyperliquidSource,
-        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
-        refundTo: transactionData.refundTo,
+      const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
+        atomic: transactionData.atomic,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
+        isMaxAmount: transactionData.isMaxAmount,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isPostQuote: transactionData.isPostQuote,
+        isQuoteRequired: transactionData.isQuoteRequired,
+        paymentOverride: transactionData.paymentOverride,
+        refundTo: transactionData.refundTo,
       };
 
       const previousAccountOverride = config.accountOverride;
 
       callback(config);
 
-      transactionData.accountOverride = config.accountOverride;
-      transactionData.isMaxAmount = config.isMaxAmount;
-      transactionData.isPostQuote = config.isPostQuote;
-      transactionData.isHyperliquidSource = config.isHyperliquidSource;
-      transactionData.isPolymarketDepositWallet =
-        config.isPolymarketDepositWallet;
-      transactionData.refundTo = config.refundTo;
+      Object.assign(transactionData, config);
 
       if (
         !config.isPostQuote &&
@@ -198,6 +224,19 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
+   * Returns the configured client identifier.
+   *
+   * Used to set the `X-Client-Id` header on intents API requests so the
+   * server can distinguish Mobile from Extension traffic. This is
+   * intentionally not stored in controller state.
+   *
+   * @returns The client identifier, if configured.
+   */
+  getClientId(): TransactionPayClientId | undefined {
+    return this.#clientId;
+  }
+
+  /**
    * Gets the delegation transaction for a given transaction.
    *
    * Converts the provided transaction into a redeem delegation by delegating
@@ -213,6 +252,41 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetDelegationTransactionCallback>
   ): ReturnType<GetDelegationTransactionCallback> {
     return this.#getDelegationTransaction(...args);
+  }
+
+  /**
+   * Returns additional transactions for the paymentOverride flow.
+   *
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
+   * Returns an empty array when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+   * @returns A promise resolving to the additional transactions array.
+   */
+  getAmountData(
+    ...args: Parameters<GetAmountDataCallback>
+  ): ReturnType<GetAmountDataCallback> {
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  /**
+   * Returns optional fiat execution configuration.
+   *
+   * This is intentionally not stored in controller state.
+   *
+   * @returns Fiat execution options, if configured.
+   */
+  getFiatOptions(): TransactionPayFiatOptions | undefined {
+    return this.#fiatOptions;
+  }
+
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve({ calls: [] })
+    );
   }
 
   /**
@@ -273,7 +347,6 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
-    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -300,9 +373,10 @@ export class TransactionPayController extends BaseController<
       fn(current);
 
       const isPaymentTokenUpdated =
-        current.paymentToken?.address?.toLowerCase() !==
-          originalPaymentToken?.address?.toLowerCase() ||
-        current.paymentToken?.chainId !== originalPaymentToken?.chainId;
+        current.paymentToken?.assetId !== originalPaymentToken?.assetId;
+
+      const isPaymentTokenBalanceUpdated =
+        current.paymentToken?.balanceRaw !== originalPaymentToken?.balanceRaw;
 
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
@@ -322,40 +396,40 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
+        updateSourceAmounts(
+          transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
+          current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
+          this.messenger,
+          this.#getBalance,
+        );
 
         shouldUpdateQuotes = true;
+      } else if (
+        isPaymentTokenBalanceUpdated &&
+        current.isMaxAmount &&
+        !current.isPostQuote
+      ) {
+        // On max the source amount is the payment token balance, so a
+        // refreshed balance must re-derive it, otherwise the amount stays at
+        // whatever the balance was when the token was selected. Quotes are not
+        // requested again here: the balance is refreshed by `updateQuotes`
+        // itself, which reads the re-derived amounts before building requests.
+        updateSourceAmounts(
+          transactionId,
+          /* oxlint-disable typescript/no-unnecessary-type-assertion */
+          current as never,
+          /* oxlint-enable typescript/no-unnecessary-type-assertion */
+          this.messenger,
+          this.#getBalance,
+        );
       }
 
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
         shouldUpdateQuotes = true;
       }
-
-      if (isFiatPaymentMethodUpdated) {
-        shouldUpdateFiatToken = true;
-      }
     });
-
-    if (shouldUpdateFiatToken) {
-      const transaction = getTransaction(
-        transactionId,
-        this.messenger,
-      ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(
-        transaction,
-        this.messenger,
-      );
-      if (fiatAsset) {
-        this.#updateTransactionData(transactionId, (data) => {
-          if (data.fiatPayment) {
-            data.fiatPayment.caipAssetId = buildCaipAssetType(
-              fiatAsset.chainId,
-              fiatAsset.address,
-            );
-          }
-        });
-      }
-    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({
@@ -386,12 +460,12 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const paymentToken = transactionData?.paymentToken;
+    const evmPaymentToken = getEvmPaymentToken(transactionData?.paymentToken);
 
     return getStrategyOrder(
       this.messenger,
-      paymentToken?.chainId,
-      paymentToken?.address,
+      evmPaymentToken?.chainId,
+      evmPaymentToken?.address,
       transaction.type,
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
