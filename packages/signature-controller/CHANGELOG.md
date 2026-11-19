@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
-- Bump `@metamask/gator-permissions-controller` from `^6.1.2` to `^6.1.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 

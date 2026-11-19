@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.2.2]
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11653](https://github.com/MetaMask/core/pull/11653))
@@ -103,8 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.2.2...HEAD
-[2.2.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.2.1...@metamask/money-account-utils@2.2.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.2.1...HEAD
 [2.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.2.0...@metamask/money-account-utils@2.2.1
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.1.0...@metamask/money-account-utils@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.1...@metamask/money-account-utils@2.1.0

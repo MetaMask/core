@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^21.0.0` to `^21.0.1` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))

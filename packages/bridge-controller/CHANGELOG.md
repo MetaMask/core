@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [83.3.1]
-
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^21.0.0` to `^21.0.1` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
@@ -2265,8 +2262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.1...HEAD
-[83.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...@metamask/bridge-controller@83.3.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...HEAD
 [83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
 [83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0
 [83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5
