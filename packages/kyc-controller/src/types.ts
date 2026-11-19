@@ -439,23 +439,22 @@ export type KycVendorRequestSigner = (params: {
  * The steps kyc-api can send for a vendor. The client maps each step to a
  * screen it already has; kyc-api never sends copy or layout.
  *
- * Kalshi sends `account_link` for the email and its code, and `phone_link`
- * for the phone and its code. Each is one step and two screens, and the
- * phone owns the second screen. Signing `users/link` and `users/link/verify`
- * stays on those email screens. Iron still sends `identity_email_code` and
- * `identity_phone`.
+ * Kalshi sends `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`,
+ * `sumsub`, and `decision`. Iron sends `terms`, `mfa`, `sumsub`, and
+ * `decision`. `kalshi_email_link` is the email and its code, and
+ * `kalshi_phone_link` is the phone and its code. Each is one step and two
+ * screens, and the phone owns the second screen. Signing `users/link` and
+ * `users/link/verify` stays on those email calls.
  */
 export const KYC_STEPS = [
-  'vendor_terms',
-  'confirm_identity',
-  'account_link',
-  'phone_link',
-  'identity_email_code',
-  'identity_phone',
-  'identity_provider',
+  'terms',
+  'mfa',
+  'kalshi_email_link',
+  'kalshi_phone_link',
+  'sumsub',
   /** Nothing left for the user to do. {@link KycStatus} says whether that is
    * good news. */
-  'done',
+  'decision',
   'error',
 ] as const;
 

@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Kalshi reports `account_link` for the email and its code, and `phone_link` for the phone and its code. `identity_email_code` and `identity_phone` stay for Iron. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
+- Onboarding steps are `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`, `sumsub`, and `decision`. Kalshi uses all of them. Iron uses `terms`, `mfa`, `sumsub`, and `decision`. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
 - Kalshi session creation and the email steps send the phone-signed `Venue-Authorization` objects. `vendorRequestSigners` replaces `accountLinkAdapters`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
 - `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor ([#11441](https://github.com/MetaMask/core/pull/11441))

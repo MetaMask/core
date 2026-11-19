@@ -161,8 +161,18 @@ describe('toKycStep', () => {
     expect(toKycStep('brand_new_step')).toBe('error');
   });
 
-  it('does not accept the old step name', () => {
-    expect(toKycStep('verify_email')).toBe('error');
+  it.each([
+    'vendor_terms',
+    'confirm_identity',
+    'account_link',
+    'phone_link',
+    'identity_provider',
+    'identity_email_code',
+    'identity_phone',
+    'done',
+    'verify_email',
+  ])('does not accept the old step name %s', (step) => {
+    expect(toKycStep(step)).toBe('error');
   });
 });
 

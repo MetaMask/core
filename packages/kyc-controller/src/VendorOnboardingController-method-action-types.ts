@@ -39,7 +39,7 @@ export type VendorOnboardingControllerAcceptTermsAction = {
 /**
  * Opens the vendor's UKYC session, or picks up the one kyc-api already has,
  * then reads the next step. Call it from the step that asks for MFA
- * (`confirm_identity`), with the token MFA returned.
+ * (`mfa`), with the token MFA returned.
  *
  * A new session creates the user's `local_user_secret` when it is missing,
  * then wraps the encryption key and a capability token for idOS. An existing

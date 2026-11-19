@@ -1058,13 +1058,13 @@ describe('KycService', () => {
         .matchHeader('authorization', 'Bearer test-bearer')
         .reply(200, {
           vendor: 'kalshi',
-          step: 'confirm_identity',
+          step: 'mfa',
           status: 'none',
         });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'confirm_identity',
+        step: 'mfa',
         status: 'none',
       });
     });
@@ -1075,27 +1075,27 @@ describe('KycService', () => {
         .query({ vendorTermsAcceptedLocally: 'true' })
         .reply(200, {
           vendor: 'iron',
-          step: 'confirm_identity',
+          step: 'mfa',
           status: 'none',
         });
       const { service } = getService();
 
       expect(
         await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
-      ).toStrictEqual({ step: 'confirm_identity', status: 'none' });
+      ).toStrictEqual({ step: 'mfa', status: 'none' });
     });
 
     it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',
-        step: 'identity_email_code',
+        step: 'kalshi_email_link',
         status: 'pending',
         somethingNew: true,
       });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'identity_email_code',
+        step: 'kalshi_email_link',
         status: 'pending',
       });
     });
