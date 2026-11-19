@@ -9,19 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.0.0]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- fix(perps-controller): follow up on HIP-3 Cross margin review ([#11623](https://github.com/MetaMask/core/pull/11623))
-- Release 1437.0.0 ([#11611](https://github.com/MetaMask/core/pull/11611))
-- Release/1435.0.0 ([#11605](https://github.com/MetaMask/core/pull/11605))
-- docs(perps-controller): client timings come from one overridable config ([#11603](https://github.com/MetaMask/core/pull/11603))
-- docs(perps-controller): mark the client contract as agreed ([#11573](https://github.com/MetaMask/core/pull/11573))
-- Release 1431.0.0 ([#11579](https://github.com/MetaMask/core/pull/11579))
-
 ### Added
 
 - Add `crossMarginUnavailableReason` to HyperLiquid order capabilities when Cross is restricted, distinguishing the venue's no-Cross and strict-isolated modes from generic isolated-only markets. ([#11629](https://github.com/MetaMask/core/pull/11629))
