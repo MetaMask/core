@@ -1489,6 +1489,7 @@ describe('PerpsController', () => {
 
         expect(result).toStrictEqual({
           success: false,
+          status: 'none',
           successCount: 0,
           failureCount: 0,
           results: [],
@@ -1722,6 +1723,67 @@ describe('PerpsController', () => {
       expect(
         mockInfrastructure.streamManager.resumeChannel,
       ).toHaveBeenCalledWith('orders');
+    });
+  });
+
+  describe('batch result status', () => {
+    const batch = (successCount: number, failureCount: number) => ({
+      success: successCount > 0,
+      successCount,
+      failureCount,
+      results: [],
+    });
+
+    it.each([
+      ['all', 2, 0],
+      ['partial', 1, 1],
+      ['none', 0, 2],
+      ['none', 0, 0],
+    ] as const)(
+      'reports %s from cancelOrders with %i cancelled and %i failed',
+      async (status, successCount, failureCount) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrders').mockResolvedValue(
+          batch(successCount, failureCount),
+        );
+
+        const result = await controller.cancelOrders({ cancelAll: true });
+
+        expect(result.status).toBe(status);
+      },
+    );
+
+    it.each([
+      ['all', 2, 0],
+      ['partial', 1, 1],
+      ['none', 0, 2],
+    ] as const)(
+      'reports %s from closePositions with %i closed and %i failed',
+      async (status, successCount, failureCount) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        vi.spyOn(
+          mockTradingServiceInstance,
+          'closePositions',
+        ).mockResolvedValue(batch(successCount, failureCount));
+
+        const result = await controller.closePositions({ closeAll: true });
+
+        expect(result.status).toBe(status);
+      },
+    );
+
+    it('keeps success true on a partial close, so status is what separates it', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      vi.spyOn(mockTradingServiceInstance, 'closePositions').mockResolvedValue(
+        batch(1, 1),
+      );
+
+      const result = await controller.closePositions({ closeAll: true });
+
+      expect(result).toMatchObject({ success: true, status: 'partial' });
     });
   });
 

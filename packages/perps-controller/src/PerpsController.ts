@@ -93,6 +93,7 @@ import type {
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  WithBatchOperationStatus,
   DepositWithConfirmationParams,
   EditOrderParams,
   FeeCalculationParams,
@@ -213,6 +214,7 @@ import {
   createLiveTwapOrderList,
 } from './utils/advancedOrderLists.js';
 import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
+import { withBatchOperationStatus } from './utils/batchOperationStatus.js';
 import {
   getUnroutedCancelOrdersRefusal,
   resolveCancelSelection,
@@ -4100,9 +4102,11 @@ export class PerpsController extends BaseController<
    * Batch version of cancelOrder() that cancels multiple orders simultaneously
    *
    * @param params - The operation parameters.
-   * @returns The batch cancellation results for each order.
+   * @returns Per-order results, plus `status`: `all`, `partial` or `none`.
    */
-  async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
+  async cancelOrders(
+    params: CancelOrdersParams,
+  ): Promise<WithBatchOperationStatus<CancelOrdersResult>> {
     const selection = resolveCancelSelection(params);
     const request = {
       ...params,
@@ -4135,7 +4139,7 @@ export class PerpsController extends BaseController<
     }
     const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
     if (refusal) {
-      return refusal;
+      return withBatchOperationStatus(refusal);
     }
 
     if (
@@ -4147,7 +4151,7 @@ export class PerpsController extends BaseController<
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
-    return this.#tradingService.cancelOrders({
+    const result = await this.#tradingService.cancelOrders({
       provider,
       params: request,
       assertCurrent: () => assertCurrent(provider),
@@ -4162,6 +4166,7 @@ export class PerpsController extends BaseController<
         channels: string[],
       ) => this.#withStreamPause(operation, channels),
     });
+    return withBatchOperationStatus(result);
   }
 
   /**
@@ -4208,11 +4213,11 @@ export class PerpsController extends BaseController<
    * Batch version of closePosition() that closes multiple positions simultaneously
    *
    * @param params - The operation parameters.
-   * @returns The batch close results for each position.
+   * @returns Per-position results, plus `status`: `all`, `partial` or `none`.
    */
   async closePositions(
     params: ClosePositionsParams,
-  ): Promise<ClosePositionsResult> {
+  ): Promise<WithBatchOperationStatus<ClosePositionsResult>> {
     // closeAll fans out to every enabled venue, and explicit targets name
     // their own venue. A legacy symbols-only close stays ambiguous in
     // multi-venue aggregated mode and is refused below rather than guessed.
@@ -4220,18 +4225,19 @@ export class PerpsController extends BaseController<
     if (resolveCloseSelection(params).kind === 'symbols') {
       const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
       if (unroutedRefusal) {
-        return unroutedRefusal;
+        return withBatchOperationStatus(unroutedRefusal);
       }
     }
     this.#ensureTradingServiceDeps();
 
-    return this.#tradingService.closePositions({
+    const result = await this.#tradingService.closePositions({
       provider,
       params,
       context: this.#createServiceContext('closePositions', {
         getPositions: (readParams) => this.getPositions(readParams),
       }),
     });
+    return withBatchOperationStatus(result);
   }
 
   /**

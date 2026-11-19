@@ -29,6 +29,7 @@ import {
 
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
+import { OrderDiscoveryError } from '../../src/errors.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -1240,10 +1241,19 @@ describe('PerpsController default provider', () => {
         () => controller.withdraw({ amount: '10' }),
         () => mockAccountServiceInstance.withdraw,
         { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED },
+        { success: true },
+        { success: true },
       ],
     ])(
       'refuses an unrouted %s only while multiple providers are registered',
-      async (_name, invoke, getService, expectedRefusal) => {
+      async (
+        _name,
+        invoke,
+        getService,
+        expectedRefusal,
+        serviceResult,
+        expectedResult,
+      ) => {
         const service = getService();
 
         await expect(invoke()).resolves.toStrictEqual(expectedRefusal);
@@ -1251,9 +1261,9 @@ describe('PerpsController default provider', () => {
         expect(service).not.toHaveBeenCalled();
 
         aggregatedProvider.removeProvider('lighter');
-        service.mockResolvedValue({ success: true });
+        service.mockResolvedValue(serviceResult);
 
-        await expect(invoke()).resolves.toEqual({ success: true });
+        await expect(invoke()).resolves.toEqual(expectedResult);
 
         expect(service).toHaveBeenCalledTimes(1);
         expect(service.mock.calls[0][0].provider).toBe(aggregatedProvider);
@@ -1283,14 +1293,20 @@ describe('PerpsController default provider', () => {
           failureCount: 0,
           results: [],
           error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+          status: 'none',
         });
         expect(mockTradingServiceInstance.cancelOrders).not.toHaveBeenCalled();
         aggregatedProvider.removeProvider('lighter');
-        mockTradingServiceInstance.cancelOrders.mockResolvedValue({
+        const result = {
           success: true,
-        });
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        };
+        mockTradingServiceInstance.cancelOrders.mockResolvedValue(result);
         await expect(controller.cancelOrders(params)).resolves.toEqual({
-          success: true,
+          ...result,
+          status: 'all',
         });
       },
     );
@@ -1349,6 +1365,7 @@ describe('PerpsController default provider', () => {
       expect((lighterProvider as any).cancelOrders).toHaveBeenCalledWith([
         { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
       ]);
+      expect(result.status).toBe('all');
       expect(result.successCount).toBe(2);
       expect(result.results).toEqual([
         {
@@ -1364,6 +1381,52 @@ describe('PerpsController default provider', () => {
           providerId: 'lighter',
         },
       ]);
+    });
+
+    it('keeps discovery failures when other venues cancel successfully', async () => {
+      const { TradingService: RealTradingService } = await vi.importActual<
+        typeof import('../../src/services/TradingService.js')
+      >('../../src/services/TradingService.js');
+      const realTradingService = new RealTradingService(
+        mockInfrastructure as never,
+      );
+      mockTradingServiceInstance.cancelOrders.mockImplementation(
+        (options: never) => realTradingService.cancelOrders(options),
+      );
+      const discoveryFailures = [
+        { providerId: 'lighter' as const, error: 'Venue unavailable' },
+      ];
+      mockMarketDataServiceInstance.getOpenOrders.mockRejectedValue(
+        new OrderDiscoveryError({
+          orders: [
+            createMockOrder({ orderId: 'hl-1', providerId: 'hyperliquid' }),
+          ],
+          failures: discoveryFailures,
+        }),
+      );
+      mockProvider.cancelOrders.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [
+          {
+            orderId: 'hl-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'hyperliquid',
+          },
+        ],
+      });
+
+      await expect(
+        controller.cancelOrders({ cancelAll: true }),
+      ).resolves.toMatchObject({
+        status: 'partial',
+        successCount: 1,
+        failureCount: 1,
+        discoveryFailures,
+        error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
+      });
     });
 
     it('fans a mixed-venue close out through explicit provider-tagged targets', async () => {
@@ -1404,6 +1467,7 @@ describe('PerpsController default provider', () => {
       expect((lighterProvider as any).closePositions).toHaveBeenCalledWith({
         symbols: ['BTC'],
       });
+      expect(result.status).toBe('all');
       expect(result.successCount).toBe(2);
     });
 
