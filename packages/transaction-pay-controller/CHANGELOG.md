@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Price gas station fees by simulating the full EIP-7702 batch instead of scaling the first transaction ([#11626](https://github.com/MetaMask/core/pull/11626))
   - Multi-transaction quotes now pass every origin transaction, including the original transaction for post-quote flows, to `TransactionController:getGasFeeTokens` as the batch that is submitted.
   - Predict withdrawals that pay from a Safe still simulate the first transaction and scale it by the total gas estimate.
+- Send `ServerStrategy` status requests as `POST` including source transaction receipt logs ([#00000](https://github.com/MetaMask/core/pull/00000))
+  - Include the `address`, `data`, and `topics` of each log from the receipt of the local transaction matching the source hash, so providers can resolve their order.
+  - Stop polling and fail immediately when the status request returns a `4xx` response, while still retrying on `5xx` and network errors.
 
 ## [32.1.1]
 

@@ -53,12 +53,17 @@ import {
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
+import {
+  getServerStatus,
+  ServerApiError,
+  submitServerIntent,
+} from './server-api.js';
 import type {
   ServerAuthorization,
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
+  ServerStatusLog,
   ServerStatusResponse,
   ServerSubmitRequest,
 } from './types.js';
@@ -1333,13 +1338,19 @@ async function waitForServerCompletion(
 
     try {
       const tx = getTransaction(transactionId, messenger);
+      const hash = tx?.metamaskPay?.sourceHash ?? tx?.hash;
 
       statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
         id: quote.id,
-        hash: tx?.metamaskPay?.sourceHash ?? tx?.hash,
+        hash,
+        logs: getSourceLogs(hash, messenger),
       });
     } catch (error) {
+      if (isClientError(error)) {
+        throw error;
+      }
+
       log('Polling network error', error);
     }
 
@@ -1382,4 +1393,50 @@ async function waitForServerCompletion(
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
   }
+}
+
+/**
+ * Retrieve the receipt logs of the local transaction with the given hash.
+ *
+ * @param hash - Hash of the source transaction.
+ * @param messenger - Controller messenger.
+ * @returns The receipt logs, or undefined if no matching receipt is found.
+ */
+function getSourceLogs(
+  hash: string | undefined,
+  messenger: TransactionPayControllerMessenger,
+): ServerStatusLog[] | undefined {
+  if (!hash) {
+    return undefined;
+  }
+
+  const { transactions } = messenger.call('TransactionController:getState');
+
+  const sourceTransaction = transactions.find(
+    (tx) => tx.hash?.toLowerCase() === hash.toLowerCase(),
+  );
+
+  const logs = sourceTransaction?.txReceipt?.logs;
+
+  if (!logs?.length) {
+    return undefined;
+  }
+
+  return logs.map(({ address, data, topics }) => ({
+    address: address as Hex,
+    data: data as Hex,
+    topics: topics as unknown as Hex[],
+  }));
+}
+
+/**
+ * Determine if an error is a client error response from the server.
+ *
+ * @param error - Error thrown when fetching the status.
+ * @returns True if the server responded with a 4xx status.
+ */
+function isClientError(error: unknown): boolean {
+  return (
+    error instanceof ServerApiError && error.status >= 400 && error.status < 500
+  );
 }

@@ -37,6 +37,7 @@ import {
 import {
   fetchServerQuote,
   getServerStatus,
+  ServerApiError,
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
@@ -62,7 +63,12 @@ vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   getTransaction: vi.fn(),
   waitForTransactionConfirmed: vi.fn(),
 }));
-vi.mock(import('./server-api.js'));
+vi.mock(import('./server-api.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchServerQuote: vi.fn(),
+  getServerStatus: vi.fn(),
+  submitServerIntent: vi.fn(),
+}));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
@@ -671,6 +677,112 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops polling and throws when getServerStatus returns a client error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(400, '400 - Missing logs'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      '400 - Missing logs',
+    );
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues polling when getServerStatus returns a server error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(500, '500 - Internal error'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('status logs', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+
+    const LOG_MOCK = {
+      address: '0x9999999999999999999999999999999999999999',
+      data: '0xlogdata' as Hex,
+      topics: ['0xtopic1', '0xtopic2'],
+    };
+
+    beforeEach(() => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        metamaskPay: { sourceHash: SOURCE_HASH_MOCK },
+      });
+    });
+
+    it('sends trimmed receipt logs from the transaction matching the source hash', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK.toUpperCase(),
+        txReceipt: {
+          logs: [
+            {
+              ...LOG_MOCK,
+              blockNumber: '0x1',
+              logIndex: '0x0',
+              transactionHash: SOURCE_HASH_MOCK,
+            } as never,
+          ],
+        },
+      };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: [LOG_MOCK],
+        provider: 'relay',
+      });
+    });
+
+    it('omits logs when no transaction matches the source hash', async () => {
+      currentTransaction = { ...currentTransaction, hash: '0xother' };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+
+    it('omits logs when the matching transaction has no receipt logs', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK,
+        txReceipt: {},
+      };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when there is no source hash', async () => {
+      getTransactionMock.mockReturnValue(undefined);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: undefined,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
   });
 
   describe('Polymarket deposit wallet', () => {
