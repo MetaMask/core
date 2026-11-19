@@ -8,6 +8,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
@@ -158,7 +159,7 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['skipInitialDelay'] as const;
+const MESSENGER_EXPOSED_METHODS = ['skipInitialDelay', 'clearState'] as const;
 
 /**
  * Retrieves the state of the {@link ProfileMetricsController}.
@@ -331,6 +332,20 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Reset the controller to its default state. Clients call this on wallet
+   * reset so the next wallet does not inherit the previous wallet's sync queue
+   * and reported accounts.
+   *
+   * Waits for an in-flight poll to finish first, so that it cannot write back
+   * to the cleared state.
+   */
+  async clearState(): Promise<void> {
+    await this.#mutex.runExclusive(() => {
+      this.update(() => getDefaultProfileMetricsControllerState());
+    });
+  }
+
+  /**
    * Execute a single poll to sync user profile data.
    *
    * Each batch of queued accounts is sent to the ProfileMetricsService and
@@ -353,10 +368,11 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       if (!this.#isInitialDelayComplete()) {
         return;
       }
-      const batches = Object.entries(this.state.syncQueue);
-      if (batches.length === 0) {
+      if (Object.keys(this.state.syncQueue).length === 0) {
         return;
       }
+      this.#pruneStaleBatches();
+      const batches = Object.entries(this.state.syncQueue);
       const proofCandidates = this.#getProofCandidatesByAddress();
       for (const [queueKey, accounts] of batches) {
         const entropySourceId =
@@ -386,12 +402,58 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
             delete state.syncQueue[queueKey];
           });
         } catch (error) {
+          if (error instanceof BrokenCircuitError) {
+            // Every remaining batch would fail the same way. Keep them queued
+            // for a later poll instead of logging one error per batch.
+            console.error(
+              'Profile metrics submission paused: the circuit breaker is open.',
+              error,
+            );
+            break;
+          }
           // We want to log the error but continue processing other batches.
           console.error(
             `Failed to submit profile metrics for sync queue key ${queueKey}:`,
             error,
           );
         }
+      }
+    });
+  }
+
+  /**
+   * Drop the batches of entropy sources that no longer have any account.
+   *
+   * A reset or recreated vault leaves the previous keyrings' batches in the
+   * persisted queue. They can never be submitted (the bearer token cannot be
+   * resolved for an unknown entropy source), and their failures would open the
+   * service circuit breaker for every other batch.
+   *
+   * Nothing is dropped while `AccountsController` has no accounts, as its
+   * state may not be loaded yet. The non-mnemonic batch is always kept.
+   */
+  #pruneStaleBatches(): void {
+    const { accounts } = this.messenger.call(
+      'AccountsController:getState',
+    ).internalAccounts;
+    const liveAccounts = Object.values(accounts);
+    if (liveAccounts.length === 0) {
+      return;
+    }
+    const liveEntropySourceIds = new Set(
+      liveAccounts.map(getAccountEntropySourceId),
+    );
+    const staleQueueKeys = Object.keys(this.state.syncQueue).filter(
+      (queueKey) =>
+        queueKey !== NON_MNEMONIC_QUEUE_KEY &&
+        !liveEntropySourceIds.has(queueKey),
+    );
+    if (staleQueueKeys.length === 0) {
+      return;
+    }
+    this.update((state) => {
+      for (const queueKey of staleQueueKeys) {
+        delete state.syncQueue[queueKey];
       }
     });
   }

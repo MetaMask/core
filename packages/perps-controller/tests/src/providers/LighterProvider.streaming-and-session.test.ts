@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { LIGHTER_SOCKET_IDLE_CLOSE_MS } from '../../../src/constants/lighterConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import type { Order, OrderFill } from '../../../src/types/index.js';
 import type {
@@ -1505,7 +1506,9 @@ describe('LighterProvider', () => {
       getUserAddressMock.mockImplementation(() => {
         throw new Error('no selected wallet account');
       });
-      await provider.getAccountState();
+      await expect(provider.getAccountState()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
       expect(resetListenerCount()).toBe(0);
 
       getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
@@ -1574,7 +1577,9 @@ describe('LighterProvider', () => {
         l1Address: accountA.l1Address,
         subAccounts: [accountA],
       });
-      await readUnderA;
+      await expect(readUnderA).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
 
       const accountReads = clientInstance.getAccountByIndex.mock.calls.map(
         (call: unknown[]) => call[0],
@@ -1943,7 +1948,7 @@ describe('LighterProvider', () => {
       releasePositions({ code: 200, accounts: [ACCOUNT] });
       const result = await closeUnderA;
       expect(result.success).toBe(false);
-      expect(result.error).toContain('switched accounts');
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       expect(
         calls.filter((call) => call.function === '_signCreateOrder'),
       ).toHaveLength(0);

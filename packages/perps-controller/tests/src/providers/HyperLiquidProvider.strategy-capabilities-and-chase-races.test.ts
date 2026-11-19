@@ -308,13 +308,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it.each([
-      ['isolated-only', { onlyIsolated: true }, ['isolated']],
-      ['strictIsolated', { marginMode: 'strictIsolated' }, ['isolated']],
-      ['noCross', { marginMode: 'noCross' }, ['isolated']],
-      ['normal', { marginMode: 'normal' }, ['isolated', 'cross']],
+      ['isolated-only', { onlyIsolated: true }, ['isolated'], 'isolatedOnly'],
+      [
+        'strictIsolated',
+        { marginMode: 'strictIsolated' },
+        ['isolated'],
+        'strictIsolated',
+      ],
+      ['noCross', { marginMode: 'noCross' }, ['isolated'], 'noCross'],
+      ['normal', { marginMode: 'normal' }, ['isolated', 'cross'], undefined],
     ])(
       'reports the venue margin modes for a %s HIP-3 market',
-      async (_, restriction, supportedMarginModes) => {
+      async (_, restriction, supportedMarginModes, reason) => {
         const { capabilityProvider } = useHip3Capabilities({
           meta: vi.fn().mockResolvedValue({
             universe: [
@@ -329,19 +334,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         });
 
-        expect(
-          await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-        ).toMatchObject({ status: 'ready', supportedMarginModes });
+        const capabilities = await capabilityProvider.getOrderCapabilities({
+          symbol: 'xyz:TSLA',
+        });
+        expect(capabilities).toMatchObject({
+          status: 'ready',
+          supportedMarginModes,
+        });
+        const reasonProperty = Object.getOwnPropertyDescriptor(
+          capabilities,
+          'crossMarginUnavailableReason',
+        );
+        expect(reasonProperty?.value).toBe(reason);
+        expect(reasonProperty !== undefined).toBe(reason !== undefined);
       },
     );
 
     it.each([
-      ['isolated-only', { onlyIsolated: true }],
+      ['isolatedOnly', { onlyIsolated: true }],
       ['strictIsolated', { marginMode: 'strictIsolated' }],
       ['noCross', { marginMode: 'noCross' }],
     ])(
       'reports only isolated margin for a %s market',
-      async (_, restriction) => {
+      async (reason, restriction) => {
         useStrategyClients({
           info: {
             meta: vi.fn().mockResolvedValue({
@@ -379,6 +394,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated'],
+          crossMarginUnavailableReason: reason,
           ...hyperLiquidMarketLimits(4),
         });
       },

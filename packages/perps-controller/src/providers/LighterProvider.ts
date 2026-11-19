@@ -96,7 +96,10 @@ import {
   isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
-import { createTpslLegReplaceUnsupportedError } from '../errors.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  PerpsControllerError,
+} from '../errors.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
@@ -1231,18 +1234,29 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
-/** Convert authoritative position percentage or default basis points to leverage.
- * @param positionMargin - Position margin percentage, when a position exists.
+/**
+ * Convert account margin settings to leverage, falling back only for a flat market.
+ *
+ * @param held - Account position row, when present.
  * @param defaultInitial - Market initial margin in basis points.
  * @returns Leverage, or NaN when unavailable.
  */
 const scaleLeverageFromMargin = (
-  positionMargin: string | undefined,
+  held:
+    | Pick<LighterApiPosition, 'position' | 'initialMarginFraction'>
+    | undefined,
   defaultInitial: number | undefined,
 ): number => {
   let margin = defaultInitial === undefined ? null : defaultInitial / 100;
-  if (positionMargin !== undefined) {
-    margin = parseStrictDecimal(positionMargin);
+  if (held) {
+    const accountMargin = parseStrictDecimal(held.initialMarginFraction);
+    const isFlat = parseStrictDecimal(held.position) === 0;
+    if (
+      !isFlat ||
+      (held.initialMarginFraction !== undefined && accountMargin !== 0)
+    ) {
+      margin = accountMargin;
+    }
   }
   return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
 };
@@ -8955,7 +8969,7 @@ export class LighterProvider implements PerpsProvider {
       const leverage =
         params.leverage ??
         scaleLeverageFromMargin(
-          held?.initialMarginFraction,
+          held,
           this.#marginBySymbol.get(params.symbol)?.defaultInitial,
         );
       if (
@@ -9094,7 +9108,7 @@ export class LighterProvider implements PerpsProvider {
     const leverage =
       requestedLeverage ??
       scaleLeverageFromMargin(
-        held?.initialMarginFraction,
+        held,
         this.#marginBySymbol.get(group.symbol)?.defaultInitial,
       );
     const balance = parseStrictDecimal(account.availableBalance);
@@ -10245,20 +10259,7 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(params?: GetPositionsParams): Promise<Position[]> {
-    return this.#getPositions(false, params?.throwOnUnavailable);
-  }
-
-  /**
-   * Keep raw signed decimals only for exact partial protection intent.
-   *
-   * @param preserveRawSize - Preserve venue size before adapter number conversion.
-   * @param throwOnUnavailable - Reject failed discovery before destructive operations.
-   * @returns Validated positions.
-   */
-  readonly #getPositions = async (
-    preserveRawSize: boolean,
-    throwOnUnavailable = false,
-  ): Promise<Position[]> => {
+    this.#assertAccountScope(params);
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     // Risk metadata is required for every returned position. A transport
@@ -10266,38 +10267,20 @@ export class LighterProvider implements PerpsProvider {
     // account.
     await this.#ensureMarketMargins();
     try {
-      const accountIndex = await this.#ensureAccountIndex();
-      const response =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      this.#assertSession(generation);
-      const account = response.accounts[0];
-      if (!account && throwOnUnavailable) {
-        throw new Error(`Lighter account ${accountIndex} not returned`);
-      }
-      if (!account?.positions) {
-        return [];
-      }
+      const rows = await this.#readPositionRows(generation);
       // Adapt BEFORE filtering: the adapter strict-validates raw numeric
       // sizes, and a prefix-parsing filter would silently drop (or keep)
       // malformed entries like '0oops' before validation could fire.
-      return account.positions
-        .map((position) => {
-          const adapted = adaptPositionFromLighter(
+      return rows
+        .map((position) =>
+          adaptPositionFromLighter(
             position,
             this.#maxLeverageForPosition(position),
-          );
-          return preserveRawSize
-            ? {
-                ...adapted,
-                size: `${position.sign === -1 ? '-' : ''}${position.position}`,
-              }
-            : adapted;
-        })
+          ),
+        )
         .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
       if (
-        (throwOnUnavailable &&
-          !(caughtError instanceof LighterAccountNotFoundError)) ||
         this.#isUnsupportedCapabilityError(caughtError) ||
         this.#isDataIntegrityError(caughtError)
       ) {
@@ -10305,17 +10288,90 @@ export class LighterProvider implements PerpsProvider {
         // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getPositions',
       );
+      if (
+        params?.throwOnUnavailable &&
+        !(caughtError instanceof LighterSessionCancelledError)
+      ) {
+        throw caughtError;
+      }
       this.#deps.debugLogger.log('[LighterProvider] getPositions failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('getPositions'),
       });
-      return [];
+      throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, caughtError);
     }
-  };
+  }
+
+  async #readPositionRows(generation: number): Promise<LighterApiPosition[]> {
+    const accountIndex = await this.#readAccountIndex(generation);
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const account = response.accounts[0];
+    if (!account) {
+      throw new Error(`Lighter account ${accountIndex} not returned`);
+    }
+    this.#assertAccountOwnership(account);
+    if (account.index !== accountIndex) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} REST position account index does not match the requested account`,
+      );
+    }
+    if (!Array.isArray(account.positions)) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`,
+      );
+    }
+    return account.positions;
+  }
+
+  /**
+   * Discover open markets for close-all without requiring display margin.
+   *
+   * @internal
+   * @returns Targets with validated nonzero positions and their bound account.
+   */
+  async getClosePositionTargets(): Promise<
+    Pick<ClosePositionParams, 'symbol' | 'expectedAccountId'>[]
+  > {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    try {
+      const expectedAccountId = await this.getCurrentAccountId();
+      const rows = await this.#readPositionRows(generation);
+      const seen = new Set<string>();
+      const targets: Pick<
+        ClosePositionParams,
+        'symbol' | 'expectedAccountId'
+      >[] = [];
+      for (const row of rows) {
+        if (!row.symbol || seen.has(row.symbol)) {
+          throw new Error(
+            `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid or duplicate position symbol`,
+          );
+        }
+        seen.add(row.symbol);
+        if (this.#readReductionSize(row) > 0) {
+          targets.push({ symbol: row.symbol, expectedAccountId });
+        }
+      }
+      return targets;
+    } catch (error) {
+      if (error instanceof LighterAccountNotFoundError) {
+        return [];
+      }
+      if (error instanceof LighterSessionCancelledError) {
+        throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
+      }
+      throw error;
+    }
+  }
 
   /**
    * Report the margin mode Lighter currently binds to a market. Only an
@@ -10363,6 +10419,39 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Confirm the lookup still belongs to the read's session, including when
+   * the venue rejects it. Only the current wallet can have no account.
+   *
+   * @param generation - Session that initiated the read.
+   * @returns The current account index.
+   */
+  async #readAccountIndex(generation: number): Promise<number> {
+    try {
+      return await this.#ensureAccountIndex();
+    } finally {
+      this.#assertSession(generation);
+    }
+  }
+
+  /**
+   * Error for a failed read. A read the wallet's account switch cancelled is
+   * stale (`PROVIDER_LIFECYCLE_STALE`): its data belonged to the previous
+   * account. Any other failure gets `code`. The cause is attached.
+   *
+   * @param code - Error code for an ordinary read failure.
+   * @param cause - The caught error.
+   * @returns The error to throw.
+   */
+  #readFailure(code: string, cause: unknown): Error {
+    return new Error(
+      cause instanceof LighterSessionCancelledError
+        ? PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+        : code,
+      { cause },
+    );
+  }
+
+  /**
    * Reject wallet scopes that the selected Lighter session cannot serve.
    *
    * @param params - Requested wallet scope.
@@ -10397,11 +10486,10 @@ export class LighterProvider implements PerpsProvider {
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
     this.#assertAccountScope(params);
-    const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
-      const accountIndex = await this.#ensureAccountIndex();
+      const accountIndex = await this.#readAccountIndex(generation);
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
       // A delayed response for the previous account must never surface as
@@ -10409,10 +10497,7 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const account = response.accounts[0];
       if (!account) {
-        if (throwOnUnavailable) {
-          throw new Error(`Lighter account ${accountIndex} not returned`);
-        }
-        return EMPTY_ACCOUNT_STATE;
+        throw new Error(`Lighter account ${accountIndex} not returned`);
       }
       const accountState = adaptAccountStateFromLighter(account);
       const crossMarginSummary = await this.#readCrossMarginSummary(
@@ -10432,25 +10517,15 @@ export class LighterProvider implements PerpsProvider {
         // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
-      if (
-        throwOnUnavailable &&
-        !(caughtError instanceof LighterAccountNotFoundError)
-      ) {
-        // Opted-in callers must be able to tell a failed read from a real
-        // zero balance. A wallet without a Lighter account is a real zero.
-        throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED, {
-          cause: caughtError,
-        });
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        // A wallet without a Lighter account is a real zero.
+        return EMPTY_ACCOUNT_STATE;
       }
-      const wrappedError = ensureError(
+      // Callers must be able to tell a failed read from a real zero balance.
+      throw this.#readFailure(
+        PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
         caughtError,
-        'LighterProvider.getAccountState',
       );
-      this.#deps.debugLogger.log('[LighterProvider] getAccountState failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getAccountState'),
-      });
-      return EMPTY_ACCOUNT_STATE;
     }
   }
 
@@ -10557,7 +10632,7 @@ export class LighterProvider implements PerpsProvider {
   readonly #readOpenOrdersStrict = async (): Promise<Order[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const accountIndex = await this.#ensureAccountIndex();
+    const accountIndex = await this.#readAccountIndex(generation);
     const authToken = await this.#getAuthToken();
     // The index and the token must belong to the SAME session — never
     // pair the previous account's index with the new account's token.
@@ -10585,15 +10660,11 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
-      const wrappedError = ensureError(
-        caughtError,
-        'LighterProvider.getOpenOrders',
-      );
-      this.#deps.debugLogger.log('[LighterProvider] getOpenOrders failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getOpenOrders'),
-      });
-      return [];
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
+      }
+      // A failed read leaves the order list unknown, not empty.
+      throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);
     }
   }
 
@@ -10604,7 +10675,7 @@ export class LighterProvider implements PerpsProvider {
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
-      const accountIndex = await this.#ensureAccountIndex();
+      const accountIndex = await this.#readAccountIndex(generation);
       const authToken = await this.#getAuthToken();
       this.#assertSession(generation);
       await this.#ensureMarkets();
@@ -10622,8 +10693,7 @@ export class LighterProvider implements PerpsProvider {
       );
       // Full lifecycle: open orders first, then the historical states.
       const open = await this.getOpenOrders(params);
-      // getOpenOrders swallows its own cancellation into []; the merge must
-      // still refuse to pair A's history with B's session.
+      // The merge must refuse to pair A's history with B's session.
       this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {
@@ -10634,15 +10704,19 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
-      const wrappedError = ensureError(
-        caughtError,
-        'LighterProvider.getOrders',
-      );
-      this.#deps.debugLogger.log('[LighterProvider] getOrders failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getOrders'),
-      });
-      return [];
+      if (
+        caughtError instanceof Error &&
+        (caughtError.message === PERPS_ERROR_CODES.ORDERS_FAILED ||
+          caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
+        // Already classified by the open-orders leg.
+        throw caughtError;
+      }
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
+      }
+      // A failed read leaves the order list unknown, not empty.
+      throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);
     }
   }
 
@@ -12504,7 +12578,7 @@ export class LighterProvider implements PerpsProvider {
     );
     if (
       rows.length !== 1 ||
-      !new BigNumber(rows[0].initialMarginFraction).eq(100) ||
+      parseStrictDecimal(rows[0].initialMarginFraction) !== 100 ||
       !new BigNumber(rows[0].position).abs().eq(expectedFilled) ||
       (!expectedFilled.isZero() && (rows[0].sign === 1) !== intent.isBuy) ||
       account.pendingOrderCount !== 0 ||
@@ -13617,7 +13691,7 @@ export class LighterProvider implements PerpsProvider {
     );
     if (
       positions.length !== 1 ||
-      !new BigNumber(positions[0].initialMarginFraction).eq(100)
+      parseStrictDecimal(positions[0].initialMarginFraction) !== 100
     ) {
       throw new Error(
         'Native TWAP probe requires independently confirmed existing 1x leverage',
@@ -14609,6 +14683,67 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Read the target position without adapting account-wide display data.
+   *
+   * @param symbol - Market whose exposure is being reduced or protected.
+   * @returns Signed base size and entry price, or undefined for a flat market.
+   */
+  async #readPositionForReduction(
+    symbol: string,
+  ): Promise<{ size: string; entryPrice: string } | undefined> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    try {
+      const positions = await this.#readPositionRows(generation);
+      const rows = positions.filter((position) => position.symbol === symbol);
+      if (rows.length === 0) {
+        return undefined;
+      }
+      const row = rows[0];
+      if (rows.length !== 1) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} duplicate position for ${symbol}`,
+        );
+      }
+      if (this.#readReductionSize(row) === 0) {
+        return undefined;
+      }
+      return {
+        size: new BigNumber(row.position).times(row.sign).toFixed(),
+        entryPrice: row.avgEntryPrice,
+      };
+    } catch (error) {
+      if (error instanceof LighterAccountNotFoundError) {
+        return undefined;
+      }
+      if (this.#mustSurfaceReadError(error)) {
+        throw error;
+      }
+      throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
+    }
+  }
+
+  #readReductionSize(row: LighterApiPosition): number {
+    const size = parseStrictDecimal(row.position);
+    if (size === null || !Number.isFinite(size) || size < 0) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${row.position}' for ${row.symbol}`,
+      );
+    }
+    if (row.sign !== 1 && row.sign !== -1) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(row.sign)}' for ${row.symbol}`,
+      );
+    }
+    return size;
+  }
+
+  async #readPositionSizeForClose(symbol: string): Promise<number> {
+    const position = await this.#readPositionForReduction(symbol);
+    return position ? Number(position.size) : 0;
+  }
+
+  /**
    * Live check whether a below-minimum reduce-only request is actually a
    * full close of the held position (shared by placement and validation).
    *
@@ -14620,12 +14755,7 @@ export class LighterProvider implements PerpsProvider {
     symbol: string,
     requestedSize: number,
   ): Promise<boolean> => {
-    const positions = await this.getPositions();
-    const held = Math.abs(
-      parseFloat(
-        positions.find((entry) => entry.symbol === symbol)?.size ?? '0',
-      ),
-    );
+    const held = Math.abs(await this.#readPositionSizeForClose(symbol));
     // Exact match (float epsilon only): closePosition forwards the precise
     // live size, and anything less is a deliberate partial that a min-size
     // bump would silently over-close.
@@ -14646,23 +14776,32 @@ export class LighterProvider implements PerpsProvider {
       // account with sizing derived from the old one.
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
+      if (params.expectedAccountId !== undefined) {
+        const currentAccountId = await this.getCurrentAccountId();
+        this.#assertSession(generationAtIntent);
+        if (
+          currentAccountId.toLowerCase() !==
+          params.expectedAccountId.toLowerCase()
+        ) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          };
+        }
+      }
       const closeOrderType = params.orderType ?? 'market';
       const shapeError = this.#validateCloseShape(params);
       if (shapeError) {
         return { success: false, error: shapeError };
       }
-      const positions = await this.getPositions();
+      const signedSize = await this.#readPositionSizeForClose(params.symbol);
       this.#assertSession(generationAtIntent);
-      const position = positions.find(
-        (entry) => entry.symbol === params.symbol,
-      );
-      if (!position) {
+      if (signedSize === 0) {
         return {
           success: false,
           error: `No open Lighter position for ${params.symbol}`,
         };
       }
-      const signedSize = parseFloat(position.size);
       const explicitSizing =
         params.size !== undefined || params.usdAmount !== undefined;
       const closeSize = params.size ?? String(Math.abs(signedSize));
@@ -14864,10 +15003,7 @@ export class LighterProvider implements PerpsProvider {
       // fill landing DURING the read belongs to the operation's window
       // and must count as lifecycle evidence.
       const lifecycleBoundary = Date.now();
-      const positions = await this.#getPositions(partialRequested);
-      const position = positions.find(
-        (entry) => entry.symbol === params.symbol,
-      );
+      const position = await this.#readPositionForReduction(params.symbol);
       this.#assertSession(generationAtIntent);
       assertExpectedPosition(expectedPosition, position);
       if (partialRequested && position && expectedPosition === undefined) {
@@ -17783,9 +17919,9 @@ export class LighterProvider implements PerpsProvider {
     // approves a close the execution path rejects is worse than none.
     // Capability and data-integrity errors from the read surface as an
     // explicit invalid result, never an exception or a silent empty.
-    let positions: Position[];
+    let signedHeld: number;
     try {
-      positions = await this.getPositions();
+      signedHeld = await this.#readPositionSizeForClose(params.symbol);
     } catch (error) {
       return {
         isValid: false,
@@ -17793,9 +17929,6 @@ export class LighterProvider implements PerpsProvider {
           .message,
       };
     }
-    const signedHeld = parseFloat(
-      positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
-    );
     const held = Math.abs(signedHeld);
     if (held === 0) {
       return {
@@ -17938,18 +18071,16 @@ export class LighterProvider implements PerpsProvider {
     // from this per-position input. Live positions carry the venue's
     // authoritative liquidationPrice; previews support isolated only.
     if (params.marginType === 'cross') {
-      throw new Error(
-        'Lighter cross-margin liquidation previews require account-wide collateral and position inputs that are unavailable',
-      );
+      const unavailable = PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE;
+      throw new PerpsControllerError(unavailable, unavailable);
     }
     const { entryPrice, leverage, direction } = params;
-    if (
-      !isFinite(entryPrice) ||
-      !isFinite(leverage) ||
-      entryPrice <= 0 ||
-      leverage <= 0
-    ) {
-      return '0.00';
+    // Invalid input has no liquidation price; never report one as '0.00'.
+    if (!isFinite(entryPrice) || entryPrice <= 0) {
+      throw new Error(PERPS_ERROR_CODES.PRICE_UNAVAILABLE);
+    }
+    if (!isFinite(leverage) || leverage <= 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
     const maintenanceFraction = await this.calculateMaintenanceMargin({
       asset: params.asset ?? '',

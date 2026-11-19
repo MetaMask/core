@@ -1,4 +1,5 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   BASIS_POINTS_DIVISOR,
@@ -253,8 +254,55 @@ export function adaptTpslLinkageToGrouping(
   }
 }
 
-export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
+/**
+ * Margin Hyperliquid shows for a cross position. When cross equity is below
+ * the cross initial margin, the venue scales each cross position's margin by
+ * `accountValue / totalMarginUsed`.
+ *
+ * @param marginUsed - The position's raw margin used.
+ * @param crossMarginSummary - The clearinghouse's cross margin summary.
+ * @returns The displayed margin, or undefined when an input is not a number.
+ */
+function deriveCrossDisplayMarginUsed(
+  marginUsed: string,
+  crossMarginSummary: ClearinghouseStateResponse['crossMarginSummary'],
+): string | undefined {
+  const margin = new BigNumber(marginUsed);
+  const accountValue = new BigNumber(crossMarginSummary.accountValue);
+  const totalMarginUsed = new BigNumber(crossMarginSummary.totalMarginUsed);
+  if (
+    !margin.isFinite() ||
+    !accountValue.isFinite() ||
+    !totalMarginUsed.isFinite()
+  ) {
+    return undefined;
+  }
+  if (totalMarginUsed.lte(0) || accountValue.gte(totalMarginUsed)) {
+    return margin.toFixed();
+  }
+  return BigNumber.max(
+    margin.times(accountValue).div(totalMarginUsed),
+    0,
+  ).toFixed();
+}
+
+/**
+ * Adapt a Hyperliquid asset position.
+ *
+ * @param assetPosition - Position from a clearinghouse state.
+ * @param crossMarginSummary - That clearinghouse's `crossMarginSummary`. When
+ * given, a cross position also carries `displayMarginUsed`.
+ * @returns The position.
+ */
+export function adaptPositionFromSDK(
+  assetPosition: AssetPosition,
+  crossMarginSummary?: ClearinghouseStateResponse['crossMarginSummary'],
+): Position {
   const pos = assetPosition.position;
+  const displayMarginUsed =
+    pos.leverage.type === 'cross' && crossMarginSummary
+      ? deriveCrossDisplayMarginUsed(pos.marginUsed, crossMarginSummary)
+      : undefined;
   return {
     symbol: pos.coin,
     size: pos.szi,
@@ -262,6 +310,7 @@ export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
     positionValue: pos.positionValue,
     unrealizedPnl: pos.unrealizedPnl,
     marginUsed: pos.marginUsed,
+    ...(displayMarginUsed !== undefined && { displayMarginUsed }),
     leverage: {
       type: pos.leverage.type,
       value: pos.leverage.value,

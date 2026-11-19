@@ -28,6 +28,8 @@ Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighte
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 
+For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `supportedMarginModes: ['isolated']` and `crossMarginUnavailableReason`. The reason is `noCross`, `strictIsolated` or `isolatedOnly` for a legacy or unrecognized restriction. Show the disabled Cross option with the corresponding explanation. A cross-capable market omits the reason.
+
 ## Order-book grouping
 
 `aggregateOrderBookLevels(levels, grouping, side)` buckets one side of the book; `groupOrderBook(book, grouping, maxLevels)` does both sides, trims them and returns `maxTotal` / `maxSize` for depth bars. The grouping preference itself stays in state (`selectOrderBookGrouping`).
@@ -49,6 +51,14 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 - `accountValue` is the cross collateral: `getCrossCollateral(crossMarginSummary, spotCollateral)`, which counts spot collateral on a unified account.
 - For an existing position, `maintenanceMargin` is `crossMarginSummary.maintenanceMargin` (it already includes the position) or `estimateCrossMaintenanceMargin` over every cross position.
 - For an opening order preview, require a current position snapshot confirming there is no existing position in the target market. Keep Mobile's guard for an existing position and for Scale orders. Pass the order price as `markPrice` and the order size as `positionSize`, and add the new position's maintenance at that price to the account's existing maintenance. Show the preview as unavailable when the snapshot is missing or the order adds to, reduces, or flips an existing position.
+
+### Controller liquidation previews
+
+`PerpsController.calculateLiquidationPrice` and `PerpsController:calculateLiquidationPrice` return `Promise<string>`. For a HyperLiquid cross opening, pass `marginType: 'cross'`, `asset`, `entryPrice`, `direction`, `leverage` and a positive `positionSize` in base units. In aggregated mode include `providerId: 'hyperliquid'`. The provider reads the selected wallet's current positions and market tiers. Unified uses shared cross equity and spot USDC. Standard uses only the main DEX's cross pool. Standard HIP-3 openings and other account modes are unavailable in this preview.
+
+A preview without sufficient input rejects with `errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE'`. This replaces the old `'0.00'` sentinel on HyperLiquid. Handle it as an unavailable estimate and clear any stale price for that input. HyperLiquid returns unavailable for changes to an existing position or when the cross estimate has no positive solution. Lighter rejects a cross preview with the same code. Valid prices stay decimal strings; a determinate isolated zero is still possible.
+
+Clients that map every `PerpsErrorCode` need entries for both `ORDERS_FAILED` and `LIQUIDATION_PRICE_UNAVAILABLE` when they bump this package. Use `perps.errors.ordersFailed` for an unavailable orders read and `perps.errors.liquidationPriceUnavailable` for an unavailable estimate. Update Mobile's exhaustive map and Extension's map and coverage test.
 
 ## Error copy
 

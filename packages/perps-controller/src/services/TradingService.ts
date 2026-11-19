@@ -15,6 +15,7 @@ import {
   PerpsControllerError,
 } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
 import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import {
   PerpsAnalyticsEvent,
@@ -1441,7 +1442,15 @@ export class TradingService {
     );
 
     try {
-      const positions = await provider.getPositions();
+      const positions =
+        provider instanceof AggregatedPerpsProvider
+          ? await provider.getPositionsForBatchClose(
+              new Set(venues.filter(isPerpsProviderType)),
+            )
+          : await provider.getPositions({
+              throwOnUnavailable: true,
+              includeProtection: false,
+            });
       // A direct provider's positions are untagged and all its own; an
       // aggregator tags each position with the venue that holds it.
       const venueOf = (position: Position): string =>
@@ -2730,12 +2739,20 @@ export class TradingService {
         });
       } else {
         // Fallback: Get positions, filter, and close in parallel
-        if (!context.getPositions) {
-          throw new Error('getPositions callback not provided in context');
+        let positions: Pick<
+          ClosePositionParams,
+          'symbol' | 'providerId' | 'expectedAccountId'
+        >[];
+        if (provider.getClosePositionTargets) {
+          positions = await provider.getClosePositionTargets();
+        } else {
+          if (!context.getPositions) {
+            throw new Error('getPositions callback not provided in context');
+          }
+          positions = await context.getPositions({
+            throwOnUnavailable: true,
+          });
         }
-        const positions = await context.getPositions({
-          throwOnUnavailable: true,
-        });
 
         // Tagged targets name the positions to close. A provider without a
         // batch method must not treat a target list as close-all just because
@@ -2783,7 +2800,12 @@ export class TradingService {
           positionsToClose.map((position) =>
             this.closePosition({
               provider,
-              params: { symbol: position.symbol },
+              params: {
+                symbol: position.symbol,
+                ...(position.expectedAccountId !== undefined && {
+                  expectedAccountId: position.expectedAccountId,
+                }),
+              },
               context,
               reportOrderToDataLake: () => Promise.resolve({ success: true }), // No-op for batch fallback
               bulkActionId,
@@ -3443,7 +3465,9 @@ export class TradingService {
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
         ...flipIntentProperties,
-        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+        ...(orderParams.leverage !== undefined && {
+          [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+        }),
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
         [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
         ...this.#buildAttributionProperties(trackingData),
@@ -3492,7 +3516,9 @@ export class TradingService {
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
             ...flipIntentProperties,
-            [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+            ...(orderParams.leverage !== undefined && {
+              [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+            }),
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,

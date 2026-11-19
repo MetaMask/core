@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { OrderDiscoveryError } from '../../../src/index.js';
+import { OrderDiscoveryError, PERPS_ERROR_CODES } from '../../../src/index.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   CancelOrdersParams,
+  ClosePositionsResult,
   GetOrdersParams,
   GetPositionsParams,
   Order,
@@ -243,8 +244,11 @@ describe('aggregated account and destructive-operation discovery', () => {
         }),
       ).rejects.toThrow(error);
       expect(close).not.toHaveBeenCalled();
-      // Ordinary display reads keep their established lenient behavior.
-      expect(await provider.getPositions()).toStrictEqual([]);
+      const displayRead = provider.getPositions();
+      await expect(displayRead).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(displayRead).rejects.toHaveProperty('cause.message', error);
     },
   );
 
@@ -273,6 +277,102 @@ describe('aggregated account and destructive-operation discovery', () => {
       results: [],
     });
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      route: 'direct',
+      count: 1,
+      closeAll: ({
+        provider,
+        infrastructure,
+      }: ReturnType<typeof setup>): Promise<ClosePositionsResult> =>
+        new TradingService(infrastructure).closePositions({
+          provider,
+          params: { closeAll: true },
+          context: createMockServiceContext({
+            getPositions: (params?: GetPositionsParams) =>
+              provider.getPositions(params),
+          }),
+        }),
+    },
+    {
+      route: 'aggregated',
+      count: 2,
+      closeAll: ({
+        aggregate,
+      }: ReturnType<typeof setup>): Promise<ClosePositionsResult> =>
+        aggregate.closePositions({ closeAll: true }),
+    },
+  ])(
+    'discovers a Lighter close when $route display margin is unavailable',
+    async ({ count, closeAll }) => {
+      const fixture = setup();
+      const { provider, clientInstance } = fixture;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              { ...ACCOUNT.positions[0], initialMarginFraction: '0' },
+            ],
+          },
+        ],
+      });
+      const close = vi.spyOn(provider, 'closePosition').mockResolvedValue({
+        success: true,
+      });
+      const result = await closeAll(fixture);
+
+      expect(result.successCount).toBe(count);
+      expect(close).toHaveBeenCalledExactlyOnceWith({
+        symbol: 'BTC',
+        expectedAccountId: await provider.getCurrentAccountId(),
+      });
+      await expect(provider.getPositions()).rejects.toThrow(
+        'initial margin fraction',
+      );
+    },
+  );
+
+  it('refuses a discovered Lighter close target after the wallet changes', async () => {
+    const { provider, clientInstance, getUserAddressMock } = setup();
+    const [target] = await provider.getClosePositionTargets();
+    clientInstance.getAccountByIndex.mockClear();
+    getUserAddressMock.mockReturnValue(
+      '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+
+    expect(await provider.closePosition(target)).toMatchObject({
+      success: false,
+      error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    });
+    expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+  });
+
+  it('rejects Lighter close discovery from the wrong account row', async () => {
+    const { aggregate, provider, clientInstance } = setup();
+    await provider.getPositions();
+    clientInstance.getAccountByIndex.mockResolvedValue({
+      code: 200,
+      accounts: [{ ...ACCOUNT, index: 29 }],
+    });
+    const close = vi
+      .spyOn(provider, 'closePosition')
+      .mockResolvedValue({ success: true });
+    const result = await aggregate.closePositions({ closeAll: true });
+
+    expect(close).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      successCount: 1,
+      failures: [
+        {
+          providerId: 'lighter',
+          error: expect.stringContaining('account index'),
+        },
+      ],
+    });
   });
 
   it('retains successful closes while reporting a real Lighter account transport failure', async () => {
@@ -392,7 +492,7 @@ describe('aggregated account and destructive-operation discovery', () => {
     },
   );
 
-  it('exports strict discovery failures with healthy orders while leaving lenient reads compatible', async () => {
+  it('provides healthy orders only to typed cancellation discovery when a venue fails', async () => {
     const { aggregate, clientInstance } = setup();
     clientInstance.getActiveOrders.mockRejectedValue(new Error('orders down'));
     const read = aggregate.getOpenOrders({ throwOnUnavailable: true });
@@ -401,9 +501,12 @@ describe('aggregated account and destructive-operation discovery', () => {
       orders: [{ ...hyperliquidOrder, providerId: 'hyperliquid' }],
       failures: [{ providerId: 'lighter', error: 'orders down' }],
     });
-    expect(await aggregate.getOpenOrders()).toStrictEqual([
-      { ...hyperliquidOrder, providerId: 'hyperliquid' },
-    ]);
+    const ordinaryRead = aggregate.getOpenOrders();
+    await expect(ordinaryRead).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+    await expect(ordinaryRead).rejects.toHaveProperty(
+      'cause.message',
+      'orders down',
+    );
   });
 
   it('merges venue-internal partial orders into aggregated strict discovery', async () => {
