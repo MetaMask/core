@@ -1664,6 +1664,7 @@ describe('HyperLiquidProvider', () => {
       );
 
       it.each([
+        ['initial Chase placement', 'before signing'],
         ['ordinary margin write', 'before signing'],
         ['ordinary margin write', 'while signing'],
         ['ordinary margin write', 'during the final signing identity read'],
@@ -1674,6 +1675,16 @@ describe('HyperLiquidProvider', () => {
         'refuses %s when account support expires %s',
         async (operation, phase) => {
           const isBuilderApproval = operation === 'builder approval';
+          const isInitialChase = operation === 'initial Chase placement';
+          if (isInitialChase) {
+            mockInfoClient.l2Book = vi.fn().mockResolvedValue({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49999', sz: '10', n: 1 }],
+                [{ px: '50001', sz: '10', n: 1 }],
+              ],
+            });
+          }
           if (isBuilderApproval) {
             mockInfoClient.maxBuilderFee.mockResolvedValue(0);
             vi.mocked(TradingReadinessCache.getBuilderFee).mockReturnValue(
@@ -1744,9 +1755,19 @@ describe('HyperLiquidProvider', () => {
               },
             );
 
-            const write = isBuilderApproval
-              ? provider.prepareTradingWallet()
-              : provider.updateMargin({ symbol: 'BTC', amount: '-1' });
+            let write: Promise<unknown>;
+            if (isBuilderApproval) {
+              write = provider.prepareTradingWallet();
+            } else if (isInitialChase) {
+              write = provider.placeOrder({
+                symbol: 'BTC',
+                isBuy: true,
+                size: '0.1',
+                orderType: 'chase',
+              });
+            } else {
+              write = provider.updateMargin({ symbol: 'BTC', amount: '-1' });
+            }
             if (phase === 'while signing') {
               await Promise.race([signerEntered.promise, write]);
               expireSupport();
@@ -1754,11 +1775,7 @@ describe('HyperLiquidProvider', () => {
             }
 
             const errorCode = PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED;
-            await expect(write).resolves.toMatchObject(
-              isBuilderApproval
-                ? { ready: false, errorCode }
-                : { success: false, error: errorCode },
-            );
+            const result = await write;
             expect(sign).toHaveBeenCalledTimes(
               phase === 'before signing' ||
                 phase === 'during the final signing identity read'
@@ -1766,6 +1783,11 @@ describe('HyperLiquidProvider', () => {
                 : 1,
             );
             expect(dispatch).not.toHaveBeenCalled();
+            expect(result).toMatchObject(
+              isBuilderApproval
+                ? { ready: false, errorCode }
+                : { success: false, error: errorCode },
+            );
             expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(
               2,
             );
@@ -1899,6 +1921,43 @@ describe('HyperLiquidProvider', () => {
           vi.useRealTimers();
         }
       });
+
+      it.each(['signing', 'dispatch'] as const)(
+        'fences retained SDK %s when support expires during the identity read',
+        async (phase) => {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          try {
+            const address = await mockWalletService.getUserAddressWithDefault();
+            await provider.getExchangeClient();
+            const [, hooks] =
+              mockClientService.getExchangeClient.mock.lastCall ?? [];
+            const fence =
+              phase === 'signing' ? hooks?.beforeSign : takeLastFence();
+            if (!fence) {
+              throw new Error('Exchange client was requested without a fence');
+            }
+
+            mockWalletService.getUserAddressWithDefault.mockImplementationOnce(
+              async () => {
+                mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+                  authorizedUsers: [
+                    '0x1234567890123456789012345678901234567890',
+                  ],
+                  threshold: 1,
+                });
+                vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+                return address;
+              },
+            );
+
+            await expect(fence()).rejects.toThrow(
+              PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            );
+          } finally {
+            vi.useRealTimers();
+          }
+        },
+      );
 
       it.each([
         { answer: multiSigStatus },

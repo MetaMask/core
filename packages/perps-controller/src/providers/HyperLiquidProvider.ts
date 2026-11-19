@@ -8362,14 +8362,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
 
-    // Held onto rather than looked up again after the submission returns.
-    // `disconnect` drops the service's client reference synchronously, so a
-    // retraction that asked for a client after the fact would be refused one
-    // and leave the order resting under the account that placed it. This
-    // instance signed the order and can still cancel it as that account.
-    // Its fence skips the lifecycle check so that post-teardown retraction
-    // still dispatches, while refusing a changed or known-unsupported account.
-    const placingClient = this.#getRollbackExchangeClient(accountContext);
+    const placingClient = this.#getAccountGuardedExchangeClient(
+      accountContext,
+      'Chase initial placement dispatch',
+    );
+    // Capture the cleanup client now because disconnect drops the service's
+    // client reference. Its fence can retract the order after teardown if the
+    // same account and network are still selected.
+    const rollbackClient = this.#getRollbackExchangeClient(accountContext);
 
     let orderId: string | undefined;
     for (
@@ -8465,11 +8465,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     // would have invalidated, and the exchange id is only usable for as long as
     // the provider stays pointed at the account that placed it — a disconnect
     // is usually followed by an account or network switch, after which handing
-    // the id back is no remedy at all. So it is cancelled here, through the
-    // client that signed it. The held client remains usable after teardown,
-    // but its adapter resolves the selected account again for each signature,
-    // so rollback validates the captured identity before cancellation. The
-    // failure is then true of the venue as well as of this provider.
+    // the id back is no remedy at all. The captured rollback client remains
+    // usable after teardown and checks the signing identity before cancellation.
     // Best-effort still: a context change or closing transport falls back to
     // reporting the live id.
     if (generation !== this.#strategyGeneration) {
@@ -8480,7 +8477,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const outcome = await this.#retractOrphanedChaseOrder(
         session,
-        placingClient,
+        rollbackClient,
       );
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
@@ -8589,10 +8586,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.marksSubscriptionCloid - Whether to mark the cloid, captured
    * when the session started. Passed explicitly rather than read live: a
    * replacement runs long after the fee resolution behind it was cleared.
-   * @param params.exchangeClient - Client to submit through. Passed in rather
-   * than looked up here so a first placement can keep the instance it signed
-   * with, which is the only one that can take the order back once `disconnect`
-   * has dropped the service's reference.
+   * @param params.exchangeClient - Guarded client for this placement.
    * @param params.accountContext - Account/network/lifecycle captured by the
    * action that owns the chase.
    * @returns The resting order's exchange ID.
@@ -18128,9 +18122,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     const accountContext = await this.#captureAccountContext();
     await this.#ensureClientsInitialized();
     await this.#assertAccountSupported(accountContext);
-    const assertWritable = async (): Promise<void> => {
-      await this.#assertAccountSupported(accountContext);
-    };
+    const assertWritable = async (): Promise<void> =>
+      await this.#assertNoKnownUnsupportedAccount(
+        accountContext,
+        'SDK exchange write',
+      );
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,
       onExchangeResult: (outcome) => {
