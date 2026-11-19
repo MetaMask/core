@@ -66,11 +66,12 @@
     "immer": "^11.2.10",
     "jsdom": "^27.0.0",
     "lodash-es": "^4.18.1",
-    "nock": "^15.0.6",
+    "nock": "15.0.5",
     "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.8",
     "vitest": "5.1.1"
   },
   "engines": {

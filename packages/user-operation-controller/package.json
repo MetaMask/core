@@ -64,7 +64,7 @@
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/rpc-errors": "^7.0.3",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^74.3.0",
+    "@metamask/transaction-controller": "^74.2.0",
     "@metamask/utils": "^12.0.2",
     "bn.js": "^5.2.5",
     "immer": "^11.2.10",
@@ -79,6 +79,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.8",
     "vitest": "5.1.1"
   },
   "peerDependencies": {
