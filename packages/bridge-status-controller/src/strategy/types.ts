@@ -13,13 +13,17 @@ import type {
 
 import type { TraceName } from '../constants.js';
 import type {
+  BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
   SubmitStrategyParamsJson,
 } from '../types.js';
-import type { rekeyHistoryItemInState } from '../utils/history.js';
+import type {
+  rekeyHistoryItemInState,
+  updateHistoryItemInState,
+} from '../utils/history.js';
 
 export enum SubmitStep {
   /**
@@ -30,6 +34,10 @@ export enum SubmitStep {
    * Rekeys and updates the history item keyed by the old history key to the new history key.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
+  /**
+   * Merges history data into the existing history item
+   */
+  UpdateHistoryItem = 'updateHistoryItem',
   /**
    * Triggers polling for the transaction's status
    */
@@ -57,12 +65,13 @@ export type SubmitStepResult =
       type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
-        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId'
+        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'orderId'
       > & {
         historyKey: string;
         quoteResponse: QuoteResponseV1 & QuoteMetadata;
         batchSellData?: BatchSellTradesResponse;
         quoteIds?: string[];
+        next?: BridgeHistoryItem['next'];
       };
     }
   | {
@@ -78,6 +87,10 @@ export type SubmitStepResult =
         tradeMeta?: TransactionMeta;
         historyItemOverrides?: Parameters<typeof rekeyHistoryItemInState>[3];
       };
+    }
+  | {
+      type: SubmitStep.UpdateHistoryItem;
+      payload: Parameters<typeof updateHistoryItemInState>[1];
     }
   | {
       type: SubmitStep.StartPolling;

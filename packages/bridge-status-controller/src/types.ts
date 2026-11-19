@@ -3,6 +3,10 @@ import type {
   AccountsControllerState,
 } from '@metamask/accounts-controller';
 import type {
+  ApprovalControllerAcceptRequestAction,
+  ApprovalControllerRejectRequestAction,
+} from '@metamask/approval-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -24,6 +28,7 @@ import type {
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -40,10 +45,16 @@ import type {
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type {
+  TransactionPayControllerSetTransactionConfigAction,
+  TransactionPayControllerStateChangeEvent,
+  TransactionPayControllerUpdatePaymentTokenAction,
+} from '@metamask/transaction-pay-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types.js';
@@ -117,6 +128,19 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 
 export type RefuelStatusResponse = object & StatusResponse;
 
+// oxlint-disable-next-line no-redeclare
+export const Operation = {
+  DEPOSIT: 'deposit',
+  WITHDRAW: 'withdraw',
+  SWAP: 'swap',
+} as const;
+export type Operation = (typeof Operation)[keyof typeof Operation];
+
+export type NextAction = {
+  operation: 'swap' | 'deposit';
+  partialQuote: Omit<QuoteResponseV1<Trade, Trade>, 'quote'>;
+};
+
 /**
  * This type ties together the quote, its tx params and the submitted txMeta.
  * Each trade/approval will have its own QuoteAndTxMetadata object.
@@ -127,7 +151,9 @@ export type QuoteAndTxMetadata = {
   /**
    * The approval or trade object from the quote response
    */
-  tx: TxData;
+  tx: Omit<TxData, 'gasLimit'> & {
+    gasLimit: number | null;
+  };
   assetsFiatValues?: { sending?: string; receiving?: string };
   /**
    * The simulated gas fee limits for the transaction provided by the bridge-api
@@ -167,16 +193,39 @@ export type SubmitStrategyParamsJson<
    * The batch ID of the transaction batch passed to the addTransactionBatchFn
    */
   batchId?: `0x${string}`;
+  /**
+   * The hash of the initial EVM transaction's final leg (swap, bridge, intent or withdrawal).
+   * Populated by the afterTx helper so the strategy executing the next action can read details about
+   * the previous transaction.
+   */
+  previousTxHash?: string;
+  /**
+   * The current withdraw/deposit/swap operation
+   */
+  operation?: Operation;
+  /**
+   * Sequenced list of next actions to perform
+   */
+  next?: NextAction[];
+  /**
+   * The key of the history item to use for the current action, if a prior action was executed
+   */
+  historyKey?: string;
 };
 
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
   /**
+   * Intent order uid returned by submitOrder. Used to fetch order status when
+   * the history key is a prior withdraw/swap id rather than the order uid.
+   */
+  orderId?: string;
+  /**
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
-  batchId?: string;
+  batchId?: `0x${string}`;
   /**
    * This is defined when the history item is for a batch sell transaction
    */
@@ -265,6 +314,14 @@ export type BridgeHistoryItem = {
    * swap/bridge was submitted.
    */
   inputPrimaryDenomination?: InputPrimaryDenomination;
+  /**
+   * The batchId, hash and id for the money account deposit transactions.
+   */
+  depositTxMeta?: Partial<Pick<TransactionMeta, 'id' | 'batchId' | 'hash'>>;
+  /**
+   * The sequenced list of next actions to perform after the current operation is completed.
+   */
+  next?: NextAction[];
 };
 
 /**
@@ -323,11 +380,13 @@ export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Partial<
     Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status' | 'actionId'>
   >;
+  next?: BridgeHistoryItem['next'];
   batchSellData?: BridgeHistoryItem['batchSellData'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
+  orderId?: BridgeHistoryItem['orderId'];
   quoteResponse: QuoteResponseV1 & QuoteMetadata;
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
@@ -397,6 +456,8 @@ export type BridgeStatusControllerEvents =
  * The external actions available to the BridgeStatusController.
  */
 type AllowedActions =
+  | ApprovalControllerAcceptRequestAction
+  | ApprovalControllerRejectRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -407,19 +468,24 @@ type AllowedActions =
   | TransactionControllerAddTransactionAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
+  | TransactionPayControllerSetTransactionConfigAction
+  | TransactionPayControllerUpdatePaymentTokenAction
   | BridgeControllerTrackUnifiedSwapBridgeEventAction
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
-  | KeyringControllerSignTypedMessageAction;
+  | KeyringControllerSignTypedMessageAction
+  | MoneyAccountControllerGetMoneyAccountAction;
 
 /**
  * The external events available to the BridgeStatusController.
  */
 type AllowedEvents =
   | TransactionControllerTransactionStatusUpdatedEvent
-  | TransactionControllerTransactionSubmittedEvent;
+  | TransactionControllerTransactionSubmittedEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
+  | TransactionPayControllerStateChangeEvent;
 
 /**
  * The messenger for the BridgeStatusController.
