@@ -4,10 +4,12 @@ import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
+  NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
   TransactionPayStrategy,
@@ -29,11 +31,13 @@ import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
 import type { MaxQuotesRequest } from '../../utils/max-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import {
+  buildCaipAssetType,
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { TradeType } from '../../utils/trade-type.js';
+import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -59,13 +63,22 @@ vi.mock(import('../../utils/gas.js'));
 vi.mock(import('../../utils/hyperliquid-activation.js'));
 vi.mock(import('../../utils/max-quote.js'));
 vi.mock(import('../../utils/quote-gas.js'));
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
   '0xabc0000000000000000000000000000000000000' as Hex;
 const TARGET_TOKEN_ADDRESS_MOCK =
   '0x1234567890123456789012345678901234567890' as Hex;
+const SOURCE_ASSET_MOCK =
+  `eip155:1/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}` as const;
+const TARGET_ASSET_MOCK =
+  `eip155:2/erc20:${TARGET_TOKEN_ADDRESS_MOCK}` as const;
 const TOKEN_TRANSFER_RECIPIENT_MOCK =
   '0x5678901234567890123456789012345678901234' as Hex;
 const TOKEN_TRANSFER_DATA_MOCK =
@@ -84,9 +97,9 @@ const COMPLEX_TRANSACTION_META_MOCK = {
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: `eip155:1/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}`,
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -101,18 +114,16 @@ const FULFILLED_RESULT_MOCK = {
     gasless: true,
     id: 'quote-id',
     input: {
-      chainId: 1,
+      asset: SOURCE_ASSET_MOCK,
       decimals: 18,
       formatted: '1.0',
       raw: '1000000000000000000',
-      token: SOURCE_TOKEN_ADDRESS_MOCK,
     },
     output: {
-      chainId: 2,
+      asset: TARGET_ASSET_MOCK,
       decimals: 6,
       formatted: '0.123',
       raw: '123',
-      token: TARGET_TOKEN_ADDRESS_MOCK,
     },
     steps: [
       {
@@ -306,8 +317,8 @@ describe('server-quotes', () => {
     expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       {
-        source: { chainId: 1, token: SOURCE_TOKEN_ADDRESS_MOCK },
-        target: { chainId: 2, token: TARGET_TOKEN_ADDRESS_MOCK },
+        sourceAsset: SOURCE_ASSET_MOCK,
+        targetAsset: TARGET_ASSET_MOCK,
         amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
         tradeType: TradeType.ExactInput,
         sender: FROM_MOCK,
@@ -315,6 +326,32 @@ describe('server-quotes', () => {
         slippage: 50,
         supportsGasless: false,
       },
+      undefined,
+    );
+  });
+
+  it('requests native tokens as SLIP-44 assets', async () => {
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          sourceAccountId: `eip155:137:${FROM_MOCK}`,
+          sourceAssetId: 'eip155:137/slip44:966',
+          targetTokenAddress: NATIVE_TOKEN_ADDRESS,
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        sourceAsset: 'eip155:137/slip44:966',
+        targetAsset: 'eip155:2/slip44:60',
+      }),
       undefined,
     );
   });
@@ -504,6 +541,48 @@ describe('server-quotes', () => {
       expect.not.objectContaining({ authorizationList: expect.anything() }),
       undefined,
     );
+  });
+
+  it('keeps the authorizationList on the quote when the calls are embedded', async () => {
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: COMPLEX_TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original.authorizationList).toStrictEqual([
+      {
+        address: DELEGATION_RESULT_MOCK.authorizationList?.[0].address,
+        chainId: 1,
+        nonce: 2,
+        r: '0x3',
+        s: '0x4',
+        yParity: 1,
+      },
+    ]);
+  });
+
+  it('omits the authorizationList from the quote when the calls are deferred', async () => {
+    fetchServerQuoteMock.mockResolvedValue({
+      results: [
+        {
+          ...FULFILLED_RESULT_MOCK,
+          quote: { ...FULFILLED_RESULT_MOCK.quote, callsDeferred: true },
+        },
+      ],
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: COMPLEX_TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original).not.toHaveProperty('authorizationList');
   });
 
   it('does not build delegation calls for Hypercore transactions', async () => {
@@ -804,7 +883,6 @@ describe('server-quotes', () => {
       // transaction's chain.
       const SAME_CHAIN_REQUEST_MOCK: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
-        sourceChainId: '0x1',
         targetChainId: '0x1',
       };
 
@@ -959,6 +1037,25 @@ describe('server-quotes', () => {
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_FEE_TOKEN_COST);
       expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
+
+    it.each([true, false])(
+      'passes accountSupports7702 as %s to gas station',
+      async (accountSupports7702) => {
+        vi.mocked(getTokenBalance).mockReturnValue('0');
+
+        await getServerQuotes({
+          accountSupports7702,
+          from: FROM_MOCK,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(vi.mocked(resolveGasStationCost)).toHaveBeenCalledWith(
+          expect.objectContaining({ accountSupports7702 }),
+        );
+      },
+    );
 
     it('zeroes source network fees when steps array is empty', async () => {
       fetchServerQuoteMock.mockResolvedValue({
@@ -1520,7 +1617,10 @@ describe('server-quotes', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             isMaxAmount: true,
-            sourceChainId: CHAIN_ID_HYPERCORE,
+            sourceAssetId: buildCaipAssetType(
+              CHAIN_ID_HYPERCORE,
+              SOURCE_TOKEN_ADDRESS_MOCK,
+            ),
           },
         ],
         transaction: CONTRACT_CALL_TRANSACTION_MOCK,
@@ -1551,9 +1651,7 @@ describe('server-quotes', () => {
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.objectContaining({
-          target: expect.objectContaining({
-            chainId: Number(CHAIN_ID_HYPERCORE),
-          }),
+          targetAsset: SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
         }),
         undefined,
       );
@@ -1822,7 +1920,7 @@ describe('server-quotes', () => {
         expect.objectContaining({
           refundTo: DEPOSIT_WALLET_MOCK,
           sender: DEPOSIT_WALLET_MOCK,
-          source: { chainId: 1, token: POLYGON_USDCE_ADDRESS },
+          sourceAsset: `eip155:1/erc20:${POLYGON_USDCE_ADDRESS}`,
           supportsGasless: false,
           useDepositAddress: true,
         }),
@@ -2009,8 +2107,8 @@ describe('server-quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(fetchServerQuoteMock.mock.calls[0][1].source.chainId).toBe(
-        Number(CHAIN_ID_HYPERCORE),
+      expect(fetchServerQuoteMock.mock.calls[0][1].sourceAsset).toBe(
+        SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
       );
       expect(result[0].requiresSecondLeg).toBe(true);
       expect(result[0].request.recipient).toBe(OVERRIDE_RECIPIENT_MOCK);
@@ -2484,8 +2582,8 @@ describe('server-quotes', () => {
       ...QUOTE_REQUEST_MOCK,
       isHyperliquidSource: true,
       isPostQuote: true,
-      sourceChainId: CHAIN_ID_ARBITRUM,
-      sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+      sourceAccountId: `eip155:42161:${FROM_MOCK}`,
+      sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
       sourceTokenAmount: '4800000',
       targetAmountMinimum: '0',
     };
@@ -2512,7 +2610,9 @@ describe('server-quotes', () => {
 
       expect(vi.mocked(applyHyperliquidActivationFee)).toHaveBeenCalledWith(
         expect.objectContaining({
-          sourceChainId: CHAIN_ID_HYPERCORE,
+          sourceAssetId: expect.stringMatching(
+            new RegExp(`^eip155:${Number(CHAIN_ID_HYPERCORE)}/`, 'u'),
+          ),
           sourceTokenAmount: '480000000',
         }),
         messenger,

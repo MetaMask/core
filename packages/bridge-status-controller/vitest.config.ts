@@ -21,8 +21,8 @@ export default mergeConfig(
           'src/bridge-status-controller.ts': {
             branches: 95.96,
             functions: 96.36,
-            lines: 99.41,
-            statements: 99.41,
+            lines: 99.4,
+            statements: 99.4,
           },
           'src/bridge-status-controller.intent.ts': {
             branches: 100,

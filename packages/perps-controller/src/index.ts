@@ -177,6 +177,8 @@ export type {
   PerpsControllerSubscribeToOrderFillsAction,
   PerpsControllerSubscribeToOrdersAction,
   PerpsControllerSubscribeToTwapOrdersAction,
+  PerpsControllerSubscribeToLiveTwapOrdersAction,
+  PerpsControllerSubscribeToChaseOrderListsAction,
   PerpsControllerSubscribeToPositionsAction,
   PerpsControllerSubscribeToPricesAction,
   PerpsControllerSubscribeToProviderHealthAction,
@@ -247,6 +249,14 @@ export type {
   TwapOrder,
   TwapOrderFill,
   TwapOrderStatus,
+  TwapSlicePreview,
+  ChaseOrderLists,
+  ChasePlacementCheck,
+  ScaleLadderSizing,
+  ScalePriceWarning,
+  PerpsStrategyRules,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   PerpsRecoveryVenueReview,
@@ -256,9 +266,15 @@ export type {
   Position,
   AccountState,
   CrossMarginSummary,
+  HyperLiquidAbstractionMode,
+  PerpsProviderAccountStateEntry,
+  AccountAggregateMetadata,
   ClosePositionParams,
   ClosePositionsParams,
+  ClosePositionsTarget,
   ClosePositionsResult,
+  BatchOperationStatus,
+  WithBatchOperationStatus,
   UpdateMarginParams,
   MarginResult,
   FlipPositionParams,
@@ -360,6 +376,8 @@ export type {
   ScalePriceLadderUnavailableReason,
   DirectProviderOrderCapabilities,
   PerpsOrderCapabilities,
+  PerpsPricePrecision,
+  PerpsOrderLimits,
   PerpsScalePriceLadder,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
@@ -579,6 +597,8 @@ export {
   ORDER_SLIPPAGE_CONFIG,
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
+  TWAP_ORDER_CONFIG,
+  ORDER_PRICE_WARNING_CONFIG,
   MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
@@ -604,6 +624,7 @@ export {
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
   getCrossCollateral,
+  getCrossMarginSpotCollateral,
   calculateAccountSummary,
 } from './utils/index.js';
 export type {
@@ -626,10 +647,16 @@ export {
   isStopLossSafeFromLiquidation,
   validateTPSLPrices,
   formatRoePercent,
+  calculateExpectedTriggerPnl,
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
 } from './utils/index.js';
 export type {
   TpslCalculationParams,
   TpslValidationResult,
+  ExpectedTriggerPnlParams,
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
 } from './utils/index.js';
 export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
 export type {
@@ -750,7 +777,10 @@ export {
 } from './utils/index.js';
 export type { SortMarketsParams } from './utils/index.js';
 export { parseVolume, sortMarkets } from './utils/index.js';
-export type { StandaloneInfoClientOptions } from './utils/index.js';
+export type {
+  StandaloneClearinghouseStatesResult,
+  StandaloneInfoClientOptions,
+} from './utils/index.js';
 export {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -779,11 +809,27 @@ export {
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
   estimateIsolatedLeverageChange,
+  estimateCrossMaintenanceMargin,
+  estimateCrossLiquidationPrice,
 } from './utils/index.js';
 export type {
   HyperLiquidMarginTier,
   IsolatedLeverageChangeParams,
   IsolatedLeverageChange,
+  CrossMarginPosition,
+} from './utils/index.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+  getBatchOperationStatus,
+  PERPS_ERROR_COPY,
+  getPerpsErrorCopy,
+  PERPS_ORDER_TYPE_LABELS,
+} from './utils/index.js';
+export type {
+  GroupedOrderBook,
+  PerpsErrorCopy,
+  PerpsOrderTypeLabel,
 } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type {
@@ -791,7 +837,9 @@ export type {
   PerpsCompactField,
   PerpsCompactFormatOptions,
   PerpsDisplayFormatOptions,
+  PerpsDurationFormatOptions,
   PerpsFiatFormatOptions,
+  PerpsFundingDirection,
   PerpsFundingRateFormatOptions,
   PerpsIntlFormatters,
   PerpsOrderBookLadderOptions,
@@ -811,19 +859,57 @@ export {
   formatPositionSize,
   formatPnl,
   formatPercentage,
+  formatCrossMarginRatio,
   formatFundingRate,
+  formatPositionFunding,
+  getPositionFundingDirection,
+  formatFundingPayment,
   formatFeeBps,
   formatLiquidationDistance,
   formatPerpsCompact,
   getPerpsOrderBookPriceFormat,
   formatPerpsOrderBookPrice,
   formatPerpsUsdInput,
+  formatPerpsDuration,
+} from './utils/index.js';
+
+// Advanced orders: venue-neutral TWAP, chase and scale rules and live lists
+export {
+  getStrategyRules,
+  TWAP_ORDER_ACTIVE_STATUSES,
+  isTwapOrderActive,
+  partitionTwapOrders,
+  reconcileTwapExecution,
+  mergeTwapOrders,
+  validateTwapOrder,
+  computeTwapSlicePreview,
+  CHASE_ORDER_RUNNING_STATUSES,
+  isChaseOrderRunning,
+  isChaseOrderCancelable,
+  checkChasePlacement,
+  mergeChaseOrderHistory,
+  sizeScaleLadder,
+  validateScaleOrder,
+  classifyScalePriceWarnings,
+  createLiveTwapOrderList,
+  createLiveChaseOrderList,
+} from './utils/index.js';
+export type {
+  AdvancedOrderValidationResult,
+  LiveTwapOrderSource,
+  LiveChaseOrderSource,
+  CanceledChaseOrder,
 } from './utils/index.js';
 
 // Error codes (explicit named exports)
 export { isPerpsErrorCode, PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 export type { PerpsErrorCode } from './perpsErrorCodes.js';
-export type { PerpsErrorDetails, PriceMovedErrorDetails } from './errors.js';
+export { OrderDiscoveryError } from './errors.js';
+export type {
+  HyperLiquidErrorDetails,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+} from './errors.js';
 
 // Selectors (explicit named exports)
 export {

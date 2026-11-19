@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import * as PackageEntry from '../../../src/index.js';
 import type { TpslCalculationParams } from '../../../src/utils/tpslCalculations.js';
 import {
+  calculateExpectedTriggerPnl,
   calculatePercentageForPrice,
   calculatePriceForPercentage,
   calculatePriceForRoE,
@@ -779,5 +781,44 @@ describe('formatRoePercent', () => {
     expect(formatRoePercent('abc')).toBe('');
     expect(formatRoePercent(Number.NaN)).toBe('');
     expect(formatRoePercent(Infinity)).toBe('');
+  });
+});
+
+describe('calculateExpectedTriggerPnl', () => {
+  it('is exported from the package entry', () => {
+    expect(PackageEntry.calculateExpectedTriggerPnl).toBe(
+      calculateExpectedTriggerPnl,
+    );
+  });
+
+  // Mobile pnlCalculations.calculateExpectedPnL: (trigger - entry) × size - fee
+  it.each([
+    [{ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 }, 19.9],
+    [{ triggerPrice: 90, entryPrice: 100, size: 2, closingFee: 0.1 }, -20.1],
+    [{ triggerPrice: 90, entryPrice: 100, size: -2, closingFee: 0.1 }, 19.9],
+    [{ triggerPrice: 110, entryPrice: 100, size: -2, closingFee: 0.1 }, -20.1],
+    [{ triggerPrice: 100, entryPrice: 100, size: 2, closingFee: 0 }, 0],
+  ])('returns the expected PnL for %o', (params, expected) => {
+    expect(calculateExpectedTriggerPnl(params)).toBeCloseTo(expected, 10);
+  });
+
+  it("matches Terminal's estimate with the taker fee as the closing fee", () => {
+    // Terminal inlineTpSl.estimateTriggerPnl:
+    // (trigger - entry) × signedSize - trigger × size × takerFeeRate
+    const triggerPrice = 105000;
+    const entryPrice = 100000;
+    const size = 0.0015;
+    const takerFeeRate = 0.00045;
+    const terminal =
+      (triggerPrice - entryPrice) * -size - triggerPrice * size * takerFeeRate;
+
+    expect(
+      calculateExpectedTriggerPnl({
+        triggerPrice,
+        entryPrice,
+        size: -size,
+        closingFee: triggerPrice * size * takerFeeRate,
+      }),
+    ).toBe(terminal);
   });
 });

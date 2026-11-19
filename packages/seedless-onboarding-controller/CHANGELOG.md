@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `SeedlessAuthData` (the `authenticate` parameters, without `skipLock`; extends `AuthenticatedUserDetails` without `nodeAuthTokens`), `parseSeedlessAuthData`, and `AUTH_CONNECTION_BY_NAMESPACE` so other controllers can reuse the seedless social-login auth payload ([#11224](https://github.com/MetaMask/core/pull/11224))
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 - Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action ([#11220](https://github.com/MetaMask/core/pull/11220))
   - `authenticateForRecovery` takes `authConnectionId` and `groupedAuthConnectionId`, and uses the aal2 token as the id token and its `sub` as the user ID.
   - Requires a successful `authenticate` first; throws `MissingAuthUserInfo` otherwise.
@@ -54,11 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and never changes the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
   - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })` to restore the vault with the password.
-- Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
-- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.2` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.3.1` ([#11072](https://github.com/MetaMask/core/pull/11072), [#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - `changePassword` on an envelope-managed vault keeps the vault keys: it seals them for the new password, appends a control record using a batch write, and then swaps the password OPRF key, all under the vault's metadata lock. Vaults that another device migrated are detected through their control record ([#11220](https://github.com/MetaMask/core/pull/11220))
   - The legacy `changePassword` path, which uses the SDK `changeEncKey`, throws `EnvelopeVaultRequiresEnvelopePasswordChange` without writing anything when the vault contains a control record.
 - `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope sealed for the global password first, and fall back to the existing key chain if there is none. A failed envelope fetch is reported as an error, not treated as a missing envelope ([#11220](https://github.com/MetaMask/core/pull/11220))
@@ -66,11 +59,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On a vault with `envelope` state, `syncLatestGlobalPassword` only falls back when the global password still derives the vault keys and a control record matches it, as for a migrated vault before its first envelope password change. Otherwise it throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state.
   - On a vault with `envelope` state, `syncLatestGlobalPassword` also throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state when the envelope sealed for the global password holds vault keys other than `envelope.vaultAuthPubKey`.
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on an envelope-managed vault ([#11220](https://github.com/MetaMask/core/pull/11220))
-- Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
 
 ### Security
 
 - Exclude `envelope` from state logs. `vaultAuthPubKey` and `passwordAuthPubKey` are public keys, but they can fingerprint an account across logs
+
+## [12.1.0]
+
+### Added
+
+- Export `SeedlessAuthData` (the `authenticate` parameters, without `skipLock`; extends `AuthenticatedUserDetails` without `nodeAuthTokens`), `parseSeedlessAuthData`, and `AUTH_CONNECTION_BY_NAMESPACE` so other controllers can reuse the seedless social-login auth payload ([#11224](https://github.com/MetaMask/core/pull/11224))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.2` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.3.1` ([#11072](https://github.com/MetaMask/core/pull/11072), [#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
 
 ## [12.0.0]
 
@@ -526,7 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.0.0...@metamask/seedless-onboarding-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.1...@metamask/seedless-onboarding-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...@metamask/seedless-onboarding-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...@metamask/seedless-onboarding-controller@11.0.0

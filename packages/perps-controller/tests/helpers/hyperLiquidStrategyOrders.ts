@@ -27,6 +27,10 @@ import {
   createMockMessenger,
 } from './serviceMocks.js';
 
+const actualValidation = await vi.importActual<
+  typeof import('../../src/utils/hyperLiquidValidation.js')
+>('../../src/utils/hyperLiquidValidation.js');
+
 export class TestApiRequestError extends HyperliquidError {
   readonly response: unknown;
 
@@ -489,11 +493,7 @@ export function setUpStrategyProvider(): {
     contractAddress: '0x1234567890123456789012345678901234567890',
   });
   hyperLiquidValidation.createErrorResult.mockImplementation(
-    (error: unknown, defaultResponse: Record<string, unknown>) => ({
-      ...defaultResponse,
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }),
+    actualValidation.createErrorResult,
   );
   const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
     string,

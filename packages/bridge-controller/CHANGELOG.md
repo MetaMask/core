@@ -9,8 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [83.3.0]
+
+### Added
+
+- Set QuoteRequest parameters based on `isMoneyAccount` value provided by clients. When isMoneyAcount=true, only request `relay` quotes from the backend ([#11602](https://github.com/MetaMask/core/pull/11602))
+- Export getAccountByAddress and getFeatureFlags utils ([#11403](https://github.com/MetaMask/core/pull/11403))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11649](https://github.com/MetaMask/core/pull/11649))
+
+### Removed
+
+- Remove the `BLAST` (`0x13e31`) chain ID constant, as the network is being terminated ([#11599](https://github.com/MetaMask/core/pull/11599))
+
+## [83.2.0]
+
+### Added
+
+- Add optional `getShouldYieldAfterFirstQuote` constructor option to `BridgeController` ([#11465](https://github.com/MetaMask/core/pull/11465))
+  - When it returns `true`, the quote stream yields one macrotask after the first quote is written to state, so clients can render it before the rest of the burst is processed
+- Add optional `getShouldFetchFirstQuoteImmediately` constructor option to `BridgeController` to start the first quote fetch without waiting for the first poll ([#11541](https://github.com/MetaMask/core/pull/11541))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Fixed
+
+- Stop processing buffered quote stream events, including `onClose`, after the stream is aborted, so an aborted stream can no longer update quotes, token warnings, `quoteStreamComplete` or `quotesLoadingStatus` ([#11465](https://github.com/MetaMask/core/pull/11465))
 
 ## [83.1.5]
 
@@ -2226,7 +2262,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...HEAD
+[83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
+[83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0
 [83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5
 [83.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...@metamask/bridge-controller@83.1.4
 [83.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.2...@metamask/bridge-controller@83.1.3

@@ -62,8 +62,8 @@ describe('server-api', () => {
 
   describe('fetchServerQuote', () => {
     const QUOTE_REQUEST_MOCK: ServerQuoteRequest = {
-      source: { chainId: 137, token: '0xbbb' },
-      target: { chainId: 1, token: '0xaaa' },
+      sourceAsset: 'eip155:137/erc20:0xbbb',
+      targetAsset: 'eip155:1/erc20:0xaaa',
       amount: '1000000',
       tradeType: TradeType.ExpectedOutput,
       sender: '0xccc',
@@ -77,18 +77,16 @@ describe('server-api', () => {
           quote: {
             id: '0xid',
             input: {
-              chainId: 137,
+              asset: 'eip155:137/erc20:0xbbb',
               decimals: 6,
               formatted: '1.0',
               raw: '1000000',
-              token: '0xbbb',
             },
             output: {
-              chainId: 1,
+              asset: 'eip155:1/erc20:0xaaa',
               decimals: 6,
               formatted: '0.999',
               raw: '999000',
-              token: '0xaaa',
             },
             fees: { metamask: '0', provider: '0.10', subsidized: false },
             duration: 30,

@@ -2,6 +2,7 @@
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import type { FrontendOpenOrdersResponse } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
@@ -11,6 +12,7 @@ import {
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { OrderDiscoveryError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -37,6 +39,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -78,11 +81,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -351,6 +350,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -489,11 +492,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -1585,8 +1584,169 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  it('rejects a failed Hyperliquid order history fetch with its cause', async () => {
+    const cause = new Error('history unavailable');
+    mockClientService.fetchHistoricalOrders.mockRejectedValue(cause);
+
+    const call = provider.getOrders();
+    await expect(call).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+    await expect(call).rejects.toHaveProperty('cause', cause);
+  });
+
   describe('getOpenOrders additional coverage', () => {
-    it('returns empty array when frontendOpenOrders throws error', async () => {
+    it('rejects strict position discovery instead of hiding failed account state reads', async () => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        clearinghouseState: vi
+          .fn()
+          .mockRejectedValue(new Error('state transport down')),
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        meta: vi.fn().mockResolvedValue({ universe: [] }),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+      });
+      await expect(
+        provider.getPositions({ skipCache: true, throwOnUnavailable: true }),
+      ).rejects.toThrow('main: state transport down');
+    });
+
+    it('preserves the stale lifecycle error when DEX discovery crosses a disconnect', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const started = createDeferred<void>();
+      const response = createDeferred<[null, { name: string }]>();
+      const info = createMockInfoClient();
+      info.perpDexs.mockImplementation(() => {
+        started.resolve();
+        return response.promise;
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      const read = provider.getPositions({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      await provider.disconnect();
+      response.resolve([null, { name: 'xyz' }]);
+      await rejected;
+      expect(info.clearinghouseState).not.toHaveBeenCalled();
+    });
+
+    it('rejects strict discovery when the transport fails instead of reporting an empty venue', async () => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),
+        meta: vi.fn().mockResolvedValue({
+          universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+        }),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+      });
+
+      await expect(
+        provider.getOpenOrders({
+          skipCache: true,
+          throwOnUnavailable: true,
+        }),
+      ).rejects.toThrow('main: API Error');
+    });
+
+    it('rejects strict discovery when only one HyperLiquid DEX is unavailable', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 1],
+        ],
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        frontendOpenOrders: vi
+          .fn()
+          .mockImplementation(({ dex }) =>
+            dex === 'xyz'
+              ? Promise.reject(new Error('xyz down'))
+              : Promise.resolve([]),
+          ),
+        meta: vi.fn().mockResolvedValue({
+          universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+        }),
+        perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+      });
+
+      await expect(
+        hip3Provider.getOpenOrders({
+          skipCache: true,
+          throwOnUnavailable: true,
+        }),
+      ).rejects.toThrow('xyz: xyz down');
+    });
+
+    it('rejects open orders that arrive across a provider disconnect', async () => {
+      const started = createDeferred<void>();
+      const response = createDeferred<FrontendOpenOrdersResponse>();
+      mockClientService.getInfoClient().frontendOpenOrders = vi.fn(() => {
+        started.resolve();
+        return response.promise;
+      });
+
+      const read = provider.getOpenOrders({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      response.resolve([
+        {
+          coin: 'BTC',
+          side: 'B',
+          limitPx: '50000',
+          oid: 1,
+          sz: '1',
+          origSz: '1',
+          isPositionTpsl: false,
+          orderType: 'Limit',
+          timestamp: Date.now(),
+          triggerCondition: '',
+          isTrigger: false,
+          triggerPx: '',
+          children: [],
+          reduceOnly: false,
+          tif: 'Gtc',
+          cloid: null,
+        },
+      ]);
+      await provider.disconnect();
+      await rejected;
+    });
+
+    it('only requests position protection from DEXs with an open position', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const info = createMockInfoClient();
+      info.perpDexs.mockResolvedValue([null, { name: 'xyz' }]);
+      const mainState = await info.clearinghouseState();
+      info.clearinghouseState.mockImplementation(async ({ dex }) => ({
+        ...mainState,
+        assetPositions:
+          dex === 'xyz' ? [] : mainState.assetPositions.slice(0, 1),
+      }));
+      info.frontendOpenOrders.mockImplementation(async ({ dex }) => {
+        if (dex === 'xyz') {
+          throw new Error('flat DEX orders unavailable');
+        }
+        return [];
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      expect(await provider.getPositions({ skipCache: true })).toHaveLength(1);
+      expect(info.frontendOpenOrders).toHaveBeenCalledOnce();
+      expect(info.frontendOpenOrders).toHaveBeenCalledWith(
+        expect.not.objectContaining({ dex: 'xyz' }),
+      );
+    });
+
+    it('rejects an unavailable open order read', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),
@@ -1597,10 +1757,9 @@ describe('HyperLiquidProvider', () => {
       });
 
       // Act
-      const result = await provider.getOpenOrders({ skipCache: true });
-
-      // Assert
-      expect(result).toEqual([]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
     });
 
     it('returns cached orders when cache is initialized', async () => {
@@ -1634,34 +1793,43 @@ describe('HyperLiquidProvider', () => {
       // Assert
       expect(result).toEqual(cachedOrders);
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+      expect(
+        mockSubscriptionService.getOrdersCacheIfInitialized,
+      ).toHaveBeenCalledWith(true, {
+        userAddress: await mockWalletService.getUserAddressWithDefault(),
+        requirePositionSizes: true,
+      });
     });
 
-    it('falls back to REST when atomic cache getter returns null', async () => {
+    it('reads REST open orders once when the cache is unavailable', async () => {
       // Arrange - atomic getter returns null (cache not initialized or race condition)
       mockSubscriptionService.getOrdersCacheIfInitialized = vi
         .fn()
         .mockReturnValue(null);
 
-      const mockFrontendOpenOrders = vi.fn().mockResolvedValue([
-        {
-          coin: 'ETH',
-          side: 'B',
-          limitPx: '3000',
-          sz: '1.0',
-          oid: 501,
-          timestamp: Date.now(),
-          origSz: '1.0',
-          triggerCondition: '',
-          isTrigger: false,
-          triggerPx: '',
-          children: [],
-          isPositionTpsl: false,
-          reduceOnly: false,
-          orderType: 'Limit',
-          tif: 'Gtc',
-          cloid: null,
-        },
-      ]);
+      const mockFrontendOpenOrders = vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '3000',
+            sz: '1.0',
+            oid: 501,
+            timestamp: Date.now(),
+            origSz: '1.0',
+            triggerCondition: '',
+            isTrigger: false,
+            triggerPx: '',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+            tif: 'Gtc',
+            cloid: null,
+          },
+        ])
+        .mockRejectedValueOnce(new Error('unexpected repeat request'));
 
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         maxBuilderFee: vi.fn().mockResolvedValue(1),
@@ -1686,7 +1854,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.getOpenOrders();
 
       // Assert - should fall back to REST API
-      expect(mockFrontendOpenOrders).toHaveBeenCalled();
+      expect(mockFrontendOpenOrders).toHaveBeenCalledOnce();
       expect(result.length).toBe(1);
       expect(result[0].orderId).toBe('501');
     });
@@ -1877,6 +2045,219 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockFrontendOpenOrders.mock.calls.some((call) => call[0].dex === 'xyz'),
       ).toBe(true);
+    });
+
+    it('retains main-DEX orders when a HIP-3 DEX is down under strict discovery', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 1],
+        ],
+      });
+
+      mockSubscriptionService.getOrdersCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(null);
+
+      const mockFrontendOpenOrders = vi
+        .fn()
+        .mockImplementation((params: { user: string; dex?: string }) => {
+          if (params.dex === 'xyz') {
+            return Promise.reject(new Error('xyz dex outage'));
+          }
+          // Main DEX stays healthy
+          return Promise.resolve([
+            {
+              coin: 'BTC',
+              side: 'A',
+              limitPx: '51000',
+              sz: '0.5',
+              oid: 402,
+              timestamp: Date.now(),
+              origSz: '0.5',
+              triggerCondition: '',
+              isTrigger: false,
+              triggerPx: '',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+              tif: 'Gtc',
+              cloid: null,
+            },
+          ]);
+        });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        maxBuilderFee: vi.fn().mockResolvedValue(1),
+        referral: vi.fn().mockResolvedValue({
+          referrerState: { stage: 'ready', data: { code: 'MMCSI' } },
+          referredBy: { code: 'MMCSI' },
+        }),
+        frontendOpenOrders: mockFrontendOpenOrders,
+        clearinghouseState: vi.fn().mockResolvedValue({
+          marginSummary: { totalMarginUsed: '0', accountValue: '1000' },
+          withdrawable: '1000',
+          assetPositions: [],
+          crossMarginSummary: { accountValue: '1000', totalMarginUsed: '0' },
+        }),
+        meta: vi.fn().mockResolvedValue({
+          universe: [
+            { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+            { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+          ],
+        }),
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+      });
+
+      const read = hip3Provider.getOpenOrders({
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+
+      await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
+      await expect(read).rejects.toMatchObject({
+        orders: [expect.objectContaining({ orderId: '402', symbol: 'BTC' })],
+        failures: [
+          expect.objectContaining({
+            providerId: 'hyperliquid',
+            error: expect.stringContaining('xyz: xyz dex outage'),
+          }),
+        ],
+      });
+    });
+
+    it('retains discovered orders when whole-position sizing fails', async () => {
+      const order: FrontendOpenOrdersResponse[number] = {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '0',
+        sz: '0',
+        oid: 403,
+        timestamp: Date.now(),
+        origSz: '0',
+        triggerCondition: 'Price above 60000',
+        isTrigger: true,
+        triggerPx: '60000',
+        children: [],
+        isPositionTpsl: true,
+        reduceOnly: true,
+        orderType: 'Take Profit Market',
+        tif: null,
+        cloid: null,
+      };
+      const infoClient = createMockInfoClient();
+      vi.spyOn(infoClient, 'clearinghouseState').mockRejectedValue(
+        new Error('position read failed'),
+      );
+      vi.spyOn(infoClient, 'frontendOpenOrders').mockResolvedValue([
+        order,
+        {
+          ...order,
+          oid: 404,
+          sz: '0.5',
+          origSz: '0.5',
+          orderType: 'Limit',
+          isTrigger: false,
+          isPositionTpsl: false,
+        },
+      ]);
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+
+      const read = provider.getOpenOrders({
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+
+      await expect(read).resolves.toStrictEqual([
+        expect.objectContaining({ orderId: '403', symbol: 'BTC', size: '0' }),
+        expect.objectContaining({ orderId: '404', symbol: 'BTC', size: '0.5' }),
+      ]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+
+    it('resolves a whole-position TP/SL size from positions under partial strict discovery', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 1],
+        ],
+      });
+      mockSubscriptionService.getOrdersCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(null);
+      // HyperLiquid encodes "the whole position" as size 0 on a
+      // position-bound TP/SL; the position supplies the real size.
+      const { assetPositions, ...state } =
+        await createMockInfoClient().clearinghouseState();
+      const mainPosition = assetPositions[0];
+      const clearinghouseState = vi.fn().mockImplementation(({ dex }) => {
+        if (dex === 'xyz') {
+          return Promise.reject(new Error('unrelated position read failed'));
+        }
+        return Promise.resolve({
+          ...state,
+          assetPositions: [
+            {
+              ...mainPosition,
+              position: { ...mainPosition.position, szi: '-0.75' },
+            },
+          ],
+        });
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        clearinghouseState,
+        frontendOpenOrders: vi
+          .fn()
+          .mockImplementation((params: { user: string; dex?: string }) =>
+            params.dex === 'xyz'
+              ? Promise.reject(new Error('xyz dex outage'))
+              : Promise.resolve([
+                  {
+                    coin: 'BTC',
+                    side: 'B',
+                    limitPx: '0',
+                    sz: '0',
+                    oid: 403,
+                    timestamp: Date.now(),
+                    origSz: '0',
+                    triggerCondition: 'Price above 60000',
+                    isTrigger: true,
+                    triggerPx: '60000',
+                    children: [],
+                    isPositionTpsl: true,
+                    reduceOnly: true,
+                    orderType: 'Take Profit Market',
+                    tif: null,
+                    cloid: null,
+                  },
+                ]),
+          ),
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+      });
+
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockReturnValue([]);
+      const read = hip3Provider.getOpenOrders({ throwOnUnavailable: true });
+
+      await expect(read).rejects.toMatchObject({
+        orders: [
+          expect.objectContaining({
+            orderId: '403',
+            size: '0.75',
+            originalSize: '0.75',
+          }),
+        ],
+      });
+      expect(clearinghouseState).toHaveBeenCalledOnce();
     });
   });
 
@@ -2193,8 +2574,16 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.transferBetweenDexs(transferParams);
 
       // Assert
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('must be greater than 0');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('must be greater than 0');
     });
 
     it('rejects transfer when source equals destination', async () => {
@@ -2209,8 +2598,12 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.transferBetweenDexs(transferParams);
 
       // Assert
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('must be different');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('must be different');
     });
 
     it('handles sendAsset failure gracefully', async () => {

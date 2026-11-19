@@ -167,7 +167,7 @@
       "path": "./packages/logging-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/marketing-consent-controller/tsconfig.build.json"
+      "path": "./packages/marketing-consent-sync-service/tsconfig.build.json"
     },
     {
       "path": "./packages/message-manager/tsconfig.build.json"

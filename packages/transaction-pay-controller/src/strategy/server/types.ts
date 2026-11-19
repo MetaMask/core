@@ -1,11 +1,10 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import type { TradeType } from '../../utils/trade-type.js';
 
-/** Token amount with chain and token context. */
+/** Token amount with its CAIP-19 asset ID. */
 export type ServerQuoteAmount = {
-  chainId: number;
-  token: string;
+  asset: CaipAssetType;
   decimals: number;
   raw: string;
   formatted: string;
@@ -59,8 +58,12 @@ export type ServerAuthorization = {
 
 /** Request body for POST /quote. */
 export type ServerQuoteRequest = {
-  source: { chainId: number; token: Hex };
-  target: { chainId: number; token: Hex };
+  /** CAIP-19 asset ID of the source token. */
+  sourceAsset: CaipAssetType;
+
+  /** CAIP-19 asset ID of the target token. */
+  targetAsset: CaipAssetType;
+
   amount: string;
   tradeType: TradeType;
   sender: Hex;
@@ -128,6 +131,11 @@ export type ServerQuoteClient = {
 
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
+  /**
+   * Signed EIP-7702 authorizations sent with the quote request, kept when the
+   * quote embeds the calls, so a non-gasless submit can upgrade the account.
+   */
+  authorizationList?: ServerAuthorization[];
   id: string;
   provider: string;
   input: ServerQuoteAmount;

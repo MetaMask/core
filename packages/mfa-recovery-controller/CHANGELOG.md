@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `getKeyBoundIdentifierLogin` receives a `notAfter` 5 minutes ahead, copies it into the token, and signs `hash([proofPublicKey, requestHash, notAfter])` as the passkey challenge or OIDC / SIWE nonce, so escrows reject identifier logins replayed later. The key-bound token must also match the requested `notAfter` ([#11571](https://github.com/MetaMask/core/pull/11571))
+- **BREAKING:** Passkey providers must use `getEscrowPasskeyChallenge(request)`, which prefixes that hash with `MetaMask escrow login:`. Before signing an Auth API passkey challenge, clients must check `isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` ([#11576](https://github.com/MetaMask/core/pull/11576))
+- **BREAKING:** `MfaRecoveryController` no longer takes an `authProvider` option; it requests approvals through `AuthenticationController:requestMfaApproval` and resolves the canonical profile id through `AuthenticationController:refreshCanonicalProfileId` on its messenger ([#11643](https://github.com/MetaMask/core/pull/11643))
+  - Delegate both actions to the controller's messenger and remove the `authProvider` option.
+
+### Removed
+
+- **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
+
+## [0.1.0]
+
 ### Added
 
 - `authenticateIdentifier` returns an `IdentifierSession` from one identifier login: key-bound recovery material for `getRecoverySecret`, plus optional `seedlessAuthData` on that session when the login returned it (social logins; passkey / SIWE omit it) ([#11224](https://github.com/MetaMask/core/pull/11224))
@@ -44,7 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/mfa-recovery-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/mfa-recovery-controller@0.1.0

@@ -374,9 +374,10 @@ export const PRICE_THRESHOLD = {
   /** Low values boundary (>= $0.01) */
   LOW: 0.01,
   /**
-   * Very small values threshold (< $0.01)
-   * This is the minimum value for formatWithThreshold and should align with
-   * the 6 decimal maximum (0.000001 is the smallest representable value)
+   * Very small values threshold (< $0.01).
+   * A non-zero value below this floor renders as `<` plus the formatted
+   * threshold (e.g. `<$0` under `PRICE_RANGES_UNIVERSAL`); the floor aligns
+   * with the 6-decimal price maximum.
    */
   VERY_SMALL: 0.000001,
 } as const;
@@ -555,7 +556,7 @@ export const PRICE_RANGES_MINIMAL_VIEW: FiatRangeConfig[] = [
  * - $1.3445555 → $1.3446 (≥$0.01: 5 sig figs)
  * - $0.333333 → $0.33333 (≥$0.01: 5 sig figs)
  * - $0.004236 → $0.004236 (<$0.01: 4 sig figs, max 6 decimals)
- * - $0.0000006 → $0.000001 (<$0.01: 4 sig figs, rounds with max 6 decimals)
+ * - $0.0000006 → <$0 (<$0.01: 4 sig figs; below the $0.000001 floor)
  */
 export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   {
@@ -614,7 +615,7 @@ export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   },
   {
     // Very small values (< $0.01): 4 significant figures, min 2 max MAX_PRICE_DECIMALS decimals
-    // Ex: $0.004236 → $0.004236 | $0.0000006 → $0.000001
+    // Ex: $0.004236 → $0.004236 | $0.0000006 → <$0
     condition: () => true,
     significantDigits: 4,
     minimumDecimals: 2,
@@ -917,6 +918,66 @@ export const formatPercentage = (
 };
 
 /**
+ * Formats a 0..1 cross margin ratio (account ratio or cross margin usage)
+ * as an unsigned percentage with at most one decimal. A positive value has
+ * no `+` prefix and a whole number has no trailing zero.
+ *
+ * The input is a ratio, not a percentage: `0.174` is `17.4%`. A ratio
+ * outside 0..1 still formats, so usage above 100% shows `150%`.
+ *
+ * @param ratio - The ratio (`0.174` for 17.4%).
+ * @param options - `formatters` (default `en-US`), `decimals` (at most,
+ * default `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent`, 1; trailing
+ * zeros are dropped) and `sign` (default `auto`: a minus for a negative
+ * ratio, no plus).
+ * The locale's percent style renders the number and the `%` symbol, so a
+ * locale that spaces or prefixes the symbol (`17,4 %`, `%17,4`) does.
+ * @returns Format: "X%" or "X.X%" in `en-US`, or
+ * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing ratio.
+ * @example formatCrossMarginRatio(0.174) => "17.4%"
+ * @example formatCrossMarginRatio(0.63) => "63%"
+ * @example formatCrossMarginRatio(0) => "0%"
+ * @example formatCrossMarginRatio(-0.174) => "-17.4%"
+ * @example formatCrossMarginRatio(0.0255) => "2.6%"
+ * @example formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) }) => "17,4 %"
+ * @example formatCrossMarginRatio(undefined) => "--%"
+ */
+export const formatCrossMarginRatio = (
+  ratio: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    decimals = PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent,
+    sign = 'auto',
+  } = options;
+  const parsed = _parseDisplayNumber(ratio);
+  if (parsed === undefined) {
+    return PERPS_CONSTANTS.FallbackPercentageDisplay;
+  }
+
+  // The locale's percent style owns the rounding, the `%` symbol and its
+  // placement (`17.4%`, `17,4 %`, `%17,4`), so the ratio is passed as is.
+  // Shifting it by 100 and rounding with `toFixed` first would round binary
+  // ties differently (`0.0255` is `2.6%`, not `2.5%`).
+  const percentOptions: Intl.NumberFormatOptions = {
+    style: 'percent',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  };
+  const magnitude = Math.abs(parsed);
+  // A ratio that rounds to 0 at the shown precision has no sign, so a tiny
+  // negative ratio is `0%`, not `-0%`. The threshold is half of the last
+  // shown digit, with the half rounded away from zero as `Intl` does.
+  // The sign itself is the shared prefix, not the locale's minus glyph.
+  const isZero = magnitude < Number(`5e-${decimals + 3}`);
+  return `${_signPrefix(parsed, isZero, sign)}${formatters.formatNumber(
+    isZero ? 0 : magnitude,
+    percentOptions,
+  )}`;
+};
+
+/**
  * Options for `formatFundingRate`.
  */
 export type PerpsFundingRateFormatOptions = PerpsDisplayFormatOptions & {
@@ -976,6 +1037,157 @@ export const formatFundingRate = (
     useGrouping: true,
     sign,
   })}%`;
+};
+
+/**
+ * Funding since open below this magnitude shows as zero: under half a cent.
+ */
+const FUNDING_SINCE_OPEN_ZERO_THRESHOLD = 0.005;
+
+/**
+ * A single funding payment below this magnitude shows its sub-cent digits
+ * instead of the fiat ranges, which would round it to `<$0.01`.
+ */
+const FUNDING_PAYMENT_CENT_THRESHOLD = 0.01;
+
+/** Most fraction digits of a funding payment below a cent. */
+const FUNDING_PAYMENT_SUB_CENT_DECIMALS = 6;
+
+/**
+ * How funding since open reads for the trader: `cost` (paid), `payment`
+ * (received) or `none` (under half a cent, or missing).
+ */
+export type PerpsFundingDirection = 'cost' | 'payment' | 'none';
+
+/**
+ * Formats a zero USD amount with two decimals: `$0.00`, `0,00 $`.
+ *
+ * @param formatters - Locale-bound formatters.
+ * @returns The formatted zero.
+ */
+function _formatZeroUsd(formatters: PerpsIntlFormatters): string {
+  return _formatCurrency(formatters, 0, {
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    strip: 'none',
+  });
+}
+
+/**
+ * Classifies funding since a position opened, with the venue's sign
+ * (positive = the trader paid), so clients colour it without copying the
+ * half-cent threshold.
+ *
+ * @param sinceOpen - Funding since open (venue field `cumulativeFunding.sinceOpen`).
+ * @returns `cost` from $0.005 up, `payment` from -$0.005 down, `none`
+ * otherwise or for a missing value.
+ * @example getPositionFundingDirection('1.25') => "cost"
+ * @example getPositionFundingDirection(-0.8) => "payment"
+ * @example getPositionFundingDirection(0.004) => "none"
+ * @example getPositionFundingDirection(undefined) => "none"
+ */
+export const getPositionFundingDirection = (
+  sinceOpen: string | number | null | undefined,
+): PerpsFundingDirection => {
+  const value = _parseDisplayNumber(sinceOpen);
+  if (
+    value === undefined ||
+    Math.abs(value) < FUNDING_SINCE_OPEN_ZERO_THRESHOLD
+  ) {
+    return 'none';
+  }
+  return value > 0 ? 'cost' : 'payment';
+};
+
+/**
+ * Formats funding since a position opened, as Mobile and Extension show it.
+ * The venue reports funding the trader paid as a positive number, so a cost
+ * shows with `-` and a payment received with `+`. Under half a cent it shows
+ * as zero.
+ *
+ * @param sinceOpen - Funding since open (venue field `cumulativeFunding.sinceOpen`).
+ * @param options - `formatters` (default `en-US`) and `sign` (default
+ * `exceptZero`). The amount's precision comes from
+ * `PRICE_RANGES_MINIMAL_VIEW`.
+ * @returns `-` or `+` with the amount on `PRICE_RANGES_MINIMAL_VIEW`, `$0.00`
+ * under half a cent, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
+ * missing value.
+ * @example formatPositionFunding('1.2345') => "-$1.23"
+ * @example formatPositionFunding(-1234.5) => "+$1,234.50"
+ * @example formatPositionFunding(0.005) => "-<$0.01"
+ * @example formatPositionFunding(0.0049) => "$0.00"
+ * @example formatPositionFunding(1234.5, { formatters: createFormatters({ locale: 'de' }) }) => "-1.234,50 $"
+ * @example formatPositionFunding(-1.2345, { sign: 'never' }) => "$1.23"
+ * @example formatPositionFunding(undefined) => "$---"
+ */
+export const formatPositionFunding = (
+  sinceOpen: string | number | null | undefined,
+  options: Omit<PerpsDisplayFormatOptions, 'decimals'> = {},
+): string => {
+  const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
+  const value = _parseDisplayNumber(sinceOpen);
+  if (value === undefined) {
+    return PERPS_CONSTANTS.FallbackPriceDisplay;
+  }
+  if (getPositionFundingDirection(value) === 'none') {
+    return `${_signPrefix(0, true, sign)}${_formatZeroUsd(formatters)}`;
+  }
+  // A cost (venue-positive) reads as money out: "-"
+  return `${_signPrefix(-value, false, sign)}${formatPerpsFiat(
+    Math.abs(value),
+    { ranges: PRICE_RANGES_MINIMAL_VIEW, formatters },
+  )}`;
+};
+
+/**
+ * Formats a single funding payment (a history row or its detail), with the
+ * trader's sign: positive = received. From a cent up it matches Mobile's
+ * `formatPerpsFiat`; below a cent it keeps up to 6 fraction digits, trailing
+ * zeros dropped and never in exponent notation.
+ *
+ * @param amount - Funding payment in USD (positive = received).
+ * @param options - `formatters` (default `en-US`) and `sign` (default
+ * `exceptZero`). The precision is fixed by the rules above.
+ * @returns The signed amount, `$0.00` without a sign when it rounds to zero
+ * at 6 digits, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
+ * missing value.
+ * @example formatFundingPayment(1.234) => "+$1.23"
+ * @example formatFundingPayment(-12.5) => "-$12.50"
+ * @example formatFundingPayment(0.003421) => "+$0.003421"
+ * @example formatFundingPayment(0.0000004) => "$0.00"
+ * @example formatFundingPayment(0.003421, { formatters: createFormatters({ locale: 'de' }) }) => "+0,003421 $"
+ * @example formatFundingPayment(undefined) => "$---"
+ */
+export const formatFundingPayment = (
+  amount: string | number | null | undefined,
+  options: Omit<PerpsDisplayFormatOptions, 'decimals'> = {},
+): string => {
+  const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
+  const value = _parseDisplayNumber(amount);
+  if (value === undefined) {
+    return PERPS_CONSTANTS.FallbackPriceDisplay;
+  }
+  const magnitude = Math.abs(value);
+  if (magnitude >= FUNDING_PAYMENT_CENT_THRESHOLD) {
+    return `${_signPrefix(value, false, sign)}${formatPerpsFiat(magnitude, {
+      formatters,
+    })}`;
+  }
+  // Below a cent, a value that rounds to zero at 6 digits shows as zero
+  if (_roundsToWhole(magnitude, FUNDING_PAYMENT_SUB_CENT_DECIMALS)) {
+    return `${_signPrefix(value, true, sign)}${_formatZeroUsd(formatters)}`;
+  }
+  return `${_signPrefix(value, false, sign)}${_formatCurrency(
+    formatters,
+    magnitude,
+    {
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: FUNDING_PAYMENT_SUB_CENT_DECIMALS,
+      strip: 'all',
+    },
+  )}`;
 };
 
 /**
@@ -1370,11 +1582,44 @@ export type PerpsUsdInputFormatOptions = {
   maxDigits?: number;
   /**
    * What `input` is: `typed` text in the locale's format, e.g. the field's
-   * display plus a keystroke (default), or a stored canonical `value` with a
-   * `.` decimal separator, e.g. a preset amount.
+   * display plus a keystroke (default), a stored canonical `value` with a
+   * `.` decimal separator, e.g. a preset amount, or `pasted` clipboard text,
+   * whose decimal point may be `.` or `,` whatever the locale.
    */
-  source?: 'typed' | 'value';
+  source?: 'typed' | 'value' | 'pasted';
 };
+
+/**
+ * Separators splitting 1-3 digits from groups of exactly 3: `12.345`,
+ * `1.234.567`, `$1,234`. A USD amount has 2 decimals, so these group
+ * thousands; uneven groups (`1.234.5`) end with a decimal point.
+ */
+const PASTED_THOUSANDS_GROUPING = /^\D*[1-9]\d{0,2}(?:[.,]\d{3})+\D*$/u;
+
+/**
+ * Rewrites pasted text with a `.` decimal point and no grouping, for a locale
+ * whose decimal separator is not `.`. The decimal point is the last `.` or
+ * `,` followed by a digit, unless every separator is that same character and
+ * they group thousands (`1.234.567`, `12.345`). A separator not followed by a
+ * digit is dropped.
+ *
+ * @param text - Pasted text, digits already in ASCII.
+ * @returns The text with `.` as its only separator, or none.
+ */
+function _normalizePastedDecimal(text: string): string {
+  const separators = [...text.matchAll(/[.,](?=\d)/gu)];
+  const last = separators[separators.length - 1];
+  let point = -1;
+  if (last !== undefined) {
+    const alike = separators.filter(([char]) => char === last[0]).length;
+    const isGrouping =
+      alike === separators.length && PASTED_THOUSANDS_GROUPING.test(text);
+    point = isGrouping ? -1 : last.index;
+  }
+  return text.replace(/[.,]/gu, (_char, index: number) =>
+    index === point ? '.' : '',
+  );
+}
 
 /** Most digits a USD input keeps exact when grouped through a number. */
 const MAX_EXACT_INPUT_DIGITS = 15;
@@ -1451,7 +1696,15 @@ function _getLocaleNumberSymbols(
  * 12.5); where `.` groups thousands (`de`, `es`), it stays a separator, so
  * `1.2345` is 12345.
  *
- * @param input - Typed text, or a stored canonical value with `source: 'value'`.
+ * Pasted text (`source: 'pasted'`) is often written with a `.` decimal point
+ * whatever the locale. Where the locale's decimal is not `.`, the last `.` or
+ * `,` followed by a digit is the decimal point, so `1234.56` and `1.234,56`
+ * are both 1234.56. Separators group thousands instead when they repeat
+ * (`1.234.567`), or when one splits 1-3 digits from exactly 3 (`12.345`,
+ * `$1,234`). Where the locale's decimal is `.`, pasted text reads as typed.
+ *
+ * @param input - Typed text, a stored canonical value with `source: 'value'`,
+ * or clipboard text with `source: 'pasted'`.
  * @param options - `formatters` (default `en-US`), `decimals` (default
  * `PERPS_DISPLAY_PRECISION.UsdInput`, 2), `maxDigits` (default
  * `PERPS_DISPLAY_PRECISION.UsdInputMaxDigits`, 9) and `source` (default
@@ -1462,6 +1715,7 @@ function _getLocaleNumberSymbols(
  * @example formatPerpsUsdInput('1234.') => { value: '1234.', display: '1,234.' }
  * @example formatPerpsUsdInput('1.2345', { formatters: createFormatters({ locale: 'de' }) }) => { value: '12345', display: '12.345' }
  * @example formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' }) => { value: '1234567.5', display: '1.234.567,5' }
+ * @example formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' }) => { value: '1234.56', display: '1234,56' }
  */
 export const formatPerpsUsdInput = (
   input: string,
@@ -1475,13 +1729,22 @@ export const formatPerpsUsdInput = (
   } = options;
   const maxDigits = Math.min(requestedMaxDigits, MAX_EXACT_INPUT_DIGITS);
   const symbols = _getLocaleNumberSymbols(formatters);
-  const text = Array.from(input, (character) => {
+  let text = Array.from(input, (character) => {
     const digit = symbols.digits.indexOf(character);
     return digit === -1 ? character : String(digit);
   }).join('');
+  // Pasted text reads as typed where "." is the locale's decimal, or where it
+  // holds the locale's own decimal that is neither "." nor "," ("٫")
+  const isPastedElsewhere =
+    source === 'pasted' &&
+    symbols.decimal !== '.' &&
+    (symbols.decimal === ',' || !text.includes(symbols.decimal));
+  if (isPastedElsewhere) {
+    text = _normalizePastedDecimal(text);
+  }
 
   let decimalSeparator: string | undefined;
-  if (source === 'value') {
+  if (source === 'value' || isPastedElsewhere) {
     decimalSeparator = '.';
   } else if (symbols.decimal && text.includes(symbols.decimal)) {
     decimalSeparator = symbols.decimal;
@@ -1525,4 +1788,67 @@ export const formatPerpsUsdInput = (
       maximumFractionDigits: 0,
     })}${hasDecimal ? `${symbols.decimal}${localizedFraction}` : ''}`,
   };
+};
+
+/**
+ * Options for `formatPerpsDuration`.
+ */
+export type PerpsDurationFormatOptions = Pick<
+  PerpsDisplayFormatOptions,
+  'formatters'
+> & {
+  /** `Intl.NumberFormat` unit style. Default: `short` ("1 hr 30 min"). */
+  unitDisplay?: 'short' | 'long' | 'narrow';
+};
+
+const DURATION_UNITS = [
+  { unit: 'day', seconds: 86_400 },
+  { unit: 'hour', seconds: 3_600 },
+  { unit: 'minute', seconds: 60 },
+  { unit: 'second', seconds: 1 },
+] as const;
+
+/**
+ * Formats a duration as its non-zero days, hours, minutes and seconds, in the
+ * client's locale: TWAP running time and elapsed time, slice intervals, chase
+ * windows and poll intervals.
+ *
+ * @param durationMs - Duration in milliseconds, rounded to whole seconds.
+ * @param options - `formatters` (default `en-US`) and `unitDisplay` (default
+ * `short`).
+ * @returns The duration, or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`) for a
+ * missing or negative value.
+ * @example formatPerpsDuration(90 * 60_000) => "1 hr 30 min"
+ * @example formatPerpsDuration(1440 * 60_000) => "1 day"
+ * @example formatPerpsDuration(30_000) => "30 sec"
+ * @example formatPerpsDuration(0) => "0 sec"
+ * @example formatPerpsDuration(5 * 60_000, { unitDisplay: 'long' }) => "5 minutes"
+ */
+export const formatPerpsDuration = (
+  durationMs: string | number | null | undefined,
+  options: PerpsDurationFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, unitDisplay = 'short' } = options;
+  const value = _parseDisplayNumber(durationMs);
+  if (value === undefined || value < 0) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+  let remaining = Math.round(value / 1000);
+  const parts: string[] = [];
+  for (const { unit, seconds } of DURATION_UNITS) {
+    const count = Math.floor(remaining / seconds);
+    remaining -= count * seconds;
+    if (count > 0) {
+      parts.push(
+        formatters.formatNumber(count, { style: 'unit', unit, unitDisplay }),
+      );
+    }
+  }
+  return parts.length > 0
+    ? parts.join(' ')
+    : formatters.formatNumber(0, {
+        style: 'unit',
+        unit: 'second',
+        unitDisplay,
+      });
 };

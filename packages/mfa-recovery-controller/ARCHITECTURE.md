@@ -7,15 +7,16 @@ crash can finish the same write.
 
 ## Architecture
 
-The controller is a coordinator. Auth, identifier proofs, escrow I/O, and
-encryption are injected. OTP collection is not wired yet.
+The controller is a coordinator. Identifier proofs, escrow I/O, and encryption
+are injected; Auth approvals come from `AuthenticationController` through the
+controller's messenger. OTP collection is not wired yet.
 
 ```mermaid
 flowchart LR
   Client["Client / UI"]
   Messenger["Messenger"]
   Ctrl["MfaRecoveryController"]
-  Auth["RecoveryAuthProvider"]
+  Auth["AuthenticationController"]
   IdP["RecoveryIdentifierAuthProvider"]
   Enc["PendingOperationEncryptor"]
   EA["Escrow A"]
@@ -35,7 +36,6 @@ flowchart LR
 | `pendingOperation`          | Persisted encrypted `authorizing` / `writing` blob, or `null`               |
 | `lockId`                    | Persisted lease ID, reused on retry and restart, or `null`                  |
 | `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
-| `authProvider`              | Profile id + request-bound Auth API approval                                |
 | `lockProvider`              | Per-profile lease, acquired before every approval                           |
 | `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
 | `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
@@ -143,7 +143,7 @@ Mutations are all-or-nothing across the configured escrow set. Reads are not.
 sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
-  participant A as AuthProvider
+  participant A as AuthenticationController
   participant I as IdentifierAuthProvider
   participant E as Escrows
 
@@ -152,11 +152,11 @@ sequenceDiagram
   M->>E: isAvailable (every escrow required)
   M->>E: getIdentifiers (AAL1); differing versions → replica_lagging
   M->>M: update identifier not enrolled everywhere → identifier_not_enrolled
-  M->>A: getAuthenticatedProfileId
+  M->>A: refreshCanonicalProfileId
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: build mutation, requestHash = hash(mutation fields)
   M->>M: persist pending = authorizing
-  M->>A: authorizeRecoveryRequest (AuthController token)
+  M->>A: requestMfaApproval (AuthController token)
   M->>M: skip escrows with a stored receipt, re-verify stored receipts
   M->>E: isAvailable (remaining escrows)
   M->>E: getIdentifiers (remaining escrows, live token or read-only approval)
@@ -194,8 +194,12 @@ sequenceDiagram
 
 Auth approvals:
 
-- The provider receives the operation's `requestHash` and each target escrow's
-  `authAudience`. All writes and reads set `requireTwoFactor` for AAL2.
+- The controller calls `AuthenticationController:requestMfaApproval` with the
+  operation's `requestHash` and each target escrow's `authAudience`, always
+  with `includeIdentifiers: true` and `reason: { operation: 'mfa_recovery' }`.
+  All writes and reads set `requireVerification` for AAL2.
+- The profile id comes from `AuthenticationController:refreshCanonicalProfileId`
+  on each mutation.
 - The issuer controls approval lifetime. AAL2 requires recent MFA.
 - The approval's `identifiers` are persisted with its token as
   `approvedIdentifiers` and refreshed with it. `register` and
@@ -303,7 +307,7 @@ sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
   participant I as IdentifierAuthProvider
-  participant A as RecoveryAuthProvider
+  participant A as AuthenticationController
   participant E as Available escrows
 
   C->>M: authenticateIdentifier(identifier)
@@ -317,7 +321,7 @@ sequenceDiagram
   alt none available
     M-->>C: no_available_escrow
   end
-  M->>A: authorizeRecoveryRequest (read hash, AAL2)
+  M->>A: requestMfaApproval (read hash, AAL2)
   A-->>M: request-bound approval
   M->>E: generateChallenge + PoP (partial OK)
   par read

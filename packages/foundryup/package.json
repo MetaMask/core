@@ -51,8 +51,8 @@
   },
   "dependencies": {
     "minipass": "^7.1.3",
-    "tar": "^7.5.22",
-    "unzipper": "^0.12.3",
+    "tar": "^7.5.23",
+    "unzipper": "^0.12.5",
     "yargs": "^18.2.0",
     "yargs-parser": "^22.0.0"
   },
@@ -62,12 +62,12 @@
     "@types/yargs": "^17.0.35",
     "@types/yargs-parser": "^21.0.3",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "nock": "^15.0.5",
-    "rimraf": "^6.1.3",
+    "nock": "^15.0.6",
+    "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "5.0.3",
+    "vitest": "5.1.1",
     "yaml": "^2.9.1"
   },
   "engines": {

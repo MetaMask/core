@@ -265,8 +265,9 @@ function getStandingDelegationRequirement(
 /**
  * Checks a single-use transaction delegation: exactly `LimitedCalls(1)`, one
  * exact-execution caveat pinning a vault deposit and, optionally, one
- * `Timestamp` deadline, in any order. A deadline only narrows when the
- * delegation can be redeemed.
+ * `Timestamp` deadline and one `Redeemer` allowlist, in any order. A deadline
+ * and a redeemer allowlist only narrow when and by whom the delegation can be
+ * redeemed.
  *
  * Withdrawals, payments and Card approvals use the same shape with other
  * calls, so they require MFA.
@@ -286,8 +287,10 @@ function getSingleUseDelegationRequirement(
     config.contracts.LimitedCallsEnforcer,
   );
   const timestamp = findOnlyCaveat(caveats, config.contracts.TimestampEnforcer);
+  const redeemer = findOnlyCaveat(caveats, config.contracts.RedeemerEnforcer);
   const [exactExecution, ...unexpected] = caveats.filter(
-    (caveat) => caveat !== limitedCalls && caveat !== timestamp,
+    (caveat) =>
+      caveat !== limitedCalls && caveat !== timestamp && caveat !== redeemer,
   );
   if (!limitedCalls || !exactExecution || unexpected.length > 0) {
     return requireMfa('Single-use delegation caveats are not whitelisted');

@@ -5,7 +5,7 @@
  *
  * Naming Convention: perps.{category}.{metric_name}
  * - Uses dot notation for hierarchical grouping in Sentry
- * - Categories: websocket, connection, api, operation, screen, ui
+ * - Categories: websocket, connection, api, operation
  * - Enables easy filtering (e.g., perps.websocket.*) and dashboard aggregation
  */
 export enum PerpsMeasurementName {
@@ -43,22 +43,4 @@ export enum PerpsMeasurementName {
   PerpsGetOpenOrdersOperation = 'perps.operation.get_open_orders',
   PerpsMarketDataPreload = 'perps.operation.market_data_preload',
   PerpsUserDataPreload = 'perps.operation.user_data_preload',
-
-  // Screen Load Metrics (milliseconds)
-  // Tracks full screen render performance
-  PerpsWithdrawalScreenLoaded = 'perps.screen.withdrawal_loaded',
-  PerpsMarketsScreenLoaded = 'perps.screen.markets_loaded',
-  PerpsAssetScreenLoaded = 'perps.screen.asset_loaded',
-  PerpsTradeScreenLoaded = 'perps.screen.trade_loaded',
-  PerpsCloseScreenLoaded = 'perps.screen.close_loaded',
-  PerpsTransactionHistoryScreenLoaded = 'perps.screen.transaction_history_loaded',
-  PerpsTabLoaded = 'perps.screen.tab_loaded',
-
-  // UI Component Metrics (milliseconds)
-  // Tracks individual UI component render performance
-  PerpsLeverageBottomSheetLoaded = 'perps.ui.leverage_bottom_sheet_loaded',
-  PerpsOrderSubmissionToastLoaded = 'perps.ui.order_submission_toast_loaded',
-  PerpsOrderConfirmationToastLoaded = 'perps.ui.order_confirmation_toast_loaded',
-  PerpsCloseOrderSubmissionToastLoaded = 'perps.ui.close_order_submission_toast_loaded',
-  PerpsCloseOrderConfirmationToastLoaded = 'perps.ui.close_order_confirmation_toast_loaded',
 }
