@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.3.2]
 
-### Uncategorized
-
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- Release/1428.0.0 ([#11546](https://github.com/MetaMask/core/pull/11546))
-- Release 1423.0.0 ([#11474](https://github.com/MetaMask/core/pull/11474))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
