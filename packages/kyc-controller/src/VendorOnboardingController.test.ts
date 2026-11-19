@@ -575,7 +575,7 @@ describe('VendorOnboardingController', () => {
         },
         async ({ controller, handlers }) => {
           await expect(
-            controller.submitEmailCode({ vendor: 'kalshi', code: '123456' }),
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('did not return the requested calls');
           expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
         },
@@ -624,7 +624,7 @@ describe('VendorOnboardingController', () => {
         },
         async ({ controller, handlers }) => {
           await expect(
-            controller.submitEmailCode({ vendor: 'kalshi', code: '123456' }),
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('returned a request kyc-api would refuse');
           expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
         },
@@ -661,7 +661,7 @@ describe('VendorOnboardingController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          await controller.submitEmailCode({
+          await controller.verifyEmailOtp({
             vendor: 'kalshi',
             code: '123456',
           });
@@ -693,7 +693,7 @@ describe('VendorOnboardingController', () => {
         },
         async ({ controller, handlers }) => {
           await expect(
-            controller.submitEmailCode({ vendor: 'kalshi', code: '123456' }),
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('did not return the requested calls');
           expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
         },
@@ -761,7 +761,7 @@ describe('VendorOnboardingController', () => {
             status: 'none',
           });
 
-          await controller.submitEmailCode({ vendor: 'iron', code: '123456' });
+          await controller.verifyEmailOtp({ vendor: 'iron', code: '123456' });
 
           expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
             sessionId: 'sid-iron',
@@ -793,7 +793,7 @@ describe('VendorOnboardingController', () => {
             status: 'none',
           });
 
-          await controller.resendEmailCode({ vendor: 'iron' });
+          await controller.sendEmailOtp({ vendor: 'iron' });
 
           const [request] = handlers.postOnboardingStep.mock.calls[0] as [
             Record<string, unknown>,
@@ -810,7 +810,7 @@ describe('VendorOnboardingController', () => {
   describe('onboarding steps', () => {
     it.each([
       [
-        'submitPhone',
+        'sendPhoneOtp',
         { phoneNumber: '+18888888888' },
         'phone/send-otp',
         {
@@ -818,7 +818,7 @@ describe('VendorOnboardingController', () => {
         },
       ],
       [
-        'submitPhoneCode',
+        'verifyPhoneOtp',
         { code: '888888' },
         'phone/verify-otp',
         {
@@ -826,7 +826,7 @@ describe('VendorOnboardingController', () => {
         },
       ],
       [
-        'submitEmailCode',
+        'verifyEmailOtp',
         { code: '123456' },
         'email/verify-otp',
         {
@@ -894,7 +894,7 @@ describe('VendorOnboardingController', () => {
             status: 'none',
           });
 
-          await controller.resendEmailCode({
+          await controller.sendEmailOtp({
             vendor: 'kalshi',
             email: KALSHI_EMAIL,
           });
@@ -918,7 +918,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        await controller.submitEmailCode({ vendor: 'kalshi', code: '123456' });
+        await controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' });
 
         expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith(
           'kalshi',
@@ -939,7 +939,7 @@ describe('VendorOnboardingController', () => {
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
         await expect(
-          controller.submitPhone({
+          controller.sendPhoneOtp({
             vendor: 'kalshi',
             phoneNumber: '+18888888888',
           }),
@@ -1678,10 +1678,10 @@ describe('VendorOnboardingController', () => {
     });
 
     it.each([
-      ['submitPhone', { phoneNumber: '+18888888888' }],
-      ['submitPhoneCode', { code: '888888' }],
-      ['submitEmailCode', { code: '123456' }],
-      ['resendEmailCode', { email: 'a@b.co' }],
+      ['sendPhoneOtp', { phoneNumber: '+18888888888' }],
+      ['verifyPhoneOtp', { code: '888888' }],
+      ['verifyEmailOtp', { code: '123456' }],
+      ['sendEmailOtp', { email: 'a@b.co' }],
     ] as const)(
       '%s reads the step once the code step has run',
       async (method, args) => {

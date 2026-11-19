@@ -61,12 +61,12 @@ export type {
   VendorOnboardingControllerFetchSessionDisclaimersAction,
   VendorOnboardingControllerLaunchProviderFlowAction,
   VendorOnboardingControllerRefreshStepAction,
-  VendorOnboardingControllerResendEmailCodeAction,
+  VendorOnboardingControllerSendEmailOtpAction,
   VendorOnboardingControllerResetAction,
   VendorOnboardingControllerStartSessionAction,
-  VendorOnboardingControllerSubmitEmailCodeAction,
-  VendorOnboardingControllerSubmitPhoneAction,
-  VendorOnboardingControllerSubmitPhoneCodeAction,
+  VendorOnboardingControllerSendPhoneOtpAction,
+  VendorOnboardingControllerVerifyEmailOtpAction,
+  VendorOnboardingControllerVerifyPhoneOtpAction,
 } from './VendorOnboardingController-method-action-types.js';
 
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';

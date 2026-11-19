@@ -191,23 +191,22 @@ touches `KycController` state.
   string. The controller sends them as `signedRequests` with the typed `email`
   on session creation (`[intents, link]`, or `[link]` when the intent is
   already open), and as `signedRequest` on the email calls on
-  `kalshi_email_link` (resend signs a fresh `users/link`, verify signs
-  `users/link/verify` with the code in its body and sends no `otp`). It signs
-  right before each call, because a signature lasts 60 seconds, and it
-  checks each answer against the route and kyc-api's limits (16 string
-  headers, 4 KB body). A Kalshi session sends no partner identity token.
-  `kalshi_phone_link` is the phone and its code, and it is not signed here.
-  kyc-api forwards the signed calls to the relay, which is the only Kalshi
-  client. Relay errors reach the client as a `KycApiError` whose `code`
-  `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`, `sumsub`, and
-  `decision`.
-  `sumsubLauncher` presents SumSub.
+  `kalshi_email_link` (`sendEmailOtp` signs a fresh `users/link`,
+  `verifyEmailOtp` signs `users/link/verify` with the code in its body and
+  sends no `otp`). It signs right before each call, because a signature lasts
+  60 seconds, and it checks each answer against the route and kyc-api's
+  limits (16 string headers, 4 KB body). A Kalshi session sends no partner
+  identity token. `kalshi_phone_link` is the phone and its code, and it is
+  not signed here. kyc-api forwards the signed calls to the relay, which is
+  the only Kalshi client. Relay errors reach the client as a `KycApiError`
+  whose `code` `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`,
+  `sumsub`, and `decision`. `sumsubLauncher` presents SumSub.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `refreshStep`, `acceptTerms`, `startSession`, `fetchSessionDisclaimers`,
-`acceptSessionDisclaimers`, `launchProviderFlow`, `submitPhone`,
-`submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `reset`.
+`acceptSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
+`verifyPhoneOtp`, `verifyEmailOtp`, `sendEmailOtp`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
 

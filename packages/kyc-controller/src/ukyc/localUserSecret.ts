@@ -1,7 +1,11 @@
 import { getRandomBytes } from '@metamask/cryptography';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 
-import type { KycControllerMessenger } from '../KycController.js';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
@@ -25,19 +29,17 @@ import {
  * Messenger used by {@link UkycLocalUserSecretStore} to reach Encrypted User
  * Storage.
  */
-export type UkycLocalUserSecretStoreMessenger = Pick<
-  KycControllerMessenger,
-  'call'
->;
-
-/**
- * The part of {@link UkycLocalUserSecretStore} the secret helpers use, so a
- * controller with a different messenger can supply its own.
- */
-export type UkycLocalUserSecretStoreAccess = Pick<
-  UkycLocalUserSecretStore,
-  'get' | 'set'
->;
+export type UkycLocalUserSecretStoreMessenger = {
+  call: (
+    ...args: Parameters<
+      Messenger<
+        string,
+        | UserStorageControllerPerformGetStorageAction
+        | UserStorageControllerPerformSetStorageAction
+      >['call']
+    >
+  ) => unknown;
+};
 
 /**
  * Encrypted User Storage adapter for the UKYC `local_user_secret`.
@@ -60,11 +62,11 @@ export class UkycLocalUserSecretStore {
    * @returns The stored value, or `null`.
    */
   async get(path: string, entropySourceId?: string): Promise<string | null> {
-    return this.#messenger.call(
+    return (await this.#messenger.call(
       'UserStorageController:performGetStorage',
       path as `${string}.${string}`,
       entropySourceId,
-    );
+    )) as string | null;
   }
 
   /**
@@ -106,7 +108,7 @@ const inFlightCreations = new Map<string, Promise<Uint8Array<ArrayBuffer>>>();
  * enrolled.
  */
 export async function loadLocalUserSecret(
-  store: UkycLocalUserSecretStoreAccess,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<Uint8Array<ArrayBuffer> | null> {
   const stored = await store.get(UKYC_LOCAL_USER_SECRET_PATH, entropySourceId);
@@ -134,7 +136,7 @@ export async function loadLocalUserSecret(
  * @param entropySourceId - Optional HD keyring entropy source id.
  */
 async function persistLocalUserSecret(
-  store: UkycLocalUserSecretStoreAccess,
+  store: UkycLocalUserSecretStore,
   localUserSecret: Uint8Array,
   entropySourceId?: string,
 ): Promise<void> {
@@ -160,7 +162,7 @@ async function persistLocalUserSecret(
  * @returns The `local_user_secret` bytes (existing or newly created).
  */
 export async function getOrCreateLocalUserSecret(
-  store: UkycLocalUserSecretStoreAccess,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
   const cacheKey = entropySourceId ?? '';
@@ -205,7 +207,7 @@ export async function getOrCreateLocalUserSecret(
  * @returns `true` if a `local_user_secret` exists in Encrypted User Storage.
  */
 export async function hasLocalUserSecret(
-  store: UkycLocalUserSecretStoreAccess,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<boolean> {
   return (await loadLocalUserSecret(store, entropySourceId)) !== null;

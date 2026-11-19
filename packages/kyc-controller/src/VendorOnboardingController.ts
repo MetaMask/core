@@ -37,11 +37,11 @@ import type {
   KycStep,
   KycStepStatus,
 } from './types.js';
+import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
 import {
-  createAuthorizedSession,
-  refreshSessionAuthorizations,
+  createUkycSession,
+  refreshAuthorizations,
 } from './ukyc/sessionAuthorization.js';
-import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 
 // === GENERAL ===
@@ -108,10 +108,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchSessionDisclaimers',
   'acceptSessionDisclaimers',
   'launchProviderFlow',
-  'submitPhone',
-  'submitPhoneCode',
-  'submitEmailCode',
-  'resendEmailCode',
+  'sendPhoneOtp',
+  'verifyPhoneOtp',
+  'verifyEmailOtp',
+  'sendEmailOtp',
   'reset',
 ] as const;
 
@@ -200,13 +200,16 @@ export class VendorOnboardingController extends BaseController<
     Record<OnboardingVendor, KycVendorRequestSigner>
   >;
 
+  readonly #localUserSecretStore: UkycLocalUserSecretStore;
+
   readonly #sumsubLauncher?: KycSumSubLauncher;
 
   /**
-   * The newest step request per vendor. An answer that arrives after a newer
-   * request started is ignored, so a slow response cannot undo a later one.
+   * The current step generation per vendor. Each step read and each `reset`
+   * starts a new generation. An answer from an older generation is ignored, so
+   * a slow response cannot undo a later one.
    */
-  readonly #stepRequests: Partial<Record<OnboardingVendor, number>> = {};
+  readonly #stepGenerations: Partial<Record<OnboardingVendor, object>> = {};
 
   /**
    * The step read in flight per vendor, which a plain `refreshStep` joins
@@ -240,6 +243,7 @@ export class VendorOnboardingController extends BaseController<
 
     this.#vendorRequestSigners = vendorRequestSigners ?? {};
     this.#sumsubLauncher = sumsubLauncher;
+    this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -330,8 +334,9 @@ export class VendorOnboardingController extends BaseController<
     if (existing) {
       this.#write(vendor, { sessionId: existing.id });
       if (needsCapabilityAuthorizationRefresh(existing)) {
-        await refreshSessionAuthorizations({
-          deps: this.#getSessionDeps(),
+        await refreshAuthorizations({
+          messenger: this.messenger,
+          localUserSecretStore: this.#localUserSecretStore,
           sessionId: existing.id,
         });
       }
@@ -368,8 +373,9 @@ export class VendorOnboardingController extends BaseController<
               { operation: 'users/link' as const, email },
             ]),
           };
-    const session = await createAuthorizedSession({
-      deps: this.#getSessionDeps(),
+    const session = await createUkycSession({
+      messenger: this.messenger,
+      localUserSecretStore: this.#localUserSecretStore,
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
@@ -521,7 +527,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.phoneNumber - The phone number in E.164 format.
    * @returns The next step.
    */
-  async submitPhone(params: {
+  async sendPhoneOtp(params: {
     vendor: OnboardingVendor;
     phoneNumber: string;
   }): Promise<KycStep> {
@@ -538,7 +544,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.code - The code from the user.
    * @returns The next step.
    */
-  async submitPhoneCode(params: {
+  async verifyPhoneOtp(params: {
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
@@ -555,7 +561,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.code - The code from the user.
    * @returns The next step.
    */
-  async submitEmailCode(params: {
+  async verifyEmailOtp(params: {
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
@@ -581,7 +587,7 @@ export class VendorOnboardingController extends BaseController<
    * Required for Kalshi, including when the user corrects the address.
    * @returns The next step.
    */
-  async resendEmailCode(params: {
+  async sendEmailOtp(params: {
     vendor: OnboardingVendor;
     email?: string;
   }): Promise<KycStep> {
@@ -611,9 +617,9 @@ export class VendorOnboardingController extends BaseController<
     // entry being forgotten.
     const vendors = vendor
       ? [vendor]
-      : (Object.keys(this.#stepRequests) as OnboardingVendor[]);
+      : (Object.keys(this.#stepGenerations) as OnboardingVendor[]);
     for (const each of vendors) {
-      this.#stepRequests[each] = (this.#stepRequests[each] ?? 0) + 1;
+      this.#stepGenerations[each] = {};
       delete this.#stepReads[each];
     }
     this.update((state) => {
@@ -623,41 +629,6 @@ export class VendorOnboardingController extends BaseController<
         state.vendors = {};
       }
     });
-  }
-
-  /**
-   * The calls session authorization makes, on this controller's messenger.
-   *
-   * @returns The calls.
-   */
-  #getSessionDeps(): UkycSessionDeps {
-    return {
-      createUkycSession: async (params) =>
-        this.messenger.call('KycService:createUkycSession', params),
-      resetWrappingKeys: async (params) =>
-        this.messenger.call('KycService:resetWrappingKeys', params),
-      setAuthorizations: async (params) =>
-        this.messenger.call('KycService:setAuthorizations', params),
-      fetchIdosEnclaveJwks: async () =>
-        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
-      fetchIdosRelayJwks: async () =>
-        this.messenger.call('KycService:fetchIdosRelayJwks'),
-      localUserSecretStore: {
-        get: async (path, entropySourceId) =>
-          this.messenger.call(
-            'UserStorageController:performGetStorage',
-            path as `${string}.${string}`,
-            entropySourceId,
-          ),
-        set: async (path, value, entropySourceId) =>
-          this.messenger.call(
-            'UserStorageController:performSetStorage',
-            path as `${string}.${string}`,
-            value,
-            entropySourceId,
-          ),
-      },
-    };
   }
 
   async #runOnboardingStep(
@@ -809,8 +780,8 @@ export class VendorOnboardingController extends BaseController<
     if (join && inflight) {
       return inflight;
     }
-    const request = (this.#stepRequests[vendor] ?? 0) + 1;
-    this.#stepRequests[vendor] = request;
+    const generation = {};
+    this.#stepGenerations[vendor] = generation;
     const read = (async (): Promise<KycStep> => {
       try {
         const info = await this.messenger.call(
@@ -818,15 +789,15 @@ export class VendorOnboardingController extends BaseController<
           vendor,
           this.#clientContext(vendor),
         );
-        // Drop the answer when a newer read started while this was in
+        // Drop the answer when a newer generation started while this was in
         // flight, so a slow read cannot overwrite a fresher step.
-        if (this.#stepRequests[vendor] === request) {
+        if (this.#stepGenerations[vendor] === generation) {
           this.#write(vendor, { step: info.step, status: info.status });
         }
         return info.step;
       } finally {
-        // A newer read has taken over from this one.
-        if (this.#stepRequests[vendor] === request) {
+        // A newer generation has taken over from this one.
+        if (this.#stepGenerations[vendor] === generation) {
           delete this.#stepReads[vendor];
         }
       }
