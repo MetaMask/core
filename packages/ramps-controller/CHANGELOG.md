@@ -9,15 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with an ISO 8601 timestamp ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
-- Add `submitSourceOfIncome` method to `TransakService` (also exposed on the messenger as `TransakService:submitSourceOfIncome`) for submitting source of income details including monthly volume, source of funds type, employment status, and country of citizenship ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
-- Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
-- Add `SubmitMicaConsentRequest` and `SubmitSourceOfIncomeRequest` types for MiCA/EEA KYC submission payloads ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with an ISO 8601 timestamp. Returns `SubmitMicaConsentResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `submitSourceOfIncome` method to `TransakService` (also exposed on the messenger as `TransakService:submitSourceOfIncome`) for submitting source of income details including monthly volume, source of funds type, employment status, and country of citizenship. Returns `SubmitSourceOfIncomeResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `transakSubmitMicaConsent` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitMicaConsent`) for submitting MiCA consent through the controller. Returns `SubmitMicaConsentResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `transakSubmitSourceOfIncome` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitSourceOfIncome`) for submitting source of income details through the controller. Returns `SubmitSourceOfIncomeResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `SubmitMicaConsentRequest`, `SubmitMicaConsentResponse`, `SubmitSourceOfIncomeRequest`, and `SubmitSourceOfIncomeResponse` types for MiCA/EEA KYC submission payloads and responses ([#11672](https://github.com/MetaMask/core/pull/11672))
 
 ### Changed
 
-- **BREAKING:** `TransakAdditionalRequirement.metadata` now supports MiCA/EEA-specific fields: `sourceOfFundsTypeOptions`, `employmentStatusOptions`, and `countryOfCitizenshipOptions` as arrays of `TransakAdditionalRequirementOption` (with `name` and `value` properties). Previously, options were always `string[]`. Clients that handle `getAdditionalRequirements` responses must check whether option fields are `string[]` or `TransakAdditionalRequirementOption[]`. All metadata fields are now optional ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
-- `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** `TransakService.submitMicaConsent` now returns `Promise<SubmitMicaConsentResponse>` instead of `Promise<void>`, allowing clients to check the submission status (e.g., `SUCCESS` or `FAILED`) returned by Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `TransakService.submitSourceOfIncome` now returns `Promise<SubmitSourceOfIncomeResponse>` instead of `Promise<void>`, allowing clients to check the submission status (e.g., `SUCCESS` or `FAILED`) returned by Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `TransakAdditionalRequirement.metadata` now supports MiCA/EEA-specific fields: `sourceOfFundsTypeOptions`, `employmentStatusOptions`, and `countryOfCitizenshipOptions` as arrays of `TransakAdditionalRequirementOption` (with `name` and `value` properties). Previously, options were always `string[]`. Clients that handle `getAdditionalRequirements` responses must check whether option fields are `string[]` or `TransakAdditionalRequirementOption[]`. All metadata fields are now optional ([#11672](https://github.com/MetaMask/core/pull/11672))
+- `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#11672](https://github.com/MetaMask/core/pull/11672))
 
 ## [30.1.0]
 

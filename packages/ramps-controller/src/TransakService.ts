@@ -296,11 +296,19 @@ export type SubmitMicaConsentRequest = {
   consentedAt: string;
 };
 
+export type SubmitMicaConsentResponse = {
+  status: string;
+};
+
 export type SubmitSourceOfIncomeRequest = {
   monthlyVolume: string;
   sourceOfFundsType: string;
   employmentStatus: string;
   countryOfCitizenship: string;
+};
+
+export type SubmitSourceOfIncomeResponse = {
+  status: string;
 };
 
 // === ENVIRONMENT ===
@@ -682,6 +690,10 @@ const IdProofStatusStruct = looseObject({
 const PaymentConfirmationStruct = looseObject({ success: boolean() });
 
 const WidgetUrlResponseStruct = looseObject({ widgetUrl: string() });
+
+const SubmitMicaConsentResponseStruct = looseObject({ status: string() });
+
+const SubmitSourceOfIncomeResponseStruct = looseObject({ status: string() });
 
 /**
  * Wraps a struct in the `{ data }` envelope the Transak API gateway uses.
@@ -1700,12 +1712,14 @@ export class TransakService extends BaseDataService<
     );
   }
 
-  async submitMicaConsent(consentedAt: string): Promise<void> {
+  async submitMicaConsent(
+    consentedAt: string,
+  ): Promise<SubmitMicaConsentResponse> {
     this.#ensureAccessToken();
-    await this.#transakPost(
+    return this.#transakPost<SubmitMicaConsentResponse>(
       'submitMicaConsent',
       '/api/v2/user/consent',
-      any(),
+      SubmitMicaConsentResponseStruct,
       { consentedAt },
     );
   }
@@ -1715,12 +1729,12 @@ export class TransakService extends BaseDataService<
     sourceOfFundsType: string,
     employmentStatus: string,
     countryOfCitizenship: string,
-  ): Promise<void> {
+  ): Promise<SubmitSourceOfIncomeResponse> {
     this.#ensureAccessToken();
-    await this.#transakPost(
+    return this.#transakPost<SubmitSourceOfIncomeResponse>(
       'submitSourceOfIncome',
       '/api/v2/user/source-of-income',
-      any(),
+      SubmitSourceOfIncomeResponseStruct,
       {
         monthlyVolume,
         sourceOfFundsType,

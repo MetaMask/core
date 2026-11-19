@@ -1558,7 +1558,7 @@ describe('TransakService', () => {
           '/api/v2/user/consent',
           (body) => body.consentedAt === consentedAt,
         )
-        .reply(200, { data: null });
+        .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
@@ -1567,7 +1567,8 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
     });
 
     it('submits MiCA consent with ISO 8601 timestamp with offset', async () => {
@@ -1578,7 +1579,7 @@ describe('TransakService', () => {
           '/api/v2/user/consent',
           (body) => body.consentedAt === consentedAt,
         )
-        .reply(200, { data: null });
+        .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
@@ -1587,7 +1588,8 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
     });
 
     it('throws when not authenticated', async () => {
@@ -1625,7 +1627,7 @@ describe('TransakService', () => {
             body.employmentStatus === 'employed' &&
             body.countryOfCitizenship === 'DE',
         )
-        .reply(200, { data: null });
+        .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
@@ -1639,7 +1641,8 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
     });
 
     it('submits source of income with different employment status', async () => {
@@ -1652,7 +1655,7 @@ describe('TransakService', () => {
             body.employmentStatus === 'self_employed' &&
             body.countryOfCitizenship === 'FR',
         )
-        .reply(200, { data: null });
+        .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
@@ -1666,7 +1669,8 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
     });
 
     it('throws when not authenticated', async () => {

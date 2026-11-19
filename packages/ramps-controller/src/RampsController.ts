@@ -171,6 +171,8 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
   TransakOrder,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeResponse,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
 import {
@@ -236,6 +238,8 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
+  'TransakService:submitMicaConsent',
+  'TransakService:submitSourceOfIncome',
   'NeoBankService:getAutoramp',
   'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
@@ -1519,6 +1523,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'transakSubmitMicaConsent',
+  'transakSubmitSourceOfIncome',
   'syncOrdersWithUserStorage',
 ] as const;
 
@@ -5958,6 +5964,57 @@ export class RampsController extends BaseController<
     this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits MiCA consent for the authenticated user.
+   *
+   * @param consentedAt - ISO 8601 timestamp of consent.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitMicaConsent(
+    consentedAt: string,
+  ): Promise<SubmitMicaConsentResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitMicaConsent',
+        consentedAt,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits source of income details for the authenticated user.
+   *
+   * @param monthlyVolume - Expected monthly transaction volume.
+   * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
+   * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+   * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitSourceOfIncome(
+    monthlyVolume: string,
+    sourceOfFundsType: string,
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitSourceOfIncomeResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSourceOfIncome',
+        monthlyVolume,
+        sourceOfFundsType,
+        employmentStatus,
+        countryOfCitizenship,
+      );
     } catch (error) {
       throw this.#getNormalizedTransakError(error, { syncAuth: true })
         .normalizedError;

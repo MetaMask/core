@@ -15936,6 +15936,25 @@ describe('RampsController', () => {
         invoke: ({ rootMessenger }) =>
           rootMessenger.call('RampsController:transakGetActiveOrders'),
       },
+      {
+        name: 'transakSubmitMicaConsent',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitMicaConsent',
+            '2025-01-15T10:30:00.000Z',
+          ),
+      },
+      {
+        name: 'transakSubmitSourceOfIncome',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitSourceOfIncome',
+            '5000',
+            'salary',
+            'employed',
+            'DE',
+          ),
+      },
     ];
 
     /**

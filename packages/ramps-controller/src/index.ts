@@ -89,6 +89,8 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerTransakSubmitMicaConsentAction,
+  RampsControllerTransakSubmitSourceOfIncomeAction,
   RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
@@ -270,6 +272,10 @@ export type {
   TransakUserLimits,
   TransakIdProofStatus,
   PatchUserRequestBody as TransakPatchUserRequestBody,
+  SubmitMicaConsentRequest,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeRequest,
+  SubmitSourceOfIncomeResponse,
 } from './TransakService.js';
 export {
   TransakApiError,
