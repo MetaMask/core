@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Added
 
 - Add `crossMarginUnavailableReason` to HyperLiquid order capabilities when Cross is restricted, distinguishing the venue's no-Cross and strict-isolated modes from generic isolated-only markets. ([#11629](https://github.com/MetaMask/core/pull/11629))
@@ -61,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add venue attribution to money-movement records: deposit and withdrawal request records in controller state take an optional `providerId`, resolved from the chosen route (otherwise the executing provider) during preparation and never relabeled by later provider or default changes. Records persisted before this change omit the field and keep their original shape ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Add `ClosePositionsParams.targets` and `ClosePositionsTarget` for venue-tagged closes, and optional venue attribution on batch close and cancel results ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Expose `resolveCancelSelection`, `getUnroutedCancelOrdersRefusal` and the `CancelSelection` type through `@metamask/perps-controller/utils/cancelOrders`, `resolveCloseSelection` and the `CloseSelection` type through `@metamask/perps-controller/utils/closePositions`, and `hasFeeSetter` through `@metamask/perps-controller/utils/feeSupport` ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Add `aggregateOrderBookLevels` and `groupOrderBook` to group an order book at a price step with exact decimal bucketing, plus the `GroupedOrderBook` type ([#11639](https://github.com/MetaMask/core/pull/11639))
+- Add `estimateCrossMaintenanceMargin` and `estimateCrossLiquidationPrice` for HyperLiquid cross-margin positions, plus the `CrossMarginPosition` type ([#11639](https://github.com/MetaMask/core/pull/11639))
+- Add `PERPS_ERROR_COPY` and `getPerpsErrorCopy`, a translation key and English default for every `PERPS_ERROR_CODES` value, and `PERPS_ORDER_TYPE_LABELS` for every `OrderType`, with the `PerpsErrorCopy` and `PerpsOrderTypeLabel` types ([#11639](https://github.com/MetaMask/core/pull/11639))
+- Add `getBatchOperationStatus` and the `BatchOperationStatus` and `WithBatchOperationStatus` types ([#11639](https://github.com/MetaMask/core/pull/11639))
+- Document these in `docs/client-contract.md` ([#11639](https://github.com/MetaMask/core/pull/11639))
 
 ### Changed
 
@@ -79,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Lighter `calculateLiquidationPrice` throws `PRICE_UNAVAILABLE` or `ORDER_LEVERAGE_INVALID` for an invalid entry price or leverage instead of returning `'0.00'` ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** `calculateFees` leaves `feeRate` and `feeAmount` undefined when the protocol fee is unavailable. Clients should show an unavailable total and can still display the known MetaMask fee separately ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** `previewPositionModify` and `previewHyperLiquidIsolatedPositionModify` treat an omitted, NaN or negative `feeAmountUsd` as unknown: the resulting margin and liquidation price of an increase or flip are unavailable instead of computed with a $0 fee. Pass `0` only for a known zero fee ([#11629](https://github.com/MetaMask/core/pull/11629))
+- **BREAKING:** `PerpsController.cancelOrders` and `PerpsController.closePositions` and their messenger actions now require `status: 'all' | 'partial' | 'none'` in their return types ([#11639](https://github.com/MetaMask/core/pull/11639))
+  - Existing result readers can keep using `success`, counts and rows. Typed implementations and handler mocks should return `{ ...result, status: getBatchOperationStatus(result) }` when adapting a provider result.
 - **BREAKING:** `getDepositRoutes` and `getWithdrawalRoutes` return routes from every active venue rather than only the default. Filter by `route.providerId` for venue-local money movement; identical asset/chain routes on different venues remain distinct ([#11461](https://github.com/MetaMask/core/pull/11461))
   - `depositWithConfirmation` selects the explicit `providerId`, otherwise the routing default, and fails closed when that venue has no route instead of funding another exchange
 - **BREAKING:** Aggregated `getAccountState` and `subscribeToAccount` now expose per-venue snapshots and combined totals instead of the routing default's account. Consumers must use `providerStates[providerId]` for venue-local balances and margin detail ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
@@ -104,21 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Venues without a fee setter get no fee lookup, and a bounded subscription allowance is reserved venue by venue, so two venues cannot both spend the same remaining allowance
   - Batch-close fee pricing reads each execution venue independently, allowing a reachable venue to use its fee waiver when another venue's positions are unavailable ([#11629](https://github.com/MetaMask/core/pull/11629))
   - Tagged close targets work in single-venue and multi-venue execution, including per-position fallbacks. Missing or throwing venues retain explicit per-target failures, and a venue whose position lookup fails during close-all is reported in `failures` rather than treated as having nothing to close
-- **BREAKING:** `PerpsController.cancelOrders` and `PerpsController.closePositions` and their messenger actions now require `status: 'all' | 'partial' | 'none'` in their return types ([#11639](https://github.com/MetaMask/core/pull/11639))
-  - Existing result readers can keep using `success`, counts and rows. Typed implementations and handler mocks should return `{ ...result, status: getBatchOperationStatus(result) }` when adapting a provider result.
-- `getOrderCapabilities` now reports `pricePrecision` and `orderLimits` for HyperLiquid and Lighter markets, with the new `PerpsPricePrecision` and `PerpsOrderLimits` types ([#11639](https://github.com/MetaMask/core/pull/11639))
-  - HyperLiquid: a `significant_figures` grid (5 significant figures, `6 - szDecimals` decimals), size decimals, the $10 minimum order value, Scale rung bounds and TWAP duration and value bounds
-  - Lighter: a `fixed_decimals` grid with its `tickSize`, size decimals, minimum order size and value, and Scale rung bounds
-  - `orderLimits.minimumAppliesTo` names the orders the minimums apply to: `all_orders` on HyperLiquid, `resting_limit_orders` on Lighter (market and IOC orders are exempt)
-  - Both fields are optional. Lighter reports maker bounds as a pair only when both are valid and reachable within the price and size wire limits
-- Add `aggregateOrderBookLevels` and `groupOrderBook` to group an order book at a price step with exact decimal bucketing, plus the `GroupedOrderBook` type ([#11639](https://github.com/MetaMask/core/pull/11639))
-- Add `estimateCrossMaintenanceMargin` and `estimateCrossLiquidationPrice` for HyperLiquid cross-margin positions, plus the `CrossMarginPosition` type ([#11639](https://github.com/MetaMask/core/pull/11639))
-- Add `PERPS_ERROR_COPY` and `getPerpsErrorCopy`, a translation key and English default for every `PERPS_ERROR_CODES` value, and `PERPS_ORDER_TYPE_LABELS` for every `OrderType`, with the `PerpsErrorCopy` and `PerpsOrderTypeLabel` types ([#11639](https://github.com/MetaMask/core/pull/11639))
-- Add `getBatchOperationStatus` and the `BatchOperationStatus` and `WithBatchOperationStatus` types ([#11639](https://github.com/MetaMask/core/pull/11639))
-- Document these in `docs/client-contract.md` ([#11639](https://github.com/MetaMask/core/pull/11639))
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
-
+- Clarify the published architecture doc: `PERPS_CONSTANTS` timings are defaults each client's connection owner reads and can override, not values the controller reads, and the client timing contract is now agreed with every client team ([#11603](https://github.com/MetaMask/core/pull/11603), [#11573](https://github.com/MetaMask/core/pull/11573))
 - **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
   - Result `error` fields now hold the stable code instead of venue text, and unknown failures return `UNKNOWN_ERROR`. Clients read `errorCode` instead. Mobile does this in [metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018) and Extension in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
   - Failed Perps analytics events emitted from Hyperliquid result failures (trade, edit, cancel, close, flip, margin, and withdrawal) now carry the stable `PerpsErrorCode` in `error_message` instead of venue text. Unrecognized failures are grouped as `UNKNOWN_ERROR`; dashboards that group by `error_message` must use code-based buckets. Original venue details remain in error-reporting causes, not analytics properties.
@@ -130,8 +127,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A structured failure the provider raises itself without details, such as the `ORDER_SIZE_MIN` returned when the venue rejects an opening order below its minimum, now also carries provider-tagged details. `PRICE_MOVED` is unchanged.
   - The original failure is never copied into result fields. It stays the `cause` of the reported error, including when `TradingService` reports a failed `closePosition`, `cancelOrder`, or `flipPosition` result, and when it reports a mixed `closePositions` batch.
 - **BREAKING:** `HyperLiquidProvider.subscribeToAccount` throws `PROVIDER_NOT_AVAILABLE` if its shared feed is owned by another wallet. Close the old feed's subscriptions before opening a different wallet. Through `PerpsController`, this reports an unavailable balance to the subscriber and leaves other venues live ([#11629](https://github.com/MetaMask/core/pull/11629))
-- Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
-- Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+- `getOrderCapabilities` now reports `pricePrecision` and `orderLimits` for HyperLiquid and Lighter markets, with the new `PerpsPricePrecision` and `PerpsOrderLimits` types ([#11639](https://github.com/MetaMask/core/pull/11639))
+  - HyperLiquid: a `significant_figures` grid (5 significant figures, `6 - szDecimals` decimals), size decimals, the $10 minimum order value, Scale rung bounds and TWAP duration and value bounds
+  - Lighter: a `fixed_decimals` grid with its `tickSize`, size decimals, minimum order size and value, and Scale rung bounds
+  - `orderLimits.minimumAppliesTo` names the orders the minimums apply to: `all_orders` on HyperLiquid, `resting_limit_orders` on Lighter (market and IOC orders are exempt)
+  - Both fields are optional. Lighter reports maker bounds as a pair only when both are valid and reachable within the price and size wire limits
 
 ### Removed
 
@@ -154,7 +154,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve exact decimal `marginUsed` and `unrealizedPnl` totals and the margin-weighted `returnOnEquity` in `aggregateAccountStates` by sharing the account-total calculation with cross-venue aggregation instead of using binary floating-point arithmetic ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
 - Avoid cancelling all orders when `CancelOrdersParams.orderIds` or `symbols` is an empty list; empty filters now select no orders ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
 - Fix `LighterProvider` account subscribers receiving an all-zero `AccountState` when the wallet switches accounts or is deselected. They now receive `null` (balance not yet known), so the aggregated account stream marks Lighter `unavailable` after a prior snapshot (or keeps it `pending` before its first snapshot) instead of recording a confirmed $0 for the new account. A wallet the venue confirms has no Lighter account still receives the empty state ([#11461](https://github.com/MetaMask/core/pull/11461))
-
 - HyperLiquid chase cancels whose child the venue reports gone now read that child's status. A child that filled before the cancel ends the chase as `filled` with its final unfilled size, instead of `canceled` with the size from the last read ([#11592](https://github.com/MetaMask/core/pull/11592))
   - When that status cannot be read, the chase keeps its last status instead of `canceled`. A session kept for HIP-3 collateral cleanup asks for the child's status again on each `getChaseOrders` read until the venue reports it
 - HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
@@ -1749,7 +1748,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...@metamask/perps-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...@metamask/perps-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.1.0...@metamask/perps-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.0.0...@metamask/perps-controller@23.1.0
