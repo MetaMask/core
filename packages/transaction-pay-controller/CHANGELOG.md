@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState`, `RampsController:getState`, `TransactionController:failTransaction` and `TransactionController:finalizeResumedTransaction` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ## [32.1.0]
 

@@ -132,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `HyperLiquidProvider.subscribeToAccount` throws `PROVIDER_NOT_AVAILABLE` if its shared feed is owned by another wallet. Close the old feed's subscriptions before opening a different wallet. Through `PerpsController`, this reports an unavailable balance to the subscriber and leaves other venues live ([#11629](https://github.com/MetaMask/core/pull/11629))
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Removed
 
