@@ -194,11 +194,13 @@ export class RewardsIntegrationService {
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
    * @param scope - Provider route used to request route-scoped fee sources.
    * Omission intentionally excludes grants.
+   * @param reservedSubscriptionNotionalUsd - Allowance allocated to earlier venues in this batch, not yet reflected by the backend.
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
   async resolveFee(
     orderNotionalUsd?: number,
     scope?: PerpsFeeResolverScope,
+    reservedSubscriptionNotionalUsd = 0,
   ): Promise<PerpsFeeResolution> {
     const [rewardsDiscount, grantCandidate] = await Promise.all([
       this.#calculateRewardsDiscount(),
@@ -215,7 +217,17 @@ export class RewardsIntegrationService {
         : undefined;
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
-    const subscription = this.getSubscriptionFeeWaiverStatus();
+    const status = this.getSubscriptionFeeWaiverStatus();
+    const subscription =
+      status.remainingNotionalUsd === undefined
+        ? status
+        : {
+            ...status,
+            remainingNotionalUsd: Math.max(
+              0,
+              status.remainingNotionalUsd - reservedSubscriptionNotionalUsd,
+            ),
+          };
 
     let feeBips = DEFAULT_FEE_BIPS;
     let source: PerpsFeeSource = 'default';

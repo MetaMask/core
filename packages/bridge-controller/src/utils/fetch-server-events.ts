@@ -70,6 +70,9 @@ export const fetchServerEvents = async (
         if (dataLines.length > 0) {
           const parsedJSONData = JSON.parse(dataLines.join('\n'));
           await onMessage(parsedJSONData, eventName);
+          if (requestOptions.signal?.aborted) {
+            return;
+          }
         }
       }
     }

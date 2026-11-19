@@ -60,11 +60,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -506,11 +502,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -645,39 +637,79 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
-    it('keeps HIP-3 Cross unavailable while its transfers assume isolated', async () => {
+    it('validates Cross on a main-DEX market with explicit normal margin mode', async () => {
       const info = createMockInfoClient({
         meta: vi.fn().mockResolvedValue({
           universe: [
             {
-              name: 'xyz:XYZ100',
+              name: 'BTC',
               szDecimals: 3,
-              maxLeverage: 20,
+              maxLeverage: 50,
               marginTableId: 1,
-            } satisfies MetaResponse['universe'][number],
+              marginMode: 'normal',
+            },
           ],
         }),
       });
-      mockClientService.getInfoClient.mockReturnValue(
-        info as unknown as ReturnType<
-          HyperLiquidClientService['getInfoClient']
-        >,
-      );
+      mockClientService.getInfoClient.mockReturnValue(info as never);
 
       const result = await provider.validateOrder({
         ...order,
-        symbol: 'xyz:XYZ100',
         marginMode: 'cross',
       });
 
-      expect(result).toEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
-      });
-      expect(
-        mockClientService.getExchangeClient().updateLeverage,
-      ).not.toHaveBeenCalled();
+      expect(result).toEqual({ isValid: true });
     });
+
+    it.each([
+      ['normal', { marginMode: 'normal' }, { isValid: true }],
+      ['unrestricted', {}, { isValid: true }],
+      [
+        'noCross',
+        { marginMode: 'noCross' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+      [
+        'strictIsolated',
+        { marginMode: 'strictIsolated' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+    ])(
+      'validates Cross on a %s HIP-3 market from its venue margin mode',
+      async (_, capability, expected) => {
+        const info = createMockInfoClient({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:XYZ100',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 1,
+                ...capability,
+              },
+            ],
+          }),
+        });
+        mockClientService.getInfoClient.mockReturnValue(info as never);
+
+        const result = await provider.validateOrder({
+          ...order,
+          symbol: 'xyz:XYZ100',
+          marginMode: 'cross',
+        });
+
+        expect(result).toEqual(expected);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     it('rejects a mode change with an open position', async () => {
       const result = await provider.placeOrder({
@@ -2842,6 +2874,55 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders).toHaveLength(1);
       expect(request.orders[0].t.trigger.isMarket).toBe(false);
     });
+
+    it('attributes a thrown leg-replace failure to replacePositionTPSLLeg in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'replacePositionTPSLLeg' }),
+          }),
+        }),
+      );
+    });
+
+    it('attributes a thrown whole-position failure to updatePositionTPSL in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'updatePositionTPSL' }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('updatePositionTPSL with partial sizes', () => {
@@ -3212,6 +3293,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+            provider: 'hyperliquid',
+          },
         });
         expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
           useHttp: true,
@@ -3293,6 +3379,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+            provider: 'hyperliquid',
+          },
         });
         expect(
           mockClientService.getExchangeClient().order,

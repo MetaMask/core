@@ -55,6 +55,34 @@ import type {
   SubscribePublicTradesParams,
   PerpsControllerGetPublicTradesAction,
   PerpsControllerSubscribeToPublicTradesAction,
+  TwapOrder,
+  LiveTwapOrderSource,
+  LiveChaseOrderSource,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
+  PerpsControllerSubscribeToLiveTwapOrdersAction,
+  PerpsControllerSubscribeToChaseOrderListsAction,
+  PERPS_ERROR_CODES,
+  PerpsErrorCode,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+  HyperLiquidErrorDetails,
+  ClosePositionsResult,
+  DisconnectResult,
+  InitializeResult,
+  MarginResult,
+  ReadyToTradeResult,
+  ToggleTestnetResult,
+  TransferBetweenDexsResult,
+  WithdrawResult,
+  AccountState,
+  AccountAggregateMetadata,
+  PerpsProviderAccountStateEntry,
+  ClosePositionsParams,
+  ClosePositionsTarget,
+  CancelOrdersParams,
+  SubscribeAccountParams,
+  PerpsProviderType,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -808,5 +836,233 @@ export type ReplacePositionTPSLLegConsumerContracts = [
   AssertCompatible<
     PerpsProvider,
     Omit<PerpsProvider, 'replacePositionTPSLLeg'>
+  >,
+];
+
+export type AdvancedOrderListsConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      PerpsControllerSubscribeToLiveTwapOrdersAction['type'],
+      'PerpsController:subscribeToLiveTwapOrders'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerSubscribeToLiveTwapOrdersAction['handler']>,
+      [params: SubscribeLiveTwapOrdersParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerSubscribeToChaseOrderListsAction['type'],
+      'PerpsController:subscribeToChaseOrderLists'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerSubscribeToChaseOrderListsAction['handler']>,
+      [params: SubscribeChaseOrderListsParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<LiveTwapOrderSource['getTwapOrders'], () => Promise<TwapOrder[]>>
+  >,
+  AssertTrue<
+    IsExact<LiveChaseOrderSource['getChaseOrders'], () => Promise<ChaseOrder[]>>
+  >,
+];
+
+type PostOnlyErrorCode =
+  | 'ORDER_POST_ONLY_WOULD_CROSS'
+  | 'ORDER_POST_ONLY_WINDOW';
+
+// Clients key exhaustive `Record<PerpsErrorCode, string>` translation maps
+// (Mobile `translatePerpsError.ts`, Extension `translate-perps-error.ts`), so
+// each new code is a compile-time change for them. A code added or renamed
+// here must come with matching client entries.
+export type PostOnlyErrorCodeConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      (typeof PERPS_ERROR_CODES)['ORDER_POST_ONLY_WOULD_CROSS'],
+      'ORDER_POST_ONLY_WOULD_CROSS'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof PERPS_ERROR_CODES)['ORDER_POST_ONLY_WINDOW'],
+      'ORDER_POST_ONLY_WINDOW'
+    >
+  >,
+  AssertTrue<
+    IsExact<Extract<PerpsErrorCode, PostOnlyErrorCode>, PostOnlyErrorCode>
+  >,
+  AssertTrue<
+    IsExact<
+      Record<Exclude<PerpsErrorCode, PostOnlyErrorCode>, string> extends Record<
+        PerpsErrorCode,
+        string
+      >
+        ? true
+        : false,
+      false
+    >
+  >,
+];
+
+export type ProviderErrorDetailsConsumerContracts = [
+  AssertTrue<
+    IsExact<PerpsErrorDetails, PriceMovedErrorDetails | HyperLiquidErrorDetails>
+  >,
+  AssertTrue<
+    IsExact<
+      HyperLiquidErrorDetails,
+      {
+        code: Exclude<PerpsErrorCode, 'PRICE_MOVED'>;
+        provider: 'hyperliquid';
+      }
+    >
+  >,
+  // Clients narrow on `code === PRICE_MOVED` before reading the numeric
+  // payload; the provider-tagged variant must never satisfy that check.
+  AssertTrue<
+    IsExact<
+      Extract<PerpsErrorDetails, { code: 'PRICE_MOVED' }>,
+      PriceMovedErrorDetails
+    >
+  >,
+  AssertTrue<
+    IsExact<Extract<HyperLiquidErrorDetails['code'], 'PRICE_MOVED'>, never>
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<HyperLiquidErrorDetails['code'], PostOnlyErrorCode>,
+      PostOnlyErrorCode
+    >
+  >,
+  AssertTrue<
+    IsExact<OrderResult['errorDetails'], PerpsErrorDetails | undefined>
+  >,
+];
+
+type HasNormalizedErrorFields<Result> =
+  IsExact<
+    Result[Extract<keyof Result, 'errorCode'>],
+    PerpsErrorCode | undefined
+  > extends true
+    ? IsExact<
+        Result[Extract<keyof Result, 'errorDetails'>],
+        PerpsErrorDetails | undefined
+      >
+    : false;
+
+export type NormalizedResultErrorFieldsConsumerContracts = [
+  AssertTrue<HasNormalizedErrorFields<OrderResult>>,
+  AssertTrue<HasNormalizedErrorFields<MarginResult>>,
+  AssertTrue<HasNormalizedErrorFields<WithdrawResult>>,
+  AssertTrue<HasNormalizedErrorFields<TransferBetweenDexsResult>>,
+  AssertTrue<HasNormalizedErrorFields<InitializeResult>>,
+  AssertTrue<HasNormalizedErrorFields<ReadyToTradeResult>>,
+  AssertTrue<HasNormalizedErrorFields<DisconnectResult>>,
+  AssertTrue<HasNormalizedErrorFields<ToggleTestnetResult>>,
+  AssertTrue<HasNormalizedErrorFields<ClosePositionsResult>>,
+  AssertTrue<HasNormalizedErrorFields<ClosePositionsResult['results'][number]>>,
+];
+
+// Aggregated account reads/streams and tagged close targets, imported through
+// the package entrypoint the way a client imports them, so a dropped or
+// renamed export fails here instead of only in internal `src/types` tests.
+export type AggregatedAccountConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'available' }>,
+      {
+        status: 'available';
+        state: AccountState;
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsProviderAccountStateEntry,
+      | {
+          status: 'available';
+          state: AccountState;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'unavailable';
+          error?: string;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'pending';
+          providerId: PerpsProviderType;
+        }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'pending' }>,
+      {
+        status: 'pending';
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'unavailable' }>,
+      {
+        status: 'unavailable';
+        error?: string;
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountAggregateMetadata,
+      {
+        status: 'complete' | 'partial';
+        availableProviders: PerpsProviderType[];
+        unavailableProviders: PerpsProviderType[];
+        pendingProviders?: PerpsProviderType[];
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountState['providerStates'],
+      | Partial<Record<PerpsProviderType, PerpsProviderAccountStateEntry>>
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<AccountState['aggregate'], AccountAggregateMetadata | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<SubscribeAccountParams['callback']>,
+      [account: AccountState | null, aggregate?: AccountAggregateMetadata]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      CancelOrdersParams['orders'],
+      { orderId: string; providerId: PerpsProviderType }[] | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<AccountState['providerId'], PerpsProviderType | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      ClosePositionsTarget,
+      { symbol: string; providerId: PerpsProviderType }
+    >
+  >,
+  AssertTrue<
+    IsExact<ClosePositionsParams['targets'], ClosePositionsTarget[] | undefined>
   >,
 ];

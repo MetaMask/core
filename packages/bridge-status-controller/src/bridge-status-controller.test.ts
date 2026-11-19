@@ -63,7 +63,7 @@ import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager
 import { BridgeClientId } from './types.js';
 import type {
   BridgeId,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   BridgeHistoryItem,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
@@ -317,7 +317,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   srcChainId = 42161,
   destChainId = 10,
   isStxEnabled = false,
-} = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
+} = {}): StartPollingForBridgeTxStatusArgs => ({
   bridgeTxMeta: {
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
@@ -1995,6 +1995,61 @@ describe('BridgeStatusController', () => {
             expect(
               controller.state.txHistory.swapTxMetaId1?.status.status,
             ).toBe(StatusTypes.COMPLETE);
+          },
+        );
+      });
+
+      it('includes the confirmation hash in the completion trace when history has no source hash yet', async () => {
+        const traceRequests: TraceRequest[] = [];
+        const historyKey = 'lateHashSwapTxMetaId';
+        const confirmationHash = '0xlateAssignedHash';
+
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: MockTxHistory.getPendingSwap({
+                  txMetaId: historyKey,
+                  srcTxHash: 'undefined',
+                }),
+              },
+              traceFn: createTraceCallback(traceRequests),
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              {
+                transactionMeta: {
+                  chainId: CHAIN_IDS.ARBITRUM,
+                  hash: confirmationHash,
+                  networkClientId: 'eth-id',
+                  time: Date.now(),
+                  txParams: {} as unknown as TransactionParams,
+                  type: TransactionType.batch,
+                  status: TransactionStatus.confirmed,
+                  id: historyKey,
+                  nestedTransactions: [{ type: TransactionType.swap }],
+                },
+              },
+            );
+            await flushPromises();
+
+            expect(
+              controller.state.txHistory[historyKey]?.status.srcChain.txHash,
+            ).toBe(confirmationHash);
+            expect(getSwapOperationCompletedTrace(traceRequests)).toStrictEqual(
+              expect.objectContaining({
+                name: TraceName.SwapOperationCompleted,
+                data: expect.objectContaining({
+                  result: 'success',
+                  terminal_stage: 'source',
+                  transaction_id: historyKey,
+                  src_tx_hash: confirmationHash,
+                }),
+              }),
+            );
           },
         );
       });
