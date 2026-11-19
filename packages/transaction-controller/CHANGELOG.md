@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
+- Add optional `accountOverride` property to `MetamaskPayMetadata` to persist the `InternalAccount` ID overriding the default account (output recipient when `isPostQuote` is true, funding payer when false) ([#11588](https://github.com/MetaMask/core/pull/11588))
+
+## [74.2.0]
+
+### Added
+
 - Add `perpsLighterDeposit`, `perpsLighterWithdraw`, and `perpsLighterDepositAndOrder` to `TransactionType` ([#11574](https://github.com/MetaMask/core/pull/11574))
   - These identify a Perps deposit, withdraw, or deposit-and-order that targets Lighter, so clients can tell it apart from the existing Hyperliquid Perps types in metrics and confirmations.
 
@@ -2930,7 +2936,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...HEAD
+[74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2

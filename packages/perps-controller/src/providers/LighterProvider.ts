@@ -36,10 +36,12 @@ import {
   LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
   LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS,
   fromLighterInteger,
+  getLighterMakerMinimums,
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
   LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_MAX_DECIMALS,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
@@ -91,6 +93,7 @@ import {
   LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   LIGHTER_SCALE_SETTLEMENT_POLL_MS,
   parseLighterStrictDecimal,
+  isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { createTpslLegReplaceUnsupportedError } from '../errors.js';
@@ -159,6 +162,8 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetOrderCapabilitiesParams,
+  PerpsOrderLimits,
+  PerpsPricePrecision,
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -252,6 +257,7 @@ import type {
   LighterWsMarketStat,
   LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
+import { getCaipAccountAddress } from '../utils/accountUtils.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -323,6 +329,7 @@ import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  SCALE_ORDER_COUNT,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
 import { assertExpectedPosition } from '../utils/positionProtection.js';
@@ -2483,7 +2490,7 @@ export class LighterProvider implements PerpsProvider {
       if (this.#boundAddress !== null) {
         // All accounts deselected while a session existed: invalidate so
         // nothing in flight can still act for the old account.
-        this.#emitAccountBindingReset();
+        this.#emitAccountBindingReset(null);
         this.#invalidateSessionState();
         this.#removeSignerResetListener();
         this.#teardownStream();
@@ -2519,7 +2526,7 @@ export class LighterProvider implements PerpsProvider {
     // #tpslUnsettled is NOT cleared: entries are keyed by
     // address+accountIndex+symbol, so B never consumes A's pending ids and
     // switching back to A retains its reconciliation obligation.
-    this.#emitAccountBindingReset();
+    this.#emitAccountBindingReset(null);
     this.#teardownStream();
     this.#rebuildStreamForSubscribers();
     this.#deps.debugLogger.log(
@@ -2527,11 +2534,17 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
-  /** Clear subscriber-visible account data before a wallet rebind. */
-  readonly #emitAccountBindingReset = (): void => {
+  /**
+   * Clear subscriber-visible account data for a changed wallet binding.
+   *
+   * @param account - `null` when the new binding's balance is not known yet
+   * (a switch or deselection), so no consumer reads it as a confirmed zero;
+   * the empty state only when the venue confirmed this wallet has no account.
+   */
+  readonly #emitAccountBindingReset = (account: AccountState | null): void => {
     for (const subscriber of this.#accountSubscribers) {
       try {
-        subscriber.callback(EMPTY_ACCOUNT_STATE);
+        subscriber.callback(account);
       } catch (error) {
         this.#logSubscriberError('account', error);
       }
@@ -8447,11 +8460,11 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
-   * Report native standalone triggers for an active, known perpetual market. Explicit
-   * margin modes and strategies remain unreported until their write paths exist.
+   * Report the native order capabilities of an active, known perpetual market:
+   * standalone triggers, explicit margin modes and the supported strategies.
    *
    * @param params - Market route to inspect.
-   * @returns Native trigger types or the reason the market is unavailable.
+   * @returns Native capabilities, or the reason the market is unavailable.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
@@ -8486,18 +8499,33 @@ export class LighterProvider implements PerpsProvider {
     if (market.status !== 'active' || market.marketType !== 'perp') {
       return unavailable('order_market_unsupported');
     }
+    const supportsChase =
+      this.#chaseTestnetProbe && this.#isTestnet && this.#signerBridge !== null;
+    const scaleRules = Object.freeze({
+      minOrders: SCALE_ORDER_COUNT.min,
+      maxOrders: SCALE_ORDER_COUNT.max,
+    });
     return Object.freeze({
       status: 'ready',
       providerId: this.protocolId,
       supportedStrategies: Object.freeze(
-        this.#chaseTestnetProbe &&
-          this.#isTestnet &&
-          this.#signerBridge !== null
-          ? (['scale', 'chase'] as const)
-          : (['scale'] as const),
+        supportsChase ? (['scale', 'chase'] as const) : (['scale'] as const),
+      ),
+      // Lighter runs no TWAP yet and puts no cap on concurrent chases.
+      strategyRules: Object.freeze(
+        supportsChase
+          ? {
+              scale: scaleRules,
+              chase: Object.freeze({
+                defaultIntervalMs: LIGHTER_CHASE_DEFAULT_INTERVAL_MS,
+                minIntervalMs: LIGHTER_CHASE_MIN_INTERVAL_MS,
+              }),
+            }
+          : { scale: scaleRules },
       ),
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+      ...this.#getMarketPrecisionAndLimits(market),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
@@ -8523,6 +8551,72 @@ export class LighterProvider implements PerpsProvider {
         }),
       }),
     });
+  }
+
+  /**
+   * Price grid and order limits from a market's metadata. A field whose
+   * metadata is missing or malformed is omitted rather than defaulted. The
+   * size and value minimums are maker-only on Lighter.
+   *
+   * @param market - Market metadata from `orderBooks`.
+   * @returns `pricePrecision` and `orderLimits` when their metadata is valid.
+   */
+  #getMarketPrecisionAndLimits(market: LighterOrderBookMeta): {
+    pricePrecision?: PerpsPricePrecision;
+    orderLimits?: PerpsOrderLimits;
+  } {
+    const { supportedPriceDecimals, supportedSizeDecimals } = market;
+    const hasPriceGrid =
+      Number.isSafeInteger(supportedPriceDecimals) &&
+      supportedPriceDecimals >= 0 &&
+      supportedPriceDecimals <= LIGHTER_MAX_DECIMALS;
+    const hasSizeGrid = isLighterOrderSizeDecimals(supportedSizeDecimals);
+    let makerMinimums =
+      hasPriceGrid && hasSizeGrid ? getLighterMakerMinimums(market) : null;
+    if (makerMinimums) {
+      const maxSize = new BigNumber(LIGHTER_MAX_BASE_AMOUNT).shiftedBy(
+        -supportedSizeDecimals,
+      );
+      const maxPrice = new BigNumber(LIGHTER_MAX_WIRE_PRICE).shiftedBy(
+        -supportedPriceDecimals,
+      );
+      if (
+        maxSize.lt(makerMinimums.minBase) ||
+        maxSize.times(maxPrice).lt(makerMinimums.minQuote)
+      ) {
+        makerMinimums = null;
+      }
+    }
+    return {
+      ...(hasPriceGrid
+        ? {
+            pricePrecision: Object.freeze({
+              type: 'fixed_decimals',
+              decimals: supportedPriceDecimals,
+              tickSize: new BigNumber(1)
+                .shiftedBy(-supportedPriceDecimals)
+                .toFixed(),
+            }),
+          }
+        : {}),
+      ...(hasSizeGrid
+        ? {
+            orderLimits: Object.freeze({
+              sizeDecimals: supportedSizeDecimals,
+              minimumAppliesTo: 'resting_limit_orders' as const,
+              ...(makerMinimums
+                ? {
+                    minOrderNotionalUsd: makerMinimums.minQuote,
+                    minOrderSize: new BigNumber(
+                      makerMinimums.minBase,
+                    ).toFixed(),
+                  }
+                : {}),
+              scaleOrderCount: Object.freeze({ ...SCALE_ORDER_COUNT }),
+            }),
+          }
+        : {}),
+    };
   }
 
   /** Normalize a Scale preview without account or signer setup.
@@ -10150,18 +10244,20 @@ export class LighterProvider implements PerpsProvider {
   // Account Operations
   // ============================================================================
 
-  async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
-    return this.#getPositions(false);
+  async getPositions(params?: GetPositionsParams): Promise<Position[]> {
+    return this.#getPositions(false, params?.throwOnUnavailable);
   }
 
   /**
    * Keep raw signed decimals only for exact partial protection intent.
    *
    * @param preserveRawSize - Preserve venue size before adapter number conversion.
+   * @param throwOnUnavailable - Reject failed discovery before destructive operations.
    * @returns Validated positions.
    */
   readonly #getPositions = async (
     preserveRawSize: boolean,
+    throwOnUnavailable = false,
   ): Promise<Position[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
@@ -10175,6 +10271,9 @@ export class LighterProvider implements PerpsProvider {
         await this.#clientService.getAccountByIndex(accountIndex);
       this.#assertSession(generation);
       const account = response.accounts[0];
+      if (!account && throwOnUnavailable) {
+        throw new Error(`Lighter account ${accountIndex} not returned`);
+      }
       if (!account?.positions) {
         return [];
       }
@@ -10197,6 +10296,8 @@ export class LighterProvider implements PerpsProvider {
         .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
       if (
+        (throwOnUnavailable &&
+          !(caughtError instanceof LighterAccountNotFoundError)) ||
         this.#isUnsupportedCapabilityError(caughtError) ||
         this.#isDataIntegrityError(caughtError)
       ) {
@@ -10261,7 +10362,41 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Reject wallet scopes that the selected Lighter session cannot serve.
+   *
+   * @param params - Requested wallet scope.
+   */
+  #assertAccountScope(params?: GetAccountStateParams): void {
+    // This adapter reads through the selected wallet's session. A different
+    // scope must be unavailable, not a successful balance for that wallet.
+    // Keep this outside the lenient read fallback so it cannot become zeros.
+    // A malformed accountId names no account; the empty string can never
+    // match the selected wallet, so it is rejected below.
+    const accountIdAddress =
+      params?.accountId === undefined
+        ? undefined
+        : (getCaipAccountAddress(params.accountId) ?? '');
+    const requestedAddresses = [accountIdAddress, params?.userAddress];
+    if (requestedAddresses.some((address) => address !== undefined)) {
+      const selectedAddress = this.#walletService
+        .getUserAddress()
+        .toLowerCase();
+      if (
+        requestedAddresses.some(
+          (address) =>
+            address !== undefined && address.toLowerCase() !== selectedAddress,
+        )
+      ) {
+        throw new Error(
+          'Lighter account state can only query the selected wallet account',
+        );
+      }
+    }
+  }
+
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+    this.#assertAccountScope(params);
     const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
       this.#ensureSessionBinding();
@@ -10283,7 +10418,6 @@ export class LighterProvider implements PerpsProvider {
       const crossMarginSummary = await this.#readCrossMarginSummary(
         account,
         accountState,
-        throwOnUnavailable,
       );
       this.#assertSession(generation);
       return crossMarginSummary
@@ -10322,24 +10456,24 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Cross-margin summary for an account read. Without positions or
-   * market-margin metadata, default callers keep the account state without
-   * a summary; opted-in callers get the failure.
+   * market-margin metadata, the account state is kept without a summary:
+   * the summary decorates real balances, and dropping it must never drop
+   * the balances themselves. Capability gates and venue-data integrity
+   * failures still surface.
    *
    * @param account - Validated sub-account payload.
    * @param accountState - The account's adapted state.
-   * @param throwOnUnavailable - Whether the caller opted in to failures.
    * @returns The summary, or undefined when its inputs are unavailable.
    */
   readonly #readCrossMarginSummary = async (
     account: LighterSubAccount,
     accountState: AccountState,
-    throwOnUnavailable: boolean,
   ): Promise<CrossMarginSummary | undefined> => {
     if (account.positions?.length) {
       try {
         await this.#ensureMarketMargins();
       } catch (error) {
-        if (throwOnUnavailable || this.#mustSurfaceReadError(error)) {
+        if (this.#mustSurfaceReadError(error)) {
           throw error;
         }
         this.#deps.debugLogger.log(
@@ -10357,11 +10491,6 @@ export class LighterProvider implements PerpsProvider {
       accountState.totalBalance,
       this.#maintenanceFractionFor,
     );
-    if (!summary && throwOnUnavailable) {
-      throw new Error(
-        `${LIGHTER_DATA_INTEGRITY_PREFIX} cross margin summary unavailable: positions or maintenance margin metadata missing`,
-      );
-    }
     return summary;
   };
 
@@ -10441,13 +10570,15 @@ export class LighterProvider implements PerpsProvider {
     return this.#adaptScaleOrders(response.orders, accountIndex, generation);
   };
 
-  async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
+  async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
     // Public reads re-kick pending journal recovery (deduped, detached).
     this.#kickTpslRecovery();
     try {
       return await this.#readOpenOrdersStrict();
     } catch (caughtError) {
       if (
+        (params?.throwOnUnavailable === true &&
+          !(caughtError instanceof LighterAccountNotFoundError)) ||
         this.#isUnsupportedCapabilityError(caughtError) ||
         this.#isDataIntegrityError(caughtError)
       ) {
@@ -18252,10 +18383,24 @@ export class LighterProvider implements PerpsProvider {
     if (this.#isDisconnected) {
       return NOOP_UNSUBSCRIBE;
     }
-    this.#accountSubscribers.add(params);
+    this.#assertAccountScope(params);
+    const scopedParams: SubscribeAccountParams = {
+      ...params,
+      callback: (account) => {
+        try {
+          this.#assertAccountScope(params);
+        } catch {
+          // A surviving subscription must not publish a newly selected wallet.
+          params.callback(null);
+          return;
+        }
+        params.callback(account);
+      },
+    };
+    this.#accountSubscribers.add(scopedParams);
     this.#ensureAccountChannels();
     return () => {
-      this.#accountSubscribers.delete(params);
+      this.#accountSubscribers.delete(scopedParams);
       this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }
@@ -18425,7 +18570,7 @@ export class LighterProvider implements PerpsProvider {
           error instanceof LighterAccountNotFoundError &&
           generation === this.#sessionGeneration
         ) {
-          this.#emitAccountBindingReset();
+          this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
         } else if (
           !this.#isDisconnected &&
           this.#boundAddress !== null &&
