@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^21.0.0` to `^21.0.1` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ## [83.3.0]
 

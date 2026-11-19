@@ -68,7 +68,7 @@
     "@cubist-labs/cubesigner-sdk-fs-storage": "^0.4.284",
     "@metamask/auto-changelog": "^7.1.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "rimraf": "^6.1.3",
+    "rimraf": "^6.1.4",
     "tsx": "^4.20.5",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
