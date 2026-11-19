@@ -11,6 +11,10 @@ import type {
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountBalanceServiceFetchBalanceWithFallbackAction } from '@metamask/money-account-balance-service';
 import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
@@ -18,8 +22,17 @@ import {
   getMoneyAccountVaultConfig,
   MUSD_DECIMALS,
 } from '@metamask/money-account-utils';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { add0x, hexToNumber } from '@metamask/utils';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type {
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
+import { add0x, Duration, hexToNumber, inMilliseconds } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -27,20 +40,35 @@ import {
   SubscriptionControllerErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
 } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
 } from '../SubscriptionController-method-action-types.js';
-import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
-import { CRYPTO_AUTH_METHODS, PAYMENT_TYPES, PRODUCT_TYPES } from '../types.js';
+import type {
+  SubscriptionControllerGetStateAction,
+  SubscriptionControllerState,
+  SubscriptionControllerStateChangeEvent,
+} from '../SubscriptionController.js';
+import {
+  CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
+} from '../types.js';
 import type {
   ProductPrice,
   ProductType,
   PricingCryptoPaymentMethod,
+  PricingResponse,
   RecurringInterval,
   Subscription,
+  SubscriptionCryptoPaymentMethod,
   TokenPaymentInfo,
 } from '../types.js';
 import {
@@ -88,6 +116,37 @@ const MESSENGER_EXPOSED_METHODS = [
 
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
+/**
+ * Default wait before re-checking the Money Account balance of a stuck
+ * subscription. Must stay above the `MoneyAccountBalanceService` RPC cache
+ * stale time (1 minute by default) so each tick reads an uncached balance.
+ */
+const DEFAULT_CHARGE_RETRY_INTERVAL = inMilliseconds(5, Duration.Minute);
+
+/**
+ * Re-check after a confirmed deposit. The read right after confirmation can
+ * hit the pre-deposit `MoneyAccountBalanceService` RPC cache entry (1 minute
+ * stale time by default), so a second read waits past it.
+ */
+const DEPOSIT_RECHECK_DELAY = inMilliseconds(90, Duration.Second);
+
+const CHARGE_RETRY_TRANSACTION_TYPES: TransactionType[] = [
+  TransactionType.moneyAccountDeposit,
+  TransactionType.membershipSubscription,
+];
+
+const log = createModuleLogger(projectLogger, serviceName);
+
+function selectMoneyAccountPlusSubscription(
+  state: SubscriptionControllerState,
+): Subscription | undefined {
+  return state.subscriptions.find((subscription) =>
+    subscription.products.some(
+      (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+    ),
+  );
+}
+
 function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
@@ -105,6 +164,59 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
     allowedCalldata: contracts.AllowedCalldataEnforcer,
   };
+}
+
+/**
+ * Returns whether a crypto subscription is stuck on a charge that a funded
+ * Money Account can unblock with a credential-less `updatePaymentMethod`.
+ *
+ * Mirrors the Subscription API retry rules. Failed invoices only qualify when
+ * the failure was `insufficient_balance`; other failures cannot be fixed by a
+ * deposit, and retrying them would re-queue the same failing collection.
+ *
+ * @param subscription - The subscription to check.
+ * @returns Whether the charge can be retried.
+ */
+export function isSubscriptionChargeRetryable(
+  subscription: Subscription,
+): subscription is Subscription & {
+  paymentMethod: SubscriptionCryptoPaymentMethod;
+} {
+  const { paymentMethod, lastInvoice, status } = subscription;
+  if (
+    paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
+    subscription.cancelAtPeriodEnd
+  ) {
+    return false;
+  }
+  // Above the paused return: a later poll re-sends the charge otherwise.
+  if (
+    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING ||
+    (lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
+      lastInvoice.errorCode !== CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE)
+  ) {
+    return false;
+  }
+  if (status === SUBSCRIPTION_STATUSES.paused) {
+    return true;
+  }
+  const isBalanceFailure =
+    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
+    lastInvoice.errorCode === CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE;
+  return (
+    isBalanceFailure &&
+    (status === SUBSCRIPTION_STATUSES.pastDue ||
+      (status === SUBSCRIPTION_STATUSES.active &&
+        Boolean(paymentMethod.crypto.error)))
+  );
+}
+
+function isChargeRetryTransaction(transactionMeta: TransactionMeta): boolean {
+  return (
+    transactionMeta.status === TransactionStatus.confirmed &&
+    transactionMeta.type !== undefined &&
+    CHARGE_RETRY_TRANSACTION_TYPES.includes(transactionMeta.type)
+  );
 }
 
 function removeDelegationSignature(
@@ -126,10 +238,12 @@ export type SubscriptionDelegationServiceActions =
 type AllowedActions =
   | AuthenticatedUserStorageServiceListDelegationsAction
   | AuthenticatedUserStorageServiceCreateDelegationAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
+  | KeyringControllerGetStateAction
   | MoneyAccountUpgradeControllerForceUpgradeAccountAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
@@ -137,14 +251,22 @@ type AllowedActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
   | SubscriptionControllerIsUserEligibleForTrialAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction;
+  | SubscriptionControllerStartSubscriptionWithCryptoAction
+  | SubscriptionControllerUpdatePaymentMethodAction;
 
 /**
  * Events that {@link SubscriptionDelegationService} exposes to other consumers.
  */
 export type SubscriptionDelegationServiceEvents = never;
 
-type AllowedEvents = never;
+/**
+ * Events from other messengers that {@link SubscriptionDelegationService}
+ * subscribes to.
+ */
+type AllowedEvents =
+  | KeyringControllerUnlockEvent
+  | SubscriptionControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -161,6 +283,12 @@ export type SubscriptionDelegationServiceMessenger = Messenger<
  */
 export type SubscriptionDelegationServiceOptions = {
   messenger: SubscriptionDelegationServiceMessenger;
+  /**
+   * How long to wait, in milliseconds, between Money Account balance
+   * re-checks while a stuck charge stays unfunded. Keep it above the
+   * `MoneyAccountBalanceService` balance stale time. Defaults to 5 minutes.
+   */
+  chargeRetryInterval?: number;
 };
 
 type SubscriptionIntentParams = {
@@ -198,19 +326,174 @@ type ResolvedSubscriptionDelegationConfig = {
  *
  * Does not own subscription state; `SubscriptionController` does not depend on
  * this service. Only Money Account Plus is supported.
+ *
+ * Also retries a stuck Money Account Plus charge (see
+ * {@link isSubscriptionChargeRetryable}) once the Money Account covers it. It
+ * re-checks after a confirmed Money deposit, on unlock, when the cached Plus
+ * subscription changes, and periodically while the balance stays short.
  */
 export class SubscriptionDelegationService {
   readonly name: typeof serviceName = serviceName;
 
   readonly #messenger: SubscriptionDelegationServiceMessenger;
 
+  #chargeRetryInFlight: Promise<void> | undefined;
+
+  #isChargeRetryPending = false;
+
+  #chargeRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  readonly #chargeRetryInterval: number;
+
+  #isDestroyed = false;
+
   constructor(options: SubscriptionDelegationServiceOptions) {
     this.#messenger = options.messenger;
+    this.#chargeRetryInterval =
+      options.chargeRetryInterval ?? DEFAULT_CHARGE_RETRY_INTERVAL;
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        if (isChargeRetryTransaction(transactionMeta)) {
+          this.#scheduleChargeRetry(DEPOSIT_RECHECK_DELAY);
+          this.#requestChargeRetry();
+        }
+      },
+    );
+    this.#messenger.subscribe('KeyringController:unlock', () =>
+      this.#requestChargeRetry(),
+    );
+    this.#messenger.subscribe(
+      'SubscriptionController:stateChange',
+      () => this.#requestChargeRetry(),
+      selectMoneyAccountPlusSubscription,
+    );
+  }
+
+  /**
+   * Stops the periodic charge retry. A retry still in flight finishes but
+   * does not schedule another one.
+   */
+  destroy(): void {
+    this.#isDestroyed = true;
+    this.#clearChargeRetryTimer();
+  }
+
+  #scheduleChargeRetry(delay: number): void {
+    if (this.#isDestroyed) {
+      return;
+    }
+    this.#clearChargeRetryTimer();
+    this.#chargeRetryTimer = setTimeout(() => {
+      this.#chargeRetryTimer = undefined;
+      this.#requestChargeRetry();
+    }, delay);
+  }
+
+  #clearChargeRetryTimer(): void {
+    clearTimeout(this.#chargeRetryTimer);
+    this.#chargeRetryTimer = undefined;
+  }
+
+  /**
+   * Runs the charge reconcile, or queues one more run if a retry is already in
+   * flight. Never throws.
+   */
+  #requestChargeRetry(): void {
+    if (this.#chargeRetryInFlight) {
+      this.#isChargeRetryPending = true;
+      return;
+    }
+    this.#chargeRetryInFlight = this.#reconcileSubscriptionCharge()
+      .catch((error: unknown) => log('Subscription charge retry failed', error))
+      .finally(() => {
+        this.#chargeRetryInFlight = undefined;
+        if (this.#isChargeRetryPending) {
+          this.#isChargeRetryPending = false;
+          this.#requestChargeRetry();
+        }
+      });
+  }
+
+  /**
+   * Sends a credential-less `updatePaymentMethod` for a stuck Money Account
+   * Plus subscription once the Money Account covers the charge. Re-checks on a
+   * timer while the balance is short; never after a charge was sent.
+   */
+  async #reconcileSubscriptionCharge(): Promise<void> {
+    if (
+      this.#isDestroyed ||
+      !this.#messenger.call('KeyringController:getState').isUnlocked ||
+      !this.#messenger.call('AuthenticationController:isSignedIn')
+    ) {
+      this.#clearChargeRetryTimer();
+      return;
+    }
+    const subscriptionState = this.#messenger.call(
+      'SubscriptionController:getState',
+    );
+    const subscription = selectMoneyAccountPlusSubscription(subscriptionState);
+    if (
+      !subscription ||
+      !isSubscriptionChargeRetryable(subscription) ||
+      subscription.billingCycles === undefined
+    ) {
+      this.#clearChargeRetryTimer();
+      return;
+    }
+
+    const { payerAddress, chainId, tokenSymbol } =
+      subscription.paymentMethod.crypto;
+    let hasSufficientBalance = false;
+    try {
+      const { price } = await this.#resolveConfiguration(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        subscription.interval,
+        subscriptionState.pricing,
+      );
+      ({ hasSufficientBalance } = await this.#compareMoneyAccountBalance(
+        payerAddress,
+        price,
+      ));
+    } catch (error) {
+      log('Failed to check Money Account balance for charge retry', error);
+    }
+    if (!hasSufficientBalance) {
+      // Keeps an earlier re-check, such as the one armed after a deposit.
+      if (!this.#chargeRetryTimer) {
+        this.#scheduleChargeRetry(this.#chargeRetryInterval);
+      }
+      return;
+    }
+
+    this.#clearChargeRetryTimer();
+    try {
+      await this.#messenger.call('SubscriptionController:updatePaymentMethod', {
+        paymentType: PAYMENT_TYPES.byCrypto,
+        subscriptionId: subscription.id,
+        chainId,
+        payerAddress,
+        tokenSymbol,
+        recurringInterval: subscription.interval,
+        billingCycles: subscription.billingCycles,
+      });
+    } catch (error) {
+      log('Failed to retry subscription charge', error);
+      await this.#messenger
+        .call('SubscriptionController:getSubscriptions')
+        .catch((refreshError: unknown) =>
+          log(
+            'Failed to refresh subscriptions after charge retry',
+            refreshError,
+          ),
+        );
+    }
   }
 
   /**
@@ -833,6 +1116,7 @@ export class SubscriptionDelegationService {
   async #resolveConfiguration(
     product: ProductType,
     recurringInterval: RecurringInterval,
+    cachedPricing?: PricingResponse,
   ): Promise<ResolvedSubscriptionDelegationConfig> {
     const { remoteFeatureFlags } = this.#messenger.call(
       'RemoteFeatureFlagController:getState',
@@ -846,9 +1130,9 @@ export class SubscriptionDelegationService {
 
     const { chainId } = vaultConfig;
     const enforcers = resolveEnforcers(chainId);
-    const pricing = await this.#messenger.call(
-      'SubscriptionController:getPricing',
-    );
+    const pricing =
+      cachedPricing ??
+      (await this.#messenger.call('SubscriptionController:getPricing'));
     const price = pricing.products
       .find((entry) => entry.name === product)
       ?.prices?.find((entry) => entry.interval === recurringInterval);

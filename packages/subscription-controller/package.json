@@ -62,6 +62,7 @@
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/geolocation-controller": "^2.0.0",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-balance-service": "^3.2.1",
     "@metamask/money-account-upgrade-controller": "^7.0.0",

@@ -14,30 +14,48 @@ import {
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type {
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import type { Mock } from 'vitest';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SubscriptionControllerErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
 } from '../constants.js';
-import type { SubscriptionController } from '../SubscriptionController.js';
+import type {
+  SubscriptionController,
+  SubscriptionControllerState,
+  SubscriptionControllerStateChangeEvent,
+} from '../SubscriptionController.js';
 import {
   CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
+  CRYPTO_PAYMENT_METHOD_ERRORS,
+  INVOICE_PAYMENT_STATUSES,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
 } from '../types.js';
 import type {
+  CryptoPaymentMethodError,
   PricingCryptoPaymentMethod,
   PricingResponse,
   ProductType,
   Subscription,
+  SubscriptionInvoice,
   SubscriptionStatus,
 } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
@@ -46,6 +64,7 @@ import {
   TRANSFER_CALLDATA_PREFIX_START_INDEX,
 } from './caveats.js';
 import {
+  isSubscriptionChargeRetryable,
   SubscriptionDelegationService,
   serviceName,
 } from './SubscriptionDelegationService.js';
@@ -165,6 +184,40 @@ function buildSubscription(
   };
 }
 
+const BALANCE_FAILED_INVOICE: SubscriptionInvoice = {
+  id: 'in_123',
+  status: INVOICE_PAYMENT_STATUSES.FAILED,
+  errorCode: CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE,
+};
+
+function buildStuckSubscription({
+  status = SUBSCRIPTION_STATUSES.paused,
+  lastInvoice,
+  cryptoError,
+  billingCycles = PRICE.minBillingCycles,
+}: {
+  status?: SubscriptionStatus;
+  lastInvoice?: SubscriptionInvoice;
+  cryptoError?: CryptoPaymentMethodError;
+  billingCycles?: number;
+} = {}): Subscription {
+  const subscription = buildSubscription(status);
+  return {
+    ...subscription,
+    billingCycles,
+    lastInvoice,
+    paymentMethod: {
+      type: PAYMENT_TYPES.byCrypto,
+      crypto: {
+        payerAddress: PAYER,
+        chainId: CHAIN_ID,
+        tokenSymbol: 'pvmUSD',
+        error: cryptoError,
+      },
+    },
+  };
+}
+
 const STARTED_SUBSCRIPTION: Subscription = {
   ...buildSubscription(SUBSCRIPTION_STATUSES.provisional),
   id: 'subscription-id',
@@ -234,6 +287,9 @@ type Mocks = {
       ...args: StartSubscriptionWithCryptoArgs
     ) => StartSubscriptionWithCryptoResult
   >;
+  getKeyringState: Mock;
+  isSignedIn: Mock<() => boolean>;
+  updatePaymentMethod: Mock;
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -247,6 +303,11 @@ function setup(
     pricing?: PricingResponse;
     trialedProducts?: ProductType[];
     subscriptions?: Subscription[];
+    cachedSubscriptions?: Subscription[];
+    cachedPricing?: PricingResponse;
+    isUnlocked?: boolean;
+    isSignedIn?: boolean;
+    chargeRetryInterval?: number;
   } = {},
 ) {
   const mocks: Mocks = {
@@ -285,6 +346,8 @@ function setup(
       trialedProducts: options.trialedProducts ?? [
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
+      subscriptions: options.cachedSubscriptions ?? [],
+      pricing: options.cachedPricing,
     }),
     isUserEligibleForTrial: vi
       .fn<(arg: ProductType) => Promise<boolean>>()
@@ -303,6 +366,13 @@ function setup(
       >()
       .mockResolvedValue(STARTED_SUBSCRIPTION),
     getIntentsByAddress: vi.fn(),
+    getKeyringState: vi
+      .fn()
+      .mockReturnValue({ isUnlocked: options.isUnlocked ?? true }),
+    isSignedIn: vi
+      .fn<() => boolean>()
+      .mockReturnValue(options.isSignedIn ?? true),
+    updatePaymentMethod: vi.fn().mockResolvedValue([]),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
     if (options.intents !== undefined) {
@@ -368,6 +438,18 @@ function setup(
     | {
         type: 'SubscriptionController:startSubscriptionWithCrypto';
         handler: Mocks['startSubscriptionWithCrypto'];
+      }
+    | {
+        type: 'KeyringController:getState';
+        handler: Mocks['getKeyringState'];
+      }
+    | {
+        type: 'AuthenticationController:isSignedIn';
+        handler: Mocks['isSignedIn'];
+      }
+    | {
+        type: 'SubscriptionController:updatePaymentMethod';
+        handler: Mocks['updatePaymentMethod'];
       };
 
   const rootMessenger = new Messenger<
@@ -385,7 +467,9 @@ function setup(
         type: `${typeof serviceName}:startSubscriptionWithDelegation`;
         handler: SubscriptionDelegationService['startSubscriptionWithDelegation'];
       },
-    never
+    | KeyringControllerUnlockEvent
+    | SubscriptionControllerStateChangeEvent
+    | TransactionControllerTransactionConfirmedEvent
   >({ namespace: MOCK_ANY_NAMESPACE });
 
   rootMessenger.registerActionHandler(
@@ -444,6 +528,18 @@ function setup(
     'SubscriptionController:startSubscriptionWithCrypto',
     mocks.startSubscriptionWithCrypto,
   );
+  rootMessenger.registerActionHandler(
+    'KeyringController:getState',
+    mocks.getKeyringState,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:isSignedIn',
+    mocks.isSignedIn,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:updatePaymentMethod',
+    mocks.updatePaymentMethod,
+  );
 
   const messenger: SubscriptionDelegationServiceMessenger = new Messenger({
     namespace: serviceName,
@@ -467,12 +563,20 @@ function setup(
       'SubscriptionController:isUserEligibleForTrial',
       'MoneyAccountUpgradeController:forceUpgradeAccount',
       'SubscriptionController:startSubscriptionWithCrypto',
+      'KeyringController:getState',
+      'AuthenticationController:isSignedIn',
+      'SubscriptionController:updatePaymentMethod',
     ],
-    events: [],
+    events: [
+      'KeyringController:unlock',
+      'SubscriptionController:stateChange',
+      'TransactionController:transactionConfirmed',
+    ],
   });
 
   const service = new SubscriptionDelegationService({
     messenger,
+    chargeRetryInterval: options.chargeRetryInterval,
   });
 
   return { service, rootMessenger, messenger, mocks };
@@ -1687,6 +1791,759 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.InvalidMinimumFundingCycles,
       );
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('isSubscriptionChargeRetryable', () => {
+  it('returns true for a paused crypto subscription', () => {
+    expect(isSubscriptionChargeRetryable(buildStuckSubscription())).toBe(true);
+  });
+
+  it('returns true for past_due with a balance-failed invoice', () => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          status: SUBSCRIPTION_STATUSES.pastDue,
+          lastInvoice: BALANCE_FAILED_INVOICE,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for active with a crypto error and a balance-failed invoice', () => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          status: SUBSCRIPTION_STATUSES.active,
+          lastInvoice: BALANCE_FAILED_INVOICE,
+          cryptoError: CRYPTO_PAYMENT_METHOD_ERRORS.INSUFFICIENT_BALANCE,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for active without a crypto error', () => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          status: SUBSCRIPTION_STATUSES.active,
+          lastInvoice: BALANCE_FAILED_INVOICE,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it.each([
+    ['without a last invoice', undefined],
+    [
+      'with a non-failed invoice',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+      },
+    ],
+    [
+      'with a non-balance error code',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        errorCode: CRYPTO_PAYMENT_ERRORS.RECIPIENT_NOT_ALLOWLISTED,
+      },
+    ],
+  ])('returns false for past_due %s', (_, lastInvoice) => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          status: SUBSCRIPTION_STATUSES.pastDue,
+          lastInvoice,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns true for paused with a balance-failed invoice', () => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          lastInvoice: BALANCE_FAILED_INVOICE,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'with a processing invoice',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+      },
+    ],
+    [
+      'with a non-balance failure',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        errorCode: CRYPTO_PAYMENT_ERRORS.EXCEEDS_DELEGATION_ALLOWANCE,
+      },
+    ],
+  ])('returns false for paused %s', (_, lastInvoice) => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          lastInvoice,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when cancelAtPeriodEnd is set', () => {
+    expect(
+      isSubscriptionChargeRetryable({
+        ...buildStuckSubscription(),
+        cancelAtPeriodEnd: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false for a card payment method', () => {
+    expect(
+      isSubscriptionChargeRetryable({
+        ...buildStuckSubscription(),
+        paymentMethod: {
+          type: PAYMENT_TYPES.byCard,
+          card: { brand: 'visa', last4: '4242' },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it.each([SUBSCRIPTION_STATUSES.canceled, SUBSCRIPTION_STATUSES.trialing])(
+    'returns false for status %s',
+    (status) => {
+      expect(
+        isSubscriptionChargeRetryable(
+          buildStuckSubscription({
+            status,
+            lastInvoice: BALANCE_FAILED_INVOICE,
+          }),
+        ),
+      ).toBe(false);
+    },
+  );
+});
+
+describe('SubscriptionDelegationService charge retry', () => {
+  const CHARGE_RETRY_INTERVAL = 5 * 60 * 1000;
+
+  const DEPOSIT_RECHECK_DELAY = 90 * 1000;
+
+  const EXPECTED_RETRY_REQUEST = {
+    paymentType: PAYMENT_TYPES.byCrypto,
+    subscriptionId: 'sub_123',
+    chainId: CHAIN_ID,
+    payerAddress: PAYER,
+    tokenSymbol: 'pvmUSD',
+    recurringInterval: RECURRING_INTERVALS.month,
+    billingCycles: PRICE.minBillingCycles,
+  };
+
+  type RootMessenger = ReturnType<typeof setup>['rootMessenger'];
+
+  function publishConfirmed(
+    rootMessenger: RootMessenger,
+    {
+      type = TransactionType.moneyAccountDeposit,
+      status = TransactionStatus.confirmed,
+    }: { type?: TransactionType; status?: TransactionStatus } = {},
+  ): void {
+    rootMessenger.publish('TransactionController:transactionConfirmed', {
+      id: 'tx-1',
+      type,
+      status,
+    } as TransactionMeta);
+  }
+
+  function publishSubscriptionState(
+    rootMessenger: RootMessenger,
+    subscriptions: Subscription[],
+  ): void {
+    rootMessenger.publish(
+      'SubscriptionController:stateChange',
+      { subscriptions } as unknown as SubscriptionControllerState,
+      [],
+    );
+  }
+
+  function setCachedSubscriptions(
+    mocks: Mocks,
+    subscriptions: Subscription[],
+  ): void {
+    mocks.getSubscriptionState.mockReturnValue({
+      trialedProducts: [],
+      subscriptions,
+    });
+  }
+
+  async function flush(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(0);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('triggers', () => {
+    it.each([
+      TransactionType.moneyAccountDeposit,
+      TransactionType.membershipSubscription,
+    ])(
+      'sends a credential-less updatePaymentMethod after a confirmed %s',
+      async (type) => {
+        const { rootMessenger, mocks } = setup({
+          cachedSubscriptions: [buildStuckSubscription()],
+        });
+
+        publishConfirmed(rootMessenger, { type });
+        await flush();
+
+        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+        expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
+          EXPECTED_RETRY_REQUEST,
+        );
+      },
+    );
+
+    it('ignores other transaction types', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      publishConfirmed(rootMessenger, { type: TransactionType.simpleSend });
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('ignores transactions that are not confirmed', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      publishConfirmed(rootMessenger, { status: TransactionStatus.failed });
+      await flush();
+
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('reconciles on unlock without a prior deposit', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconciles when the cached Plus subscription changes', async () => {
+      const subscription = buildStuckSubscription();
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [subscription],
+      });
+
+      publishSubscriptionState(rootMessenger, [subscription]);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not reconcile when a state change leaves the Plus subscription unchanged', async () => {
+      const subscription = buildStuckSubscription();
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [subscription],
+      });
+      publishSubscriptionState(rootMessenger, [subscription]);
+      await flush();
+
+      publishSubscriptionState(rootMessenger, [subscription]);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('guards', () => {
+    it('does nothing while locked', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        isUnlocked: false,
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('does nothing while signed out', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        isSignedIn: false,
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('does nothing without a Plus subscription', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [
+          buildSubscription(SUBSCRIPTION_STATUSES.paused, PRODUCT_TYPES.SHIELD),
+        ],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the subscription is not retryable', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [
+          buildStuckSubscription({ status: SUBSCRIPTION_STATUSES.active }),
+        ],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when billingCycles is missing', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [
+          { ...buildStuckSubscription(), billingCycles: undefined },
+        ],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+    });
+
+    it('does not refresh subscriptions after a skipped run', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.getSubscriptions).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('balance timer', () => {
+    it('skips the charge while the balance is short and charges on a later tick', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+
+      mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-checks when the balance read fails', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.fetchBalanceWithFallback.mockRejectedValueOnce(new Error('rpc'));
+
+      publishConfirmed(rootMessenger);
+      await flush();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-check after a charge was sent', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops re-checking once locked', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      mocks.getKeyringState.mockReturnValue({ isUnlocked: false });
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops re-checking once the subscription is no longer stuck', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      setCachedSubscriptions(mocks, [
+        buildStuckSubscription({ status: SUBSCRIPTION_STATUSES.active }),
+      ]);
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a single timer across triggers', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(3);
+    });
+
+    it('re-checks shortly after a deposit when the first balance read is stale', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
+      await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the post-deposit re-check when another trigger runs first', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
+      await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the post-deposit re-check when the subscription is not stuck', async () => {
+      const { rootMessenger } = setup({
+        cachedSubscriptions: [
+          buildStuckSubscription({ status: SUBSCRIPTION_STATUSES.active }),
+        ],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('re-checks on the configured chargeRetryInterval', async () => {
+      const chargeRetryInterval = CHARGE_RETRY_INTERVAL * 2;
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+        chargeRetryInterval,
+      });
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      await vi.advanceTimersByTimeAsync(chargeRetryInterval - 1);
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('pricing', () => {
+    it('uses cached pricing without fetching it', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        cachedPricing: PRICING,
+      });
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      expect(mocks.getPricing).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('fetches pricing when none is cached', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      expect(mocks.getPricing).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('charge', () => {
+    it('logs a failed charge, refreshes subscriptions, and does not throw', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
+    });
+
+    it('swallows a failed refresh after a failed charge', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.getSubscriptions.mockRejectedValueOnce(new Error('network'));
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not refresh subscriptions after a successful charge', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.getSubscriptions).not.toHaveBeenCalled();
+    });
+
+    it('still retries on a later deposit after a failed charge', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
+      'does not charge again when a state change follows the charge (%s)',
+      async (status) => {
+        const { rootMessenger, mocks } = setup({
+          cachedSubscriptions: [
+            buildStuckSubscription({
+              status,
+              lastInvoice: BALANCE_FAILED_INVOICE,
+            }),
+          ],
+        });
+        publishConfirmed(rootMessenger);
+        await flush();
+
+        const collecting = buildStuckSubscription({
+          status,
+          lastInvoice: {
+            ...BALANCE_FAILED_INVOICE,
+            status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+          },
+        });
+        setCachedSubscriptions(mocks, [collecting]);
+        publishSubscriptionState(rootMessenger, [collecting]);
+        await flush();
+
+        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
+      'does not charge again when collection fails for a non-balance reason (%s)',
+      async (status) => {
+        const { rootMessenger, mocks } = setup({
+          cachedSubscriptions: [
+            buildStuckSubscription({
+              status,
+              lastInvoice: BALANCE_FAILED_INVOICE,
+            }),
+          ],
+        });
+        publishConfirmed(rootMessenger);
+        await flush();
+
+        const failed = buildStuckSubscription({
+          status,
+          lastInvoice: {
+            ...BALANCE_FAILED_INVOICE,
+            errorCode: CRYPTO_PAYMENT_ERRORS.EXCEEDS_DELEGATION_ALLOWANCE,
+          },
+        });
+        setCachedSubscriptions(mocks, [failed]);
+        publishSubscriptionState(rootMessenger, [failed]);
+        await flush();
+
+        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
+  describe('errors', () => {
+    it('swallows unexpected errors and keeps handling later triggers', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.getKeyringState.mockImplementationOnce(() => {
+        throw new Error('keyring unavailable');
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('concurrency', () => {
+    it('runs once more after an in-flight retry when triggers arrive during it', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      let resolveBalance: (value: typeof INSUFFICIENT_BALANCE) => void = () =>
+        undefined;
+      mocks.fetchBalanceWithFallback.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveBalance = resolve;
+        }),
+      );
+
+      publishConfirmed(rootMessenger);
+      await flush();
+      publishConfirmed(rootMessenger);
+      rootMessenger.publish('KeyringController:unlock');
+      resolveBalance(INSUFFICIENT_BALANCE);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('destroy', () => {
+    it('clears the pending re-check', async () => {
+      const { service, rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      service.destroy();
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not schedule a re-check from a run in flight at destroy', async () => {
+      const { service, rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      let resolveBalance: (value: typeof INSUFFICIENT_BALANCE) => void = () =>
+        undefined;
+      mocks.fetchBalanceWithFallback.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveBalance = resolve;
+        }),
+      );
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      service.destroy();
+      resolveBalance(INSUFFICIENT_BALANCE);
+      await flush();
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(CHARGE_RETRY_INTERVAL * 3);
+
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it('ignores triggers after destroy', async () => {
+      const { service, rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      service.destroy();
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(vi.getTimerCount()).toBe(0);
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
     });
   });

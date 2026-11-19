@@ -39,7 +39,7 @@ describe('subscriptionDelegationService', () => {
     expect(instance).toBeInstanceOf(SubscriptionDelegationService);
   });
 
-  it('delegates the actions the service calls on other messengers', () => {
+  it('delegates the actions and events the service uses from other messengers', () => {
     const parent = getRootMessenger();
     const delegateSpy = vi.spyOn(parent, 'delegate');
 
@@ -62,6 +62,14 @@ describe('subscriptionDelegationService', () => {
         'SubscriptionController:getSubscriptions',
         'SubscriptionController:isUserEligibleForTrial',
         'SubscriptionController:startSubscriptionWithCrypto',
+        'KeyringController:getState',
+        'AuthenticationController:isSignedIn',
+        'SubscriptionController:updatePaymentMethod',
+      ],
+      events: [
+        'TransactionController:transactionConfirmed',
+        'KeyringController:unlock',
+        'SubscriptionController:stateChange',
       ],
     });
   });

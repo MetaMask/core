@@ -36,6 +36,14 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'SubscriptionController:getSubscriptions',
         'SubscriptionController:isUserEligibleForTrial',
         'SubscriptionController:startSubscriptionWithCrypto',
+        'KeyringController:getState',
+        'AuthenticationController:isSignedIn',
+        'SubscriptionController:updatePaymentMethod',
+      ],
+      events: [
+        'TransactionController:transactionConfirmed',
+        'KeyringController:unlock',
+        'SubscriptionController:stateChange',
       ],
     });
 
