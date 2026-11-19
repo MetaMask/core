@@ -36,10 +36,12 @@ import {
   LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
   LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS,
   fromLighterInteger,
+  getLighterMakerMinimums,
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
   LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_MAX_DECIMALS,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
@@ -91,6 +93,7 @@ import {
   LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   LIGHTER_SCALE_SETTLEMENT_POLL_MS,
   parseLighterStrictDecimal,
+  isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { createTpslLegReplaceUnsupportedError } from '../errors.js';
@@ -159,6 +162,8 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetOrderCapabilitiesParams,
+  PerpsOrderLimits,
+  PerpsPricePrecision,
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -8531,6 +8536,7 @@ export class LighterProvider implements PerpsProvider {
       ),
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+      ...this.#getMarketPrecisionAndLimits(market),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
@@ -8556,6 +8562,72 @@ export class LighterProvider implements PerpsProvider {
         }),
       }),
     });
+  }
+
+  /**
+   * Price grid and order limits from a market's metadata. A field whose
+   * metadata is missing or malformed is omitted rather than defaulted. The
+   * size and value minimums are maker-only on Lighter.
+   *
+   * @param market - Market metadata from `orderBooks`.
+   * @returns `pricePrecision` and `orderLimits` when their metadata is valid.
+   */
+  #getMarketPrecisionAndLimits(market: LighterOrderBookMeta): {
+    pricePrecision?: PerpsPricePrecision;
+    orderLimits?: PerpsOrderLimits;
+  } {
+    const { supportedPriceDecimals, supportedSizeDecimals } = market;
+    const hasPriceGrid =
+      Number.isSafeInteger(supportedPriceDecimals) &&
+      supportedPriceDecimals >= 0 &&
+      supportedPriceDecimals <= LIGHTER_MAX_DECIMALS;
+    const hasSizeGrid = isLighterOrderSizeDecimals(supportedSizeDecimals);
+    let makerMinimums =
+      hasPriceGrid && hasSizeGrid ? getLighterMakerMinimums(market) : null;
+    if (makerMinimums) {
+      const maxSize = new BigNumber(LIGHTER_MAX_BASE_AMOUNT).shiftedBy(
+        -supportedSizeDecimals,
+      );
+      const maxPrice = new BigNumber(LIGHTER_MAX_WIRE_PRICE).shiftedBy(
+        -supportedPriceDecimals,
+      );
+      if (
+        maxSize.lt(makerMinimums.minBase) ||
+        maxSize.times(maxPrice).lt(makerMinimums.minQuote)
+      ) {
+        makerMinimums = null;
+      }
+    }
+    return {
+      ...(hasPriceGrid
+        ? {
+            pricePrecision: Object.freeze({
+              type: 'fixed_decimals',
+              decimals: supportedPriceDecimals,
+              tickSize: new BigNumber(1)
+                .shiftedBy(-supportedPriceDecimals)
+                .toFixed(),
+            }),
+          }
+        : {}),
+      ...(hasSizeGrid
+        ? {
+            orderLimits: Object.freeze({
+              sizeDecimals: supportedSizeDecimals,
+              minimumAppliesTo: 'resting_limit_orders' as const,
+              ...(makerMinimums
+                ? {
+                    minOrderNotionalUsd: makerMinimums.minQuote,
+                    minOrderSize: new BigNumber(
+                      makerMinimums.minBase,
+                    ).toFixed(),
+                  }
+                : {}),
+              scaleOrderCount: Object.freeze({ ...SCALE_ORDER_COUNT }),
+            }),
+          }
+        : {}),
+    };
   }
 
   /** Normalize a Scale preview without account or signer setup.

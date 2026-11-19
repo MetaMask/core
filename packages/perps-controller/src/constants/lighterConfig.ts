@@ -374,6 +374,41 @@ export function fromLighterInteger(value: number, decimals: number): number {
 }
 
 /**
+ * Check the size precision accepted by the maker sizing calculation.
+ *
+ * @param decimals - Venue size decimals.
+ * @returns Whether the value can be used as a size precision.
+ */
+export function isLighterOrderSizeDecimals(decimals: number): boolean {
+  // Number.toFixed accepts up to 100 fractional digits.
+  return Number.isSafeInteger(decimals) && decimals >= 0 && decimals <= 100;
+}
+
+/**
+ * Read both maker minimums as a pair. Sizing requires both values.
+ *
+ * @param market - Market metadata from `orderBooks`.
+ * @returns The parsed minimums, or null when either is invalid.
+ */
+export function getLighterMakerMinimums(
+  market: Pick<LighterOrderBookMeta, 'minBaseAmount' | 'minQuoteAmount'>,
+): { minBase: number; minQuote: number } | null {
+  const minBase = parseLighterStrictDecimal(market.minBaseAmount);
+  const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+  if (
+    minBase === null ||
+    !Number.isFinite(minBase) ||
+    minBase <= 0 ||
+    minQuote === null ||
+    !Number.isFinite(minQuote) ||
+    minQuote <= 0
+  ) {
+    return null;
+  }
+  return { minBase, minQuote };
+}
+
+/**
  * Compute the minimum order base size for a market that satisfies both
  * `minBaseAmount` and `minQuoteAmount` at a given price.
  *
@@ -388,24 +423,18 @@ export function computeLighterMinOrderSize(
   >,
   price: number,
 ): number {
-  const minBase = parseLighterStrictDecimal(market.minBaseAmount);
-  const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+  const minimums = getLighterMakerMinimums(market);
   if (
-    minBase === null ||
-    !Number.isFinite(minBase) ||
-    minBase <= 0 ||
-    minQuote === null ||
-    !Number.isFinite(minQuote) ||
-    minQuote <= 0 ||
+    minimums === null ||
     !Number.isFinite(price) ||
     price <= 0 ||
-    !Number.isSafeInteger(market.supportedSizeDecimals) ||
-    market.supportedSizeDecimals < 0
+    !isLighterOrderSizeDecimals(market.supportedSizeDecimals)
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid market minimum-size metadata`,
     );
   }
+  const { minBase, minQuote } = minimums;
   const step = 10 ** -market.supportedSizeDecimals;
   const byQuote = minQuote / price;
   const raw = Math.max(minBase, byQuote);

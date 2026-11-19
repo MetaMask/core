@@ -12,6 +12,8 @@ import type {
 } from '../../../src/utils/hyperLiquidPositionPreview.js';
 import {
   buildMaintenanceSchedule,
+  estimateCrossLiquidationPrice,
+  estimateCrossMaintenanceMargin,
   estimateIsolatedLeverageChange,
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
@@ -1596,4 +1598,146 @@ describe('estimateIsolatedLeverageChange', () => {
       ).toStrictEqual(expected);
     },
   );
+});
+
+describe('estimateCrossMaintenanceMargin', () => {
+  it('sums notional times each position tier rate', () => {
+    expect(
+      estimateCrossMaintenanceMargin([
+        { notional: 10_000, marginTiers: [{ lowerBound: 0, maxLeverage: 50 }] },
+        { notional: -5_000, marginTiers: [{ lowerBound: 0, maxLeverage: 25 }] },
+      ]),
+    ).toBeCloseTo(200, 10);
+  });
+
+  it('applies the tier deduction above a tier boundary', () => {
+    expect(
+      estimateCrossMaintenanceMargin([
+        {
+          notional: 200_000,
+          marginTiers: [
+            { lowerBound: 0, maxLeverage: 40 },
+            { lowerBound: 150_000, maxLeverage: 20 },
+          ],
+        },
+      ]),
+    ).toBeCloseTo(3_125, 8);
+  });
+
+  it('is zero for an account with no cross positions', () => {
+    expect(estimateCrossMaintenanceMargin([])).toBe(0);
+  });
+
+  it.each([
+    ['unknown tiers', { notional: 1_000, marginTiers: null }],
+    ['empty tiers', { notional: 1_000, marginTiers: [] }],
+    [
+      'a non-finite notional',
+      {
+        notional: Number.NaN,
+        marginTiers: [{ lowerBound: 0, maxLeverage: 10 }],
+      },
+    ],
+  ])('is null with %s', (_name, position) => {
+    expect(estimateCrossMaintenanceMargin([position])).toBeNull();
+  });
+});
+
+describe('estimateCrossLiquidationPrice', () => {
+  const singleTier = [{ lowerBound: 0, maxLeverage: 50 }];
+
+  it('applies the documented cross formula to a long', () => {
+    expect(
+      estimateCrossLiquidationPrice({
+        isLong: true,
+        markPrice: 100_000,
+        positionSize: 0.1,
+        accountValue: 1_000,
+        maintenanceMargin: 200,
+        marginTiers: singleTier,
+      }),
+    ).toBeCloseTo(100_000 - 800 / 0.1 / 0.99, 6);
+  });
+
+  it('applies the documented cross formula to a short', () => {
+    expect(
+      estimateCrossLiquidationPrice({
+        isLong: false,
+        markPrice: 100_000,
+        positionSize: 0.1,
+        accountValue: 1_000,
+        maintenanceMargin: 100,
+        marginTiers: singleTier,
+      }),
+    ).toBeCloseTo(100_000 + 900 / 0.1 / 1.01, 6);
+  });
+
+  it('uses the tier the position reaches at the liquidation price', () => {
+    const liquidationPrice = estimateCrossLiquidationPrice({
+      isLong: false,
+      markPrice: 100_000,
+      positionSize: 1,
+      accountValue: 20_000,
+      maintenanceMargin: 1_250,
+      marginTiers: [
+        { lowerBound: 0, maxLeverage: 40 },
+        { lowerBound: 110_000, maxLeverage: 20 },
+      ],
+    });
+
+    expect(liquidationPrice).toBeCloseTo(121_375 / 1.025, 6);
+    // At that price, account value equals the higher tier's maintenance.
+    const price = liquidationPrice as number;
+    expect(20_000 - (price - 100_000)).toBeCloseTo(price * 0.025 - 1_375, 6);
+  });
+
+  it('is null for a long when the only tier holds the whole notional as maintenance', () => {
+    expect(
+      estimateCrossLiquidationPrice({
+        isLong: true,
+        markPrice: 100,
+        positionSize: 1,
+        accountValue: 1_000,
+        maintenanceMargin: 100,
+        marginTiers: [{ lowerBound: 0, maxLeverage: 0.5 }],
+      }),
+    ).toBeNull();
+  });
+
+  it('is null for a long with enough collateral never to be liquidated', () => {
+    expect(
+      estimateCrossLiquidationPrice({
+        isLong: true,
+        markPrice: 100,
+        positionSize: 1,
+        accountValue: 1_000,
+        maintenanceMargin: 1,
+        marginTiers: singleTier,
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['a zero mark', { markPrice: 0 }],
+    ['a zero size', { positionSize: 0 }],
+    ['a non-finite account value', { accountValue: Number.NaN }],
+    ['a negative maintenance margin', { maintenanceMargin: -1 }],
+    ['unknown tiers', { marginTiers: null }],
+    [
+      'tiers that do not cover the notional',
+      { marginTiers: [{ lowerBound: 1_000_000, maxLeverage: 10 }] },
+    ],
+  ])('is null with %s', (_name, overrides) => {
+    expect(
+      estimateCrossLiquidationPrice({
+        isLong: false,
+        markPrice: 100_000,
+        positionSize: 0.1,
+        accountValue: 1_000,
+        maintenanceMargin: 100,
+        marginTiers: singleTier,
+        ...overrides,
+      }),
+    ).toBeNull();
+  });
 });

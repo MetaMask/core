@@ -1806,6 +1806,18 @@ describe('LighterProvider', () => {
         supportedStrategies: ['scale'],
         strategyRules: { scale: { minOrders: 2, maxOrders: 20 } },
         supportedMarginModes: ['cross', 'isolated'],
+        pricePrecision: {
+          type: 'fixed_decimals',
+          decimals: 1,
+          tickSize: '0.1',
+        },
+        orderLimits: {
+          sizeDecimals: 5,
+          minOrderNotionalUsd: 10,
+          minOrderSize: '0.0002',
+          minimumAppliesTo: 'resting_limit_orders',
+          scaleOrderCount: { min: 2, max: 20 },
+        },
         attachedTpsl: {
           submission: 'native-oto-otoco',
           childCoverage: 'venue-native-zero-size',
@@ -1836,6 +1848,103 @@ describe('LighterProvider', () => {
       });
       expect(calls).toHaveLength(0);
     });
+
+    it.each([
+      [
+        'malformed size decimals',
+        { supportedSizeDecimals: -1 },
+        { pricePrecision: true, orderLimits: false },
+      ],
+      [
+        'malformed price decimals',
+        { supportedPriceDecimals: 1.5 },
+        { pricePrecision: false, orderLimits: true },
+      ],
+      [
+        'price decimals outside the venue range',
+        { supportedPriceDecimals: 256 },
+        { pricePrecision: false, orderLimits: true },
+      ],
+      [
+        'size decimals outside the sizing range',
+        { supportedSizeDecimals: 101 },
+        { pricePrecision: true, orderLimits: false },
+      ],
+    ])(
+      'omits the field its metadata does not support (%s)',
+      async (_name, override, present) => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([
+          { ...BTC_MARKET, ...override },
+        ]);
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'BTC',
+        });
+
+        expect('pricePrecision' in capabilities).toBe(present.pricePrecision);
+        expect('orderLimits' in capabilities).toBe(present.orderLimits);
+      },
+    );
+
+    it('reports an exact positive tick beyond BigNumber division precision', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, supportedPriceDecimals: 21, minQuoteAmount: '0.01' },
+      ]);
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        pricePrecision: {
+          type: 'fixed_decimals',
+          decimals: 21,
+          tickSize: '0.000000000000000000001',
+        },
+        orderLimits: {
+          minOrderSize: '0.0002',
+          minOrderNotionalUsd: 0.01,
+        },
+      });
+    });
+
+    it.each([
+      { supportedPriceDecimals: 21, minQuoteAmount: '10' },
+      { supportedPriceDecimals: 21, minQuoteAmount: '0.02' },
+      { minBaseAmount: '2814749767.10656' },
+      { supportedPriceDecimals: 1.5 },
+      { minBaseAmount: '', minQuoteAmount: '10' },
+      { minBaseAmount: '1e999', minQuoteAmount: '10' },
+      { minBaseAmount: '0.001', minQuoteAmount: '1e999' },
+      { minBaseAmount: '0.001', minQuoteAmount: '0' },
+    ])(
+      'reports maker minimums as unavailable together for %j',
+      async (override) => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([
+          { ...BTC_MARKET, ...override },
+        ]);
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'BTC',
+        });
+
+        expect(capabilities).toMatchObject({
+          status: 'ready',
+          orderLimits: {
+            sizeDecimals: 5,
+            minimumAppliesTo: 'resting_limit_orders',
+            scaleOrderCount: { min: 2, max: 20 },
+          },
+        });
+        expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
+        expect(capabilities).not.toHaveProperty(
+          'orderLimits.minOrderNotionalUsd',
+        );
+      },
+    );
 
     it('refreshes cached capability metadata before approving an inactive market', async () => {
       const { provider, clientInstance, calls } = buildProvider();

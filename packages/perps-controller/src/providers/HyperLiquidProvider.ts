@@ -38,6 +38,7 @@ import { DETAILED_ORDER_TYPES } from '../constants/orderTypes.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
+  DECIMAL_PRECISION_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
@@ -276,6 +277,7 @@ import {
   isStrategyOrderType,
   isTriggerOrderType,
   resolvePositionTriggerSummaryPrice,
+  SCALE_ORDER_COUNT,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
 import {
@@ -2021,7 +2023,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Return provider-owned standalone trigger, strategy and margin-mode support
    * for a routed market. HyperLiquid advertises its implemented trigger types
    * and strategies uniformly after confirming the routed market exists;
-   * margin modes follow the market's metadata.
+   * margin modes, price precision and size decimals follow the market's
+   * metadata, and the limits are the ones placement validation enforces.
    *
    * @param params - Required market route context.
    * @returns Supported standalone trigger types, strategies and margin modes.
@@ -2038,9 +2041,36 @@ export class HyperLiquidProvider implements PerpsProvider {
         ? ['isolated', 'cross']
         : ['isolated'],
     );
+    const { szDecimals } = result.market;
+    if (
+      !Number.isInteger(szDecimals) ||
+      szDecimals < 0 ||
+      szDecimals > DECIMAL_PRECISION_CONFIG.MaxPriceDecimals
+    ) {
+      return Object.freeze({
+        ...HYPERLIQUID_ORDER_CAPABILITIES,
+        supportedMarginModes,
+      });
+    }
     return Object.freeze({
       ...HYPERLIQUID_ORDER_CAPABILITIES,
       supportedMarginModes,
+      pricePrecision: Object.freeze({
+        type: 'significant_figures',
+        maxSignificantFigures: DECIMAL_PRECISION_CONFIG.MaxSignificantFigures,
+        maxDecimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals,
+      }),
+      orderLimits: Object.freeze({
+        sizeDecimals: szDecimals,
+        minOrderNotionalUsd: this.#getMinimumOrderSize(),
+        minimumAppliesTo: 'all_orders',
+        scaleOrderCount: Object.freeze({ ...SCALE_ORDER_COUNT }),
+        twap: Object.freeze({
+          minDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes,
+          maxDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes,
+          minNotionalUsd: HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd,
+        }),
+      }),
     });
   }
 

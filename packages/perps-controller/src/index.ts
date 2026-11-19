@@ -273,6 +273,8 @@ export type {
   ClosePositionsParams,
   ClosePositionsTarget,
   ClosePositionsResult,
+  BatchOperationStatus,
+  WithBatchOperationStatus,
   UpdateMarginParams,
   MarginResult,
   FlipPositionParams,
@@ -374,6 +376,8 @@ export type {
   ScalePriceLadderUnavailableReason,
   DirectProviderOrderCapabilities,
   PerpsOrderCapabilities,
+  PerpsPricePrecision,
+  PerpsOrderLimits,
   PerpsScalePriceLadder,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
@@ -805,11 +809,27 @@ export {
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
   estimateIsolatedLeverageChange,
+  estimateCrossMaintenanceMargin,
+  estimateCrossLiquidationPrice,
 } from './utils/index.js';
 export type {
   HyperLiquidMarginTier,
   IsolatedLeverageChangeParams,
   IsolatedLeverageChange,
+  CrossMarginPosition,
+} from './utils/index.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+  getBatchOperationStatus,
+  PERPS_ERROR_COPY,
+  getPerpsErrorCopy,
+  PERPS_ORDER_TYPE_LABELS,
+} from './utils/index.js';
+export type {
+  GroupedOrderBook,
+  PerpsErrorCopy,
+  PerpsOrderTypeLabel,
 } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type {
