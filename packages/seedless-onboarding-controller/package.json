@@ -77,7 +77,7 @@
     "@types/elliptic": "^6",
     "@types/json-stable-stringify-without-jsonify": "^1.0.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "nock": "^15.0.6",
+    "nock": "15.0.5",
     "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
