@@ -53,6 +53,12 @@ request-bound AAL2 approval; updates and reads also require an identifier proof.
 Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.
 
+Before signing any Auth API passkey challenge (MFA verification), call
+`isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` or
+throws. Otherwise a compromised Auth API can send an escrow passkey challenge
+and replay the signature at the escrow. Escrow passkey logins use
+`getEscrowPasskeyChallenge(request)` as their challenge.
+
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
 escrow as `approvedIdentifiers`; the escrow rejects non-SIWE payload
 identifiers outside that list. Build those from Auth's entries unchanged

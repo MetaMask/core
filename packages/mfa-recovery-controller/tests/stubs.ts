@@ -178,11 +178,13 @@ export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvide
         identifier: params.identifier,
         proofPublicKey: params.proofPublicKey,
         requestHash: params.requestHash,
+        notAfter: params.notAfter,
         providerAssertion: {
-          bound: await hash({
-            proofPublicKey: params.proofPublicKey,
-            requestHash: params.requestHash,
-          }),
+          bound: await hash([
+            params.proofPublicKey,
+            params.requestHash,
+            params.notAfter,
+          ]),
         },
       },
     };
@@ -777,6 +779,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         throw new MfaRecoveryError(
           'Invalid PoP challenge',
           'invalid_challenge',
+        );
+      }
+      // Same window as the escrow: 1 minute late to 6 minutes ahead.
+      if (
+        token.notAfter + 60 < this.now() ||
+        token.notAfter > this.now() + 6 * 60
+      ) {
+        throw new MfaRecoveryError(
+          'Identifier token expired',
+          'identifier_token_expired',
         );
       }
       const message = await hash([token, proof.challengeId, requestHash]);

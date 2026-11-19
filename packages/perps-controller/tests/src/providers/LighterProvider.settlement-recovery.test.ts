@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import type {
   LighterSignerBridge,
@@ -1684,7 +1685,11 @@ describe('LighterProvider', () => {
       const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
       venueB.setVenueNonce(venueA.getVenueNonce());
       venueB.setNextIndex(venueA.getNextIndex());
-      await second.provider.getOpenOrders();
+      // The read kicks recovery; while the outcome is unresolved it fails
+      // instead of reporting an empty book.
+      await expect(second.provider.getOpenOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
       await new Promise((resolve) => setTimeout(resolve, 500));
       // The obligation is retained (unexpired + venue-confirmed nothing).
       expect(journalKeysOf(disk)).toHaveLength(1);
