@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [32.1.1]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-
 ### Changed
 
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))

@@ -9,14 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.3.0]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Added
 
 - Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))

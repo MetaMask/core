@@ -9,14 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.5]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
