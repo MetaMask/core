@@ -205,6 +205,17 @@ export function isHyperLiquidMultiSigRequiredError(error: unknown): boolean {
   );
 }
 
+const HYPERLIQUID_WRITE_GUARD_CODES = [
+  PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+  PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+  // Thrown inside signing for a TP/SL replacement. The SDK wraps them, and
+  // the public result still has to name the refusal after restoration.
+  PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+  PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+] as const;
+
+type HyperLiquidWriteGuardCode = (typeof HYPERLIQUID_WRITE_GUARD_CODES)[number];
+
 /**
  * Read a local write refusal, including one the SDK wrapped while signing.
  *
@@ -213,21 +224,14 @@ export function isHyperLiquidMultiSigRequiredError(error: unknown): boolean {
  */
 export function getHyperLiquidWriteGuardCode(
   error: unknown,
-):
-  | typeof PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED
-  | typeof PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
-  | undefined {
+): HyperLiquidWriteGuardCode | undefined {
   const sdkError = ensureError(error);
   const refusal =
     sdkError.name === 'AbstractWalletError' ? sdkError.cause : sdkError;
-  if (
-    refusal instanceof Error &&
-    (refusal.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED ||
-      refusal.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
-  ) {
-    return refusal.message;
+  if (!(refusal instanceof Error)) {
+    return undefined;
   }
-  return undefined;
+  return HYPERLIQUID_WRITE_GUARD_CODES.find((code) => code === refusal.message);
 }
 
 /**

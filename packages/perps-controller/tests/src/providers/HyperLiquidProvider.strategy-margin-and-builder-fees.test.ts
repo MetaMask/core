@@ -3,7 +3,10 @@ import type { MetaResponse } from '@nktkas/hyperliquid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
-import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import {
+  BUILDER_FEE_CONFIG,
+  HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import { SUBSCRIPTION_CLOID_FLAGS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -12,6 +15,7 @@ import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiqui
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type { OrderParams } from '../../../src/types/index.js';
 import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import {
   hasFeeReductionAppliedFlag,
   isSubscriptionProgramCloid,
@@ -1227,8 +1231,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         });
         mockClientService.getExchangeClient.mockImplementation(
-          (guard?: () => Promise<void>) =>
-            guard ? createGuardedHyperLiquidClient(sdk, guard) : sdk,
+          (
+            guard?: () => Promise<void>,
+            hooks?: Parameters<typeof createGuardedHyperLiquidClient>[3],
+          ) =>
+            guard
+              ? createGuardedHyperLiquidClient(sdk, guard, undefined, hooks)
+              : sdk,
         );
         return { infoClient, actions, hooks, defaultResponse, request };
       };
@@ -1338,6 +1347,109 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result.error).toStrictEqual(expectedError);
           expect(result.error).not.toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
           expect(result.childOrderIds).toBeUndefined();
+        },
+      );
+
+      it.each([
+        ['position', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['support', PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE],
+      ] as const)(
+        'keeps a %s refusal wrapped by SDK signing after restoration succeeds',
+        async (change, code) => {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          const createErrorResult = vi.mocked(
+            hyperLiquidValidationModule.createErrorResult,
+          );
+          const previous = createErrorResult.getMockImplementation();
+          const actualValidation = await vi.importActual<
+            typeof import('../../../src/utils/hyperLiquidValidation.js')
+          >('../../../src/utils/hyperLiquidValidation.js');
+          createErrorResult.mockImplementation(
+            actualValidation.createErrorResult,
+          );
+          try {
+            const { actions, infoClient, request, defaultResponse } = setup();
+            // The pre-sign position read must still match. Drift on the next
+            // read, which is the signing fence inside the SDK.
+            let cancelSubmitted = false;
+            let readsAfterCancel = 0;
+            if (change === 'position') {
+              const readPosition =
+                infoClient.clearinghouseState.getMockImplementation();
+              infoClient.clearinghouseState.mockImplementation(
+                async (...args) => {
+                  const drifted = cancelSubmitted && readsAfterCancel > 0;
+                  if (cancelSubmitted) {
+                    readsAfterCancel += 1;
+                  }
+                  const state = await readPosition?.(...args);
+                  if (
+                    !drifted ||
+                    !state ||
+                    !Array.isArray(state.assetPositions)
+                  ) {
+                    return state;
+                  }
+                  return {
+                    ...state,
+                    assetPositions: state.assetPositions.map(
+                      (entry: { position: { coin: string } }) =>
+                        entry.position.coin === 'ETH'
+                          ? {
+                              ...entry,
+                              position: { ...entry.position, szi: '2' },
+                            }
+                          : entry,
+                    ),
+                  };
+                },
+              );
+            }
+            request.mockImplementation(
+              async (
+                _endpoint: string,
+                payload: { action: { type: string } },
+              ) => {
+                actions.push(payload.action);
+                if (payload.action.type === 'cancel') {
+                  cancelSubmitted = true;
+                  vi.advanceTimersByTime(
+                    HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+                  );
+                  if (change === 'support') {
+                    infoClient.userToMultiSigSigners.mockRejectedValueOnce(
+                      new Error('support read failed'),
+                    );
+                  }
+                }
+                return defaultResponse(payload.action);
+              },
+            );
+
+            const result = await provider.updatePositionTPSL({
+              symbol: 'ETH',
+              takeProfitPrice: '3500',
+              expectedPosition: { size: '1.5', entryPrice: '3000' },
+            });
+
+            expect(actions.map((action) => action.type)).toStrictEqual([
+              'cancel',
+              'order',
+            ]);
+            expect(result).toMatchObject({
+              success: false,
+              error: code,
+              errorCode: code,
+              errorDetails: { code, provider: 'hyperliquid' },
+              childOrderIds: ['901'],
+            });
+          } finally {
+            if (previous) {
+              createErrorResult.mockImplementation(previous);
+            }
+            vi.useRealTimers();
+          }
         },
       );
 
