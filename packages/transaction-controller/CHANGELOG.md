@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
+
 ### Added
 
 - Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
