@@ -7,16 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [32.1.0]
-
 ### Added
 
-- Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
 
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState`, `RampsController:getState`, `TransactionController:failTransaction` and `TransactionController:finalizeResumedTransaction` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
+
+## [32.1.0]
+
+### Added
+
+- Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
+
+### Changed
+
 - Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
   - Rate drift and fee reserve checks use the normalized quote amounts.
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
