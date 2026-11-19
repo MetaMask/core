@@ -25,6 +25,7 @@ import {
   getMatchingHistoryEntryForTxMeta,
   lockHistoryItem,
   rekeyHistoryItemInState,
+  resolveHistoryKeyForTxMeta,
 } from './history.js';
 
 describe('History Utils', () => {
@@ -219,6 +220,42 @@ describe('History Utils', () => {
         id: 'deposit-1',
       });
     });
+
+    it('merges next and withdrawTxMeta overrides', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            },
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+            withdrawTxMeta: { batchId: '0xoldBatch' },
+            startTime: 1,
+          },
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        txMetaId: 'tx1',
+        batchId: '0xnewBatch',
+        next: [],
+        withdrawTxMeta: { id: 'withdraw-1' },
+      });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.withdrawTxMeta).toStrictEqual({
+        batchId: '0xoldBatch',
+        id: 'withdraw-1',
+      });
+    });
   });
 
   describe('lockHistoryItem', () => {
@@ -291,6 +328,15 @@ describe('History Utils', () => {
       expect(() =>
         lockHistoryItem(
           makeState({ next: undefined, batchId: '0xswapBatch' }),
+          'tx1',
+        ),
+      ).toThrow('Swap has already started, skipping');
+    });
+
+    it('throws when swap already started', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ next: [swapAction], batchId: '0xswapBatch' }),
           'tx1',
         ),
       ).toThrow('Swap has already started, skipping');
@@ -622,6 +668,42 @@ describe('History Utils', () => {
         }),
       );
       expect(match?.[0]).toBe(batchId);
+    });
+  });
+
+  describe('resolveHistoryKeyForTxMeta', () => {
+    it('matches a withdraw tx by withdrawTxMeta batchId', () => {
+      const withdrawBatchId = '0xwithdrawBatch';
+      const historyItem = {
+        quote: { srcChainId: 1, destChainId: 10 } as never,
+        status: {
+          status: StatusTypes.PENDING,
+          srcChain: { chainId: 1 },
+        },
+        account: '0xaccount',
+        estimatedProcessingTimeInSeconds: 1,
+        slippagePercentage: 0,
+        hasApprovalTx: false,
+        startTime: 1,
+        withdrawTxMeta: { batchId: withdrawBatchId },
+      } as BridgeHistoryItem;
+
+      expect(
+        resolveHistoryKeyForTxMeta(
+          {
+            transactionMeta: {
+              id: 'withdraw-tx',
+              batchId: withdrawBatchId,
+              status: TransactionStatus.unapproved,
+              chainId: '0xa',
+              time: 1,
+              networkClientId: 'n',
+              txParams: { from: '0xfrom' },
+            },
+          },
+          { 'swap-tx': historyItem },
+        ).historyKey,
+      ).toBe('swap-tx');
     });
   });
 });

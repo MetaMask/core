@@ -432,6 +432,7 @@ export const getControllerMessenger = (
       'TransactionController:isAtomicBatchSupported',
       'BridgeController:trackUnifiedSwapBridgeEvent',
       'BridgeController:stopPollingForQuotes',
+      'BridgeController:fetchQuotes',
       'RemoteFeatureFlagController:getState',
       'AuthenticationController:getBearerToken',
       'KeyringController:signTypedMessage',

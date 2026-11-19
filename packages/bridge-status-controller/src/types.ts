@@ -25,6 +25,7 @@ import type {
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
   Trade,
+  BridgeControllerFetchQuotesAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -322,6 +323,10 @@ export type BridgeHistoryItem = {
    * The sequenced list of next actions to perform after the current operation is completed.
    */
   next?: NextAction[];
+  /**
+   * The batchId, hash and id for the money account withdraw transactions.
+   */
+  withdrawTxMeta?: Partial<Pick<TransactionMeta, 'id' | 'batchId' | 'hash'>>;
 };
 
 /**
@@ -380,6 +385,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Partial<
     Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status' | 'actionId'>
   >;
+  withdrawTxMeta?: Partial<Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>>;
   next?: BridgeHistoryItem['next'];
   batchSellData?: BridgeHistoryItem['batchSellData'];
   /**
@@ -473,6 +479,7 @@ type AllowedActions =
   | BridgeControllerTrackUnifiedSwapBridgeEventAction
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerGetStateAction
+  | BridgeControllerFetchQuotesAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction

@@ -80,6 +80,7 @@ import {
 } from './utils/bridge-status.js';
 import {
   getBatchSellTrades,
+  resolveValidQuotes,
   stopPollingForQuotes,
   trackMetricsEvent,
 } from './utils/bridge.js';
@@ -111,6 +112,7 @@ import {
   approvalUpdateHandler,
   depositUpdateHandler,
   tradeUpdateHandler,
+  withdrawUpdateHandler,
 } from './utils/subscriptions.js';
 import type {
   SubscriptionHandlerInputs,
@@ -134,6 +136,7 @@ import {
   hasNestedBridgeTransactions,
   isTradeTx,
   hasNestedDepositTransactions,
+  hasNestedWithdrawTransferTransactions,
 } from './utils/transaction.js';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -304,6 +307,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case TransactionType.swap:
             handler = tradeUpdateHandler;
             break;
+          case TransactionType.moneyAccountWithdraw:
+            handler = withdrawUpdateHandler;
+            break;
           default:
             // Otherwise check for matching nested transactions
             if (
@@ -313,6 +319,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               handler = tradeUpdateHandler;
             } else if (hasNestedDepositTransactions(args.txMeta)) {
               handler = depositUpdateHandler;
+            } else if (hasNestedWithdrawTransferTransactions(args.txMeta)) {
+              handler = withdrawUpdateHandler;
             } else {
               // This handler only checks for failures, so it's safe to use
               // for unrecognized transactions
@@ -488,6 +496,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    // Return early if withdraw follow-up swap is already in flight
+    if (
+      historyItem.withdrawTxMeta?.batchId &&
+      historyItem.batchId &&
+      historyItem.withdrawTxMeta.batchId === txMeta.batchId
+    ) {
+      return;
+    }
+
     const { type, hash: txHash, id, chainId } = txMeta;
 
     const isBridge =
@@ -500,6 +517,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
       });
       this.#startPollingForTxId(historyKey);
+      return;
+    }
+
+    // Execute swap (next)
+    const isWithdrawConfirmation =
+      Boolean(historyItem.next?.length) &&
+      Boolean(txMeta.batchId) &&
+      txMeta.batchId === historyItem.withdrawTxMeta?.batchId;
+    if (isWithdrawConfirmation) {
+      this.#updateHistoryItem({
+        historyKey,
+        historyItemOverrides: {
+          withdrawTxMeta: { hash: txHash },
+        },
+      });
+      await this.#nextTx(historyKey);
       return;
     }
 
@@ -538,6 +571,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...((isSwap || isBridge) && { txHash }),
           ...(updatedHistoryItem.depositTxMeta && {
             depositTxMeta: { hash: txHash },
+          }),
+          ...(updatedHistoryItem.withdrawTxMeta && {
+            withdrawTxMeta: { hash: txHash },
           }),
         },
       });
@@ -1263,11 +1299,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote.srcChainId,
         historyItem.quote.destChainId,
       );
-
       // Use tx hash that transferred funds to the user's wallet
-      const txHash = isBridgeTx
+      const preDepositTxHash = isBridgeTx
         ? historyItem.status.destChain?.txHash
         : historyItem.status.srcChain.txHash;
+      const txHash = historyItem.withdrawTxMeta
+        ? historyItem.withdrawTxMeta.hash
+        : preDepositTxHash;
+
+      const validQuotes = await resolveValidQuotes(
+        this.messenger,
+        historyItem,
+        quoteResponse,
+        operation,
+      );
 
       const selectedAccount = getAccountByAddress(
         this.messenger,
@@ -1278,6 +1323,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           `Account not found, skipping next action: ${historyItem.account}`,
         );
       }
+
       const isDelegatedAccount = isNonEvmChainId(quoteResponse.quote.srcChainId)
         ? false
         : await checkIsDelegatedAccount(
@@ -1299,7 +1345,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           clientId: this.#clientId,
           bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
           batchSellTrades: historyItem.batchSellData ?? null,
-          quoteResponses: [quoteResponse],
+          quoteResponses: validQuotes,
           isDelegatedAccount,
           operation,
           batchId,
@@ -1325,6 +1371,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         throw new Error('Transaction failed due to missing tx meta');
       }
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('already started, skipping')
+      ) {
+        return;
+      }
       // Client submission hooks don't catch this error so use messenger to capture it
       this.messenger.captureException?.(
         error instanceof Error ? error : new Error(String(error)),

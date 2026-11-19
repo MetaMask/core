@@ -351,6 +351,11 @@
       "count": 1
     }
   },
+  "packages/bridge-status-controller/src/bridge-status-controller.withdraw.test.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
   "packages/bridge-status-controller/src/utils/metrics.test.ts": {
     "TS2345": {
       "count": 1

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Require `BridgeController:fetchQuotes` on `BridgeStatusControllerMessenger` ([#11181](https://github.com/MetaMask/core/pull/11181))
+- Submit a background pre-swap money-account withdraw via `submitTx({ operation: 'withdraw' })` ([#11181](https://github.com/MetaMask/core/pull/11181))
+  - Queues a follow-up swap unless dest is already the vault underlying token
+  - Re-fetches an expired swap quote through `BridgeController:fetchQuotes` before that swap
 - **BREAKING:** New `BridgeStatusControllerMessenger` actions and events need to be allowlisted ([#11147](https://github.com/MetaMask/core/pull/11147))
   - Actions: `ApprovalController:acceptRequest` | `ApprovalController:rejectRequest` |`TransactionPayController:setTransactionConfig` | `TransactionPayController:updatePaymentToken` | `MoneyAccountController:getMoneyAccount`
   - Events: `TransactionPayController:stateChange` | `TransactionController:unapprovedTransactionAdded`
