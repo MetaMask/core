@@ -31,10 +31,6 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-    ignore:
-      # nock 15.0.6 pulls in @mswjs/interceptors 0.45, which crashes Node 22
-      # on the seedless-onboarding-controller tests.
-      - dependency-name: 'nock'
     open-pull-requests-limit: 10
     versioning-strategy: 'increase'
 
