@@ -10,7 +10,7 @@ import type { Mock, MockedFunction } from 'vitest';
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
-import { KYC_VENDOR_SIGN_PATHS } from './types.js';
+import { KYC_SIGNED_REQUEST_LIMITS, KYC_VENDOR_SIGN_PATHS } from './types.js';
 import type {
   KycSessionStatus,
   KycSignedRequest,
@@ -582,6 +582,98 @@ describe('VendorOnboardingController', () => {
       );
     });
 
+    it.each([
+      [
+        'too many headers',
+        {
+          headers: Object.fromEntries(
+            Array.from(
+              { length: KYC_SIGNED_REQUEST_LIMITS.headerCount + 1 },
+              (_value, index) => [`Header-${index}`, 'value'],
+            ),
+          ),
+        },
+      ],
+      ['a header that is not a string', { headers: { Signature: 1 as never } }],
+      [
+        'a body past 4 KB',
+        { body: 'x'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes + 1) },
+      ],
+      [
+        'a body past 4 KB in bytes',
+        { body: 'é'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes / 2 + 1) },
+      ],
+    ])('rejects a signer that returns %s', async (_name, override) => {
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([{ ...SIGNED_VERIFY, ...override }]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.submitEmailCode({ vendor: 'kalshi', code: '123456' }),
+          ).rejects.toThrow('returned a request kyc-api would refuse');
+          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('accepts a request at the limits', async () => {
+      const atLimits: KycSignedRequest = {
+        ...SIGNED_VERIFY,
+        headers: Object.fromEntries(
+          Array.from(
+            { length: KYC_SIGNED_REQUEST_LIMITS.headerCount },
+            (_value, index) => [`Header-${index}`, 'value'],
+          ),
+        ),
+        body: 'x'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes),
+      };
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([atLimits]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.submitEmailCode({
+            vendor: 'kalshi',
+            code: '123456',
+          });
+          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            step: 'email/verify-otp',
+            body: { signedRequest: atLimits },
+          });
+        },
+      );
+    });
+
     it('rejects a signer that skips a call', async () => {
       const signer: KycVendorRequestSigner = vi.fn().mockResolvedValue([]);
       await withController(
@@ -878,7 +970,6 @@ describe('VendorOnboardingController', () => {
           residenceCountry: 'USA',
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          partnerIdentityToken: 'partner-token',
           email: KALSHI_EMAIL,
           signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
@@ -943,13 +1034,6 @@ describe('VendorOnboardingController', () => {
             order.push('geo');
             return 'USA';
           });
-          handlers.putIdentitySharingConsent.mockImplementation(async () => {
-            order.push('consent');
-          });
-          handlers.getPartnerIdentityToken.mockImplementation(async () => {
-            order.push('token');
-            return 'partner-token';
-          });
           handlers.createUkycSession.mockImplementation(async () => {
             order.push('create');
             return UKYC_SESSION;
@@ -961,13 +1045,7 @@ describe('VendorOnboardingController', () => {
             email: KALSHI_EMAIL,
           });
 
-          expect(order).toStrictEqual([
-            'geo',
-            'consent',
-            'token',
-            'sign',
-            'create',
-          ]);
+          expect(order).toStrictEqual(['geo', 'sign', 'create']);
         },
       );
     });
@@ -999,12 +1077,28 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('records the consent before it mints the identity token', async () => {
+    it('mints no identity token for Kalshi, which kyc-api ignores', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
           email: KALSHI_EMAIL,
+        });
+
+        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params).not.toHaveProperty('partnerIdentityToken');
+      });
+    });
+
+    it('records the consent before it mints the identity token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
         });
 
         // MetaMask Auth answers 403 consent_required for an audience the
@@ -1024,9 +1118,8 @@ describe('VendorOnboardingController', () => {
     it('sends the minted token to kyc-api', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
-          vendor: 'kalshi',
+          vendor: 'iron',
           aal2Token: AAL2_TOKEN,
-          email: KALSHI_EMAIL,
         });
 
         expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(

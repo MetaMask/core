@@ -11,6 +11,7 @@ import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
+import { stringToBytes } from '@metamask/utils';
 
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep, KycOnboardingStepBody } from './KycService.js';
@@ -21,6 +22,7 @@ import {
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import {
+  KYC_SIGNED_REQUEST_LIMITS,
   KYC_VENDOR_SIGN_PATHS,
   needsCapabilityAuthorizationRefresh,
 } from './types.js';
@@ -348,7 +350,10 @@ export class VendorOnboardingController extends BaseController<
     const residenceCountry = await this.messenger.call(
       'KycService:getGeoCountry',
     );
-    const partnerIdentityToken = await this.#mintPartnerIdentityToken();
+    // kyc-api ignores the token for Kalshi, which takes the typed email, so
+    // there is nothing to mint and no identity consent to record.
+    const partnerIdentityToken =
+      vendor === 'kalshi' ? undefined : await this.#mintPartnerIdentityToken();
     // A signature lasts 60 seconds, so this is the last thing before the
     // call that carries it.
     const kalshiSigning =
@@ -739,6 +744,12 @@ export class VendorOnboardingController extends BaseController<
         `VendorOnboardingController: signer for ${vendor} did not return the requested calls.`,
       );
     }
+    const invalid = signed.find((each) => !isWithinSignedRequestLimits(each));
+    if (invalid) {
+      throw new Error(
+        `VendorOnboardingController: signer for ${vendor} returned a request kyc-api would refuse (at most ${KYC_SIGNED_REQUEST_LIMITS.headerCount} headers, all strings, and ${KYC_SIGNED_REQUEST_LIMITS.bodyBytes} body bytes).`,
+      );
+    }
     return signed;
   }
 
@@ -752,10 +763,6 @@ export class VendorOnboardingController extends BaseController<
    * @returns The minted token.
    */
   async #mintPartnerIdentityToken(): Promise<string> {
-    // TODO: use the vendor's own audience once MetaMask Auth has one for it.
-    // `IdentitySharingAudience` is `'kyc' | 'iron'`, so a Kalshi onboarding
-    // currently records an Iron consent. Tracked with the matching mapping in
-    // kyc-api's `createSession`.
     const audience = 'iron';
     await this.messenger.call(
       'AuthenticatedUserStorageService:putIdentitySharingConsent',
@@ -841,4 +848,21 @@ export class VendorOnboardingController extends BaseController<
       state.vendors[vendor] = { ...entry, ...patch };
     });
   }
+}
+
+/**
+ * Whether a signed request is within what kyc-api accepts: at most 16
+ * headers that all hold strings, and a body of at most 4 KB. The body is the
+ * exact string that was signed. The path is already pinned to the route.
+ *
+ * @param request - The request the signer returned.
+ * @returns Whether kyc-api would take it.
+ */
+function isWithinSignedRequestLimits(request: KycSignedRequest): boolean {
+  const headers = Object.values(request.headers);
+  return (
+    headers.length <= KYC_SIGNED_REQUEST_LIMITS.headerCount &&
+    headers.every((value) => typeof value === 'string') &&
+    stringToBytes(request.body).length <= KYC_SIGNED_REQUEST_LIMITS.bodyBytes
+  );
 }

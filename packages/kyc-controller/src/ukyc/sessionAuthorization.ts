@@ -58,7 +58,8 @@ export type UkycSessionDeps = Pick<
  * @param params.aal2Token - AAL2 token, sent as the bearer value for session
  * creation.
  * @param params.partnerIdentityToken - Partner identity token. kyc-api takes
- * the MetaMask user's email from its verified claim.
+ * the MetaMask user's email from its verified claim. Kalshi sessions send
+ * none: kyc-api ignores it and takes `email` instead.
  * @param params.email - The Kalshi email the signed `users/link` carries.
  * @param params.signedRequests - Kalshi calls the phone signed.
  * kyc-api forwards them to the relay with session creation.
@@ -69,7 +70,7 @@ export async function createAuthorizedSession(params: {
   vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
-  partnerIdentityToken: string;
+  partnerIdentityToken?: string;
   email?: string;
   signedRequests?: readonly KycSignedRequest[];
 }): Promise<KycSessionStatus> {
@@ -90,7 +91,9 @@ export async function createAuthorizedSession(params: {
     residenceCountry: params.residenceCountry,
     vendor: params.vendor,
     aal2Token: params.aal2Token,
-    partnerIdentityToken: params.partnerIdentityToken,
+    ...(params.partnerIdentityToken && {
+      partnerIdentityToken: params.partnerIdentityToken,
+    }),
     ...(params.email && { email: params.email }),
     ...(params.signedRequests && {
       signedRequests: params.signedRequests,

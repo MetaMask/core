@@ -441,6 +441,16 @@ export type KycSignedRequest = {
 };
 
 /**
+ * What kyc-api accepts of a {@link KycSignedRequest}: at most 16 headers, all
+ * strings, and a body of at most 4 KB. kyc-api also takes a path of 1 to 256
+ * characters, which the fixed Kalshi routes always meet.
+ */
+export const KYC_SIGNED_REQUEST_LIMITS = {
+  headerCount: 16,
+  bodyBytes: 4096,
+} as const;
+
+/**
  * Signs the Kalshi calls for one vendor.
  *
  * Injected by the client. The signing key lives on the device, so the
@@ -453,8 +463,15 @@ export type KycVendorRequestSigner = (params: {
 }) => Promise<readonly KycSignedRequest[]>;
 
 /**
- * Codes the relay puts on a failed Kalshi step, which kyc-api keeps as they
- * are. The client picks its message and screen from them.
+ * Codes kyc-api answers a failed Kalshi step with, as `{ code, message }` with
+ * both set to the code. The relay's codes pass through unchanged. The client
+ * picks its message and screen from them.
+ *
+ * `kalshi_*` codes and `invalid_or_expired_code` come back as 400,
+ * `session_not_in_email_verification` as 412, `not_found` as 404 (for
+ * example, an A2T from the dev issuer on a UAT account) and
+ * `idos_relay_unavailable` as 502. `kalshi_account_exists` comes from the
+ * phone step, for a user who already has a Kalshi account.
  */
 export const KYC_KALSHI_ERROR_CODES = [
   'kalshi_signed_request_path_not_allowed',
@@ -467,8 +484,11 @@ export const KYC_KALSHI_ERROR_CODES = [
   'kalshi_signed_request_email_mismatch',
   'kalshi_signed_request_rejected',
   'kalshi_signed_request_required',
+  'kalshi_account_exists',
   'invalid_or_expired_code',
   'session_not_in_email_verification',
+  'not_found',
+  'idos_relay_unavailable',
 ] as const;
 
 /** A code from {@link KYC_KALSHI_ERROR_CODES}. */
