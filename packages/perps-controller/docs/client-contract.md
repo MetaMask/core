@@ -52,7 +52,7 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 
 ## Error copy
 
-`PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. It reuses Mobile locale keys where the messages agree, including `perps.errors.postOnlyWouldCross` and `perps.errors.postOnlyWindow`. The English defaults are provided by Core and may differ from Mobile's text. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for an unknown code.
+`PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. It reuses Mobile locale keys where the messages agree, including `perps.errors.postOnlyWouldCross` and `perps.errors.postOnlyWindow`. Use the reused post-only placement copy for rejected placements. When an edit returns `ORDER_POST_ONLY_WOULD_CROSS`, the original resting order may have been canceled. Keep the client's edit-specific warning and check the order status. The English defaults are provided by Core and may differ from Mobile's text. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for an unknown code.
 
 The keys `perps.errors.orderValidation.chaseStoppedCheckOpenOrders` and `perps.errors.tpslProtectionLost` have dedicated messages. A stopped chase can leave a child order open. Lost TP/SL protection means the controller could not confirm that the previous protection was restored. Use `defaultMessage` when a locale has no translation for a key.
 
