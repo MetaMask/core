@@ -559,6 +559,7 @@ describe('TerminalMarketService', () => {
         markets: [
           {
             id: 'btc-hyperliquid-mainnet',
+            providerId: 'hyperliquid',
             symbol: 'BTC',
             name: 'Bitcoin',
             description: 'Original cryptocurrency',
