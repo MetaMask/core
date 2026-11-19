@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.0.0]
 
-### Uncategorized
-
-- fix(perps-controller): follow up on HIP-3 Cross margin review ([#11623](https://github.com/MetaMask/core/pull/11623))
-- Release 1437.0.0 ([#11611](https://github.com/MetaMask/core/pull/11611))
-- Release/1435.0.0 ([#11605](https://github.com/MetaMask/core/pull/11605))
-- docs(perps-controller): client timings come from one overridable config ([#11603](https://github.com/MetaMask/core/pull/11603))
-- docs(perps-controller): mark the client contract as agreed ([#11573](https://github.com/MetaMask/core/pull/11573))
-- Release 1431.0.0 ([#11579](https://github.com/MetaMask/core/pull/11579))
-
 ### Added
 
 - **BREAKING:** Add exported `HyperLiquidErrorDetails` and widen `PerpsErrorDetails` to `PriceMovedErrorDetails | HyperLiquidErrorDetails`. Every normalized Hyperliquid failure now carries `{ code, provider: 'hyperliquid' }` details, so clients can translate stable codes without parsing venue messages. `PRICE_MOVED` keeps its existing numeric payload. ([#11206](https://github.com/MetaMask/core/pull/11206))
@@ -94,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tagged close targets work in single-venue and multi-venue execution, including per-position fallbacks. Missing or throwing venues retain explicit per-target failures, and a venue whose position lookup fails during close-all is reported in `failures` rather than treated as having nothing to close
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+- Clarify the published architecture doc: `PERPS_CONSTANTS` timings are defaults each client's connection owner reads and can override, not values the controller reads, and the client timing contract is now agreed with every client team ([#11603](https://github.com/MetaMask/core/pull/11603), [#11573](https://github.com/MetaMask/core/pull/11573))
 - **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
   - Result `error` fields now hold the stable code instead of venue text, and unknown failures return `UNKNOWN_ERROR`. Clients read `errorCode` instead. Mobile does this in [metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018) and Extension in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
   - Failed Perps analytics events emitted from Hyperliquid result failures (trade, edit, cancel, close, flip, margin, and withdrawal) now carry the stable `PerpsErrorCode` in `error_message` instead of venue text. Unrecognized failures are grouped as `UNKNOWN_ERROR`; dashboards that group by `error_message` must use code-based buckets. Original venue details remain in error-reporting causes, not analytics properties.
