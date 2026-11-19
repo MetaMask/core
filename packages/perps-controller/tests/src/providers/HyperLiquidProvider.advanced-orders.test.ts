@@ -3003,18 +3003,18 @@ describe('HyperLiquidProvider', () => {
     );
 
     it.each([
-      ['restore signer probe recovers', 'sign', 'recovers'],
-      ['restore transport probe recovers', 'dispatch', 'recovers'],
-      ['restore probe stays unavailable', 'sign', 'unavailable'],
-      ['venue denial arrives during restore probe', 'sign', 'denied'],
-      ['wallet changes during restore probe', 'sign', 'wallet'],
-      ['network changes during restore probe', 'sign', 'network'],
+      ['restore signer probe recovers', 'sign', 'recovers', false],
+      ['restore transport probe recovers', 'dispatch', 'recovers', false],
+      ['restore probe stays unavailable', 'sign', 'unavailable', false],
+      ['venue denial arrives during restore probe', 'sign', 'denied', false],
+      ['wallet changes during restore probe', 'sign', 'wallet', false],
+      ['network changes during restore probe', 'sign', 'network', false],
       ['venue denial wins over positive retry', 'sign', 'denied', true],
       ['wallet changes during positive retry', 'sign', 'wallet', true],
       ['network changes during positive retry', 'sign', 'network', true],
     ] as const)(
       'guards restore after TP/SL cancellation when %s',
-      async (_label, heldRestorePhase, outcome, holdOnRetry = false) => {
+      async (_label, heldRestorePhase, outcome, holdOnRetry) => {
         setOpenOrders([rawPositionTrigger('tp')]);
         const exchange = mockClientService.getExchangeClient();
         const info = mockClientService.getInfoClient();
@@ -3025,9 +3025,11 @@ describe('HyperLiquidProvider', () => {
         const attempted: string[] = [];
         const signed: string[] = [];
         const dispatched: string[] = [];
-        const requestedCancels: number[] = [];
-        const requestedRestores: { reduceOnly: boolean; trigger: string }[] =
-          [];
+        const requestedCancels: (string | number)[] = [];
+        const requestedRestores: {
+          reduceOnly: boolean;
+          trigger: string | number;
+        }[] = [];
         let stage = 'setup';
         let phase = 'setup';
         let restoreReads = 0;
