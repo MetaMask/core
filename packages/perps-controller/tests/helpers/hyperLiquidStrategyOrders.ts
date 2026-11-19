@@ -88,54 +88,78 @@ export type MockClearinghouseBalance = {
  * @param overrides - Methods to replace or add for a single test.
  * @returns The mock info client.
  */
+export const defaultStrategyClearinghouseState = {
+  marginSummary: {
+    totalMarginUsed: '500',
+    accountValue: '10500',
+  },
+  withdrawable: '9500',
+  assetPositions: [
+    {
+      position: {
+        coin: 'BTC',
+        szi: '0.1',
+        entryPx: '50000',
+        positionValue: '5000',
+        unrealizedPnl: '100',
+        marginUsed: '500',
+        leverage: { type: 'cross', value: 10 },
+        liquidationPx: '45000',
+        maxLeverage: 50,
+        returnOnEquity: '20',
+        cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+      },
+      type: 'oneWay',
+    },
+    {
+      position: {
+        coin: 'ETH',
+        szi: '1.5',
+        entryPx: '3000',
+        positionValue: '4500',
+        unrealizedPnl: '50',
+        marginUsed: '450',
+        leverage: { type: 'cross', value: 10 },
+        liquidationPx: '2700',
+        maxLeverage: 50,
+        returnOnEquity: '10',
+        cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
+      },
+      type: 'oneWay',
+    },
+  ],
+  crossMarginSummary: {
+    accountValue: '10000',
+    totalMarginUsed: '5000',
+  },
+};
+
+/**
+ * Copy the default clearinghouse read with a different ETH size.
+ *
+ * @param size - ETH position size.
+ * @returns The clearinghouse state used by strategy tests.
+ */
+export function clearinghouseWithEthSize(
+  size: string,
+): typeof defaultStrategyClearinghouseState {
+  return {
+    ...defaultStrategyClearinghouseState,
+    assetPositions: defaultStrategyClearinghouseState.assetPositions.map(
+      (entry) =>
+        entry.position.coin === 'ETH'
+          ? { ...entry, position: { ...entry.position, szi: size } }
+          : entry,
+    ),
+  };
+}
+
 export const createMockInfoClient = (
   overrides: MockClient = {},
 ): MockClient => ({
-  clearinghouseState: vi.fn().mockResolvedValue({
-    marginSummary: {
-      totalMarginUsed: '500',
-      accountValue: '10500',
-    },
-    withdrawable: '9500',
-    assetPositions: [
-      {
-        position: {
-          coin: 'BTC',
-          szi: '0.1',
-          entryPx: '50000',
-          positionValue: '5000',
-          unrealizedPnl: '100',
-          marginUsed: '500',
-          leverage: { type: 'cross', value: 10 },
-          liquidationPx: '45000',
-          maxLeverage: 50,
-          returnOnEquity: '20',
-          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
-        },
-        type: 'oneWay',
-      },
-      {
-        position: {
-          coin: 'ETH',
-          szi: '1.5',
-          entryPx: '3000',
-          positionValue: '4500',
-          unrealizedPnl: '50',
-          marginUsed: '450',
-          leverage: { type: 'cross', value: 10 },
-          liquidationPx: '2700',
-          maxLeverage: 50,
-          returnOnEquity: '10',
-          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
-        },
-        type: 'oneWay',
-      },
-    ],
-    crossMarginSummary: {
-      accountValue: '10000',
-      totalMarginUsed: '5000',
-    },
-  }),
+  clearinghouseState: vi
+    .fn()
+    .mockResolvedValue(defaultStrategyClearinghouseState),
   spotClearinghouseState: vi.fn().mockResolvedValue({
     balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
   }),

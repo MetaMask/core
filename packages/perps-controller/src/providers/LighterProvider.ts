@@ -10573,12 +10573,14 @@ export class LighterProvider implements PerpsProvider {
    * @param rows - Authoritative venue rows.
    * @param accountIndex - Bound account.
    * @param generation - Issuing session.
+   * @param requireCanonicalSymbols - Whether each market must have a canonical symbol.
    * @returns Adapted orders, with exact durable group ownership when present.
    */
   readonly #adaptScaleOrders = async (
     rows: LighterApiOrder[],
     accountIndex: number,
     generation: number,
+    requireCanonicalSymbols = false,
   ): Promise<Order[]> => {
     let groups: LighterScaleGroup[] = [];
     try {
@@ -10591,10 +10593,13 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#assertSession(generation);
     return rows.map((row) => {
+      const symbol = this.#marketsById.get(row.marketIndex)?.symbol;
+      if (requireCanonicalSymbols && !symbol?.trim()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
       const order = adaptOrderFromLighter(
         row,
-        this.#marketsById.get(row.marketIndex)?.symbol ??
-          String(row.marketIndex),
+        symbol ?? String(row.marketIndex),
       );
       const matches = groups.filter(
         (group) =>
@@ -10627,9 +10632,12 @@ export class LighterProvider implements PerpsProvider {
    * flows (TP/SL replacement/removal) must use this — treating a swallowed
    * [] as authoritative would let them "succeed" while cancelling nothing.
    *
+   * @param requireComplete - Resolve canonical symbols before returning orders.
    * @returns Adapted open orders.
    */
-  readonly #readOpenOrdersStrict = async (): Promise<Order[]> => {
+  readonly #readOpenOrdersStrict = async (
+    requireComplete = false,
+  ): Promise<Order[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     const accountIndex = await this.#readAccountIndex(generation);
@@ -10642,14 +10650,28 @@ export class LighterProvider implements PerpsProvider {
       authToken,
     );
     this.#assertSession(generation);
-    return this.#adaptScaleOrders(response.orders, accountIndex, generation);
+    if (
+      requireComplete &&
+      response.orders.some(
+        (row) => !this.#marketsById.get(row.marketIndex)?.symbol?.trim(),
+      )
+    ) {
+      await this.#ensureMarkets(true);
+      this.#assertSession(generation);
+    }
+    return this.#adaptScaleOrders(
+      response.orders,
+      accountIndex,
+      generation,
+      requireComplete,
+    );
   };
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
     // Public reads re-kick pending journal recovery (deduped, detached).
     this.#kickTpslRecovery();
     try {
-      return await this.#readOpenOrdersStrict();
+      return await this.#readOpenOrdersStrict(params?.throwOnUnavailable);
     } catch (caughtError) {
       if (
         (params?.throwOnUnavailable === true &&
@@ -11675,6 +11697,7 @@ export class LighterProvider implements PerpsProvider {
       // side effects).
       const markets = await this.#ensureMarkets(
         isTriggerOrderType(params.orderType) ||
+          (params.orderType === 'market' && params.reduceOnly !== true) ||
           hasAttached ||
           params.timeInForce === 'ALO' ||
           params.marginMode !== undefined,
@@ -11702,6 +11725,18 @@ export class LighterProvider implements PerpsProvider {
         return {
           success: false,
           error: 'Lighter trigger orders require an active perpetual market',
+        };
+      }
+      // Reduce-only closes stay allowed so a position is never trapped by the
+      // market's status.
+      if (
+        params.orderType === 'market' &&
+        params.reduceOnly !== true &&
+        (market.status !== 'active' || market.marketType !== 'perp')
+      ) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
         };
       }
       if (isLimitExecutionOrderType(params.orderType) && !params.price) {
@@ -17686,6 +17721,7 @@ export class LighterProvider implements PerpsProvider {
     }
     const markets = await this.#ensureMarkets(
       isTriggerOrderType(params.orderType) ||
+        (params.orderType === 'market' && params.reduceOnly !== true) ||
         hasAttached ||
         params.timeInForce === 'ALO' ||
         params.marginMode !== undefined,
@@ -17713,6 +17749,18 @@ export class LighterProvider implements PerpsProvider {
       return {
         isValid: false,
         error: 'Lighter trigger orders require an active perpetual market',
+      };
+    }
+    // Reduce-only closes stay allowed so a position is never trapped by the
+    // market's status.
+    if (
+      params.orderType === 'market' &&
+      params.reduceOnly !== true &&
+      (market.status !== 'active' || market.marketType !== 'perp')
+    ) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
       };
     }
     await this.#validateExplicitMarginMode(
