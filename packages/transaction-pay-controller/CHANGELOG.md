@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState` and `RampsController:getState` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState`, `RampsController:getState`, `TransactionController:failTransaction` and `TransactionController:finalizeResumedTransaction` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
 - Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
   - Rate drift and fee reserve checks use the normalized quote amounts.
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
