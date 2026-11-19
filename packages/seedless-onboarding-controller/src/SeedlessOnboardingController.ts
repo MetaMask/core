@@ -192,7 +192,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'authenticateForRecovery',
   'migrateToEnvelope',
   'recoverWithRecoverySecret',
-  'setLocalPassword',
   'resetPasswordWithVaultKeys',
 ] as const;
 
@@ -252,15 +251,6 @@ export class SeedlessOnboardingController<
    * This is used to cache the decrypted vault data to avoid decrypting the vault data multiple times.
    */
   #cachedDecryptedVaultData: DeserializedVaultData | undefined;
-
-  /**
-   * The vault key set recovered by `recoverWithRecoverySecret`, held in
-   * memory until `setLocalPassword` creates the local vault with it, and the
-   * live password OPRF auth public key when a control record matched it.
-   */
-  #recoveredVault:
-    | { vaultKeySet: VaultKeySet; passwordAuthPubKey?: SEC1EncodedPublicKey }
-    | undefined;
 
   /**
    * Creates a new SeedlessOnboardingController instance.
@@ -405,9 +395,6 @@ export class SeedlessOnboardingController<
         });
         // recovery state belongs to the user it was started for
         const isUserChanged = this.state.userId !== userId;
-        if (isUserChanged) {
-          this.#recoveredVault = undefined;
-        }
         // update the state with the authenticated user info
         this.update((state) => {
           if (isUserChanged) {
@@ -1153,7 +1140,6 @@ export class SeedlessOnboardingController<
       });
 
       this.#cachedDecryptedVaultData = undefined;
-      this.#recoveredVault = undefined;
       this.#isUnlocked = false;
     });
   }
@@ -1508,7 +1494,6 @@ export class SeedlessOnboardingController<
     this.update(() => {
       return defaultState;
     });
-    this.#recoveredVault = undefined;
   }
 
   /**
@@ -2785,33 +2770,37 @@ export class SeedlessOnboardingController<
 
   /**
    * Recover an envelope-managed vault with the Recovery Secret instead of the
-   * password: open `rbek` to get the vault key set `K_v` and fetch the secret
-   * data with it.
+   * password: open `rbek` to get the vault key set `K_v`, fetch the secret
+   * data with it, and create the local vault under `password`.
    *
-   * No local vault is created. The vault keys are held in memory until
-   * {@link setLocalPassword} creates the local vault with them, or until the
-   * controller is locked or its state is cleared. The live password OPRF
-   * auth public key is held with them when a control record of the vault
-   * matches it; otherwise {@link setLocalPassword} refuses to create the
-   * local vault, since the password could never be reset.
+   * `password` only encrypts the local vault. This sets `isLocalPassword`,
+   * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
+   * {@link syncLatestGlobalPassword} clear once the password is global.
+   * `envelope.passwordAuthPubKey` is set to the live password OPRF key, so
+   * {@link checkIsPasswordOutdated} reports a password change made elsewhere
+   * after recovery.
    *
    * Authenticate with social login and call {@link authenticateForRecovery}
    * first.
    *
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
-   * @returns The secret data of the vault, also when no control record
-   * matches the live password OPRF key.
+   * @param params.password - The password of the new local vault.
+   * @returns The secret data of the vault.
    * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
    * Recovery Secret or the vault they open has no control record, as its
-   * migration is not committed, `RecoveryKeyShareConflict` if the nodes hold
-   * the key of another Recovery Secret, or `Aal2Required` without a valid
-   * aal2 session.
+   * migration is not committed, `EnvelopeControlRecordNotFound` if no control
+   * record matches the live password OPRF key, since the password could never
+   * be reset, `RecoveryKeyShareConflict` if the nodes hold the key of another
+   * Recovery Secret, or `Aal2Required` without a valid aal2 session. No local
+   * vault is created when it throws.
    */
   async recoverWithRecoverySecret({
     recoverySecret,
+    password,
   }: {
     recoverySecret: Uint8Array;
+    password: string;
   }): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
@@ -2847,51 +2836,11 @@ export class SeedlessOnboardingController<
           );
         }
         const { authPubKey } = await this.#fetchGlobalAuthPubKey();
-        this.#recoveredVault = {
-          vaultKeySet,
-          ...(selectControlRecord(controlRecords, authPubKey) && {
-            passwordAuthPubKey: authPubKey,
-          }),
-        };
-        return secrets;
-      }, 'recoverWithRecoverySecret'),
-    );
-  }
-
-  /**
-   * Create the local vault under `password` with the vault keys recovered by
-   * {@link recoverWithRecoverySecret}.
-   *
-   * `password` only encrypts the local vault. This sets `isLocalPassword`,
-   * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
-   * {@link syncLatestGlobalPassword} clear once the password is global.
-   * `envelope.passwordAuthPubKey` is set to the live password OPRF key
-   * matched during recovery, so {@link checkIsPasswordOutdated} reports a
-   * password change made elsewhere after recovery.
-   *
-   * @param params - The function parameters.
-   * @param params.password - The password of the new local vault.
-   * @returns A promise that resolves once the local vault is created.
-   * @throws `RecoveryRequired` without a prior {@link recoverWithRecoverySecret},
-   * `EnvelopeControlRecordNotFound` if no control record matched the live
-   * password OPRF key during recovery, or `Aal2Required` without a valid aal2
-   * session.
-   */
-  async setLocalPassword({ password }: { password: string }): Promise<void> {
-    return await this.#withControllerLock(async () =>
-      this.#executeWithTokenRefresh(async () => {
-        if (!this.#recoveredVault) {
-          throw new SeedlessOnboardingError(
-            SeedlessOnboardingControllerErrorMessage.RecoveryRequired,
-          );
-        }
-        const { vaultKeySet, passwordAuthPubKey } = this.#recoveredVault;
-        if (!passwordAuthPubKey) {
+        if (!selectControlRecord(controlRecords, authPubKey)) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
           );
         }
-        this.#requireRecoverySession();
 
         await this.#createNewVaultWithAuthData({
           password,
@@ -2903,19 +2852,19 @@ export class SeedlessOnboardingController<
         this.update((state) => {
           state.isLocalPassword = true;
         });
-        this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
+        this.#setEnvelopeState(vaultKeySet, authPubKey);
         this.#resetPasswordOutdatedCache();
-        this.#recoveredVault = undefined;
-      }, 'setLocalPassword'),
+        return secrets;
+      }, 'recoverWithRecoverySecret'),
     );
   }
 
   /**
    * Set a new global password on an envelope-managed vault without the old
-   * one, after {@link recoverWithRecoverySecret} and {@link setLocalPassword}.
+   * one, after {@link recoverWithRecoverySecret}.
    *
    * Only allowed while `isLocalPassword` is set, which is the state the vault
-   * is left in after {@link setLocalPassword}, and with a valid aal2 session
+   * is left in after {@link recoverWithRecoverySecret}, and with a valid aal2 session
    * from {@link authenticateForRecovery}. A successful reset clears
    * `isLocalPassword`; after that, use {@link changePassword} instead.
    *

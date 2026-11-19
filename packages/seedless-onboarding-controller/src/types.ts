@@ -254,9 +254,9 @@ export type SeedlessOnboardingControllerState =
 
       /**
        * Whether the vault password is local to this device rather than the
-       * global password. Set by `setLocalPassword` and cleared only by
-       * `resetPasswordWithVaultKeys`. While set, the password can't be synced
-       * or changed.
+       * global password. Set by `recoverWithRecoverySecret` and cleared by a
+       * successful `resetPasswordWithVaultKeys`, `changePassword`,
+       * `syncLatestGlobalPassword` or `restoreVaultWithPassword`.
        */
       isLocalPassword?: boolean;
 

@@ -83,6 +83,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   EnvelopeMigrationInconsistent = `${controllerName} - Envelope migration is inconsistent: the recovery key is registered but the vault has no control record`,
   RecoveryEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the Recovery Secret`,
   PasswordEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the password`,
-  RecoveryRequired = `${controllerName} - Recover with the Recovery Secret before setting the local password`,
   PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }

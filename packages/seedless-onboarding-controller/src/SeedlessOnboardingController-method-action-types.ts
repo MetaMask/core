@@ -397,28 +397,30 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
 
 /**
  * Recover an envelope-managed vault with the Recovery Secret instead of the
- * password: open `rbek` to get the vault key set `K_v` and fetch the secret
- * data with it.
+ * password: open `rbek` to get the vault key set `K_v`, fetch the secret
+ * data with it, and create the local vault under `password`.
  *
- * No local vault is created. The vault keys are held in memory until
- * {@link setLocalPassword} creates the local vault with them, or until the
- * controller is locked or its state is cleared. The live password OPRF
- * auth public key is held with them when a control record of the vault
- * matches it; otherwise {@link setLocalPassword} refuses to create the
- * local vault, since the password could never be reset.
+ * `password` only encrypts the local vault. This sets `isLocalPassword`,
+ * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
+ * {@link syncLatestGlobalPassword} clear once the password is global.
+ * `envelope.passwordAuthPubKey` is set to the live password OPRF key, so
+ * {@link checkIsPasswordOutdated} reports a password change made elsewhere
+ * after recovery.
  *
  * Authenticate with social login and call {@link authenticateForRecovery}
  * first.
  *
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
- * @returns The secret data of the vault, also when no control record
- * matches the live password OPRF key.
+ * @param params.password - The password of the new local vault.
+ * @returns The secret data of the vault.
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
  * Recovery Secret or the vault they open has no control record, as its
- * migration is not committed, `RecoveryKeyShareConflict` if the nodes hold
- * the key of another Recovery Secret, or `Aal2Required` without a valid
- * aal2 session.
+ * migration is not committed, `EnvelopeControlRecordNotFound` if no control
+ * record matches the live password OPRF key, since the password could never
+ * be reset, `RecoveryKeyShareConflict` if the nodes hold the key of another
+ * Recovery Secret, or `Aal2Required` without a valid aal2 session. No local
+ * vault is created when it throws.
  */
 export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
   type: `SeedlessOnboardingController:recoverWithRecoverySecret`;
@@ -426,35 +428,11 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
 };
 
 /**
- * Create the local vault under `password` with the vault keys recovered by
- * {@link recoverWithRecoverySecret}.
- *
- * `password` only encrypts the local vault. This sets `isLocalPassword`,
- * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
- * {@link syncLatestGlobalPassword} clear once the password is global.
- * `envelope.passwordAuthPubKey` is set to the live password OPRF key
- * matched during recovery, so {@link checkIsPasswordOutdated} reports a
- * password change made elsewhere after recovery.
- *
- * @param params - The function parameters.
- * @param params.password - The password of the new local vault.
- * @returns A promise that resolves once the local vault is created.
- * @throws `RecoveryRequired` without a prior {@link recoverWithRecoverySecret},
- * `EnvelopeControlRecordNotFound` if no control record matched the live
- * password OPRF key during recovery, or `Aal2Required` without a valid aal2
- * session.
- */
-export type SeedlessOnboardingControllerSetLocalPasswordAction = {
-  type: `SeedlessOnboardingController:setLocalPassword`;
-  handler: SeedlessOnboardingController['setLocalPassword'];
-};
-
-/**
  * Set a new global password on an envelope-managed vault without the old
- * one, after {@link recoverWithRecoverySecret} and {@link setLocalPassword}.
+ * one, after {@link recoverWithRecoverySecret}.
  *
  * Only allowed while `isLocalPassword` is set, which is the state the vault
- * is left in after {@link setLocalPassword}, and with a valid aal2 session
+ * is left in after {@link recoverWithRecoverySecret}, and with a valid aal2 session
  * from {@link authenticateForRecovery}. A successful reset clears
  * `isLocalPassword`; after that, use {@link changePassword} instead.
  *
@@ -580,7 +558,6 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerAuthenticateForRecoveryAction
   | SeedlessOnboardingControllerMigrateToEnvelopeAction
   | SeedlessOnboardingControllerRecoverWithRecoverySecretAction
-  | SeedlessOnboardingControllerSetLocalPasswordAction
   | SeedlessOnboardingControllerResetPasswordWithVaultKeysAction
   | SeedlessOnboardingControllerRotateRefreshTokenAction
   | SeedlessOnboardingControllerRevokePendingRefreshTokensAction
