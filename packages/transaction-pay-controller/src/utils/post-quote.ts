@@ -4,7 +4,7 @@ import { BigNumber } from 'bignumber.js';
 import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { QuoteRequest, TransactionPayQuote } from '../types.js';
-import { getNativeToken } from './token.js';
+import { getEvmQuoteSource, getNativeToken } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'post-quote');
 
@@ -95,10 +95,11 @@ export async function reservePostQuoteGas<Original>({
 }
 
 function isNativeSource(request: QuoteRequest): boolean {
-  const sourceToken = request.sourceTokenAddress.toLowerCase();
+  const { chainId, tokenAddress } = getEvmQuoteSource(request);
+  const sourceToken = tokenAddress.toLowerCase();
 
   return (
-    sourceToken === getNativeToken(request.sourceChainId).toLowerCase() ||
+    sourceToken === getNativeToken(chainId).toLowerCase() ||
     sourceToken === NATIVE_TOKEN_ADDRESS.toLowerCase()
   );
 }

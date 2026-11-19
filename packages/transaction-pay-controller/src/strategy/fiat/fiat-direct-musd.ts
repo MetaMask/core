@@ -15,6 +15,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types.js';
+import { getCaipAccountId } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { getFiatVaultDisabled } from '../../utils/feature-flags.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
@@ -207,6 +208,10 @@ function combineDirectMusdFiatQuote({
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
+  const sourceAssetId = buildCaipAssetType(
+    MUSD_MONAD_FIAT_ASSET.chainId,
+    MUSD_MONAD_FIAT_ASSET.address,
+  );
 
   return {
     // Direct mUSD is fee-on-top: the fee is added to the entered amount, so the
@@ -243,9 +248,9 @@ function combineDirectMusdFiatQuote({
       from: moneyAccountAddress,
       isDirectMusdMoneyAccount: true,
       recipient: moneyAccountAddress,
+      sourceAccountId: getCaipAccountId(sourceAssetId, moneyAccountAddress),
+      sourceAssetId,
       sourceBalanceRaw: sourceAmountRaw,
-      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: sourceAmountRaw,
       targetChainId: requiredToken.chainId,

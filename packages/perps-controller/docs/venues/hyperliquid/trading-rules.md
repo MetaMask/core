@@ -69,7 +69,8 @@ Code: `src/utils/hyperLiquidAdapter.ts` `calculateHip3AssetId`; `src/constants/h
 
 ## Margin and collateral
 
-- Cross margin is offered only on main-DEX markets the venue does not mark `onlyIsolated` or restrict by `marginMode`. HIP-3 markets stay isolated because our HIP-3 collateral transfer assumes isolated margin.
+- Cross margin is offered on main-DEX and HIP-3 markets unless the venue marks them `onlyIsolated` or sets a `marginMode` other than `normal` (`noCross`, `strictIsolated`).
+- Without Unified Account, adding to an isolated HIP-3 position transfers the whole position's margin before the order, because the venue checks it against the full position. Adding to a Cross position transfers the new order's margin plus any shortfall when the order lowers the position's leverage, since the venue re-margins the whole position at the new leverage.
 - HIP-3 DEXs whose collateral is not USDC are excluded from market data and order placement.
 - With Unified Account or portfolio margin, HyperLiquid moves HIP-3 collateral itself. Otherwise `#handleHip3PreOrder` moves it with `exchangeClient.sendAsset` before the order.
 

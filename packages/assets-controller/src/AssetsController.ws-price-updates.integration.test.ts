@@ -57,14 +57,8 @@ const BALANCES = stateBalancesSurface(WS_ACCOUNT_ID);
 const METADATA = STATE_METADATA_SURFACE;
 const PRICES = STATE_PRICES_SURFACE;
 
-/** The update lanes the remote feature flags switch the controller between. */
-const UPDATE_LANES: { name: string; remoteFeatureFlags?: FeatureFlags }[] = [
-  { name: 'the v5 update lane' },
-  {
-    name: 'the v6 update lane',
-    remoteFeatureFlags: { assetsAccountsApiV6: true },
-  },
-];
+/** The controller applies websocket updates on the Accounts API v6 lane. */
+const UPDATE_LANES: { name: string }[] = [{ name: 'the update lane' }];
 
 /** A settled websocket event run. */
 type WsEventResult = {
@@ -129,25 +123,21 @@ async function withController<ReturnValue>(
  * @param options - The run options.
  * @param options.state - The state to boot with.
  * @param options.event - The websocket event to deliver.
- * @param options.remoteFeatureFlags - Flags to boot with
- * (`assetsAccountsApiV6: true` selects the v6 update lane).
  * @returns The event result.
  */
 async function runWsEvent({
   state,
   event,
-  remoteFeatureFlags,
 }: {
   state: Partial<AssetsControllerState>;
   event: BalanceUpdatedEventPayload;
-  remoteFeatureFlags?: FeatureFlags;
 }): Promise<WsEventResult> {
   nock.cleanAll();
   const { accountsSupportedNetworks, assets, prices } = mockWsApis();
   const queryApiClient = createTestApiClient();
 
   const controllerState = await withController(
-    { state, queryApiClient, remoteFeatureFlags },
+    { state, queryApiClient },
     async ({ controller, messenger }) => {
       // Wait for boot so the assertions cannot pass on a half-started wallet.
       await waitFor(() =>
@@ -187,14 +177,13 @@ describe('AssetsController: websocket price updates', () => {
 
   describe.each(UPDATE_LANES)(
     '$name: brand-new holdings: ETH held and USDC acquired in one websocket event',
-    ({ remoteFeatureFlags }) => {
+    () => {
       let result: WsEventResult;
 
       beforeAll(async () => {
         result = await runWsEvent({
           state: buildEmptyAssetsState(),
           event: buildEthAndUsdcBalanceUpdatedEvent(),
-          remoteFeatureFlags,
         });
       });
 
