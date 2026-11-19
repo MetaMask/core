@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0]
+
 ### Uncategorized
 
 - chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
@@ -345,7 +347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.3.0...HEAD
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.2...@metamask/profile-metrics-controller@5.3.0
 [5.2.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.1...@metamask/profile-metrics-controller@5.2.2
 [5.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.0...@metamask/profile-metrics-controller@5.2.1
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.4...@metamask/profile-metrics-controller@5.2.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.3]
+
 ### Uncategorized
 
 - chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
@@ -367,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.1.3...HEAD
+[6.1.3]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.1.2...@metamask/gator-permissions-controller@6.1.3
 [6.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.1.1...@metamask/gator-permissions-controller@6.1.2
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.1.0...@metamask/gator-permissions-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@6.0.1...@metamask/gator-permissions-controller@6.1.0

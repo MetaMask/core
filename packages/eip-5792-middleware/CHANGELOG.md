@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.2]
+
 ### Uncategorized
 
 - chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
@@ -176,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.2...HEAD
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.1...@metamask/eip-5792-middleware@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.0...@metamask/eip-5792-middleware@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.0.1...@metamask/eip-5792-middleware@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.0.0...@metamask/eip-5792-middleware@4.0.1
