@@ -8,8 +8,16 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
-import type { KycSessionStatus, KycStepInfo } from './types.js';
+import { KYC_SIGNED_REQUEST_LIMITS, KYC_VENDOR_SIGN_PATHS } from './types.js';
+import type {
+  KycSessionStatus,
+  KycSignedRequest,
+  KycStepInfo,
+  KycVendorRequestSigner,
+  KycVendorSignOperation,
+} from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import {
@@ -20,7 +28,6 @@ import type {
   VendorOnboardingControllerMessenger,
   VendorOnboardingControllerOptions,
 } from './VendorOnboardingController.js';
-import type { KalshiAccountLinkAdapter } from './vendors/KalshiAccountLink.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -38,6 +45,36 @@ const mockAssertAttestedServerPublicKey =
 const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
   typeof wrapEncryptionKey
 >;
+
+const KALSHI_EMAIL = 'a@b.co';
+
+/**
+ * The call the test signer answers with for one operation.
+ *
+ * @param operation - The signed call.
+ * @param body - The exact signed body.
+ * @returns The signed request.
+ */
+function signedRequest(
+  operation: KycVendorSignOperation,
+  body: string,
+): KycSignedRequest {
+  return {
+    path: KYC_VENDOR_SIGN_PATHS[operation],
+    headers: { Signature: `signed:${operation}` },
+    body,
+  };
+}
+
+const SIGNED_INTENT = signedRequest('enrollment/intents', '');
+const SIGNED_LINK = signedRequest(
+  'users/link',
+  JSON.stringify({ email: KALSHI_EMAIL }),
+);
+const SIGNED_VERIFY = signedRequest(
+  'users/link/verify',
+  JSON.stringify({ code: '123456' }),
+);
 
 const AAL2_TOKEN = 'aal2-token';
 
@@ -84,7 +121,7 @@ describe('VendorOnboardingController', () => {
             state: {
               vendors: {
                 kalshi: {
-                  step: 'done',
+                  step: 'decision',
                   status: 'none',
                   sessionId: 'sid-1',
                 },
@@ -94,7 +131,7 @@ describe('VendorOnboardingController', () => {
         },
         ({ controller }) => {
           expect(controller.state.vendors.kalshi).toStrictEqual({
-            step: 'done',
+            step: 'decision',
             status: 'none',
             sessionId: 'sid-1',
           });
@@ -104,19 +141,36 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('refreshStep', () => {
+    it.each(['kalshi_email_link', 'kalshi_phone_link'] as const)(
+      'keeps the Kalshi step %s',
+      async (stepName) => {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: stepName,
+            status: 'none',
+          });
+
+          const step = await controller.refreshStep({ vendor: 'kalshi' });
+
+          expect(step).toBe(stepName);
+          expect(controller.state.vendors.kalshi?.step).toBe(stepName);
+        });
+      },
+    );
+
     it('saves the step kyc-api answers with', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'account_link',
+          step: 'mfa',
           status: 'none',
         });
 
         const step = await controller.refreshStep({ vendor: 'kalshi' });
 
-        expect(step).toBe('account_link');
+        expect(step).toBe('mfa');
         expect(handlers.getStep).toHaveBeenCalledWith('kalshi', {});
         expect(controller.state.vendors.kalshi).toStrictEqual({
-          step: 'account_link',
+          step: 'mfa',
           status: 'none',
           sessionId: null,
         });
@@ -151,7 +205,7 @@ describe('VendorOnboardingController', () => {
             state: {
               vendors: {
                 kalshi: {
-                  step: 'vendor_terms',
+                  step: 'terms',
                   status: 'none',
                   sessionId: 'sid-1',
                 },
@@ -160,12 +214,15 @@ describe('VendorOnboardingController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
+          handlers.getStep.mockResolvedValue({
+            step: 'decision',
+            status: 'none',
+          });
 
           await controller.refreshStep({ vendor: 'kalshi' });
 
           expect(controller.state.vendors.kalshi).toStrictEqual({
-            step: 'done',
+            step: 'decision',
             status: 'none',
             sessionId: 'sid-1',
           });
@@ -176,15 +233,15 @@ describe('VendorOnboardingController', () => {
     it('keeps each vendor apart', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep
-          .mockResolvedValueOnce({ step: 'done', status: 'approved' })
-          .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+          .mockResolvedValueOnce({ step: 'decision', status: 'approved' })
+          .mockResolvedValueOnce({ step: 'mfa', status: 'none' });
 
         await controller.refreshStep({ vendor: 'iron' });
         await controller.refreshStep({ vendor: 'kalshi' });
 
-        expect(controller.state.vendors.iron?.step).toBe('done');
+        expect(controller.state.vendors.iron?.step).toBe('decision');
         expect(controller.state.vendors.iron?.status).toBe('approved');
-        expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
       });
     });
 
@@ -199,11 +256,11 @@ describe('VendorOnboardingController', () => {
 
         const first = controller.refreshStep({ vendor: 'kalshi' });
         const second = controller.refreshStep({ vendor: 'kalshi' });
-        answer({ step: 'account_link', status: 'none' });
+        answer({ step: 'mfa', status: 'none' });
 
         expect(await Promise.all([first, second])).toStrictEqual([
-          'account_link',
-          'account_link',
+          'mfa',
+          'mfa',
         ]);
         expect(handlers.getStep).toHaveBeenCalledTimes(1);
       });
@@ -212,13 +269,13 @@ describe('VendorOnboardingController', () => {
     it('asks again once the earlier read has finished', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep
-          .mockResolvedValueOnce({ step: 'vendor_terms', status: 'none' })
-          .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+          .mockResolvedValueOnce({ step: 'terms', status: 'none' })
+          .mockResolvedValueOnce({ step: 'mfa', status: 'none' });
 
         await controller.refreshStep({ vendor: 'kalshi' });
         const step = await controller.refreshStep({ vendor: 'kalshi' });
 
-        expect(step).toBe('account_link');
+        expect(step).toBe('mfa');
         expect(handlers.getStep).toHaveBeenCalledTimes(2);
       });
     });
@@ -226,8 +283,8 @@ describe('VendorOnboardingController', () => {
     it('does not share reads between vendors', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep
-          .mockResolvedValueOnce({ step: 'done', status: 'approved' })
-          .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+          .mockResolvedValueOnce({ step: 'decision', status: 'approved' })
+          .mockResolvedValueOnce({ step: 'mfa', status: 'none' });
 
         await Promise.all([
           controller.refreshStep({ vendor: 'iron' }),
@@ -242,79 +299,69 @@ describe('VendorOnboardingController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep
           .mockRejectedValueOnce(new Error('down'))
-          .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+          .mockResolvedValueOnce({ step: 'mfa', status: 'none' });
 
         const first = controller.refreshStep({ vendor: 'kalshi' });
         const second = controller.refreshStep({ vendor: 'kalshi' });
 
         await expect(first).rejects.toThrow('down');
         await expect(second).rejects.toThrow('down');
-        expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe(
-          'account_link',
-        );
+        expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe('mfa');
       });
     });
 
     describe('after a change at kyc-api', () => {
-      const linked = {
-        startLink: vi.fn().mockResolvedValue(undefined),
-        verifyLink: vi.fn().mockResolvedValue({}),
-      };
-
       it('does not join a read that started before the change', async () => {
-        await withController(
-          { options: { kalshiAccountLinkAdapter: linked } },
-          async ({ controller, handlers }) => {
-            let answerOld: (info: KycStepInfo) => void = () => undefined;
-            handlers.getStep
-              .mockReturnValueOnce(
-                new Promise<KycStepInfo>((resolve) => {
-                  answerOld = resolve;
-                }),
-              )
-              .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
-
-            const old = controller.refreshStep({ vendor: 'kalshi' });
-            const step = await controller.startAccountLink({
-              vendor: 'kalshi',
-              email: 'a@b.co',
+        await withController(async ({ controller, handlers }) => {
+          let answerOld: (info: KycStepInfo) => void = () => undefined;
+          handlers.getStep
+            .mockReturnValueOnce(
+              new Promise<KycStepInfo>((resolve) => {
+                answerOld = resolve;
+              }),
+            )
+            .mockResolvedValueOnce({
+              step: 'mfa',
+              status: 'none',
             });
-            answerOld({ step: 'account_link', status: 'none' });
-            await old;
 
-            expect(step).toBe('account_link');
-            expect(handlers.getStep).toHaveBeenCalledTimes(2);
-            expect(controller.state.vendors.kalshi?.step).toBe('account_link');
-          },
-        );
+          const old = controller.refreshStep({ vendor: 'kalshi' });
+          const step = await controller.acceptTerms({
+            vendor: 'kalshi',
+            disclaimerIds: ['a'],
+          });
+          answerOld({ step: 'mfa', status: 'none' });
+          await old;
+
+          expect(step).toBe('mfa');
+          expect(handlers.getStep).toHaveBeenCalledTimes(2);
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
+        });
       });
 
       it('lets a later plain read join the read the change started', async () => {
-        await withController(
-          { options: { kalshiAccountLinkAdapter: linked } },
-          async ({ controller, handlers }) => {
-            let answer: (info: KycStepInfo) => void = () => undefined;
-            handlers.getStep.mockReturnValueOnce(
-              new Promise<KycStepInfo>((resolve) => {
-                answer = resolve;
-              }),
-            );
+        await withController(async ({ controller, handlers }) => {
+          let answer: (info: KycStepInfo) => void = () => undefined;
+          handlers.getStep.mockReturnValueOnce(
+            new Promise<KycStepInfo>((resolve) => {
+              answer = resolve;
+            }),
+          );
 
-            const action = controller.startAccountLink({
-              vendor: 'kalshi',
-              email: 'a@b.co',
-            });
-            await flushPromises();
-            const plain = controller.refreshStep({ vendor: 'kalshi' });
-            answer({ step: 'account_link', status: 'none' });
+          const action = controller.acceptTerms({
+            vendor: 'kalshi',
+            disclaimerIds: ['a'],
+          });
+          await flushPromises();
+          const plain = controller.refreshStep({ vendor: 'kalshi' });
+          answer({ step: 'mfa', status: 'none' });
 
-            expect(await Promise.all([action, plain])).toStrictEqual([
-              'account_link',
-              'account_link',
-            ]);
-            expect(handlers.getStep).toHaveBeenCalledTimes(1);
-          },
-        );
+          expect(await Promise.all([action, plain])).toStrictEqual([
+            'mfa',
+            'mfa',
+          ]);
+          expect(handlers.getStep).toHaveBeenCalledTimes(1);
+        });
       });
 
       it('drops an older read that finishes after a newer one', async () => {
@@ -326,7 +373,10 @@ describe('VendorOnboardingController', () => {
                 answerOld = resolve;
               }),
             )
-            .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+            .mockResolvedValueOnce({
+              step: 'mfa',
+              status: 'none',
+            });
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
           // An action starts its own read, which answers first.
@@ -334,10 +384,10 @@ describe('VendorOnboardingController', () => {
             vendor: 'kalshi',
             disclaimerIds: ['a'],
           });
-          answerOld({ step: 'vendor_terms', status: 'none' });
+          answerOld({ step: 'terms', status: 'none' });
           await old;
 
-          expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
         });
       });
 
@@ -350,8 +400,11 @@ describe('VendorOnboardingController', () => {
                 answerOld = resolve;
               }),
             )
-            .mockResolvedValueOnce({ step: 'account_link', status: 'none' })
-            .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+            .mockResolvedValueOnce({ step: 'mfa', status: 'none' })
+            .mockResolvedValueOnce({
+              step: 'mfa',
+              status: 'none',
+            });
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
           await controller.acceptTerms({
@@ -359,10 +412,10 @@ describe('VendorOnboardingController', () => {
             disclaimerIds: ['a'],
           });
           const fresh = await controller.refreshStep({ vendor: 'kalshi' });
-          answerOld({ step: 'vendor_terms', status: 'none' });
+          answerOld({ step: 'terms', status: 'none' });
           await old;
 
-          expect(fresh).toBe('account_link');
+          expect(fresh).toBe('mfa');
           expect(handlers.getStep).toHaveBeenCalledTimes(3);
         });
       });
@@ -375,7 +428,7 @@ describe('VendorOnboardingController', () => {
             state: {
               vendors: {
                 kalshi: {
-                  step: 'account_link',
+                  step: 'mfa',
                   status: 'none',
                   sessionId: null,
                 },
@@ -390,7 +443,7 @@ describe('VendorOnboardingController', () => {
             controller.refreshStep({ vendor: 'kalshi' }),
           ).rejects.toThrow('down');
 
-          expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
         },
       );
     });
@@ -400,7 +453,7 @@ describe('VendorOnboardingController', () => {
     it('sends the terms to kyc-api, then saves the step it reads', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'account_link',
+          step: 'mfa',
           status: 'none',
         });
 
@@ -410,20 +463,20 @@ describe('VendorOnboardingController', () => {
           country: 'USA',
         });
 
-        expect(step).toBe('account_link');
+        expect(step).toBe('mfa');
         expect(handlers.acceptVendorTerms).toHaveBeenCalledWith({
           vendor: 'kalshi',
           disclaimerIds: ['tos-v1'],
           country: 'USA',
         });
-        expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
       });
     });
 
     it('leaves the country out when none is given', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'confirm_identity',
+          step: 'mfa',
           status: 'none',
         });
 
@@ -452,106 +505,305 @@ describe('VendorOnboardingController', () => {
     });
   });
 
-  describe('account link', () => {
-    it('starts the link through the adapter, then reads the step', async () => {
-      const adapter = getAdapter();
-      await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({
-            step: 'account_link',
-            status: 'none',
-          });
-
-          const step = await controller.startAccountLink({
+  describe('Kalshi signed requests', () => {
+    it('requires an email before it creates a Kalshi session', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.startSession({
             vendor: 'kalshi',
-            email: 'a@b.co',
-          });
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow('Kalshi email is required');
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+      });
+    });
 
-          expect(adapter.startLink).toHaveBeenCalledWith({ email: 'a@b.co' });
-          expect(step).toBe('account_link');
-          expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+    it('requires a signer for Kalshi', async () => {
+      await withController(
+        { options: { vendorRequestSigners: {} } },
+        async ({ controller }) => {
+          await expect(
+            controller.startSession({
+              vendor: 'kalshi',
+              aal2Token: AAL2_TOKEN,
+              email: KALSHI_EMAIL,
+            }),
+          ).rejects.toThrow('no request signer for kalshi');
         },
       );
     });
 
-    it('verifies the code through the adapter, then reads the step', async () => {
-      const adapter = getAdapter();
+    it('does not open the session when signing fails', async () => {
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockRejectedValue(new Error('sign failed'));
       await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({
-            step: 'confirm_identity',
-            status: 'none',
-          });
-
-          const result = await controller.verifyAccountLink({
-            vendor: 'kalshi',
-            code: '888888',
-          });
-
-          expect(adapter.verifyLink).toHaveBeenCalledWith({ code: '888888' });
-          expect(result).toStrictEqual({ step: 'confirm_identity' });
-        },
-      );
-    });
-
-    it('passes on the MFA method the vendor asks for, without saving it', async () => {
-      const adapter = getAdapter();
-      adapter.verifyLink.mockResolvedValue({ mfaMethod: 'sms' });
-      await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({
-            step: 'account_link',
-            status: 'none',
-          });
-
-          const result = await controller.verifyAccountLink({
-            vendor: 'kalshi',
-            code: '888888',
-          });
-
-          expect(result).toStrictEqual({
-            step: 'account_link',
-            mfaMethod: 'sms',
-          });
-          expect(controller.state.vendors.kalshi).toStrictEqual({
-            step: 'account_link',
-            status: 'none',
-            sessionId: null,
-          });
-        },
-      );
-    });
-
-    it('does not read the step when the adapter fails', async () => {
-      const adapter = getAdapter();
-      adapter.startLink.mockRejectedValue(new Error('link failed'));
-      await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
+        { options: { vendorRequestSigners: { kalshi: signer } } },
         async ({ controller, handlers }) => {
           await expect(
-            controller.startAccountLink({ vendor: 'kalshi', email: 'a@b.co' }),
-          ).rejects.toThrow('link failed');
+            controller.startSession({
+              vendor: 'kalshi',
+              aal2Token: AAL2_TOKEN,
+              email: KALSHI_EMAIL,
+            }),
+          ).rejects.toThrow('sign failed');
 
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
           expect(handlers.getStep).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('throws when the vendor has no adapter', async () => {
-      await withController(async ({ controller }) => {
-        await expect(
-          controller.startAccountLink({ vendor: 'kalshi', email: 'a@b.co' }),
-        ).rejects.toThrow('no account link adapter for kalshi');
-        await expect(
-          controller.startAccountLink({ vendor: 'iron', email: 'a@b.co' }),
-        ).rejects.toThrow('no account link adapter for iron');
-        await expect(
-          controller.verifyAccountLink({ vendor: 'iron', code: '1' }),
-        ).rejects.toThrow('no account link adapter for iron');
+    it('rejects a signer that signs the wrong route', async () => {
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([signedRequest('users/link', '')]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
+          ).rejects.toThrow('did not return the requested calls');
+          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it.each([
+      [
+        'too many headers',
+        {
+          headers: Object.fromEntries(
+            Array.from(
+              { length: KYC_SIGNED_REQUEST_LIMITS.headerCount + 1 },
+              (_value, index) => [`Header-${index}`, 'value'],
+            ),
+          ),
+        },
+      ],
+      ['a header that is not a string', { headers: { Signature: 1 as never } }],
+      [
+        'a body past 4 KB',
+        { body: 'x'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes + 1) },
+      ],
+      [
+        'a body past 4 KB in bytes',
+        { body: 'é'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes / 2 + 1) },
+      ],
+    ])('rejects a signer that returns %s', async (_name, override) => {
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([{ ...SIGNED_VERIFY, ...override }]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
+          ).rejects.toThrow('returned a request kyc-api would refuse');
+          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('accepts a request at the limits', async () => {
+      const atLimits: KycSignedRequest = {
+        ...SIGNED_VERIFY,
+        headers: Object.fromEntries(
+          Array.from(
+            { length: KYC_SIGNED_REQUEST_LIMITS.headerCount },
+            (_value, index) => [`Header-${index}`, 'value'],
+          ),
+        ),
+        body: 'x'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes),
+      };
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([atLimits]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.verifyEmailOtp({
+            vendor: 'kalshi',
+            code: '123456',
+          });
+          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            step: 'email/verify-otp',
+            body: { signedRequest: atLimits },
+          });
+        },
+      );
+    });
+
+    it('rejects a signer that skips a call', async () => {
+      const signer: KycVendorRequestSigner = vi.fn().mockResolvedValue([]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
+          ).rejects.toThrow('did not return the requested calls');
+          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('vendors that do not sign requests', () => {
+    it('rejects Kalshi when the controller has no request signers', async () => {
+      await withController(
+        { options: { vendorRequestSigners: undefined } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.startSession({
+              vendor: 'kalshi',
+              aal2Token: AAL2_TOKEN,
+              email: KALSHI_EMAIL,
+            }),
+          ).rejects.toThrow('no request signer for kalshi');
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('opens an iron session without signed requests', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue({
+          step: 'sumsub',
+          status: 'none',
+        });
+
+        const step = await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(step).toBe('sumsub');
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.vendor).toBe('iron');
+        expect(params).not.toHaveProperty('signedRequests');
+        expect(params).not.toHaveProperty('email');
       });
+    });
+
+    it('verifies an iron email code without signed requests', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                iron: {
+                  step: 'mfa',
+                  status: 'none',
+                  sessionId: 'sid-iron',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: 'sumsub',
+            status: 'none',
+          });
+
+          await controller.verifyEmailOtp({ vendor: 'iron', code: '123456' });
+
+          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+            sessionId: 'sid-iron',
+            step: 'email/verify-otp',
+            body: { otp: '123456' },
+          });
+        },
+      );
+    });
+
+    it('resends an iron email code with no body', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                iron: {
+                  step: 'mfa',
+                  status: 'none',
+                  sessionId: 'sid-iron',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: 'mfa',
+            status: 'none',
+          });
+
+          await controller.sendEmailOtp({ vendor: 'iron' });
+
+          const [request] = handlers.postOnboardingStep.mock.calls[0] as [
+            Record<string, unknown>,
+          ];
+          expect(request).toStrictEqual({
+            sessionId: 'sid-iron',
+            step: 'email/resend-otp',
+          });
+        },
+      );
     });
   });
 
@@ -578,7 +830,7 @@ describe('VendorOnboardingController', () => {
         { code: '123456' },
         'email/verify-otp',
         {
-          otp: '123456',
+          signedRequest: SIGNED_VERIFY,
         },
       ],
     ] as const)(
@@ -590,7 +842,7 @@ describe('VendorOnboardingController', () => {
               state: {
                 vendors: {
                   kalshi: {
-                    step: 'identity_provider',
+                    step: 'sumsub',
                     status: 'none',
                     sessionId: 'sid-1',
                   },
@@ -600,7 +852,7 @@ describe('VendorOnboardingController', () => {
           },
           async ({ controller, handlers }) => {
             handlers.getStep.mockResolvedValue({
-              step: 'identity_provider',
+              step: 'sumsub',
               status: 'none',
             });
 
@@ -614,21 +866,21 @@ describe('VendorOnboardingController', () => {
               step,
               body,
             });
-            expect(next).toBe('identity_provider');
+            expect(next).toBe('sumsub');
             expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
           },
         );
       },
     );
 
-    it('sends the email code again without a body', async () => {
+    it('resends the email code with a newly signed link', async () => {
       await withController(
         {
           options: {
             state: {
               vendors: {
                 kalshi: {
-                  step: 'identity_provider',
+                  step: 'sumsub',
                   status: 'none',
                   sessionId: 'sid-1',
                 },
@@ -638,15 +890,21 @@ describe('VendorOnboardingController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
-            step: 'identity_provider',
+            step: 'sumsub',
             status: 'none',
           });
 
-          await controller.sendEmailOtp({ vendor: 'kalshi' });
+          await controller.sendEmailOtp({
+            vendor: 'kalshi',
+            email: KALSHI_EMAIL,
+          });
 
           expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
             sessionId: 'sid-1',
             step: 'email/resend-otp',
+            body: {
+              signedRequest: SIGNED_LINK,
+            },
           });
         },
       );
@@ -656,7 +914,7 @@ describe('VendorOnboardingController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
         handlers.getStep.mockResolvedValue({
-          step: 'identity_provider',
+          step: 'sumsub',
           status: 'none',
         });
 
@@ -668,7 +926,9 @@ describe('VendorOnboardingController', () => {
         expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
           sessionId: 'sid-1',
           step: 'email/verify-otp',
-          body: { otp: '123456' },
+          body: {
+            signedRequest: SIGNED_VERIFY,
+          },
         });
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
       });
@@ -693,23 +953,25 @@ describe('VendorOnboardingController', () => {
     it('creates and authorizes a session, then reads the step', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'identity_provider',
+          step: 'sumsub',
           status: 'none',
         });
 
         const step = await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
         });
 
-        expect(step).toBe('identity_provider');
+        expect(step).toBe('sumsub');
         expect(handlers.getGeoCountry).toHaveBeenCalledOnce();
         expect(handlers.createUkycSession).toHaveBeenCalledWith({
           sessionClientPublicKey: expect.any(String),
           residenceCountry: 'USA',
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          partnerIdentityToken: 'partner-token',
+          email: KALSHI_EMAIL,
+          signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
         expect(handlers.setAuthorizations).toHaveBeenCalledWith({
           sessionId: 'sid-1',
@@ -717,24 +979,75 @@ describe('VendorOnboardingController', () => {
           wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
         });
         expect(controller.state.vendors.kalshi).toStrictEqual({
-          step: 'identity_provider',
+          step: 'sumsub',
           status: 'none',
           sessionId: 'sid-1',
         });
       });
     });
 
-    it('sends no email, because kyc-api takes it from the identity token', async () => {
+    it('signs the trimmed Kalshi email into users/link and sends it with the session', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
+          email: `  ${KALSHI_EMAIL} `,
         });
 
-        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
-          'email',
-        );
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.email).toBe(KALSHI_EMAIL);
+        expect(params.signedRequests).toStrictEqual([
+          SIGNED_INTENT,
+          SIGNED_LINK,
+        ]);
       });
+    });
+
+    it('signs users/link alone when the intent is already open', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
+          intentOpen: true,
+        });
+
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.signedRequests).toStrictEqual([SIGNED_LINK]);
+      });
+    });
+
+    it('signs after every other call that comes before session creation', async () => {
+      const order: string[] = [];
+      const signer: KycVendorRequestSigner = async ({ requests }) => {
+        order.push('sign');
+        return requests.map((request) => signedRequest(request.operation, ''));
+      };
+      await withController(
+        { options: { vendorRequestSigners: { kalshi: signer } } },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockImplementation(async () => {
+            order.push('geo');
+            return 'USA';
+          });
+          handlers.createUkycSession.mockImplementation(async () => {
+            order.push('create');
+            return UKYC_SESSION;
+          });
+
+          await controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
+          });
+
+          expect(order).toStrictEqual(['geo', 'sign', 'create']);
+        },
+      );
     });
 
     it('verifies both wrapping keys before it trusts them', async () => {
@@ -742,6 +1055,7 @@ describe('VendorOnboardingController', () => {
         await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
         });
 
         expect(handlers.fetchIdosEnclaveJwks).toHaveBeenCalledOnce();
@@ -755,6 +1069,7 @@ describe('VendorOnboardingController', () => {
         await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
         });
 
         expect(handlers.performGetStorage).toHaveBeenCalled();
@@ -762,10 +1077,27 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('records the consent before it mints the identity token', async () => {
+    it('mints no identity token for Kalshi, which kyc-api ignores', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
+        });
+
+        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params).not.toHaveProperty('partnerIdentityToken');
+      });
+    });
+
+    it('records the consent before it mints the identity token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'iron',
           aal2Token: AAL2_TOKEN,
         });
 
@@ -786,7 +1118,7 @@ describe('VendorOnboardingController', () => {
     it('sends the minted token to kyc-api', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
-          vendor: 'kalshi',
+          vendor: 'iron',
           aal2Token: AAL2_TOKEN,
         });
 
@@ -803,11 +1135,14 @@ describe('VendorOnboardingController', () => {
     it('does not create a session when kyc-api already has one', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
-        handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
+        handlers.getStep.mockResolvedValue({
+          step: 'decision',
+          status: 'none',
+        });
 
         const step = await controller.startSession({ vendor: 'kalshi' });
 
-        expect(step).toBe('done');
+        expect(step).toBe('decision');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
@@ -870,6 +1205,7 @@ describe('VendorOnboardingController', () => {
           controller.startSession({
             vendor: 'kalshi',
             aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
           }),
         ).rejects.toThrow('Failed to verify the wrapping keys');
 
@@ -886,6 +1222,7 @@ describe('VendorOnboardingController', () => {
           controller.startSession({
             vendor: 'kalshi',
             aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
           }),
         ).rejects.toThrow('Unable to fetch JWKS');
 
@@ -913,7 +1250,7 @@ describe('VendorOnboardingController', () => {
         state: {
           vendors: {
             kalshi: {
-              step: 'identity_provider',
+              step: 'sumsub',
               status: 'none',
               sessionId: 'sid-1',
             },
@@ -937,7 +1274,7 @@ describe('VendorOnboardingController', () => {
           handlers.fetchSessionDisclaimersBySessionId,
         ).toHaveBeenCalledWith({ sessionId: 'sid-1' });
         expect(controller.state.vendors.kalshi).toStrictEqual({
-          step: 'identity_provider',
+          step: 'sumsub',
           status: 'none',
           sessionId: 'sid-1',
         });
@@ -972,7 +1309,10 @@ describe('VendorOnboardingController', () => {
 
     it('records the consents with kyc-api, then reads the step', async () => {
       await withController(saved, async ({ controller, handlers }) => {
-        handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
+        handlers.getStep.mockResolvedValue({
+          step: 'decision',
+          status: 'none',
+        });
 
         const step = await controller.acceptSessionDisclaimers({
           vendor: 'kalshi',
@@ -981,14 +1321,14 @@ describe('VendorOnboardingController', () => {
           credentialReusabilityConsentGiven: true,
         });
 
-        expect(step).toBe('done');
+        expect(step).toBe('decision');
         expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
           sessionId: 'sid-1',
           idOS: [{ key: 'idos-tos', version: '1' }],
           kycProvider: [{ key: 'sumsub-tos', version: '1' }],
           credentialReusabilityConsentGiven: true,
         });
-        expect(controller.state.vendors.kalshi?.step).toBe('done');
+        expect(controller.state.vendors.kalshi?.step).toBe('decision');
       });
     });
 
@@ -1032,7 +1372,7 @@ describe('VendorOnboardingController', () => {
       state: {
         vendors: {
           kalshi: {
-            step: 'identity_provider',
+            step: 'sumsub',
             status: 'none',
             sessionId: 'sid-1',
           },
@@ -1059,7 +1399,10 @@ describe('VendorOnboardingController', () => {
           handlers.createJourney.mockResolvedValue({
             applicantAccessToken: 'token-1',
           });
-          handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
+          handlers.getStep.mockResolvedValue({
+            step: 'decision',
+            status: 'none',
+          });
 
           const outcome = await controller.launchProviderFlow({
             vendor: 'kalshi',
@@ -1078,7 +1421,7 @@ describe('VendorOnboardingController', () => {
           // Nothing records a submission: kyc-api reads where the user is
           // from the relay, so the phone only asks.
           expect(handlers.getStep).toHaveBeenCalledTimes(1);
-          expect(controller.state.vendors.kalshi?.step).toBe('done');
+          expect(controller.state.vendors.kalshi?.step).toBe('decision');
         },
       );
     });
@@ -1304,7 +1647,7 @@ describe('VendorOnboardingController', () => {
       state: {
         vendors: {
           kalshi: {
-            step: 'identity_provider',
+            step: 'sumsub',
             status: 'none',
             sessionId: 'sid-1',
           },
@@ -1315,7 +1658,7 @@ describe('VendorOnboardingController', () => {
     it('reads and saves the step after accepting terms', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'account_link',
+          step: 'mfa',
           status: 'none',
         });
 
@@ -1329,8 +1672,8 @@ describe('VendorOnboardingController', () => {
         expect(
           handlers.acceptVendorTerms.mock.invocationCallOrder[0],
         ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
-        expect(step).toBe('account_link');
-        expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+        expect(step).toBe('mfa');
+        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
       });
     });
 
@@ -1338,7 +1681,7 @@ describe('VendorOnboardingController', () => {
       ['sendPhoneOtp', { phoneNumber: '+18888888888' }],
       ['verifyPhoneOtp', { code: '888888' }],
       ['verifyEmailOtp', { code: '123456' }],
-      ['sendEmailOtp', {}],
+      ['sendEmailOtp', { email: 'a@b.co' }],
     ] as const)(
       '%s reads the step once the code step has run',
       async (method, args) => {
@@ -1347,7 +1690,7 @@ describe('VendorOnboardingController', () => {
           async ({ controller, handlers }) => {
             handlers.postOnboardingStep.mockResolvedValue(SESSION_STATUS);
             handlers.getStep.mockResolvedValue({
-              step: 'identity_phone',
+              step: 'kalshi_phone_link',
               status: 'none',
             });
 
@@ -1356,82 +1699,26 @@ describe('VendorOnboardingController', () => {
               ...args,
             } as never);
 
-            expect(step).toBe('identity_phone');
+            expect(step).toBe('kalshi_phone_link');
             expect(handlers.getStep).toHaveBeenCalledTimes(1);
             expect(
               handlers.postOnboardingStep.mock.invocationCallOrder[0],
             ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
             expect(controller.state.vendors.kalshi?.step).toBe(
-              'identity_phone',
+              'kalshi_phone_link',
             );
           },
         );
       },
     );
-
-    it('reads the step after a verified account link code', async () => {
-      const adapter = {
-        startLink: vi.fn(),
-        verifyLink: vi.fn().mockResolvedValue({}),
-      };
-      await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({
-            step: 'confirm_identity',
-            status: 'none',
-          });
-
-          const result = await controller.verifyAccountLink({
-            vendor: 'kalshi',
-            code: '888888',
-          });
-
-          expect(result).toStrictEqual({ step: 'confirm_identity' });
-          expect(handlers.getStep).toHaveBeenCalledTimes(1);
-          expect(controller.state.vendors.kalshi).toStrictEqual({
-            step: 'confirm_identity',
-            status: 'none',
-            sessionId: null,
-          });
-        },
-      );
-    });
-
-    it('asks for the step when the adapter returns none, such as for a second code', async () => {
-      const adapter = {
-        startLink: vi.fn(),
-        verifyLink: vi.fn().mockResolvedValue({ mfaMethod: 'sms' }),
-      };
-      await withController(
-        { options: { kalshiAccountLinkAdapter: adapter } },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({
-            step: 'account_link',
-            status: 'none',
-          });
-
-          const result = await controller.verifyAccountLink({
-            vendor: 'kalshi',
-            code: '888888',
-          });
-
-          expect(result).toStrictEqual({
-            step: 'account_link',
-            mfaMethod: 'sms',
-          });
-          expect(handlers.getStep).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
   });
 
   describe('reset', () => {
     const state = {
       vendors: {
-        iron: { step: 'done', status: 'none', sessionId: 'sid-iron' },
+        iron: { step: 'decision', status: 'none', sessionId: 'sid-iron' },
         kalshi: {
-          step: 'done',
+          step: 'decision',
           status: 'none',
           sessionId: 'sid-kalshi',
         },
@@ -1472,17 +1759,20 @@ describe('VendorOnboardingController', () => {
                   answer = resolve;
                 }),
               )
-              .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+              .mockResolvedValueOnce({
+                step: 'mfa',
+                status: 'none',
+              });
 
             const pending = controller.refreshStep({ vendor: 'kalshi' });
             controller.reset(params);
-            answer({ step: 'identity_phone', status: 'none' });
+            answer({ step: 'kalshi_phone_link', status: 'none' });
             await pending;
 
             expect(controller.state.vendors.kalshi).toBeUndefined();
             // A refresh after the reset asks again instead of joining.
             expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe(
-              'account_link',
+              'mfa',
             );
             expect(handlers.getStep).toHaveBeenCalledTimes(2);
           },
@@ -1495,7 +1785,7 @@ describe('VendorOnboardingController', () => {
     it('exposes the actions on the messenger', async () => {
       await withController(async ({ rootMessenger, handlers }) => {
         handlers.getStep.mockResolvedValue({
-          step: 'vendor_terms',
+          step: 'terms',
           status: 'none',
         });
 
@@ -1506,7 +1796,7 @@ describe('VendorOnboardingController', () => {
           },
         );
 
-        expect(step).toBe('vendor_terms');
+        expect(step).toBe('terms');
       });
     });
   });
@@ -1588,9 +1878,7 @@ function withController<ReturnValue>(
   });
 
   const handlers: ServiceHandlers = {
-    getStep: vi
-      .fn()
-      .mockResolvedValue({ step: 'vendor_terms', status: 'none' }),
+    getStep: vi.fn().mockResolvedValue({ step: 'terms', status: 'none' }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
@@ -1687,21 +1975,36 @@ function withController<ReturnValue>(
   mockWrapEncryptionKey.mockReset();
   mockWrapEncryptionKey.mockReturnValue({ data: 'enc', nonce: 'nonce' });
 
-  const controller = new VendorOnboardingController({ messenger, ...options });
+  const controller = new VendorOnboardingController({
+    messenger,
+    vendorRequestSigners: { kalshi: getSigner() },
+    ...options,
+  });
   return testFunction({ controller, rootMessenger, handlers });
 }
 
 /**
- * Builds an account link adapter whose calls succeed.
+ * Signs each requested call with a recognizable `Signature` header and the
+ * body the relay expects.
  *
- * @returns The adapter, with mock functions.
+ * @returns The signer.
  */
-function getAdapter(): {
-  startLink: Mock;
-  verifyLink: Mock;
-} & KalshiAccountLinkAdapter {
-  return {
-    startLink: vi.fn().mockResolvedValue(undefined),
-    verifyLink: vi.fn().mockResolvedValue({}),
-  };
+function getSigner(): KycVendorRequestSigner {
+  return async ({ requests }) =>
+    requests.map((request) => {
+      switch (request.operation) {
+        case 'users/link':
+          return signedRequest(
+            request.operation,
+            JSON.stringify({ email: request.email }),
+          );
+        case 'users/link/verify':
+          return signedRequest(
+            request.operation,
+            JSON.stringify({ code: request.code }),
+          );
+        default:
+          return signedRequest(request.operation, '');
+      }
+    });
 }

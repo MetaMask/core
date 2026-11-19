@@ -16,7 +16,11 @@ import type {
   JwksResponse,
   UkycSessionResponse,
 } from '../KycService.js';
-import type { OnboardingVendor, KycSessionStatus } from '../types.js';
+import type {
+  KycSessionStatus,
+  KycSignedRequest,
+  OnboardingVendor,
+} from '../types.js';
 import { deriveClientMaterial } from './deriveClientMaterial.js';
 import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './jwtChain.js';
@@ -71,7 +75,11 @@ type SessionAuthorizationMessenger = {
  * @param params.aal2Token - AAL2 token, sent as the bearer value for session
  * creation.
  * @param params.partnerIdentityToken - Partner identity token. kyc-api takes
- * the session's email from its verified claim.
+ * the MetaMask user's email from its verified claim. Kalshi sessions send
+ * none: kyc-api ignores it and takes `email` instead.
+ * @param params.email - The Kalshi email the signed `users/link` carries.
+ * @param params.signedRequests - Kalshi calls the phone signed.
+ * kyc-api forwards them to the relay with session creation.
  * @returns The session status after the authorizations are applied.
  */
 export async function createUkycSession(params: {
@@ -80,7 +88,9 @@ export async function createUkycSession(params: {
   vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
-  partnerIdentityToken: string;
+  partnerIdentityToken?: string;
+  email?: string;
+  signedRequests?: readonly KycSignedRequest[];
 }): Promise<KycSessionStatus> {
   const { messenger, localUserSecretStore } = params;
   // A per-session X25519 keypair seals both secrets. The private half stays
@@ -99,7 +109,13 @@ export async function createUkycSession(params: {
     residenceCountry: params.residenceCountry,
     vendor: params.vendor,
     aal2Token: params.aal2Token,
-    partnerIdentityToken: params.partnerIdentityToken,
+    ...(params.partnerIdentityToken && {
+      partnerIdentityToken: params.partnerIdentityToken,
+    }),
+    ...(params.email && { email: params.email }),
+    ...(params.signedRequests && {
+      signedRequests: params.signedRequests,
+    }),
   })) as UkycSessionResponse;
 
   return setAuthorizations({

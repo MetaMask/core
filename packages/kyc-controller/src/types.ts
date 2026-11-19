@@ -386,24 +386,134 @@ export type KycSessionDisclaimers = {
 export type OnboardingVendor = 'iron' | 'kalshi';
 
 /**
+ * Kalshi calls the phone signs and kyc-api forwards to the relay.
+ *
+ * Relay checks the signature and sends the call to Kalshi unchanged. The
+ * phone signs with its A2T and device key. Relay does not sign these.
+ */
+export const KYC_VENDOR_SIGN_OPERATIONS = [
+  'enrollment/intents',
+  'users/link',
+  'users/link/verify',
+] as const;
+
+/** One Kalshi call the phone can sign. See {@link KYC_VENDOR_SIGN_OPERATIONS}. */
+export type KycVendorSignOperation =
+  (typeof KYC_VENDOR_SIGN_OPERATIONS)[number];
+
+/**
+ * The Kalshi path each signed call carries. The controller checks a signer's
+ * answer against these, so a call signed for the wrong route never goes out.
+ */
+export const KYC_VENDOR_SIGN_PATHS: Record<KycVendorSignOperation, string> = {
+  'enrollment/intents': '/trade-api/v2/isv/enrollment/intents',
+  'users/link': '/trade-api/v2/isv/users/link',
+  'users/link/verify': '/trade-api/v2/isv/users/link/verify',
+};
+
+/**
+ * A Kalshi call waiting to be signed.
+ *
+ * `email` is the address inside `users/link`. `code` is the code inside
+ * `users/link/verify`. `enrollment/intents` carries neither.
+ */
+export type KycVendorSignRequest = {
+  operation: KycVendorSignOperation;
+  email?: string;
+  code?: string;
+};
+
+/**
+ * A Kalshi call the phone has signed, in the shape the relay takes.
+ *
+ * `headers` is exactly what Kalshi verifies: `Authorization`,
+ * `Kalshi-Device-Key`, `Kalshi-Device-Key-Salt`, `Kalshi-Device-Request-Id`,
+ * `Content-Type`, `Content-Digest`, `Idempotency-Key`, `Signature-Input` and
+ * `Signature`. `body` is the exact string that was signed: `""` for
+ * `enrollment/intents`, `{"email":...}` for `users/link` and `{"code":...}`
+ * for `users/link/verify`. kyc-api and the relay pass it on as it is and
+ * never serialize it again. A signature lasts 60 seconds.
+ */
+export type KycSignedRequest = {
+  path: string;
+  headers: Record<string, string>;
+  body: string;
+};
+
+/**
+ * What kyc-api accepts of a {@link KycSignedRequest}: at most 16 headers, all
+ * strings, and a body of at most 4 KB. kyc-api also takes a path of 1 to 256
+ * characters, which the fixed Kalshi routes always meet.
+ */
+export const KYC_SIGNED_REQUEST_LIMITS = {
+  headerCount: 16,
+  bodyBytes: 4096,
+} as const;
+
+/**
+ * Signs the Kalshi calls for one vendor.
+ *
+ * Injected by the client. The signing key lives on the device, so the
+ * controller decides which calls to sign and the client only signs them. It
+ * answers with one {@link KycSignedRequest} per request, in the same order.
+ */
+export type KycVendorRequestSigner = (params: {
+  vendor: OnboardingVendor;
+  requests: readonly KycVendorSignRequest[];
+}) => Promise<readonly KycSignedRequest[]>;
+
+/**
+ * Codes kyc-api answers a failed Kalshi step with, as `{ code, message }` with
+ * both set to the code. The relay's codes pass through unchanged. The client
+ * picks its message and screen from them.
+ *
+ * `kalshi_*` codes and `invalid_or_expired_code` come back as 400,
+ * `session_not_in_email_verification` as 412, `not_found` as 404 (for
+ * example, an A2T from the dev issuer on a UAT account) and
+ * `idos_relay_unavailable` as 502. `kalshi_account_exists` comes from the
+ * phone step, for a user who already has a Kalshi account.
+ */
+export const KYC_KALSHI_ERROR_CODES = [
+  'kalshi_signed_request_path_not_allowed',
+  'kalshi_signed_requests_sequence_invalid',
+  'kalshi_signed_request_a2t_missing',
+  'kalshi_signed_request_a2t_invalid',
+  'kalshi_signed_request_sub_mismatch',
+  'kalshi_signed_request_signature_missing',
+  'kalshi_signed_request_body_invalid',
+  'kalshi_signed_request_email_mismatch',
+  'kalshi_signed_request_rejected',
+  'kalshi_signed_request_required',
+  'kalshi_account_exists',
+  'invalid_or_expired_code',
+  'session_not_in_email_verification',
+  'not_found',
+  'idos_relay_unavailable',
+] as const;
+
+/** A code from {@link KYC_KALSHI_ERROR_CODES}. */
+export type KycKalshiErrorCode = (typeof KYC_KALSHI_ERROR_CODES)[number];
+
+/**
  * The steps kyc-api can send for a vendor. The client maps each step to a
  * screen it already has; kyc-api never sends copy or layout.
+ *
+ * Kalshi sends `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`,
+ * `sumsub`, and `decision`. Iron sends `terms`, `mfa`, `sumsub`, and
+ * `decision`. `kalshi_email_link` is the email and its code, and
+ * `kalshi_phone_link` is the phone and its code. Each is one step and two
+ * screens, and the phone owns the second screen. Signing `users/link` and
+ * `users/link/verify` stays on those email calls.
  */
 export const KYC_STEPS = [
-  'vendor_terms',
-  /**
-   * One step, two screens. The client owns the email screen and the code
-   * screen, so someone who mistyped their email can go back and fix it;
-   * kyc-api only knows whether the account is linked.
-   */
-  'account_link',
-  'confirm_identity',
-  'identity_email_code',
-  'identity_phone',
-  'identity_provider',
+  'terms',
+  'mfa',
+  'kalshi_email_link',
+  'kalshi_phone_link',
+  'sumsub',
   /** Nothing left for the user to do. {@link KycStatus} says whether that is
    * good news. */
-  'done',
+  'decision',
   'error',
 ] as const;
 

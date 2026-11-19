@@ -11,19 +11,27 @@ import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
+import { stringToBytes } from '@metamask/utils';
 
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import type { KycOnboardingStep } from './KycService.js';
+import type { KycOnboardingStep, KycOnboardingStepBody } from './KycService.js';
 import {
   isSumSubFlowFailed,
   isSumSubPreSubmissionStatus,
   isSumSubSubmissionStatus,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
-import { needsCapabilityAuthorizationRefresh } from './types.js';
+import {
+  KYC_SIGNED_REQUEST_LIMITS,
+  KYC_VENDOR_SIGN_PATHS,
+  needsCapabilityAuthorizationRefresh,
+} from './types.js';
 import type {
   KycClientContext,
   KycConsentRecord,
+  KycSignedRequest,
+  KycVendorRequestSigner,
+  KycVendorSignRequest,
   OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
@@ -35,10 +43,6 @@ import {
   refreshAuthorizations,
 } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
-import type {
-  KalshiAccountLinkAdapter,
-  KalshiAccountLinkMfaMethod,
-} from './vendors/KalshiAccountLink.js';
 
 // === GENERAL ===
 
@@ -100,8 +104,6 @@ export function getDefaultVendorOnboardingControllerState(): VendorOnboardingCon
 const MESSENGER_EXPOSED_METHODS = [
   'refreshStep',
   'acceptTerms',
-  'startAccountLink',
-  'verifyAccountLink',
   'startSession',
   'fetchSessionDisclaimers',
   'acceptSessionDisclaimers',
@@ -163,10 +165,13 @@ export type VendorOnboardingControllerOptions = {
   messenger: VendorOnboardingControllerMessenger;
   state?: Partial<VendorOnboardingControllerState>;
   /**
-   * The device-signed Kalshi account link calls. Only needed when onboarding
-   * Kalshi.
+   * Signs Kalshi calls with the device key, by vendor. Only needed for
+   * vendors whose email link the relay forwards (Kalshi). The controller
+   * chooses the calls. The signer does not send them.
    */
-  kalshiAccountLinkAdapter?: KalshiAccountLinkAdapter;
+  vendorRequestSigners?: Partial<
+    Record<OnboardingVendor, KycVendorRequestSigner>
+  >;
   /**
    * Platform adapter that presents the SumSub SDK. Injected by each client so
    * the controller stays platform-agnostic. Without it, `launchProviderFlow`
@@ -191,7 +196,9 @@ export class VendorOnboardingController extends BaseController<
   VendorOnboardingControllerState,
   VendorOnboardingControllerMessenger
 > {
-  readonly #kalshiAccountLinkAdapter?: KalshiAccountLinkAdapter;
+  readonly #vendorRequestSigners: Partial<
+    Record<OnboardingVendor, KycVendorRequestSigner>
+  >;
 
   readonly #localUserSecretStore: UkycLocalUserSecretStore;
 
@@ -217,14 +224,14 @@ export class VendorOnboardingController extends BaseController<
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - Partial initial state; merged over defaults.
-   * @param options.kalshiAccountLinkAdapter - The device-signed Kalshi
-   * account link calls.
+   * @param options.vendorRequestSigners - Signs Kalshi calls with the device
+   * key, by vendor. The controller chooses the calls.
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    */
   constructor({
     messenger,
     state,
-    kalshiAccountLinkAdapter,
+    vendorRequestSigners,
     sumsubLauncher,
   }: VendorOnboardingControllerOptions) {
     super({
@@ -234,7 +241,7 @@ export class VendorOnboardingController extends BaseController<
       state: { ...getDefaultVendorOnboardingControllerState(), ...state },
     });
 
-    this.#kalshiAccountLinkAdapter = kalshiAccountLinkAdapter;
+    this.#vendorRequestSigners = vendorRequestSigners ?? {};
     this.#sumsubLauncher = sumsubLauncher;
     this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
@@ -287,52 +294,9 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Starts linking the user's account at the vendor (Kalshi), then reads the
-   * next step.
-   *
-   * @param params - The parameters.
-   * @param params.vendor - The vendor.
-   * @param params.email - The email the vendor sends its code to.
-   * @returns The next step.
-   */
-  async startAccountLink(params: {
-    vendor: OnboardingVendor;
-    email: string;
-  }): Promise<KycStep> {
-    await this.#requireKalshiAccountLinkAdapter(params.vendor).startLink({
-      email: params.email,
-    });
-    return this.#readStep(params.vendor, { join: false });
-  }
-
-  /**
-   * Verifies the code the vendor sent for the account link, then reads the
-   * next step.
-   *
-   * @param params - The parameters.
-   * @param params.vendor - The vendor.
-   * @param params.code - The code from the user.
-   * @returns The next step, and the MFA method the vendor wants, if any. The
-   * MFA method is not kept: the screen asks for the code and calls this
-   * again.
-   */
-  async verifyAccountLink(params: {
-    vendor: OnboardingVendor;
-    code: string;
-  }): Promise<{ step: KycStep; mfaMethod?: KalshiAccountLinkMfaMethod }> {
-    const { mfaMethod } = await this.#requireKalshiAccountLinkAdapter(
-      params.vendor,
-    ).verifyLink({
-      code: params.code,
-    });
-    const step = await this.#readStep(params.vendor, { join: false });
-    return { step, ...(mfaMethod ? { mfaMethod } : {}) };
-  }
-
-  /**
    * Opens the vendor's UKYC session, or picks up the one kyc-api already has,
    * then reads the next step. Call it from the step that asks for MFA
-   * (`confirm_identity`), with the token MFA returned.
+   * (`mfa`), with the token MFA returned.
    *
    * A new session creates the user's `local_user_secret` when it is missing,
    * then wraps the encryption key and a capability token for idOS. An existing
@@ -347,11 +311,19 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor.
    * @param params.aal2Token - AAL2 token from MFA. Required only when a new
    * session has to be created. Omit it to pick up an existing session.
+   * @param params.email - The Kalshi email the user typed. Required when
+   * creating a Kalshi session. The phone signs `users/link` with it, and it
+   * goes to kyc-api beside the signed calls. A resumed session ignores it.
+   * @param params.intentOpen - Whether the user already has an open Kalshi
+   * enrollment intent. The phone then signs `users/link` alone, where a new
+   * session signs `enrollment/intents` first.
    * @returns The step the user is on once the session exists.
    */
   async startSession(params: {
     vendor: OnboardingVendor;
     aal2Token?: string;
+    email?: string;
+    intentOpen?: boolean;
   }): Promise<KycStep> {
     const { vendor } = params;
     const existing = await this.messenger.call(
@@ -376,16 +348,39 @@ export class VendorOnboardingController extends BaseController<
         'VendorOnboardingController.startSession: aal2Token is required to create a KYC session.',
       );
     }
+    const email =
+      vendor === 'kalshi'
+        ? this.#requireKalshiEmail(params.email?.trim())
+        : undefined;
     const residenceCountry = await this.messenger.call(
       'KycService:getGeoCountry',
     );
+    // kyc-api ignores the token for Kalshi, which takes the typed email, so
+    // there is nothing to mint and no identity consent to record.
+    const partnerIdentityToken =
+      vendor === 'kalshi' ? undefined : await this.#mintPartnerIdentityToken();
+    // A signature lasts 60 seconds, so this is the last thing before the
+    // call that carries it.
+    const kalshiSigning =
+      email === undefined
+        ? undefined
+        : {
+            email,
+            signedRequests: await this.#signVendorRequests(vendor, [
+              ...(params.intentOpen
+                ? []
+                : [{ operation: 'enrollment/intents' as const }]),
+              { operation: 'users/link' as const, email },
+            ]),
+          };
     const session = await createUkycSession({
       messenger: this.messenger,
       localUserSecretStore: this.#localUserSecretStore,
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
-      partnerIdentityToken: await this.#mintPartnerIdentityToken(),
+      partnerIdentityToken,
+      ...kalshiSigning,
     });
     this.#write(vendor, { sessionId: session.id });
     return this.#readStep(vendor, { join: false });
@@ -570,8 +565,16 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
+    if (params.vendor !== 'kalshi') {
+      return this.#runOnboardingStep(params.vendor, 'email/verify-otp', {
+        otp: params.code,
+      });
+    }
+    const [signedRequest] = await this.#signVendorRequests(params.vendor, [
+      { operation: 'users/link/verify', code: params.code },
+    ]);
     return this.#runOnboardingStep(params.vendor, 'email/verify-otp', {
-      otp: params.code,
+      signedRequest,
     });
   }
 
@@ -580,10 +583,26 @@ export class VendorOnboardingController extends BaseController<
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
+   * @param params.email - The Kalshi email to sign into the new `users/link`.
+   * Required for Kalshi, including when the user corrects the address.
    * @returns The next step.
    */
-  async sendEmailOtp(params: { vendor: OnboardingVendor }): Promise<KycStep> {
-    return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
+  async sendEmailOtp(params: {
+    vendor: OnboardingVendor;
+    email?: string;
+  }): Promise<KycStep> {
+    if (params.vendor !== 'kalshi') {
+      return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
+    }
+    const [signedRequest] = await this.#signVendorRequests(params.vendor, [
+      {
+        operation: 'users/link',
+        email: this.#requireKalshiEmail(params.email?.trim()),
+      },
+    ]);
+    return this.#runOnboardingStep(params.vendor, 'email/resend-otp', {
+      signedRequest,
+    });
   }
 
   /**
@@ -615,7 +634,7 @@ export class VendorOnboardingController extends BaseController<
   async #runOnboardingStep(
     vendor: OnboardingVendor,
     step: KycOnboardingStep,
-    body?: Record<string, string>,
+    body?: KycOnboardingStepBody,
   ): Promise<KycStep> {
     const sessionId = await this.#getSessionId(vendor);
     await this.messenger.call('KycService:postOnboardingStep', {
@@ -651,16 +670,58 @@ export class VendorOnboardingController extends BaseController<
     return status.id;
   }
 
-  #requireKalshiAccountLinkAdapter(
-    vendor: OnboardingVendor,
-  ): KalshiAccountLinkAdapter {
-    const adapter = this.#kalshiAccountLinkAdapter;
-    if (vendor !== 'kalshi' || !adapter) {
+  /**
+   * The Kalshi email the signed `users/link` body carries.
+   *
+   * @param email - The trimmed address, when the caller passed one.
+   * @returns The address.
+   */
+  #requireKalshiEmail(email: string | undefined): string {
+    if (!email) {
       throw new Error(
-        `VendorOnboardingController: no account link adapter for ${vendor}.`,
+        'VendorOnboardingController: a Kalshi email is required to sign users/link.',
       );
     }
-    return adapter;
+    return email;
+  }
+
+  /**
+   * Signs the Kalshi calls for a vendor and checks the signer answered each
+   * one, in order.
+   *
+   * @param vendor - The vendor.
+   * @param requests - The calls to sign.
+   * @returns The signed calls, in the same order.
+   */
+  async #signVendorRequests(
+    vendor: OnboardingVendor,
+    requests: readonly KycVendorSignRequest[],
+  ): Promise<readonly KycSignedRequest[]> {
+    const signer = this.#vendorRequestSigners[vendor];
+    if (!signer) {
+      throw new Error(
+        `VendorOnboardingController: no request signer for ${vendor}.`,
+      );
+    }
+    const signed = await signer({ vendor, requests });
+    if (
+      signed.length !== requests.length ||
+      signed.some(
+        (each, index) =>
+          each.path !== KYC_VENDOR_SIGN_PATHS[requests[index]?.operation],
+      )
+    ) {
+      throw new Error(
+        `VendorOnboardingController: signer for ${vendor} did not return the requested calls.`,
+      );
+    }
+    const invalid = signed.find((each) => !isWithinSignedRequestLimits(each));
+    if (invalid) {
+      throw new Error(
+        `VendorOnboardingController: signer for ${vendor} returned a request kyc-api would refuse (at most ${KYC_SIGNED_REQUEST_LIMITS.headerCount} headers, all strings, and ${KYC_SIGNED_REQUEST_LIMITS.bodyBytes} body bytes).`,
+      );
+    }
+    return signed;
   }
 
   /**
@@ -673,10 +734,6 @@ export class VendorOnboardingController extends BaseController<
    * @returns The minted token.
    */
   async #mintPartnerIdentityToken(): Promise<string> {
-    // TODO: use the vendor's own audience once MetaMask Auth has one for it.
-    // `IdentitySharingAudience` is `'kyc' | 'iron'`, so a Kalshi onboarding
-    // currently records an Iron consent. Tracked with the matching mapping in
-    // kyc-api's `createSession`.
     const audience = 'iron';
     await this.messenger.call(
       'AuthenticatedUserStorageService:putIdentitySharingConsent',
@@ -762,4 +819,21 @@ export class VendorOnboardingController extends BaseController<
       state.vendors[vendor] = { ...entry, ...patch };
     });
   }
+}
+
+/**
+ * Whether a signed request is within what kyc-api accepts: at most 16
+ * headers that all hold strings, and a body of at most 4 KB. The body is the
+ * exact string that was signed. The path is already pinned to the route.
+ *
+ * @param request - The request the signer returned.
+ * @returns Whether kyc-api would take it.
+ */
+function isWithinSignedRequestLimits(request: KycSignedRequest): boolean {
+  const headers = Object.values(request.headers);
+  return (
+    headers.length <= KYC_SIGNED_REQUEST_LIMITS.headerCount &&
+    headers.every((value) => typeof value === 'string') &&
+    stringToBytes(request.body).length <= KYC_SIGNED_REQUEST_LIMITS.bodyBytes
+  );
 }

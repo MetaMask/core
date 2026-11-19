@@ -444,6 +444,41 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
+    it('forwards the email and the phone-signed Kalshi calls when provided', async () => {
+      const signedRequests = [
+        {
+          path: '/trade-api/v2/isv/enrollment/intents',
+          headers: { Signature: 'signed-intent' },
+          body: '',
+        },
+        {
+          path: '/trade-api/v2/isv/users/link',
+          headers: { Signature: 'signed-link' },
+          body: '{"email":"a@b.co"}',
+        },
+      ];
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            JSON.stringify([body.email, body.signedRequests]) ===
+            JSON.stringify(['a@b.co', signedRequests]),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: 'a@b.co',
+          signedRequests,
+        }),
+      ).toStrictEqual(response);
+    });
+
     it('omits the partner identity token when not provided', async () => {
       nock(MOCK_API_URL)
         .post(
@@ -929,6 +964,54 @@ describe('KycService', () => {
       ).rejects.toThrow(/session_not_in_valid_state/u);
     });
 
+    it('keeps the error code kyc-api sends on a KycApiError', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(400, {
+        code: 'kalshi_signed_request_rejected',
+        message: 'Kalshi refused the signature',
+      });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({
+        name: 'KycApiError',
+        httpStatus: 400,
+        code: 'kalshi_signed_request_rejected',
+        message: expect.stringContaining(
+          'Kalshi refused the signature: kalshi_signed_request_rejected',
+        ),
+      });
+    });
+
+    it('takes the error code from the error field beside a message', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(400, {
+        error: 'invalid_or_expired_code',
+        message: 'That code is wrong',
+      });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({
+        httpStatus: 400,
+        code: 'invalid_or_expired_code',
+        message: expect.stringContaining(
+          'That code is wrong: invalid_or_expired_code',
+        ),
+      });
+    });
+
+    it('has no error code when the body sends none', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(500, { message: 'boom' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({ httpStatus: 500, code: undefined });
+    });
+
     it('prefers a string error field when message is not a string', async () => {
       nock(MOCK_API_URL)
         .get('/sessions/sid/status')
@@ -1024,11 +1107,15 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/kalshi/step')
         .matchHeader('authorization', 'Bearer test-bearer')
-        .reply(200, { vendor: 'kalshi', step: 'account_link', status: 'none' });
+        .reply(200, {
+          vendor: 'kalshi',
+          step: 'mfa',
+          status: 'none',
+        });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'account_link',
+        step: 'mfa',
         status: 'none',
       });
     });
@@ -1037,25 +1124,29 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/iron/step')
         .query({ vendorTermsAcceptedLocally: 'true' })
-        .reply(200, { vendor: 'iron', step: 'account_link', status: 'none' });
+        .reply(200, {
+          vendor: 'iron',
+          step: 'mfa',
+          status: 'none',
+        });
       const { service } = getService();
 
       expect(
         await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
-      ).toStrictEqual({ step: 'account_link', status: 'none' });
+      ).toStrictEqual({ step: 'mfa', status: 'none' });
     });
 
     it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',
-        step: 'identity_email_code',
+        step: 'kalshi_email_link',
         status: 'pending',
         somethingNew: true,
       });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'identity_email_code',
+        step: 'kalshi_email_link',
         status: 'pending',
       });
     });
@@ -1149,6 +1240,28 @@ describe('KycService', () => {
           sessionId: 'sid-1',
           step: 'phone/send-otp',
           body: { phoneNumber: '+18888888888' },
+        }),
+      ).toStrictEqual(status);
+    });
+
+    it('forwards a signed Kalshi email call with no otp', async () => {
+      const body = {
+        signedRequest: {
+          path: '/trade-api/v2/isv/users/link/verify',
+          headers: { Signature: 'signed-verify' },
+          body: '{"code":"123456"}',
+        },
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', body)
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.postOnboardingStep({
+          sessionId: 'sid-1',
+          step: 'email/verify-otp',
+          body,
         }),
       ).toStrictEqual(status);
     });
