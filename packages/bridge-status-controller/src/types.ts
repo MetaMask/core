@@ -3,6 +3,10 @@ import type {
   AccountsControllerState,
 } from '@metamask/accounts-controller';
 import type {
+  AssetsControllerAddCustomAssetAction,
+  AssetsControllerGetAssetsAction,
+} from '@metamask/assets-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -411,6 +415,8 @@ type AllowedActions =
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerAddCustomAssetAction
+  | AssetsControllerGetAssetsAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;
 

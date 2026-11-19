@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable vitest/no-restricted-matchers */
+import type {
+  AssetsControllerAddCustomAssetAction,
+  AssetsControllerGetAssetsAction,
+} from '@metamask/assets-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerMessenger,
@@ -628,6 +632,8 @@ function getControllerMessenger(
     messenger,
     actions: [
       'AccountsController:getAccountByAddress',
+      'AssetsController:addCustomAsset',
+      'AssetsController:getAssets',
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
@@ -646,6 +652,75 @@ function getControllerMessenger(
     events: ['TransactionController:transactionStatusUpdated'],
   });
   return messenger;
+}
+
+const MOCK_IMPORT_ACCOUNT_ID = 'mock-account-id-1';
+
+type AddCustomAssetMock = Mock<AssetsControllerAddCustomAssetAction['handler']>;
+
+type GetAssetsMock = Mock<AssetsControllerGetAssetsAction['handler']>;
+
+/**
+ * Replaces the default `getAccountByAddress`, `addCustomAsset` and
+ * `getAssets` handlers with mocks used to assert the destination asset import.
+ *
+ * @param rootMessenger - The root messenger with default handlers registered.
+ * @param options - Handler overrides.
+ * @param options.addCustomAsset - The `addCustomAsset` handler, or `null` to
+ * leave the action unregistered.
+ * @param options.getAssets - The `getAssets` handler, or `null` to leave the
+ * action unregistered.
+ * @param options.account - The account returned by `getAccountByAddress`, or
+ * `null` to simulate an account that cannot be found.
+ * @returns The registered mocks.
+ */
+function registerDestinationAssetImportHandlers(
+  rootMessenger: RootMessenger,
+  {
+    addCustomAsset = vi
+      .fn<AssetsControllerAddCustomAssetAction['handler']>()
+      .mockResolvedValue(undefined),
+    getAssets = vi
+      .fn<AssetsControllerGetAssetsAction['handler']>()
+      .mockResolvedValue({}),
+    account = {
+      id: MOCK_IMPORT_ACCOUNT_ID,
+      address: '0xaccount1',
+      metadata: { keyring: { type: 'any' } },
+    },
+  }: {
+    addCustomAsset?: AddCustomAssetMock | null;
+    getAssets?: GetAssetsMock | null;
+    account?: Record<string, unknown> | null;
+  } = {},
+): {
+  addCustomAsset: AddCustomAssetMock | null;
+  getAssets: GetAssetsMock | null;
+  getAccountByAddress: Mock;
+} {
+  const getAccountByAddress = vi.fn().mockReturnValue(account ?? undefined);
+  rootMessenger.unregisterActionHandler(
+    'AccountsController:getAccountByAddress',
+  );
+  rootMessenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    getAccountByAddress,
+  );
+  rootMessenger.unregisterActionHandler('AssetsController:addCustomAsset');
+  if (addCustomAsset) {
+    rootMessenger.registerActionHandler(
+      'AssetsController:addCustomAsset',
+      addCustomAsset,
+    );
+  }
+  rootMessenger.unregisterActionHandler('AssetsController:getAssets');
+  if (getAssets) {
+    rootMessenger.registerActionHandler(
+      'AssetsController:getAssets',
+      getAssets,
+    );
+  }
+  return { addCustomAsset, getAssets, getAccountByAddress };
 }
 
 function registerDefaultActionHandlers(
@@ -675,6 +750,18 @@ function registerDefaultActionHandlers(
         address: account,
         metadata: { keyring: { type: 'any' } },
       }) as never,
+  );
+
+  rootMessenger.registerActionHandler(
+    'AssetsController:addCustomAsset',
+    vi
+      .fn<AssetsControllerAddCustomAssetAction['handler']>()
+      .mockResolvedValue(undefined),
+  );
+
+  rootMessenger.registerActionHandler(
+    'AssetsController:getAssets',
+    vi.fn<AssetsControllerGetAssetsAction['handler']>().mockResolvedValue({}),
   );
 
   rootMessenger.registerActionHandler(
@@ -1754,6 +1841,314 @@ describe('BridgeStatusController', () => {
       });
     });
 
+    describe('importing the destination asset', () => {
+      const MOCK_ACCOUNT_ID = MOCK_IMPORT_ACCOUNT_ID;
+      const OPTIMISM_USDC_ADDRESS =
+        '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85';
+      const OPTIMISM_USDC_ASSET_ID: CaipAssetType = `eip155:10/erc20:${OPTIMISM_USDC_ADDRESS}`;
+      const OPTIMISM_USDC_DEST_QUOTE = {
+        destAsset: {
+          ...getMockQuote().destAsset,
+          address: OPTIMISM_USDC_ADDRESS,
+          assetId: OPTIMISM_USDC_ASSET_ID,
+        },
+      };
+      const MEGAETH_NATIVE_DEST_QUOTE = {
+        destChainId: ChainId.MEGAETH,
+        destAsset: {
+          ...getMockQuote().destAsset,
+          chainId: ChainId.MEGAETH,
+          assetId: 'eip155:4326/slip44:60' as CaipAssetType,
+        },
+      };
+      const SOLANA_ACCOUNT_ADDRESS = 'solanaAccountAddress1';
+      const SOLANA_USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const SOLANA_DEST_ASSET_ID: CaipAssetType = `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:${SOLANA_USDC_MINT}`;
+      const SOLANA_DEST_QUOTE = {
+        destChainId: ChainId.SOLANA,
+        destAsset: {
+          ...getMockQuote().destAsset,
+          address: SOLANA_USDC_MINT,
+          chainId: ChainId.SOLANA,
+          assetId: SOLANA_DEST_ASSET_ID,
+        },
+      };
+
+      const setupAndPoll = async ({
+        rootMessenger,
+        status,
+        quote,
+        ...handlerOverrides
+      }: {
+        rootMessenger: RootMessenger;
+        status: StatusResponse;
+        quote?: Partial<BridgeHistoryItem['quote']>;
+      } & Parameters<
+        typeof registerDestinationAssetImportHandlers
+      >[1]): Promise<
+        ReturnType<typeof registerDestinationAssetImportHandlers>
+      > => {
+        vi.useFakeTimers();
+        registerDefaultActionHandlers(rootMessenger);
+        const mocks = registerDestinationAssetImportHandlers(
+          rootMessenger,
+          handlerOverrides,
+        );
+        vi.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        ).mockResolvedValueOnce({ status, validationFailures: [] });
+
+        const args = getMockStartPollingForBridgeTxStatusArgs();
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          {
+            ...args,
+            quoteResponse: {
+              ...args.quoteResponse,
+              quote: { ...args.quoteResponse.quote, ...quote },
+            },
+          },
+        );
+        vi.advanceTimersByTime(10000);
+        await flushPromises();
+
+        return mocks;
+      };
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it('imports a token destination asset for the history account, bypassing the server cache, when the status is complete', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAssets, getAccountByAddress } =
+            await setupAndPoll({
+              rootMessenger,
+              status: MockStatusResponse.getComplete(),
+              quote: OPTIMISM_USDC_DEST_QUOTE,
+            });
+
+          expect(getAccountByAddress).toHaveBeenCalledWith('0xaccount1');
+          expect(addCustomAsset).toHaveBeenCalledTimes(1);
+          expect(addCustomAsset).toHaveBeenCalledWith(
+            MOCK_ACCOUNT_ID,
+            OPTIMISM_USDC_ASSET_ID,
+            undefined,
+            true,
+          );
+          expect(getAssets).not.toHaveBeenCalled();
+        });
+      });
+
+      it('refreshes the destination chain for the history account, bypassing the server cache, instead of importing a native destination asset', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAssets } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+          });
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).toHaveBeenCalledTimes(1);
+          expect(getAssets).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:10'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
+      });
+
+      it('refreshes the MegaETH chain instead of importing its native asset, whose bridge asset ID differs from the AssetsController native asset ID', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAssets } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: MEGAETH_NATIVE_DEST_QUOTE,
+          });
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).toHaveBeenCalledTimes(1);
+          expect(getAssets).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:4326'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
+      });
+
+      it('imports the destination asset for the account that owns the quote destination wallet address', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAccountByAddress } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: {
+              ...SOLANA_DEST_QUOTE,
+              destWalletAddress: SOLANA_ACCOUNT_ADDRESS,
+            },
+            account: {
+              id: 'solana-account-id-1',
+              address: SOLANA_ACCOUNT_ADDRESS,
+              metadata: { keyring: { type: 'any' } },
+            },
+          });
+
+          expect(getAccountByAddress).toHaveBeenCalledWith(
+            SOLANA_ACCOUNT_ADDRESS,
+          );
+          expect(addCustomAsset).toHaveBeenCalledTimes(1);
+          expect(addCustomAsset).toHaveBeenCalledWith(
+            'solana-account-id-1',
+            SOLANA_DEST_ASSET_ID,
+            undefined,
+            true,
+          );
+        });
+      });
+
+      it('does not import the destination asset when the destination chain uses another account type and the quote has no destination wallet address', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: SOLANA_DEST_QUOTE,
+          });
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+        });
+      });
+
+      it('does not import the destination asset when the status is failed', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAssets } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getFailed(),
+          });
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).not.toHaveBeenCalled();
+        });
+      });
+
+      it('does not import the destination asset when the history account is not found', async () => {
+        const consoleWarnSpy = vi.spyOn(console, 'warn');
+
+        await withController(async ({ rootMessenger }) => {
+          const { addCustomAsset, getAssets } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            account: null,
+          });
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).not.toHaveBeenCalled();
+          expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.anything(),
+          );
+        });
+      });
+
+      it('keeps the completed status when importing the destination asset rejects', async () => {
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        await withController(async ({ controller, rootMessenger }) => {
+          await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: OPTIMISM_USDC_DEST_QUOTE,
+            addCustomAsset: vi
+              .fn<AssetsControllerAddCustomAssetAction['handler']>()
+              .mockRejectedValue(new Error('addCustomAsset failed')),
+          });
+
+          const historyItem = controller.state.txHistory.bridgeTxMetaId1;
+          expect(historyItem.status.status).toBe(StatusTypes.COMPLETE);
+          expect(historyItem.attempts).toBeUndefined();
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.objectContaining({ message: 'addCustomAsset failed' }),
+          );
+        });
+      });
+
+      it('keeps the completed status when refreshing the destination chain rejects', async () => {
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        await withController(async ({ controller, rootMessenger }) => {
+          await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            getAssets: vi
+              .fn<AssetsControllerGetAssetsAction['handler']>()
+              .mockRejectedValue(new Error('getAssets failed')),
+          });
+
+          const historyItem = controller.state.txHistory.bridgeTxMetaId1;
+          expect(historyItem.status.status).toBe(StatusTypes.COMPLETE);
+          expect(historyItem.attempts).toBeUndefined();
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.objectContaining({ message: 'getAssets failed' }),
+          );
+        });
+      });
+
+      it('keeps the completed status when AssetsController:addCustomAsset is not registered', async () => {
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        await withController(async ({ controller, rootMessenger }) => {
+          await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: OPTIMISM_USDC_DEST_QUOTE,
+            addCustomAsset: null,
+          });
+
+          const historyItem = controller.state.txHistory.bridgeTxMetaId1;
+          expect(historyItem.status.status).toBe(StatusTypes.COMPLETE);
+          expect(historyItem.attempts).toBeUndefined();
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.any(Error),
+          );
+        });
+      });
+
+      it('keeps the completed status when AssetsController:getAssets is not registered', async () => {
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        await withController(async ({ controller, rootMessenger }) => {
+          await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            getAssets: null,
+          });
+
+          const historyItem = controller.state.txHistory.bridgeTxMetaId1;
+          expect(historyItem.status.status).toBe(StatusTypes.COMPLETE);
+          expect(historyItem.attempts).toBeUndefined();
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.any(Error),
+          );
+        });
+      });
+    });
+
     it('emits bridgeTransactionFailed event when the status response is failed', async () => {
       // Setup
       vi.useFakeTimers();
@@ -2131,6 +2526,242 @@ describe('BridgeStatusController', () => {
         );
       },
     );
+  });
+
+  describe('importing the destination asset of same-chain EVM swaps', () => {
+    const ARBITRUM_USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+    const ARBITRUM_USDT_ADDRESS = '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9';
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    });
+
+    const withDestAsset = (
+      historyItem: BridgeHistoryItem,
+      destAsset: { address: string; assetId: CaipAssetType },
+    ): BridgeHistoryItem => ({
+      ...historyItem,
+      quote: {
+        ...historyItem.quote,
+        destAsset: { ...historyItem.quote.destAsset, ...destAsset },
+      },
+    });
+
+    const publishTransactionStatusUpdated = (
+      rootMessenger: RootMessenger,
+      transactionMeta: Partial<TransactionMeta> = {},
+    ): void => {
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: {
+          chainId: CHAIN_IDS.ARBITRUM,
+          hash: '0xsrcTxHash1',
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.swap,
+          status: TransactionStatus.confirmed,
+          id: 'swapTxMetaId1',
+          ...transactionMeta,
+        },
+      });
+    };
+
+    it('refreshes the destination chain, bypassing the server cache, instead of importing a native destination asset when the swap transaction is confirmed', async () => {
+      await withController(
+        { options: { state: { txHistory: MockTxHistory.getPendingSwap() } } },
+        async ({ controller, rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
+          const { addCustomAsset, getAssets, getAccountByAddress } =
+            registerDestinationAssetImportHandlers(rootMessenger);
+
+          publishTransactionStatusUpdated(rootMessenger);
+          await flushPromises();
+
+          expect(controller.state.txHistory.swapTxMetaId1.status.status).toBe(
+            StatusTypes.COMPLETE,
+          );
+          expect(getAccountByAddress).toHaveBeenCalledWith('0xaccount1');
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).toHaveBeenCalledTimes(1);
+          expect(getAssets).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_IMPORT_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        },
+      );
+    });
+
+    it('imports each unique token destination asset of a 7702 batch sell and refreshes the chain of its native destination asset, skipping quotes without a history item', async () => {
+      const destAssetA = {
+        address: ARBITRUM_USDC_ADDRESS,
+        assetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}` as const,
+      };
+      const destAssetB = {
+        address: ARBITRUM_USDT_ADDRESS,
+        assetId: `eip155:42161/erc20:${ARBITRUM_USDT_ADDRESS}` as const,
+      };
+      const nativeDestAsset = {
+        address: '0x0000000000000000000000000000000000000000',
+        assetId: 'eip155:42161/slip44:60' as const,
+      };
+      const parentKey = 'batchSellTxMetaId1';
+      const baseItem = MockTxHistory.getPendingSwap({
+        txMetaId: parentKey,
+      })[parentKey];
+      const batchSellData = { transactions: [] } as never;
+      const quoteItem = (
+        destAsset: Parameters<typeof withDestAsset>[1],
+      ): BridgeHistoryItem => ({
+        ...withDestAsset(baseItem, destAsset),
+        txMetaId: undefined,
+        batchSellData,
+      });
+
+      await withController(
+        {
+          options: {
+            state: {
+              txHistory: {
+                [parentKey]: {
+                  ...withDestAsset(baseItem, destAssetA),
+                  batchSellData,
+                  quoteIds: [
+                    'quoteId1',
+                    'quoteId2',
+                    'quoteId3',
+                    'quoteId4',
+                    'missingQuoteId',
+                  ],
+                },
+                quoteId1: quoteItem(destAssetA),
+                quoteId2: quoteItem(destAssetB),
+                quoteId3: quoteItem(nativeDestAsset),
+                quoteId4: quoteItem(nativeDestAsset),
+              },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
+          const { addCustomAsset, getAssets } =
+            registerDestinationAssetImportHandlers(rootMessenger);
+
+          publishTransactionStatusUpdated(rootMessenger, {
+            id: parentKey,
+            type: TransactionType.batch,
+            nestedTransactions: [{ type: TransactionType.swap }],
+          });
+          await flushPromises();
+
+          expect(addCustomAsset).toHaveBeenCalledTimes(2);
+          expect(addCustomAsset).toHaveBeenCalledWith(
+            MOCK_IMPORT_ACCOUNT_ID,
+            destAssetA.assetId,
+            undefined,
+            true,
+          );
+          expect(addCustomAsset).toHaveBeenCalledWith(
+            MOCK_IMPORT_ACCOUNT_ID,
+            destAssetB.assetId,
+            undefined,
+            true,
+          );
+          expect(getAssets).toHaveBeenCalledTimes(1);
+          expect(getAssets).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_IMPORT_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        },
+      );
+    });
+
+    it('does not import the destination asset when the swap transaction fails', async () => {
+      await withController(
+        { options: { state: { txHistory: MockTxHistory.getPendingSwap() } } },
+        async ({ controller, rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
+          const { addCustomAsset, getAssets } =
+            registerDestinationAssetImportHandlers(rootMessenger);
+
+          publishTransactionStatusUpdated(rootMessenger, {
+            status: TransactionStatus.failed,
+          });
+          await flushPromises();
+
+          expect(controller.state.txHistory.swapTxMetaId1.status.status).toBe(
+            StatusTypes.FAILED,
+          );
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not import the destination asset of an intent swap when its transaction is confirmed', async () => {
+      const swapItem = MockTxHistory.getPendingSwap().swapTxMetaId1;
+
+      await withController(
+        {
+          options: {
+            state: {
+              txHistory: {
+                swapTxMetaId1: {
+                  ...swapItem,
+                  quote: {
+                    ...swapItem.quote,
+                    intent: {
+                      protocol: 'cowswap',
+                      order: {
+                        sellToken: '0x0000000000000000000000000000000000000001',
+                        buyToken: '0x0000000000000000000000000000000000000002',
+                        validTo: 1717027200,
+                        appData: 'some-app-data',
+                        appDataHash: '0xabcd',
+                        feeAmount: '100',
+                        kind: 'sell',
+                        partiallyFillable: false,
+                        sellAmount: '1000',
+                      },
+                      typedData: {
+                        types: {},
+                        primaryType: 'Order',
+                        domain: {},
+                        message: {},
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
+          const { addCustomAsset, getAssets } =
+            registerDestinationAssetImportHandlers(rootMessenger);
+
+          publishTransactionStatusUpdated(rootMessenger);
+          await flushPromises();
+
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('resetState', () => {
@@ -7130,6 +7761,23 @@ describe('BridgeStatusController', () => {
             [
               "AuthenticationController:getBearerToken",
             ],
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "AssetsController:getAssets",
+              [
+                Promise {},
+              ],
+              {
+                "bypassServerCache": true,
+                "chainIds": [
+                  "eip155:10",
+                ],
+                "forceUpdate": true,
+              },
+            ],
           ]
         `);
         expect(mockFetchFn).toHaveBeenCalledWith(
@@ -7243,7 +7891,11 @@ describe('BridgeStatusController', () => {
           },
         );
 
-        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(messengerCallSpy).not.toHaveBeenCalledWith(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          expect.anything(),
+          expect.anything(),
+        );
       });
 
       it('should not track completed event for other transaction types', () => {

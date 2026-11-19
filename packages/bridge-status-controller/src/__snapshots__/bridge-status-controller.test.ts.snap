@@ -245,6 +245,30 @@ exports[`BridgeStatusController > startPollingForBridgeTxStatus > stops polling 
       "usd_quoted_return": 0,
     },
   ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "AssetsController:getAssets",
+    [
+      {
+        "address": "0xaccount1",
+        "metadata": {
+          "keyring": {
+            "type": "any",
+          },
+        },
+      },
+    ],
+    {
+      "bypassServerCache": true,
+      "chainIds": [
+        "eip155:10",
+      ],
+      "forceUpdate": true,
+    },
+  ],
 ]
 `;
 
@@ -6776,6 +6800,23 @@ exports[`BridgeStatusController > subscription handlers > TransactionController:
       "usd_quoted_return": 0,
     },
   ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "AssetsController:getAssets",
+    [
+      Promise {},
+    ],
+    {
+      "bypassServerCache": true,
+      "chainIds": [
+        "eip155:42161",
+      ],
+      "forceUpdate": true,
+    },
+  ],
 ]
 `;
 
@@ -7108,6 +7149,23 @@ exports[`BridgeStatusController > wipeBridgeStatus > wipes the bridge status for
     "Unified SwapBridge Completed",
   ],
   [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "AssetsController:getAssets",
+    [
+      {
+        "address": "0xaccount1",
+        "metadata": {
+          "keyring": {
+            "type": "any",
+          },
+        },
+      },
+    ],
+  ],
+  [
     "AuthenticationController:getBearerToken",
   ],
   [
@@ -7120,6 +7178,23 @@ exports[`BridgeStatusController > wipeBridgeStatus > wipes the bridge status for
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount2",
+  ],
+  [
+    "AssetsController:getAssets",
+    [
+      {
+        "address": "0xaccount1",
+        "metadata": {
+          "keyring": {
+            "type": "any",
+          },
+        },
+      },
+    ],
   ],
   [
     "NetworkController:getState",

@@ -8,6 +8,9 @@
       "path": "../accounts-controller"
     },
     {
+      "path": "../assets-controller"
+    },
+    {
       "path": "../base-controller"
     },
     {
