@@ -2039,11 +2039,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (result.status === 'unavailable') {
       return result;
     }
+    const crossSupported = this.#isCrossMarginSupported(result.market);
     const supportedMarginModes: readonly MarginMode[] = Object.freeze(
-      this.#isCrossMarginSupported(result.market)
-        ? ['isolated', 'cross']
-        : ['isolated'],
+      crossSupported ? ['isolated', 'cross'] : ['isolated'],
     );
+    const { marginMode } = result.market;
+    const crossMarginUnavailableReason =
+      marginMode === 'noCross' || marginMode === 'strictIsolated'
+        ? marginMode
+        : ('isolatedOnly' as const);
+    const marginModes = crossSupported
+      ? { supportedMarginModes }
+      : { supportedMarginModes, crossMarginUnavailableReason };
     const { szDecimals } = result.market;
     if (
       !Number.isInteger(szDecimals) ||
@@ -2052,12 +2059,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return Object.freeze({
         ...HYPERLIQUID_ORDER_CAPABILITIES,
-        supportedMarginModes,
+        ...marginModes,
       });
     }
     return Object.freeze({
       ...HYPERLIQUID_ORDER_CAPABILITIES,
-      supportedMarginModes,
+      ...marginModes,
       pricePrecision: Object.freeze({
         type: 'significant_figures',
         maxSignificantFigures: DECIMAL_PRECISION_CONFIG.MaxSignificantFigures,

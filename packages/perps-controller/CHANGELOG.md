@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `crossMarginUnavailableReason` to HyperLiquid order capabilities when Cross is restricted, distinguishing the venue's no-Cross and strict-isolated modes from generic isolated-only markets. ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** Add exported `HyperLiquidErrorDetails` and widen `PerpsErrorDetails` to `PriceMovedErrorDetails | HyperLiquidErrorDetails`. Every normalized Hyperliquid failure now carries `{ code, provider: 'hyperliquid' }` details, so clients can translate stable codes without parsing venue messages. `PRICE_MOVED` keeps its existing numeric payload. ([#11206](https://github.com/MetaMask/core/pull/11206))
   - Code that reads `PriceMovedErrorDetails` fields must first narrow on `errorDetails.code === PERPS_ERROR_CODES.PRICE_MOVED`. `HyperLiquidErrorDetails['code']` never includes `PRICE_MOVED`, so that check still narrows.
   - Mobile accepts `HyperLiquidErrorDetails` in `isPerpsErrorDetails`, so known codes keep their localized copy ([metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018)). Extension translates the same codes in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).

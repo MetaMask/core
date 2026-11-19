@@ -2812,6 +2812,8 @@ type ReadyPerpsOrderCapabilities = Readonly<{
    * explicit margin mode.
    */
   supportedMarginModes?: readonly MarginMode[];
+  /** Why a market that reports margin modes prohibits Cross. */
+  crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';

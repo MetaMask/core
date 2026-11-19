@@ -28,6 +28,8 @@ Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighte
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 
+For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `supportedMarginModes: ['isolated']` and `crossMarginUnavailableReason`. The reason is `noCross`, `strictIsolated` or `isolatedOnly` for a legacy or unrecognized restriction. Show the disabled Cross option with the corresponding explanation. A cross-capable market omits the reason.
+
 ## Order-book grouping
 
 `aggregateOrderBookLevels(levels, grouping, side)` buckets one side of the book; `groupOrderBook(book, grouping, maxLevels)` does both sides, trims them and returns `maxTotal` / `maxSize` for depth bars. The grouping preference itself stays in state (`selectOrderBookGrouping`).
