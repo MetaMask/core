@@ -3181,20 +3181,26 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Block an action when another step has authoritatively corrected support
    * for its captured account. Refresh a positive result when it expires.
-   * A missing cache entry stays fail-open after a transient probe failure.
+   * A retained client can retry a missing cache entry on its next write after
+   * a transient probe failure.
    *
    * @param context - The account, network, and lifecycle captured by the action.
    * @param operation - Operation name included in lifecycle diagnostics.
+   * @param retryMissingSupport - Whether to retry after a transient failure.
    */
   async #assertNoKnownUnsupportedAccount(
     context: AccountSupportContext,
     operation: string,
+    retryMissingSupport = false,
   ): Promise<void> {
     await this.#assertAccountContextCurrent(context, operation);
     const cacheKey = this.#getAccountSupportCacheKey(
       context.network,
       context.userAddress,
     );
+    if (retryMissingSupport && !this.#accountSupportByContext.has(cacheKey)) {
+      await this.#getAccountSupportForContext(context);
+    }
     let supportRequest: Promise<PerpsAccountSupport> | undefined;
     let expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
     do {
@@ -18126,6 +18132,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#assertNoKnownUnsupportedAccount(
         accountContext,
         'SDK exchange write',
+        true,
       );
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,

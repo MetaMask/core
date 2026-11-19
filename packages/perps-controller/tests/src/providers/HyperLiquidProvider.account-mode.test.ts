@@ -1959,6 +1959,31 @@ describe('HyperLiquidProvider', () => {
         },
       );
 
+      it.each(['signing', 'dispatch'] as const)(
+        'retries a transient support failure on the retained SDK %s fence',
+        async (phase) => {
+          mockInfoClient.userToMultiSigSigners.mockRejectedValueOnce(
+            new Error('Network unavailable'),
+          );
+          await provider.getExchangeClient();
+          const [, hooks] =
+            mockClientService.getExchangeClient.mock.lastCall ?? [];
+          const fence =
+            phase === 'signing' ? hooks?.beforeSign : takeLastFence();
+          if (!fence) {
+            throw new Error('Exchange client was requested without a fence');
+          }
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+        },
+      );
+
       it.each([
         { answer: multiSigStatus },
         {
