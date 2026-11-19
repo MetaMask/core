@@ -192,8 +192,8 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`,
 `startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`,
-`launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`,
-`resendEmailCode`, `reset`.
+`launchProviderFlow`, `sendPhoneOtp`, `verifyPhoneOtp`, `verifyEmailOtp`,
+`sendEmailOtp`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
 

@@ -65,13 +65,13 @@ export type {
   VendorOnboardingControllerFetchSessionDisclaimersAction,
   VendorOnboardingControllerLaunchProviderFlowAction,
   VendorOnboardingControllerRefreshStepAction,
-  VendorOnboardingControllerResendEmailCodeAction,
+  VendorOnboardingControllerSendEmailOtpAction,
   VendorOnboardingControllerResetAction,
   VendorOnboardingControllerStartAccountLinkAction,
   VendorOnboardingControllerStartSessionAction,
-  VendorOnboardingControllerSubmitEmailCodeAction,
-  VendorOnboardingControllerSubmitPhoneAction,
-  VendorOnboardingControllerSubmitPhoneCodeAction,
+  VendorOnboardingControllerSendPhoneOtpAction,
+  VendorOnboardingControllerVerifyEmailOtpAction,
+  VendorOnboardingControllerVerifyPhoneOtpAction,
   VendorOnboardingControllerVerifyAccountLinkAction,
 } from './VendorOnboardingController-method-action-types.js';
 

@@ -558,7 +558,7 @@ describe('VendorOnboardingController', () => {
   describe('onboarding steps', () => {
     it.each([
       [
-        'submitPhone',
+        'sendPhoneOtp',
         { phoneNumber: '+18888888888' },
         'phone/send-otp',
         {
@@ -566,7 +566,7 @@ describe('VendorOnboardingController', () => {
         },
       ],
       [
-        'submitPhoneCode',
+        'verifyPhoneOtp',
         { code: '888888' },
         'phone/verify-otp',
         {
@@ -574,7 +574,7 @@ describe('VendorOnboardingController', () => {
         },
       ],
       [
-        'submitEmailCode',
+        'verifyEmailOtp',
         { code: '123456' },
         'email/verify-otp',
         {
@@ -621,7 +621,7 @@ describe('VendorOnboardingController', () => {
       },
     );
 
-    it('resends the email code without a body', async () => {
+    it('sends the email code again without a body', async () => {
       await withController(
         {
           options: {
@@ -642,7 +642,7 @@ describe('VendorOnboardingController', () => {
             status: 'none',
           });
 
-          await controller.resendEmailCode({ vendor: 'kalshi' });
+          await controller.sendEmailOtp({ vendor: 'kalshi' });
 
           expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
             sessionId: 'sid-1',
@@ -660,7 +660,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        await controller.submitEmailCode({ vendor: 'kalshi', code: '123456' });
+        await controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' });
 
         expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith(
           'kalshi',
@@ -679,7 +679,7 @@ describe('VendorOnboardingController', () => {
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
         await expect(
-          controller.submitPhone({
+          controller.sendPhoneOtp({
             vendor: 'kalshi',
             phoneNumber: '+18888888888',
           }),
@@ -1335,10 +1335,10 @@ describe('VendorOnboardingController', () => {
     });
 
     it.each([
-      ['submitPhone', { phoneNumber: '+18888888888' }],
-      ['submitPhoneCode', { code: '888888' }],
-      ['submitEmailCode', { code: '123456' }],
-      ['resendEmailCode', {}],
+      ['sendPhoneOtp', { phoneNumber: '+18888888888' }],
+      ['verifyPhoneOtp', { code: '888888' }],
+      ['verifyEmailOtp', { code: '123456' }],
+      ['sendEmailOtp', {}],
     ] as const)(
       '%s reads the step once the code step has run',
       async (method, args) => {

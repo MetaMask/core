@@ -106,10 +106,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchSessionDisclaimers',
   'acceptSessionDisclaimers',
   'launchProviderFlow',
-  'submitPhone',
-  'submitPhoneCode',
-  'submitEmailCode',
-  'resendEmailCode',
+  'sendPhoneOtp',
+  'verifyPhoneOtp',
+  'verifyEmailOtp',
+  'sendEmailOtp',
   'reset',
 ] as const;
 
@@ -531,7 +531,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.phoneNumber - The phone number in E.164 format.
    * @returns The next step.
    */
-  async submitPhone(params: {
+  async sendPhoneOtp(params: {
     vendor: OnboardingVendor;
     phoneNumber: string;
   }): Promise<KycStep> {
@@ -548,7 +548,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.code - The code from the user.
    * @returns The next step.
    */
-  async submitPhoneCode(params: {
+  async verifyPhoneOtp(params: {
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
@@ -565,7 +565,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.code - The code from the user.
    * @returns The next step.
    */
-  async submitEmailCode(params: {
+  async verifyEmailOtp(params: {
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
@@ -581,9 +581,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor.
    * @returns The next step.
    */
-  async resendEmailCode(params: {
-    vendor: OnboardingVendor;
-  }): Promise<KycStep> {
+  async sendEmailOtp(params: { vendor: OnboardingVendor }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
   }
 

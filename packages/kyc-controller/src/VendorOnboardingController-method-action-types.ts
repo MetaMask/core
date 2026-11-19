@@ -154,9 +154,9 @@ export type VendorOnboardingControllerLaunchProviderFlowAction = {
  * @param params.phoneNumber - The phone number in E.164 format.
  * @returns The next step.
  */
-export type VendorOnboardingControllerSubmitPhoneAction = {
-  type: `VendorOnboardingController:submitPhone`;
-  handler: VendorOnboardingController['submitPhone'];
+export type VendorOnboardingControllerSendPhoneOtpAction = {
+  type: `VendorOnboardingController:sendPhoneOtp`;
+  handler: VendorOnboardingController['sendPhoneOtp'];
 };
 
 /**
@@ -167,9 +167,9 @@ export type VendorOnboardingControllerSubmitPhoneAction = {
  * @param params.code - The code from the user.
  * @returns The next step.
  */
-export type VendorOnboardingControllerSubmitPhoneCodeAction = {
-  type: `VendorOnboardingController:submitPhoneCode`;
-  handler: VendorOnboardingController['submitPhoneCode'];
+export type VendorOnboardingControllerVerifyPhoneOtpAction = {
+  type: `VendorOnboardingController:verifyPhoneOtp`;
+  handler: VendorOnboardingController['verifyPhoneOtp'];
 };
 
 /**
@@ -180,9 +180,9 @@ export type VendorOnboardingControllerSubmitPhoneCodeAction = {
  * @param params.code - The code from the user.
  * @returns The next step.
  */
-export type VendorOnboardingControllerSubmitEmailCodeAction = {
-  type: `VendorOnboardingController:submitEmailCode`;
-  handler: VendorOnboardingController['submitEmailCode'];
+export type VendorOnboardingControllerVerifyEmailOtpAction = {
+  type: `VendorOnboardingController:verifyEmailOtp`;
+  handler: VendorOnboardingController['verifyEmailOtp'];
 };
 
 /**
@@ -192,9 +192,9 @@ export type VendorOnboardingControllerSubmitEmailCodeAction = {
  * @param params.vendor - The vendor.
  * @returns The next step.
  */
-export type VendorOnboardingControllerResendEmailCodeAction = {
-  type: `VendorOnboardingController:resendEmailCode`;
-  handler: VendorOnboardingController['resendEmailCode'];
+export type VendorOnboardingControllerSendEmailOtpAction = {
+  type: `VendorOnboardingController:sendEmailOtp`;
+  handler: VendorOnboardingController['sendEmailOtp'];
 };
 
 /**
@@ -221,8 +221,8 @@ export type VendorOnboardingControllerMethodActions =
   | VendorOnboardingControllerFetchSessionDisclaimersAction
   | VendorOnboardingControllerAcceptSessionDisclaimersAction
   | VendorOnboardingControllerLaunchProviderFlowAction
-  | VendorOnboardingControllerSubmitPhoneAction
-  | VendorOnboardingControllerSubmitPhoneCodeAction
-  | VendorOnboardingControllerSubmitEmailCodeAction
-  | VendorOnboardingControllerResendEmailCodeAction
+  | VendorOnboardingControllerSendPhoneOtpAction
+  | VendorOnboardingControllerVerifyPhoneOtpAction
+  | VendorOnboardingControllerVerifyEmailOtpAction
+  | VendorOnboardingControllerSendEmailOtpAction
   | VendorOnboardingControllerResetAction;
