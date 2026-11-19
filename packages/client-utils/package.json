@@ -62,7 +62,7 @@
     "eth-chainlist": "^0.0.873"
   },
   "devDependencies": {
-    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/abi": "^5.8.0",
     "@metamask/auto-changelog": "^7.1.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
