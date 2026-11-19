@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.1.1]
+
+### Uncategorized
+
+- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
+- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
+- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
+
 ### Changed
 
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
@@ -1958,7 +1966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...HEAD
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0
 [31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
