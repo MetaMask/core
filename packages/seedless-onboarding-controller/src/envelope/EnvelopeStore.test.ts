@@ -67,6 +67,7 @@ function createItem(
 
 type MockToprfClient = {
   addSecretDataItem: Mock<ToprfSecureBackup['addSecretDataItem']>;
+  batchAddSecretDataItems: Mock<ToprfSecureBackup['batchAddSecretDataItems']>;
   fetchAllSecretDataItems: Mock<ToprfSecureBackup['fetchAllSecretDataItems']>;
 };
 
@@ -79,6 +80,7 @@ function createStore(): {
 } {
   const toprfClient: MockToprfClient = {
     addSecretDataItem: vi.fn().mockResolvedValue(undefined),
+    batchAddSecretDataItems: vi.fn().mockResolvedValue(undefined),
     fetchAllSecretDataItems: vi.fn().mockResolvedValue([]),
   };
   const store = new EnvelopeStore({
@@ -236,12 +238,17 @@ describe('EnvelopeStore', () => {
 
       await store.writeControlRecord(vaultKeySet, record);
 
-      expect(toprfClient.addSecretDataItem).toHaveBeenCalledWith({
+      expect(toprfClient.batchAddSecretDataItems).toHaveBeenCalledWith({
+        secretData: [
+          {
+            data: serializeControlRecord(record),
+            dataType: EncAccountDataType.EnvelopeControl,
+          },
+        ],
         encKey: vaultKeySet.encKey,
         authKeyPair: vaultKeySet.authKeyPair,
-        secretData: serializeControlRecord(record),
-        dataType: EncAccountDataType.EnvelopeControl,
       });
+      expect(toprfClient.addSecretDataItem).not.toHaveBeenCalled();
     });
 
     it('fetches control records from the vault partition, ignoring secret and envelope items', async () => {

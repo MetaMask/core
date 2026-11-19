@@ -10,6 +10,7 @@ import {
   type,
 } from '@metamask/superstruct';
 import type {
+  EnvelopeKeys,
   KeyPair,
   SEC1EncodedPublicKey,
 } from '@metamask/toprf-secure-backup';
@@ -53,6 +54,12 @@ export type EnvelopeHeader = {
 export type Envelope = EnvelopeHeader & {
   /** base64(iv || AES-256-GCM(wrapKey, serialize(K_v), aad = header)). */
   ct: string;
+};
+
+/** An envelope and the keys of the partition it is written to. */
+export type SealedEnvelope = {
+  keys: EnvelopeKeys;
+  envelope: Envelope;
 };
 
 export type ControlRecord = {

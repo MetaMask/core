@@ -1,7 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
-import { getRandomBytes } from '@metamask/cryptography';
 import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
@@ -53,18 +52,10 @@ import {
 import type {
   ControlRecord,
   Envelope,
+  SealedEnvelope,
   VaultKeySet,
 } from './envelope/envelope-keys.js';
 import { EnvelopeStore } from './envelope/EnvelopeStore.js';
-import {
-  decryptPendingMigration,
-  encryptPendingMigration,
-} from './envelope/pending-migration.js';
-import type {
-  PendingEnvelopeMigration,
-  PendingEnvelopeMigrationPhase,
-  SealedEnvelope,
-} from './envelope/pending-migration.js';
 import {
   PasswordSyncError,
   RecoveryError,
@@ -115,6 +106,7 @@ import {
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
@@ -135,21 +127,6 @@ export type {
 export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
-
-type RegisteredEnvelopeMigration = Extract<
-  PendingEnvelopeMigration,
-  { phase: 'RS_TOPRF_REGISTERED' }
->;
-
-type SealedEnvelopeMigration = Extract<
-  PendingEnvelopeMigration,
-  { phase: 'ENVELOPES_SEALED' }
->;
-
-type WrittenEnvelopeMigration = Extract<
-  PendingEnvelopeMigration,
-  { phase: 'ENVELOPES_WRITTEN' }
->;
 
 /**
  * @param vaultData - The decrypted vault data.
@@ -748,9 +725,7 @@ export class SeedlessOnboardingController<
    * and creates the local vault under `password`, replacing any existing
    * one. If the vault is envelope-managed, the password opens the vault keys
    * and the `envelope` state is set; otherwise any existing `envelope` state
-   * is cleared. `isLocalPassword` is cleared, and so is a
-   * `pendingEnvelopeMigration` checkpoint that does not decrypt under the
-   * restored vault keys.
+   * is cleared. `isLocalPassword` is cleared.
    *
    * @param params - The function parameters.
    * @param params.password - The global password.
@@ -823,20 +798,8 @@ export class SeedlessOnboardingController<
           rawToprfAuthKeyPair: authKeyPair,
         });
         // the vault was replaced, so `isLocalPassword` and `envelope` describe
-        // the old password and key set. A checkpoint that still decrypts
-        // belongs to the restored keys, so `migrateToEnvelope` can resume from
-        // it; only an unreadable one is dropped
-        const { pendingEnvelopeMigration } = this.state;
-        const isPendingMigrationReadable =
-          pendingEnvelopeMigration !== undefined &&
-          (await decryptPendingMigration(
-            pendingEnvelopeMigration,
-            pwEncKey,
-          )) !== undefined;
+        // the old password and key set
         this.update((state) => {
-          if (!isPendingMigrationReadable) {
-            delete state.pendingEnvelopeMigration;
-          }
           delete state.isLocalPassword;
           if (!envelope) {
             delete state.envelope;
@@ -2718,13 +2681,16 @@ export class SeedlessOnboardingController<
    * is needed: the current password still derives `K_v` directly, so the
    * first `pbek` is written by the first password change.
    *
-   * The migration runs in phases, and each phase is checkpointed (encrypted
-   * under the vault keys) before the next remote write: the Recovery Secret
-   * OPRF key is registered, then `rbek` and the control record are sealed,
-   * then written. A failed call resumes from its last checkpoint when retried
-   * with the same Recovery Secret, writing the same bytes; resuming after the
-   * envelopes are sealed needs no recovery session. Does nothing if the vault
-   * is already envelope-managed and no migration is pending.
+   * The writes happen in this order: `rbek` under a fresh Recovery Secret
+   * OPRF key, then the control record (written once, under the vault's
+   * metadata lock, only if the vault has none), then the Recovery Secret
+   * OPRF key is registered on the recovery verifier. That registration is
+   * the commit: the migration is complete once the recovery verifier holds a
+   * key, so every call checks it first and needs a valid aal2 session, even
+   * on an already envelope-managed vault. A failed attempt leaves an `rbek`
+   * whose OPRF key was never registered, so it can never be opened; a retry
+   * writes a new `rbek` under another fresh OPRF key, keeping the control
+   * record already written.
    *
    * The vault must be unlocked and in sync with the global password: without
    * control records, the vault keys must derive from the global password;
@@ -2736,9 +2702,12 @@ export class SeedlessOnboardingController<
    * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
    * @returns A promise that resolves once the vault is envelope-managed.
    * @throws `OutdatedPassword` if the vault is not in sync with the global
-   * password, `RecoveryKeyShareConflict` if the nodes hold the key of another
-   * Recovery Secret, or `Aal2Required` without a valid aal2 session when one
-   * is needed.
+   * password, `EnvelopeControlRecordNotFound` if no control record matching
+   * the global password reads back, `EnvelopeMigrationInconsistent` if the
+   * recovery verifier holds a key but the vault has no control record,
+   * `InvalidEnvelope` if `rbek` does not read back, `Aal2Required` without a
+   * valid aal2 session, or `EnvelopeMigrationRequiresDataTypes` before the
+   * data type migration.
    */
   async migrateToEnvelope({
     recoverySecret,
@@ -2748,13 +2717,6 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
-        const { envelope, pendingEnvelopeMigration } = this.state;
-        const { isEnvelopeManaged, isMigrationPending } = getEnvelopeStatus(
-          this.state,
-        );
-        if (isEnvelopeManaged && !isMigrationPending) {
-          return;
-        }
         if (
           this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1
         ) {
@@ -2766,58 +2728,42 @@ export class SeedlessOnboardingController<
         const vaultKeySet = toVaultKeySet(
           await this.#unlockVaultAndGetVaultData(),
         );
-        const recoverySecretHex = bytesToHex(recoverySecret);
-        let pending =
-          pendingEnvelopeMigration === undefined
-            ? undefined
-            : await decryptPendingMigration(
-                pendingEnvelopeMigration,
-                vaultKeySet.localWrapKey,
-              );
-        if (
-          pending &&
-          'recoverySecret' in pending &&
-          pending.recoverySecret !== recoverySecretHex
-        ) {
-          pending = undefined;
-        }
-        if (envelope && !pending) {
+        const recoveryAuthPubKey = await this.#fetchRecoveryAuthPubKey();
+        const controlRecords =
+          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+        if (recoveryAuthPubKey) {
+          if (controlRecords.length === 0) {
+            throw new SeedlessOnboardingError(
+              SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationInconsistent,
+            );
+          }
+          const { authPubKey } = await this.#fetchGlobalAuthPubKey();
+          if (!selectControlRecord(controlRecords, authPubKey)) {
+            throw new Error(
+              SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            );
+          }
+          this.#setEnvelopeState(vaultKeySet, authPubKey);
           return;
         }
 
-        const resumed = pending !== undefined;
-        let recoveryKeys: EnvelopeKeys | undefined;
-        if (!pending) {
-          ({ pending, recoveryKeys } =
-            await this.#registerEnvelopeMigrationRecoverySecret(
-              recoverySecretHex,
-              vaultKeySet,
-            ));
-          this.#trackEnvelopeMigrationCheckpoint(pending.phase, resumed);
-        }
-        let passwordAuthPubKey: SEC1EncodedPublicKey | undefined;
-        while (pending.phase !== 'ENVELOPES_WRITTEN') {
-          if (pending.phase === 'RS_TOPRF_REGISTERED') {
-            pending = await this.#sealEnvelopeMigration(
-              pending,
-              vaultKeySet,
-              recoveryKeys,
-            );
-          } else {
-            ({ pending, passwordAuthPubKey } =
-              await this.#writeEnvelopeMigration(pending, vaultKeySet));
-          }
-          this.#trackEnvelopeMigrationCheckpoint(pending.phase, resumed);
-        }
-        passwordAuthPubKey ??= (
-          await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet)
-        ).authPubKey;
+        const partial = controlRecords.length > 0;
+        this.#trackEnvelopeMigrationCheckpoint('STARTED', partial);
+        const { oprfKey, seed, envelopeKeys, authKeyPair } =
+          await this.toprfClient.createLocalKey({
+            password: bytesToHex(recoverySecret),
+          });
+        // the controller only needs the envelope keys, so the seed is not kept
+        seed.fill(0);
+        await this.#writeAndVerifyEnvelope(
+          await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+        );
+        const passwordAuthPubKey =
+          await this.#writeEnvelopeMigrationControlRecord(vaultKeySet);
+        await this.#registerRecoverySecretKey(oprfKey, authKeyPair.pk);
 
         this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
-        this.update((state) => {
-          delete state.pendingEnvelopeMigration;
-        });
-        this.#trackEnvelopeMigrationCheckpoint('COMPLETED', resumed);
+        this.#trackEnvelopeMigrationCheckpoint('COMPLETED', partial);
       }, 'migrateToEnvelope'),
     );
   }
@@ -2900,9 +2846,6 @@ export class SeedlessOnboardingController<
    * matched during recovery, so {@link checkIsPasswordOutdated} reports a
    * password change made elsewhere after recovery.
    *
-   * Any pending envelope migration checkpoint is discarded, since it belongs
-   * to the vault this call replaces.
-   *
    * @param params - The function parameters.
    * @param params.password - The password of the new local vault.
    * @returns A promise that resolves once the local vault is created.
@@ -2934,10 +2877,7 @@ export class SeedlessOnboardingController<
             vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
         });
-        // the checkpoint belongs to the vault this call just replaced, and
-        // `migrateToEnvelope` would never clear it once `envelope` is set
         this.update((state) => {
-          delete state.pendingEnvelopeMigration;
           state.isLocalPassword = true;
         });
         this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
@@ -3017,33 +2957,25 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Register or evaluate the Recovery Secret OPRF key and checkpoint
-   * `RS_TOPRF_REGISTERED` under a new attempt id (step 3).
+   * Fetch the auth public key of the Recovery Secret OPRF key from the
+   * recovery verifier.
    *
-   * @param recoverySecretHex - The hex encoded Recovery Secret.
-   * @param vaultKeySet - The vault key set `K_v`.
-   * @returns The checkpoint, and the envelope keys of the Recovery Secret.
-   * @throws `RecoveryKeyShareConflict` if the registered key belongs to a
-   * different Recovery Secret.
+   * @returns The auth public key, or undefined when the recovery verifier
+   * holds no key.
+   * @throws `Aal2Required` without a valid aal2 session.
    */
-  async #registerEnvelopeMigrationRecoverySecret(
-    recoverySecretHex: string,
-    vaultKeySet: VaultKeySet,
-  ): Promise<{
-    pending: RegisteredEnvelopeMigration;
-    recoveryKeys: EnvelopeKeys;
-  }> {
-    const { envelopeKeys, authKeyPair } =
-      await this.#evalRecoverySecretEnvelopeKeys(recoverySecretHex);
-    const pending: RegisteredEnvelopeMigration = {
-      v: 1,
-      phase: 'RS_TOPRF_REGISTERED',
-      id: bytesToHex(getRandomBytes(16)),
-      recoverySecret: recoverySecretHex,
-      rsAuthPubKey: bytesToBase64(authKeyPair.pk),
-    };
-    await this.#persistPendingMigration(pending, vaultKeySet);
-    return { pending, recoveryKeys: envelopeKeys };
+  async #fetchRecoveryAuthPubKey(): Promise<SEC1EncodedPublicKey | undefined> {
+    try {
+      const { authPubKey } = await this.#withRecoverySession(async (session) =>
+        this.toprfClient.fetchAuthPubKey(session),
+      );
+      return authPubKey;
+    } catch (error) {
+      if (isCouldNotDeriveThresholdAuthPubKeyError(error)) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -3079,177 +3011,59 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Seal the Recovery Secret envelope and the first control record, and
-   * checkpoint `ENVELOPES_SEALED` (step 4).
+   * Under the vault's metadata lock, re-check the live password OPRF key and
+   * write the first control record unless the vault already has one, e.g.
+   * from another device holding the same `K_v`, or from an earlier attempt
+   * followed by a password change.
    *
-   * The control record is only written if the vault has none yet, in which
-   * case the password OPRF key is still the one the vault keys derive from.
-   *
-   * @param pending - The `RS_TOPRF_REGISTERED` checkpoint.
    * @param vaultKeySet - The vault key set `K_v`.
-   * @param recoveryKeys - The envelope keys of the Recovery Secret, if
-   * already derived by this call.
-   * @returns The new checkpoint.
-   * @throws `OutdatedPassword` if the vault is not in sync with the global
-   * password, or `RecoveryKeyShareConflict` if the nodes hold another
-   * Recovery Secret OPRF key than the checkpointed one.
+   * @returns The live password OPRF auth public key.
+   * @throws `OutdatedPassword` if the live password key is not in sync, or
+   * `EnvelopeControlRecordNotFound` if no control record matches it.
    */
-  async #sealEnvelopeMigration(
-    pending: RegisteredEnvelopeMigration,
+  async #writeEnvelopeMigrationControlRecord(
     vaultKeySet: VaultKeySet,
-    recoveryKeys?: EnvelopeKeys,
-  ): Promise<SealedEnvelopeMigration> {
-    const envelopeKeys =
-      recoveryKeys ??
-      (await this.#recoverRegisteredRecoverySecretKeys(pending));
-
-    const { keyIndex } =
-      await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
-
-    this.#assertIsAuthenticatedUser(this.state);
-    const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
-    const sealed: SealedEnvelopeMigration = {
-      v: 1,
-      phase: 'ENVELOPES_SEALED',
-      id: pending.id,
-      recoverySecret: pending.recoverySecret,
-      rsAuthPubKey: pending.rsAuthPubKey,
-      vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
-      recoveryEnvelope: await sealFor(
-        envelopeKeys,
-        'recovery-secret',
-        vaultKeySet,
-      ),
-      control: {
-        v: 1,
-        seq: 1,
-        passwordNamespace: {
-          verifier: groupedAuthConnectionId ?? authConnectionId,
-          verifierId: userId,
-          authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
-          keyIndex,
-        },
-        migratedAt: Date.now(),
-      },
-    };
-    await this.#persistPendingMigration(sealed, vaultKeySet);
-    return sealed;
-  }
-
-  /**
-   * Write the checkpointed Recovery Secret envelope and control record, and
-   * checkpoint `ENVELOPES_WRITTEN` (step 5).
-   *
-   * Under the vault's metadata lock, the password OPRF key is re-checked, the
-   * envelope is written and read back, and then the control record is written
-   * unless the vault already has one, e.g. from another device holding the
-   * same `K_v`, or from an earlier attempt followed by a password change.
-   * Restore and password sync treat a vault with a matching control record as
-   * envelope-managed, so the control record is written last: an interrupted
-   * migration never leaves one without the Recovery Secret envelope.
-   *
-   * @param pending - The `ENVELOPES_SEALED` checkpoint.
-   * @param vaultKeySet - The vault key set `K_v`.
-   * @returns The new checkpoint, and the live password OPRF auth public key.
-   * @throws `OutdatedPassword`, after rolling the checkpoint back to
-   * `RS_TOPRF_REGISTERED`, if the live password key is not in sync,
-   * `EnvelopeControlRecordNotFound` if no control record matches the live
-   * password key, or `InvalidEnvelope` if the envelope does not read back.
-   */
-  async #writeEnvelopeMigration(
-    pending: SealedEnvelopeMigration,
-    vaultKeySet: VaultKeySet,
-  ): Promise<{
-    pending: WrittenEnvelopeMigration;
-    passwordAuthPubKey: SEC1EncodedPublicKey;
-  }> {
-    const passwordAuthPubKey = await this.#withMetadataLock(
-      vaultKeySet.authKeyPair,
-      async () => {
-        let authPubKey: SEC1EncodedPublicKey;
-        let controlRecords: ControlRecord[];
-        try {
-          ({ authPubKey, controlRecords } =
-            await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet));
-        } catch (error) {
-          if (
-            !(error instanceof Error) ||
-            error.message !==
-              SeedlessOnboardingControllerErrorMessage.OutdatedPassword
-          ) {
-            throw error;
-          }
-          // the sealed control record names a key index that may be stale
-          await this.#persistPendingMigration(
-            {
-              v: 1,
-              phase: 'RS_TOPRF_REGISTERED',
-              id: pending.id,
-              recoverySecret: pending.recoverySecret,
-              rsAuthPubKey: pending.rsAuthPubKey,
-            },
-            vaultKeySet,
-          );
-          throw error;
-        }
-
-        await this.#writeAndVerifyEnvelope(pending.recoveryEnvelope);
-        if (controlRecords.length === 0) {
-          await this.#envelopeStore.writeControlRecord(
-            vaultKeySet,
-            pending.control,
-          );
-          controlRecords =
-            await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-        }
-        if (!selectControlRecord(controlRecords, authPubKey)) {
-          throw new SeedlessOnboardingError(
-            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
-          );
-        }
-        return authPubKey;
-      },
-    );
-
-    const written: WrittenEnvelopeMigration = {
-      v: 1,
-      phase: 'ENVELOPES_WRITTEN',
-      id: pending.id,
-      vaultAuthPubKey: pending.vaultAuthPubKey,
-    };
-    await this.#persistPendingMigration(written, vaultKeySet);
-    return { pending: written, passwordAuthPubKey };
-  }
-
-  /**
-   * Encrypt a migration checkpoint under the vault keys and store it.
-   *
-   * @param pending - The checkpoint.
-   * @param vaultKeySet - The vault key set `K_v`.
-   */
-  async #persistPendingMigration(
-    pending: PendingEnvelopeMigration,
-    vaultKeySet: VaultKeySet,
-  ): Promise<void> {
-    const encrypted = await encryptPendingMigration(
-      pending,
-      vaultKeySet.localWrapKey,
-    );
-    this.update((state) => {
-      state.pendingEnvelopeMigration = encrypted;
+  ): Promise<SEC1EncodedPublicKey> {
+    return await this.#withMetadataLock(vaultKeySet.authKeyPair, async () => {
+      const { authPubKey, keyIndex, controlRecords } =
+        await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
+      let records = controlRecords;
+      if (records.length === 0) {
+        this.#assertIsAuthenticatedUser(this.state);
+        const { authConnectionId, groupedAuthConnectionId, userId } =
+          this.state;
+        await this.#envelopeStore.writeControlRecord(vaultKeySet, {
+          v: 1,
+          seq: 1,
+          passwordNamespace: {
+            verifier: groupedAuthConnectionId ?? authConnectionId,
+            verifierId: userId,
+            authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
+            keyIndex,
+          },
+          migratedAt: Date.now(),
+        });
+        records = await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+      }
+      if (!selectControlRecord(records, authPubKey)) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+        );
+      }
+      return authPubKey;
     });
   }
 
   /**
-   * Report a persisted envelope migration phase. Reporting never fails the
-   * migration.
+   * Report an envelope migration phase. Reporting never fails the migration.
    *
-   * @param phase - The persisted phase, or `COMPLETED`.
-   * @param resumed - Whether the call started from a checkpoint.
+   * @param phase - The phase.
+   * @param partial - Whether the vault already had a control record when the
+   * attempt started.
    */
   #trackEnvelopeMigrationCheckpoint(
-    phase: PendingEnvelopeMigrationPhase | 'COMPLETED',
-    resumed: boolean,
+    phase: 'STARTED' | 'COMPLETED',
+    partial: boolean,
   ): void {
     const logError = (error: unknown): void => {
       log('Error tracking envelope migration checkpoint', error);
@@ -3259,7 +3073,7 @@ export class SeedlessOnboardingController<
       Promise.resolve(
         this.messenger.call('AnalyticsController:trackEvent', {
           name: SeedlessEnvelopeMigrationCheckpointEventName,
-          properties: { phase, resumed },
+          properties: { phase, partial },
           sensitiveProperties: {},
           saveDataRecording: false,
           hasProperties: true,
@@ -3271,58 +3085,34 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Derive the envelope keys of the Recovery Secret on the recovery verifier,
-   * registering the Recovery Secret OPRF key first if the nodes hold none.
+   * Register the Recovery Secret OPRF key on the recovery verifier, which
+   * commits the envelope migration.
    *
-   * @param recoverySecretHex - The hex encoded Recovery Secret.
-   * @returns The envelope keys and the auth key pair of the Recovery Secret.
-   * @throws `RecoveryKeyShareConflict` if the registered key belongs to a
-   * different Recovery Secret.
+   * A failed registration still counts when the recovery verifier holds a
+   * key afterwards, e.g. when only the response was lost.
+   *
+   * @param oprfKey - The Recovery Secret OPRF key.
+   * @param authPubKey - The auth public key of the OPRF key.
+   * @throws The registration error if the recovery verifier holds no key, or
+   * `Aal2Required` without a valid aal2 session.
    */
-  async #evalRecoverySecretEnvelopeKeys(
-    recoverySecretHex: string,
-  ): Promise<{ envelopeKeys: EnvelopeKeys; authKeyPair: KeyPair }> {
+  async #registerRecoverySecretKey(
+    oprfKey: bigint,
+    authPubKey: SEC1EncodedPublicKey,
+  ): Promise<void> {
     const recoverySession = this.#requireRecoverySession();
-    if (recoverySession.hasRecoveryShare) {
-      return await this.#recoverRecoverySecretEnvelopeKeys(recoverySecretHex);
+    try {
+      await this.#withRecoverySession(async (session) =>
+        this.toprfClient.persistLocalKey({ ...session, oprfKey, authPubKey }),
+      );
+    } catch (error) {
+      if (!(await this.#fetchRecoveryAuthPubKey())) {
+        throw error;
+      }
     }
-
-    const { oprfKey, seed, envelopeKeys, authKeyPair } =
-      await this.toprfClient.createLocalKey({ password: recoverySecretHex });
-    // the controller only needs the envelope keys, so the seed is not kept
-    seed.fill(0);
-    await this.#withRecoverySession(async (session) =>
-      this.toprfClient.persistLocalKey({
-        ...session,
-        oprfKey,
-        authPubKey: authKeyPair.pk,
-      }),
-    );
     this.update((state) => {
       state.recoverySession = { ...recoverySession, hasRecoveryShare: true };
     });
-    return { envelopeKeys, authKeyPair };
-  }
-
-  /**
-   * Re-derive the envelope keys of a checkpointed Recovery Secret, checking
-   * that the nodes still hold the OPRF key registered for it.
-   *
-   * @param pending - The `RS_TOPRF_REGISTERED` checkpoint.
-   * @returns The envelope keys of the Recovery Secret.
-   * @throws `RecoveryKeyShareConflict` if the nodes hold another key.
-   */
-  async #recoverRegisteredRecoverySecretKeys(
-    pending: RegisteredEnvelopeMigration,
-  ): Promise<EnvelopeKeys> {
-    const { envelopeKeys, authKeyPair } =
-      await this.#recoverRecoverySecretEnvelopeKeys(pending.recoverySecret);
-    if (!pubKeysEqual(authKeyPair.pk, base64ToBytes(pending.rsAuthPubKey))) {
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.RecoveryKeyShareConflict,
-      );
-    }
-    return envelopeKeys;
   }
 
   /**

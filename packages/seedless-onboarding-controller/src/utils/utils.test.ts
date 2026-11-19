@@ -22,6 +22,7 @@ import {
   getSecretTypeFromDataType,
   isAuthTokenError,
   isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
@@ -389,6 +390,27 @@ describe('utils', () => {
       ).toBe(false);
       expect(
         isCouldNotDeriveEncryptionKeyError(new Error('not a TOPRF error')),
+      ).toBe(false);
+    });
+
+    it('identifies could not derive threshold auth public key errors', () => {
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          TOPRFError.couldNotDeriveThresholdAuthPubKey(),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new Error('not a TOPRF error'),
+        ),
       ).toBe(false);
     });
   });

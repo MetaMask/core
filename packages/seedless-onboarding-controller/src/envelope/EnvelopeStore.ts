@@ -125,7 +125,10 @@ export class EnvelopeStore {
   }
 
   /**
-   * Add a control record to the vault partition.
+   * Add a control record to the vault partition. The caller must hold the
+   * vault partition's metadata lock: the Metadata Service only accepts batch
+   * writes under the lock, and rejects single writes while the partition is
+   * locked.
    *
    * @param vaultKeySet - The vault key set (K_v).
    * @param record - The control record.
@@ -134,11 +137,15 @@ export class EnvelopeStore {
     vaultKeySet: VaultKeySet,
     record: ControlRecord,
   ): Promise<void> {
-    await this.#getToprfClient().addSecretDataItem({
+    await this.#getToprfClient().batchAddSecretDataItems({
+      secretData: [
+        {
+          data: serializeControlRecord(record),
+          dataType: EncAccountDataType.EnvelopeControl,
+        },
+      ],
       encKey: vaultKeySet.encKey,
       authKeyPair: vaultKeySet.authKeyPair,
-      secretData: serializeControlRecord(record),
-      dataType: EncAccountDataType.EnvelopeControl,
     });
   }
 

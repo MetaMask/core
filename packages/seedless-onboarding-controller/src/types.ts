@@ -253,11 +253,6 @@ export type SeedlessOnboardingControllerState =
       envelope?: EnvelopeState;
 
       /**
-       * The encrypted checkpoint of an envelope migration in progress.
-       */
-      pendingEnvelopeMigration?: string;
-
-      /**
        * Whether the vault password is local to this device rather than the
        * global password. Set by `setLocalPassword` and cleared only by
        * `resetPasswordWithVaultKeys`. While set, the password can't be synced

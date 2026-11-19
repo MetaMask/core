@@ -266,6 +266,23 @@ export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
 }
 
 /**
+ * Check whether an error indicates that the TOPRF nodes hold no key to derive
+ * a threshold auth public key from, i.e. no OPRF key is registered.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive threshold auth public key
+ * error.
+ */
+export function isCouldNotDeriveThresholdAuthPubKeyError(
+  error: unknown,
+): boolean {
+  return (
+    error instanceof TOPRFError &&
+    error.code === TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
+  );
+}
+
+/**
  * Derive SecretType from EncAccountDataType.
  *
  * This function maps the server-side data type classification to the

@@ -25,6 +25,7 @@ export {
   getSecretTypeFromDataType,
   isAuthTokenError,
   isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
