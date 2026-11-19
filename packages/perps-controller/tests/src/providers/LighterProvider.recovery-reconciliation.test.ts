@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   ACCOUNT,
   buildProvider,
@@ -604,7 +605,9 @@ describe('LighterProvider', () => {
       const execute = vi
         .spyOn(built.bridge, 'execute')
         .mockRejectedValue(new Error('signer unavailable'));
-      expect(await built.provider.getOpenOrders()).toStrictEqual([]);
+      await expect(built.provider.getOpenOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
       expect(execute).toHaveBeenCalled();
       const bridgeCalls = execute.mock.calls.length;
       expect(await built.provider.reconcileRecoveredDispatches()).toStrictEqual(

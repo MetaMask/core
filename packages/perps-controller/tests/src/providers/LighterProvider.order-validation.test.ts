@@ -2553,9 +2553,10 @@ describe('LighterProvider', () => {
       // External switch: nothing else observes it before the response lands.
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseResponse({ code: 200, accounts: [ACCOUNT] });
-      const result = await delayedRead;
-      // Cancelled → empty state, never account A's balances.
-      expect(result.totalBalance).toBe('0');
+      // Cancelled → stale, never account A's balances or an invented zero.
+      await expect(delayedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
     it('a delayed cross margin metadata read never surfaces the old account', async () => {
@@ -2583,12 +2584,12 @@ describe('LighterProvider', () => {
       await metadataReadStarted;
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseMetadata();
-      const result = await delayedRead;
-      expect(result.totalBalance).toBe('0');
-      expect(result).not.toHaveProperty('crossMarginSummary');
+      await expect(delayedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
-    it('getOpenOrders returns nothing when the account switches between index and token', async () => {
+    it('getOpenOrders rejects as stale when the account switches between index and token', async () => {
       const { provider, clientInstance, getUserAddressMock, bridge } =
         buildProvider({ configuredAccountIndex: null });
       clientInstance.getAccountsByL1Address.mockImplementation(
@@ -2616,8 +2617,9 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseToken();
-      const orders = await readUnderA;
-      expect(orders).toStrictEqual([]);
+      await expect(readUnderA).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
       // The A index + fresh token pairing never reached the venue.
       expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
     });
@@ -2643,9 +2645,10 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseOpen({ code: 200, orders: [] });
-      const orders = await mergedRead;
       // The merge is refused outright — no A-historical leakage.
-      expect(orders).toStrictEqual([]);
+      await expect(mergedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
     it('a paused write never signs after ALL accounts are deselected', async () => {
@@ -3472,14 +3475,14 @@ describe('LighterProvider', () => {
           asset: 'UNKNOWN',
         }),
       ).rejects.toThrow('maintenance margin metadata unavailable');
-      // Malformed inputs report the explicit zero contract.
-      expect(
-        await provider.calculateLiquidationPrice({
+      // Malformed inputs have no liquidation price.
+      await expect(
+        provider.calculateLiquidationPrice({
           entryPrice: 0,
           leverage: 10,
           direction: 'long',
         }),
-      ).toBe('0.00');
+      ).rejects.toThrow(PERPS_ERROR_CODES.PRICE_UNAVAILABLE);
       await expect(
         provider.calculateLiquidationPrice({
           entryPrice: 100,
@@ -3488,7 +3491,9 @@ describe('LighterProvider', () => {
           marginType: 'cross',
           asset: 'BTC',
         }),
-      ).rejects.toThrow('cross-margin liquidation previews');
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
+      });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

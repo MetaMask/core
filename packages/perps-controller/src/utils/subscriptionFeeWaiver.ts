@@ -434,8 +434,11 @@ export function applyFeeResolution(params: {
       ? parsedAmount
       : undefined;
 
-  const protocolFeeRate = fees.protocolFeeRate ?? 0;
-  const feeRate = protocolFeeRate + metamaskFeeRate;
+  // An unknown protocol rate leaves the total unknown, never MetaMask-only.
+  const feeRate =
+    fees.protocolFeeRate === undefined
+      ? undefined
+      : fees.protocolFeeRate + metamaskFeeRate;
 
   return {
     ...fees,
@@ -446,7 +449,7 @@ export function applyFeeResolution(params: {
     undiscountedMetamaskFeeRate,
     ...(notional !== undefined && {
       metamaskFeeAmount: notional * metamaskFeeRate,
-      feeAmount: notional * feeRate,
+      feeAmount: feeRate === undefined ? undefined : notional * feeRate,
     }),
   };
 }

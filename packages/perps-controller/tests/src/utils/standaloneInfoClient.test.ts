@@ -189,7 +189,14 @@ describe('standaloneInfoClient', () => {
         [null, 'xyz', 'abc'],
       );
 
-      expect(results).toEqual([responseA, responseB, responseC]);
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'xyz', data: responseB },
+          { dex: 'abc', data: responseC },
+        ],
+        failedDexs: [],
+      });
     });
 
     it('returns single response for main-DEX-only list', async () => {
@@ -203,10 +210,13 @@ describe('standaloneInfoClient', () => {
       );
 
       expect(mockInfoClient.clearinghouseState).toHaveBeenCalledTimes(1);
-      expect(results).toEqual([response]);
+      expect(results).toStrictEqual({
+        results: [{ dex: null, data: response }],
+        failedDexs: [],
+      });
     });
 
-    it('returns empty array for empty DEX list', async () => {
+    it('returns no results for an empty DEX list', async () => {
       const results = await queryStandaloneClearinghouseStates(
         mockInfoClient as unknown as InfoClient,
         userAddress,
@@ -214,10 +224,10 @@ describe('standaloneInfoClient', () => {
       );
 
       expect(mockInfoClient.clearinghouseState).not.toHaveBeenCalled();
-      expect(results).toEqual([]);
+      expect(results).toStrictEqual({ results: [], failedDexs: [] });
     });
 
-    it('returns successful results when some DEX queries fail', async () => {
+    it('reports the DEXs that failed alongside the successful results', async () => {
       const responseA = createMockClearinghouseResponse({
         withdrawable: '100',
       });
@@ -236,10 +246,18 @@ describe('standaloneInfoClient', () => {
         [null, 'failing-dex', 'healthy-dex'],
       );
 
-      expect(results).toEqual([responseA, responseC]);
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'healthy-dex', data: responseC },
+        ],
+        failedDexs: [
+          { dex: 'failing-dex', error: new Error('HIP-3 DEX timeout') },
+        ],
+      });
     });
 
-    it('returns empty array when all DEX queries fail', async () => {
+    it('reports every DEX as failed when all queries fail', async () => {
       mockInfoClient.clearinghouseState.mockRejectedValue(
         new Error('Network timeout'),
       );
@@ -250,7 +268,11 @@ describe('standaloneInfoClient', () => {
         [null, 'dex-a'],
       );
 
-      expect(results).toEqual([]);
+      expect(results.results).toStrictEqual([]);
+      expect(results.failedDexs.map(({ dex }) => dex)).toStrictEqual([
+        null,
+        'dex-a',
+      ]);
     });
   });
 

@@ -1388,7 +1388,7 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
-      it('returns partial account state when one HIP-3 DEX fails', async () => {
+      it('reports partial balances and rejects incomplete position reads when a DEX fails', async () => {
         const hip3Provider = createTestProvider({
           hip3Enabled: true,
           allowlistMarkets: ['xyz:*'],
@@ -1431,10 +1431,21 @@ describe('HyperLiquidProvider', () => {
 
         expect(parseFloat(accountState.totalBalance)).toBe(19500); // perps 10500 + spot.total 10000 - spot.hold 1000
         expect(parseFloat(accountState.marginUsed)).toBe(500);
+        // The totals exclude xyz, and the state says so.
+        expect(accountState.unavailableSubAccounts).toStrictEqual(['xyz']);
         expect(mockInfoClient.clearinghouseState).toHaveBeenCalledWith({
           user: '0x123',
           dex: 'xyz',
         });
+
+        const positions = hip3Provider.getPositions({ skipCache: true });
+        await expect(positions).rejects.toThrow(
+          PERPS_ERROR_CODES.POSITIONS_FAILED,
+        );
+        await expect(positions).rejects.toHaveProperty(
+          'cause.message',
+          'xyz DEX unavailable',
+        );
       });
 
       // HIP-3 enabled with an `xyz` DEX whose clearinghouse read fails while
