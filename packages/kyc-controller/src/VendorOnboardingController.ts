@@ -198,10 +198,11 @@ export class VendorOnboardingController extends BaseController<
   readonly #sumsubLauncher?: KycSumSubLauncher;
 
   /**
-   * The newest step request per vendor. An answer that arrives after a newer
-   * request started is ignored, so a slow response cannot undo a later one.
+   * The current step generation per vendor. Each step read and each `reset`
+   * starts a new generation. An answer from an older generation is ignored, so
+   * a slow response cannot undo a later one.
    */
-  readonly #stepRequests: Partial<Record<OnboardingVendor, number>> = {};
+  readonly #stepGenerations: Partial<Record<OnboardingVendor, object>> = {};
 
   /**
    * The step read in flight per vendor, which a plain `refreshStep` joins
@@ -597,9 +598,9 @@ export class VendorOnboardingController extends BaseController<
     // entry being forgotten.
     const vendors = vendor
       ? [vendor]
-      : (Object.keys(this.#stepRequests) as OnboardingVendor[]);
+      : (Object.keys(this.#stepGenerations) as OnboardingVendor[]);
     for (const each of vendors) {
-      this.#stepRequests[each] = (this.#stepRequests[each] ?? 0) + 1;
+      this.#stepGenerations[each] = {};
       delete this.#stepReads[each];
     }
     this.update((state) => {
@@ -722,8 +723,8 @@ export class VendorOnboardingController extends BaseController<
     if (join && inflight) {
       return inflight;
     }
-    const request = (this.#stepRequests[vendor] ?? 0) + 1;
-    this.#stepRequests[vendor] = request;
+    const generation = {};
+    this.#stepGenerations[vendor] = generation;
     const read = (async (): Promise<KycStep> => {
       try {
         const info = await this.messenger.call(
@@ -731,15 +732,15 @@ export class VendorOnboardingController extends BaseController<
           vendor,
           this.#clientContext(vendor),
         );
-        // Drop the answer when a newer read started while this was in
+        // Drop the answer when a newer generation started while this was in
         // flight, so a slow read cannot overwrite a fresher step.
-        if (this.#stepRequests[vendor] === request) {
+        if (this.#stepGenerations[vendor] === generation) {
           this.#write(vendor, { step: info.step, status: info.status });
         }
         return info.step;
       } finally {
-        // A newer read has taken over from this one.
-        if (this.#stepRequests[vendor] === request) {
+        // A newer generation has taken over from this one.
+        if (this.#stepGenerations[vendor] === generation) {
           delete this.#stepReads[vendor];
         }
       }
