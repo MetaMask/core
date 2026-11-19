@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `maxSlippageBps` to `UpdatePositionTPSLParams`, the slippage cap for a HyperLiquid market-executed TP/SL leg ([#11650](https://github.com/MetaMask/core/pull/11650))
+
+### Fixed
+
+- `PerpsController.flipPosition` now signs the flip at the saved max slippage (`setMaxSlippage`); with nothing saved it uses `ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps` on both venues ([#11650](https://github.com/MetaMask/core/pull/11650))
+- HyperLiquid `validateOrder` now rejects leverage `0`, `NaN` or below `1` with `ORDER_LEVERAGE_INVALID`, a non-finite or negative size (or `usdAmount`) with `ORDER_SIZE_POSITIVE`, invalid reduce-only coin caps alongside USD sizes, non-finite limit or current prices with `ORDER_PRICE_POSITIVE`, and a non-finite trigger with `ORDER_TRIGGER_PRICE_POSITIVE` ([#11650](https://github.com/MetaMask/core/pull/11650))
+- HyperLiquid refreshes expired account support before ordinary SDK signing and at dispatch. The SDK accessor records multi-sig venue rejections, including singular TWAP status errors. TWAP and Scale can roll back an acknowledged placement after teardown when the account and network still match ([#11650](https://github.com/MetaMask/core/pull/11650))
+- `PerpsController.updatePositionTPSL` applies the per-call `maxSlippageBps`, saved preference or 10% default to whole-position market stop losses on HyperLiquid. Its take-profit leg stays a limit at the trigger. `replacePositionTPSLLeg` applies the cap to either leg when no explicit limit is supplied. Market limits round inward from the signed trigger. Standalone partial legs and explicit fill prices retain their pricing. An invalid cap used by a whole-position market leg or an invalid limit refuses the update before existing protection is canceled ([#11650](https://github.com/MetaMask/core/pull/11650))
+- Lighter market entries now refresh market metadata and require an active perpetual market. They report the existing `ORDER_UNKNOWN_COIN` code if the market is unavailable for entry. Reduce-only closes stay available ([#11650](https://github.com/MetaMask/core/pull/11650))
+- Batch cancellation rejects malformed selections and stops if the issuing account or provider changes before submission. Strict discovery validates fresh venue responses and preserves available orders alongside venue discovery errors. ([#11650](https://github.com/MetaMask/core/pull/11650))
+
 ## [25.0.0]
 
 ### Added
@@ -68,7 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PERPS_ERROR_COPY` and `getPerpsErrorCopy`, a translation key and English default for every `PERPS_ERROR_CODES` value, and `PERPS_ORDER_TYPE_LABELS` for every `OrderType`, with the `PerpsErrorCopy` and `PerpsOrderTypeLabel` types ([#11639](https://github.com/MetaMask/core/pull/11639))
 - Add `getBatchOperationStatus` and the `BatchOperationStatus` and `WithBatchOperationStatus` types ([#11639](https://github.com/MetaMask/core/pull/11639))
 - Document these in `docs/client-contract.md` ([#11639](https://github.com/MetaMask/core/pull/11639))
-- Add optional `maxSlippageBps` to `UpdatePositionTPSLParams`, the slippage cap for a HyperLiquid market-executed TP/SL leg ([#11650](https://github.com/MetaMask/core/pull/11650))
 
 ### Changed
 
@@ -140,12 +152,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `PerpsController.flipPosition` now signs the flip at the saved max slippage (`setMaxSlippage`); with nothing saved it uses `ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps` on both venues ([#11650](https://github.com/MetaMask/core/pull/11650))
-- HyperLiquid `validateOrder` now rejects leverage `0`, `NaN` or below `1` with `ORDER_LEVERAGE_INVALID`, a non-finite or negative size (or `usdAmount`) with `ORDER_SIZE_POSITIVE`, invalid reduce-only coin caps alongside USD sizes, non-finite limit or current prices with `ORDER_PRICE_POSITIVE`, and a non-finite trigger with `ORDER_TRIGGER_PRICE_POSITIVE` ([#11650](https://github.com/MetaMask/core/pull/11650))
-- HyperLiquid refreshes expired account support before ordinary SDK signing and at dispatch. The SDK accessor records multi-sig venue rejections, including singular TWAP status errors. TWAP and Scale can roll back an acknowledged placement after teardown when the account and network still match ([#11650](https://github.com/MetaMask/core/pull/11650))
-- `PerpsController.updatePositionTPSL` applies the per-call `maxSlippageBps`, saved preference or 10% default to whole-position market stop losses on HyperLiquid. Its take-profit leg stays a limit at the trigger. `replacePositionTPSLLeg` applies the cap to either leg when no explicit limit is supplied. Market limits round inward from the signed trigger. Standalone partial legs and explicit fill prices retain their pricing. An invalid cap used by a whole-position market leg or an invalid limit refuses the update before existing protection is canceled ([#11650](https://github.com/MetaMask/core/pull/11650))
-- Lighter market entries now refresh market metadata and require an active perpetual market. They report the existing `ORDER_UNKNOWN_COIN` code if the market is unavailable for entry. Reduce-only closes stay available ([#11650](https://github.com/MetaMask/core/pull/11650))
-- Batch cancellation rejects malformed selections and stops if the issuing account or provider changes before submission. Strict discovery validates fresh venue responses and preserves available orders alongside venue discovery errors. ([#11650](https://github.com/MetaMask/core/pull/11650))
 - Return combined portfolio totals and per-venue completeness metadata from aggregated cached user-data reads, including disk-hydrated startup data, instead of returning only HyperLiquid's account snapshot ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Prevent account streams opened without an `accountId` from overwriting or clearing selected-account state after the selected wallet changes ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Clear live account state and per-venue balances when the selected EVM wallet changes, is cleared, or a group with no EVM wallet is selected. A repeat selection preserves balances known to belong to that wallet. Pending venues do not inherit restored balances with no wallet attribution ([#11629](https://github.com/MetaMask/core/pull/11629))
