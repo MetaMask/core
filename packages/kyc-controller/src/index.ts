@@ -47,6 +47,8 @@ export {
 export type {
   KycAccountLinkAdapter,
   KycAccountLinkMfaMethod,
+} from './accountLink.js';
+export type {
   VendorOnboardingControllerActions,
   VendorOnboardingControllerEvents,
   OnboardingProviderOutcome,

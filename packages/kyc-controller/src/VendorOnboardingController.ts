@@ -12,6 +12,10 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 
+import type {
+  KycAccountLinkAdapter,
+  KycAccountLinkMfaMethod,
+} from './accountLink.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
 import {
@@ -90,34 +94,6 @@ const vendorOnboardingControllerMetadata = {
 export function getDefaultVendorOnboardingControllerState(): VendorOnboardingControllerState {
   return { vendors: {} };
 }
-
-// === ACCOUNT LINK ADAPTER ===
-
-/**
- * MFA methods a vendor can ask for while it verifies the account link.
- */
-export type KycAccountLinkMfaMethod = 'sms' | 'email' | 'authenticator-app';
-
-/**
- * The calls that create or link a vendor's own account (Kalshi). They are
- * signed with a key that lives on the device, so each client supplies them.
- * The adapter sends the signed call through kyc-api. The controller then asks
- * kyc-api for the next step, so it never keeps the link state itself.
- */
-export type KycAccountLinkAdapter = {
-  /**
-   * Starts the link by sending the vendor's code to the email.
-   */
-  startLink: (params: { email: string }) => Promise<void>;
-  /**
-   * Verifies the code the vendor sent.
-   *
-   * @returns The MFA method the vendor wants next, if it wants one.
-   */
-  verifyLink: (params: { code: string }) => Promise<{
-    mfaMethod?: KycAccountLinkMfaMethod;
-  }>;
-};
 
 // === MESSENGER ===
 

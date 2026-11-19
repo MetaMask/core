@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type { KycAccountLinkAdapter } from './accountLink.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type { KycSessionStatus, KycStepInfo } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
@@ -17,7 +18,6 @@ import {
   VendorOnboardingController,
 } from './VendorOnboardingController.js';
 import type {
-  KycAccountLinkAdapter,
   VendorOnboardingControllerMessenger,
   VendorOnboardingControllerOptions,
 } from './VendorOnboardingController.js';
