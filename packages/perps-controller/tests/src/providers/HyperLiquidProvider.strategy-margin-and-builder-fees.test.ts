@@ -24,6 +24,7 @@ import {
 import {
   activeEthTwapHistory,
   baseOrder,
+  clearinghouseWithEthSize,
   createClearinghouseBalance,
   createTestProvider,
   mockPlatformDependencies,
@@ -1134,6 +1135,56 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orders?: { c?: string }[];
         cancels?: { o: number }[];
       };
+      const restoreCreateErrorResult = (
+        createErrorResult: {
+          mockImplementation: (
+            implementation: NonNullable<
+              ReturnType<Mock['getMockImplementation']>
+            >,
+          ) => void;
+        },
+        previous: ReturnType<Mock['getMockImplementation']>,
+      ): void => {
+        if (previous) {
+          createErrorResult.mockImplementation(previous);
+        }
+      };
+      const installWrappedSigningRefusal = (
+        change: 'position' | 'support',
+        infoClient: ReturnType<typeof useStrategyClients>['infoClient'],
+        request: Mock,
+        actions: SignedAction[],
+        defaultResponse: (action: SignedAction) => unknown,
+      ): void => {
+        let cancelSubmitted = false;
+        let readsAfterCancel = 0;
+        const baseline = clearinghouseWithEthSize('1.5');
+        const driftedState = clearinghouseWithEthSize('2');
+        if (change === 'position') {
+          infoClient.clearinghouseState.mockImplementation(async () => {
+            const drifted = cancelSubmitted && readsAfterCancel > 0;
+            if (cancelSubmitted) {
+              readsAfterCancel += 1;
+            }
+            return drifted ? driftedState : baseline;
+          });
+        }
+        request.mockImplementation(
+          async (_endpoint: string, payload: { action: SignedAction }) => {
+            actions.push(payload.action);
+            if (payload.action.type === 'cancel') {
+              cancelSubmitted = true;
+              vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+              if (change === 'support') {
+                infoClient.userToMultiSigSigners.mockRejectedValueOnce(
+                  new Error('support read failed'),
+                );
+              }
+            }
+            return defaultResponse(payload.action);
+          },
+        );
+      };
       const setup = (
         oldCount = 1,
       ): {
@@ -1233,10 +1284,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         mockClientService.getExchangeClient.mockImplementation(
           (
             guard?: () => Promise<void>,
-            hooks?: Parameters<typeof createGuardedHyperLiquidClient>[3],
+            signHooks?: Parameters<typeof createGuardedHyperLiquidClient>[3],
           ) =>
             guard
-              ? createGuardedHyperLiquidClient(sdk, guard, undefined, hooks)
+              ? createGuardedHyperLiquidClient(sdk, guard, undefined, signHooks)
               : sdk,
         );
         return { infoClient, actions, hooks, defaultResponse, request };
@@ -1372,59 +1423,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
             const { actions, infoClient, request, defaultResponse } = setup();
             // The pre-sign position read must still match. Drift on the next
             // read, which is the signing fence inside the SDK.
-            let cancelSubmitted = false;
-            let readsAfterCancel = 0;
-            if (change === 'position') {
-              const readPosition =
-                infoClient.clearinghouseState.getMockImplementation();
-              infoClient.clearinghouseState.mockImplementation(
-                async (...args) => {
-                  const drifted = cancelSubmitted && readsAfterCancel > 0;
-                  if (cancelSubmitted) {
-                    readsAfterCancel += 1;
-                  }
-                  const state = await readPosition?.(...args);
-                  if (
-                    !drifted ||
-                    !state ||
-                    !Array.isArray(state.assetPositions)
-                  ) {
-                    return state;
-                  }
-                  return {
-                    ...state,
-                    assetPositions: state.assetPositions.map(
-                      (entry: { position: { coin: string } }) =>
-                        entry.position.coin === 'ETH'
-                          ? {
-                              ...entry,
-                              position: { ...entry.position, szi: '2' },
-                            }
-                          : entry,
-                    ),
-                  };
-                },
-              );
-            }
-            request.mockImplementation(
-              async (
-                _endpoint: string,
-                payload: { action: { type: string } },
-              ) => {
-                actions.push(payload.action);
-                if (payload.action.type === 'cancel') {
-                  cancelSubmitted = true;
-                  vi.advanceTimersByTime(
-                    HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
-                  );
-                  if (change === 'support') {
-                    infoClient.userToMultiSigSigners.mockRejectedValueOnce(
-                      new Error('support read failed'),
-                    );
-                  }
-                }
-                return defaultResponse(payload.action);
-              },
+            installWrappedSigningRefusal(
+              change,
+              infoClient,
+              request,
+              actions,
+              defaultResponse,
             );
 
             const result = await provider.updatePositionTPSL({
@@ -1445,9 +1449,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               childOrderIds: ['901'],
             });
           } finally {
-            if (previous) {
-              createErrorResult.mockImplementation(previous);
-            }
+            restoreCreateErrorResult(createErrorResult, previous);
             vi.useRealTimers();
           }
         },
