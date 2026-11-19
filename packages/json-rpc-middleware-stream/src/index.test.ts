@@ -133,7 +133,7 @@ describe('retry logic in middleware connected to a port', () => {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let messageConsumer: any;
-  let clientStream: Duplex | undefined;
+  let clientStream: ReturnType<typeof createStreamMiddleware>['stream'] | undefined;
   beforeEach(() => {
     // create guest
     engineA = new JsonRpcEngine();
@@ -167,7 +167,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // connect both
     const clientSideStream = jsonRpcConnection.stream;
-    clientStream = clientSideStream as unknown as Duplex;
+    clientStream = clientSideStream;
     clientSideStream
       .pipe(connectionStream as unknown as Duplex)
       .pipe(clientSideStream);
