@@ -23,8 +23,8 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
@@ -134,7 +134,7 @@ async function executeFiatQuotePipeline(
       throw new Error('Failed to build relay request from fiat amount');
     }
 
-    const relayQuotes = await getRelayQuotes({
+    const relayQuotes = await getServerQuotes({
       accountSupports7702,
       from: walletAddress,
       messenger,
@@ -320,7 +320,7 @@ function combineQuotes({
   adjustedAmountFiat: string;
   amountFiat: string;
   fiatQuote: RampsQuote;
-  relayQuote: TransactionPayQuote<RelayQuote>;
+  relayQuote: TransactionPayQuote<ServerQuote>;
 }): TransactionPayQuote<FiatQuote> {
   const rampsProviderFee = getRampsProviderFee(fiatQuote);
   const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
@@ -372,7 +372,7 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
 }
 
 function getRelayTotalFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+  relayQuote: TransactionPayQuote<ServerQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.sourceNetwork.estimate.usd)
@@ -381,7 +381,7 @@ function getRelayTotalFeeUsd(
 }
 
 function getNonGasRelayFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+  relayQuote: TransactionPayQuote<ServerQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.targetNetwork.usd)

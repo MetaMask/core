@@ -444,13 +444,13 @@
 /packages/logging-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
 /packages/logging-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
 
-### marketing-consent-controller
-/packages/marketing-consent-controller                    @MetaMask/engagement
-/packages/marketing-consent-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
-/packages/marketing-consent-controller/package.json       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
-/packages/marketing-consent-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
-/packages/marketing-consent-controller/typedoc.json       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
-/packages/marketing-consent-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
+### marketing-consent-sync-service
+/packages/marketing-consent-sync-service                    @MetaMask/engagement
+/packages/marketing-consent-sync-service/CHANGELOG.md       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
+/packages/marketing-consent-sync-service/package.json       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
+/packages/marketing-consent-sync-service/tsconfig.*         @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
+/packages/marketing-consent-sync-service/typedoc.json       @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
+/packages/marketing-consent-sync-service/vitest.config.*    @MetaMask/core-platform @MetaMask/engagement    # maintenance-owner: @MetaMask/core-platform
 
 ### message-manager
 /packages/message-manager                    @MetaMask/confirmations

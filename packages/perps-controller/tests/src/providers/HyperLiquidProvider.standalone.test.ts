@@ -80,11 +80,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -353,6 +349,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -491,11 +491,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -1342,6 +1338,42 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves a confirmed empty standalone %s under strict discovery',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+        expect(
+          await provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves strict failure semantics for standalone %s',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        await expect(
+          provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('standalone down');
+      },
+    );
+
     describe('getOpenOrders with standalone mode', () => {
       it('returns orders via standalone client when standalone mode enabled', async () => {
         // Arrange - mock with all required FrontendOrder fields for adaptOrderFromSDK
@@ -1420,6 +1452,11 @@ describe('HyperLiquidProvider', () => {
           success: false,
           orderId: strategyGroupId,
           error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+            provider: 'hyperliquid',
+          },
         });
       });
 
@@ -1758,6 +1795,54 @@ describe('HyperLiquidProvider', () => {
         // Assert - balances should be aggregated
         expect(parseFloat(accountState.totalBalance)).toBe(55000);
         expect(parseFloat(accountState.marginUsed)).toBe(1500);
+      });
+
+      it('rejects a partial standalone account read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockImplementation(
+          (params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.reject(new Error('xyz DEX unavailable'));
+            }
+            return Promise.resolve({
+              assetPositions: [],
+              marginSummary: {
+                totalMarginUsed: '1000',
+                accountValue: '50000',
+              },
+              withdrawable: '45000',
+            });
+          },
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('xyz DEX unavailable');
+      });
+
+      it('rejects a failed standalone spot read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: {
+            totalMarginUsed: '1000',
+            accountValue: '50000',
+          },
+          withdrawable: '45000',
+        });
+        mockStandaloneInfoClient.spotClearinghouseState.mockRejectedValue(
+          new Error('spot clearinghouse down'),
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('spot clearinghouse down');
       });
 
       it('does not poison fully-initialized cache when standalone perpDexs() fails', async () => {

@@ -1037,6 +1037,33 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
 };
 
 /**
+ * Keep one merged, live TWAP list for the active provider: reads and the
+ * venue stream merged by schedule, execution totals raised from slice
+ * fills, and re-reads while a schedule runs. Split it with
+ * `partitionTwapOrders`. Follows the selected account.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads and the stream.
+ */
+export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
+  type: `PerpsController:subscribeToLiveTwapOrders`;
+  handler: PerpsController['subscribeToLiveTwapOrders'];
+};
+
+/**
+ * Keep running and history chase lists for the active provider. Ended
+ * chases stay in history after the provider drops them, up to
+ * `CHASE_ORDER_CONFIG.HistoryLimit`.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads.
+ */
+export type PerpsControllerSubscribeToChaseOrderListsAction = {
+  type: `PerpsController:subscribeToChaseOrderLists`;
+  handler: PerpsController['subscribeToChaseOrderLists'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -1246,11 +1273,13 @@ export type PerpsControllerClearAgentSignersAction = {
  * - `NO_ACCOUNT_SELECTED` when no account is selected;
  * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
  * changed during setup;
- * - the venue's message when HyperLiquid refused the builder fee approval
- * for a reason signing again cannot fix (for example "Builder has
- * insufficient balance to be approved"); it is not logged, and the
- * approval is not asked for again until the provider disconnects;
- * - otherwise the message of the error that stopped setup, which is logged.
+ * - provider-tagged `UNKNOWN_ERROR` when HyperLiquid refused the builder fee
+ * approval for a reason signing again cannot fix (for example the builder
+ * wallet cannot be approved). The venue sentence stays on the error cause
+ * and in the debug log; it is not logged to Sentry, and the approval is not
+ * asked for again until the provider disconnects;
+ * - otherwise a provider-tagged code for the error that stopped setup,
+ * which is logged. Text that is not a known code becomes `UNKNOWN_ERROR`.
  * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
  * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
  * when no active provider is available.
@@ -1839,6 +1868,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
   | PerpsControllerSubscribeToTwapOrdersAction
+  | PerpsControllerSubscribeToLiveTwapOrdersAction
+  | PerpsControllerSubscribeToChaseOrderListsAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction

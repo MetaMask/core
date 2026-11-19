@@ -5,9 +5,11 @@ import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
@@ -37,7 +39,6 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
 
     const reason = getServerUnsupportedReason({
       enabledTransactionTypes: config.server.enabledTransactionTypes,
-      requests: request.requests,
       transaction: request.transaction,
     });
 
@@ -61,6 +62,12 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
 
   async getBatchTransactions(): Promise<[]> {
     return [];
+  }
+
+  async getRefreshInterval(
+    request: PayStrategyGetRefreshIntervalRequest,
+  ): Promise<number | undefined> {
+    return getMaxAmountRefreshInterval(request);
   }
 
   async execute(

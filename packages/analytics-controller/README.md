@@ -23,6 +23,7 @@ The AnalyticsController provides a unified interface for tracking analytics even
 | `consentDecisionMade`          | `boolean`               | Whether a product consent decision has been made                    | Yes       |
 | `optedInToMarketing`           | `boolean`               | Marketing analytics opt-in status                                   | Yes       |
 | `marketingConsentDecisionMade` | `boolean`               | Whether a marketing consent decision has been made                  | Yes       |
+| `marketingConsentSyncPending`  | `boolean`               | Whether marketing consent is waiting to be saved to user storage    | Yes       |
 | `eventsConfig`                 | `AnalyticsEventsConfig` | Cached event-purpose classification and its config registry version | Yes       |
 | `eventQueue`                   | `object`                | Optional persisted delivery queue                                   | Yes       |
 | `eventFragments`               | `object`                | Optional in-progress event fragments                                | Yes       |

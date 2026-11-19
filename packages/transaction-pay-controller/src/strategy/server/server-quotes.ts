@@ -4,7 +4,7 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -42,8 +42,13 @@ import { reservePostQuoteGas } from '../../utils/post-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
-import { getEvmQuoteSource, getTokenFiatRate } from '../../utils/token.js';
+import {
+  buildCaipAssetType,
+  getEvmQuoteSource,
+  getTokenFiatRate,
+} from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
+import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
@@ -57,7 +62,6 @@ import type {
 } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
-const HYPERCORE_CHAIN_ID_NUMBER = Number(CHAIN_ID_HYPERCORE);
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
 const TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
@@ -319,8 +323,8 @@ async function buildServerQuoteRequest(
     isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequestDraft = {
-    source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
-    target: { chainId: Number(targetChainId), token: targetTokenAddress },
+    sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
+    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
     sender: from,
     recipient,
     slippage: Math.round(
@@ -330,7 +334,7 @@ async function buildServerQuoteRequest(
   };
 
   if (isPolymarketDepositWallet) {
-    await applyDepositWalletOverrides(body, from, messenger);
+    await applyDepositWalletOverrides(body, from, sourceChainId, messenger);
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
@@ -479,20 +483,40 @@ function canDeferCalls({
  *
  * @param body - Quote request body to update.
  * @param from - The user EOA that owns the deposit wallet.
+ * @param sourceChainId - Chain the deposit wallet funds the quote from.
  * @param messenger - Controller messenger.
  */
 async function applyDepositWalletOverrides(
   body: ServerQuoteRequestDraft,
   from: Hex,
+  sourceChainId: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { depositWallet, sourceTokenAddress } =
     await getPolymarketDepositWalletOverrides(from, messenger);
 
-  body.source = { ...body.source, token: sourceTokenAddress };
+  body.sourceAsset = buildServerAsset(sourceChainId, sourceTokenAddress);
   body.sender = depositWallet;
   body.refundTo = depositWallet;
   body.useDepositAddress = true;
+}
+
+/**
+ * Build the CAIP-19 asset ID the server intents API expects for a token.
+ *
+ * HyperCore is only used for the Hyperliquid perps margin account, which has
+ * no standard CAIP-19 asset ID.
+ *
+ * @param chainId - Chain ID of the token.
+ * @param tokenAddress - Token address, or the native token address.
+ * @returns CAIP-19 asset ID.
+ */
+function buildServerAsset(chainId: Hex, tokenAddress: Hex): CaipAssetType {
+  if (chainId === CHAIN_ID_HYPERCORE) {
+    return SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+  }
+
+  return buildCaipAssetType(chainId, tokenAddress);
 }
 
 function normalizeAuthorizationList(
@@ -552,7 +576,7 @@ function isSecondLegRequired(
   // HyperCore settles off-chain, so there is no target-chain transfer to read
   // a settled amount from. Checks the built body rather than the original
   // request, since perps deposits are only rewritten to HyperCore there.
-  if (body.target.chainId === HYPERCORE_CHAIN_ID_NUMBER) {
+  if (body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
     return false;
   }
 
@@ -563,7 +587,7 @@ function isSecondLegRequired(
     return quoteRequest.atomic === false;
   }
 
-  if (body.source.chainId === HYPERCORE_CHAIN_ID_NUMBER) {
+  if (body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
     return false;
   }
 
@@ -659,6 +683,9 @@ async function normalizeQuote(
     },
     isInputBased,
     original: {
+      ...(body.authorizationList?.length && !quote.callsDeferred
+        ? { authorizationList: body.authorizationList }
+        : {}),
       client: {
         gasLimits: sourceNetwork.gasLimits,
         is7702: sourceNetwork.is7702,
@@ -823,6 +850,7 @@ async function calculateSourceNetworkCost({
   );
 
   const gasStationCost = await resolveGasStationCost({
+    accountSupports7702,
     feeTokenAccount,
     firstStepData: {
       data: firstStep.data,

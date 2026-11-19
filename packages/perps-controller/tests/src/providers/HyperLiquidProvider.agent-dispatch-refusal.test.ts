@@ -279,6 +279,11 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
       success: false,
       orderId: '123',
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(built.onAgentRejected.mock.calls).toStrictEqual([
       [MAINNET_ACCOUNT, AGENT_ADDRESS],

@@ -151,6 +151,8 @@ import type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   SubscribePublicTradesParams,
@@ -176,6 +178,7 @@ import type {
   PerpsAccountSupport,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
+  PerpsProviderAccountStateEntry,
   PerpsProviderType,
   PerpsProviderTradeConfigurations,
   PerpsTradeConfiguration,
@@ -200,7 +203,21 @@ import {
   LastTransactionResult,
   TransactionStatus,
 } from './types/transactionTypes.js';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import { buildAggregatedAccountState } from './utils/accountAggregation.js';
+import {
+  getCaipAccountAddress,
+  getSelectedEvmAccountFromMessenger,
+} from './utils/accountUtils.js';
+import {
+  createLiveChaseOrderList,
+  createLiveTwapOrderList,
+} from './utils/advancedOrderLists.js';
+import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
+import {
+  getUnroutedCancelOrdersRefusal,
+  resolveCancelSelection,
+} from './utils/cancelOrders.js';
+import { resolveCloseSelection } from './utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -456,11 +473,16 @@ export type PerpsControllerState = {
   accountState: AccountState | null;
 
   // Perps balances per provider for portfolio display (historical data)
+  // Aggregated mode writes one entry per available venue, keyed by provider
+  // id. An entry's presence means the venue's balance was live as of
+  // `lastUpdated`; a venue whose data becomes unavailable has its entry
+  // removed rather than left looking live.
   perpsBalances: {
     [provider: string]: {
       totalBalance: string; // Current total account value (cash + positions) in USD
       unrealizedPnl: string; // Current P&L from open positions in USD
-      accountValue1dAgo: string; // Account value 24h ago for daily change calculation in USD
+      /** Legacy historical observation, absent from live account updates. */
+      accountValue1dAgo?: string;
       lastUpdated: number; // Timestamp of last update
     };
   };
@@ -493,6 +515,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this withdrawal
+    /**
+     * Venue that initiated the withdrawal, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -517,6 +545,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this deposit
+    /**
+     * Venue whose deposit route was chosen, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -1153,7 +1187,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToAccount',
   'subscribeToAvailableToTrade',
   'subscribeToCandles',
+  'subscribeToChaseOrderLists',
   'subscribeToConnectionState',
+  'subscribeToLiveTwapOrders',
   'subscribeToOICaps',
   'subscribeToOrderBook',
   'subscribeToOrderFills',
@@ -1342,6 +1378,11 @@ export class PerpsController extends BaseController<
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
 
+  // Live chase lists waiting to hear which chase cancels succeeded.
+  readonly #chaseCancellationListeners = new Set<
+    (canceled: CanceledChaseOrder) => void
+  >();
+
   /**
    * Latest toggle number per `network:symbol` whose write is still pending,
    * so a failed write is undone only when no later toggle of the same market
@@ -1498,6 +1539,11 @@ export class PerpsController extends BaseController<
     const forgetRegisteredTradingAddresses = (): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+      // Balance entries belong to the selected account; another account's
+      // observations must not show as this one's.
+      this.update((draft) => {
+        draft.perpsBalances = {};
+      });
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
       // would otherwise be attributed to nothing, so the new address announces
@@ -1744,37 +1790,50 @@ export class PerpsController extends BaseController<
       // Assemble from all registered provider entries
       const allPositions: Position[] = [];
       const allOrders: Order[] = [];
-      let defaultAccountState: AccountState | null = null;
+      const accountEntries: PerpsProviderAccountStateEntry[] = [];
       let hasValidEntry = false;
 
       for (const providerId of this.#getAggregatedCacheProviderIds(
         Object.keys(cache),
-      )) {
+      ).filter(isPerpsProviderType)) {
         const providerNetworkKey = buildProviderCacheKey(
           providerId,
           this.state.isTestnet,
         );
         const entry = cache[providerNetworkKey];
         if (!isValidEntry(providerId, entry)) {
+          accountEntries.push({ status: 'unavailable', providerId });
           continue;
         }
         hasValidEntry = true;
         allPositions.push(...entry.positions);
         allOrders.push(...entry.orders);
-        // AccountState from default provider (hyperliquid)
-        if (providerId === 'hyperliquid') {
-          defaultAccountState = entry.accountState;
-        }
+        accountEntries.push(
+          entry.accountState
+            ? {
+                status: 'available',
+                providerId,
+                state: { ...entry.accountState, providerId },
+              }
+            : { status: 'unavailable', providerId },
+        );
       }
 
       if (!hasValidEntry) {
         return null;
       }
 
+      // Match live reads: combine venue snapshots, but preserve venue-local
+      // detail and the direct shape when only one venue participates.
+      const [onlyEntry] = accountEntries;
+      const accountState =
+        accountEntries.length === 1 && onlyEntry.status === 'available'
+          ? onlyEntry.state
+          : buildAggregatedAccountState({ entries: accountEntries });
       return {
         positions: allPositions,
         orders: allOrders,
-        accountState: defaultAccountState,
+        accountState,
       };
     }
 
@@ -2304,6 +2363,9 @@ export class PerpsController extends BaseController<
             : 'hyperliquid';
           state.effectiveProvider = null;
           state.accountState = null;
+          // The direct stream covers one venue only: entries persisted by the
+          // aggregated session must not keep looking live.
+          state.perpsBalances = {};
         }
       });
       return;
@@ -2761,7 +2823,7 @@ export class PerpsController extends BaseController<
 
         // If not the last attempt, wait before retrying (exponential backoff)
         if (attempt < maxAttempts) {
-          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s
           this.#debugLog(
             `PerpsController: Retrying initialization in ${delay}ms`,
             {
@@ -3641,8 +3703,8 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode batch write.
    *
-   * Batch cancel and close cannot name a venue, so while multiple venues are
-   * registered they are refused instead of being sent to the default venue.
+   * Legacy symbol-only closes cannot identify a venue, so while multiple
+   * venues are registered they are refused instead of using the default.
    *
    * @param provider - Resolved provider, when initialization has settled.
    * @returns The batch refusal result, or undefined when the batch may proceed.
@@ -3800,6 +3862,8 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // Live lists only take an ending in the context the cancel started in.
+    const contextKey = this.#getOrderListContextKey();
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
       params.providerId,
     );
@@ -3819,11 +3883,35 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
 
-    return this.#tradingService.cancelOrder({
+    const result = await this.#tradingService.cancelOrder({
       provider,
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+    // A provider may resolve a plain child order ID to its chase, so the
+    // ending is keyed by the chase handle, not by what the caller passed.
+    const { chaseOrder } = result;
+    if (
+      result.success &&
+      chaseOrder &&
+      this.#getOrderListContextKey() === contextKey
+    ) {
+      const providerId = params.providerId ?? result.providerId;
+      for (const listener of [...this.#chaseCancellationListeners]) {
+        // A listener that throws must not undo the cancel or starve the rest.
+        try {
+          listener({ handle: chaseOrder.handle, providerId, chaseOrder });
+        } catch (error) {
+          this.#logError(
+            ensureError(error, 'PerpsController.cancelOrder'),
+            this.#getErrorContext('cancelOrder', {
+              orderId: params.orderId,
+            }),
+          );
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -4015,22 +4103,21 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+    // All-order batches fan out; filtered batches must identify their venue.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
+    const refusal = getUnroutedCancelOrdersRefusal(
+      provider,
+      resolveCancelSelection(params),
+    );
+    if (refusal) {
+      return refusal;
     }
 
     return this.#tradingService.cancelOrders({
       provider,
       params,
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: () => this.getOpenOrders(),
+        getOpenOrders: (readParams) => this.getOpenOrders(readParams),
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,
@@ -4088,15 +4175,15 @@ export class PerpsController extends BaseController<
   async closePositions(
     params: ClosePositionsParams,
   ): Promise<ClosePositionsResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+    // closeAll fans out to every enabled venue, and explicit targets name
+    // their own venue. A legacy symbols-only close stays ambiguous in
+    // multi-venue aggregated mode and is refused below rather than guessed.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
+    if (resolveCloseSelection(params).kind === 'symbols') {
+      const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+      if (unroutedRefusal) {
+        return unroutedRefusal;
+      }
     }
     this.#ensureTradingServiceDeps();
 
@@ -4104,7 +4191,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('closePositions', {
-        getPositions: () => this.getPositions(),
+        getPositions: (readParams) => this.getPositions(readParams),
       }),
     });
   }
@@ -4314,13 +4401,21 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
-      } = await this.#depositService.prepareTransaction({ provider });
+        providerId: depositProviderId,
+      } = await this.#depositService.prepareTransaction({
+        provider,
+        ...(params.providerId !== undefined && {
+          providerId: params.providerId,
+        }),
+      });
       currentDepositId = depositId;
 
       // Get current account address via messenger (outside of update() for proper typing)
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const accountAddress = evmAccount?.address ?? 'unknown';
 
+      // Preparation resolves the venue from the route or executing provider,
+      // independent of later active-provider changes.
       this.update((state) => {
         state.lastDepositResult = null;
 
@@ -4331,6 +4426,9 @@ export class PerpsController extends BaseController<
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
           accountAddress, // Track which account initiated deposit
+          ...(depositProviderId === undefined
+            ? {}
+            : { providerId: depositProviderId }),
           success: false, // Will be updated when transaction completes
           txHash: undefined,
           status: 'pending' as TransactionStatus,
@@ -5330,15 +5428,37 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // Match the live account venue, including a temporary fallback when
-          // the saved default is unavailable. Read the route when the response
-          // arrives to reject balances from a previous venue.
-          isCurrent: (accountState) =>
-            accountState.providerId === undefined ||
-            accountState.providerId ===
-              (this.activeProviderInstance instanceof AggregatedPerpsProvider
-                ? this.activeProviderInstance.getWriteProviderId()
-                : this.state.activeProvider),
+          // Match the live account data context. A combined snapshot is
+          // current only while more than one venue is still registered: an
+          // in-flight result from before a venue was removed must not replace
+          // the remaining venue. A one-venue fallback (no `providerStates`)
+          // is current only while the wrapper still has that single venue
+          // and the result names it. After another venue recovers, that
+          // in-flight fallback must not replace the combined snapshot, even
+          // when it names the routing default. A direct-provider result is
+          // matched against the active venue, so a response from a previous
+          // venue is dropped when the route changed while it was in flight.
+          isCurrent: (accountState) => {
+            const active = this.activeProviderInstance;
+            if (active instanceof AggregatedPerpsProvider) {
+              const venueCount = active.getProviderIds().length;
+              if (accountState.providerStates) {
+                return venueCount > 1;
+              }
+              return (
+                venueCount <= 1 &&
+                (accountState.providerId === undefined ||
+                  accountState.providerId === active.getWriteProviderId())
+              );
+            }
+            if (accountState.providerStates) {
+              return false;
+            }
+            return (
+              accountState.providerId === undefined ||
+              accountState.providerId === this.state.activeProvider
+            );
+          },
         },
       }),
     });
@@ -6214,10 +6334,23 @@ export class PerpsController extends BaseController<
           );
         }
 
-        // AccountState — assign to its provider bucket
-        ensureBucket(
-          accountState.providerId ?? fallbackProviderId,
-        ).accountState = accountState;
+        // AccountState — assign per-venue snapshots to their own buckets. An
+        // aggregated result's combined total is venue-neutral and is never
+        // stored in a venue bucket merely because the aggregate itself has no
+        // providerId.
+        if (accountState.providerStates) {
+          for (const [pid, entry] of Object.entries(
+            accountState.providerStates,
+          )) {
+            if (entry?.status === 'available') {
+              ensureBucket(pid).accountState = entry.state;
+            }
+          }
+        } else {
+          ensureBucket(
+            accountState.providerId ?? fallbackProviderId,
+          ).accountState = accountState;
+        }
 
         if (discardStalePreload()) {
           return;
@@ -6635,6 +6768,8 @@ export class PerpsController extends BaseController<
       this.update((state) => {
         state.isTestnet = !state.isTestnet;
         state.effectiveProvider = null;
+        // The previous network's balances are not observations of this one.
+        state.perpsBalances = {};
       });
 
       const newNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -6805,6 +6940,9 @@ export class PerpsController extends BaseController<
         // network toggle or disconnect/init does not migrate it away.
         state.hasExplicitProviderSelection = providerId !== 'aggregated';
         state.accountState = null;
+        // The new selection streams a different venue set: persisted entries
+        // from the previous topology must not keep looking live.
+        state.perpsBalances = {};
         state.initializationState = InitializationState.Uninitialized;
       });
 
@@ -6962,9 +7100,16 @@ export class PerpsController extends BaseController<
       if (aggregatedProvider) {
         state.effectiveProvider = providerId;
       }
-      // The cached snapshot came from the previous default venue's stream, so
-      // drop it until the new venue delivers matching data.
-      if (defaultChanged && aggregatedProvider) {
+      // A single-venue snapshot (for example a one-venue fallback read) was
+      // tied to the previous default route: drop it until matching data
+      // arrives. An aggregate snapshot spans every venue and stays valid
+      // across a routing-default change, so it is kept.
+      if (
+        defaultChanged &&
+        aggregatedProvider &&
+        state.accountState &&
+        !state.accountState.providerStates
+      ) {
         state.accountState = null;
       }
     });
@@ -7380,6 +7525,161 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Keep one merged, live TWAP list for the active provider: reads and the
+   * venue stream merged by schedule, execution totals raised from slice
+   * fills, and re-reads while a schedule runs. Split it with
+   * `partitionTwapOrders`. Follows the selected account.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads and the stream.
+   */
+  subscribeToLiveTwapOrders(params: SubscribeLiveTwapOrdersParams): () => void {
+    return createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async () => await this.getTwapOrders(),
+        subscribeToTwapOrders: (streamParams) =>
+          this.#subscribeToTwapOrdersWhenReady(streamParams),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Open the TWAP stream once the active provider is ready, and open it again
+   * each time the controller finishes initializing. A switch, or a client
+   * reconnect that keeps the same account, provider and network, tears the
+   * provider stream down, and the new provider has no stream until it is
+   * ready.
+   *
+   * @param params - Subscription parameters including callback.
+   * @returns A cleanup function that closes the stream, or cancels opening it.
+   */
+  #subscribeToTwapOrdersWhenReady(
+    params: SubscribeTwapOrdersParams,
+  ): () => void {
+    let closed = false;
+    let attempt = 0;
+    let unsubscribe: (() => void) | undefined;
+    const open = (): void => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      attempt += 1;
+      const current = attempt;
+      this.#getActiveProviderWhenReady()
+        .then(() => {
+          if (closed || current !== attempt) {
+            return;
+          }
+          const opened = this.subscribeToTwapOrders(params);
+          // A synchronous first push may already have closed this opener.
+          if (closed || current !== attempt) {
+            opened();
+          } else {
+            unsubscribe = opened;
+          }
+        })
+        // A read reports the same failure through the list's onError.
+        .catch(() => undefined);
+    };
+    let wasInitialized =
+      this.state.initializationState === InitializationState.Initialized;
+    const onStateChange = (): void => {
+      const isInitialized =
+        this.state.initializationState === InitializationState.Initialized;
+      if (isInitialized && !wasInitialized && !closed) {
+        open();
+      }
+      wasInitialized = isInitialized;
+    };
+    this.messenger.subscribe('PerpsController:stateChanged', onStateChange);
+    open();
+    return () => {
+      closed = true;
+      this.messenger.unsubscribe('PerpsController:stateChanged', onStateChange);
+      unsubscribe?.();
+    };
+  }
+
+  /**
+   * Keep running and history chase lists for the active provider. Ended
+   * chases stay in history after the provider drops them, up to
+   * `CHASE_ORDER_CONFIG.HistoryLimit`.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads.
+   */
+  subscribeToChaseOrderLists(
+    params: SubscribeChaseOrderListsParams,
+  ): () => void {
+    return createLiveChaseOrderList({
+      source: {
+        getChaseOrders: async () => await this.getChaseOrders(),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+        subscribeToChaseCancellations: (listener) => {
+          this.#chaseCancellationListeners.add(listener);
+          return () => {
+            this.#chaseCancellationListeners.delete(listener);
+          };
+        },
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Name the account, provider and network that order reads answer for, so a
+   * live list can drop rows when any of them changes.
+   *
+   * @returns Context key for live order lists.
+   */
+  #getOrderListContextKey(): string {
+    const account = getSelectedEvmAccountFromMessenger(this.messenger);
+    return [
+      this.state.activeProvider,
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      account?.address.toLowerCase() ?? '',
+    ].join(':');
+  }
+
+  /**
+   * Call a listener whenever the provider, network or selected account may
+   * have changed, so a live list can clear without waiting for its next read.
+   *
+   * @param listener - Called on each possible change.
+   * @returns A function that stops the calls.
+   */
+  #subscribeToOrderListContextChanges(listener: () => void): () => void {
+    const handler = (): void => listener();
+    this.messenger.subscribe('PerpsController:stateChanged', handler);
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      handler,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      handler,
+    );
+    return () => {
+      this.messenger.unsubscribe('PerpsController:stateChanged', handler);
+      this.messenger.unsubscribe(
+        'AccountsController:selectedAccountChange',
+        handler,
+      );
+      this.messenger.unsubscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        handler,
+      );
+    };
+  }
+
+  /**
    * Subscribe to live order updates
    *
    * @param params - The operation parameters.
@@ -7432,20 +7732,113 @@ export class PerpsController extends BaseController<
       const originalCallback = params.callback;
       return this.#trackProviderSubscription(
         provider,
-        (nextProvider) =>
-          nextProvider.subscribeToAccount({
+        (nextProvider) => {
+          // Capture each opening's account, including implicit selection, so
+          // late emissions after an account switch cannot own selected state.
+          // A malformed explicit id names no account and never owns state.
+          const streamAddress =
+            params.accountId === undefined
+              ? getSelectedEvmAccountFromMessenger(
+                  this.messenger,
+                )?.address.toLowerCase()
+              : getCaipAccountAddress(params.accountId);
+          const isSelectedAccountStream = (): boolean =>
+            streamAddress !== undefined &&
+            streamAddress ===
+              getSelectedEvmAccountFromMessenger(
+                this.messenger,
+              )?.address.toLowerCase();
+          return nextProvider.subscribeToAccount({
             ...params,
-            callback: (account: AccountState | null) => {
-              if (account) {
+            callback: (account, aggregate) => {
+              const ownsState = isSelectedAccountStream();
+              if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
+
+                  // One balance entry per venue with data, keyed by the venue
+                  // that actually served it. Aggregated updates carry explicit
+                  // per-venue entries; direct-provider updates are attributed
+                  // to their own venue id, or the active direct provider when
+                  // the venue does not stamp one.
+                  const timestamp = Date.now();
+                  const writeBalance = (
+                    venueId: string,
+                    balance: Pick<
+                      AccountState,
+                      'totalBalance' | 'unrealizedPnl'
+                    >,
+                  ): void => {
+                    state.perpsBalances[venueId] = {
+                      totalBalance: balance.totalBalance,
+                      unrealizedPnl: balance.unrealizedPnl,
+                      lastUpdated: timestamp,
+                    };
+                  };
+                  if (account.providerStates) {
+                    for (const [providerId, entry] of Object.entries(
+                      account.providerStates,
+                    )) {
+                      if (!entry) {
+                        continue;
+                      }
+                      if (entry.status === 'available') {
+                        writeBalance(providerId, entry.state);
+                      } else if (entry.status === 'unavailable') {
+                        // The venue's data is unavailable: drop its entry
+                        // rather than keep exposing a stale value as live.
+                        delete state.perpsBalances[providerId];
+                      }
+                      // A pending venue has not reported on this stream yet.
+                      // Its persisted entry stays until it reports a snapshot.
+                    }
+                  } else {
+                    const directVenueId =
+                      state.activeProvider === 'aggregated'
+                        ? undefined
+                        : state.activeProvider;
+                    const venueId = account.providerId ?? directVenueId;
+                    if (venueId) {
+                      // A direct or single-venue emission is the whole live
+                      // topology: entries for venues this stream does not
+                      // serve (persisted by a previous session) must not keep
+                      // looking live.
+                      for (const staleVenue of Object.keys(
+                        state.perpsBalances,
+                      )) {
+                        if (staleVenue !== venueId) {
+                          delete state.perpsBalances[staleVenue];
+                        }
+                      }
+                      writeBalance(venueId, account);
+                    }
+                  }
+                });
+              } else if (ownsState) {
+                this.update((state) => {
+                  state.accountState = null;
+                  state.lastUpdateTimestamp = Date.now();
+                  if (aggregate) {
+                    // A null total may still contain pending venues. Only
+                    // explicit unavailability invalidates their balances.
+                    for (const providerId of aggregate.unavailableProviders) {
+                      delete state.perpsBalances[providerId];
+                    }
+                  } else {
+                    state.perpsBalances = {};
+                  }
                 });
               }
-              originalCallback(account);
+              if (aggregate) {
+                originalCallback(account, aggregate);
+              } else {
+                originalCallback(account);
+              }
             },
-          }),
+          });
+        },
         () => originalCallback(null),
       );
     } catch (error) {
@@ -7906,11 +8299,13 @@ export class PerpsController extends BaseController<
    * - `NO_ACCOUNT_SELECTED` when no account is selected;
    * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
    * changed during setup;
-   * - the venue's message when HyperLiquid refused the builder fee approval
-   * for a reason signing again cannot fix (for example "Builder has
-   * insufficient balance to be approved"); it is not logged, and the
-   * approval is not asked for again until the provider disconnects;
-   * - otherwise the message of the error that stopped setup, which is logged.
+   * - provider-tagged `UNKNOWN_ERROR` when HyperLiquid refused the builder fee
+   * approval for a reason signing again cannot fix (for example the builder
+   * wallet cannot be approved). The venue sentence stays on the error cause
+   * and in the debug log; it is not logged to Sentry, and the approval is not
+   * asked for again until the provider disconnects;
+   * - otherwise a provider-tagged code for the error that stopped setup,
+   * which is logged. Text that is not a known code becomes `UNKNOWN_ERROR`.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.
