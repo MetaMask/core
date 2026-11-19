@@ -275,6 +275,50 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     },
   );
 
+  it('rejects Chase ownership if balance reconciliation changes the selected wallet', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+    const getChaseOrderOwnership = vi.fn();
+    Object.assign(provider, { getChaseOrderOwnership });
+
+    await expect(
+      controller.getChaseOrderOwnership({
+        providerId: 'hyperliquid',
+        handle: 'original-chase',
+      }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    expect(getChaseOrderOwnership).not.toHaveBeenCalled();
+  });
+
+  it('keeps synchronous replay out of selected state when stream opening changes wallets', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    const accountC = '0xcccccccccccccccccccccccccccccccccccccccc';
+    provider.subscribeToAccount.mockImplementation(({ callback }) => {
+      callback(ACCOUNT_BALANCE);
+      return vi.fn();
+    });
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(accountC);
+    });
+    const consumer = vi.fn();
+    controller.subscribeToAccount({ callback: consumer });
+
+    expect(consumer).toHaveBeenCalledWith(ACCOUNT_BALANCE);
+    expect(controller.state.accountState).toBeNull();
+    expect(controller.state.perpsBalances).toStrictEqual({});
+    const [stream] = provider.subscribeToAccount.mock.calls[0];
+    stream.callback({ ...ACCOUNT_BALANCE, totalBalance: '234' });
+    expect(controller.state.accountState?.totalBalance).toBe('234');
+  });
+
   it('binds an implicit stream after balance reconciliation publishes its state change', async () => {
     const { controller, provider, host } = createFixture();
     provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);

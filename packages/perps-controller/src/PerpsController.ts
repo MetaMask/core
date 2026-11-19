@@ -3973,8 +3973,11 @@ export class PerpsController extends BaseController<
         'Chase ownership requires an exact handle and explicit provider',
       );
     }
-    this.#reconcileSelectedTradingAddress();
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -4047,8 +4050,11 @@ export class PerpsController extends BaseController<
         'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
       );
     }
-    this.#reconcileSelectedTradingAddress();
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -7823,20 +7829,25 @@ export class PerpsController extends BaseController<
           // Capture each opening's account, including implicit selection, so
           // late emissions after an account switch cannot own selected state.
           // A malformed explicit id names no account and never owns state.
-          if (accountId === undefined) {
-            // Reconciliation can synchronously notify state subscribers.
-            this.#reconcileSelectedTradingAddress();
-          }
+          const reconciledAddress =
+            accountId === undefined
+              ? this.#reconcileSelectedTradingAddress()
+              : undefined;
           const streamAddress =
             accountId === undefined
               ? getSelectedEvmAccountFromMessenger(
                   this.messenger,
                 )?.address.toLowerCase()
               : getCaipAccountAddress(accountId);
-          return nextProvider.subscribeToAccount({
+          // A state listener may change wallets during reconciliation. A
+          // synchronous cache replay during that open has no known owner.
+          let skipInitialReplay =
+            accountId === undefined && streamAddress !== reconciledAddress;
+          const unsubscribe = nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
               const ownsState =
+                !skipInitialReplay &&
                 this.activeProviderInstance === nextProvider &&
                 streamAddress !== undefined &&
                 streamAddress ===
@@ -7926,6 +7937,8 @@ export class PerpsController extends BaseController<
               }
             },
           });
+          skipInitialReplay = false;
+          return unsubscribe;
         },
         () => originalCallback(null),
       );
