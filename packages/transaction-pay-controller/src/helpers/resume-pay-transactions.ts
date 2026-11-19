@@ -5,6 +5,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
+import { waitForTransactionPayControllerDependencies } from '../utils/dependencies.js';
 import { isResumeEnabled } from '../utils/feature-flags.js';
 import { waitForKeyringUnlock } from '../utils/keyring.js';
 import { getStrategyByName } from '../utils/strategy.js';
@@ -18,22 +19,22 @@ const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
  *
  * Steps:
  * 0. Sync pre-check: if no resumable tx exists, return immediately.
- * 1. Await wallet unlock AND waitForClientReady (if provided).
- * 2. For each candidate captured at Step 0, sequentially:
+ * 1. Await wallet unlock.
+ * 2. Wait for every controller this controller depends on to be
+ *    constructed, see {@link waitForTransactionPayControllerDependencies}.
+ * 3. For each candidate captured at Step 0, sequentially:
  *    a. Re-read the current tx from TC state by id and skip it if it is
  *       missing or no longer resumable (e.g. it moved to a final state
  *       while gates were pending).
- *    b. Set metamaskPay.resumeAttemptedAt before calling resume.
- *    c. Call strategy.resume(). On success → finalizeResumedTransaction.
+ *    b. If dependencies never became available → failTransaction.
+ *    c. Set metamaskPay.resumeAttemptedAt before calling resume.
+ *    d. Call strategy.resume(). On success → finalizeResumedTransaction.
  *       On failure → failTransaction.
  *
  * @param messenger - The Pay controller messenger.
- * @param waitForClientReady - Optional promise resolved when all client
- *   dependencies (Ramps, etc.) are registered. Defaults to resolved.
  */
 export async function resumePayTransactions(
   messenger: TransactionPayControllerMessenger,
-  waitForClientReady?: () => Promise<void>,
 ): Promise<void> {
   const { transactions } = messenger.call('TransactionController:getState');
   const candidates = transactions.filter((tx) =>
@@ -47,10 +48,10 @@ export async function resumePayTransactions(
 
   log('Resumable transactions found', { count: candidates.length });
 
-  await Promise.all([
-    waitForKeyringUnlock(messenger),
-    waitForClientReady?.() ?? Promise.resolve(),
-  ]);
+  await waitForKeyringUnlock(messenger);
+
+  const dependenciesReady =
+    await waitForTransactionPayControllerDependencies(messenger);
 
   for (const transaction of candidates) {
     const { id } = transaction;
@@ -67,6 +68,10 @@ export async function resumePayTransactions(
           status: currentTransaction?.status,
         });
         continue;
+      }
+
+      if (!dependenciesReady) {
+        throw new Error('Dependencies not registered');
       }
 
       // Guaranteed by `isPayTransactionResumable` when building candidates.

@@ -161,15 +161,10 @@ describe('TransactionPayController', () => {
       );
     });
 
-    it('schedules resume with waitForClientReady', () => {
-      const waitForClientReady = vi.fn().mockResolvedValue(undefined);
+    it('schedules resume', () => {
+      createController();
 
-      createController({ waitForClientReady });
-
-      expect(resumePayTransactionsMock).toHaveBeenCalledWith(
-        messenger,
-        waitForClientReady,
-      );
+      expect(resumePayTransactionsMock).toHaveBeenCalledWith(messenger);
     });
 
     it('does not throw when scheduled resume rejects', () => {

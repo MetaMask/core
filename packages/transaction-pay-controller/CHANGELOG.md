@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and new `waitForClientReady` option ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag ([#11450](https://github.com/MetaMask/core/pull/11450))
+
+### Changed
+
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState` and `RampsController:getState` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ## [32.0.0]
 

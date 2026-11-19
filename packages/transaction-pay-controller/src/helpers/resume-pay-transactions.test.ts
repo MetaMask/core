@@ -8,12 +8,14 @@ import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
+import { waitForTransactionPayControllerDependencies } from '../utils/dependencies.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import {
   isPayTransactionResumable,
   resumePayTransactions,
 } from './resume-pay-transactions.js';
 
+vi.mock(import('../utils/dependencies.js'));
 vi.mock(import('../utils/strategy.js'));
 
 const REMOTE_FEATURE_FLAGS_MOCK = {
@@ -56,8 +58,10 @@ function getMessengerMock({
   call: Mock;
   messenger: TransactionPayControllerMessenger;
   state: { transactions: TransactionMeta[] };
+  unlock: () => void;
 } {
   const state = { transactions: [...transactions] };
+  const unlockHandlers: (() => void)[] = [];
   const call = vi.fn((action: string, ...args: unknown[]) => {
     if (action === 'RemoteFeatureFlagController:getState') {
       return { remoteFeatureFlags };
@@ -98,18 +102,25 @@ function getMessengerMock({
     call,
     messenger: {
       call,
-      subscribe: vi.fn(),
+      subscribe: vi.fn((_event: string, handler: () => void) => {
+        unlockHandlers.push(handler);
+      }),
       unsubscribe: vi.fn(),
     } as unknown as TransactionPayControllerMessenger,
     state,
+    unlock: (): void => unlockHandlers.forEach((handler) => handler()),
   };
 }
 
 describe('resumePayTransactions', () => {
   const getStrategyByNameMock = vi.mocked(getStrategyByName);
+  const waitForDependenciesMock = vi.mocked(
+    waitForTransactionPayControllerDependencies,
+  );
 
   beforeEach(() => {
     vi.resetAllMocks();
+    waitForDependenciesMock.mockResolvedValue(true);
     getStrategyByNameMock.mockReturnValue({
       canResume: vi.fn().mockReturnValue(true),
       execute: vi.fn(),
@@ -134,16 +145,45 @@ describe('resumePayTransactions', () => {
     );
   });
 
-  it('treats omitted waitForClientReady as resolved', async () => {
+  it('waits for dependencies before resuming', async () => {
     const transaction = getTransactionMock('tx-1');
     const { messenger } = getMessengerMock({ transactions: [transaction] });
 
     await resumePayTransactions(messenger);
 
+    expect(waitForDependenciesMock).toHaveBeenCalledWith(messenger);
     expect(messenger.call).toHaveBeenCalledWith(
       'TransactionController:finalizeResumedTransaction',
       'tx-1',
       '0x1234',
+    );
+  });
+
+  it('fails the transaction without resuming if dependencies are not registered', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const resume = vi.fn();
+    const { messenger, state } = getMessengerMock({
+      transactions: [transaction],
+    });
+
+    waitForDependenciesMock.mockResolvedValue(false);
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+      resume,
+    });
+
+    await resumePayTransactions(messenger);
+
+    expect(resume).not.toHaveBeenCalled();
+    expect(
+      state.transactions[0].metamaskPay?.resumeAttemptedAt,
+    ).toBeUndefined();
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      'tx-1',
+      new Error('Dependencies not registered'),
     );
   });
 
@@ -211,7 +251,8 @@ describe('resumePayTransactions', () => {
 
   it('skips a transaction whose status moved to a final state while gates were pending', async () => {
     const transaction = getTransactionMock('tx-1');
-    const { call, messenger, state } = getMessengerMock({
+    const { call, messenger, state, unlock } = getMessengerMock({
+      isUnlocked: false,
       transactions: [transaction],
     });
 
@@ -223,13 +264,7 @@ describe('resumePayTransactions', () => {
       resume,
     });
 
-    let resolveClientReady: (() => void) | undefined;
-    const waitForClientReady = (): Promise<void> =>
-      new Promise<void>((resolve) => {
-        resolveClientReady = resolve;
-      });
-
-    const promise = resumePayTransactions(messenger, waitForClientReady);
+    const promise = resumePayTransactions(messenger);
 
     // Simulate the status moving to a final state while the gates were pending.
     state.transactions[0] = {
@@ -237,7 +272,7 @@ describe('resumePayTransactions', () => {
       status: TransactionStatus.submitted,
     };
 
-    resolveClientReady?.();
+    unlock();
     await promise;
 
     expect(resume).not.toHaveBeenCalled();
@@ -306,18 +341,10 @@ describe('resumePayTransactions', () => {
 
   it('waits for keyring unlock before resuming', async () => {
     const transaction = getTransactionMock('tx-1');
-    const { messenger } = getMessengerMock({
+    const { messenger, unlock } = getMessengerMock({
       isUnlocked: false,
       transactions: [transaction],
     });
-    let unlockHandler: (() => void) | undefined;
-
-    vi.mocked(messenger.subscribe).mockImplementation(((
-      _event: string,
-      handler: () => void,
-    ) => {
-      unlockHandler = handler;
-    }) as never);
 
     const promise = resumePayTransactions(messenger);
     await Promise.resolve();
@@ -328,7 +355,7 @@ describe('resumePayTransactions', () => {
       expect.anything(),
     );
 
-    unlockHandler?.();
+    unlock();
     await promise;
 
     expect(messenger.call).toHaveBeenCalledWith(
@@ -340,21 +367,15 @@ describe('resumePayTransactions', () => {
 
   it('skips a transaction removed from state while gates were pending', async () => {
     const transaction = getTransactionMock('tx-1');
-    const { messenger, state } = getMessengerMock({
+    const { messenger, state, unlock } = getMessengerMock({
+      isUnlocked: false,
       transactions: [transaction],
     });
-    let resolveClientReady: (() => void) | undefined;
 
-    const promise = resumePayTransactions(
-      messenger,
-      () =>
-        new Promise<void>((resolve) => {
-          resolveClientReady = resolve;
-        }),
-    );
+    const promise = resumePayTransactions(messenger);
 
     state.transactions = [];
-    resolveClientReady?.();
+    unlock();
     await promise;
 
     expect(messenger.call).not.toHaveBeenCalledWith(
