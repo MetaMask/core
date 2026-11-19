@@ -783,6 +783,67 @@ describe('HyperLiquidSubscriptionService', () => {
       stopReopened();
     });
 
+    it('publishes scaled display margin on cross positions from clearinghouse updates', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementationOnce(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToPositions({ callback });
+      const publish = await frames.promise;
+      const actualAdapter = await vi.importActual<
+        typeof hyperLiquidAdapterModule
+      >('../../../src/utils/hyperLiquidAdapter.js');
+      vi.mocked(
+        hyperLiquidAdapterModule.adaptPositionFromSDK,
+      ).mockImplementationOnce(actualAdapter.adaptPositionFromSDK);
+
+      publish({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            {
+              type: 'oneWay',
+              position: {
+                coin: 'BTC',
+                szi: '0.1',
+                entryPx: '50000',
+                positionValue: '5000',
+                unrealizedPnl: '0',
+                returnOnEquity: '0',
+                marginUsed: '30',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+              },
+            },
+          ],
+          marginSummary: { accountValue: '50', totalMarginUsed: '120' },
+          crossMarginSummary: {
+            accountValue: '50',
+            totalMarginUsed: '120',
+            totalNtlPos: '5000',
+            totalRawUsd: '0',
+          },
+          withdrawable: '0',
+        },
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          symbol: 'BTC',
+          marginUsed: '30',
+          displayMarginUsed: '12.5',
+        }),
+      ]);
+      unsubscribe();
+    });
+
     it('clears unavailable balances without reporting positions as flat', async () => {
       const accountFrames = createDeferred<(payload: unknown) => void>();
       const orderFrames = createDeferred<(payload: unknown) => void>();

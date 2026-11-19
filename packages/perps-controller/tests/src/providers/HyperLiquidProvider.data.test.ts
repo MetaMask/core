@@ -521,14 +521,29 @@ describe('HyperLiquidProvider', () => {
     });
   });
   describe('Data Retrieval', () => {
-    it('gets positions successfully', async () => {
-      const positions = await provider.getPositions();
+    it('carries scaled display margin on cross positions read via REST', async () => {
+      const info = mockClientService.getInfoClient();
+      const user = await mockWalletService.getUserAddressWithDefault();
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          crossMarginSummary: {
+            accountValue: '95',
+            totalMarginUsed: '950',
+            totalNtlPos: '9500',
+            totalRawUsd: '0',
+          },
+        });
 
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBeGreaterThan(0);
-      expect(
-        mockClientService.getInfoClient().clearinghouseState,
-      ).toHaveBeenCalled();
+      const positions = await provider.getPositions({ skipCache: true });
+
+      expect(positions).toMatchObject([
+        { symbol: 'BTC', marginUsed: '500', displayMarginUsed: '50' },
+        { symbol: 'ETH', marginUsed: '450', displayMarginUsed: '45' },
+      ]);
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
     });
 
     it('gets account state successfully', async () => {

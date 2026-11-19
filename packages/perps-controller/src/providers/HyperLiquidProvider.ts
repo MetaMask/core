@@ -14528,7 +14528,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           { count: orders.length },
         );
 
-        this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
+        // This address-scoped HTTP read does not restore live order state.
         if (failedDexs.length > 0) {
           throw new OrderDiscoveryError({
             orders,

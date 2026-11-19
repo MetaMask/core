@@ -40,6 +40,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -1359,6 +1360,31 @@ describe('HyperLiquidProvider', () => {
     );
 
     describe('getOpenOrders with standalone mode', () => {
+      it('returns an explicit-address read that completes after disconnect', async () => {
+        const started = createDeferred<void>();
+        const response = createDeferred<[]>();
+        mockStandaloneInfoClient.frontendOpenOrders.mockImplementation(() => {
+          started.resolve();
+          return response.promise;
+        });
+
+        const read = provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        await started.promise;
+        await provider.disconnect();
+        response.resolve([]);
+
+        expect(await read).toStrictEqual([]);
+
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledExactlyOnceWith({
+          user: mockUserAddress,
+        });
+      });
+
       it('returns orders via standalone client when standalone mode enabled', async () => {
         // Arrange - mock with all required FrontendOrder fields for adaptOrderFromSDK
         mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([

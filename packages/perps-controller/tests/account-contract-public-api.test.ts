@@ -5,16 +5,14 @@ import { describe, expect, it, vi } from 'vitest';
 // way a client imports it, so a dropped export or broken wiring fails here.
 import {
   PERPS_ERROR_CODES,
+  adaptAccountStateFromSDK,
   adaptPositionFromSDK,
+  getPerpsErrorCopy,
   aggregateAccountStates,
   calculateWeightedReturnOnEquity,
   queryStandaloneClearinghouseStates,
 } from '../src/index.js';
-import type {
-  AccountState,
-  Position,
-  StandaloneClearinghouseStatesResult,
-} from '../src/index.js';
+import type { StandaloneClearinghouseStatesResult } from '../src/index.js';
 
 type ClearinghouseState = Awaited<ReturnType<InfoClient['clearinghouseState']>>;
 
@@ -60,8 +58,16 @@ describe('@metamask/perps-controller account contract', () => {
     });
   });
 
-  it('exposes the unknown-not-zero account and position fields', () => {
-    expect(PERPS_ERROR_CODES.ORDERS_FAILED).toBe('ORDERS_FAILED');
+  it('exposes copy for the new read and estimate failures', () => {
+    expect(getPerpsErrorCopy(PERPS_ERROR_CODES.ORDERS_FAILED)?.key).toBe(
+      'perps.errors.ordersFailed',
+    );
+    expect(
+      getPerpsErrorCopy(PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE)?.key,
+    ).toBe('perps.errors.liquidationPriceUnavailable');
+  });
+
+  it('derives account and cross position values through the public helpers', () => {
     expect(() => aggregateAccountStates([])).toThrow(
       PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
     );
@@ -74,32 +80,9 @@ describe('@metamask/perps-controller account contract', () => {
       ),
     ).toBe(5);
 
-    const partial: AccountState = {
-      totalBalance: '100',
-      spendableBalance: '100',
-      withdrawableBalance: '100',
-      marginUsed: '0',
-      unrealizedPnl: '0',
-      returnOnEquity: '0',
-      unavailableSubAccounts: ['xyz'],
-    };
-    // Funding and leverage are optional: an unknown value is absent.
-    const unknownPosition: Position = {
-      symbol: 'ETH',
-      size: '1',
-      entryPrice: '100',
-      positionValue: '100',
-      unrealizedPnl: '0',
-      marginUsed: '10',
-      leverage: { type: 'cross' },
-      liquidationPrice: null,
-      maxLeverage: 10,
-      returnOnEquity: '0',
-      takeProfitCount: 0,
-      stopLossCount: 0,
-    };
-    expect(partial.unavailableSubAccounts).toStrictEqual(['xyz']);
-    expect(unknownPosition.cumulativeFunding).toBeUndefined();
+    const account = adaptAccountStateFromSDK(clearinghouseState);
+    expect(account.totalBalance).toBe('100');
+    expect(account).not.toHaveProperty('unavailableSubAccounts');
 
     const position = adaptPositionFromSDK(
       {
@@ -112,19 +95,24 @@ describe('@metamask/perps-controller account contract', () => {
           unrealizedPnl: '0',
           returnOnEquity: '0',
           liquidationPx: null,
-          marginUsed: '10',
+          marginUsed: '30',
           maxLeverage: 10,
           leverage: { type: 'cross', value: 10 },
-          cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          cumFunding: { allTime: '1', sinceOpen: '0.5', sinceChange: '0.1' },
         },
       },
       {
         ...clearinghouseState.crossMarginSummary,
-        accountValue: '5',
-        totalMarginUsed: '10',
+        accountValue: '50',
+        totalMarginUsed: '120',
       },
     );
-    expect(position.marginUsed).toBe('10');
-    expect(position.displayMarginUsed).toBe('5');
+    expect(position.marginUsed).toBe('30');
+    expect(position.displayMarginUsed).toBe('12.5');
+    expect(position.cumulativeFunding).toStrictEqual({
+      allTime: '1',
+      sinceOpen: '0.5',
+      sinceChange: '0.1',
+    });
   });
 });

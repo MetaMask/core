@@ -58,6 +58,8 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 
 A preview without sufficient input rejects with `errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE'`. This replaces the old `'0.00'` sentinel on HyperLiquid. Handle it as an unavailable estimate and clear any stale price for that input. HyperLiquid returns unavailable for changes to an existing position or when the cross estimate has no positive solution. Lighter rejects a cross preview with the same code. Valid prices stay decimal strings; a determinate isolated zero is still possible.
 
+Clients that map every `PerpsErrorCode` need entries for both `ORDERS_FAILED` and `LIQUIDATION_PRICE_UNAVAILABLE` when they bump this package. Use `perps.errors.ordersFailed` for an unavailable orders read and `perps.errors.liquidationPriceUnavailable` for an unavailable estimate. Update Mobile's exhaustive map and Extension's map and coverage test.
+
 ## Error copy
 
 `PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. It reuses Mobile locale keys where the messages agree, including `perps.errors.postOnlyWouldCross` and `perps.errors.postOnlyWindow`. Use the reused post-only placement copy for rejected placements. When an edit returns `ORDER_POST_ONLY_WOULD_CROSS`, the original resting order may have been canceled. Keep the client's edit-specific warning and check the order status. The English defaults are provided by Core and may differ from Mobile's text. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for an unknown code.

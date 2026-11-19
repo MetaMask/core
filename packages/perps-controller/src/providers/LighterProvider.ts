@@ -96,8 +96,10 @@ import {
   isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
-import { createTpslLegReplaceUnsupportedError } from '../errors.js';
-import { PerpsControllerError } from '../errors.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  PerpsControllerError,
+} from '../errors.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
