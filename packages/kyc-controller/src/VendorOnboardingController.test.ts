@@ -580,7 +580,7 @@ describe('VendorOnboardingController', () => {
           await expect(
             controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('did not return the requested calls');
-          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+          expect(handlers.verifyEmailOtp).not.toHaveBeenCalled();
         },
       );
     });
@@ -629,7 +629,7 @@ describe('VendorOnboardingController', () => {
           await expect(
             controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('returned a request kyc-api would refuse');
-          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+          expect(handlers.verifyEmailOtp).not.toHaveBeenCalled();
         },
       );
     });
@@ -668,10 +668,9 @@ describe('VendorOnboardingController', () => {
             vendor: 'kalshi',
             code: '123456',
           });
-          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+          expect(handlers.verifyEmailOtp).toHaveBeenCalledWith({
             sessionId: 'sid-1',
-            step: 'email/verify-otp',
-            body: { signedRequest: atLimits },
+            signedRequest: atLimits,
           });
         },
       );
@@ -698,7 +697,7 @@ describe('VendorOnboardingController', () => {
           await expect(
             controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' }),
           ).rejects.toThrow('did not return the requested calls');
-          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+          expect(handlers.verifyEmailOtp).not.toHaveBeenCalled();
         },
       );
     });
@@ -766,10 +765,9 @@ describe('VendorOnboardingController', () => {
 
           await controller.verifyEmailOtp({ vendor: 'iron', code: '123456' });
 
-          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+          expect(handlers.verifyEmailOtp).toHaveBeenCalledWith({
             sessionId: 'sid-iron',
-            step: 'email/verify-otp',
-            body: { otp: '123456' },
+            otp: '123456',
           });
         },
       );
@@ -798,12 +796,8 @@ describe('VendorOnboardingController', () => {
 
           await controller.sendEmailOtp({ vendor: 'iron' });
 
-          const [request] = handlers.postOnboardingStep.mock.calls[0] as [
-            Record<string, unknown>,
-          ];
-          expect(request).toStrictEqual({
+          expect(handlers.sendEmailOtp).toHaveBeenCalledWith({
             sessionId: 'sid-iron',
-            step: 'email/resend-otp',
           });
         },
       );
@@ -815,7 +809,6 @@ describe('VendorOnboardingController', () => {
       [
         'sendPhoneOtp',
         { phoneNumber: '+18888888888' },
-        'phone/send-otp',
         {
           phoneNumber: '+18888888888',
         },
@@ -823,7 +816,6 @@ describe('VendorOnboardingController', () => {
       [
         'verifyPhoneOtp',
         { code: '888888' },
-        'phone/verify-otp',
         {
           otp: '888888',
         },
@@ -831,14 +823,13 @@ describe('VendorOnboardingController', () => {
       [
         'verifyEmailOtp',
         { code: '123456' },
-        'email/verify-otp',
         {
           signedRequest: SIGNED_VERIFY,
         },
       ],
     ] as const)(
-      '%s runs its step on the saved session, then reads the step',
-      async (method, args, step, body) => {
+      '%s runs its call on the saved session, then reads the step',
+      async (method, args, body) => {
         await withController(
           {
             options: {
@@ -864,10 +855,9 @@ describe('VendorOnboardingController', () => {
               ...args,
             } as never);
 
-            expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+            expect(handlers[method]).toHaveBeenCalledWith({
               sessionId: 'sid-1',
-              step,
-              body,
+              ...body,
             });
             expect(next).toBe('sumsub');
             expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
@@ -902,12 +892,9 @@ describe('VendorOnboardingController', () => {
             email: KALSHI_EMAIL,
           });
 
-          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+          expect(handlers.sendEmailOtp).toHaveBeenCalledWith({
             sessionId: 'sid-1',
-            step: 'email/resend-otp',
-            body: {
-              signedRequest: SIGNED_LINK,
-            },
+            signedRequest: SIGNED_LINK,
           });
         },
       );
@@ -926,12 +913,9 @@ describe('VendorOnboardingController', () => {
         expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith(
           'kalshi',
         );
-        expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+        expect(handlers.verifyEmailOtp).toHaveBeenCalledWith({
           sessionId: 'sid-1',
-          step: 'email/verify-otp',
-          body: {
-            signedRequest: SIGNED_VERIFY,
-          },
+          signedRequest: SIGNED_VERIFY,
         });
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
       });
@@ -947,7 +931,7 @@ describe('VendorOnboardingController', () => {
             phoneNumber: '+18888888888',
           }),
         ).rejects.toThrow('no kalshi session to continue');
-        expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        expect(handlers.sendPhoneOtp).not.toHaveBeenCalled();
       });
     });
   });
@@ -1691,7 +1675,7 @@ describe('VendorOnboardingController', () => {
         await withController(
           { options: saved },
           async ({ controller, handlers }) => {
-            handlers.postOnboardingStep.mockResolvedValue(SESSION_STATUS);
+            handlers[method].mockResolvedValue(SESSION_STATUS);
             handlers.getStep.mockResolvedValue({
               step: 'kalshi_phone_link',
               status: 'none',
@@ -1704,9 +1688,9 @@ describe('VendorOnboardingController', () => {
 
             expect(step).toBe('kalshi_phone_link');
             expect(handlers.getStep).toHaveBeenCalledTimes(1);
-            expect(
-              handlers.postOnboardingStep.mock.invocationCallOrder[0],
-            ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
+            expect(handlers[method].mock.invocationCallOrder[0]).toBeLessThan(
+              handlers.getStep.mock.invocationCallOrder[0],
+            );
             expect(controller.state.vendors.kalshi?.step).toBe(
               'kalshi_phone_link',
             );
@@ -1808,7 +1792,10 @@ describe('VendorOnboardingController', () => {
 type ServiceHandlers = {
   getStep: Mock;
   acceptVendorTerms: Mock;
-  postOnboardingStep: Mock;
+  sendEmailOtp: Mock;
+  verifyEmailOtp: Mock;
+  sendPhoneOtp: Mock;
+  verifyPhoneOtp: Mock;
   getSessionStatusForVendor: Mock;
   createJourney: Mock;
   fetchSessionDisclaimersBySessionId: Mock;
@@ -1860,7 +1847,10 @@ function withController<ReturnValue>(
     actions: [
       'KycService:getStep',
       'KycService:acceptVendorTerms',
-      'KycService:postOnboardingStep',
+      'KycService:sendEmailOtp',
+      'KycService:verifyEmailOtp',
+      'KycService:sendPhoneOtp',
+      'KycService:verifyPhoneOtp',
       'KycService:getSessionStatusForVendor',
       'KycService:createJourney',
       'KycService:fetchSessionDisclaimersBySessionId',
@@ -1883,7 +1873,10 @@ function withController<ReturnValue>(
   const handlers: ServiceHandlers = {
     getStep: vi.fn().mockResolvedValue({ step: 'terms', status: 'none' }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
-    postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
+    sendEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
+    verifyEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
+    sendPhoneOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
+    verifyPhoneOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
     createJourney: vi
       .fn()
@@ -1923,8 +1916,20 @@ function withController<ReturnValue>(
     handlers.acceptVendorTerms,
   );
   rootMessenger.registerActionHandler(
-    'KycService:postOnboardingStep',
-    handlers.postOnboardingStep,
+    'KycService:sendEmailOtp',
+    handlers.sendEmailOtp,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:verifyEmailOtp',
+    handlers.verifyEmailOtp,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:sendPhoneOtp',
+    handlers.sendPhoneOtp,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:verifyPhoneOtp',
+    handlers.verifyPhoneOtp,
   );
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatusForVendor',

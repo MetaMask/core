@@ -1216,7 +1216,46 @@ describe('KycService', () => {
     });
   });
 
-  describe('postOnboardingStep', () => {
+  describe('sendEmailOtp', () => {
+    const status = {
+      id: 'sid-1',
+      finalStatus: 'new',
+      externalUserId: 'ext-1',
+      kycStatus: 'new',
+      vendor: 'kalshi',
+      vendorStatus: 'new',
+      currentStep: 'emailOtpVerification',
+    };
+
+    it('sends an empty body when there is no signed request', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/resend-otp', {})
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(await service.sendEmailOtp({ sessionId: 'sid-1' })).toStrictEqual(
+        status,
+      );
+    });
+
+    it('forwards a signed Kalshi link', async () => {
+      const signedRequest = {
+        path: '/trade-api/v2/isv/users/link',
+        headers: { Signature: 'signed-link' },
+        body: '{"email":"ada@example.com"}',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/resend-otp', { signedRequest })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.sendEmailOtp({ sessionId: 'sid-1', signedRequest }),
+      ).toStrictEqual(status);
+    });
+  });
+
+  describe('verifyEmailOtp', () => {
     const status = {
       id: 'sid-1',
       finalStatus: 'new',
@@ -1227,7 +1266,45 @@ describe('KycService', () => {
       currentStep: 'phoneOtpCollection',
     };
 
-    it('posts the payload to the onboarding step and returns the status', async () => {
+    it('posts the code', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', { otp: '123456' })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.verifyEmailOtp({ sessionId: 'sid-1', otp: '123456' }),
+      ).toStrictEqual(status);
+    });
+
+    it('forwards a signed Kalshi verify call with no otp', async () => {
+      const signedRequest = {
+        path: '/trade-api/v2/isv/users/link/verify',
+        headers: { Signature: 'signed-verify' },
+        body: '{"code":"123456"}',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', { signedRequest })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.verifyEmailOtp({ sessionId: 'sid-1', signedRequest }),
+      ).toStrictEqual(status);
+    });
+  });
+
+  describe('sendPhoneOtp', () => {
+    it('posts the phone number and returns the status', async () => {
+      const status = {
+        id: 'sid-1',
+        finalStatus: 'new',
+        externalUserId: 'ext-1',
+        kycStatus: 'new',
+        vendor: 'kalshi',
+        vendorStatus: 'new',
+        currentStep: 'phoneOtpCollection',
+      };
       nock(MOCK_API_URL)
         .post('/sessions/sid-1/onboarding/phone/send-otp', {
           phoneNumber: '+18888888888',
@@ -1236,47 +1313,32 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.postOnboardingStep({
+        await service.sendPhoneOtp({
           sessionId: 'sid-1',
-          step: 'phone/send-otp',
-          body: { phoneNumber: '+18888888888' },
+          phoneNumber: '+18888888888',
         }),
       ).toStrictEqual(status);
     });
+  });
 
-    it('forwards a signed Kalshi email call with no otp', async () => {
-      const body = {
-        signedRequest: {
-          path: '/trade-api/v2/isv/users/link/verify',
-          headers: { Signature: 'signed-verify' },
-          body: '{"code":"123456"}',
-        },
+  describe('verifyPhoneOtp', () => {
+    it('posts the code and returns the status', async () => {
+      const status = {
+        id: 'sid-1',
+        finalStatus: 'new',
+        externalUserId: 'ext-1',
+        kycStatus: 'new',
+        vendor: 'kalshi',
+        vendorStatus: 'new',
+        currentStep: 'phoneOtpVerification',
       };
       nock(MOCK_API_URL)
-        .post('/sessions/sid-1/onboarding/email/verify-otp', body)
+        .post('/sessions/sid-1/onboarding/phone/verify-otp', { otp: '888888' })
         .reply(200, status);
       const { service } = getService();
 
       expect(
-        await service.postOnboardingStep({
-          sessionId: 'sid-1',
-          step: 'email/verify-otp',
-          body,
-        }),
-      ).toStrictEqual(status);
-    });
-
-    it('sends an empty body when the step has no payload', async () => {
-      nock(MOCK_API_URL)
-        .post('/sessions/sid-1/onboarding/email/resend-otp', {})
-        .reply(200, status);
-      const { service } = getService();
-
-      expect(
-        await service.postOnboardingStep({
-          sessionId: 'sid-1',
-          step: 'email/resend-otp',
-        }),
+        await service.verifyPhoneOtp({ sessionId: 'sid-1', otp: '888888' }),
       ).toStrictEqual(status);
     });
   });

@@ -90,12 +90,10 @@ export type {
   CreateDeletionResponse,
   CreateUkycSessionParams,
   EncryptionSchema,
-  KycOnboardingStepBody,
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
   GetSessionStatusParams,
-  KycOnboardingStep,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -129,11 +127,14 @@ export type {
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
   KycServiceGetStepAction,
-  KycServicePostOnboardingStepAction,
   KycServiceResetWrappingKeysAction,
+  KycServiceSendEmailOtpAction,
+  KycServiceSendPhoneOtpAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
+  KycServiceVerifyEmailOtpAction,
+  KycServiceVerifyPhoneOtpAction,
 } from './KycService-method-action-types.js';
 
 export { selectKycSessionStatus, selectKycVendor } from './selectors.js';

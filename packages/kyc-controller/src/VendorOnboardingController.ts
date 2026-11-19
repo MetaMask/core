@@ -14,7 +14,6 @@ import type {
 import { stringToBytes } from '@metamask/utils';
 
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import type { KycOnboardingStep, KycOnboardingStepBody } from './KycService.js';
 import {
   isSumSubFlowFailed,
   isSumSubPreSubmissionStatus,
@@ -531,9 +530,12 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     phoneNumber: string;
   }): Promise<KycStep> {
-    return this.#runOnboardingStep(params.vendor, 'phone/send-otp', {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.messenger.call('KycService:sendPhoneOtp', {
+      sessionId,
       phoneNumber: params.phoneNumber,
     });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -548,9 +550,12 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
-    return this.#runOnboardingStep(params.vendor, 'phone/verify-otp', {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.messenger.call('KycService:verifyPhoneOtp', {
+      sessionId,
       otp: params.code,
     });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -566,16 +571,22 @@ export class VendorOnboardingController extends BaseController<
     code: string;
   }): Promise<KycStep> {
     if (params.vendor !== 'kalshi') {
-      return this.#runOnboardingStep(params.vendor, 'email/verify-otp', {
+      const sessionId = await this.#getSessionId(params.vendor);
+      await this.messenger.call('KycService:verifyEmailOtp', {
+        sessionId,
         otp: params.code,
       });
+      return this.#readStep(params.vendor, { join: false });
     }
     const [signedRequest] = await this.#signVendorRequests(params.vendor, [
       { operation: 'users/link/verify', code: params.code },
     ]);
-    return this.#runOnboardingStep(params.vendor, 'email/verify-otp', {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.messenger.call('KycService:verifyEmailOtp', {
+      sessionId,
       signedRequest,
     });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -592,7 +603,9 @@ export class VendorOnboardingController extends BaseController<
     email?: string;
   }): Promise<KycStep> {
     if (params.vendor !== 'kalshi') {
-      return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
+      const sessionId = await this.#getSessionId(params.vendor);
+      await this.messenger.call('KycService:sendEmailOtp', { sessionId });
+      return this.#readStep(params.vendor, { join: false });
     }
     const [signedRequest] = await this.#signVendorRequests(params.vendor, [
       {
@@ -600,9 +613,12 @@ export class VendorOnboardingController extends BaseController<
         email: this.#requireKalshiEmail(params.email?.trim()),
       },
     ]);
-    return this.#runOnboardingStep(params.vendor, 'email/resend-otp', {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.messenger.call('KycService:sendEmailOtp', {
+      sessionId,
       signedRequest,
     });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -629,20 +645,6 @@ export class VendorOnboardingController extends BaseController<
         state.vendors = {};
       }
     });
-  }
-
-  async #runOnboardingStep(
-    vendor: OnboardingVendor,
-    step: KycOnboardingStep,
-    body?: KycOnboardingStepBody,
-  ): Promise<KycStep> {
-    const sessionId = await this.#getSessionId(vendor);
-    await this.messenger.call('KycService:postOnboardingStep', {
-      sessionId,
-      step,
-      ...(body ? { body } : {}),
-    });
-    return this.#readStep(vendor, { join: false });
   }
 
   /**

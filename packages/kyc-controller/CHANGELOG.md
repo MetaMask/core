@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. It does not create a vendor customer
   - `reset` drops any step read still in flight, so a late answer cannot bring back a forgotten vendor
   - It shares `KycService` with `KycController` and does not touch `KycController` state
-- Add `KycService.getStep`, `acceptVendorTerms` and `postOnboardingStep`, with the matching `KycService:*` messenger actions and the `KycOnboardingStep` type ([#11441](https://github.com/MetaMask/core/pull/11441))
+- Add `KycService.getStep`, `acceptVendorTerms`, `sendEmailOtp`, `verifyEmailOtp`, `sendPhoneOtp` and `verifyPhoneOtp`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
   - `getStep` is the only one that reports a step. The others run their action and report nothing about it, so the step has a single source and cannot drift
 - Add the `KYC_STEPS` list, the `KycStep` and `OnboardingVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))

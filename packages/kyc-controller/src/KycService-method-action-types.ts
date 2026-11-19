@@ -326,20 +326,66 @@ export type KycServiceAcceptVendorTermsAction = {
 };
 
 /**
- * Runs one vendor onboarding step for a session
- * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
- * email code, or send or verify its SMS code.
+ * Sends the vendor's email code again
+ * (`POST /sessions/{id}/onboarding/email/resend-otp`).
+ *
+ * Kalshi sends the phone-signed `users/link` as `signedRequest`. Other
+ * vendors send an empty body.
  *
  * @param params - The parameters.
  * @param params.sessionId - UKYC session id.
- * @param params.step - The onboarding step.
- * @param params.body - Step payload: `{ otp }`, `{ phoneNumber }`, and for
- * Kalshi's email steps `{ signedRequest }` with no `otp`.
- * @returns The session status after the step.
+ * @param params.signedRequest - Phone-signed `users/link` for Kalshi.
+ * @returns The session status after the code is sent.
  */
-export type KycServicePostOnboardingStepAction = {
-  type: `KycService:postOnboardingStep`;
-  handler: KycService['postOnboardingStep'];
+export type KycServiceSendEmailOtpAction = {
+  type: `KycService:sendEmailOtp`;
+  handler: KycService['sendEmailOtp'];
+};
+
+/**
+ * Verifies the vendor's email code
+ * (`POST /sessions/{id}/onboarding/email/verify-otp`).
+ *
+ * Kalshi sends the phone-signed `users/link/verify` as `signedRequest` and
+ * no `otp`: the code is inside the signed body. Other vendors send `otp`.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.otp - The code from the user. Omitted for Kalshi.
+ * @param params.signedRequest - Phone-signed `users/link/verify` for Kalshi.
+ * @returns The session status after the code is verified.
+ */
+export type KycServiceVerifyEmailOtpAction = {
+  type: `KycService:verifyEmailOtp`;
+  handler: KycService['verifyEmailOtp'];
+};
+
+/**
+ * Sends the vendor's SMS code
+ * (`POST /sessions/{id}/onboarding/phone/send-otp`).
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.phoneNumber - The phone number in E.164 format.
+ * @returns The session status after the code is sent.
+ */
+export type KycServiceSendPhoneOtpAction = {
+  type: `KycService:sendPhoneOtp`;
+  handler: KycService['sendPhoneOtp'];
+};
+
+/**
+ * Verifies the vendor's SMS code
+ * (`POST /sessions/{id}/onboarding/phone/verify-otp`).
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.otp - The code from the user.
+ * @returns The session status after the code is verified.
+ */
+export type KycServiceVerifyPhoneOtpAction = {
+  type: `KycService:verifyPhoneOtp`;
+  handler: KycService['verifyPhoneOtp'];
 };
 
 /**
@@ -383,5 +429,8 @@ export type KycServiceMethodActions =
   | KycServiceGetSessionStatusForVendorAction
   | KycServiceGetStepAction
   | KycServiceAcceptVendorTermsAction
-  | KycServicePostOnboardingStepAction
+  | KycServiceSendEmailOtpAction
+  | KycServiceVerifyEmailOtpAction
+  | KycServiceSendPhoneOtpAction
+  | KycServiceVerifyPhoneOtpAction
   | KycServiceGetDataSharesAction;

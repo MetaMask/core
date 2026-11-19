@@ -74,7 +74,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'getDataShares',
   'getStep',
   'acceptVendorTerms',
-  'postOnboardingStep',
+  'sendEmailOtp',
+  'verifyEmailOtp',
+  'sendPhoneOtp',
+  'verifyPhoneOtp',
 ] as const;
 
 /**
@@ -352,15 +355,6 @@ export type SubmitSessionDisclaimersParams = {
   credentialReusabilityConsentGiven: boolean;
 };
 
-/**
- * Vendor onboarding steps under `POST /sessions/{id}/onboarding/...`.
- */
-export type KycOnboardingStep =
-  | 'email/verify-otp'
-  | 'email/resend-otp'
-  | 'phone/send-otp'
-  | 'phone/verify-otp';
-
 export type CreateUkycSessionParams = {
   /**
    * The client's per-session X25519 public key (unpadded base64url). Generated
@@ -410,19 +404,6 @@ export type CreateUkycSessionParams = {
    * vendors that do not link an account this way.
    */
   signedRequests?: readonly KycSignedRequest[];
-};
-
-/**
- * Body of `POST /sessions/{id}/onboarding/{step}`.
- *
- * Phone steps send `phoneNumber` or `otp`. Kalshi's email steps send the
- * phone-signed call the relay forwards as `signedRequest` and no `otp`: the
- * code is inside the signed body.
- */
-export type KycOnboardingStepBody = {
-  otp?: string;
-  phoneNumber?: string;
-  signedRequest?: KycSignedRequest;
 };
 
 /**
@@ -1220,31 +1201,88 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Runs one vendor onboarding step for a session
-   * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
-   * email code, or send or verify its SMS code.
+   * Sends the vendor's email code again
+   * (`POST /sessions/{id}/onboarding/email/resend-otp`).
+   *
+   * Kalshi sends the phone-signed `users/link` as `signedRequest`. Other
+   * vendors send an empty body.
    *
    * @param params - The parameters.
    * @param params.sessionId - UKYC session id.
-   * @param params.step - The onboarding step.
-   * @param params.body - Step payload: `{ otp }`, `{ phoneNumber }`, and for
-   * Kalshi's email steps `{ signedRequest }` with no `otp`.
-   * @returns The session status after the step.
+   * @param params.signedRequest - Phone-signed `users/link` for Kalshi.
+   * @returns The session status after the code is sent.
    */
-  async postOnboardingStep(params: {
+  async sendEmailOtp(params: {
     sessionId: string;
-    step: KycOnboardingStep;
-    body?: KycOnboardingStepBody;
+    signedRequest?: KycSignedRequest;
   }): Promise<KycSessionStatus> {
-    const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/onboarding/${params.step}`,
-      this.#baseUrl,
+    return this.#postOnboarding(
+      params.sessionId,
+      'email/resend-otp',
+      params.signedRequest ? { signedRequest: params.signedRequest } : {},
     );
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(params.body ?? {}),
+  }
+
+  /**
+   * Verifies the vendor's email code
+   * (`POST /sessions/{id}/onboarding/email/verify-otp`).
+   *
+   * Kalshi sends the phone-signed `users/link/verify` as `signedRequest` and
+   * no `otp`: the code is inside the signed body. Other vendors send `otp`.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.otp - The code from the user. Omitted for Kalshi.
+   * @param params.signedRequest - Phone-signed `users/link/verify` for Kalshi.
+   * @returns The session status after the code is verified.
+   */
+  async verifyEmailOtp(params: {
+    sessionId: string;
+    otp?: string;
+    signedRequest?: KycSignedRequest;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'email/verify-otp', {
+      ...(params.otp === undefined ? {} : { otp: params.otp }),
+      ...(params.signedRequest === undefined
+        ? {}
+        : { signedRequest: params.signedRequest }),
     });
-    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
+  }
+
+  /**
+   * Sends the vendor's SMS code
+   * (`POST /sessions/{id}/onboarding/phone/send-otp`).
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.phoneNumber - The phone number in E.164 format.
+   * @returns The session status after the code is sent.
+   */
+  async sendPhoneOtp(params: {
+    sessionId: string;
+    phoneNumber: string;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'phone/send-otp', {
+      phoneNumber: params.phoneNumber,
+    });
+  }
+
+  /**
+   * Verifies the vendor's SMS code
+   * (`POST /sessions/{id}/onboarding/phone/verify-otp`).
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.otp - The code from the user.
+   * @returns The session status after the code is verified.
+   */
+  async verifyPhoneOtp(params: {
+    sessionId: string;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#postOnboarding(params.sessionId, 'phone/verify-otp', {
+      otp: params.otp,
+    });
   }
 
   /**
@@ -1289,6 +1327,31 @@ export class KycService extends BaseDataService<
    * @param apiName - A human-readable name of the API, used in the error message.
    * @returns The session status consumers should store and act on.
    */
+  /**
+   * Posts one onboarding call and returns the session status kyc-api answers
+   * with. The step itself is read separately.
+   *
+   * @param sessionId - UKYC session id.
+   * @param path - Path under `/sessions/{id}/onboarding/`.
+   * @param body - The request body.
+   * @returns The session status.
+   */
+  async #postOnboarding(
+    sessionId: string,
+    path: string,
+    body: Record<string, unknown>,
+  ): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(sessionId)}/onboarding/${path}`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
+  }
+
   #validateAndPatchSessionStatus(
     data: unknown,
     apiName: string,

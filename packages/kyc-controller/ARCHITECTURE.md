@@ -210,11 +210,14 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 It uses these `KycService` endpoints on top of the ones above:
 
-| Method               | HTTP   | Endpoint                           | Purpose                                       |
-| -------------------- | ------ | ---------------------------------- | --------------------------------------------- |
-| `getStep`            | `GET`  | `/vendors/{vendor}/step`           | The vendor's current step and status          |
-| `acceptVendorTerms`  | `POST` | `/vendors/{vendor}/disclaimers`    | Record vendor terms acceptance (no session)   |
-| `postOnboardingStep` | `POST` | `/sessions/{id}/onboarding/{step}` | Send or verify the vendor's email or SMS code |
+| Method              | HTTP   | Endpoint                                     | Purpose                                     |
+| ------------------- | ------ | -------------------------------------------- | ------------------------------------------- |
+| `getStep`           | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status        |
+| `acceptVendorTerms` | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor terms acceptance (no session) |
+| `sendEmailOtp`      | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again          |
+| `verifyEmailOtp`    | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code              |
+| `sendPhoneOtp`      | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                  |
+| `verifyPhoneOtp`    | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code                |
 
 ---
 
