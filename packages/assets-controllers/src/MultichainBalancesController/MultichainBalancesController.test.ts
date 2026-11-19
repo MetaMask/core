@@ -513,10 +513,13 @@ describe('MultichainBalancesController', () => {
           accountsAssets: {
             [mockBtcAccount.id]: [mockBtcNativeAsset],
           },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
         }),
       );
       messenger.registerActionHandler('KeyringController:getState', () => ({
         isUnlocked: true,
+        keyrings: [],
       }));
       const controller = new MultichainBalancesController({
         messenger: getRestrictedMessenger(messenger),
