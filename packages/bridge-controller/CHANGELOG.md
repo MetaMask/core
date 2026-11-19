@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.3.0]
+
 ### Added
 
 - Set QuoteRequest parameters based on `isMoneyAccount` value provided by clients. When isMoneyAcount=true, only request `relay` quotes from the backend ([#11602](https://github.com/MetaMask/core/pull/11602))
@@ -2252,7 +2254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...HEAD
+[83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
 [83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0
 [83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5
 [83.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...@metamask/bridge-controller@83.1.4

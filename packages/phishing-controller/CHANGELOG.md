@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.3.2]
+
 ### Uncategorized
 
 - Release/1428.0.0 ([#11546](https://github.com/MetaMask/core/pull/11546))
@@ -741,7 +743,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.2...HEAD
+[18.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...@metamask/phishing-controller@18.3.2
 [18.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...@metamask/phishing-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...@metamask/phishing-controller@18.3.0
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
