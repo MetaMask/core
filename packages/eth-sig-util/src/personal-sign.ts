@@ -1,5 +1,4 @@
-import { ecsign, publicToAddress } from '@ethereumjs/util';
-import type { ToBytesInputTypes } from '@ethereumjs/util';
+import { publicToAddress } from '@ethereumjs/util';
 import {
   bigIntToBytes,
   bytesToHex,
@@ -8,8 +7,10 @@ import {
 } from '@metamask/utils';
 import { keccak256 } from 'ethereum-cryptography/keccak';
 
+import type { LegacyBytesInput } from './utils.js';
 import {
   concatSig,
+  ecsign,
   isNullish,
   legacyToBytes,
   recoverPublicKey,
@@ -31,7 +32,7 @@ export function personalSign({
   data,
 }: {
   privateKey: Uint8Array;
-  data: ToBytesInputTypes;
+  data: LegacyBytesInput;
 }): string {
   if (isNullish(data)) {
     throw new Error('Missing data parameter');
@@ -58,7 +59,7 @@ export function recoverPersonalSignature({
   data,
   signature,
 }: {
-  data: ToBytesInputTypes;
+  data: LegacyBytesInput;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -86,7 +87,7 @@ export function extractPublicKey({
   data,
   signature,
 }: {
-  data: ToBytesInputTypes;
+  data: LegacyBytesInput;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -120,7 +121,7 @@ function hashPersonalMessage(message: Uint8Array): Uint8Array {
  * @returns The public key of the signer.
  */
 function getPublicKeyFor(
-  message: ToBytesInputTypes,
+  message: LegacyBytesInput,
   signature: string,
 ): Uint8Array {
   const messageHash = hashPersonalMessage(legacyToBytes(message));

@@ -1,7 +1,7 @@
 import {
   bytesToInt,
   ecrecover,
-  fromRpcSig,
+  fromRPCSig,
   fromSigned,
   isHexString,
   toBytes,
@@ -17,6 +17,7 @@ import {
   stringToBytes,
   Hex,
 } from '@metamask/utils';
+import { secp256k1 } from 'ethereum-cryptography/secp256k1';
 
 /**
  * Pads the front of the given hex string with zeroes until it reaches the
@@ -58,6 +59,13 @@ export function isNullish(value: unknown): boolean {
 }
 
 /**
+ * A value accepted by {@link legacyToBytes}. Unlike `ToBytesInputTypes`, this
+ * also allows strings that are not '0x'-prefixed hex, which are treated as
+ * UTF-8 text.
+ */
+export type LegacyBytesInput = ToBytesInputTypes | string;
+
+/**
  * Convert a value to bytes. This function should be equivalent to the `toBuffer` function in
  * `ethereumjs-util@5.2.1`, with the following exceptions:
  *
@@ -67,10 +75,30 @@ export function isNullish(value: unknown): boolean {
  * @param value - The value to convert to bytes.
  * @returns The given value as a `Uint8Array`.
  */
-export function legacyToBytes(value: ToBytesInputTypes): Uint8Array {
+export function legacyToBytes(value: LegacyBytesInput): Uint8Array {
   return typeof value === 'string' && !isHexString(value)
     ? stringToBytes(value)
     : toBytes(value);
+}
+
+/**
+ * Sign a message hash with a private key.
+ *
+ * @param messageHash - The 32 byte hash to sign.
+ * @param privateKey - The private key to sign with.
+ * @returns The `r`, `s` and `v` (27n or 28n) portions of the signature.
+ */
+export function ecsign(
+  messageHash: Uint8Array,
+  privateKey: Uint8Array,
+): { r: Uint8Array; s: Uint8Array; v: bigint } {
+  const signature = secp256k1.sign(messageHash, privateKey);
+  const compact = signature.toCompactRawBytes();
+  return {
+    r: compact.slice(0, 32),
+    s: compact.slice(32, 64),
+    v: BigInt(signature.recovery + 27),
+  };
 }
 
 /**
@@ -102,7 +130,7 @@ export function recoverPublicKey(
   messageHash: Uint8Array,
   signature: string,
 ): Uint8Array {
-  const sigParams = fromRpcSig(signature as Hex);
+  const sigParams = fromRPCSig(signature as Hex);
   return ecrecover(messageHash, sigParams.v, sigParams.r, sigParams.s);
 }
 

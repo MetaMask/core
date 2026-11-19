@@ -1,4 +1,4 @@
-import { ecsign, publicToAddress } from '@ethereumjs/util';
+import { publicToAddress } from '@ethereumjs/util';
 import { encode, encodePacked } from '@metamask/abi-utils';
 import {
   getArrayType,
@@ -23,6 +23,7 @@ import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import {
   concatSig,
+  ecsign,
   isNullish,
   legacyToBytes,
   recoverPublicKey,
