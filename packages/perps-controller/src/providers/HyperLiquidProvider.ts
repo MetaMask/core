@@ -13964,6 +13964,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         return positions;
       }
 
+      if (params?.includeProtection === false) {
+        const userAddress = await this.#walletService.getUserAddressWithDefault(
+          params.accountId,
+        );
+        const positions = params.skipCache
+          ? null
+          : this.#subscriptionService.getFreshPositionsForAllDexs(
+              false,
+              userAddress,
+            );
+        if (positions !== null) {
+          return positions;
+        }
+        await this.#ensureClientsInitialized();
+        const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+        const dexs = await this.#getValidatedDexsStrict();
+        return await this.#fetchPositionContext(infoClient, userAddress, dexs);
+      }
+
       if (!params?.skipCache && params?.accountId === undefined) {
         const cachedPositions =
           this.#subscriptionService.getFreshPositionsForAllDexs(true);
@@ -14514,11 +14533,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         return orders;
       }
 
-      // Try WebSocket cache first (unless explicitly bypassed)
-      // Use atomic getter to prevent race condition between check and get
+      const userAddress = await this.#walletService.getUserAddressWithDefault(
+        params?.accountId,
+      );
       if (!params?.skipCache && params?.accountId === undefined) {
         const cachedOrders =
-          this.#subscriptionService.getOrdersCacheIfInitialized(true);
+          this.#subscriptionService.getOrdersCacheIfInitialized(true, {
+            userAddress,
+            requirePositionSizes: !params?.throwOnUnavailable,
+          });
         if (cachedOrders !== null) {
           this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
           this.#deps.debugLogger.log(
@@ -14543,10 +14566,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#clientService.ensureInitialized();
 
       const infoClient = this.#clientService.getInfoClient();
-      const userAddress = await this.#walletService.getUserAddressWithDefault(
-        params?.accountId,
-      );
-
       const dexs = await this.#getValidatedDexsStrict();
       const { results: orderResults, failedDexs } =
         await this.#queryUserDataAcrossDexs(
@@ -14568,7 +14587,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       ) {
         const cachedPositions =
           !params?.skipCache && params?.accountId === undefined
-            ? this.#subscriptionService.getFreshPositionsForAllDexs()
+            ? this.#subscriptionService.getFreshPositionsForAllDexs(
+                false,
+                userAddress,
+              )
             : null;
         const protectionDexs = [
           ...new Set(

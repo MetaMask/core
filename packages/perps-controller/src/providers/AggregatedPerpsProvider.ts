@@ -737,6 +737,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         .map(async ([id, provider]) => {
           const positions = await provider.getPositions({
             throwOnUnavailable: true,
+            includeProtection: false,
           });
           return positions.map((position) => ({ ...position, providerId: id }));
         }),
@@ -1600,12 +1601,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (provider.closePositions) {
       return provider.closePositions(params);
     }
-    const symbols =
-      params.closeAll === true
-        ? (await provider.getPositions({ throwOnUnavailable: true })).map(
+    let symbols = params.symbols ?? [];
+    if (params.closeAll === true) {
+      symbols = provider.getPositionSymbolsForClose
+        ? await provider.getPositionSymbolsForClose()
+        : (await provider.getPositions({ throwOnUnavailable: true })).map(
             (position) => position.symbol,
-          )
-        : (params.symbols ?? []);
+          );
+    }
     if (symbols.length === 0) {
       return { success: false, successCount: 0, failureCount: 0, results: [] };
     }

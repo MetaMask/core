@@ -812,6 +812,14 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       const onAccount = await accountFrames.promise;
       const onOrders = await orderFrames.promise;
+      const healthyAccount = vi.fn();
+      const unsubscribeHealthyAccount = service.subscribeToAccount({
+        callback: healthyAccount,
+      });
+      const failure = new Error('account listener failed');
+      account.mockImplementationOnce(() => {
+        throw failure;
+      });
 
       onAccount({
         dex: '',
@@ -829,6 +837,12 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({ size: '0.1' }),
       ]);
+      expect(healthyAccount).toHaveBeenCalledOnce();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        failure,
+        expect.anything(),
+      );
+      unsubscribeHealthyAccount();
 
       const order = {
         oid: 1,
@@ -921,9 +935,22 @@ describe('HyperLiquidSubscriptionService', () => {
         orderType: 'Stop Market',
       };
       onOrders({ dex: '', orders: [shortStop] });
-      expect(service.getOrdersCacheIfInitialized(true)).toMatchObject([
-        { orderId: '2' },
-      ]);
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+        }),
+      ).toMatchObject([{ orderId: '2' }]);
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x456',
+        }),
+      ).toBeNull();
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+          requirePositionSizes: true,
+        }),
+      ).toBeNull();
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({ stopLossCount: 0, takeProfitCount: 0 }),
       ]);
@@ -954,9 +981,12 @@ describe('HyperLiquidSubscriptionService', () => {
           withdrawable: '90',
         },
       });
-      expect(service.getOrdersCacheIfInitialized(true)).toMatchObject([
-        { orderId: '1', size: '0.25' },
-      ]);
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+          requirePositionSizes: true,
+        }),
+      ).toMatchObject([{ orderId: '1', size: '0.25' }]);
 
       const recoveredProtection =
         positions.mock.lastCall?.[0][0].stopLossOrders[0];

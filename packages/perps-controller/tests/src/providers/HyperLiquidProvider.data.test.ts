@@ -1023,6 +1023,28 @@ describe('HyperLiquidProvider', () => {
       ]);
     });
 
+    it('reads close pricing positions without relying on the order feed', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValue(
+        new Error('TP/SL orders unavailable'),
+      );
+      const positions = await provider.getPositions({
+        throwOnUnavailable: true,
+        includeProtection: false,
+      });
+      expect(positions).toEqual([
+        expect.objectContaining({
+          symbol: 'BTC',
+          positionValue: '5000',
+        }),
+        expect.objectContaining({
+          symbol: 'ETH',
+          positionValue: '4500',
+        }),
+      ]);
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
+    });
+
     it('checks TP/SL orders before using a nonempty position cache', async () => {
       mockSubscriptionService.getFreshPositionsForAllDexs.mockImplementation(
         (requireProtection) =>

@@ -2012,6 +2012,12 @@ export type CheckEligibilityParams = {
 };
 
 export type GetPositionsParams = {
+  /**
+   * Skip protection lookup for reads that only need position data.
+   *
+   * @internal
+   */
+  includeProtection?: boolean;
   /** Reject unavailable discovery instead of returning an empty position list. */
   throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -3313,6 +3319,12 @@ export type PerpsProvider = {
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
+  /**
+   * Discover close targets without requiring display margin.
+   *
+   * @internal
+   */
+  getPositionSymbolsForClose?(): Promise<string[]>;
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   /**
    * Replace one TP/SL leg of a position and leave the other leg untouched. The

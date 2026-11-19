@@ -3067,22 +3067,24 @@ export class HyperLiquidSubscriptionService {
   #notifyAccountSubscribers(): void {
     const sourceAddress = this.#userDataBinding?.address.toLowerCase();
     const account = this.#aggregateAccountStates();
-    if (!account) {
-      if (this.#cachedAccountHash) {
-        this.#cachedAccountHash = '';
-        this.#accountSubscribers.forEach((callback) =>
-          callback(null, sourceAddress),
-        );
-      }
+    const hash = account ? this.#hashAccountAvailability(account) : '';
+    if (hash === this.#cachedAccountHash) {
       return;
     }
-    const hash = this.#hashAccountAvailability(account);
-    if (hash !== this.#cachedAccountHash) {
-      this.#cachedAccountHash = hash;
-      this.#accountSubscribers.forEach((callback) =>
-        callback(account, sourceAddress),
-      );
-    }
+    this.#cachedAccountHash = hash;
+    this.#accountSubscribers.forEach((callback) => {
+      try {
+        callback(account ?? null, sourceAddress);
+      } catch (error) {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.notifyAccountSubscribers',
+          ),
+          this.#getErrorContext('notifyAccountSubscribers'),
+        );
+      }
+    });
   }
 
   /**
@@ -3993,13 +3995,16 @@ export class HyperLiquidSubscriptionService {
    * cannot interleave between proving completeness and reading the slices.
    *
    * @param requireProtection - Also require fresh order data on DEXs with open positions.
+   * @param userAddress - Wallet the snapshot must belong to, if supplied.
    * @returns A shallow-copied complete snapshot, or null until every configured
    * DEX is current.
    */
   public getFreshPositionsForAllDexs(
     requireProtection = false,
+    userAddress?: string,
   ): Position[] | null {
     if (
+      (userAddress !== undefined && !this.#hasUserDataWallet(userAddress)) ||
       this.#positionSnapshotDexs.size === 0 ||
       !Array.from(this.#positionSnapshotDexs).every((dexName) =>
         this.#isPositionDexFresh(dexName),
@@ -4102,14 +4107,30 @@ export class HyperLiquidSubscriptionService {
     return this.#cachedOrders;
   }
 
+  #hasUserDataWallet(userAddress: string): boolean {
+    return (
+      this.#userDataBinding?.address.toLowerCase() === userAddress.toLowerCase()
+    );
+  }
+
   /**
    * Atomically get cached orders if initialized.
    *
    * @param requireComplete - Whether every configured DEX must have published
    * its orders on the current connection.
+   * @param options - Scope and sizing requirements.
+   * @param options.userAddress - Wallet the orders must belong to, if supplied.
+   * @param options.requirePositionSizes - Refuse unresolved whole-position triggers.
    * @returns Cached orders, or null until available.
    */
-  public getOrdersCacheIfInitialized(requireComplete = false): Order[] | null {
+  public getOrdersCacheIfInitialized(
+    requireComplete = false,
+    options: { userAddress?: string; requirePositionSizes?: boolean } = {},
+  ): Order[] | null {
+    const { userAddress, requirePositionSizes } = options;
+    if (userAddress !== undefined && !this.#hasUserDataWallet(userAddress)) {
+      return null;
+    }
     if (!requireComplete) {
       return this.#ordersCacheInitialized
         ? [...(this.#cachedOrders ?? [])]
@@ -4124,6 +4145,14 @@ export class HyperLiquidSubscriptionService {
     for (const dex of this.#accountSnapshotDexs) {
       const slice = this.#dexOrdersCache.get(dex);
       if (slice === undefined || this.#dexOrdersEpoch.get(dex) !== epoch) {
+        return null;
+      }
+      if (
+        requirePositionSizes &&
+        slice.some(
+          (order) => order.isPositionTpsl && Number(order.originalSize) === 0,
+        )
+      ) {
         return null;
       }
       orders.push(...slice);

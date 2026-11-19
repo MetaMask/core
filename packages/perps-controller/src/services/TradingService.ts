@@ -1447,7 +1447,10 @@ export class TradingService {
           ? await provider.getPositionsForBatchClose(
               new Set(venues.filter(isPerpsProviderType)),
             )
-          : await provider.getPositions();
+          : await provider.getPositions({
+              throwOnUnavailable: true,
+              includeProtection: false,
+            });
       // A direct provider's positions are untagged and all its own; an
       // aggregator tags each position with the venue that holds it.
       const venueOf = (position: Position): string =>
@@ -2736,12 +2739,19 @@ export class TradingService {
         });
       } else {
         // Fallback: Get positions, filter, and close in parallel
-        if (!context.getPositions) {
-          throw new Error('getPositions callback not provided in context');
+        let positions: Pick<Position, 'symbol' | 'providerId'>[];
+        if (provider.getPositionSymbolsForClose) {
+          positions = (await provider.getPositionSymbolsForClose()).map(
+            (symbol) => ({ symbol }),
+          );
+        } else {
+          if (!context.getPositions) {
+            throw new Error('getPositions callback not provided in context');
+          }
+          positions = await context.getPositions({
+            throwOnUnavailable: true,
+          });
         }
-        const positions = await context.getPositions({
-          throwOnUnavailable: true,
-        });
 
         // Tagged targets name the positions to close. A provider without a
         // batch method must not treat a target list as close-all just because

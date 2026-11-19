@@ -5,6 +5,7 @@ import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsP
 import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   CancelOrdersParams,
+  ClosePositionsResult,
   GetOrdersParams,
   GetPositionsParams,
   Order,
@@ -277,6 +278,60 @@ describe('aggregated account and destructive-operation discovery', () => {
     });
     expect(close).not.toHaveBeenCalled();
   });
+
+  it.each([
+    {
+      route: 'direct',
+      count: 1,
+      closeAll: ({
+        provider,
+        infrastructure,
+      }: ReturnType<typeof setup>): Promise<ClosePositionsResult> =>
+        new TradingService(infrastructure).closePositions({
+          provider,
+          params: { closeAll: true },
+          context: createMockServiceContext({
+            getPositions: (params?: GetPositionsParams) =>
+              provider.getPositions(params),
+          }),
+        }),
+    },
+    {
+      route: 'aggregated',
+      count: 2,
+      closeAll: ({
+        aggregate,
+      }: ReturnType<typeof setup>): Promise<ClosePositionsResult> =>
+        aggregate.closePositions({ closeAll: true }),
+    },
+  ])(
+    'discovers a Lighter close when $route display margin is unavailable',
+    async ({ count, closeAll }) => {
+      const fixture = setup();
+      const { provider, clientInstance } = fixture;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              { ...ACCOUNT.positions[0], initialMarginFraction: '0' },
+            ],
+          },
+        ],
+      });
+      const close = vi.spyOn(provider, 'closePosition').mockResolvedValue({
+        success: true,
+      });
+      const result = await closeAll(fixture);
+
+      expect(result.successCount).toBe(count);
+      expect(close).toHaveBeenCalledExactlyOnceWith({ symbol: 'BTC' });
+      await expect(provider.getPositions()).rejects.toThrow(
+        'initial margin fraction',
+      );
+    },
+  );
 
   it('retains successful closes while reporting a real Lighter account transport failure', async () => {
     const { aggregate, hyperliquid, clientInstance, provider } = setup();

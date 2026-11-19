@@ -10265,23 +10265,11 @@ export class LighterProvider implements PerpsProvider {
     // account.
     await this.#ensureMarketMargins();
     try {
-      const accountIndex = await this.#readAccountIndex(generation);
-      const response =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      this.#assertSession(generation);
-      const account = response.accounts[0];
-      if (!account) {
-        throw new Error(`Lighter account ${accountIndex} not returned`);
-      }
-      if (!Array.isArray(account.positions)) {
-        throw new Error(
-          `${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`,
-        );
-      }
+      const rows = await this.#readPositionRows(generation);
       // Adapt BEFORE filtering: the adapter strict-validates raw numeric
       // sizes, and a prefix-parsing filter would silently drop (or keep)
       // malformed entries like '0oops' before validation could fire.
-      return account.positions
+      return rows
         .map((position) =>
           adaptPositionFromLighter(
             position,
@@ -10316,6 +10304,58 @@ export class LighterProvider implements PerpsProvider {
         ...this.#getErrorContext('getPositions'),
       });
       throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, caughtError);
+    }
+  }
+
+  async #readPositionRows(generation: number): Promise<LighterApiPosition[]> {
+    const accountIndex = await this.#readAccountIndex(generation);
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const account = response.accounts[0];
+    if (!account) {
+      throw new Error(`Lighter account ${accountIndex} not returned`);
+    }
+    if (!Array.isArray(account.positions)) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`,
+      );
+    }
+    return account.positions;
+  }
+
+  /**
+   * Discover open markets for close-all without requiring display margin.
+   *
+   * @internal
+   * @returns Symbols with a validated nonzero position on the bound account.
+   */
+  async getPositionSymbolsForClose(): Promise<string[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    try {
+      const rows = await this.#readPositionRows(generation);
+      const seen = new Set<string>();
+      const symbols: string[] = [];
+      for (const row of rows) {
+        if (!row.symbol || seen.has(row.symbol)) {
+          throw new Error(
+            `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid or duplicate position symbol`,
+          );
+        }
+        seen.add(row.symbol);
+        if (this.#readReductionSize(row) > 0) {
+          symbols.push(row.symbol);
+        }
+      }
+      return symbols;
+    } catch (error) {
+      if (error instanceof LighterAccountNotFoundError) {
+        return [];
+      }
+      if (error instanceof LighterSessionCancelledError) {
+        throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
+      }
+      throw error;
     }
   }
 
@@ -14653,23 +14693,12 @@ export class LighterProvider implements PerpsProvider {
         return undefined;
       }
       const row = rows[0];
-      const size = parseStrictDecimal(row.position);
       if (rows.length !== 1) {
         throw new Error(
           `${LIGHTER_DATA_INTEGRITY_PREFIX} duplicate position for ${symbol}`,
         );
       }
-      if (size === null || !Number.isFinite(size) || size < 0) {
-        throw new Error(
-          `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${row.position}' for ${symbol}`,
-        );
-      }
-      if (row.sign !== 1 && row.sign !== -1) {
-        throw new Error(
-          `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(row.sign)}' for ${symbol}`,
-        );
-      }
-      if (size === 0) {
+      if (this.#readReductionSize(row) === 0) {
         return undefined;
       }
       return {
@@ -14685,6 +14714,21 @@ export class LighterProvider implements PerpsProvider {
       }
       throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
     }
+  }
+
+  #readReductionSize(row: LighterApiPosition): number {
+    const size = parseStrictDecimal(row.position);
+    if (size === null || !Number.isFinite(size) || size < 0) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${row.position}' for ${row.symbol}`,
+      );
+    }
+    if (row.sign !== 1 && row.sign !== -1) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(row.sign)}' for ${row.symbol}`,
+      );
+    }
+    return size;
   }
 
   async #readPositionSizeForClose(symbol: string): Promise<number> {

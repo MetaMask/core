@@ -3624,6 +3624,7 @@ describe('TradingService', () => {
         );
         expect(lighter.getPositions).toHaveBeenCalledExactlyOnceWith({
           throwOnUnavailable: true,
+          includeProtection: false,
         });
         expect(hyperliquid.closePositions).toHaveBeenCalledWith({
           closeAll: true,

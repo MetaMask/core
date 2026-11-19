@@ -1793,6 +1793,12 @@ describe('HyperLiquidProvider', () => {
       // Assert
       expect(result).toEqual(cachedOrders);
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+      expect(
+        mockSubscriptionService.getOrdersCacheIfInitialized,
+      ).toHaveBeenCalledWith(true, {
+        userAddress: await mockWalletService.getUserAddressWithDefault(),
+        requirePositionSizes: true,
+      });
     });
 
     it('reads REST open orders once when the cache is unavailable', async () => {
