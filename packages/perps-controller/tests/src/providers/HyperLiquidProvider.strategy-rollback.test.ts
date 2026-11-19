@@ -14,7 +14,31 @@ vi.mock('../../../src/services/HyperLiquidClientService');
 vi.mock('../../../src/services/HyperLiquidWalletService');
 vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 vi.mock('../../../src/services/TradingReadinessCache');
-vi.mock('../../../src/utils/hyperLiquidValidation');
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
+    .fn()
+    .mockReturnValue([
+      'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+      'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    ]),
+  getBridgeInfo: vi.fn().mockReturnValue({
+    chainId: 'eip155:42161',
+    contractAddress: '0x1234567890123456789012345678901234567890',
+  }),
+  createErrorResult: vi.fn(
+    (error: unknown, defaultResponse: Record<string, unknown>) => ({
+      ...defaultResponse,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }),
+  ),
+}));
 vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('../../../src/utils/hyperLiquidAdapter.js')

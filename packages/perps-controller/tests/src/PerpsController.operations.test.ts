@@ -3135,6 +3135,7 @@ describe('PerpsController', () => {
         transaction: mockTransaction,
         assetChainId: mockAssetChainId,
         currentDepositId: mockDepositId,
+        providerId: 'hyperliquid',
       });
 
       // Create infrastructure mock (controllers no longer on infra)
@@ -3224,6 +3225,25 @@ describe('PerpsController', () => {
         mockDepositServiceInstance.prepareTransaction,
       ).toHaveBeenCalledWith({
         provider: mockProvider,
+      });
+    });
+
+    it('forwards an explicit deposit venue to transaction preparation', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      await depositController.depositWithConfirmation({
+        amount: '100',
+        providerId: 'lighter',
+      });
+
+      expect(
+        mockDepositServiceInstance.prepareTransaction,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        providerId: 'lighter',
       });
     });
 
@@ -3559,6 +3579,82 @@ describe('PerpsController', () => {
       await depositController.depositWithConfirmation({ amount: '100' });
 
       expect(depositController.state.depositRequests[0].id).toBe(mockDepositId);
+    });
+
+    it('attributes the deposit record to the venue whose route was chosen', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      vi.mocked(
+        mockDepositServiceInstance.prepareTransaction,
+      ).mockResolvedValueOnce({
+        transaction: mockTransaction,
+        assetChainId: mockAssetChainId,
+        currentDepositId: mockDepositId,
+        providerId: 'lighter' as const,
+      });
+
+      await depositController.depositWithConfirmation({ amount: '100' });
+
+      // The venue returned by preparation stays fixed through completion.
+      expect(depositController.state.depositRequests[0].providerId).toBe(
+        'lighter',
+      );
+    });
+
+    it('keeps the executing direct venue when the active provider changes during preparation', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      const started = createDeferred<void>();
+      const release = createDeferred<void>();
+      mockDepositServiceInstance.prepareTransaction.mockImplementationOnce(
+        async () => {
+          started.resolve();
+          await release.promise;
+          return {
+            transaction: mockTransaction,
+            assetChainId: mockAssetChainId,
+            currentDepositId: mockDepositId,
+            providerId: 'hyperliquid',
+          };
+        },
+      );
+
+      const deposit = depositController.depositWithConfirmation({
+        amount: '100',
+      });
+      await started.promise;
+      depositController.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+      release.resolve();
+      await deposit;
+
+      expect(depositController.state.activeProvider).toBe('lighter');
+      expect(depositController.state.depositRequests[0].providerId).toBe(
+        'hyperliquid',
+      );
+    });
+
+    it('omits venue attribution when preparation cannot resolve a venue', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      mockDepositServiceInstance.prepareTransaction.mockResolvedValueOnce({
+        transaction: mockTransaction,
+        assetChainId: mockAssetChainId,
+        currentDepositId: mockDepositId,
+      });
+
+      await depositController.depositWithConfirmation({ amount: '100' });
+
+      expect(depositController.state.depositRequests[0]).not.toHaveProperty(
+        'providerId',
+      );
     });
 
     it('delegates to DepositService with provider', async () => {

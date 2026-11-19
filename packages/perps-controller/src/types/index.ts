@@ -1084,7 +1084,70 @@ export type AccountState = {
       totalBalance: string;
     }
   >;
+  /**
+   * Per-venue account states, keyed by provider id. Present only when the
+   * state was produced by the aggregated provider; direct-provider results
+   * omit it. Venue-local detail (`crossMarginSummary`,
+   * `subAccountBreakdown`) stays inside each entry — the top-level totals are
+   * venue-neutral and never carry venue-local collateral detail.
+   */
+  providerStates?: Partial<
+    Record<PerpsProviderType, PerpsProviderAccountStateEntry>
+  >;
+  /**
+   * Completeness of the top-level totals across every enabled venue.
+   * Present only when the state was produced by the aggregated provider.
+   */
+  aggregate?: AccountAggregateMetadata;
   providerId?: PerpsProviderType; // Multi-provider: which provider this account state is from (injected by aggregator)
+};
+
+/**
+ * One venue's account data inside an aggregated {@link AccountState}.
+ *
+ * A failed read, invalid balance snapshot, or `null` after a venue has reported
+ * a snapshot is `unavailable` — never a zero balance. Before its first snapshot,
+ * a stream venue is `pending`, even if it emits `null`: no verdict about its
+ * balances, so its persisted entry is retained. A confirmed zero or nonexistent
+ * venue account is an `available` entry whose balances are zero.
+ */
+export type PerpsProviderAccountStateEntry =
+  | {
+      status: 'available';
+      /** The venue's own account snapshot, attributed to its provider. */
+      state: AccountState;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'unavailable';
+      /** The venue read failed; its balances contribute nothing to totals. */
+      error?: string;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'pending';
+      /** The venue has not reported on this stream yet; no verdict.
+       * Stream-only: the read path always awaits every venue. */
+      providerId: PerpsProviderType;
+    };
+
+/**
+ * Completeness metadata for an aggregated account read or stream update.
+ *
+ * `status: 'partial'` means the top-level totals are subtotals over
+ * `availableProviders` only: at least one enabled venue contributed no data.
+ * Consumers must not present partial totals as the user's complete portfolio
+ * value. With no metadata at all (absent `aggregate`), the state came from a
+ * single venue or a legacy producer and has no incompleteness claim.
+ */
+export type AccountAggregateMetadata = {
+  status: 'complete' | 'partial';
+  availableProviders: PerpsProviderType[];
+  unavailableProviders: PerpsProviderType[];
+  /** Stream updates only: venues that have not reported yet. They make the
+   * totals partial, but unlike `unavailableProviders` there is no verdict
+   * about their balances. */
+  pendingProviders?: PerpsProviderType[];
 };
 
 export type ClosePositionParams = {
@@ -1130,24 +1193,49 @@ export type ClosePositionParams = {
 export type ClosePositionsParams = {
   symbols?: string[]; // Optional: specific symbols to close (omit or empty array to close all)
   closeAll?: boolean; // Explicitly close all positions
+  /**
+   * Explicit provider-tagged close targets. Each target is closed on its
+   * named venue only, so identical symbols on different venues are
+   * independent. Non-empty targets take precedence over `closeAll` and
+   * `symbols`.
+   */
+  targets?: ClosePositionsTarget[];
+};
+
+/** One close target, tagged with the venue that holds the position. */
+export type ClosePositionsTarget = {
+  symbol: string;
+  providerId: PerpsProviderType;
 };
 
 export type ClosePositionsResult = {
   success: boolean; // Overall success (true if at least one position closed)
   successCount: number; // Number of positions closed successfully
-  failureCount: number; // Number of positions that failed to close
+  /** Failed positions, or one per failed venue when its positions are unknown. */
+  failureCount: number;
   /**
    * Batch-level operation error.
    *
-   * Set when the close fails as a whole: snapshot/preparation errors with no
-   * per-position outcomes, or a thrown batch submission that also fills
-   * `results` with per-position failures.
+   * Merged multi-venue failures use BATCH_INCOMPLETE, including when another
+   * venue succeeded; venue details live in `failures`. Direct-provider batches
+   * preserve their snapshot/preparation or submission error. Venue text is
+   * replaced with a stable code.
    */
   error?: string;
+  /** Venue-level errors; `error` remains BATCH_INCOMPLETE on a merged batch. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
+  /** Stable classification for the batch-level error. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details for the batch-level error. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   results: {
     symbol: string;
     success: boolean;
     error?: string;
+    errorCode?: PerpsErrorCode;
+    errorDetails?: PerpsErrorDetails;
+    /** Venue that (attempted to) execute this close. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1160,6 +1248,10 @@ export type UpdateMarginParams = {
 export type MarginResult = {
   success: boolean;
   error?: string;
+  /** Stable classification for a failed margin update. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type FlipPositionParams = {
@@ -1173,12 +1265,20 @@ export type FlipPositionParams = {
 export type InitializeResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when initialization fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   chainId?: string;
 };
 
 export type ReadyToTradeResult = {
   ready: boolean;
   error?: string;
+  /** Stable classification when the readiness check fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   walletConnected?: boolean;
   networkSupported?: boolean;
   authenticatedAddress?: string;
@@ -1187,6 +1287,10 @@ export type ReadyToTradeResult = {
 export type DisconnectResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when disconnect fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type MarketInfo = {
@@ -1352,12 +1456,22 @@ export type ToggleTestnetResult = {
   success: boolean;
   isTestnet: boolean;
   error?: string;
+  /** Stable classification when the network toggle fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type AssetRoute = {
   assetId: CaipAssetId; // CAIP asset ID (e.g., "eip155:42161/erc20:0xaf88.../default")
   chainId: CaipChainId; // CAIP-2 chain ID where the bridge contract is located
   contractAddress: Hex; // Bridge contract address for deposits/withdrawals
+  /**
+   * Venue this route moves funds to/from. In aggregated mode, routes from
+   * every active venue are listed; identical asset/chain routes belonging
+   * to different venues are distinct entries.
+   */
+  providerId?: PerpsProviderType;
   constraints?: {
     minAmount?: string; // Minimum deposit/withdrawal amount
     maxAmount?: string; // Maximum deposit/withdrawal amount
@@ -1470,45 +1584,55 @@ export type CancelOrderResult = {
 export type BatchCancelOrdersParams = {
   orderId: string;
   symbol: string;
-  /** Venue the order rests on; the aggregated provider's default when omitted. */
+  /**
+   * Venue that holds this order. Execution identity: the aggregated provider
+   * groups mixed-venue batches by it and never resolves duplicate order IDs
+   * or symbols across venues by falling back to the default provider.
+   */
   providerId?: PerpsProviderType;
 }[];
 
 export type CancelOrdersParams = {
-  /**
-   * Exact selection. Cross-venue selections require aggregated mode.
-   * Takes precedence over IDs and symbols unless cancelAll is true.
-   */
-  orders?: (BatchCancelOrdersParams[number] & {
-    providerId: PerpsProviderType;
-  })[];
-  symbols?: string[]; // Optional symbol selection. An empty selection cancels nothing.
-  orderIds?: string[]; // Optional ID selection. An empty selection cancels nothing.
+  symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
+  /** Legacy single-venue filter. Refused when multiple venues are registered;
+   * use `orders` to identify the venue for each ID. */
+  orderIds?: string[];
+  /** Venue-scoped targets, matched on both fields. Takes precedence over
+   * legacy filters unless `cancelAll` is true. An empty list cancels nothing. */
+  orders?: { orderId: string; providerId: PerpsProviderType }[];
   cancelAll?: boolean; // Explicitly cancel all orders
-  /**
-   * Restrict the batch to one venue. Required for filtered `orderIds` batches
-   * when more than one venue is active.
-   */
-  providerId?: PerpsProviderType;
 };
 
 export type CancelOrdersResult = {
   success: boolean; // Overall success (true if at least one order cancelled)
   successCount: number; // Number of orders cancelled successfully
-  failureCount: number; // Number of orders that failed to cancel
+  /** Failed cancellations plus unresolved discovery targets. For an unscoped
+   * discovery failure, counts one failure per unavailable venue (not its unknown order count). */
+  failureCount: number;
   /**
    * Batch-level operation error.
    *
-   * Set when the cancel is refused as a whole before any order is submitted,
-   * such as `PROVIDER_ROUTE_REQUIRED` for an unrouted multi-venue ID batch.
+   * Refused batches retain their code; incomplete discovery or merged venue
+   * batch errors use BATCH_INCOMPLETE, even if other venues succeeded.
    */
   error?: string;
+  /** Venue batch errors, matching ClosePositionsResult.failures. Discovery
+   * errors remain separate because their targets have no discovered symbol. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
+  /** Unavailable venues and, for scoped requests, their unresolved order IDs.
+   * These targets have no discovered symbol and are not included in results. */
+  discoveryFailures?: {
+    providerId: PerpsProviderType;
+    error: string;
+    orderIds?: string[];
+  }[];
   results: {
     orderId: string;
     symbol: string;
     success: boolean;
-    providerId?: PerpsProviderType;
     error?: string;
+    /** Venue that (attempted to) execute this cancel. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1531,6 +1655,12 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
+  /**
+   * Venue the deposit should settle on. In aggregated mode, omitting it uses
+   * the routing default's route. A venue with no deposit route fails closed
+   * instead of funding a different exchange.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type DepositResult = {
@@ -1574,6 +1704,10 @@ export type WithdrawResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed withdrawal. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   withdrawalId?: string; // Unique ID for tracking
   estimatedArrivalTime?: number; // Provider-specific arrival time
 };
@@ -1588,6 +1722,10 @@ export type TransferBetweenDexsResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed transfer. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type GetHistoricalPortfolioParams = {
@@ -1828,6 +1966,8 @@ export type CheckEligibilityParams = {
 };
 
 export type GetPositionsParams = {
+  /** Reject unavailable discovery instead of returning an empty position list. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include historical positions
   skipCache?: boolean; // Optional: bypass WebSocket cache and force API call (default: false)
@@ -1836,14 +1976,25 @@ export type GetPositionsParams = {
 };
 
 export type GetAccountStateParams = {
-  accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Defaults to the selected account. Providers that cannot query another
+   * wallet reject unsupported scopes rather than returning the selected
+   * wallet's balance, even when `throwOnUnavailable` is false.
+   */
+  accountId?: CaipAccountId;
   source?: string; // Optional: source of the call for tracing (e.g., 'health_check', 'initial_connection')
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
-  userAddress?: string; // Optional: required when standalone is true - user address to query account state for
+  /** Required for standalone reads. Unsupported wallet scopes reject as above. */
+  userAddress?: string;
   /**
-   * Optional: throw instead of returning zero-valued state when the read
-   * fails. Lighter throws `ACCOUNT_STATE_FAILED` (with the cause attached);
-   * a wallet without a Lighter account still reads as empty.
+   * Optional: throw instead of returning an incomplete or zero-valued state
+   * when the core read fails. Lighter throws `ACCOUNT_STATE_FAILED` (with
+   * the cause attached); a wallet without a Lighter account still reads as
+   * empty. HyperLiquid rejects the read when any DEX clearinghouse read or
+   * the spot clearinghouse read fails, instead of summing the reachable
+   * DEXs. The optional venue-local `crossMarginSummary` stays best-effort:
+   * a read whose balances are valid is never failed because its margin
+   * metadata could not be loaded.
    */
   throwOnUnavailable?: boolean;
 };
@@ -1884,6 +2035,9 @@ export type GetOrFetchFillsParams = {
 };
 
 export type GetOrdersParams = {
+  /** Reject unavailable open-order discovery instead of returning an empty list.
+   * Strict reads throw OrderDiscoveryError carrying any successfully fetched orders. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   startTime?: number; // Optional: start timestamp (Unix milliseconds)
   endTime?: number; // Optional: end timestamp (Unix milliseconds)
@@ -1892,16 +2046,6 @@ export type GetOrdersParams = {
   skipCache?: boolean; // Optional: bypass WebSocket cache and force API call (default: false)
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query orders for
-};
-
-/**
- * Fresh order discovery for a cancellation. An unavailable venue must reject
- * the read. An explicit route limits discovery to that venue.
- */
-export type BatchOpenOrdersOptions = {
-  requireComplete: true;
-  providerId?: PerpsProviderType;
-  providerIds?: readonly PerpsProviderType[];
 };
 
 /**
@@ -2093,13 +2237,32 @@ export type SubscribeAvailableToTradeParams = {
 };
 
 export type SubscribeAccountParams = {
-  callback: (account: AccountState | null) => void;
+  /** Aggregated streams include completeness metadata even when account is null,
+   * so consumers can distinguish pending venues from unavailable ones. */
+  callback: (
+    account: AccountState | null,
+    aggregate?: AccountAggregateMetadata,
+  ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional: emit `null` instead of a snapshot that is missing part of the
+   * venue's account, such as a HyperLiquid DEX or the spot balance that has
+   * not loaded. Aggregated account streams set it so an incomplete venue is
+   * pending or unavailable rather than a complete balance. Callers that omit
+   * it keep each venue's lenient default.
+   */
+  requireCompleteAccount?: boolean;
 };
 
 export type SubscribeOICapsParams = {
   callback: (caps: string[]) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type SubscribeCandlesParams = {
@@ -2108,6 +2271,13 @@ export type SubscribeCandlesParams = {
   duration?: TimeDuration;
   callback: (data: CandleData) => void;
   onError?: (error: Error) => void;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue — required when two venues
+   * list the same symbol and the data must come from a specific one.
+   */
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -2208,6 +2378,12 @@ export type OrderBookData = {
 export type SubscribeOrderBookParams = {
   /** Symbol to subscribe to (e.g., 'BTC', 'ETH') */
   symbol: string;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
   /** Number of levels to return per side (default: 10) */
   levels?: number;
   /** Price aggregation significant figures (2-5, default: 5). Higher = finer granularity */
@@ -3143,10 +3319,7 @@ export type PerpsProvider = {
    * Different from getOrders() which returns complete historical order lifecycle.
    * Example: Shows only orders that are actually open right now in the exchange.
    */
-  getOpenOrders(
-    params?: GetOrdersParams,
-    options?: BatchOpenOrdersOptions,
-  ): Promise<Order[]>;
+  getOpenOrders(params?: GetOrdersParams): Promise<Order[]>;
 
   /**
    * Historical funding payments - periodic costs/rewards for holding positions.
@@ -3278,9 +3451,37 @@ export type PerpsProvider = {
    */
   getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
 
+  /**
+   * Registered execution venues for an aggregating provider. Unlike position
+   * reads, this includes venues whose balances or positions are unavailable.
+   *
+   * @returns Every venue a close-all operation will reach.
+   */
+  getProviderIds?(): PerpsProviderType[];
+
+  /**
+   * Whether the execution venue consumes fee resolutions or discounts.
+   * Direct providers may omit this; the presence of a fee setter is sufficient.
+   *
+   * @param providerId - Venue to check, or the default route when omitted.
+   * @returns Whether resolving a fee for this venue has an effect.
+   */
+  supportsFeeResolution?(providerId?: PerpsProviderType): boolean;
+
   setUserFeeDiscount?(discountBips: number | undefined): void;
-  // Full fee resolution context, including attribution source.
-  setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
+  /**
+   * Set the full fee resolution context, including attribution source.
+   *
+   * @param resolution - Resolved fee, or undefined to clear it.
+   * @param providerId - Venue the resolution is for. An aggregating provider
+   * applies it to that venue only, so a fan-out write can price each venue on
+   * its own; when omitted it applies to every venue. A single provider is its
+   * only venue and may ignore it.
+   */
+  setUserFeeResolution?(
+    resolution: PerpsFeeResolution | undefined,
+    providerId?: PerpsProviderType,
+  ): void;
   /**
    * Approve the dedicated subscription builder outside order submission.
    *

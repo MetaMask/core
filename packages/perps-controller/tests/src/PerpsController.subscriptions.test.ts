@@ -36,6 +36,7 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import * as accountServiceModule from '../../src/services/AccountService.js';
 import * as dataLakeServiceModule from '../../src/services/DataLakeService.js';
@@ -44,6 +45,7 @@ import * as eligibilityServiceModule from '../../src/services/EligibilityService
 import * as featureFlagConfigurationServiceModule from '../../src/services/FeatureFlagConfigurationService.js';
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
+import type { AccountState } from '../../src/types/index.js';
 import type {
   PerpsProvider,
   PerpsPlatformDependencies,
@@ -274,6 +276,14 @@ class TestablePerpsController extends PerpsController {
   }
 
   /**
+   * Test-only method to set the active provider instance directly, so tests
+   * can install an aggregated wrapper or a specific venue.
+   */
+  public testSetActiveProvider(provider: PerpsProvider) {
+    this.activeProviderInstance = provider;
+  }
+
+  /**
    * Test-only method to set the providers map with partial providers.
    * Used explicitly in tests that verify error handling with incomplete providers.
    * Type cast is intentional and necessary for testing graceful degradation.
@@ -358,6 +368,8 @@ describe('PerpsController', () => {
   let controller: TestablePerpsController;
   let mockProvider: Mocked<HyperLiquidProvider>;
   let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
+  let mockMessenger: ReturnType<typeof createMockMessenger>;
+  let selectedEvmAddress: string;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -365,6 +377,7 @@ describe('PerpsController', () => {
   };
 
   beforeEach(() => {
+    selectedEvmAddress = '0x1234567890123456789012345678901234567890';
     vi.clearAllMocks();
 
     (
@@ -540,7 +553,7 @@ describe('PerpsController', () => {
       ) {
         return [
           {
-            address: '0x1234567890123456789012345678901234567890',
+            address: selectedEvmAddress,
             type: 'eip155:eoa',
             id: 'account-1',
             options: {},
@@ -558,8 +571,9 @@ describe('PerpsController', () => {
     });
 
     mockInfrastructure = createMockInfrastructure();
+    mockMessenger = createMockMessenger({ call: mockCall });
     controller = new TestablePerpsController({
-      messenger: createMockMessenger({ call: mockCall }),
+      messenger: mockMessenger,
       state: getDefaultPerpsControllerState(),
       infrastructure: mockInfrastructure,
     });
@@ -598,6 +612,560 @@ describe('PerpsController', () => {
 
       expect(unsubscribe).toBe(mockUnsubscribe);
       expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(params);
+    });
+  });
+
+  describe('aggregated account stream state propagation', () => {
+    let lighterProvider: PerpsProvider;
+    let aggregatedProvider: AggregatedPerpsProvider;
+
+    const accountState = (totalBalance: string): AccountState => ({
+      spendableBalance: totalBalance,
+      withdrawableBalance: totalBalance,
+      totalBalance,
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    });
+
+    const setupAggregatedMode = () => {
+      markControllerAsInitialized();
+      lighterProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      } as unknown as PerpsProvider;
+      aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure as never,
+      });
+      controller.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+      controller.testSetActiveProvider(aggregatedProvider);
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.defaultProvider = 'hyperliquid';
+      });
+    };
+
+    it('writes one per-provider balance entry per venue from the stream', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+
+      const before = Date.now();
+      hlCallback({
+        ...accountState('1000.10'),
+        unrealizedPnl: '30',
+      });
+      lighterCallback({
+        ...accountState('250.20'),
+        unrealizedPnl: '-5',
+      });
+
+      const balances = controller.state.perpsBalances;
+      expect(Object.keys(balances).sort()).toEqual(['hyperliquid', 'lighter']);
+      expect(balances.hyperliquid).toMatchObject({
+        totalBalance: '1000.10',
+        unrealizedPnl: '30',
+      });
+      expect(balances.lighter).toMatchObject({
+        totalBalance: '250.20',
+        unrealizedPnl: '-5',
+      });
+      expect(balances.hyperliquid.lastUpdated).toBeGreaterThanOrEqual(before);
+      expect(balances.lighter.lastUpdated).toBeGreaterThanOrEqual(before);
+      // No synthetic combined entry: the total lives in accountState.
+      expect(balances.aggregated).toBeUndefined();
+      // The combined snapshot is the sum of the venue balances.
+      expect(controller.state.accountState?.totalBalance).toBe('1250.3');
+    });
+
+    it('writes live balances without carrying stale history or adding provenance', () => {
+      setupAggregatedMode();
+      controller.testUpdate((state) => {
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '90',
+          unrealizedPnl: '0',
+          accountValue1dAgo: '80',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      expect(controller.state.perpsBalances.hyperliquid).toStrictEqual({
+        totalBalance: '100',
+        unrealizedPnl: '0',
+        lastUpdated: expect.any(Number),
+      });
+    });
+
+    it('clears balances on selected account notifications', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .forEach(([, handler]) => handler());
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
+    describe('an unscoped stream after an account switch', () => {
+      const switchSelectedAccount = (): void => {
+        selectedEvmAddress = '0x00000000000000000000000000000000000000bb';
+        (mockMessenger.subscribe as Mock).mock.calls
+          .filter(
+            ([event]) => event === 'AccountsController:selectedAccountChange',
+          )
+          .forEach(([, handler]) => handler());
+      };
+
+      it.each([
+        ['a snapshot', accountState('150')],
+        ['null', null],
+      ])(
+        'does not let %s from the old direct stream change selected-account state',
+        (_label, oldUpdate) => {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          const oldConsumer = vi.fn();
+          controller.subscribeToAccount({ callback: oldConsumer });
+          const oldCallback =
+            mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+          oldCallback(accountState('100'));
+
+          switchSelectedAccount();
+          controller.subscribeToAccount({ callback: vi.fn() });
+          const newCallback =
+            mockProvider.subscribeToAccount.mock.calls[1][0].callback;
+          newCallback(accountState('200'));
+          expect(controller.state.accountState?.totalBalance).toBe('200');
+          const selectedState = controller.state;
+
+          oldCallback(oldUpdate);
+
+          expect(controller.state).toBe(selectedState);
+          // The old stream still feeds its own consumer, not selected state.
+          expect(oldConsumer).toHaveBeenLastCalledWith(oldUpdate);
+        },
+      );
+
+      it('does not repopulate balances from the old aggregate while the new stream is pending', () => {
+        setupAggregatedMode();
+        controller.subscribeToAccount({ callback: vi.fn() });
+        const oldHlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+        const oldLighterCallback = (lighterProvider as any).subscribeToAccount
+          .mock.calls[0][0].callback;
+        oldHlCallback(accountState('100'));
+
+        switchSelectedAccount();
+        expect(controller.state.perpsBalances).toStrictEqual({});
+
+        // Lighter's reset re-emits the old stream's cached HyperLiquid state.
+        oldLighterCallback(null);
+        expect(controller.state.perpsBalances).toStrictEqual({});
+
+        controller.subscribeToAccount({ callback: vi.fn() });
+        const newHlCallback =
+          mockProvider.subscribeToAccount.mock.calls[1][0].callback;
+        newHlCallback(null);
+        expect(controller.state.perpsBalances).toStrictEqual({});
+        expect(controller.state.accountState).toBeNull();
+
+        // A freshly opened stream owns the new account and can write normally.
+        newHlCallback(accountState('200'));
+        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+          totalBalance: '200',
+        });
+        expect(controller.state.accountState?.totalBalance).toBe('200');
+      });
+    });
+
+    describe('a stream for an explicit account', () => {
+      const otherAccountId =
+        'eip155:1:0x00000000000000000000000000000000000000ff' as const;
+      const persistSelectedBalances = (): void => {
+        controller.testUpdate((state) => {
+          state.perpsBalances.hyperliquid = {
+            totalBalance: '90',
+            unrealizedPnl: '0',
+            lastUpdated: 1,
+          };
+          state.perpsBalances.lighter = {
+            totalBalance: '200',
+            unrealizedPnl: '2',
+            lastUpdated: 1,
+          };
+        });
+      };
+
+      it('leaves the selected account balances alone on an aggregated stream for another account', () => {
+        setupAggregatedMode();
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: otherAccountId,
+        });
+        const hlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+        const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+          .calls[0][0].callback;
+
+        // Lighter reports, then becomes unavailable; HyperLiquid reports the
+        // other wallet's balance. None of it belongs in perpsBalances.
+        lighterCallback(accountState('5'));
+        lighterCallback(null);
+        hlCallback(accountState('250'));
+
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
+      it('leaves the selected account balances alone on a direct stream for another account', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: otherAccountId,
+        });
+        const hlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+        hlCallback(accountState('250'));
+        hlCallback(null);
+
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
+      it.each([
+        ['an account update', accountState('250')],
+        ['a null update', null],
+      ])(
+        'leaves the selected account snapshot alone on %s from another account',
+        (_label, update) => {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          const selectedSnapshot = accountState('90');
+          controller.testUpdate((state) => {
+            state.accountState = selectedSnapshot;
+            state.lastUpdateTimestamp = 1;
+          });
+          const callback = vi.fn();
+          controller.subscribeToAccount({
+            callback,
+            accountId: otherAccountId,
+          });
+
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback(update);
+
+          expect(controller.state.accountState).toStrictEqual(selectedSnapshot);
+          expect(controller.state.lastUpdateTimestamp).toBe(1);
+          // The stream's own consumer still receives the other account's data.
+          expect(callback).toHaveBeenCalledWith(update);
+        },
+      );
+
+      it('does not treat a malformed account id that ends with the selected address as the selected account', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        const selectedSnapshot = accountState('90');
+        controller.testUpdate((state) => {
+          state.accountState = selectedSnapshot;
+        });
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          // A bare address is not a CAIP-10 account id.
+          accountId: selectedEvmAddress as `${string}:${string}:${string}`,
+        });
+
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+          accountState('250'),
+        );
+
+        expect(controller.state.accountState).toStrictEqual(selectedSnapshot);
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
+      it('writes balances when the explicit account is the selected one', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: `eip155:1:${selectedEvmAddress}`,
+        });
+
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+          accountState('100'),
+        );
+
+        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+          totalBalance: '100',
+        });
+      });
+    });
+
+    it('drops foreign venue balances on a direct-provider stream write', () => {
+      // Direct mode (default): hyperliquid is the only live venue.
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      // A persisted entry left by a previous aggregated session.
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback(accountState('100'));
+      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+        totalBalance: '100',
+      });
+      // The stale venue is not streamed in direct mode: its entry must not
+      // keep looking live.
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
+    it('drops foreign venue balances on a single-venue aggregated stream write', () => {
+      markControllerAsInitialized();
+      const singleVenueAggregate = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure as never,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetActiveProvider(singleVenueAggregate);
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        // Persisted from a session that still streamed the other venue.
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      // The single-venue emission carries a top-level providerId and no
+      // providerStates.
+      hlCallback({ ...accountState('100'), providerId: 'hyperliquid' });
+      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+        totalBalance: '100',
+      });
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
+    it("keeps a not-yet-reported venue's persisted balance entry until that venue reports", () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+
+      // A persisted entry from a previous session, with 1d-ago history.
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          accountValue1dAgo: '190',
+          lastUpdated: Date.now(),
+        };
+      });
+
+      // Hyperliquid reports first: Lighter simply has not reported yet, so
+      // its persisted entry (and the history it carries) must survive.
+      hlCallback(accountState('100'));
+      expect(controller.state.perpsBalances.lighter).toMatchObject({
+        totalBalance: '200',
+        accountValue1dAgo: '190',
+      });
+
+      // Lighter then reports: replace the entry with only live observations.
+      lighterCallback({ ...accountState('250'), unrealizedPnl: '5' });
+      expect(controller.state.perpsBalances.lighter).toMatchObject({
+        totalBalance: '250',
+      });
+
+      // An explicit null is a real unavailability: the entry goes away.
+      lighterCallback(null);
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
+    it('preserves pending balances when the first account emission is null', () => {
+      setupAggregatedMode();
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          accountValue1dAgo: '190',
+          lastUpdated: 1,
+        };
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '100',
+          unrealizedPnl: '1',
+          lastUpdated: 1,
+        };
+      });
+      const persisted = controller.state.perpsBalances;
+      const callback = vi.fn();
+      controller.subscribeToAccount({ callback });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback(null);
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      expect(callback.mock.calls[0][0]).toBeNull();
+
+      // Once a venue reports data, its subsequent null removes only that
+      // venue. The other venue still has no verdict, even with no live total.
+      hlCallback(accountState('110'));
+      hlCallback(null);
+      expect(controller.state.perpsBalances.hyperliquid).toBeUndefined();
+      expect(controller.state.perpsBalances.lighter).toStrictEqual(
+        persisted.lighter,
+      );
+      expect(controller.state.accountState).toBeNull();
+    });
+
+    it('removes malformed venue balances even when every other venue is pending', () => {
+      setupAggregatedMode();
+      controller.testUpdate((state) => {
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '100',
+          unrealizedPnl: '1',
+          lastUpdated: 1,
+        };
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback({ ...accountState('110'), marginUsed: '--' });
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances.hyperliquid).toBeUndefined();
+      expect(controller.state.perpsBalances.lighter?.totalBalance).toBe('200');
+    });
+
+    it('removes a venue balance entry when that venue reports unavailable', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+
+      hlCallback(accountState('100'));
+      lighterCallback(accountState('200'));
+      expect(controller.state.perpsBalances.lighter).toBeDefined();
+
+      // Lighter's data is no longer known: its balance entry goes away
+      // instead of being exposed as live, and the aggregate is partial.
+      lighterCallback(null);
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+      expect(controller.state.perpsBalances.hyperliquid).toBeDefined();
+      expect(controller.state.accountState?.totalBalance).toBe('100');
+      expect(controller.state.accountState?.aggregate?.status).toBe('partial');
+    });
+
+    it('clears accountState and balances when no venue has data', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+
+      hlCallback(accountState('100'));
+      lighterCallback(accountState('200'));
+      hlCallback(null);
+      lighterCallback(null);
+
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
+    it('keys a direct-mode balance entry by the active direct provider', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback(accountState('100'));
+
+      expect(Object.keys(controller.state.perpsBalances)).toEqual([
+        'hyperliquid',
+      ]);
+      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+        totalBalance: '100',
+      });
+    });
+
+    it('buckets each aggregated venue account state into its own preload cache bucket', async () => {
+      setupAggregatedMode();
+      mockProvider.getPositions.mockResolvedValue([]);
+      mockProvider.getOpenOrders.mockResolvedValue([]);
+      mockProvider.getAccountState.mockResolvedValue(accountState('1000.10'));
+      (lighterProvider as any).getPositions.mockResolvedValue([]);
+      (lighterProvider as any).getOpenOrders.mockResolvedValue([]);
+      (lighterProvider as any).getAccountState.mockResolvedValue(
+        accountState('250.20'),
+      );
+
+      controller.startMarketDataPreload();
+      // Flush the fire-and-forget preload.
+      await vi.waitFor(() => {
+        expect(
+          controller.state.cachedUserDataByProvider['hyperliquid:mainnet'],
+        ).toBeDefined();
+      });
+
+      const hlBucket =
+        controller.state.cachedUserDataByProvider['hyperliquid:mainnet'];
+      const lighterBucket =
+        controller.state.cachedUserDataByProvider['lighter:mainnet'];
+      // Each venue's own account state lands in its own bucket.
+      expect(hlBucket?.accountState?.totalBalance).toBe('1000.10');
+      expect(lighterBucket?.accountState?.totalBalance).toBe('250.20');
+      // The combined total is not stored in any venue bucket.
+      expect(hlBucket?.accountState?.totalBalance).not.toBe('1250.3');
+      controller.stopMarketDataPreload();
     });
   });
 

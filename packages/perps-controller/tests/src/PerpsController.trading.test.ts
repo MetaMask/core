@@ -40,7 +40,6 @@ import * as marketDataServiceModule from '../../src/services/MarketDataService.j
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
   CancelOrderResult,
-  CancelOrdersParams,
   ChaseOrder,
   ChaseOrderLists,
   Order,
@@ -121,6 +120,8 @@ const mockMarketDataServiceInstance = {
   getBlockExplorerUrl: vi.fn(),
   getOrderFills: vi.fn(),
   getOrders: vi.fn(),
+  getOpenOrders:
+    vi.fn<marketDataServiceModule.MarketDataService['getOpenOrders']>(),
   getFunding: vi.fn(),
 };
 vi.mock('../../src/services/MarketDataService', () => ({
@@ -1464,6 +1465,9 @@ describe('PerpsController', () => {
     } as Order;
 
     const useRealBatchService = async (): Promise<void> => {
+      mockMarketDataServiceInstance.getOpenOrders.mockImplementation(
+        ({ provider, params }) => provider.getOpenOrders(params),
+      );
       const { TradingService } = await vi.importActual<
         typeof tradingServiceModule
       >('../../src/services/TradingService.js');
@@ -1541,8 +1545,8 @@ describe('PerpsController', () => {
 
       const result = await controller.cancelOrders({
         orders: [
-          { orderId: '123', symbol: 'BTC', providerId: 'hyperliquid' },
-          { orderId: '123', symbol: 'BTC', providerId: 'lighter' },
+          { orderId: '123', providerId: 'hyperliquid' },
+          { orderId: '123', providerId: 'lighter' },
         ],
       });
 
@@ -1637,7 +1641,8 @@ describe('PerpsController', () => {
         lighter.getOpenOrders.mockResolvedValue([order]);
 
         await expect(
-          controller.cancelOrders(params as unknown as CancelOrdersParams),
+          // @ts-expect-error Invalid runtime selector intentionally bypasses the typed caller.
+          controller.cancelOrders(params),
         ).rejects.toThrow(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED);
         expect(mockProvider.getOpenOrders).not.toHaveBeenCalled();
         expect(lighter.getOpenOrders).not.toHaveBeenCalled();
@@ -1645,43 +1650,6 @@ describe('PerpsController', () => {
         expect(lighter.cancelOrders).not.toHaveBeenCalled();
       },
     );
-
-    it('fails closed on a venue read failure while allowing an explicitly scoped healthy venue', async () => {
-      markControllerAsInitialized();
-      await useRealBatchService();
-      const lighter = createMockHyperLiquidProvider();
-      lighter.getOpenOrders.mockRejectedValue(
-        new Error('Lighter read unavailable'),
-      );
-      mockProvider.getOpenOrders.mockResolvedValue([order]);
-      mockProvider.cancelOrders.mockResolvedValue({
-        success: true,
-        successCount: 1,
-        failureCount: 0,
-        results: [{ ...order, success: true }],
-      });
-      const aggregated = new AggregatedPerpsProvider({
-        providers: new Map([
-          ['hyperliquid', mockProvider],
-          ['lighter', lighter],
-        ]),
-        defaultProvider: 'hyperliquid',
-        infrastructure: mockInfrastructure,
-      });
-      controller.testSetProviders(new Map([['hyperliquid', aggregated]]));
-      await expect(
-        controller.cancelOrders({ cancelAll: true }),
-      ).rejects.toThrow('Lighter read unavailable');
-      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
-      expect(lighter.cancelOrders).not.toHaveBeenCalled();
-
-      const result = await controller.cancelOrders({
-        cancelAll: true,
-        providerId: 'hyperliquid',
-      });
-      expect(result.successCount).toBe(1);
-      expect(lighter.getOpenOrders).toHaveBeenCalledTimes(1);
-    });
 
     it('delegates to TradingService with withStreamPause callback', async () => {
       markControllerAsInitialized();
@@ -1728,39 +1696,6 @@ describe('PerpsController', () => {
         }),
       );
     });
-
-    it.each([
-      ['hyperliquid', true],
-      ['lighter', false],
-    ] as const)(
-      'matches a direct Hyperliquid order for scope %s',
-      async (providerId, success) => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        const { TradingService } = await vi.importActual<
-          typeof tradingServiceModule
-        >('../../src/services/TradingService.js');
-        const service = new TradingService(mockInfrastructure);
-        const cancelOrders = vi.fn().mockResolvedValue({
-          success: true,
-          successCount: 1,
-          failureCount: 0,
-          results: [{ symbol: 'BTC', orderId: '123', success: true }],
-        });
-        mockProvider.cancelOrders = cancelOrders;
-        mockTradingServiceInstance.cancelOrders.mockImplementation(
-          service.cancelOrders.bind(service),
-        );
-        mockProvider.getOpenOrders.mockResolvedValue([order]);
-
-        const result = await controller.cancelOrders({
-          providerId,
-          orderIds: ['123'],
-        });
-        expect(result.success).toBe(success);
-        expect(cancelOrders).toHaveBeenCalledTimes(success ? 1 : 0);
-      },
-    );
 
     it('resumes streams even when operation throws error', async () => {
       markControllerAsInitialized();
@@ -1825,9 +1760,12 @@ describe('PerpsController', () => {
   });
 
   describe('closePositions', () => {
-    it('delegates to TradingService.closePositions', async () => {
+    it('delegates to TradingService.closePositions and forwards position read options', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const getPositions = vi
+        .spyOn(controller, 'getPositions')
+        .mockResolvedValue([]);
 
       vi.spyOn(mockTradingServiceInstance, 'closePositions').mockResolvedValue({
         success: true,
@@ -1847,6 +1785,12 @@ describe('PerpsController', () => {
           context: expect.any(Object),
         }),
       );
+      const { context } =
+        mockTradingServiceInstance.closePositions.mock.calls[0][0];
+      await context.getPositions?.({ throwOnUnavailable: true });
+      expect(getPositions).toHaveBeenCalledExactlyOnceWith({
+        throwOnUnavailable: true,
+      });
     });
   });
 

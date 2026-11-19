@@ -1,10 +1,4 @@
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
-import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
-import type {
-  CancelOrdersParams,
-  Order,
-  PositionTriggerOrder,
-} from '../types/index.js';
+import type { Order, PositionTriggerOrder } from '../types/index.js';
 import type {
   OrderExecution,
   OrderType,
@@ -357,41 +351,4 @@ export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
         `${order.orderId}:${order.direction}:${order.orderType ?? '?'}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
     )
     .join(',');
-}
-
-/**
- * Reject malformed batch filters at the runtime API boundary.
- *
- * @param params - Batch cancellation request.
- */
-export function assertCancelOrderFilters(params: CancelOrdersParams): void {
-  for (const key of ['orders', 'orderIds', 'symbols'] as const) {
-    if (params[key] !== undefined && !Array.isArray(params[key])) {
-      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
-        cause: new TypeError(`${key} must be an array`),
-      });
-    }
-  }
-
-  const selection: readonly unknown[] = params.orders ?? [];
-  for (const order of selection) {
-    if (
-      typeof order !== 'object' ||
-      order === null ||
-      !('providerId' in order) ||
-      !isPerpsProviderType(order.providerId) ||
-      !('symbol' in order) ||
-      typeof order.symbol !== 'string' ||
-      !order.symbol.trim() ||
-      !('orderId' in order) ||
-      typeof order.orderId !== 'string' ||
-      !order.orderId.trim()
-    ) {
-      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
-        cause: new TypeError(
-          'Each qualified order requires a venue, symbol and ID',
-        ),
-      });
-    }
-  }
 }

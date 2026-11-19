@@ -507,7 +507,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         expect(result).toMatchObject({
           success: false,
-          error: `Malformed bulk response: ${label}`,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         });
         expect(exchangeClient.cancel).toHaveBeenCalledWith({
           cancels: [{ a: 1, o: 11 }],
@@ -574,11 +574,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
           'Malformed bulk response',
         ),
-        'Malformed bulk response',
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
       ],
-      ['unrelated SDK', new HyperliquidError('SDK failure'), 'SDK failure'],
-      ['non-SDK', new Error('Network unavailable'), 'Network unavailable'],
-    ])('does not unwrap a %s SDK error', async (_label, error, message) => {
+      [
+        'unrelated SDK',
+        new HyperliquidError('SDK failure'),
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      ],
+      [
+        'non-SDK',
+        new Error('Network unavailable'),
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      ],
+    ])('normalizes a %s SDK error', async (_label, error, expectedCode) => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: vi.fn().mockRejectedValue(error) },
       });
@@ -591,7 +599,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleNumOrders: 3,
       } satisfies OrderParams);
 
-      expect(result).toMatchObject({ success: false, error: message });
+      expect(result).toMatchObject({
+        success: false,
+        error: expectedCode,
+      });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 

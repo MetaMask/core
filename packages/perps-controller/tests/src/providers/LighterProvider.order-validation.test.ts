@@ -2154,8 +2154,8 @@ describe('LighterProvider', () => {
       const orderIndex = venue.seedTrigger('stop-loss', '80000');
       expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
 
-      const orders = await provider.getOpenOrders(undefined, {
-        requireComplete: true,
+      const orders = await provider.getOpenOrders({
+        throwOnUnavailable: true,
       });
 
       expect(orders).toMatchObject([
@@ -2171,7 +2171,7 @@ describe('LighterProvider', () => {
       venue.rawTriggers[0].marketIndex = 999;
 
       await expect(
-        provider.getOpenOrders(undefined, { requireComplete: true }),
+        provider.getOpenOrders({ throwOnUnavailable: true }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
     });
@@ -2185,15 +2185,13 @@ describe('LighterProvider', () => {
         l1Address: ACCOUNT.l1Address,
         subAccounts: [],
       });
-      const options = { requireComplete: true } as const;
+      const options = { throwOnUnavailable: true } as const;
 
-      expect(await provider.getOpenOrders(undefined, options)).toStrictEqual(
-        [],
-      );
+      expect(await provider.getOpenOrders(options)).toStrictEqual([]);
       clientInstance.getAccountsByL1Address.mockRejectedValueOnce(
         new Error('lookup offline'),
       );
-      await expect(provider.getOpenOrders(undefined, options)).rejects.toThrow(
+      await expect(provider.getOpenOrders(options)).rejects.toThrow(
         'lookup offline',
       );
       expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
@@ -2970,10 +2968,9 @@ describe('LighterProvider', () => {
         }),
       });
       // The frame itself is the first observer: it must be dropped, and
-      // the rebind replaces the socket for account B.
-      expect(accountCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ totalBalance: '0', providerId: 'lighter' }),
-      );
+      // the rebind replaces the socket for account B, whose balance is not
+      // known yet.
+      expect(accountCallback).toHaveBeenCalledWith(null);
       expect(accountCallback).not.toHaveBeenCalledWith(
         expect.objectContaining({ totalBalance: '9999' }),
       );
