@@ -195,8 +195,9 @@ touches `KycController` state.
   `verifyEmailOtp` signs `users/link/verify` with the code in its body and
   sends no `otp`). It signs right before each call, because a signature lasts
   60 seconds, and it checks each answer against the route and kyc-api's
-  limits (16 string headers, 4 KB body). A Kalshi session sends no partner
-  identity token. `kalshi_phone_link` is the phone and its code, and it is
+  limits (16 string headers, 4 KB body). A Kalshi session also sends a
+  partner identity token minted for the `kalshi` audience; kyc-api checks the
+  typed email against its verified `ext.email`. `kalshi_phone_link` is the phone and its code, and it is
   not signed here. kyc-api forwards the signed calls to the relay, which is
   the only Kalshi client. Relay errors reach the client as a `KycApiError`
   whose `code` `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`,

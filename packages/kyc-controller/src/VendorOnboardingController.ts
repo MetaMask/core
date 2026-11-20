@@ -351,10 +351,9 @@ export class VendorOnboardingController extends BaseController<
     const residenceCountry = await this.messenger.call(
       'KycService:getGeoCountry',
     );
-    // kyc-api ignores the token for Kalshi, which takes the typed email, so
-    // there is nothing to mint and no identity consent to record.
-    const partnerIdentityToken =
-      vendor === 'kalshi' ? undefined : await this.#mintPartnerIdentityToken();
+    // kyc-api takes the session's email from this token's verified `ext.email`.
+    // For Kalshi it must match the email the phone signs into `users/link`.
+    const partnerIdentityToken = await this.#mintPartnerIdentityToken(vendor);
     // A signature lasts 60 seconds, so this is the last thing before the
     // call that carries it.
     const kalshiSigning =
@@ -724,15 +723,17 @@ export class VendorOnboardingController extends BaseController<
 
   /**
    * Mints the partner identity token kyc-api takes the session's email from.
+   * The token's audience is the vendor, so each vendor gets its own consent.
    *
    * The consent has to be recorded first: MetaMask Auth answers
    * `403 consent_required` for an audience the user has not granted, so the
    * two calls always go together.
    *
+   * @param vendor - The vendor the token is minted for.
    * @returns The minted token.
    */
-  async #mintPartnerIdentityToken(): Promise<string> {
-    const audience = 'iron';
+  async #mintPartnerIdentityToken(vendor: OnboardingVendor): Promise<string> {
+    const audience = vendor;
     await this.messenger.call(
       'AuthenticatedUserStorageService:putIdentitySharingConsent',
       { audience, granted: true },

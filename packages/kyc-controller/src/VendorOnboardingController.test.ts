@@ -958,6 +958,7 @@ describe('VendorOnboardingController', () => {
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
           email: KALSHI_EMAIL,
+          partnerIdentityToken: 'partner-token',
           signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
         expect(handlers.setAuthorizations).toHaveBeenCalledWith({
@@ -1064,7 +1065,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('mints no identity token for Kalshi, which kyc-api ignores', async () => {
+    it('mints a Kalshi identity token for the kalshi audience', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
@@ -1072,12 +1073,21 @@ describe('VendorOnboardingController', () => {
           email: KALSHI_EMAIL,
         });
 
-        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
-        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
-        const [params] = handlers.createUkycSession.mock.calls[0] as [
-          CreateUkycSessionParams,
-        ];
-        expect(params).not.toHaveProperty('partnerIdentityToken');
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'kalshi',
+          granted: true,
+        });
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'kalshi',
+        );
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vendor: 'kalshi',
+            partnerIdentityToken: 'partner-token',
+            email: KALSHI_EMAIL,
+          }),
+        );
       });
     });
 
