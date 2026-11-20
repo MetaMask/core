@@ -3,8 +3,8 @@ import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
 
-import { IntentManager } from './bridge-status-controller.intent';
-import type { BridgeHistoryItem } from './types.js';
+import { IntentManager } from './bridge-status-controller.intent.js';
+import type { BridgeHistoryItem, FetchFunction } from './types.js';
 import { postSubmitOrder } from './utils/intent-api.js';
 import { IntentOrderStatus } from './utils/validators.js';
 
@@ -39,7 +39,7 @@ const createManagerOptions = (overrides?: {
 }): IntentManagerConstructorOptions => ({
   messenger: overrides?.messenger ?? { call: vi.fn() },
   customBridgeApiBaseUrl: 'https://example.com',
-  fetchFn: overrides?.fetchFn ?? vi.fn(),
+  fetchFn: (overrides?.fetchFn ?? vi.fn()) as FetchFunction,
 });
 
 describe('IntentManager', () => {
@@ -255,6 +255,34 @@ describe('IntentManager', () => {
     expect(result).toBeDefined();
     expect(result?.orderStatus).toBe(IntentOrderStatus.SUBMITTED);
     expect(result?.bridgeStatus).toBeDefined();
+  });
+
+  it('getIntentTransactionStatus fetches by orderId when it differs from the history key', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      id: 'order-uid-1',
+      status: IntentOrderStatus.SUBMITTED,
+      metadata: {},
+    });
+    const manager = new IntentManager(createManagerOptions({ fetchFn }));
+    const historyItem = makeHistoryItem();
+
+    await manager.getIntentTransactionStatus(
+      'withdraw-history-key',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
+      'order-uid-1',
+    );
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      expect.stringContaining('orderId=order-uid-1'),
+      expect.any(Object),
+    );
+    expect(fetchFn).not.toHaveBeenCalledWith(
+      expect.stringContaining('orderId=withdraw-history-key'),
+      expect.any(Object),
+    );
   });
 
   it('getIntentTransactionStatus passes undefined txHash when srcChain is missing', async () => {

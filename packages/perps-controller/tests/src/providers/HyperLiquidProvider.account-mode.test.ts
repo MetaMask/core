@@ -1,15 +1,13 @@
 /* eslint-disable */
-vi.mock('@nktkas/hyperliquid', () => ({
-  HyperliquidError: class HyperliquidError extends Error {},
-}));
-
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { ExchangeClient } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
+  HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
@@ -27,6 +25,7 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
+import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -44,6 +43,7 @@ import {
   createMockPosition,
 } from '../../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -166,6 +166,7 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
+    subscriptionBuilderAddressMainnet?: string;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -1046,6 +1047,55 @@ describe('HyperLiquidProvider', () => {
       expect(dispatch).not.toHaveBeenCalled();
     });
 
+    it('keeps referral setup retryable when the account changes before SDK signing', async () => {
+      primeSupportedTradingSetup();
+      vi.mocked(TradingReadinessCache.getReferral).mockReturnValue(undefined);
+      const signTypedData = vi.fn((_payload: unknown) =>
+        Promise.resolve(`0x${'11'.repeat(64)}1b` as const),
+      );
+      const request = vi.fn();
+      mockClientService.getExchangeClient.mockImplementation(
+        (beforeDispatch, hooks) => {
+          const client = new ExchangeClient({
+            wallet: {
+              address: '0x1111111111111111111111111111111111111111',
+              signTypedData,
+            },
+            transport: { isTestnet: true, request },
+            nonceManager: () => {
+              mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+                '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+              );
+              return 1234;
+            },
+          });
+          return beforeDispatch
+            ? createGuardedHyperLiquidClient(
+                client,
+                beforeDispatch,
+                undefined,
+                hooks,
+              )
+            : client;
+        },
+      );
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(TradingReadinessCache.setReferral).not.toHaveBeenCalled();
+      expect(signTypedData).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+    });
+
     it('blocks an action when the selected account changes during its support check', async () => {
       const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
       const exchangeClient = createMockExchangeClient();
@@ -1506,6 +1556,578 @@ describe('HyperLiquidProvider', () => {
 
       expect(userToMultiSigSigners).toHaveBeenCalledTimes(1);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    describe('write dispatch fence', () => {
+      const multiSigStatus = {
+        status: 'ok',
+        response: { data: { statuses: [{ error: 'Multi-sig required' }] } },
+      };
+      let exchangeClient: Record<string, Mock>;
+      let dispatchFences: (() => Promise<void>)[];
+
+      beforeEach(() => {
+        primeSupportedTradingSetup();
+        exchangeClient = createMockExchangeClient();
+        dispatchFences = [];
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockImplementation((beforeDispatch?: () => Promise<void>) => {
+            if (beforeDispatch) {
+              dispatchFences.push(beforeDispatch);
+            }
+            return exchangeClient;
+          });
+        mockSubscriptionService.isPositionsCacheInitialized = vi
+          .fn()
+          .mockReturnValue(true);
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([
+            createMockPosition({
+              leverage: { type: 'isolated', value: 10, rawUsd: '500' },
+            }),
+          ]);
+      });
+
+      const takeLastFence = (): (() => Promise<void>) => {
+        const fence = dispatchFences.at(-1);
+        if (!fence) {
+          throw new Error('Exchange client was requested without a fence');
+        }
+        return fence;
+      };
+
+      // A status-based venue rejection is how support flips mid-session.
+      const recordVenueMultiSigRejection = async (): Promise<void> => {
+        exchangeClient.cancel.mockResolvedValueOnce(multiSigStatus);
+        await provider.cancelOrder({ orderId: '999', symbol: 'BTC' });
+      };
+
+      it.each([
+        [
+          'updateMargin',
+          async (): Promise<unknown> =>
+            await provider.updateMargin({ symbol: 'BTC', amount: '-1' }),
+        ],
+        [
+          'cancelOrder',
+          async (): Promise<unknown> =>
+            await provider.cancelOrder({ orderId: '123', symbol: 'BTC' }),
+        ],
+        [
+          'editOrder',
+          async (): Promise<unknown> => {
+            mockInfoClient.frontendOpenOrders.mockResolvedValue([
+              {
+                coin: 'BTC',
+                side: 'B',
+                limitPx: '50000',
+                sz: '0.1',
+                origSz: '0.1',
+                oid: 123,
+                timestamp: 1_700_000_000_000,
+                isTrigger: false,
+                triggerCondition: 'N/A',
+                triggerPx: '0',
+                children: [],
+                isPositionTpsl: false,
+                reduceOnly: false,
+                orderType: 'Limit',
+              },
+            ]);
+            return await provider.editOrder({
+              orderId: '123',
+              newOrder: {
+                symbol: 'BTC',
+                isBuy: true,
+                size: '0.2',
+                price: '52000',
+                orderType: 'limit',
+              },
+            });
+          },
+        ],
+      ])(
+        '%s dispatches through a fence that refuses a known multi-sig account',
+        async (_name, write) => {
+          await expect(write()).resolves.toMatchObject({ success: true });
+          const fence = takeLastFence();
+          await expect(fence()).resolves.toBeUndefined();
+
+          await recordVenueMultiSigRejection();
+
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+        },
+      );
+
+      it.each([
+        ['initial Chase placement', 'before signing'],
+        ['ordinary margin write', 'before signing'],
+        ['ordinary margin write', 'while signing'],
+        ['ordinary margin write', 'during the final signing identity read'],
+        ['ordinary margin write', 'during the final dispatch identity read'],
+        ['builder approval', 'before signing'],
+        ['builder approval', 'while signing'],
+      ] as const)(
+        'refuses %s when account support expires %s',
+        async (operation, phase) => {
+          const isBuilderApproval = operation === 'builder approval';
+          const isInitialChase = operation === 'initial Chase placement';
+          if (isInitialChase) {
+            mockInfoClient.l2Book = vi.fn().mockResolvedValue({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49999', sz: '10', n: 1 }],
+                [{ px: '50001', sz: '10', n: 1 }],
+              ],
+            });
+          }
+          if (isBuilderApproval) {
+            mockInfoClient.maxBuilderFee.mockResolvedValue(0);
+            vi.mocked(TradingReadinessCache.getBuilderFee).mockReturnValue(
+              undefined,
+            );
+          }
+          const accountAddress =
+            await mockWalletService.getUserAddressWithDefault();
+          vi.useFakeTimers({ toFake: ['Date'] });
+          const signerEntered = createDeferred<void>();
+          const releaseSigner = createDeferred<void>();
+          const sign = vi.fn(async (_payload: unknown): Promise<Hex> => {
+            signerEntered.resolve();
+            if (phase === 'while signing') {
+              await releaseSigner.promise;
+            }
+            if (phase === 'during the final dispatch identity read') {
+              expireDuringIdentityCheck();
+            }
+            return `0x${'11'.repeat(64)}1b`;
+          });
+          const dispatch = vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: { type: 'default' },
+          });
+          const expireSupport = (): void => {
+            mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+              authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+              threshold: 1,
+            });
+            vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+          };
+          const expireDuringIdentityCheck = (): void => {
+            mockWalletService.getUserAddressWithDefault
+              .mockResolvedValueOnce(accountAddress)
+              .mockImplementationOnce(async () => {
+                expireSupport();
+                return accountAddress;
+              });
+          };
+          try {
+            mockClientService.getExchangeClient.mockImplementation(
+              (beforeDispatch, hooks) => {
+                const client = new ExchangeClient({
+                  wallet: {
+                    address: '0x1111111111111111111111111111111111111111',
+                    signTypedData: sign,
+                  },
+                  transport: { isTestnet: true, request: dispatch },
+                  nonceManager: () => {
+                    if (phase === 'before signing') {
+                      expireSupport();
+                    }
+                    if (phase === 'during the final signing identity read') {
+                      expireDuringIdentityCheck();
+                    }
+                    return 1234;
+                  },
+                });
+                return beforeDispatch
+                  ? createGuardedHyperLiquidClient(
+                      client,
+                      beforeDispatch,
+                      undefined,
+                      hooks,
+                    )
+                  : client;
+              },
+            );
+
+            let write: Promise<unknown>;
+            if (isBuilderApproval) {
+              write = provider.prepareTradingWallet();
+            } else if (isInitialChase) {
+              write = provider.placeOrder({
+                symbol: 'BTC',
+                isBuy: true,
+                size: '0.1',
+                orderType: 'chase',
+              });
+            } else {
+              write = provider.updateMargin({ symbol: 'BTC', amount: '-1' });
+            }
+            if (phase === 'while signing') {
+              await Promise.race([signerEntered.promise, write]);
+              expireSupport();
+              releaseSigner.resolve();
+            }
+
+            const errorCode = PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED;
+            const result = await write;
+            expect(sign).toHaveBeenCalledTimes(
+              phase === 'before signing' ||
+                phase === 'during the final signing identity read'
+                ? 0
+                : 1,
+            );
+            expect(dispatch).not.toHaveBeenCalled();
+            expect(result).toMatchObject(
+              isBuilderApproval
+                ? { ready: false, errorCode }
+                : { success: false, error: errorCode },
+            );
+            expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(
+              2,
+            );
+          } finally {
+            releaseSigner.resolve();
+            vi.useRealTimers();
+          }
+        },
+      );
+
+      it.each(['signing', 'dispatch'] as const)(
+        'refuses %s when the venue corrects an in-flight support refresh',
+        async (phase) => {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          const firstDispatched = createDeferred<void>();
+          const venueResponse = createDeferred<unknown>();
+          const secondClient = createDeferred<void>();
+          const refreshStarted = createDeferred<void>();
+          const refreshResponse = createDeferred<null>();
+          try {
+            await provider.getAccountSupport();
+            mockInfoClient.userToMultiSigSigners.mockImplementationOnce(() => {
+              refreshStarted.resolve();
+              return refreshResponse.promise;
+            });
+            const sign = vi.fn(async (_payload: unknown): Promise<Hex> => {
+              if (phase === 'dispatch' && sign.mock.calls.length === 2) {
+                vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+              }
+              return `0x${'11'.repeat(64)}1b`;
+            });
+            const dispatch = vi.fn().mockImplementationOnce(() => {
+              firstDispatched.resolve();
+              return venueResponse.promise;
+            });
+            let nonce = 1000;
+            mockClientService.getExchangeClient.mockImplementation(
+              (beforeDispatch, hooks) => {
+                if (
+                  mockClientService.getExchangeClient.mock.calls.length === 2
+                ) {
+                  secondClient.resolve();
+                }
+                const client = new ExchangeClient({
+                  wallet: {
+                    address: '0x1111111111111111111111111111111111111111',
+                    signTypedData: sign,
+                  },
+                  transport: { isTestnet: true, request: dispatch },
+                  nonceManager: () => ++nonce,
+                });
+                return beforeDispatch
+                  ? createGuardedHyperLiquidClient(
+                      client,
+                      beforeDispatch,
+                      undefined,
+                      hooks,
+                    )
+                  : client;
+              },
+            );
+            // A batch lets the SDK release the signer while the provider
+            // still has multiple venue statuses to process.
+            const targets = Array.from({ length: 50 }, (_, index) => ({
+              orderId: String(index + 1),
+              symbol: 'BTC',
+            }));
+            const first = provider.cancelOrders(targets);
+            await firstDispatched.promise;
+            const second = provider.updateMargin({
+              symbol: 'BTC',
+              amount: '-1',
+            });
+            await secondClient.promise;
+            if (phase === 'signing') {
+              vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+            }
+            venueResponse.resolve({
+              status: 'ok',
+              response: {
+                type: 'cancel',
+                data: {
+                  statuses: targets.map(() => ({
+                    error: 'Multi-sig required',
+                  })),
+                },
+              },
+            });
+            await expect(
+              Promise.race([
+                refreshStarted.promise.then(() => 'refresh'),
+                first.then(() => 'correction'),
+              ]),
+            ).resolves.toBe('refresh');
+            await first;
+            await expect(provider.getAccountSupport()).resolves.toMatchObject({
+              isSupported: false,
+            });
+            refreshResponse.resolve(null);
+            await expect(second).resolves.toMatchObject({
+              success: false,
+              error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            });
+            expect(sign).toHaveBeenCalledTimes(phase === 'signing' ? 1 : 2);
+            expect(dispatch).toHaveBeenCalledTimes(1);
+          } finally {
+            venueResponse.resolve(undefined);
+            refreshResponse.resolve(null);
+            vi.useRealTimers();
+          }
+        },
+      );
+
+      it('fences writes through the public exchange client after account support expires', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          await provider.getExchangeClient();
+          const fence = takeLastFence();
+          await expect(fence()).resolves.toBeUndefined();
+
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it.each(['signing', 'dispatch'] as const)(
+        'fences retained SDK %s when support expires during the identity read',
+        async (phase) => {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          try {
+            const address = await mockWalletService.getUserAddressWithDefault();
+            await provider.getExchangeClient();
+            const [, hooks] =
+              mockClientService.getExchangeClient.mock.lastCall ?? [];
+            const fence =
+              phase === 'signing' ? hooks?.beforeSign : takeLastFence();
+            if (!fence) {
+              throw new Error('Exchange client was requested without a fence');
+            }
+
+            mockWalletService.getUserAddressWithDefault.mockImplementationOnce(
+              async () => {
+                mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+                  authorizedUsers: [
+                    '0x1234567890123456789012345678901234567890',
+                  ],
+                  threshold: 1,
+                });
+                vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+                return address;
+              },
+            );
+
+            await expect(fence()).rejects.toThrow(
+              PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            );
+          } finally {
+            vi.useRealTimers();
+          }
+        },
+      );
+
+      it.each(['signing', 'dispatch'] as const)(
+        'retries a transient support failure on the retained SDK %s fence',
+        async (phase) => {
+          mockInfoClient.userToMultiSigSigners.mockRejectedValueOnce(
+            new Error('Network unavailable'),
+          );
+          await provider.getExchangeClient();
+          const [, hooks] =
+            mockClientService.getExchangeClient.mock.lastCall ?? [];
+          const fence =
+            phase === 'signing' ? hooks?.beforeSign : takeLastFence();
+          if (!fence) {
+            throw new Error('Exchange client was requested without a fence');
+          }
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+        },
+      );
+
+      it.each([
+        { answer: multiSigStatus },
+        {
+          answer: {
+            status: 'ok',
+            response: { data: { status: { error: 'Multi-sig required' } } },
+          },
+        },
+        { answer: { status: 'err', response: 'Multi-sig required' } },
+        { error: new Error('Multi-sig required') },
+      ])(
+        'corrects a positive account probe after an SDK venue rejection %j',
+        async (outcome) => {
+          const getExchangeClient = mockClientService.getExchangeClient;
+          await provider.getExchangeClient();
+          const [, hooks] = getExchangeClient.mock.lastCall ?? [];
+          expect(hooks?.beforeSign).toBeDefined();
+          await hooks?.beforeSign?.();
+
+          hooks?.onExchangeResult?.(outcome);
+
+          await expect(hooks?.beforeSign?.()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('re-probes a supported account after the recheck interval', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          const cancellation = { orderId: '123', symbol: 'BTC' };
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({ success: true });
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS - 1);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({ success: true });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(1);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+          expect(exchangeClient.cancel).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('keeps an unsupported result after the recheck interval', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          const cancellation = { orderId: '123', symbol: 'BTC' };
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+          expect(exchangeClient.cancel).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
+
+    describe('approveSubscriptionBuilderFee', () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+
+      beforeEach(() => {
+        provider = createTestProvider({
+          subscriptionBuilderAddressMainnet: subscriptionBuilder,
+        });
+        mockInfoClient.maxBuilderFee.mockResolvedValue(0);
+      });
+
+      it('refuses to sign for a multi-sig account', async () => {
+        const exchangeClient = createMockExchangeClient();
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockReturnValue(exchangeClient);
+        mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+
+        await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+          false,
+        );
+
+        expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      });
+
+      it('signs through a dispatch fence and records a venue multi-sig rejection', async () => {
+        const exchangeClient = createMockExchangeClient({
+          approveBuilderFee: vi
+            .fn()
+            .mockRejectedValue(
+              new Error('ApiRequestError: Multi-sig required'),
+            ),
+        });
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockReturnValue(exchangeClient);
+        mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+        await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+          false,
+        );
+
+        expect(mockClientService.getExchangeClient).toHaveBeenCalledWith(
+          expect.any(Function),
+          { beforeSign: expect.any(Function) },
+        );
+        expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+        await expect(provider.getAccountSupport()).resolves.toEqual({
+          isSupported: false,
+          reason: 'multi_sig_account',
+        });
+      });
     });
   });
 

@@ -16,10 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This runs when a status-polled bridge or swap reaches `StatusTypes.COMPLETE`, and when a same-chain EVM swap transaction is confirmed. A 7702 batch sell imports the destination asset of every quote in the batch.
   - Clients must delegate the `AssetsController:addCustomAsset` and `AssetsController:getAssets` actions to the `BridgeStatusController` messenger. Failures are logged and do not affect the history item.
   - Adds `@metamask/assets-controller` `^20.4.1` as a dependency.
+- **BREAKING:** Require `BridgeController:fetchQuotes` on `BridgeStatusControllerMessenger` ([#11181](https://github.com/MetaMask/core/pull/11181))
+- Submit a background pre-swap money-account withdraw via `submitTx({ operation: 'withdraw' })` ([#11181](https://github.com/MetaMask/core/pull/11181))
+  - Queues a follow-up swap unless dest is already the vault underlying token
+  - Re-fetches an expired swap quote through `BridgeController:fetchQuotes` before that swap
+- **BREAKING:** New `BridgeStatusControllerMessenger` actions and events need to be allowlisted ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - Actions: `ApprovalController:acceptRequest` | `ApprovalController:rejectRequest` |`TransactionPayController:setTransactionConfig` | `TransactionPayController:updatePaymentToken` | `MoneyAccountController:getMoneyAccount`
+  - Events: `TransactionPayController:stateChange` | `TransactionController:unapprovedTransactionAdded`
+- Submit background post-swap deposit transaction via `submitTx({ operation: 'deposit' })` ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - `BridgeHistoryItem.next`: operations to execute after the swap/bridge completes. `Completed` event is not published until all the next actions have been executed
+  - `BridgeHistoryItem.depositTxMeta`: populated with the deposit's `batchId` to prevent duplicate submissions
+  - `deposit-strategy`: retrieves the wallet's primary money account and vault config, fetches the actual received amount from the swap/bridge tx, builds deposit transactions, then submits the batch
+  - `withMMPayApproval`: listens for an unapproved tx, triggers MM Pay quote generation, then accepts if quotes are available within 2 minutes. Otherwise, it rejects the transaction
+  - existing strategies: read incoming `historyKey` and update the existing item instead of creating a new history entry
+- New dependencies to support withdrawal/deposit submission ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - `@ethersproject/providers` at `^5.8.0`
+  - `@metamask/approval-controller` at `^10.0.0`
+  - `@metamask/money-account-controller` at `^3.0.1`
+  - `@metamask/money-account-utils` at `^2.2.1`
+  - `@metamask/transaction-pay-controller` at `^32.0.0`
+  - `@metamask/eth-json-rpc-provider` at `^7.0.0` (dev)
+  - `@metamask/keyring-internal-api` at `^12.1.2` (dev)
 
 ### Changed
 
+- **BREAKING:** Require `ApprovalController:rejectRequest` on `BridgeStatusControllerMessenger`. Clients must allow this action so MM Pay quote timeouts can unblock deposit batch approval.
+- Time out the MM Pay quotes waiter, the unapproved-tx waiter, and `addTransactionBatchFn` together after 30s. On timeout, reject the pending approval.
+- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
 
 ## [78.1.0]
 

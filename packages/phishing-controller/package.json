@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "18.3.1",
+  "version": "18.3.2",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "Ethereum",
@@ -56,7 +56,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/transaction-controller": "^74.2.0",
+    "@metamask/transaction-controller": "^74.3.0",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.4",
     "ethereum-cryptography": "^3.2.0",
@@ -72,6 +72,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.8",
     "vitest": "5.1.1"
   },
   "engines": {

@@ -8,6 +8,7 @@ import type {
 import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex } from '@metamask/utils';
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   STUB_SEEDLESS_AUTH_DATA,
@@ -17,7 +18,12 @@ import {
   StubRecoveryLockProvider,
   StubSeedlessIdentifierAuthProvider,
   createAuthControllerToken,
-  passthroughEncryptor,
+  STUB_ENCRYPTION_KEY,
+  decryptPending,
+  encryptPending,
+  getStubPendingOperationKey,
+  strictPayloadEncryptor,
+  stubEncryptor,
 } from '../tests/stubs.js';
 import {
   generateSigningKey,
@@ -97,7 +103,8 @@ describe('MfaRecoveryController', () => {
             lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [],
-            pendingOperationEncryptor: passthroughEncryptor,
+            encryptor: stubEncryptor,
+            getPendingOperationKey: getStubPendingOperationKey,
           }),
       ).toThrow('At least one escrow is required');
     });
@@ -116,7 +123,8 @@ describe('MfaRecoveryController', () => {
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
             ],
-            pendingOperationEncryptor: passthroughEncryptor,
+            encryptor: stubEncryptor,
+            getPendingOperationKey: getStubPendingOperationKey,
           }),
       ).toThrow('Duplicate escrow id');
     });
@@ -191,11 +199,12 @@ describe('MfaRecoveryController', () => {
               calls.push(`acquire ${lockId}`);
             },
           );
-          const authorize = authProvider.requestMfaApproval.bind(authProvider);
+          const requestMfaApproval =
+            authProvider.requestMfaApproval.bind(authProvider);
           vi.spyOn(authProvider, 'requestMfaApproval').mockImplementation(
-            async (params) => {
+            async (request) => {
               calls.push('approval');
-              return await authorize(params);
+              return await requestMfaApproval(request);
             },
           );
           const getIdentifiers = escrowA.getIdentifiers.bind(escrowA);
@@ -1408,11 +1417,11 @@ describe('MfaRecoveryController', () => {
 
           expect(await escrowA.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String) as string,
+            lastMutationId: expect.any(String),
           });
           expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String) as string,
+            lastMutationId: expect.any(String),
           });
         },
       );
@@ -1599,7 +1608,7 @@ describe('MfaRecoveryController', () => {
         await applyStarted;
 
         expect(
-          JSON.parse(controller.state.pendingOperation as string),
+          await decryptPending(getPendingCiphertext(controller)),
         ).toStrictEqual(
           expect.objectContaining({
             phase: 'writing',
@@ -2462,7 +2471,7 @@ describe('MfaRecoveryController', () => {
             messenger: getMessenger(getRootMessenger(options.authProvider)),
             state: {
               lockId: controller.state.lockId,
-              pendingOperation: await passthroughEncryptor.encrypt(pending),
+              pendingOperation: await encryptPending(pending),
             },
           });
 
@@ -2644,7 +2653,7 @@ describe('MfaRecoveryController', () => {
             escrow.createReceipt(pending.mutation),
           ),
         );
-        const encrypted = await passthroughEncryptor.encrypt(pending);
+        const encrypted = await encryptPending(pending);
         const availabilityA = vi.spyOn(escrowA, 'isAvailable');
         const availabilityB = vi.spyOn(escrowB, 'isAvailable');
         availabilityA.mockClear();
@@ -2654,7 +2663,9 @@ describe('MfaRecoveryController', () => {
 
         const resumed = new MfaRecoveryController({
           ...getOptions(escrowA, escrowB),
-          state: { pendingOperation: encrypted },
+          state: {
+            pendingOperation: encrypted,
+          },
         });
 
         await resumed.resume();
@@ -2780,7 +2791,7 @@ describe('MfaRecoveryController', () => {
     it('aborts an authorizing mutation and refuses to abort writing', async () => {
       await withController(async ({ options }) => {
         const validPending = await getValidWritingPending(options.escrows);
-        const authorizing = await passthroughEncryptor.encrypt({
+        const authorizing = await encryptPending({
           phase: 'authorizing',
           mutation: validPending.mutation,
           payload: validPending.payload,
@@ -2792,13 +2803,15 @@ describe('MfaRecoveryController', () => {
         const idleController = new MfaRecoveryController({
           ...options,
           messenger: authorizingMessenger,
-          state: { pendingOperation: authorizing },
+          state: {
+            pendingOperation: authorizing,
+          },
         });
         expect(await idleController.getPhase()).toBe('authorizing');
         await idleController.abort();
         expect(await idleController.getPhase()).toBe('idle');
 
-        const writing = await passthroughEncryptor.encrypt({
+        const writing = await encryptPending({
           ...validPending,
           receipts: [
             {
@@ -2817,7 +2830,9 @@ describe('MfaRecoveryController', () => {
         const writingController = new MfaRecoveryController({
           ...options,
           messenger: writingMessenger,
-          state: { pendingOperation: writing },
+          state: {
+            pendingOperation: writing,
+          },
         });
         await expect(writingController.abort()).rejects.toThrow(
           'Cannot abort a mutation that may have been applied',
@@ -2846,7 +2861,7 @@ describe('MfaRecoveryController', () => {
           ...fields,
           requestHash: await hash(fields),
         };
-        const authorizing = await passthroughEncryptor.encrypt({
+        const authorizing = await encryptPending({
           phase: 'authorizing',
           mutation,
           payload,
@@ -2855,7 +2870,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: authorizing },
+          state: {
+            pendingOperation: authorizing,
+          },
         });
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
@@ -2894,7 +2911,7 @@ describe('MfaRecoveryController', () => {
           messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: {
             lockId: controller.state.lockId,
-            pendingOperation: await passthroughEncryptor.encrypt(authorizing),
+            pendingOperation: await encryptPending(authorizing),
           },
         });
 
@@ -2945,7 +2962,7 @@ describe('MfaRecoveryController', () => {
             await escrowA.createReceipt(mutation),
             await escrowB.createReceipt(mutation),
           ];
-          const writing = await passthroughEncryptor.encrypt({
+          const writing = await encryptPending({
             phase: 'writing',
             mutation,
             authControllerToken: createAuthControllerToken({
@@ -2962,7 +2979,9 @@ describe('MfaRecoveryController', () => {
           const resumed = new MfaRecoveryController({
             ...options,
             messenger: getMessenger(getRootMessenger(options.authProvider)),
-            state: { pendingOperation: writing },
+            state: {
+              pendingOperation: writing,
+            },
           });
           await resumed.resume();
           expect(await resumed.getPhase()).toBe('idle');
@@ -2972,7 +2991,7 @@ describe('MfaRecoveryController', () => {
 
     it('rejects a persisted mutation with the wrong escrow audience', async () => {
       await withController(async ({ options }) => {
-        const writing = await passthroughEncryptor.encrypt({
+        const writing = await encryptPending({
           phase: 'authorizing',
           mutation: {
             id: '0xmut',
@@ -2993,7 +3012,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: writing },
+          state: {
+            pendingOperation: writing,
+          },
         });
         await expect(controller.resume()).rejects.toThrow(
           'Persisted mutation audiences do not match configured escrows',
@@ -3003,7 +3024,7 @@ describe('MfaRecoveryController', () => {
 
     it('rejects a pending payload that does not match the mutation hash', async () => {
       await withController(async ({ options }) => {
-        const writing = await passthroughEncryptor.encrypt({
+        const writing = await encryptPending({
           phase: 'writing',
           mutation: {
             id: '0xmut',
@@ -3031,7 +3052,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: writing },
+          state: {
+            pendingOperation: writing,
+          },
         });
         await expect(controller.resume()).rejects.toThrow(
           'Pending payload does not match mutation',
@@ -3065,7 +3088,7 @@ describe('MfaRecoveryController', () => {
           payloadHash: mutation.payloadHash,
           audiences: mutation.audiences,
         });
-        const writing = await passthroughEncryptor.encrypt({
+        const writing = await encryptPending({
           phase: 'writing',
           mutation,
           authControllerToken: createAuthControllerToken({
@@ -3092,7 +3115,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: writing },
+          state: {
+            pendingOperation: writing,
+          },
         });
         await expect(controller.resume()).rejects.toThrow(
           'Receipt escrow is not configured',
@@ -3127,7 +3152,7 @@ describe('MfaRecoveryController', () => {
           payloadHash: mutation.payloadHash,
           audiences: mutation.audiences,
         });
-        const writing = await passthroughEncryptor.encrypt({
+        const writing = await encryptPending({
           phase: 'writing',
           mutation,
           authControllerToken: createAuthControllerToken({
@@ -3154,7 +3179,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: writing },
+          state: {
+            pendingOperation: writing,
+          },
         });
         await expect(controller.resume()).rejects.toThrow(
           'Invalid mutation receipt',
@@ -3179,9 +3206,9 @@ describe('MfaRecoveryController', () => {
           'Invalid mutation receipt',
         );
 
-        const pending = JSON.parse(
-          controller.state.pendingOperation as string,
-        ) as {
+        const pending = (await decryptPending(
+          getPendingCiphertext(controller),
+        )) as {
           receipts: { escrowId: string }[];
         };
         expect(pending.receipts).toStrictEqual([
@@ -3189,7 +3216,7 @@ describe('MfaRecoveryController', () => {
         ]);
         expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
           version: 1,
-          lastMutationId: expect.any(String) as string,
+          lastMutationId: expect.any(String),
         });
       });
     });
@@ -3231,9 +3258,12 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
-        const pending = JSON.parse(
-          controller.state.pendingOperation as string,
-        ) as { mutation: { requestHash: string }; authControllerToken: string };
+        const pending = (await decryptPending(
+          getPendingCiphertext(controller),
+        )) as {
+          mutation: { requestHash: string };
+          authControllerToken: string;
+        };
         pending.authControllerToken = createAuthControllerToken({
           sub: 'profile-1',
           exp: 0,
@@ -3245,7 +3275,7 @@ describe('MfaRecoveryController', () => {
           messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: {
             lockId: controller.state.lockId,
-            pendingOperation: JSON.stringify(pending),
+            pendingOperation: await encryptPending(pending),
           },
         });
         options.authProvider.identifiers = [...IDENTIFIERS, OTHER_PASSKEY];
@@ -3266,7 +3296,9 @@ describe('MfaRecoveryController', () => {
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
-          state: { pendingOperation: 'null' },
+          state: {
+            pendingOperation: await encryptPending(null),
+          },
         });
 
         await expect(controller.resume()).rejects.toThrow(
@@ -3511,7 +3543,9 @@ describe('MfaRecoveryController', () => {
           const controller = new MfaRecoveryController({
             ...options,
             messenger: getMessenger(getRootMessenger(options.authProvider)),
-            state: { pendingOperation: JSON.stringify(pending) },
+            state: {
+              pendingOperation: await encryptPending(pending),
+            },
           });
 
           await expect(controller.resume()).rejects.toThrow(/./u);
@@ -3605,7 +3639,604 @@ describe('MfaRecoveryController', () => {
       });
     });
   });
+
+  describe('pending state encryption', () => {
+    it('encrypts pending state with the host-provided key and fetches it once per pending mutation', async () => {
+      await withController(async ({ escrowA, options }) => {
+        const encryptor = getSpyEncryptor();
+        const getPendingOperationKey = vi.fn(getStubPendingOperationKey);
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          encryptor,
+          getPendingOperationKey,
+        });
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        expect(JSON.parse(getPendingCiphertext(controller))).toMatchObject({
+          iv: STUB_ENCRYPTION_KEY,
+        });
+
+        await controller.resume();
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        expect(controller.state).toStrictEqual({
+          lockId: expect.any(String),
+          pendingOperation: null,
+        });
+        expect(getPendingOperationKey).toHaveBeenCalledTimes(2);
+        expect(encryptor.importKey).toHaveBeenCalledTimes(2);
+        expect(encryptor.importKey).toHaveBeenNthCalledWith(
+          1,
+          STUB_ENCRYPTION_KEY,
+        );
+        expect(encryptor.importKey).toHaveBeenNthCalledWith(
+          2,
+          STUB_ENCRYPTION_KEY,
+        );
+      });
+    });
+
+    it('reads persisted pending state with the host-provided key', async () => {
+      await withController(async ({ controller, escrowA, options }) => {
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        const restored = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          state: controller.state,
+        });
+
+        expect(await restored.getPhase()).toBe('writing');
+        await restored.resume();
+        expect(await restored.getPhase()).toBe('idle');
+      });
+    });
+
+    it.each([null, ''])(
+      'rejects with missing_encryption_key when the host returns %j',
+      async (missingKey) => {
+        await withController(async ({ escrowA, escrowB, options }) => {
+          const getPendingOperationKey = vi.fn(
+            async (): Promise<string | null> => missingKey,
+          );
+          const state = {
+            lockId: null,
+            pendingOperation: await encryptPending(
+              await getValidWritingPending([escrowA, escrowB]),
+            ),
+          };
+          const controller = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
+            getPendingOperationKey,
+            state,
+          });
+          const apply = vi.spyOn(escrowA, 'applyMutation');
+
+          await expect(controller.getPhase()).rejects.toMatchObject({
+            code: 'missing_encryption_key',
+          });
+          await expect(controller.resume()).rejects.toMatchObject({
+            code: 'missing_encryption_key',
+          });
+          await expect(controller.abort()).rejects.toMatchObject({
+            code: 'missing_encryption_key',
+          });
+          expect(apply).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual(state);
+        });
+      },
+    );
+
+    it('does not start a mutation when the host has no key', async () => {
+      await withController(async ({ escrowA, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey: async (): Promise<string | null> => null,
+        });
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'missing_encryption_key' });
+        expect(apply).not.toHaveBeenCalled();
+        expect(controller.state).toStrictEqual({
+          lockId: null,
+          pendingOperation: null,
+        });
+      });
+    });
+
+    it('cannot read pending state written under a different key', async () => {
+      await withController(async ({ controller, escrowA, options }) => {
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        const rekeyed = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey: async (): Promise<string | null> =>
+            'other-key',
+          state: controller.state,
+        });
+
+        const unreadable = {
+          code: 'pending_operation_unreadable',
+          cause: expect.objectContaining({ message: 'Incorrect key' }),
+        };
+        await expect(rekeyed.getPhase()).rejects.toMatchObject(unreadable);
+        await expect(rekeyed.resume()).rejects.toMatchObject(unreadable);
+        expect(rekeyed.state).toStrictEqual(controller.state);
+      });
+    });
+
+    it.each([
+      {
+        name: 'a non-JSON blob',
+        getUnreadableOptions: async (): Promise<UnreadableOptions> => ({
+          pendingOperation: 'not json',
+        }),
+        cause: SyntaxError,
+      },
+      {
+        name: 'JSON without data or iv',
+        getUnreadableOptions: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<UnreadableOptions> => ({
+          pendingOperation: JSON.stringify(
+            await getValidWritingPending(escrows),
+          ),
+          encryptor: strictPayloadEncryptor,
+        }),
+        cause: TypeError,
+      },
+    ])(
+      'rejects $name with pending_operation_unreadable',
+      async ({ getUnreadableOptions, cause }) => {
+        await withController(async ({ escrowA, options }) => {
+          const { pendingOperation, ...overrides } = await getUnreadableOptions(
+            options.escrows,
+          );
+          const state = { lockId: null, pendingOperation };
+          const controller = new MfaRecoveryController({
+            ...options,
+            ...overrides,
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
+            state,
+          });
+          const apply = vi.spyOn(escrowA, 'applyMutation');
+          const unreadable = {
+            code: 'pending_operation_unreadable',
+            message:
+              'Pending operation cannot be decrypted with the current key',
+            cause: expect.any(cause),
+          };
+
+          await expect(controller.getPhase()).rejects.toMatchObject(unreadable);
+          await expect(controller.resume()).rejects.toMatchObject(unreadable);
+          await expect(controller.abort()).rejects.toMatchObject(unreadable);
+          expect(apply).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual(state);
+        });
+      },
+    );
+
+    it('rejects with invalid_encryption_key when the key cannot be imported', async () => {
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const importError = new SyntaxError('Unexpected token');
+        const state = {
+          lockId: null,
+          pendingOperation: await encryptPending(
+            await getValidWritingPending([escrowA, escrowB]),
+          ),
+        };
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          encryptor: getUnimportableEncryptor(importError),
+          state,
+        });
+        const invalidKey = {
+          code: 'invalid_encryption_key',
+          message: 'Pending operation encryption key is invalid',
+          cause: importError,
+        };
+
+        await expect(controller.getPhase()).rejects.toMatchObject(invalidKey);
+        await expect(controller.resume()).rejects.toMatchObject(invalidKey);
+        await expect(controller.abort()).rejects.toMatchObject(invalidKey);
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject(invalidKey);
+        expect(controller.state).toStrictEqual(state);
+      });
+    });
+
+    it('rejects pending state that decrypts to an invalid structure with invalid_pending_operation', async () => {
+      await withController(async ({ options }) => {
+        const state = {
+          lockId: null,
+          pendingOperation: await encryptPending({ phase: 'writing' }),
+        };
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          state,
+        });
+
+        await expect(controller.getPhase()).rejects.toMatchObject({
+          code: 'invalid_pending_operation',
+        });
+        expect(controller.state).toStrictEqual(state);
+      });
+    });
+
+    it('fetches the key once for concurrent first use', async () => {
+      await withController(async ({ options }) => {
+        const getPendingOperationKey = vi.fn(getStubPendingOperationKey);
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey,
+          state: {
+            pendingOperation: await encryptPending(
+              await getValidWritingPending(options.escrows),
+            ),
+          },
+        });
+
+        const phases = await Promise.all([
+          controller.getPhase(),
+          controller.getPhase(),
+        ]);
+
+        expect(phases).toStrictEqual(['writing', 'writing']);
+        expect(getPendingOperationKey).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('fetches the key again after the host fails', async () => {
+      await withController(async ({ escrowA, options }) => {
+        const getPendingOperationKey = vi
+          .fn<() => Promise<string | null>>()
+          .mockRejectedValueOnce(new Error('Secure storage unavailable'))
+          .mockResolvedValue(STUB_ENCRYPTION_KEY);
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey,
+        });
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
+          'Secure storage unavailable',
+        );
+        expect(apply).not.toHaveBeenCalled();
+        expect(controller.state).toStrictEqual({
+          lockId: null,
+          pendingOperation: null,
+        });
+
+        await controller.register(SECRET, IDENTIFIERS);
+        expect(getPendingOperationKey).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('discardPendingOperation', () => {
+    it.each([
+      {
+        name: 'the host has no key',
+        code: 'missing_encryption_key',
+        getUnreadableOptions: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<UnreadableOptions> => ({
+          pendingOperation: await encryptPending(
+            await getValidWritingPending(escrows),
+          ),
+          getPendingOperationKey: async (): Promise<string | null> => null,
+        }),
+      },
+      {
+        name: 'the key cannot be imported',
+        code: 'invalid_encryption_key',
+        getUnreadableOptions: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<UnreadableOptions> => ({
+          pendingOperation: await encryptPending(
+            await getValidWritingPending(escrows),
+          ),
+          encryptor: getUnimportableEncryptor(new SyntaxError('Bad key')),
+        }),
+      },
+      {
+        name: 'the pending state was written under another key',
+        code: 'pending_operation_unreadable',
+        getUnreadableOptions: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<UnreadableOptions> => ({
+          pendingOperation: await encryptPending(
+            await getValidWritingPending(escrows),
+            'other-key',
+          ),
+        }),
+      },
+      {
+        name: 'the pending state is not JSON',
+        code: 'pending_operation_unreadable',
+        getUnreadableOptions: async (): Promise<UnreadableOptions> => ({
+          pendingOperation: 'not json',
+        }),
+      },
+      {
+        name: 'the pending state has no data or iv',
+        code: 'pending_operation_unreadable',
+        getUnreadableOptions: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<UnreadableOptions> => ({
+          pendingOperation: JSON.stringify(
+            await getValidWritingPending(escrows),
+          ),
+          encryptor: strictPayloadEncryptor,
+        }),
+      },
+    ])(
+      'clears pending state when $name',
+      async ({ code, getUnreadableOptions }) => {
+        await withController(async ({ options }) => {
+          const { pendingOperation, ...overrides } = await getUnreadableOptions(
+            options.escrows,
+          );
+          const controller = new MfaRecoveryController({
+            ...options,
+            ...overrides,
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
+            state: { lockId: 'lock-1', pendingOperation },
+          });
+          await expect(controller.getPhase()).rejects.toMatchObject({ code });
+
+          await controller.discardPendingOperation();
+
+          expect(controller.state).toStrictEqual({
+            lockId: 'lock-1',
+            pendingOperation: null,
+          });
+          expect(await controller.getPhase()).toBe('idle');
+        });
+      },
+    );
+
+    it.each([
+      {
+        phase: 'authorizing',
+        getPending: async (
+          escrows: RecoveryEscrowProvider[],
+        ): Promise<unknown> => {
+          const { mutation, payload, identifier } =
+            await getValidWritingPending(escrows);
+          return { phase: 'authorizing', mutation, payload, identifier };
+        },
+      },
+      {
+        phase: 'writing',
+        getPending: getValidWritingPending,
+      },
+    ])(
+      'refuses to discard readable $phase pending state',
+      async ({ phase, getPending }) => {
+        await withController(async ({ options }) => {
+          const state = {
+            lockId: 'lock-1',
+            pendingOperation: await encryptPending(
+              await getPending(options.escrows),
+            ),
+          };
+          const controller = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
+            state,
+          });
+
+          await expect(
+            controller.discardPendingOperation(),
+          ).rejects.toMatchObject({
+            code: 'abort_not_allowed',
+            message:
+              'Pending operation is readable; finish it with resume() or drop it with abort()',
+          });
+
+          expect(controller.state).toStrictEqual(state);
+          expect(await controller.getPhase()).toBe(phase);
+        });
+      },
+    );
+
+    it('does nothing when nothing is pending', async () => {
+      await withController(async ({ options }) => {
+        const getPendingOperationKey = vi.fn(getStubPendingOperationKey);
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey,
+          state: { lockId: 'lock-1' },
+        });
+
+        await controller.discardPendingOperation();
+
+        expect(controller.state).toStrictEqual({
+          lockId: 'lock-1',
+          pendingOperation: null,
+        });
+        expect(getPendingOperationKey).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rethrows invalid_pending_operation without clearing', async () => {
+      await withController(async ({ options }) => {
+        const state = {
+          lockId: 'lock-1',
+          pendingOperation: await encryptPending({ phase: 'writing' }),
+        };
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          state,
+        });
+
+        await expect(
+          controller.discardPendingOperation(),
+        ).rejects.toMatchObject({ code: 'invalid_pending_operation' });
+
+        expect(controller.state).toStrictEqual(state);
+      });
+    });
+
+    it('rethrows host key failures without clearing', async () => {
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const state = {
+          lockId: 'lock-1',
+          pendingOperation: await encryptPending(
+            await getValidWritingPending([escrowA, escrowB]),
+          ),
+        };
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey: async (): Promise<string | null> => {
+            throw new Error('Secure storage unavailable');
+          },
+          state,
+        });
+
+        await expect(controller.discardPendingOperation()).rejects.toThrow(
+          'Secure storage unavailable',
+        );
+
+        expect(controller.state).toStrictEqual(state);
+      });
+    });
+
+    it('fetches a re-provisioned host key for the next mutation', async () => {
+      await withController(async ({ escrowA, options }) => {
+        const getPendingOperationKey = vi
+          .fn<() => Promise<string | null>>()
+          .mockResolvedValueOnce('lost-key')
+          .mockResolvedValue('new-key');
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey,
+          state: {
+            pendingOperation: await encryptPending(
+              await getValidWritingPending(options.escrows),
+            ),
+          },
+        });
+        await expect(controller.getPhase()).rejects.toMatchObject({
+          code: 'pending_operation_unreadable',
+        });
+
+        await controller.discardPendingOperation();
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        expect(JSON.parse(getPendingCiphertext(controller))).toMatchObject({
+          iv: 'new-key',
+        });
+        expect(getPendingOperationKey).toHaveBeenCalledTimes(2);
+        await controller.resume();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('lets resume(identifier) repair the escrow the discarded mutation missed', async () => {
+      await withController(async ({ controller, escrowA, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        const rekeyed = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
+          getPendingOperationKey: async (): Promise<string | null> =>
+            'other-key',
+          state: controller.state,
+        });
+
+        await rekeyed.discardPendingOperation();
+        await rekeyed.resume(PASSKEY);
+
+        expect(await escrowA.getRecoveryMetadata('profile-1')).toMatchObject({
+          version: 2,
+        });
+        expect(await recover(rekeyed, PASSKEY)).toStrictEqual({
+          recoverySecret: SECRET_2,
+          epoch: 2,
+        });
+      });
+    });
+
+    it('is callable through the messenger', async () => {
+      await withController(async ({ options }) => {
+        const rootMessenger = getRootMessenger(options.authProvider);
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(rootMessenger),
+          state: { lockId: 'lock-1', pendingOperation: 'not json' },
+        });
+
+        await rootMessenger.call(
+          'MfaRecoveryController:discardPendingOperation',
+        );
+
+        expect(controller.state).toStrictEqual({
+          lockId: 'lock-1',
+          pendingOperation: null,
+        });
+      });
+    });
+  });
 });
+
+type UnreadableOptions = {
+  pendingOperation: string;
+} & Partial<
+  Pick<
+    MfaRecoveryControllerOptions<string>,
+    'encryptor' | 'getPendingOperationKey'
+  >
+>;
+
+/**
+ * @param error - Error `importKey` rejects with.
+ * @returns A {@link stubEncryptor} whose `importKey` always rejects.
+ */
+function getUnimportableEncryptor(
+  error: Error,
+): MfaRecoveryControllerOptions<string>['encryptor'] {
+  return {
+    ...stubEncryptor,
+    async importKey(): Promise<string> {
+      throw error;
+    },
+  };
+}
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -3613,8 +4244,10 @@ type RootMessenger = Messenger<
   MessengerEvents<MfaRecoveryControllerMessenger>
 >;
 
+type TestController = MfaRecoveryController<string>;
+
 type WithControllerCallback<ReturnValue> = (payload: {
-  controller: MfaRecoveryController;
+  controller: TestController;
   authProvider: StubAuthProvider;
   lockProvider: StubRecoveryLockProvider;
   rootMessenger: RootMessenger;
@@ -3623,6 +4256,28 @@ type WithControllerCallback<ReturnValue> = (payload: {
   escrowB: StubEscrowProvider;
   options: ReturnType<typeof getOptions>;
 }) => Promise<ReturnValue> | ReturnValue;
+
+function getSpyEncryptor(): {
+  [Method in keyof typeof stubEncryptor]: Mock<(typeof stubEncryptor)[Method]>;
+} {
+  return {
+    importKey: vi.fn(stubEncryptor.importKey),
+    encryptWithKey: vi.fn(stubEncryptor.encryptWithKey),
+    decryptWithKey: vi.fn(stubEncryptor.decryptWithKey),
+  };
+}
+
+/**
+ * @param controller - Controller whose pending operation to read.
+ * @returns The persisted ciphertext.
+ */
+function getPendingCiphertext(controller: TestController): string {
+  const { pendingOperation } = controller.state;
+  if (pendingOperation === null) {
+    throw new Error('Expected a persisted pending operation');
+  }
+  return pendingOperation;
+}
 
 function getRootMessenger(
   authProvider = new StubAuthProvider(IDENTIFIERS),
@@ -3661,7 +4316,7 @@ function getMessenger(
 function getOptions(
   escrowA: StubEscrowProvider,
   escrowB: StubEscrowProvider,
-): MfaRecoveryControllerOptions & {
+): MfaRecoveryControllerOptions<string> & {
   authProvider: StubAuthProvider;
   lockProvider: StubRecoveryLockProvider;
 } {
@@ -3672,15 +4327,16 @@ function getOptions(
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrowA, escrowB],
-    pendingOperationEncryptor: passthroughEncryptor,
+    encryptor: stubEncryptor,
+    getPendingOperationKey: getStubPendingOperationKey,
   };
 }
 
 // Same lease, but the pending mutation was lost, e.g. after a reinstall.
 function restartWithoutPending(
-  controller: MfaRecoveryController,
+  controller: TestController,
   options: ReturnType<typeof getOptions>,
-): MfaRecoveryController {
+): TestController {
   return new MfaRecoveryController({
     ...options,
     messenger: getMessenger(getRootMessenger(options.authProvider)),
@@ -3688,7 +4344,7 @@ function restartWithoutPending(
   });
 }
 async function recover(
-  controller: MfaRecoveryController,
+  controller: TestController,
   identifier: Identifier,
 ): Promise<RecoveredSecret> {
   const session = await controller.authenticateIdentifier(identifier);

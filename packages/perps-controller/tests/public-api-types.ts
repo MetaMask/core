@@ -2,6 +2,9 @@ import type {
   ChaseOrder,
   PerpsController,
   GetAccountSupportParams,
+  ResolveWithdrawalRouteParams,
+  WithdrawalRoute,
+  PerpsControllerResolveWithdrawalRouteAction,
   GetChaseOrderOwnershipParams,
   PerpsAccountSupport,
   PerpsChaseOrderOwner,
@@ -140,6 +143,39 @@ export type AccountSupportConsumerContracts = [
     IsExact<
       ReturnType<PerpsController['getAccountSupport']>,
       Promise<PerpsAccountSupport>
+    >
+  >,
+];
+
+export type WithdrawalRouteConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsController['resolveWithdrawalRoute']>,
+      [params?: ResolveWithdrawalRouteParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['resolveWithdrawalRoute']>,
+      Promise<WithdrawalRoute>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerResolveWithdrawalRouteAction['type'],
+      'PerpsController:resolveWithdrawalRoute'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerResolveWithdrawalRouteAction['handler'],
+      PerpsController['resolveWithdrawalRoute']
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<WithdrawalRoute, { status: 'route_required' }>['error'],
+      'PROVIDER_ROUTE_REQUIRED'
     >
   >,
 ];

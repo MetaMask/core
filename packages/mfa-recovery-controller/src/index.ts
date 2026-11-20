@@ -15,6 +15,7 @@ export type {
   MfaRecoveryControllerAbortAction,
   MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
+  MfaRecoveryControllerDiscardPendingOperationAction,
   MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
@@ -46,7 +47,6 @@ export {
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
-  EncryptedPendingOperation,
   GetIdentifiersResponse,
   GetMutationReceiptResponse,
   Identifier,
