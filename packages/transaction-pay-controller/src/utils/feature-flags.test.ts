@@ -1,7 +1,7 @@
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
@@ -36,6 +36,9 @@ import {
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  isResumeEnabled,
+  getResumeTimeoutMs,
+  DEFAULT_RESUME_TIMEOUT_MS,
   getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
@@ -2121,6 +2124,147 @@ describe('Feature Flags Utils', () => {
       const result = getFiatEnabledTypes(messenger);
 
       expect(result).toStrictEqual(customTypes);
+    });
+  });
+
+  describe('getResumeTimeoutMs', () => {
+    function mockResumeFlags(resume: Json): void {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: { resume },
+        },
+      });
+    }
+
+    it('returns the default when the flag is absent', () => {
+      expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
+        DEFAULT_RESUME_TIMEOUT_MS,
+      );
+    });
+
+    it('returns the strategy timeout when set', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: { default: true, timeout: 20000 },
+      });
+
+      expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
+        20000,
+      );
+    });
+
+    it('returns the default when only another strategy sets a timeout', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: { timeout: 20000 },
+        [TransactionPayStrategy.Relay]: { default: true },
+      });
+
+      expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Relay)).toBe(
+        DEFAULT_RESUME_TIMEOUT_MS,
+      );
+    });
+
+    it('returns the default when the timeout is not a positive number', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { timeout: 0 } });
+
+      expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
+        DEFAULT_RESUME_TIMEOUT_MS,
+      );
+    });
+  });
+
+  describe('isResumeEnabled', () => {
+    function mockResumeFlags(resume: Json): void {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: { resume },
+        },
+      });
+    }
+
+    it('returns false when the flag is absent', () => {
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when the strategy is not configured', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { default: true } });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Relay,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns the strategy default when the type has no override', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { default: true } });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true when a type override enables it over a false default', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          default: false,
+          transactionTypes: { [TransactionType.moneyAccountDeposit]: true },
+        },
+      });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when a type override disables it over a true default', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          default: true,
+          transactionTypes: { [TransactionType.moneyAccountDeposit]: false },
+        },
+      });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when default is unset and the type has no override', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          transactionTypes: { [TransactionType.predictDeposit]: true },
+        },
+      });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
     });
   });
 

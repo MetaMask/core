@@ -5557,13 +5557,13 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 152
+      "count": 162
     },
     "typescript/no-unsafe-call": {
-      "count": 115
+      "count": 117
     },
     "typescript/no-unsafe-member-access": {
-      "count": 115
+      "count": 117
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {

@@ -1,6 +1,7 @@
 import type {
   AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetStateAction,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
@@ -16,13 +17,17 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuoteWithFeesAction,
+  RampsControllerGetStateAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -37,6 +42,8 @@ import type {
   BatchTransaction,
   BatchTransactionParams,
   TransactionControllerAddTransactionAction,
+  TransactionControllerFailTransactionAction,
+  TransactionControllerFinalizeResumedTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
   TransactionControllerStateChangeEvent,
@@ -63,6 +70,7 @@ import type { TransactionPayControllerMethodActions } from './TransactionPayCont
 export type AllowedActions =
   | AccountTreeControllerGetAccountContextAction
   | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetStateAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
   | GetGasFeeState
@@ -71,14 +79,18 @@ export type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | NetworkControllerGetStateAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuoteWithFeesAction
+  | RampsControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
+  | TransactionControllerFinalizeResumedTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -798,6 +810,15 @@ export type PayStrategyExecuteRequest<OriginalQuote> = {
   transaction: TransactionMeta;
 };
 
+/** Request object passed to {@link PayStrategy.resume}. */
+export type PayStrategyResumeRequest = {
+  /** Controller messenger for making actions. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** The transaction to resume. */
+  transaction: TransactionMeta;
+};
+
 /** Request to get batch transactions for quotes. */
 export type PayStrategyGetBatchRequest<OriginalQuote> = {
   /** Controller messenger. */
@@ -879,6 +900,22 @@ export type PayStrategy<OriginalQuote> = {
 
   /** Execute or submit the quotes to obtain required tokens. */
   execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
+    transactionHash?: Hex;
+  }>;
+
+  /**
+   * Returns true if the strategy can resume the given transaction after
+   * an app restart. Sync, tx-only check — no network calls.
+   */
+  canResume?: (transaction: TransactionMeta) => boolean;
+
+  /**
+   * Resume a previously interrupted transaction.
+   * Called only after the wallet is unlocked and resume dependencies are
+   * registered.
+   * Returns the final on-chain hash on success; throws on failure.
+   */
+  resume?: (request: PayStrategyResumeRequest) => Promise<{
     transactionHash?: Hex;
   }>;
 };
