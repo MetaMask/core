@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchTokenSearch` and `getTokenSearchQueryOptions` to `TokenApiClient` for querying the Token API search endpoint ([#8822](https://github.com/MetaMask/core/pull/8822))
+- Export `TokenSearchResult`, `TokenSearchPageInfo`, `TokenSearchResponse`, and `TokenSearchQueryOptions` types ([#8822](https://github.com/MetaMask/core/pull/8822))
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))

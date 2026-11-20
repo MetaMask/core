@@ -19,13 +19,15 @@ import type {
 } from '@tanstack/query-core';
 
 import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
-import { getQueryOptionsOverrides } from '../shared-types.js';
+import { getQueryOptionsOverrides, API_URLS } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
   TokenMetadata,
   TokenListQueryOptions,
   TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
+  TokenSearchQueryOptions,
+  TokenSearchResponse,
   NetworkInfo,
   TopAsset,
   TrendingToken,
@@ -35,6 +37,31 @@ import type {
   V2AssetResponse,
   V2AssetsQueryOptions,
 } from './types.js';
+
+const getEmptyTokenSearchResponse = (): TokenSearchResponse => ({
+  data: [],
+  count: 0,
+  totalCount: 0,
+  pageInfo: {
+    hasNextPage: false,
+    endCursor: '',
+  },
+});
+
+const normalizeTokenSearchQueryOptions = ({
+  query,
+  networks,
+  ...options
+}: TokenSearchQueryOptions): TokenSearchQueryOptions => {
+  const sortedNetworks =
+    networks && networks.length > 0 ? [...networks].sort() : undefined;
+
+  return {
+    ...options,
+    query: query.trim(),
+    networks: sortedNetworks,
+  };
+};
 
 /**
  * Token API Client.
@@ -223,6 +250,81 @@ export class TokenApiClient extends BaseApiClient {
   ): Promise<TokenV2SupportedNetworksResponse> {
     return this.queryClient.fetchQuery(
       this.getV2SupportedNetworksQueryOptions(options),
+    );
+  }
+
+  // ==========================================================================
+  // TOKEN SEARCH
+  // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for token search.
+   *
+   * @param queryOptions - Search query options.
+   * @param queryOptions.query - User-provided query string.
+   * @param queryOptions.networks - CAIP-2 chain IDs to constrain the search to.
+   * @param queryOptions.first - Maximum number of results to return.
+   * @param queryOptions.after - Cursor returned by a previous response for paging.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getTokenSearchQueryOptions(
+    queryOptions: TokenSearchQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<TokenSearchResponse> {
+    const normalizedQueryOptions =
+      normalizeTokenSearchQueryOptions(queryOptions);
+
+    return {
+      queryKey: ['token', 'search', normalizedQueryOptions],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<TokenSearchResponse> => {
+        if (!normalizedQueryOptions.query) {
+          return getEmptyTokenSearchResponse();
+        }
+
+        return this.fetch<TokenSearchResponse>(
+          API_URLS.TOKEN,
+          '/tokens/search',
+          {
+            signal,
+            params: normalizedQueryOptions,
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Search for tokens by symbol, name, or address.
+   *
+   * @param queryOptions - Search query options.
+   * @param queryOptions.query - User-provided query string.
+   * @param queryOptions.networks - CAIP-2 chain IDs to constrain the search to.
+   * @param queryOptions.first - Maximum number of results to return.
+   * @param queryOptions.after - Cursor returned by a previous response for paging.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
+   * @param options - Fetch options including cache settings.
+   * @returns The token search response.
+   */
+  async fetchTokenSearch(
+    queryOptions: TokenSearchQueryOptions,
+    options?: FetchOptions,
+  ): Promise<TokenSearchResponse> {
+    const normalizedQueryOptions =
+      normalizeTokenSearchQueryOptions(queryOptions);
+
+    if (!normalizedQueryOptions.query) {
+      return getEmptyTokenSearchResponse();
+    }
+
+    return this.queryClient.fetchQuery(
+      this.getTokenSearchQueryOptions(normalizedQueryOptions, options),
     );
   }
 
