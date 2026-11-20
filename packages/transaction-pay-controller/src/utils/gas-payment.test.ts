@@ -46,13 +46,13 @@ const REQUEST_MOCK = {
 const FIRST_STEP_DATA_MOCK = {
   data: '0x1234' as Hex,
   to: '0x0000000000000000000000000000000000000002' as Hex,
-  value: '0x0',
+  value: '0x0' as Hex,
 };
 
 const SECOND_STEP_DATA_MOCK = {
   data: '0x4567' as Hex,
   to: '0x0000000000000000000000000000000000000003' as Hex,
-  value: '0x5',
+  value: '0x5' as Hex,
 };
 
 const FEE_TOKEN_ACCOUNT_MOCK =

@@ -841,6 +841,7 @@ describe('Across Quotes', () => {
 
       await getAcrossQuotes({
         accountSupports7702: true,
+        from: FROM_MOCK,
         messenger,
         requests: [
           {

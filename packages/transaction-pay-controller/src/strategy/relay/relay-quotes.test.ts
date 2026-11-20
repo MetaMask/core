@@ -3158,6 +3158,7 @@ describe('Relay Quotes Utils', () => {
         });
         gasBatchMock.mockResolvedValue({
           gasLimits: [21000, 21000],
+          mode: 'separate',
           totalGasLimit: 42000,
         });
 
@@ -3166,6 +3167,7 @@ describe('Relay Quotes Utils', () => {
 
         await getRelayQuotes({
           accountSupports7702: true,
+          from: FROM_MOCK,
           messenger,
           requests: [
             {
