@@ -13,12 +13,6 @@ import {
   hexToBigInt,
 } from '@metamask/utils';
 
-/**
- * The JSON-RPC error data the TOPRF nodes return when they hold no key for
- * the verifier ID.
- */
-const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
-
 import {
   SeedlessOnboardingControllerErrorMessage,
   SecretType,
@@ -32,6 +26,12 @@ import type {
   VaultData,
 } from '../types.js';
 import { assertIsValidVaultData } from './assertions.js';
+
+/**
+ * The JSON-RPC error data the TOPRF nodes return when they hold no key for
+ * the verifier ID.
+ */
+const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
 
 /**
  * Decode the node auth token from base64 to json object.
