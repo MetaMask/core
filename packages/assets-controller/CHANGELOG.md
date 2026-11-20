@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/phishing-controller` from `^18.3.1` to `^18.3.2` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#11659](https://github.com/MetaMask/core/pull/11659))
 
 ## [21.0.0]
 

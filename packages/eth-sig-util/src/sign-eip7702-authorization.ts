@@ -1,5 +1,5 @@
 import { encode } from '@ethereumjs/rlp';
-import { ecsign, publicToAddress } from '@ethereumjs/util';
+import { publicToAddress } from '@ethereumjs/util';
 import {
   bigIntToBytes,
   bytesToHex,
@@ -9,7 +9,7 @@ import {
 } from '@metamask/utils';
 import { keccak256 } from 'ethereum-cryptography/keccak';
 
-import { concatSig, isNullish, recoverPublicKey } from './utils.js';
+import { concatSig, ecsign, isNullish, recoverPublicKey } from './utils.js';
 
 const CHAIN_ID_MAX_BITLENGTH = 256;
 const NONCE_MAX_BITLENGTH = 64;

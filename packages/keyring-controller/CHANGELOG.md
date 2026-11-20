@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
 - Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#11659](https://github.com/MetaMask/core/pull/11659))
 
 ## [28.2.2]
 
