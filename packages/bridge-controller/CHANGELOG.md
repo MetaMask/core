@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `DiscountType` entry for free quotes ([#11674](https://github.com/MetaMask/core/pull/11674))
 - Export `getQuoteRefreshRate` util that reads the quote refresh interval from the client's LaunchDarkly config, including per-chain overrides ([#11181](https://github.com/MetaMask/core/pull/11181))
 
 ### Changed
