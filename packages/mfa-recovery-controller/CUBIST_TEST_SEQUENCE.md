@@ -37,7 +37,7 @@ sequenceDiagram
   Cubist-->>Mobile: CubeSigner session
   Note over Mobile: new CubistEscrowProvider(session, wrap key, receipt key)
   Mobile->>Id: new TestIdentifierAuthProvider(address, signPersonalMessage)
-  Mobile->>C: new MfaRecoveryController({ messenger, identifierAuthProvider, escrows: [escrow] })
+  Mobile->>C: new MfaRecoveryController({ messenger, identifierAuthProvider, escrows: [escrow], encryptor })
 ```
 
 - `AuthenticationController` serves the `refreshCanonicalProfileId` and
