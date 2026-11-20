@@ -1522,6 +1522,28 @@ describe('MoneyAccountBalanceService', () => {
       expect(getBatchedCalls(aggregate3)).toHaveLength(2);
     });
 
+    it('ignores a premium config with a truncated address', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_PREMIUM_VAULT_CONFIG,
+            boringVault: '0x7777',
+          },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
     it('excludes a premium vault on a different chain', async () => {
       const { aggregate3 } = await setUpRealAbiMulticall([
         '5000000',
@@ -1600,7 +1622,8 @@ describe('MoneyAccountBalanceService', () => {
         '800000',
       ]);
       const flags = {
-        [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
       };
       const { service, rootMessenger } = createService({ rffcFlags: flags });

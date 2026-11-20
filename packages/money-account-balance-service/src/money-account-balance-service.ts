@@ -29,7 +29,7 @@ import type {
 } from '@metamask/remote-feature-flag-controller';
 import { assert, is } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, inMilliseconds, isValidHexAddress } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
@@ -550,7 +550,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
     if (flagValue !== undefined) {
       try {
         nextConfig = this.#parseAndValidateVaultConfig(flagValue);
+        const { chainId: _chainId, ...addresses } = nextConfig;
+        if (!Object.values(addresses).every(isValidHexAddress)) {
+          throw new VaultConfigValidationError();
+        }
       } catch (error) {
+        nextConfig = undefined;
         configLogger('Premium vault config invalid; ignoring', { error });
       }
     }
