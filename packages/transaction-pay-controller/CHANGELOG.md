@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
-- Add `PaymentOverride.PerpsLighter` (`perpsLighter`) so a client can mark a Lighter perps deposit as a payment override ([#11640](https://github.com/MetaMask/core/pull/11640))
-  - The client sets the mainnet USDC target. When the transaction has calldata, the server strategy embeds that calldata and does not retarget the quote. The provider delivers the USDC, so the calls are not prefixed with a transfer. The first credited deposit creates the Lighter account.
+- Add `PaymentOverride.PerpsLighter` (`perpsLighter`) ([#11640](https://github.com/MetaMask/core/pull/11640))
+  - Reserved for a direct Lighter target after the account exists. A first deposit quotes mainnet USDC from the confirmation's required asset and network, and does not use this override.
 
 ### Changed
 

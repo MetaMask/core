@@ -6,7 +6,6 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
-  PaymentOverride,
 } from '../constants.js';
 import type { QuoteRequest } from '../types.js';
 import {
@@ -186,18 +185,6 @@ describe('utils/perps', () => {
         ),
       ).toBe(false);
     });
-
-    it('returns false when paymentOverride is perpsLighter', () => {
-      expect(
-        isPerpsDepositRequest(
-          {
-            ...baseRequest,
-            paymentOverride: PaymentOverride.PerpsLighter,
-          },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
   });
 
   describe('normalizePerpsDepositRequest', () => {
@@ -225,21 +212,6 @@ describe('utils/perps', () => {
       );
 
       expect(result.targetAmountMinimum).toBe('1000000');
-    });
-
-    it('leaves the request unchanged when paymentOverride is perpsLighter', () => {
-      const request = {
-        ...baseRequest,
-        paymentOverride: PaymentOverride.PerpsLighter,
-      };
-
-      const result = normalizePerpsDepositRequest(
-        request,
-        bridgeTransferTransaction,
-        HYPERCORE_ADDRESS_MOCK,
-      );
-
-      expect(result).toBe(request);
     });
 
     it('returns the original request when not a perps deposit', () => {

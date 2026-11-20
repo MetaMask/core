@@ -7,7 +7,6 @@ import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   HYPERCORE_USDC_DECIMALS,
-  PaymentOverride,
   USDC_DECIMALS,
 } from '../constants.js';
 import type { QuoteRequest } from '../types.js';
@@ -65,17 +64,10 @@ export function isPerpsDepositTransaction(
 export function isPerpsDepositRequest(
   request: Pick<
     QuoteRequest,
-    'isPostQuote' | 'paymentOverride' | 'targetChainId' | 'targetTokenAddress'
+    'isPostQuote' | 'targetChainId' | 'targetTokenAddress'
   >,
   transaction: PerpsTransaction | undefined,
 ): boolean {
-  // A Lighter override settles in mainnet USDC. The open confirmation can
-  // still carry the Hyperliquid bridge call, and that call must not retarget
-  // the quote to HyperCore.
-  if (request.paymentOverride === PaymentOverride.PerpsLighter) {
-    return false;
-  }
-
   return (
     request.isPostQuote !== true &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&

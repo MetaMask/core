@@ -5,7 +5,6 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
-  PaymentOverride,
 } from '../../constants.js';
 import type { QuoteRequest } from '../../types.js';
 import {
@@ -80,17 +79,6 @@ describe('strategy/server/perps', () => {
         SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
       );
       expect(result.targetAmountMinimum).toBe('100000000');
-    });
-
-    it('keeps the client target for a Lighter override instead of quoting HyperCore', () => {
-      const request = {
-        ...baseRequest,
-        paymentOverride: PaymentOverride.PerpsLighter,
-      };
-
-      const result = normalizeServerPerpsRequest(request, bridgeTransaction);
-
-      expect(result).toBe(request);
     });
 
     it('returns the original request when the bridge is not referenced', () => {

@@ -99,9 +99,8 @@ export enum PaymentOverride {
   Perps = 'perps',
   Predict = 'predict',
   /**
-   * Lighter perps deposit. The server strategy acquires mainnet USDC, then
-   * executes the transaction calldata so the first credit creates the
-   * Lighter account.
+   * Direct Lighter perps target. The first mainnet USDC deposit does not use
+   * this override: that quote uses the confirmation's required asset and network.
    */
   PerpsLighter = 'perpsLighter',
 }
