@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Point Lighter testnet REST and WebSocket endpoints at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Point Lighter testnet REST and WebSocket endpoints at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream` ([#11689](https://github.com/MetaMask/core/pull/11689))
 
 ### Added
 
