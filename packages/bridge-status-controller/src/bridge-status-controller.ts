@@ -2182,10 +2182,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.status.destChain?.txHash,
     );
 
-    const failurePropertiesFromHistory = getFailurePropertiesFromHistory(
-      historyItem.status.srcChain.txHash,
-      historyItem.status.destChain?.txHash,
-    );
+    const failurePropertiesFromHistory =
+      getFailurePropertiesFromHistory(historyItem);
     const failedHashPresence = {
       source_hash_present:
         historyHashPresence.source_hash_present ||

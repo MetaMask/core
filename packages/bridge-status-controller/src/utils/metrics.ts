@@ -106,8 +106,8 @@ export const getHashPresenceProperties = (
  */
 export const getStatusFailurePhase = (
   hashPresence: HashPresenceProperties,
-  depositTxMeta?: BridgeHistoryItem['depositTxMeta'],
-  withdrawTxMeta?: BridgeHistoryItem['withdrawTxMeta'],
+  depositTxMeta: BridgeHistoryItem['depositTxMeta'] | null,
+  withdrawTxMeta: BridgeHistoryItem['withdrawTxMeta'] | null,
 ): FailurePhase => {
   if (depositTxMeta?.batchId && !depositTxMeta?.hash) {
     return FailurePhase.DepositExecution;
@@ -180,19 +180,24 @@ export const getBroadcastFailureProperties = (
  * Used for poll Failed and TransactionController Failed once a history
  * item exists. Not poll-only.
  *
- * @param sourceHash - Source tx hash from history if known.
- * @param destinationHash - Destination tx hash from history if known.
- * @param depositTxMeta - The deposit transaction meta from txHistory
- * @param withdrawTxMeta - The withdrawal transaction meta from txHistory
+ * @param historyItem - The bridge history item
+ * @param historyItem.status - Status of the transaction including hashes
+ * @param historyItem.depositTxMeta - The deposit transaction meta from txHistory
+ * @param historyItem.withdrawTxMeta - The withdrawal transaction meta from txHistory
  * @returns Phase, error code, and hash-presence flags.
  */
-export const getFailurePropertiesFromHistory = (
-  sourceHash?: string | null,
-  destinationHash?: string | null,
-  depositTxMeta?: BridgeHistoryItem['depositTxMeta'],
-  withdrawTxMeta?: BridgeHistoryItem['withdrawTxMeta'],
-): FailureTelemetryProperties => {
-  const hashPresence = getHashPresenceProperties(sourceHash, destinationHash);
+export const getFailurePropertiesFromHistory = ({
+  status,
+  depositTxMeta,
+  withdrawTxMeta,
+}: Pick<
+  BridgeHistoryItem,
+  'status' | 'depositTxMeta' | 'withdrawTxMeta'
+>): FailureTelemetryProperties => {
+  const hashPresence = getHashPresenceProperties(
+    status?.srcChain.txHash,
+    status?.destChain?.txHash,
+  );
   return {
     ...hashPresence,
     failure_phase: getStatusFailurePhase(
