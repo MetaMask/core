@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
 
+### Changed
+
+- Point Lighter testnet REST and WebSocket endpoints at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream` ([#11689](https://github.com/MetaMask/core/pull/11689))
+- Fix Lighter block explorer links: use the `app.lighter.xyz/explorer` and `testnet.app.lighter.xyz/explorer` pages with `/accounts/<address>` instead of dead or API-only hosts ([#11689](https://github.com/MetaMask/core/pull/11689))
+- Update the Lighter testnet bridge config to the new testnet's Sepolia chain and contract addresses ([#11689](https://github.com/MetaMask/core/pull/11689))
+
 ### Fixed
 
 - Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins ([#11676](https://github.com/MetaMask/core/pull/11676))
