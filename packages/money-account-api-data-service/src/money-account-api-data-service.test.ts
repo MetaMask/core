@@ -1780,7 +1780,15 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('emits a trace for fetchVaults on cache miss', async () => {
-      const { service } = createService(Env.DEV, { trace: mockTrace });
+      const traceRequests: MoneyAccountApiDataServiceTraceRequest[] = [];
+      const trace: MoneyAccountApiDataServiceTraceCallback = async <Result>(
+        request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        traceRequests.push(request);
+        return await Promise.resolve(fn?.() as Result);
+      };
+      const { service } = createService(Env.DEV, { trace });
 
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .get('/v1/vaults')
@@ -1788,11 +1796,8 @@ describe('MoneyAccountApiDataService', () => {
 
       await service.fetchVaults();
 
-      expect(mockTrace).toHaveBeenCalledTimes(1);
-      const [request] = mockTrace.mock.calls[0] as [
-        MoneyAccountApiDataServiceTraceRequest,
-        unknown,
-      ];
+      expect(traceRequests).toHaveLength(1);
+      const [request] = traceRequests;
       expect(request.name).toBe(TRACES.VAULTS_API);
       expect(request.data).toStrictEqual(
         expect.objectContaining({
