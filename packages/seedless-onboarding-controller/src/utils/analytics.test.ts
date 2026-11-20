@@ -14,24 +14,21 @@ import {
   SRP1,
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
-import { createMockJWTToken } from '../../tests/mocks/utils.js';
 import {
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessPrimarySrpMismatchEventName,
+  SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
   trackIdentityMismatchEvent,
-  trackIdentityUnchangedEvent,
-  trackIdTokenMismatchEvent,
   trackIncompleteMetadataBackupEvents,
-  SeedlessPrimarySrpMismatchEventName,
-  SeedlessPrimarySrpMissingEventName,
 } from './analytics.js';
 import { parseSecretMetadata } from './secret-data-utils.js';
 
@@ -409,7 +406,7 @@ describe('trackIdentityMismatchEvent', () => {
     const trackEvent = vi.fn();
     const error = new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
-      { details: 'The idToken user id does not match the provided userId.' },
+      { details: SeedlessIdentityMismatchReason.UserIdMismatch },
     );
 
     trackIdentityMismatchEvent({
@@ -458,90 +455,6 @@ describe('trackIdentityMismatchEvent', () => {
         'Error tracking identity mismatch event',
         trackError,
       );
-    });
-  });
-});
-
-describe('trackIdTokenMismatchEvent', () => {
-  it('does not track when the id token belongs to the user', () => {
-    const trackEvent = vi.fn();
-
-    expect(() => {
-      trackIdTokenMismatchEvent({
-        idTokens: [createMockJWTToken({ sub: 'user-1' })],
-        userId: 'user-1',
-        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
-        trackEvent,
-      });
-    }).not.toThrow();
-
-    expect(trackEvent).not.toHaveBeenCalled();
-  });
-
-  it('tracks the mismatch and rethrows it', () => {
-    const trackEvent = vi.fn();
-
-    expect(() => {
-      trackIdTokenMismatchEvent({
-        idTokens: [createMockJWTToken({ sub: 'other-user' })],
-        userId: 'user-1',
-        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
-        trackEvent,
-      });
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
-
-    expect(trackEvent).toHaveBeenCalledWith({
-      name: SeedlessIdentityMismatchEventName,
-      properties: {
-        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
-        reason: SeedlessIdentityMismatchReason.UserIdMismatch,
-      },
-      sensitiveProperties: {},
-      saveDataRecording: false,
-      hasProperties: true,
-    });
-  });
-});
-
-describe('trackIdentityUnchangedEvent', () => {
-  const identity = { userId: 'user-1', authConnectionId: 'google' };
-
-  it('does not track when the identity is unchanged', () => {
-    const trackEvent = vi.fn();
-
-    expect(() => {
-      trackIdentityUnchangedEvent({
-        currentState: identity,
-        expectedIdentity: identity,
-        source: SeedlessIdentityMismatchSource.TokenRefresh,
-        trackEvent,
-      });
-    }).not.toThrow();
-
-    expect(trackEvent).not.toHaveBeenCalled();
-  });
-
-  it('tracks an in-flight identity change and rethrows it', () => {
-    const trackEvent = vi.fn();
-
-    expect(() => {
-      trackIdentityUnchangedEvent({
-        currentState: { ...identity, userId: 'user-2' },
-        expectedIdentity: identity,
-        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
-        trackEvent,
-      });
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
-
-    expect(trackEvent).toHaveBeenCalledWith({
-      name: SeedlessIdentityMismatchEventName,
-      properties: {
-        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
-        reason: SeedlessIdentityMismatchReason.IdentityChangedInFlight,
-      },
-      sensitiveProperties: {},
-      saveDataRecording: false,
-      hasProperties: true,
     });
   });
 });

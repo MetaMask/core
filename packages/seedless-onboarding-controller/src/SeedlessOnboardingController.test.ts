@@ -74,6 +74,7 @@ import {
   SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessPrimarySrpMismatchEventName,
   AuthConnection,
   SecretType,
 } from './constants.js';
@@ -92,7 +93,6 @@ import type {
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
 import type { SeedlessOnboardingControllerState } from './types.js';
-import { SeedlessPrimarySrpMismatchEventName } from './utils/analytics.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';

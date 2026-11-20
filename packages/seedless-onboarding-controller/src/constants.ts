@@ -77,6 +77,10 @@ export enum SeedlessOnboardingControllerErrorMessage {
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
 }
 
+export const SeedlessPrimarySrpMissingEventName =
+  'Seedless Onboarding Primary SRP Missing';
+export const SeedlessPrimarySrpMismatchEventName =
+  'Seedless Onboarding Primary SRP Mismatch';
 export const SeedlessIdentityMismatchEventName =
   'Seedless Onboarding Identity Mismatch';
 
@@ -100,31 +104,3 @@ export enum SeedlessIdentityMismatchReason {
   IdentityChangedInFlight = 'identity_changed_in_flight',
   Unknown = 'unknown',
 }
-
-/**
- * Detail strings for {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch}.
- */
-export const IdentityMismatchDetail = {
-  MissingUserId: 'The user ID is missing.',
-  MissingIdToken: 'The idToken is missing.',
-  UndecodableIdToken: 'The idToken could not be decoded.',
-  UserIdMismatch: 'The idToken user id does not match the provided userId.',
-  IdentityChangedInFlight:
-    'Controller identity changed while the request was in flight.',
-} as const;
-
-export const IDENTITY_MISMATCH_REASON_BY_DETAIL: Record<
-  string,
-  SeedlessIdentityMismatchReason
-> = {
-  [IdentityMismatchDetail.MissingUserId]:
-    SeedlessIdentityMismatchReason.MissingUserId,
-  [IdentityMismatchDetail.MissingIdToken]:
-    SeedlessIdentityMismatchReason.MissingIdToken,
-  [IdentityMismatchDetail.UndecodableIdToken]:
-    SeedlessIdentityMismatchReason.IdTokenUndecodable,
-  [IdentityMismatchDetail.UserIdMismatch]:
-    SeedlessIdentityMismatchReason.UserIdMismatch,
-  [IdentityMismatchDetail.IdentityChangedInFlight]:
-    SeedlessIdentityMismatchReason.IdentityChangedInFlight,
-};

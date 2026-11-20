@@ -7,10 +7,11 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import {
   controllerName,
-  IDENTITY_MISMATCH_REASON_BY_DETAIL,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
+  SeedlessPrimarySrpMismatchEventName,
+  SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
 import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import {
@@ -20,19 +21,10 @@ import {
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import {
-  assertIdentityUnchanged,
-  assertIdTokenMatchesUserId,
-} from './assertions.js';
-import {
   isPrimarySecretCandidate,
   parseSecretMetadata,
   validateSecretMetadataBackup,
 } from './secret-data-utils.js';
-
-export const SeedlessPrimarySrpMissingEventName =
-  'Seedless Onboarding Primary SRP Missing';
-export const SeedlessPrimarySrpMismatchEventName =
-  'Seedless Onboarding Primary SRP Mismatch';
 
 export type IncompleteMetadataBackupEventProperties = {
   metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
@@ -223,8 +215,9 @@ export function trackIdentityMismatchEvent({
       properties: {
         source,
         reason:
-          IDENTITY_MISMATCH_REASON_BY_DETAIL[error.details ?? ''] ??
-          SeedlessIdentityMismatchReason.Unknown,
+          Object.values(SeedlessIdentityMismatchReason).find(
+            (reason) => reason === error.details,
+          ) ?? SeedlessIdentityMismatchReason.Unknown,
       },
       sensitiveProperties: {},
       saveDataRecording: false,
@@ -237,69 +230,5 @@ export function trackIdentityMismatchEvent({
     }
   } catch (trackError) {
     log('Error tracking identity mismatch event', trackError);
-  }
-}
-
-/**
- * Assert the first id token belongs to `userId`, and report a mismatch.
- * The original error is rethrown. A tracking failure does not replace it.
- *
- * @param params - The tokens, expected user, and analytics callbacks.
- * @param params.idTokens - Id tokens to check. Only the first is validated.
- * @param params.userId - The user id the token should belong to.
- * @param params.source - The flow that is checking the token.
- * @param params.trackEvent - Emits a non-sensitive analytics event.
- */
-export function trackIdTokenMismatchEvent({
-  idTokens,
-  userId,
-  source,
-  trackEvent,
-}: {
-  idTokens: string[];
-  userId: string | null | undefined;
-  source: SeedlessIdentityMismatchSource;
-  trackEvent: TrackEvent;
-}): asserts userId is string {
-  try {
-    assertIdTokenMatchesUserId(idTokens, userId);
-  } catch (error) {
-    trackIdentityMismatchEvent({ source, error, trackEvent });
-    throw error;
-  }
-}
-
-/**
- * Assert the controller identity is unchanged, and report a mismatch.
- * The original error is rethrown. A tracking failure does not replace it.
- *
- * @param params - The identities being compared and the analytics callbacks.
- * @param params.currentState - Identity fields from the current controller state.
- * @param params.expectedIdentity - Identity fields captured before the request.
- * @param params.source - The flow that is checking the identity.
- * @param params.trackEvent - Emits a non-sensitive analytics event.
- */
-export function trackIdentityUnchangedEvent({
-  currentState,
-  expectedIdentity,
-  source,
-  trackEvent,
-}: {
-  currentState: {
-    userId?: string;
-    authConnectionId?: string;
-  };
-  expectedIdentity: {
-    userId?: string;
-    authConnectionId?: string;
-  };
-  source: SeedlessIdentityMismatchSource;
-  trackEvent: TrackEvent;
-}): void {
-  try {
-    assertIdentityUnchanged(currentState, expectedIdentity);
-  } catch (error) {
-    trackIdentityMismatchEvent({ source, error, trackEvent });
-    throw error;
   }
 }

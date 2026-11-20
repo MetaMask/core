@@ -1,9 +1,16 @@
+import type {
+  AnalyticsContext,
+  AnalyticsTrackingEvent,
+} from '@metamask/analytics-controller';
+
 import {
-  IdentityMismatchDetail,
+  SeedlessIdentityMismatchReason,
   SeedlessOnboardingControllerErrorMessage,
 } from '../constants.js';
+import type { SeedlessIdentityMismatchSource } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
 import type { AuthenticatedUserDetails, VaultData } from '../types.js';
+import { trackIdentityMismatchEvent } from './analytics.js';
 import { decodeIdToken } from './token.js';
 
 /**
@@ -228,7 +235,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: IdentityMismatchDetail.MissingUserId,
+        details: SeedlessIdentityMismatchReason.MissingUserId,
       },
     );
   }
@@ -238,7 +245,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: IdentityMismatchDetail.MissingIdToken,
+        details: SeedlessIdentityMismatchReason.MissingIdToken,
       },
     );
   }
@@ -250,7 +257,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: IdentityMismatchDetail.UndecodableIdToken,
+        details: SeedlessIdentityMismatchReason.IdTokenUndecodable,
         cause: error,
       },
     );
@@ -260,7 +267,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: IdentityMismatchDetail.UserIdMismatch,
+        details: SeedlessIdentityMismatchReason.UserIdMismatch,
       },
     );
   }
@@ -297,8 +304,77 @@ export function assertIdentityUnchanged(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: IdentityMismatchDetail.IdentityChangedInFlight,
+        details: SeedlessIdentityMismatchReason.IdentityChangedInFlight,
       },
     );
+  }
+}
+
+type TrackEvent = (
+  event: AnalyticsTrackingEvent,
+  context?: AnalyticsContext,
+) => void | Promise<void>;
+
+/**
+ * Assert the first id token belongs to `userId`, and report a mismatch.
+ * The original error is rethrown. A tracking failure does not replace it.
+ *
+ * @param params - The tokens, expected user, and analytics callbacks.
+ * @param params.idTokens - Id tokens to check. Only the first is validated.
+ * @param params.userId - The user id the token should belong to.
+ * @param params.source - The flow that is checking the token.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ */
+export function assertIdTokenMismatchAndTrackEvent({
+  idTokens,
+  userId,
+  source,
+  trackEvent,
+}: {
+  idTokens: string[];
+  userId: string | null | undefined;
+  source: SeedlessIdentityMismatchSource;
+  trackEvent: TrackEvent;
+}): asserts userId is string {
+  try {
+    assertIdTokenMatchesUserId(idTokens, userId);
+  } catch (error) {
+    trackIdentityMismatchEvent({ source, error, trackEvent });
+    throw error;
+  }
+}
+
+/**
+ * Assert the controller identity is unchanged, and report a mismatch.
+ * The original error is rethrown. A tracking failure does not replace it.
+ *
+ * @param params - The identities being compared and the analytics callbacks.
+ * @param params.currentState - Identity fields from the current controller state.
+ * @param params.expectedIdentity - Identity fields captured before the request.
+ * @param params.source - The flow that is checking the identity.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ */
+export function assertIdentityUnchangedAndTrackEvent({
+  currentState,
+  expectedIdentity,
+  source,
+  trackEvent,
+}: {
+  currentState: {
+    userId?: string;
+    authConnectionId?: string;
+  };
+  expectedIdentity: {
+    userId?: string;
+    authConnectionId?: string;
+  };
+  source: SeedlessIdentityMismatchSource;
+  trackEvent: TrackEvent;
+}): void {
+  try {
+    assertIdentityUnchanged(currentState, expectedIdentity);
+  } catch (error) {
+    trackIdentityMismatchEvent({ source, error, trackEvent });
+    throw error;
   }
 }

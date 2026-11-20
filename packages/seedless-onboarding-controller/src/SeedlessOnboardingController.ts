@@ -79,8 +79,8 @@ import {
   deserializeVaultData,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
-  trackIdentityUnchangedEvent,
-  trackIdTokenMismatchEvent,
+  assertIdentityUnchangedAndTrackEvent,
+  assertIdTokenMismatchAndTrackEvent,
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
@@ -323,7 +323,7 @@ export class SeedlessOnboardingController<
       // Fail fast if the idToken does not belong to the provided user, before
       // making any network request. This detects caller-side inconsistencies
       // (e.g. a userId sourced from a different login than the idTokens).
-      this.#trackIdTokenMismatchEvent(
+      this.#assertIdTokenMismatchAndTrackEvent(
         idTokens,
         userId,
         SeedlessIdentityMismatchSource.ToprfAuthenticate,
@@ -2124,7 +2124,7 @@ export class SeedlessOnboardingController<
         // update was in flight. Aborting here prevents the refresh-token
         // rotation from mixing the previous identity's tokens into the
         // current state.
-        this.#trackIdentityUnchangedEvent(
+        this.#assertIdentityUnchangedAndTrackEvent(
           {
             userId: this.state.userId,
             authConnectionId: this.state.authConnectionId,
@@ -2203,7 +2203,7 @@ export class SeedlessOnboardingController<
     // Fail fast if the refreshed idTokens do not belong to the identity in
     // state. This can happen when the identity changes while a token refresh
     // is in flight (there is no lock between the refresh and this call).
-    this.#trackIdTokenMismatchEvent(
+    this.#assertIdTokenMismatchAndTrackEvent(
       idTokens,
       userId,
       SeedlessIdentityMismatchSource.TokenRefresh,
@@ -2223,7 +2223,7 @@ export class SeedlessOnboardingController<
       // was in flight. Discard the result instead of resurrecting the previous
       // identity into the current state. There is no `await` between this
       // check and the `update` below, so the pair is atomic.
-      this.#trackIdentityUnchangedEvent(
+      this.#assertIdentityUnchangedAndTrackEvent(
         {
           userId: this.state.userId,
           authConnectionId: this.state.authConnectionId,
@@ -2296,7 +2296,7 @@ export class SeedlessOnboardingController<
     // Fail before renewing the vault revoke token. A mismatched, missing, or
     // corrupted id token must not refresh another identity's credentials.
     if (idTokens) {
-      this.#trackIdTokenMismatchEvent(
+      this.#assertIdTokenMismatchAndTrackEvent(
         idTokens,
         userId,
         SeedlessIdentityMismatchSource.RotateRefreshToken,
@@ -2313,7 +2313,7 @@ export class SeedlessOnboardingController<
       // The identity may have changed while the renewal was in flight. Check
       // before persisting so the vault does not keep the previous identity's
       // revoke token.
-      this.#trackIdentityUnchangedEvent(
+      this.#assertIdentityUnchangedAndTrackEvent(
         {
           userId: this.state.userId,
           authConnectionId: this.state.authConnectionId,
@@ -2334,7 +2334,7 @@ export class SeedlessOnboardingController<
 
       // Re-check immediately before the state write. There is no `await`
       // between this check and the `update` below, so the pair is atomic.
-      this.#trackIdentityUnchangedEvent(
+      this.#assertIdentityUnchangedAndTrackEvent(
         {
           userId: this.state.userId,
           authConnectionId: this.state.authConnectionId,
@@ -2578,12 +2578,12 @@ export class SeedlessOnboardingController<
    * @param userId - The user id the token should belong to.
    * @param source - The flow that is checking the token.
    */
-  #trackIdTokenMismatchEvent(
+  #assertIdTokenMismatchAndTrackEvent(
     idTokens: string[],
     userId: string | null | undefined,
     source: SeedlessIdentityMismatchSource,
   ): asserts userId is string {
-    trackIdTokenMismatchEvent({
+    assertIdTokenMismatchAndTrackEvent({
       idTokens,
       userId,
       source,
@@ -2599,7 +2599,7 @@ export class SeedlessOnboardingController<
    * @param expectedIdentity - Identity fields captured before the request.
    * @param source - The flow that is checking the identity.
    */
-  #trackIdentityUnchangedEvent(
+  #assertIdentityUnchangedAndTrackEvent(
     currentState: {
       userId?: string;
       authConnectionId?: string;
@@ -2610,7 +2610,7 @@ export class SeedlessOnboardingController<
     },
     source: SeedlessIdentityMismatchSource,
   ): void {
-    trackIdentityUnchangedEvent({
+    assertIdentityUnchangedAndTrackEvent({
       currentState,
       expectedIdentity,
       source,

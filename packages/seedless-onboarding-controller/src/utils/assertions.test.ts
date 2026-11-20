@@ -1,12 +1,20 @@
 import { base64ToBytes, bytesToBase64, bytesToString } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import { createMockJWTToken } from '../../tests/mocks/utils.js';
+import {
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+  SeedlessIdentityMismatchSource,
+  SeedlessOnboardingControllerErrorMessage,
+} from '../constants.js';
 import { DecodedBaseJWTToken, VaultData } from '../types.js';
 import {
   assertIdTokenMatchesUserId,
+  assertIdTokenMismatchAndTrackEvent,
   assertIdentityUnchanged,
+  assertIdentityUnchangedAndTrackEvent,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -483,5 +491,89 @@ describe('assertIdentityUnchanged', () => {
         { ...identity },
       );
     }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+});
+
+describe('assertIdTokenMismatchAndTrackEvent', () => {
+  it('does not track when the id token belongs to the user', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent({
+        idTokens: [createMockJWTToken({ sub: 'user-1' })],
+        userId: 'user-1',
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      });
+    }).not.toThrow();
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('tracks the mismatch and rethrows it', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent({
+        idTokens: [createMockJWTToken({ sub: 'other-user' })],
+        userId: 'user-1',
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      });
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+});
+
+describe('assertIdentityUnchangedAndTrackEvent', () => {
+  const identity = { userId: 'user-1', authConnectionId: 'google' };
+
+  it('does not track when the identity is unchanged', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdentityUnchangedAndTrackEvent({
+        currentState: identity,
+        expectedIdentity: identity,
+        source: SeedlessIdentityMismatchSource.TokenRefresh,
+        trackEvent,
+      });
+    }).not.toThrow();
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('tracks an in-flight identity change and rethrows it', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdentityUnchangedAndTrackEvent({
+        currentState: { ...identity, userId: 'user-2' },
+        expectedIdentity: identity,
+        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
+        trackEvent,
+      });
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
+        reason: SeedlessIdentityMismatchReason.IdentityChangedInFlight,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
   });
 });

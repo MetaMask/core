@@ -1,6 +1,8 @@
 export {
   assertIdTokenMatchesUserId,
+  assertIdTokenMismatchAndTrackEvent,
   assertIdentityUnchanged,
+  assertIdentityUnchangedAndTrackEvent,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -9,8 +11,6 @@ export {
 } from './assertions.js';
 export {
   trackIdentityMismatchEvent,
-  trackIdentityUnchangedEvent,
-  trackIdTokenMismatchEvent,
   trackIncompleteMetadataBackupEvents,
 } from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
