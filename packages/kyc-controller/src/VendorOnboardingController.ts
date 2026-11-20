@@ -22,10 +22,10 @@ import {
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { KYC_SIGNED_REQUEST_LIMITS, KYC_VENDOR_SIGN_PATHS } from './types.js';
 import type {
+  KalshiRequestSigner,
   KycClientContext,
   KycConsentRecord,
   KycSignedRequest,
-  KycVendorRequestSigner,
   KycVendorSignRequest,
   OnboardingVendor,
   KycSessionDisclaimers,
@@ -157,13 +157,11 @@ export type VendorOnboardingControllerOptions = {
   messenger: VendorOnboardingControllerMessenger;
   state?: Partial<VendorOnboardingControllerState>;
   /**
-   * Signs Kalshi calls with the device key, by vendor. Only needed for
-   * vendors whose email link the relay forwards (Kalshi). The controller
-   * chooses the calls. The signer does not send them.
+   * Signs the Kalshi calls with the device key. Only needed for Kalshi, whose
+   * email link the relay forwards. The controller chooses the calls. The
+   * signer does not send them.
    */
-  vendorRequestSigners?: Partial<
-    Record<OnboardingVendor, KycVendorRequestSigner>
-  >;
+  kalshiRequestSigner?: KalshiRequestSigner;
   /**
    * Platform adapter that presents the SumSub SDK. Injected by each client so
    * the controller stays platform-agnostic. Without it, `launchProviderFlow`
@@ -188,9 +186,7 @@ export class VendorOnboardingController extends BaseController<
   VendorOnboardingControllerState,
   VendorOnboardingControllerMessenger
 > {
-  readonly #vendorRequestSigners: Partial<
-    Record<OnboardingVendor, KycVendorRequestSigner>
-  >;
+  readonly #kalshiRequestSigner?: KalshiRequestSigner;
 
   readonly #localUserSecretStore: UkycLocalUserSecretStore;
 
@@ -213,14 +209,14 @@ export class VendorOnboardingController extends BaseController<
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - Partial initial state; merged over defaults.
-   * @param options.vendorRequestSigners - Signs Kalshi calls with the device
-   * key, by vendor. The controller chooses the calls.
+   * @param options.kalshiRequestSigner - Signs the Kalshi calls with the device
+   * key. The controller chooses the calls.
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    */
   constructor({
     messenger,
     state,
-    vendorRequestSigners,
+    kalshiRequestSigner,
     sumsubLauncher,
   }: VendorOnboardingControllerOptions) {
     super({
@@ -230,7 +226,7 @@ export class VendorOnboardingController extends BaseController<
       state: { ...getDefaultVendorOnboardingControllerState(), ...state },
     });
 
-    this.#vendorRequestSigners = vendorRequestSigners ?? {};
+    this.#kalshiRequestSigner = kalshiRequestSigner;
     this.#sumsubLauncher = sumsubLauncher;
     this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
@@ -345,7 +341,7 @@ export class VendorOnboardingController extends BaseController<
     const signedRequests =
       email === undefined
         ? undefined
-        : await this.#signVendorRequests(vendor, [
+        : await this.#signKalshiRequests([
             ...(params.intentOpen
               ? []
               : [{ operation: 'enrollment/intents' as const }]),
@@ -557,7 +553,7 @@ export class VendorOnboardingController extends BaseController<
       });
       return this.#readStep(params.vendor, { supersede: true });
     }
-    const [signedRequest] = await this.#signVendorRequests(params.vendor, [
+    const [signedRequest] = await this.#signKalshiRequests([
       { operation: 'users/link/verify', code: params.code },
     ]);
     const sessionId = await this.#getSessionId(params.vendor);
@@ -586,7 +582,7 @@ export class VendorOnboardingController extends BaseController<
       await this.messenger.call('KycService:sendEmailOtp', { sessionId });
       return this.#readStep(params.vendor, { supersede: true });
     }
-    const [signedRequest] = await this.#signVendorRequests(params.vendor, [
+    const [signedRequest] = await this.#signKalshiRequests([
       {
         operation: 'users/link',
         email: this.#requireKalshiEmail(params.email?.trim()),
@@ -666,24 +662,19 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Signs the Kalshi calls for a vendor and checks the signer answered each
-   * one, in order.
+   * Signs the Kalshi calls and checks the signer answered each one, in order.
    *
-   * @param vendor - The vendor.
    * @param requests - The calls to sign.
    * @returns The signed calls, in the same order.
    */
-  async #signVendorRequests(
-    vendor: OnboardingVendor,
+  async #signKalshiRequests(
     requests: readonly KycVendorSignRequest[],
   ): Promise<readonly KycSignedRequest[]> {
-    const signer = this.#vendorRequestSigners[vendor];
+    const signer = this.#kalshiRequestSigner;
     if (!signer) {
-      throw new Error(
-        `VendorOnboardingController: no request signer for ${vendor}.`,
-      );
+      throw new Error('VendorOnboardingController: no Kalshi request signer.');
     }
-    const signed = await signer({ vendor, requests });
+    const signed = await signer({ requests });
     if (
       signed.length !== requests.length ||
       signed.some(
@@ -692,13 +683,13 @@ export class VendorOnboardingController extends BaseController<
       )
     ) {
       throw new Error(
-        `VendorOnboardingController: signer for ${vendor} did not return the requested calls.`,
+        'VendorOnboardingController: Kalshi signer did not return the requested calls.',
       );
     }
     const invalid = signed.find((each) => !isWithinSignedRequestLimits(each));
     if (invalid) {
       throw new Error(
-        `VendorOnboardingController: signer for ${vendor} returned a request kyc-api would refuse (at most ${KYC_SIGNED_REQUEST_LIMITS.headerCount} headers, all strings, and ${KYC_SIGNED_REQUEST_LIMITS.bodyBytes} body bytes).`,
+        `VendorOnboardingController: Kalshi signer returned a request kyc-api would refuse (at most ${KYC_SIGNED_REQUEST_LIMITS.headerCount} headers, all strings, and ${KYC_SIGNED_REQUEST_LIMITS.bodyBytes} body bytes).`,
       );
     }
     return signed;

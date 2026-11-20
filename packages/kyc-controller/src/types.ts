@@ -451,14 +451,13 @@ export const KYC_SIGNED_REQUEST_LIMITS = {
 } as const;
 
 /**
- * Signs the Kalshi calls for one vendor.
+ * Signs the Kalshi calls.
  *
  * Injected by the client. The signing key lives on the device, so the
  * controller decides which calls to sign and the client only signs them. It
  * answers with one {@link KycSignedRequest} per request, in the same order.
  */
-export type KycVendorRequestSigner = (params: {
-  vendor: OnboardingVendor;
+export type KalshiRequestSigner = (params: {
   requests: readonly KycVendorSignRequest[];
 }) => Promise<readonly KycSignedRequest[]>;
 

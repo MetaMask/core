@@ -186,7 +186,7 @@ touches `KycController` state.
   `ukyc_capability_token` for idOS after verifying both encryption schemas'
   `jwtChain`. A session kyc-api already has is picked up as it is. It does not
   create a vendor customer.
-- **Injected adapters.** `vendorRequestSigners` signs Kalshi calls
+- **Injected adapters.** `kalshiRequestSigner` signs Kalshi calls
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
   key into `{ path, headers, body }` objects, where `body` is the exact signed
   string. The controller sends them as `signedRequests` on session creation

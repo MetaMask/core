@@ -178,7 +178,7 @@ export type {
   KycSessionStatus,
   KycKalshiErrorCode,
   KycSignedRequest,
-  KycVendorRequestSigner,
+  KalshiRequestSigner,
   KycVendorSignOperation,
   KycVendorSignRequest,
   KycStep,

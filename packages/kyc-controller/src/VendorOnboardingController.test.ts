@@ -15,7 +15,7 @@ import type {
   KycSessionStatus,
   KycSignedRequest,
   KycStepInfo,
-  KycVendorRequestSigner,
+  KalshiRequestSigner,
   KycVendorSignOperation,
 } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
@@ -521,27 +521,12 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('requires a signer for Kalshi', async () => {
-      await withController(
-        { options: { vendorRequestSigners: {} } },
-        async ({ controller }) => {
-          await expect(
-            controller.startSession({
-              vendor: 'kalshi',
-              aal2Token: AAL2_TOKEN,
-              email: KALSHI_EMAIL,
-            }),
-          ).rejects.toThrow('no request signer for kalshi');
-        },
-      );
-    });
-
     it('does not open the session when signing fails', async () => {
-      const signer: KycVendorRequestSigner = vi
+      const signer: KalshiRequestSigner = vi
         .fn()
         .mockRejectedValue(new Error('sign failed'));
       await withController(
-        { options: { vendorRequestSigners: { kalshi: signer } } },
+        { options: { kalshiRequestSigner: signer } },
         async ({ controller, handlers }) => {
           await expect(
             controller.startSession({
@@ -558,7 +543,7 @@ describe('VendorOnboardingController', () => {
     });
 
     it('rejects a signer that signs the wrong route', async () => {
-      const signer: KycVendorRequestSigner = vi
+      const signer: KalshiRequestSigner = vi
         .fn()
         .mockResolvedValue([signedRequest('users/link', '')]);
       await withController(
@@ -573,7 +558,7 @@ describe('VendorOnboardingController', () => {
                 },
               },
             },
-            vendorRequestSigners: { kalshi: signer },
+            kalshiRequestSigner: signer,
           },
         },
         async ({ controller, handlers }) => {
@@ -607,7 +592,7 @@ describe('VendorOnboardingController', () => {
         { body: 'é'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes / 2 + 1) },
       ],
     ])('rejects a signer that returns %s', async (_name, override) => {
-      const signer: KycVendorRequestSigner = vi
+      const signer: KalshiRequestSigner = vi
         .fn()
         .mockResolvedValue([{ ...SIGNED_VERIFY, ...override }]);
       await withController(
@@ -622,7 +607,7 @@ describe('VendorOnboardingController', () => {
                 },
               },
             },
-            vendorRequestSigners: { kalshi: signer },
+            kalshiRequestSigner: signer,
           },
         },
         async ({ controller, handlers }) => {
@@ -645,9 +630,7 @@ describe('VendorOnboardingController', () => {
         ),
         body: 'x'.repeat(KYC_SIGNED_REQUEST_LIMITS.bodyBytes),
       };
-      const signer: KycVendorRequestSigner = vi
-        .fn()
-        .mockResolvedValue([atLimits]);
+      const signer: KalshiRequestSigner = vi.fn().mockResolvedValue([atLimits]);
       await withController(
         {
           options: {
@@ -660,7 +643,7 @@ describe('VendorOnboardingController', () => {
                 },
               },
             },
-            vendorRequestSigners: { kalshi: signer },
+            kalshiRequestSigner: signer,
           },
         },
         async ({ controller, handlers }) => {
@@ -677,7 +660,7 @@ describe('VendorOnboardingController', () => {
     });
 
     it('rejects a signer that skips a call', async () => {
-      const signer: KycVendorRequestSigner = vi.fn().mockResolvedValue([]);
+      const signer: KalshiRequestSigner = vi.fn().mockResolvedValue([]);
       await withController(
         {
           options: {
@@ -690,7 +673,7 @@ describe('VendorOnboardingController', () => {
                 },
               },
             },
-            vendorRequestSigners: { kalshi: signer },
+            kalshiRequestSigner: signer,
           },
         },
         async ({ controller, handlers }) => {
@@ -704,9 +687,9 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('vendors that do not sign requests', () => {
-    it('rejects Kalshi when the controller has no request signers', async () => {
+    it('rejects Kalshi when the controller has no Kalshi request signer', async () => {
       await withController(
-        { options: { vendorRequestSigners: undefined } },
+        { options: { kalshiRequestSigner: undefined } },
         async ({ controller, handlers }) => {
           await expect(
             controller.startSession({
@@ -714,7 +697,7 @@ describe('VendorOnboardingController', () => {
               aal2Token: AAL2_TOKEN,
               email: KALSHI_EMAIL,
             }),
-          ).rejects.toThrow('no request signer for kalshi');
+          ).rejects.toThrow('no Kalshi request signer');
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
       );
@@ -1010,12 +993,12 @@ describe('VendorOnboardingController', () => {
 
     it('signs after every other call that comes before session creation', async () => {
       const order: string[] = [];
-      const signer: KycVendorRequestSigner = async ({ requests }) => {
+      const signer: KalshiRequestSigner = async ({ requests }) => {
         order.push('sign');
         return requests.map((request) => signedRequest(request.operation, ''));
       };
       await withController(
-        { options: { vendorRequestSigners: { kalshi: signer } } },
+        { options: { kalshiRequestSigner: signer } },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockImplementation(async () => {
             order.push('geo');
@@ -1976,7 +1959,7 @@ function withController<ReturnValue>(
 
   const controller = new VendorOnboardingController({
     messenger,
-    vendorRequestSigners: { kalshi: getSigner() },
+    kalshiRequestSigner: getSigner(),
     ...options,
   });
   return testFunction({ controller, rootMessenger, handlers });
@@ -1988,7 +1971,7 @@ function withController<ReturnValue>(
  *
  * @returns The signer.
  */
-function getSigner(): KycVendorRequestSigner {
+function getSigner(): KalshiRequestSigner {
   return async ({ requests }) =>
     requests.map((request) => {
       switch (request.operation) {
