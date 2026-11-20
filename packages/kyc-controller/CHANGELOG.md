@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Mint the partner identity token for the vendor's own audience, including `kalshi`, and send it when a Kalshi session opens ([#11686](https://github.com/MetaMask/core/pull/11686))
+- Add `VendorOnboardingController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
+  - State is `vendors[vendor] = { step, status, sessionId }`. Terms, consents and account link state stay on the server. `step` and `status` are `null` until kyc-api has answered, so a saved session id never reads as a step
+  - Actions: `refreshStep`, `recordVendorDisclaimers`, `startSession`, `fetchSessionDisclaimers`, `recordSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`, `verifyPhoneOtp`, `verifyEmailOtp`, `sendEmailOtp` and `reset`
+  - Kalshi's email link is signed on the phone and forwarded by kyc-api to the relay. `kalshiRequestSigner` signs `enrollment/intents`, `users/link` and `users/link/verify` into `KycSignedRequest` objects (`{ path, headers, body }`). `startSession` sends `signedRequests` (`[enrollment/intents, users/link]`, or `[users/link]` with `intentOpen`) for a new Kalshi session and does not send the email beside them, `sendEmailOtp` sends `{ signedRequest }` with a new `users/link`, and `verifyEmailOtp` sends `{ signedRequest }` with `users/link/verify` and no `otp`. Signing happens right before each call, because a signature lasts 60 seconds. A Kalshi session also mints a partner identity token for the `kalshi` audience (after recording the `kalshi` identity-sharing consent), which kyc-api uses as the email it registers. The controller does not call Kalshi itself
+  - `recordSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted
+  - `launchProviderFlow` presents SumSub through the `sumsubLauncher` option, then reads the next step. It reports `submitted`, `abandoned` or `failed` and keeps nothing on the phone. A review decision the SDK opens on counts as `submitted` only after `Pending`, `Completed` or `ActionCompleted` in the same launch, and a later `Ready`, `Initial` or `Incomplete` clears an earlier `Pending`. kyc-api works out from the relay whether the applicant still has something to do, so nothing records that they submitted
+  - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has. A new session sends the wrapped encryption key and capability token. A session kyc-api already has is picked up as it is. It does not create a vendor customer
+  - `reset` drops any step read still in flight, so a late answer cannot bring back a forgotten vendor
+  - It shares `KycService` with `KycController` and does not touch `KycController` state
+- Add `KycService.getStep`, `acceptVendorTerms`, `sendEmailOtp`, `verifyEmailOtp`, `sendPhoneOtp` and `verifyPhoneOtp`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
+  - `getStep` is the only one that reports a step. The others run their action and report nothing about it, so the step has a single source and cannot drift
+- Add the `KYC_STEPS` list, the `KycStep` and `OnboardingVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
+- Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))
+  - Reported next to the step, because a user asked to redo the identity provider is on the same step as one doing it the first time. `OnboardingVendorState` carries both
+- Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
+
+- Add `KycApiError`, which `KycService` throws for a failed kyc-api call with the `code` from the response body, and `getKycKalshiErrorCode`, which finds a code kyc-api answers with (`KYC_KALSHI_ERROR_CODES`: the relay's `kalshi_*` codes, `invalid_or_expired_code`, `session_not_in_email_verification`, `kalshi_account_exists`, `not_found` and `idos_relay_unavailable`) on a failure ([#11634](https://github.com/MetaMask/core/pull/11634))
+  - The code is written into the error message when the body's message does not already contain it, so a wrapped failure, which keeps only the message, still names the code
+  - A client uses it to keep a wrong email code on the code screen and to ask for a retry after `kalshi_signed_request_rejected`
+- Add `KYC_VENDOR_SIGN_PATHS` and `KYC_SIGNED_REQUEST_LIMITS`, which the controller checks a signer's answer against: the route for each call, at most 16 string headers, and a body of at most 4 KB ([#11634](https://github.com/MetaMask/core/pull/11634))
+
 ### Changed
 
+- Onboarding steps are `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`, `sumsub`, and `decision`. Kalshi uses all of them. Iron uses `terms`, `mfa`, `sumsub`, and `decision`. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
+- Kalshi session creation and the email steps send phone-signed `KycSignedRequest` objects. `kalshiRequestSigner` replaces `kalshiAccountLinkAdapter`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
+- `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))

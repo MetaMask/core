@@ -378,3 +378,210 @@ export type KycSessionDisclaimers = {
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };
+
+/**
+ * Vendors that onboard through {@link VendorOnboardingController}. Separate from
+ * {@link KycVendor}, which the older `KycController` flow uses.
+ */
+export type OnboardingVendor = 'iron' | 'kalshi';
+
+/**
+ * Kalshi calls the phone signs and kyc-api forwards to the relay.
+ *
+ * Relay checks the signature and sends the call to Kalshi unchanged. The
+ * phone signs with its A2T and device key. Relay does not sign these.
+ */
+export const KYC_VENDOR_SIGN_OPERATIONS = [
+  'enrollment/intents',
+  'users/link',
+  'users/link/verify',
+] as const;
+
+/** One Kalshi call the phone can sign. See {@link KYC_VENDOR_SIGN_OPERATIONS}. */
+export type KycVendorSignOperation =
+  (typeof KYC_VENDOR_SIGN_OPERATIONS)[number];
+
+/**
+ * The Kalshi path each signed call carries. The controller checks a signer's
+ * answer against these, so a call signed for the wrong route never goes out.
+ */
+export const KYC_VENDOR_SIGN_PATHS: Record<KycVendorSignOperation, string> = {
+  'enrollment/intents': '/trade-api/v2/isv/enrollment/intents',
+  'users/link': '/trade-api/v2/isv/users/link',
+  'users/link/verify': '/trade-api/v2/isv/users/link/verify',
+};
+
+/**
+ * A Kalshi call waiting to be signed.
+ *
+ * `email` is the address inside `users/link`. `code` is the code inside
+ * `users/link/verify`. `enrollment/intents` carries neither.
+ */
+export type KycVendorSignRequest = {
+  operation: KycVendorSignOperation;
+  email?: string;
+  code?: string;
+};
+
+/**
+ * A Kalshi call the phone has signed, in the shape the relay takes.
+ *
+ * `headers` is exactly what Kalshi verifies: `Authorization`,
+ * `Kalshi-Device-Key`, `Kalshi-Device-Key-Salt`, `Kalshi-Device-Request-Id`,
+ * `Content-Type`, `Content-Digest`, `Idempotency-Key`, `Signature-Input` and
+ * `Signature`. `body` is the exact string that was signed: `""` for
+ * `enrollment/intents`, `{"email":...}` for `users/link` and `{"code":...}`
+ * for `users/link/verify`. kyc-api and the relay pass it on as it is and
+ * never serialize it again. A signature lasts 60 seconds.
+ */
+export type KycSignedRequest = {
+  path: string;
+  headers: Record<string, string>;
+  body: string;
+};
+
+/**
+ * What kyc-api accepts of a {@link KycSignedRequest}: at most 16 headers, all
+ * strings, and a body of at most 4 KB. kyc-api also takes a path of 1 to 256
+ * characters, which the fixed Kalshi routes always meet.
+ */
+export const KYC_SIGNED_REQUEST_LIMITS = {
+  headerCount: 16,
+  bodyBytes: 4096,
+} as const;
+
+/**
+ * Signs the Kalshi calls.
+ *
+ * Injected by the client. The signing key lives on the device, so the
+ * controller decides which calls to sign and the client only signs them. It
+ * answers with one {@link KycSignedRequest} per request, in the same order.
+ */
+export type KalshiRequestSigner = (params: {
+  requests: readonly KycVendorSignRequest[];
+}) => Promise<readonly KycSignedRequest[]>;
+
+/**
+ * Codes kyc-api answers a failed Kalshi step with, as `{ code, message }` with
+ * both set to the code. The relay's codes pass through unchanged. The client
+ * picks its message and screen from them.
+ *
+ * `kalshi_*` codes and `invalid_or_expired_code` come back as 400,
+ * `session_not_in_email_verification` as 412, `not_found` as 404 (for
+ * example, an A2T from the dev issuer on a UAT account) and
+ * `idos_relay_unavailable` as 502. `kalshi_account_exists` comes from the
+ * phone step, for a user who already has a Kalshi account.
+ */
+export const KYC_KALSHI_ERROR_CODES = [
+  'kalshi_signed_request_path_not_allowed',
+  'kalshi_signed_requests_sequence_invalid',
+  'kalshi_signed_request_a2t_missing',
+  'kalshi_signed_request_a2t_invalid',
+  'kalshi_signed_request_sub_mismatch',
+  'kalshi_signed_request_signature_missing',
+  'kalshi_signed_request_body_invalid',
+  'kalshi_signed_request_email_mismatch',
+  'kalshi_signed_request_rejected',
+  'kalshi_signed_request_required',
+  'kalshi_account_exists',
+  'invalid_or_expired_code',
+  'session_not_in_email_verification',
+  'not_found',
+  'idos_relay_unavailable',
+] as const;
+
+/** A code from {@link KYC_KALSHI_ERROR_CODES}. */
+export type KycKalshiErrorCode = (typeof KYC_KALSHI_ERROR_CODES)[number];
+
+/**
+ * The steps kyc-api can send for a vendor. The client maps each step to a
+ * screen it already has; kyc-api never sends copy or layout.
+ *
+ * Kalshi sends `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`,
+ * `sumsub`, and `decision`. Iron sends `terms`, `mfa`, `sumsub`, and
+ * `decision`. `kalshi_email_link` is the email and its code, and
+ * `kalshi_phone_link` is the phone and its code. Each is one step and two
+ * screens, and the phone owns the second screen. Signing `users/link` and
+ * `users/link/verify` stays on those email calls.
+ */
+export const KYC_STEPS = [
+  'terms',
+  'mfa',
+  'kalshi_email_link',
+  'kalshi_phone_link',
+  'sumsub',
+  /** Nothing left for the user to do. {@link KycStatus} says whether that is
+   * good news. */
+  'decision',
+  'error',
+] as const;
+
+/**
+ * How the user's verification is going, reported next to the step.
+ *
+ * Separate from the step: a user asked to redo the identity provider is on
+ * the same step as one doing it for the first time, and the same screen is
+ * shown. Only the status differs, which is what a "we need another look"
+ * banner keys off.
+ */
+export const KYC_STEP_STATUSES = [
+  'none',
+  'pending',
+  'retry',
+  'approved',
+  'rejected',
+] as const;
+
+/**
+ * A status returned alongside a step by kyc-api. Distinct from
+ * {@link KYC_STATUSES}, which is the UKYC session's own vocabulary.
+ */
+export type KycStepStatus = (typeof KYC_STEP_STATUSES)[number];
+
+/**
+ * Narrows a status string from kyc-api. An unknown status reads as `none`,
+ * so an older app shows the step's plain screen rather than guessing.
+ *
+ * @param value - The status string from kyc-api.
+ * @returns The known status, or `none`.
+ */
+export function toKycStepStatus(value: string): KycStepStatus {
+  return (KYC_STEP_STATUSES as readonly string[]).includes(value)
+    ? (value as KycStepStatus)
+    : 'none';
+}
+
+/** Where the user is, and how their verification is going. */
+export type KycStepInfo = { step: KycStep; status: KycStepStatus };
+
+/**
+ * What only the device knows, sent with a step request.
+ *
+ * Kept deliberately small: a fact belongs here only when kyc-api genuinely
+ * cannot see it. kyc-api reads it for one answer and stores none of it.
+ */
+export type KycClientContext = {
+  /**
+   * The user accepted the vendor's terms on this device, before kyc-api
+   * could record them. Needed where a vendor cannot be told about an
+   * acceptance until an account exists.
+   */
+  vendorTermsAcceptedLocally?: boolean;
+};
+
+/** A step returned by kyc-api. See {@link KYC_STEPS}. */
+export type KycStep = (typeof KYC_STEPS)[number];
+
+/**
+ * Narrows a step string from kyc-api. A step this client version does not
+ * know is `error`, so an older app shows its error screen instead of
+ * guessing a screen.
+ *
+ * @param value - The step string from kyc-api.
+ * @returns The known step, or `error`.
+ */
+export function toKycStep(value: string): KycStep {
+  return (KYC_STEPS as readonly string[]).includes(value)
+    ? (value as KycStep)
+    : 'error';
+}

@@ -62,7 +62,7 @@ export type OidcTokenClaims = [OidcTokenClaim, ...OidcTokenClaim[]];
 /**
  * Partner audience stamped on the minted JWT.
  */
-export type OidcTokenAudience = 'kyc' | 'iron';
+export type OidcTokenAudience = 'kyc' | 'iron' | 'kalshi';
 
 /**
  * Tag appended to the SRP login `raw_message` so the auth server can

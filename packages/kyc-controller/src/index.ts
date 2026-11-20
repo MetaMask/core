@@ -39,6 +39,36 @@ export type {
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
+export {
+  VendorOnboardingController,
+  vendorOnboardingControllerName,
+  getDefaultVendorOnboardingControllerState,
+} from './VendorOnboardingController.js';
+export type {
+  VendorOnboardingControllerActions,
+  VendorOnboardingControllerEvents,
+  OnboardingProviderOutcome,
+  VendorOnboardingControllerGetStateAction,
+  VendorOnboardingControllerMessenger,
+  VendorOnboardingControllerOptions,
+  VendorOnboardingControllerState,
+  VendorOnboardingControllerStateChangeEvent,
+  OnboardingVendorState,
+} from './VendorOnboardingController.js';
+export type {
+  VendorOnboardingControllerRecordSessionDisclaimersAction,
+  VendorOnboardingControllerRecordVendorDisclaimersAction,
+  VendorOnboardingControllerFetchSessionDisclaimersAction,
+  VendorOnboardingControllerLaunchProviderFlowAction,
+  VendorOnboardingControllerRefreshStepAction,
+  VendorOnboardingControllerSendEmailOtpAction,
+  VendorOnboardingControllerResetAction,
+  VendorOnboardingControllerStartSessionAction,
+  VendorOnboardingControllerSendPhoneOtpAction,
+  VendorOnboardingControllerVerifyEmailOtpAction,
+  VendorOnboardingControllerVerifyPhoneOtpAction,
+} from './VendorOnboardingController-method-action-types.js';
+
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
 export type {
   KycAnalyticsStatus,
@@ -48,6 +78,7 @@ export type {
   KycAnalyticsVerificationOutcomePayload,
 } from './analytics.js';
 
+export { KycApiError, getKycKalshiErrorCode } from './KycApiError.js';
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
@@ -79,6 +110,7 @@ export type {
   UkycSessionResponse,
 } from './KycService.js';
 export type {
+  KycServiceAcceptVendorTermsAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCompleteDeletionAction,
   KycServiceCreateDeletionAction,
@@ -94,10 +126,15 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceGetStepAction,
   KycServiceResetWrappingKeysAction,
+  KycServiceSendEmailOtpAction,
+  KycServiceSendPhoneOtpAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
+  KycServiceVerifyEmailOtpAction,
+  KycServiceVerifyPhoneOtpAction,
 } from './KycService-method-action-types.js';
 
 export { selectKycSessionStatus, selectKycVendor } from './selectors.js';
@@ -114,7 +151,15 @@ export type {
 export {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEP_STATUSES,
+  KYC_STEPS,
+  KYC_KALSHI_ERROR_CODES,
+  KYC_SIGNED_REQUEST_LIMITS,
+  KYC_VENDOR_SIGN_OPERATIONS,
+  KYC_VENDOR_SIGN_PATHS,
   TERMINAL_SESSION_STATUSES,
+  toKycStep,
+  toKycStepStatus,
 } from './types.js';
 export type {
   KycCatalogDocument,
@@ -124,11 +169,21 @@ export type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
+  OnboardingVendor,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
+  KycClientContext,
   KycSessionStatus,
+  KycKalshiErrorCode,
+  KycSignedRequest,
+  KalshiRequestSigner,
+  KycVendorSignOperation,
+  KycVendorSignRequest,
+  KycStep,
+  KycStepInfo,
+  KycStepStatus,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,

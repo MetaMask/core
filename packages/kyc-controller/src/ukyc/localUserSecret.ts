@@ -1,7 +1,11 @@
 import { getRandomBytes } from '@metamask/cryptography';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 
-import type { KycControllerMessenger } from '../KycController.js';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
@@ -25,10 +29,17 @@ import {
  * Messenger used by {@link UkycLocalUserSecretStore} to reach Encrypted User
  * Storage.
  */
-export type UkycLocalUserSecretStoreMessenger = Pick<
-  KycControllerMessenger,
-  'call'
->;
+export type UkycLocalUserSecretStoreMessenger = {
+  call: (
+    ...args: Parameters<
+      Messenger<
+        string,
+        | UserStorageControllerPerformGetStorageAction
+        | UserStorageControllerPerformSetStorageAction
+      >['call']
+    >
+  ) => unknown;
+};
 
 /**
  * Encrypted User Storage adapter for the UKYC `local_user_secret`.
@@ -51,11 +62,11 @@ export class UkycLocalUserSecretStore {
    * @returns The stored value, or `null`.
    */
   async get(path: string, entropySourceId?: string): Promise<string | null> {
-    return this.#messenger.call(
+    return (await this.#messenger.call(
       'UserStorageController:performGetStorage',
       path as `${string}.${string}`,
       entropySourceId,
-    );
+    )) as string | null;
   }
 
   /**

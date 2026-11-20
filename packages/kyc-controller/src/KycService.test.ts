@@ -353,16 +353,13 @@ describe('KycService', () => {
 
     it('creates a UKYC session and returns encryption schemas for wrapping', async () => {
       nock(MOCK_API_URL)
-        .post(
-          '/sessions',
-          (body: Record<string, unknown>) =>
-            body.jwtToken === undefined &&
-            body.vendorId === 'moonpay' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            body.wrappedEncryptionKey === undefined &&
-            body.ukycCapabilityToken === undefined,
-        )
+        .post('/sessions', {
+          vendorId: 'moonpay',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: { foo: 'bar' },
+        })
         .reply(200, response);
       const { service } = getService();
 
@@ -371,6 +368,54 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('sends the partner identity token, and no email, for kalshi', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+          partnerIdentityToken: 'partner-token',
+        })
+        .reply(200, response);
+      const { service } = getService();
+
+      // kyc-api takes the email from the token's verified claim, so the
+      // client never says which address the vendor registers.
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          partnerIdentityToken: 'partner-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('leaves the email out when none is given', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+        })
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
@@ -392,6 +437,42 @@ describe('KycService', () => {
           residenceCountry: RESIDENCE_COUNTRY,
           aal2Token: AAL2_TOKEN,
           partnerIdentityToken: 'partner-identity-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('forwards the phone-signed Kalshi calls and no email', async () => {
+      const signedRequests = [
+        {
+          path: '/trade-api/v2/isv/enrollment/intents',
+          headers: { Signature: 'signed-intent' },
+          body: '',
+        },
+        {
+          path: '/trade-api/v2/isv/users/link',
+          headers: { Signature: 'signed-link' },
+          body: '{"email":"a@b.co"}',
+        },
+      ];
+      nock(MOCK_API_URL)
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+          signedRequests,
+        })
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          signedRequests,
         }),
       ).toStrictEqual(response);
     });
@@ -537,14 +618,10 @@ describe('KycService', () => {
 
     it('posts the wrapped secrets and returns the session status', async () => {
       nock(MOCK_API_URL)
-        .post(
-          '/sessions/sid/authorizations',
-          (body: Record<string, unknown>) =>
-            JSON.stringify(body.wrappedEncryptionDataKey) ===
-              JSON.stringify(wrappedEncryptionDataKey) &&
-            JSON.stringify(body.wrappedUkycCapabilityToken) ===
-              JSON.stringify(wrappedUkycCapabilityToken),
-        )
+        .post('/sessions/sid/authorizations', {
+          wrappedEncryptionDataKey,
+          wrappedUkycCapabilityToken,
+        })
         .reply(200, statusResponse);
       const { service } = getService();
 
@@ -881,6 +958,54 @@ describe('KycService', () => {
       ).rejects.toThrow(/session_not_in_valid_state/u);
     });
 
+    it('keeps the error code kyc-api sends on a KycApiError', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(400, {
+        code: 'kalshi_signed_request_rejected',
+        message: 'Kalshi refused the signature',
+      });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({
+        name: 'KycApiError',
+        httpStatus: 400,
+        code: 'kalshi_signed_request_rejected',
+        message: expect.stringContaining(
+          'Kalshi refused the signature: kalshi_signed_request_rejected',
+        ),
+      });
+    });
+
+    it('takes the error code from the error field beside a message', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(400, {
+        error: 'invalid_or_expired_code',
+        message: 'That code is wrong',
+      });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({
+        httpStatus: 400,
+        code: 'invalid_or_expired_code',
+        message: expect.stringContaining(
+          'That code is wrong: invalid_or_expired_code',
+        ),
+      });
+    });
+
+    it('has no error code when the body sends none', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(500, { message: 'boom' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toMatchObject({ httpStatus: 500, code: undefined });
+    });
+
     it('prefers a string error field when message is not a string', async () => {
       nock(MOCK_API_URL)
         .get('/sessions/sid/status')
@@ -968,6 +1093,247 @@ describe('KycService', () => {
       await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
         /failed with status '500'/u,
       );
+    });
+  });
+
+  describe('getStep', () => {
+    it('returns the step kyc-api decides for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/kalshi/step')
+        .matchHeader('authorization', 'Bearer test-bearer')
+        .reply(200, {
+          vendor: 'kalshi',
+          step: 'mfa',
+          status: 'none',
+        });
+      const { service } = getService();
+
+      expect(await service.getStep('kalshi')).toStrictEqual({
+        step: 'mfa',
+        status: 'none',
+      });
+    });
+
+    it('sends what only the device knows as a query parameter', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .query({ vendorTermsAcceptedLocally: 'true' })
+        .reply(200, {
+          vendor: 'iron',
+          step: 'mfa',
+          status: 'none',
+        });
+      const { service } = getService();
+
+      expect(
+        await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
+      ).toStrictEqual({ step: 'mfa', status: 'none' });
+    });
+
+    it('ignores a field kyc-api adds that this version does not know', async () => {
+      nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
+        vendor: 'kalshi',
+        step: 'kalshi_email_link',
+        status: 'pending',
+        somethingNew: true,
+      });
+      const { service } = getService();
+
+      expect(await service.getStep('kalshi')).toStrictEqual({
+        step: 'kalshi_email_link',
+        status: 'pending',
+      });
+    });
+
+    it('turns a step this version does not know into error', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .reply(200, { vendor: 'iron', step: 'brand_new_step', status: 'none' });
+      const { service } = getService();
+
+      expect((await service.getStep('iron')).step).toBe('error');
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).get('/vendors/iron/step').reply(200, {});
+      const { service } = getService();
+
+      await expect(service.getStep('iron')).rejects.toThrow(
+        /Malformed response received from vendor step API/u,
+      );
+    });
+  });
+
+  describe('acceptVendorTerms', () => {
+    it('records the terms for the country', async () => {
+      const scope = nock(MOCK_API_URL)
+        .post('/vendors/kalshi/disclaimers', {
+          disclaimerIds: ['tos-v1'],
+          country: 'USA',
+        })
+        .reply(204);
+      const { service } = getService();
+
+      await service.acceptVendorTerms({
+        vendor: 'kalshi',
+        disclaimerIds: ['tos-v1'],
+        country: 'USA',
+      });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('leaves the country out when none is given', async () => {
+      const scope = nock(MOCK_API_URL)
+        .post('/vendors/iron/disclaimers', { disclaimerIds: ['tos-v1'] })
+        .reply(204);
+      const { service } = getService();
+
+      await service.acceptVendorTerms({
+        vendor: 'iron',
+        disclaimerIds: ['tos-v1'],
+      });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports nothing about the step, which is read separately', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(204);
+      const { service } = getService();
+
+      expect(
+        await service.acceptVendorTerms({
+          vendor: 'iron',
+          disclaimerIds: ['a'],
+        }),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('sendEmailOtp', () => {
+    const status = {
+      id: 'sid-1',
+      finalStatus: 'new',
+      externalUserId: 'ext-1',
+      kycStatus: 'new',
+      vendor: 'kalshi',
+      vendorStatus: 'new',
+      currentStep: 'emailOtpVerification',
+    };
+
+    it('sends an empty body when there is no signed request', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/resend-otp', {})
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(await service.sendEmailOtp({ sessionId: 'sid-1' })).toStrictEqual(
+        status,
+      );
+    });
+
+    it('forwards a signed Kalshi link', async () => {
+      const signedRequest = {
+        path: '/trade-api/v2/isv/users/link',
+        headers: { Signature: 'signed-link' },
+        body: '{"email":"ada@example.com"}',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/resend-otp', { signedRequest })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.sendEmailOtp({ sessionId: 'sid-1', signedRequest }),
+      ).toStrictEqual(status);
+    });
+  });
+
+  describe('verifyEmailOtp', () => {
+    const status = {
+      id: 'sid-1',
+      finalStatus: 'new',
+      externalUserId: 'ext-1',
+      kycStatus: 'new',
+      vendor: 'kalshi',
+      vendorStatus: 'new',
+      currentStep: 'phoneOtpCollection',
+    };
+
+    it('posts the code', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', { otp: '123456' })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.verifyEmailOtp({ sessionId: 'sid-1', otp: '123456' }),
+      ).toStrictEqual(status);
+    });
+
+    it('forwards a signed Kalshi verify call with no otp', async () => {
+      const signedRequest = {
+        path: '/trade-api/v2/isv/users/link/verify',
+        headers: { Signature: 'signed-verify' },
+        body: '{"code":"123456"}',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', { signedRequest })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.verifyEmailOtp({ sessionId: 'sid-1', signedRequest }),
+      ).toStrictEqual(status);
+    });
+  });
+
+  describe('sendPhoneOtp', () => {
+    it('posts the phone number and returns the status', async () => {
+      const status = {
+        id: 'sid-1',
+        finalStatus: 'new',
+        externalUserId: 'ext-1',
+        kycStatus: 'new',
+        vendor: 'kalshi',
+        vendorStatus: 'new',
+        currentStep: 'phoneOtpCollection',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/phone/send-otp', {
+          phoneNumber: '+18888888888',
+        })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.sendPhoneOtp({
+          sessionId: 'sid-1',
+          phoneNumber: '+18888888888',
+        }),
+      ).toStrictEqual(status);
+    });
+  });
+
+  describe('verifyPhoneOtp', () => {
+    it('posts the code and returns the status', async () => {
+      const status = {
+        id: 'sid-1',
+        finalStatus: 'new',
+        externalUserId: 'ext-1',
+        kycStatus: 'new',
+        vendor: 'kalshi',
+        vendorStatus: 'new',
+        currentStep: 'phoneOtpVerification',
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/phone/verify-otp', { otp: '888888' })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.verifyPhoneOtp({ sessionId: 'sid-1', otp: '888888' }),
+      ).toStrictEqual(status);
     });
   });
 
@@ -1514,15 +1880,12 @@ describe('KycService', () => {
         ukycCapabilityToken: encryptionSchema,
       };
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => {
-          return (
-            body.vendorId === 'moonpay' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            body.vendorMetadata?.moonPayAccessToken === 'tok' &&
-            body.wrappedEncryptionKey === undefined &&
-            body.ukycCapabilityToken === undefined
-          );
+        .post('/sessions', {
+          vendorId: 'moonpay',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: { moonPayAccessToken: 'tok' },
         })
         .reply(200, response);
       const { service } = getService();
@@ -1544,13 +1907,12 @@ describe('KycService', () => {
         ukycCapabilityToken: encryptionSchema,
       };
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => {
-          return (
-            body.vendorId === 'iron' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            JSON.stringify(body.vendorMetadata) === '{}'
-          );
+        .post('/sessions', {
+          vendorId: 'iron',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
         })
         .reply(200, response);
       const { service } = getService();

@@ -127,10 +127,11 @@ const MarketingConsentSchema = type({
 const IdentitySharingConsentSchema = type({
   kyc: optional(boolean()),
   iron: optional(boolean()),
+  kalshi: optional(boolean()),
 });
 
 const IdentitySharingConsentWriteSchema = type({
-  audience: enums(['kyc', 'iron']),
+  audience: enums(['kyc', 'iron', 'kalshi']),
   granted: boolean(),
 });
 
