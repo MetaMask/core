@@ -353,16 +353,13 @@ describe('KycService', () => {
 
     it('creates a UKYC session and returns encryption schemas for wrapping', async () => {
       nock(MOCK_API_URL)
-        .post(
-          '/sessions',
-          (body: Record<string, unknown>) =>
-            body.jwtToken === undefined &&
-            body.vendorId === 'moonpay' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            body.wrappedEncryptionKey === undefined &&
-            body.ukycCapabilityToken === undefined,
-        )
+        .post('/sessions', {
+          vendorId: 'moonpay',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: { foo: 'bar' },
+        })
         .reply(200, response);
       const { service } = getService();
 
@@ -458,13 +455,14 @@ describe('KycService', () => {
         },
       ];
       nock(MOCK_API_URL)
-        .post(
-          '/sessions',
-          (body: Record<string, unknown>) =>
-            body.email === undefined &&
-            JSON.stringify(body.signedRequests) ===
-              JSON.stringify(signedRequests),
-        )
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+          signedRequests,
+        })
         .reply(200, response);
       const { service } = getService();
 
@@ -620,14 +618,10 @@ describe('KycService', () => {
 
     it('posts the wrapped secrets and returns the session status', async () => {
       nock(MOCK_API_URL)
-        .post(
-          '/sessions/sid/authorizations',
-          (body: Record<string, unknown>) =>
-            JSON.stringify(body.wrappedEncryptionDataKey) ===
-              JSON.stringify(wrappedEncryptionDataKey) &&
-            JSON.stringify(body.wrappedUkycCapabilityToken) ===
-              JSON.stringify(wrappedUkycCapabilityToken),
-        )
+        .post('/sessions/sid/authorizations', {
+          wrappedEncryptionDataKey,
+          wrappedUkycCapabilityToken,
+        })
         .reply(200, statusResponse);
       const { service } = getService();
 
@@ -1886,15 +1880,12 @@ describe('KycService', () => {
         ukycCapabilityToken: encryptionSchema,
       };
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => {
-          return (
-            body.vendorId === 'moonpay' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            body.vendorMetadata?.moonPayAccessToken === 'tok' &&
-            body.wrappedEncryptionKey === undefined &&
-            body.ukycCapabilityToken === undefined
-          );
+        .post('/sessions', {
+          vendorId: 'moonpay',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: { moonPayAccessToken: 'tok' },
         })
         .reply(200, response);
       const { service } = getService();
@@ -1916,13 +1907,12 @@ describe('KycService', () => {
         ukycCapabilityToken: encryptionSchema,
       };
       nock(MOCK_API_URL)
-        .post('/sessions', (body) => {
-          return (
-            body.vendorId === 'iron' &&
-            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
-            body.residenceCountry === RESIDENCE_COUNTRY &&
-            JSON.stringify(body.vendorMetadata) === '{}'
-          );
+        .post('/sessions', {
+          vendorId: 'iron',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
         })
         .reply(200, response);
       const { service } = getService();
