@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `bignumber.js` from `^9.1.2` to `^11.1.5` ([#11587](https://github.com/MetaMask/core/pull/11587))
 
 ## [28.0.0]
 
