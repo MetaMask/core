@@ -23,7 +23,7 @@ const SECRET_BASE64 = bytesToBase64(SECRET_BYTES);
  * @returns The store plus mock functions for `get` / `set`.
  */
 function makeStore(initial: string | null = null): {
-  store: Pick<UkycLocalUserSecretStore, 'get' | 'set'>;
+  store: UkycLocalUserSecretStore;
   get: Mock;
   set: Mock;
 } {

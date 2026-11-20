@@ -90,9 +90,6 @@ export class UkycLocalUserSecretStore {
   }
 }
 
-/** The `get` and `set` the helpers call. A fake with those two is enough. */
-type LocalUserSecretStore = Pick<UkycLocalUserSecretStore, 'get' | 'set'>;
-
 /**
  * In-flight `getOrCreateLocalUserSecret` calls, keyed by entropy source.
  * Deduplicates concurrent enrollments in a single client session so we never
@@ -111,7 +108,7 @@ const inFlightCreations = new Map<string, Promise<Uint8Array<ArrayBuffer>>>();
  * enrolled.
  */
 export async function loadLocalUserSecret(
-  store: LocalUserSecretStore,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<Uint8Array<ArrayBuffer> | null> {
   const stored = await store.get(UKYC_LOCAL_USER_SECRET_PATH, entropySourceId);
@@ -139,7 +136,7 @@ export async function loadLocalUserSecret(
  * @param entropySourceId - Optional HD keyring entropy source id.
  */
 async function persistLocalUserSecret(
-  store: LocalUserSecretStore,
+  store: UkycLocalUserSecretStore,
   localUserSecret: Uint8Array,
   entropySourceId?: string,
 ): Promise<void> {
@@ -165,7 +162,7 @@ async function persistLocalUserSecret(
  * @returns The `local_user_secret` bytes (existing or newly created).
  */
 export async function getOrCreateLocalUserSecret(
-  store: LocalUserSecretStore,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
   const cacheKey = entropySourceId ?? '';
@@ -210,7 +207,7 @@ export async function getOrCreateLocalUserSecret(
  * @returns `true` if a `local_user_secret` exists in Encrypted User Storage.
  */
 export async function hasLocalUserSecret(
-  store: LocalUserSecretStore,
+  store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<boolean> {
   return (await loadLocalUserSecret(store, entropySourceId)) !== null;
