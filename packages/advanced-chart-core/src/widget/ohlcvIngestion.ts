@@ -18,15 +18,11 @@ import { notifyDataLifecycle } from '../core/dataLifecycle.js';
 import { detectResolution } from '../core/resolution.js';
 import {
   appendOrReplaceLastBar,
-  bumpHotReloadSeq,
   bumpOhlcvGeneration,
   clearOhlcvPagination,
   doesLegendOwnLayoutSettle,
-  getActiveStudies,
   getAtomicIntervalWindow,
   getCurrentResolution,
-  getHotReloadSeq,
-  getMaStudies,
   getOhlcvData,
   getOhlcvGeneration,
   getSlbMode,
@@ -35,7 +31,6 @@ import {
   isChartReady,
   setAtomicIntervalWindow,
   setCurrentResolution,
-  setLegendOwnsLayoutSettle,
   setOhlcvData,
   setOhlcvPagination,
   setRnBackedPagination,
@@ -45,7 +40,11 @@ import {
   setVisibleToMs,
 } from '../core/state.js';
 import { getApproxBarDurationSec } from '../core/timeUtils.js';
-import type { TVActiveChart, TVChartingLibraryWidget } from '../core/types.js';
+import type {
+  TVActiveChart,
+  TVChartingLibraryWidget,
+  TVResolution,
+} from '../core/types.js';
 import type {
   RealtimeUpdateMessage,
   SetOHLCVDataPayload,
@@ -58,17 +57,6 @@ type FirstDataCallback = () => void;
 
 let firstDataCallback: FirstDataCallback | null = null;
 let firstDataDelivered = false;
-
-/**
- * When active indicators exist, defers the CHART_LAYOUT_SETTLED signal to the
- * legend module so it fires after the first successful legend render — not on
- * the premature 2-rAF timer in emitLayoutSettled.
- */
-function claimLegendSettleOwnership(): void {
-  if (getActiveStudies().size > 0 || getMaStudies().size > 0) {
-    setLegendOwnsLayoutSettle(true);
-  }
-}
 
 /**
  * Registers the callback invoked the first time SET_OHLCV_DATA arrives.
@@ -137,65 +125,8 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         applyVisibleRange(chart);
         emitLayoutSettled();
       } else {
-        // Different resolution.
-        //
-        // On a resolution change TradingView keeps the previous
-        // interval's visible TIME range and sizes the first `getBars`
-        // `countBack` to fill that range at the new resolution. Switching
-        // between a coarse and a fine interval therefore derives an enormous
-        // `countBack` from the inherited (mismatched) range — e.g. a multi-month
-        // daily view becomes tens of thousands of 5-minute bars — which triggers
-        // a deep backward pagination storm. This `getBars` fires synchronously
-        // inside `setResolution`, before any `setVisibleRange` can narrow the
-        // view, so pre-narrowing asynchronously does not help and widening on a
-        // fine→coarse switch storms the other way.
-        //
-        // The fix sets the target window AND the new resolution atomically in a
-        // single `setTimeFrame` call, so `countBack` is always computed from the
-        // target window at the new resolution, eliminating the storm in both
-        // directions. History/pagination is untouched (no `noData`), so
-        // scroll-back still lazily loads older bars.
-        //
-        // This atomic path is OPT-IN (`atomicIntervalWindow`) so consumers that
-        // have not validated it — e.g. Social Leaderboard — keep today's plain
-        // `setResolution` behavior. When the flag is off/absent, or there is no
-        // target window, or the library lacks `setTimeFrame`, we fall back to
-        // `setResolution` exactly like before.
-        claimLegendSettleOwnership();
-        const seq = bumpHotReloadSeq();
-        const fromMs = getVisibleFromMs();
-
-        const finishResolutionSwitch = (): void => {
-          if (getHotReloadSeq() !== seq) {
-            return;
-          }
-          resetMainPriceScaleAutoScale(chart);
-          applyVisibleRange(chart, { dataAlreadyLoaded: true });
-          emitLayoutSettled();
-        };
-
-        if (
-          !getAtomicIntervalWindow() ||
-          fromMs === null ||
-          typeof widget.setTimeFrame !== 'function'
-        ) {
-          // Not opted in, no target window (auto-fit), or the running charting
-          // library does not expose `setTimeFrame` — fall back to a plain
-          // resolution switch (today's behavior).
-          chart.setResolution(newResolution, finishResolutionSwitch);
-        } else {
-          const range = computeVisibleRangeSec(fromMs, { clampToOldest: true });
-          try {
-            widget.setTimeFrame({
-              val: { type: 'time-range', from: range.from, to: range.to },
-              res: newResolution,
-            });
-            finishResolutionSwitch();
-          } catch (error) {
-            reportErrorToRN(error);
-            chart.setResolution(newResolution, finishResolutionSwitch);
-          }
-        }
+        // Different resolution — switch in place (no widget rebuild).
+        switchResolutionInPlace(widget, newResolution);
       }
     } catch (error) {
       reportErrorToRN(error);
@@ -365,6 +296,57 @@ function resetDatafeedCacheBeforeHotReload(
     }
   } catch {
     // Best-effort; failures are non-critical
+  }
+}
+
+/**
+ * Switches the live widget to a new resolution in place, without tearing it
+ * down and rebuilding it.
+ *
+ * A bare `setResolution` makes TradingView preserve the previous interval's
+ * wide visible TIME span and size the new series' first `getBars` `countBack`
+ * from that span ÷ the new bar duration — a coarse→fine switch (e.g. 1W→1m)
+ * then asks for hundreds of thousands of bars (the pagination storm; on
+ * deep-history tokens it can hang). We avoid that by releasing the absolute
+ * visible-range pin first: re-anchoring the time scale with a bar-index right
+ * offset returns TradingView to count-preservation, so the switch reframes to
+ * ~the visible bar count of the new resolution (bounded to ~hundreds of bars)
+ * instead of the inherited span. Once the new series loads we re-apply the
+ * per-interval visible range.
+ *
+ * Because the widget persists, studies / MA / volume / chart-type all survive
+ * the switch with no re-application — and there is no blank/loading flash.
+ *
+ * @param widget - The live widget (kept, not rebuilt).
+ * @param newResolution - The resolution detected from the incoming bars.
+ */
+function switchResolutionInPlace(
+  widget: TVChartingLibraryWidget,
+  newResolution: TVResolution,
+): void {
+  const chart = widget.activeChart();
+
+  // Release the absolute visible-range pin so the switch preserves the visible
+  // bar count (bounded) rather than the inherited wide time span (the storm).
+  try {
+    chart.getTimeScale().setRightOffset(2);
+  } catch (error) {
+    reportErrorToRN(error);
+  }
+
+  try {
+    chart.setResolution(newResolution, () => {
+      try {
+        resetMainPriceScaleAutoScale(chart);
+        notifyDataLifecycle('ohlcvReset');
+        applyVisibleRange(chart, { dataAlreadyLoaded: true });
+        emitLayoutSettled();
+      } catch (error) {
+        reportErrorToRN(error);
+      }
+    });
+  } catch (error) {
+    reportErrorToRN(error);
   }
 }
 

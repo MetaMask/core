@@ -57,10 +57,9 @@ type CoreState = {
   /** SLB scoping flag — activates Strategy C (bulk back-fill) pagination. */
   slbMode: boolean;
   /**
-   * Opt-in. When true, an interval change applies the target
-   * window and resolution atomically via `setTimeFrame` (and clamps the
-   * visible-range pin to loaded bars). Off by default so non-opt-in consumers
-   * keep today's plain `setResolution` behavior.
+   * Opt-in. When true, the per-interval visible-range pin is clamped so its
+   * start never predates the oldest loaded bar. Off by default so non-opt-in
+   * consumers keep today's unclamped framing.
    */
   atomicIntervalWindow: boolean;
   /**

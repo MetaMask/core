@@ -110,15 +110,15 @@ export type SetOHLCVDataPayload = {
    */
   slbMode?: boolean;
   /**
-   * Opt-in. When true, an interval/resolution change sets the
-   * visible window AND the resolution atomically via `setTimeFrame`, so the
-   * first `getBars` `countBack` is sized from the target window instead of
-   * inheriting the previous interval's (wide) visible range — which otherwise
-   * triggers a deep backward pagination storm on coarse↔fine switches.
+   * Opt-in. When true, the per-interval visible-range pin is clamped so its
+   * start never predates the oldest loaded bar. This keeps the framed window
+   * inside the bars already in memory, so framing never asks TradingView to
+   * fill an interval older than what is loaded — which otherwise triggers a
+   * deep backward pagination storm on coarse↔fine switches.
    *
-   * Off by default: when absent or false the hot-reload branch uses plain
-   * `setResolution` exactly like today. Only consumers that have validated the
-   * atomic path (currently the extension) should opt in; Social Leaderboard
+   * Off by default: when absent or false the visible-range pin uses the
+   * requested start unclamped, exactly like today. Only consumers that have
+   * validated this (currently the extension) should opt in; Social Leaderboard
    * and every other consumer stay on today's behavior until they do.
    */
   atomicIntervalWindow?: boolean;

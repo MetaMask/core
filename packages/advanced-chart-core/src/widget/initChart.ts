@@ -213,9 +213,12 @@ export function createChartWidget(
       },
     },
     overrides: buildWidgetOverrides(theme, features),
+    // Suppress TradingView's built-in loading spinner. The host paints its own
+    // skeleton on first load, so a fully transparent loading screen hides the
+    // built-in one — the documented v30 way to "render your own loader".
     loading_screen: {
-      backgroundColor: theme.backgroundColor,
-      foregroundColor: theme.successColor,
+      backgroundColor: 'transparent',
+      foregroundColor: 'transparent',
     },
   });
 
