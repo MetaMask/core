@@ -319,23 +319,17 @@ type TrackEvent = (
  * Assert the first id token belongs to `userId`, and report a mismatch.
  * The original error is rethrown. A tracking failure does not replace it.
  *
- * @param params - The tokens, expected user, and analytics callbacks.
- * @param params.idTokens - Id tokens to check. Only the first is validated.
- * @param params.userId - The user id the token should belong to.
- * @param params.source - The flow that is checking the token.
- * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @param idTokens - Id tokens to check. Only the first is validated.
+ * @param userId - The user id the token should belong to.
+ * @param source - The flow that is checking the token.
+ * @param trackEvent - Emits a non-sensitive analytics event.
  */
-export function assertIdTokenMismatchAndTrackEvent({
-  idTokens,
-  userId,
-  source,
-  trackEvent,
-}: {
-  idTokens: string[];
-  userId: string | null | undefined;
-  source: SeedlessIdentityMismatchSource;
-  trackEvent: TrackEvent;
-}): asserts userId is string {
+export function assertIdTokenMismatchAndTrackEvent(
+  idTokens: string[],
+  userId: string | null | undefined,
+  source: SeedlessIdentityMismatchSource,
+  trackEvent: TrackEvent,
+): asserts userId is string {
   try {
     assertIdTokenMatchesUserId(idTokens, userId);
   } catch (error) {

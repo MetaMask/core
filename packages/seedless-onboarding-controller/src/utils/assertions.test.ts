@@ -499,12 +499,12 @@ describe('assertIdTokenMismatchAndTrackEvent', () => {
     const trackEvent = vi.fn();
 
     expect(() => {
-      assertIdTokenMismatchAndTrackEvent({
-        idTokens: [createMockJWTToken({ sub: 'user-1' })],
-        userId: 'user-1',
-        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      assertIdTokenMismatchAndTrackEvent(
+        [createMockJWTToken({ sub: 'user-1' })],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
         trackEvent,
-      });
+      );
     }).not.toThrow();
 
     expect(trackEvent).not.toHaveBeenCalled();
@@ -514,12 +514,12 @@ describe('assertIdTokenMismatchAndTrackEvent', () => {
     const trackEvent = vi.fn();
 
     expect(() => {
-      assertIdTokenMismatchAndTrackEvent({
-        idTokens: [createMockJWTToken({ sub: 'other-user' })],
-        userId: 'user-1',
-        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      assertIdTokenMismatchAndTrackEvent(
+        [createMockJWTToken({ sub: 'other-user' })],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
         trackEvent,
-      });
+      );
     }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
 
     expect(trackEvent).toHaveBeenCalledWith({
