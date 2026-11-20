@@ -261,7 +261,7 @@ export class VendorOnboardingController extends BaseController<
   }: {
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
-    return this.#readStep(vendor, { join: true });
+    return this.#readStep(vendor);
   }
 
   /**
@@ -286,7 +286,7 @@ export class VendorOnboardingController extends BaseController<
       disclaimerIds: params.disclaimerIds,
       ...(params.country ? { country: params.country } : {}),
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -337,7 +337,7 @@ export class VendorOnboardingController extends BaseController<
           sessionId: existing.id,
         });
       }
-      return this.#readStep(vendor, { join: false });
+      return this.#readStep(vendor, { supersede: true });
     }
 
     if (!params.aal2Token) {
@@ -377,7 +377,7 @@ export class VendorOnboardingController extends BaseController<
       ...(signedRequests && { signedRequests }),
     });
     this.#write(vendor, { sessionId: session.id });
-    return this.#readStep(vendor, { join: false });
+    return this.#readStep(vendor, { supersede: true });
   }
 
   /**
@@ -431,7 +431,7 @@ export class VendorOnboardingController extends BaseController<
       credentialReusabilityConsentGiven:
         params.credentialReusabilityConsentGiven,
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -506,7 +506,7 @@ export class VendorOnboardingController extends BaseController<
       }
       // The SDK result is not the decision. kyc-api and the relay decide, so
       // ask where the user is now rather than assuming.
-      await this.#readStep(params.vendor, { join: false });
+      await this.#readStep(params.vendor, { supersede: true });
       return 'submitted';
     } catch {
       return 'failed';
@@ -530,7 +530,7 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       phoneNumber: params.phoneNumber,
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -550,7 +550,7 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       otp: params.code,
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -571,7 +571,7 @@ export class VendorOnboardingController extends BaseController<
         sessionId,
         otp: params.code,
       });
-      return this.#readStep(params.vendor, { join: false });
+      return this.#readStep(params.vendor, { supersede: true });
     }
     const [signedRequest] = await this.#signVendorRequests(params.vendor, [
       { operation: 'users/link/verify', code: params.code },
@@ -581,7 +581,7 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       signedRequest,
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -600,7 +600,7 @@ export class VendorOnboardingController extends BaseController<
     if (params.vendor !== 'kalshi') {
       const sessionId = await this.#getSessionId(params.vendor);
       await this.messenger.call('KycService:sendEmailOtp', { sessionId });
-      return this.#readStep(params.vendor, { join: false });
+      return this.#readStep(params.vendor, { supersede: true });
     }
     const [signedRequest] = await this.#signVendorRequests(params.vendor, [
       {
@@ -613,7 +613,7 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       signedRequest,
     });
-    return this.#readStep(params.vendor, { join: false });
+    return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
@@ -762,20 +762,21 @@ export class VendorOnboardingController extends BaseController<
    *
    * A caller that only wants the current step (a screen opening, a poll)
    * joins a read already in flight. A caller that has just changed something
-   * at kyc-api never joins one: that read may have started before the change
+   * at kyc-api supersedes it: that read may have started before the change
    * and would answer with the old step.
    *
    * @param vendor - The vendor.
    * @param options - The options.
-   * @param options.join - Whether to share a read already in flight.
+   * @param options.supersede - Whether to start a new read instead of joining
+   * one already in flight. Defaults to `false`.
    * @returns The step.
    */
   async #readStep(
     vendor: OnboardingVendor,
-    { join }: { join: boolean },
+    { supersede = false }: { supersede?: boolean } = {},
   ): Promise<KycStep> {
     const inflight = this.#readStepPromises[vendor];
-    if (join && inflight) {
+    if (!supersede && inflight) {
       return inflight;
     }
     // `let` so the closure can see the promise it is assigning. The binding
