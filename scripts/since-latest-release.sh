@@ -20,7 +20,7 @@ bold() {
 
 print-usage() {
   cat <<EOT
-USAGE: $0 [--include-head] [-- GIT_COMMAND GIT_COMMAND_ARGS...]"
+USAGE: $0 [--include-head] [-- GIT_COMMAND GIT_COMMAND_ARGS...]
 
 View changes for a package since its latest release.
 
@@ -40,13 +40,10 @@ latest-release-commit() {
 }
 
 determine-commit-range() {
-  local branch_name
-  local include_head
-  local git_command_name
-
-  branch_name="$1"
-  include_head="$2"
-  git_command_name="$3"
+  local branch_name="$1"
+  local include_head="$2"
+  local git_command_name="$3"
+  local latest_release_commit="$4"
 
   if [[ "$branch_name" =~ ^release/ && $include_head -eq 0 ]]; then
     echo "$latest_release_commit..main"
@@ -136,7 +133,7 @@ main() {
     red "ERROR: Could not determine latest release commit." $'\n'
     exit 1
   fi
-  commit_range="$(determine-commit-range "$current_branch" "$force_head_as_final_branch_name" "${git_command[0]}")"
+  commit_range="$(determine-commit-range "$current_branch" "$force_head_as_final_branch_name" "${git_command[0]}" "$latest_release_commit")"
   magenta "$(bold "Commit range:")" "$commit_range" $'\n'
 
   echo git "${git_command[@]}" "$commit_range" -- "$package_directory"
