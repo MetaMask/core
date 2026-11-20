@@ -40,6 +40,24 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../assets-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../transaction-pay-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.lint.json"
     }
   ]
 }

@@ -374,9 +374,10 @@ export const PRICE_THRESHOLD = {
   /** Low values boundary (>= $0.01) */
   LOW: 0.01,
   /**
-   * Very small values threshold (< $0.01)
-   * This is the minimum value for formatWithThreshold and should align with
-   * the 6 decimal maximum (0.000001 is the smallest representable value)
+   * Very small values threshold (< $0.01).
+   * A non-zero value below this floor renders as `<` plus the formatted
+   * threshold (e.g. `<$0` under `PRICE_RANGES_UNIVERSAL`); the floor aligns
+   * with the 6-decimal price maximum.
    */
   VERY_SMALL: 0.000001,
 } as const;
@@ -555,7 +556,7 @@ export const PRICE_RANGES_MINIMAL_VIEW: FiatRangeConfig[] = [
  * - $1.3445555 → $1.3446 (≥$0.01: 5 sig figs)
  * - $0.333333 → $0.33333 (≥$0.01: 5 sig figs)
  * - $0.004236 → $0.004236 (<$0.01: 4 sig figs, max 6 decimals)
- * - $0.0000006 → $0.000001 (<$0.01: 4 sig figs, rounds with max 6 decimals)
+ * - $0.0000006 → <$0 (<$0.01: 4 sig figs; below the $0.000001 floor)
  */
 export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   {
@@ -614,7 +615,7 @@ export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   },
   {
     // Very small values (< $0.01): 4 significant figures, min 2 max MAX_PRICE_DECIMALS decimals
-    // Ex: $0.004236 → $0.004236 | $0.0000006 → $0.000001
+    // Ex: $0.004236 → $0.004236 | $0.0000006 → <$0
     condition: () => true,
     significantDigits: 4,
     minimumDecimals: 2,
@@ -1787,4 +1788,67 @@ export const formatPerpsUsdInput = (
       maximumFractionDigits: 0,
     })}${hasDecimal ? `${symbols.decimal}${localizedFraction}` : ''}`,
   };
+};
+
+/**
+ * Options for `formatPerpsDuration`.
+ */
+export type PerpsDurationFormatOptions = Pick<
+  PerpsDisplayFormatOptions,
+  'formatters'
+> & {
+  /** `Intl.NumberFormat` unit style. Default: `short` ("1 hr 30 min"). */
+  unitDisplay?: 'short' | 'long' | 'narrow';
+};
+
+const DURATION_UNITS = [
+  { unit: 'day', seconds: 86_400 },
+  { unit: 'hour', seconds: 3_600 },
+  { unit: 'minute', seconds: 60 },
+  { unit: 'second', seconds: 1 },
+] as const;
+
+/**
+ * Formats a duration as its non-zero days, hours, minutes and seconds, in the
+ * client's locale: TWAP running time and elapsed time, slice intervals, chase
+ * windows and poll intervals.
+ *
+ * @param durationMs - Duration in milliseconds, rounded to whole seconds.
+ * @param options - `formatters` (default `en-US`) and `unitDisplay` (default
+ * `short`).
+ * @returns The duration, or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`) for a
+ * missing or negative value.
+ * @example formatPerpsDuration(90 * 60_000) => "1 hr 30 min"
+ * @example formatPerpsDuration(1440 * 60_000) => "1 day"
+ * @example formatPerpsDuration(30_000) => "30 sec"
+ * @example formatPerpsDuration(0) => "0 sec"
+ * @example formatPerpsDuration(5 * 60_000, { unitDisplay: 'long' }) => "5 minutes"
+ */
+export const formatPerpsDuration = (
+  durationMs: string | number | null | undefined,
+  options: PerpsDurationFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, unitDisplay = 'short' } = options;
+  const value = _parseDisplayNumber(durationMs);
+  if (value === undefined || value < 0) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+  let remaining = Math.round(value / 1000);
+  const parts: string[] = [];
+  for (const { unit, seconds } of DURATION_UNITS) {
+    const count = Math.floor(remaining / seconds);
+    remaining -= count * seconds;
+    if (count > 0) {
+      parts.push(
+        formatters.formatNumber(count, { style: 'unit', unit, unitDisplay }),
+      );
+    }
+  }
+  return parts.length > 0
+    ? parts.join(' ')
+    : formatters.formatNumber(0, {
+        style: 'unit',
+        unit: 'second',
+        unitDisplay,
+      });
 };

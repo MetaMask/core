@@ -88,6 +88,7 @@ import {
   isTransactionApproving,
   startTransactionApproval,
 } from './lifecycle/state.js';
+import { markTransactionSubmitted } from './lifecycle/submit.js';
 import type {
   TransactionConstructorOptions,
   TransactionStageDependencies,
@@ -309,6 +310,9 @@ const DEFAULT_IS_AUTOMATIC_GAS_FEE_UPDATE_ENABLED = (): boolean => false;
 const DEFAULT_IS_EIP7702_GAS_FEE_TOKENS_ENABLED = (): Promise<boolean> =>
   Promise.resolve(false);
 
+// Default for the `isResumable` option.
+const DEFAULT_IS_RESUMABLE = (): boolean => false;
+
 // Default for the `isTransactionTrusted` option.
 const DEFAULT_IS_TRANSACTION_TRUSTED = (): boolean => false;
 
@@ -388,6 +392,14 @@ export type TransactionControllerOptions = {
 
   /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
+
+  /**
+   * Whether an incomplete (approved or signed) transaction found in state at
+   * startup should be left pending so another controller can resume it.
+   * Called synchronously during construction. Defaults to false, which fails
+   * the transaction.
+   */
+  isResumable?: (transactionMeta: TransactionMeta) => boolean;
 
   /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
@@ -705,6 +717,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'estimateGasBuffered',
   'estimateGasFee',
   'failTransaction',
+  'finalizeResumedTransaction',
   'getGasFeeTokens',
   'getLayer1GasFee',
   'getNonceLock',
@@ -1362,6 +1375,35 @@ export class TransactionController extends BaseController<
   failTransaction(transactionId: string, error: Error): void {
     const transactionMeta = this.#getTransactionOrThrow(transactionId);
     this.#failTransaction(transactionMeta, error);
+  }
+
+  /**
+   * Marks a pending resumed transaction as submitted, using the same
+   * event path as a normal publish. Only valid when the transaction is
+   * in `approved` or `signed` status; throws otherwise.
+   *
+   * @param transactionId - ID of the transaction to finalise.
+   * @param transactionHash - On-chain hash returned by the resuming controller.
+   */
+  finalizeResumedTransaction(
+    transactionId: string,
+    transactionHash: string,
+  ): void {
+    const transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+    if (
+      transactionMeta.status !== TransactionStatus.approved &&
+      transactionMeta.status !== TransactionStatus.signed
+    ) {
+      throw new Error(
+        `Cannot finalize resumed transaction ${transactionId}: status is ${transactionMeta.status}`,
+      );
+    }
+
+    markTransactionSubmitted(this.#getDependencies(), {
+      hash: transactionHash,
+      transactionId,
+    });
   }
 
   /**
@@ -2564,7 +2606,31 @@ export class TransactionController extends BaseController<
         ),
     );
 
+    const { isResumable = DEFAULT_IS_RESUMABLE } = this.#options;
+
+    const resumableTransactions = incompleteTransactions.filter(
+      (transactionMeta) => {
+        try {
+          return isResumable(transactionMeta);
+        } catch (error) {
+          log('isResumable error', error);
+          return false;
+        }
+      },
+    );
+
+    const skippedTransactionIds = new Set(
+      resumableTransactions.flatMap((transactionMeta) => [
+        transactionMeta.id,
+        ...(transactionMeta.requiredTransactionIds ?? []),
+      ]),
+    );
+
     for (const transactionMeta of incompleteTransactions) {
+      if (skippedTransactionIds.has(transactionMeta.id)) {
+        continue;
+      }
+
       const requiredTransactionIds =
         transactionMeta.requiredTransactionIds ?? [];
 
@@ -2588,6 +2654,7 @@ export class TransactionController extends BaseController<
 
         if (
           !requiredTransactionMeta ||
+          skippedTransactionIds.has(requiredTransactionId) ||
           this.#isFinalState(requiredTransactionMeta.status)
         ) {
           continue;

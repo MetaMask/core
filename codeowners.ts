@@ -203,7 +203,7 @@ const config = {
       teams: ['@MetaMask/confirmations'],
       initializationPath: 'logging-controller',
     },
-    'marketing-consent-controller': {
+    'marketing-consent-sync-service': {
       teams: ['@MetaMask/engagement'],
     },
     'message-manager': {
@@ -409,9 +409,6 @@ const config = {
     },
     'type-utils': {
       teams: ['@MetaMask/core-platform'],
-    },
-    'user-operation-controller': {
-      teams: ['@MetaMask/confirmations'],
     },
     utils: {
       teams: ['@MetaMask/core-platform'],

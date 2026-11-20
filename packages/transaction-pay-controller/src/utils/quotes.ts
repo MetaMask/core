@@ -57,6 +57,84 @@ const log = createModuleLogger(projectLogger, 'quotes');
 
 const inFlightQuoteRequests = new Map<string, AbortController>();
 
+/**
+ * Helper class for determining quote routing behavior.
+ */
+export class QuoteRoutingHelper {
+  /**
+   * Determine whether to skip building a no-op quote.
+   *
+   * A no-op quote marks a genuine direct route. When a post-quote max flow
+   * has tokens but no requests (because all tokens were filtered out with
+   * amountRaw '0' funded by prepended transfer), no no-op quote should be
+   * returned. The UI should show a loading state until the amount is encoded.
+   *
+   * However, legitimate direct routes (same-token, skipIfBalance with sufficient
+   * balance, etc.) also have tokens but no requests. These should still get a
+   * no-op quote. The distinguishing factor is that pending tokens have amountRaw
+   * '0', while direct route tokens have non-zero amounts.
+   *
+   * @param context - Context for the decision.
+   * @param context.isPostQuote - Whether this is a post-quote flow.
+   * @param context.isMaxAmount - Whether this is a max amount transaction.
+   * @param context.requests - Built quote requests.
+   * @param context.tokens - Required tokens for the transaction.
+   * @returns True if no-op quote should be skipped (pending max post-quote scenario).
+   */
+  static shouldSkipNoOpQuote({
+    isPostQuote,
+    isMaxAmount,
+    requests,
+    tokens,
+  }: {
+    isPostQuote?: boolean;
+    isMaxAmount: boolean;
+    requests: QuoteRequest[];
+    tokens: TransactionPayRequiredToken[];
+  }): boolean {
+    // Not a post-quote flow: normal behavior
+    if (!isPostQuote) {
+      return false;
+    }
+
+    // Not a max amount: normal behavior
+    if (!isMaxAmount) {
+      return false;
+    }
+
+    // Has requests: quote will be fetched, normal behavior
+    if (requests.length > 0) {
+      return false;
+    }
+
+    // No tokens: this isn't a pending scenario, normal behavior
+    if (!tokens.length) {
+      return false;
+    }
+
+    // Check if all tokens have zero amounts (pending case) vs non-zero amounts
+    // (legitimate direct route like same-token or skipIfBalance). Only skip
+    // the no-op quote if amounts are truly pending (all zero).
+    const allTokensHaveZeroAmount = tokens.every(
+      (token) => token.amountRaw === '0',
+    );
+
+    return allTokensHaveZeroAmount;
+  }
+}
+
+/**
+ * Determine whether to skip building a no-op quote for this transaction.
+ *
+ * @param context - Context for the decision.
+ * @returns True if no-op quote should be skipped (pending max post-quote scenario).
+ */
+function shouldSkipNoOpQuote(
+  context: Parameters<typeof QuoteRoutingHelper.shouldSkipNoOpQuote>[0],
+): boolean {
+  return QuoteRoutingHelper.shouldSkipNoOpQuote(context);
+}
+
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
@@ -183,6 +261,13 @@ export async function updateQuotes(
 
     const supports7702 = accountSupports7702(messenger, from);
 
+    const isPendingMaxPostQuote = shouldSkipNoOpQuote({
+      isPostQuote,
+      isMaxAmount: isMaxAmount ?? false,
+      requests,
+      tokens,
+    });
+
     const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
       from,
@@ -194,6 +279,7 @@ export async function updateQuotes(
       messenger,
       fiatPayment?.selectedPaymentMethodId,
       signal,
+      isPendingMaxPostQuote,
     );
 
     if (signal.aborted) {
@@ -219,6 +305,7 @@ export async function updateQuotes(
     log('Calculated totals', { transactionId, totals });
 
     syncTransaction({
+      accountOverride,
       batchTransactions,
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: executableQuotes.length > 0,
@@ -286,6 +373,7 @@ function getFrom(
  * Sync batch transactions to the transaction meta.
  *
  * @param request - Request object.
+ * @param request.accountOverride - Optional ID of an `InternalAccount` overriding the default account.
  * @param request.batchTransactions - Batch transactions to sync.
  * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
@@ -297,6 +385,7 @@ function getFrom(
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
+  accountOverride,
   batchTransactions,
   hasQuotes,
   isPostQuote,
@@ -307,6 +396,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
+  accountOverride?: string;
   batchTransactions: BatchTransaction[];
   selectedFiatPayment?: string;
   hasQuotes: boolean;
@@ -351,6 +441,8 @@ function syncTransaction({
       const evmPaymentToken = getEvmPaymentToken(paymentToken);
 
       tx.metamaskPay = {
+        ...tx.metamaskPay,
+        accountOverride,
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: evmPaymentToken?.chainId,
         isPostQuote,
@@ -848,6 +940,7 @@ function refreshNonEvmPaymentTokenBalance({
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @param signal - Signal that aborts when the quote request is superseded.
+ * @param isPendingMaxPostQuote - Whether this is a pending max post-quote scenario (amount still 0).
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -861,6 +954,7 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
   signal?: AbortSignal,
+  isPendingMaxPostQuote?: boolean,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   error?: QuoteErrorInfo;
@@ -883,14 +977,19 @@ async function getQuotes(
     // can distinguish "no conversion needed" from "quote needed but missing".
     // Not applicable when a quote is always required, as an empty requests
     // list then means the source amounts could not be calculated.
+    // Also not applicable when this is a pending max post-quote scenario:
+    // the amount is still 0 (funded by prepended transfer), so no quote should
+    // be returned yet (loading state) until the amount is encoded.
     const evmPaymentToken = getEvmPaymentToken(paymentToken);
     const noOpQuote =
-      evmPaymentToken && !isQuoteRequired
+      evmPaymentToken && !isQuoteRequired && !isPendingMaxPostQuote
         ? buildNoOpQuote(from, evmPaymentToken)
         : undefined;
 
     if (noOpQuote) {
       log('Built no-op quote for direct route', { transactionId });
+    } else if (isPendingMaxPostQuote) {
+      log('Skipping no-op quote for pending max post-quote', { transactionId });
     }
 
     return {
