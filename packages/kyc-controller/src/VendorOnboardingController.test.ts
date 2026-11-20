@@ -957,7 +957,6 @@ describe('VendorOnboardingController', () => {
           residenceCountry: 'USA',
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          email: KALSHI_EMAIL,
           partnerIdentityToken: 'partner-token',
           signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
@@ -974,7 +973,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('signs the trimmed Kalshi email into users/link and sends it with the session', async () => {
+    it('signs the trimmed Kalshi email into users/link and does not send it beside the session', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
@@ -985,7 +984,7 @@ describe('VendorOnboardingController', () => {
         const [params] = handlers.createUkycSession.mock.calls[0] as [
           CreateUkycSessionParams,
         ];
-        expect(params.email).toBe(KALSHI_EMAIL);
+        expect(params).not.toHaveProperty('email');
         expect(params.signedRequests).toStrictEqual([
           SIGNED_INTENT,
           SIGNED_LINK,
@@ -1085,7 +1084,6 @@ describe('VendorOnboardingController', () => {
           expect.objectContaining({
             vendor: 'kalshi',
             partnerIdentityToken: 'partner-token',
-            email: KALSHI_EMAIL,
           }),
         );
       });

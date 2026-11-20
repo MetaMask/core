@@ -307,9 +307,10 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor.
    * @param params.aal2Token - AAL2 token from MFA. Required only when a new
    * session has to be created. Omit it to pick up an existing session.
-   * @param params.email - The Kalshi email the user typed. Required when
-   * creating a Kalshi session. The phone signs `users/link` with it, and it
-   * goes to kyc-api beside the signed calls. A resumed session ignores it.
+   * @param params.email - The Kalshi email the phone signs into `users/link`.
+   * Required when creating a Kalshi session. kyc-api does not receive it: the
+   * relay is given the verified email from the partner identity token, so
+   * this must be that address. A resumed session ignores it.
    * @param params.intentOpen - Whether the user already has an open Kalshi
    * enrollment intent. The phone then signs `users/link` alone, where a new
    * session signs `enrollment/intents` first.
@@ -352,22 +353,20 @@ export class VendorOnboardingController extends BaseController<
       'KycService:getGeoCountry',
     );
     // kyc-api takes the session's email from this token's verified `ext.email`.
-    // For Kalshi it must match the email the phone signs into `users/link`.
+    // The phone signs that same address into `users/link`; it is not sent
+    // beside the signed calls.
     const partnerIdentityToken = await this.#mintPartnerIdentityToken(vendor);
     // A signature lasts 60 seconds, so this is the last thing before the
     // call that carries it.
-    const kalshiSigning =
+    const signedRequests =
       email === undefined
         ? undefined
-        : {
-            email,
-            signedRequests: await this.#signVendorRequests(vendor, [
-              ...(params.intentOpen
-                ? []
-                : [{ operation: 'enrollment/intents' as const }]),
-              { operation: 'users/link' as const, email },
-            ]),
-          };
+        : await this.#signVendorRequests(vendor, [
+            ...(params.intentOpen
+              ? []
+              : [{ operation: 'enrollment/intents' as const }]),
+            { operation: 'users/link' as const, email },
+          ]);
     const session = await createUkycSession({
       messenger: this.messenger,
       localUserSecretStore: this.#localUserSecretStore,
@@ -375,7 +374,7 @@ export class VendorOnboardingController extends BaseController<
       residenceCountry,
       aal2Token: params.aal2Token,
       partnerIdentityToken,
-      ...kalshiSigning,
+      ...(signedRequests && { signedRequests }),
     });
     this.#write(vendor, { sessionId: session.id });
     return this.#readStep(vendor, { join: false });

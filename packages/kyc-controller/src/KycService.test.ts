@@ -444,7 +444,7 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
-    it('forwards the email and the phone-signed Kalshi calls when provided', async () => {
+    it('forwards the phone-signed Kalshi calls and no email', async () => {
       const signedRequests = [
         {
           path: '/trade-api/v2/isv/enrollment/intents',
@@ -461,8 +461,9 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            JSON.stringify([body.email, body.signedRequests]) ===
-            JSON.stringify(['a@b.co', signedRequests]),
+            body.email === undefined &&
+            JSON.stringify(body.signedRequests) ===
+              JSON.stringify(signedRequests),
         )
         .reply(200, response);
       const { service } = getService();
@@ -473,7 +474,6 @@ describe('KycService', () => {
           residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          email: 'a@b.co',
           signedRequests,
         }),
       ).toStrictEqual(response);
