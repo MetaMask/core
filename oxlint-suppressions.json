@@ -3011,13 +3011,13 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 12
+      "count": 7
     },
     "typescript/no-unsafe-call": {
-      "count": 11
+      "count": 7
     },
     "typescript/no-unsafe-member-access": {
-      "count": 7
+      "count": 3
     },
     "typescript/no-unsafe-return": {
       "count": 8
