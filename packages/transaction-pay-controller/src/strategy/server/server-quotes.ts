@@ -8,11 +8,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  PaymentOverride,
-  TransactionPayStrategy,
-} from '../../constants.js';
+import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -58,7 +54,6 @@ import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
 import type {
-  ServerCall,
   ServerQuote,
   ServerQuotePayload,
   ServerQuoteRequest,
@@ -364,16 +359,7 @@ async function buildServerQuoteRequest(
     // are no calls to embed.
     (isPolymarketDepositWallet ?? false);
 
-  if (normalizedRequest.paymentOverride === PaymentOverride.PerpsLighter) {
-    // The provider delivers the output USDC to the recipient, then runs these
-    // calls as the sender. A leading USDC transfer would spend a balance the
-    // sender does not have yet. With no calldata the quote still buys mainnet
-    // USDC and adds no calls.
-    const calls = getDefinedTransactionCalls(transaction);
-    if (calls.length > 0) {
-      body.calls = calls;
-    }
-  } else if (override) {
+  if (override) {
     body.amount = override.amount;
     body.calls = override.calls;
 
@@ -938,42 +924,6 @@ function stepToGasTransaction(
     to: step.to,
     value: step.value,
   };
-}
-
-/**
- * Calls with defined calldata. Nested calls win, because a Lighter deposit
- * keeps the approve and deposit there. Otherwise the parent call is used.
- *
- * @param transaction - Transaction to read.
- * @returns Calls the server should execute after delivering mainnet USDC.
- */
-function getDefinedTransactionCalls(
-  transaction: TransactionMeta,
-): ServerCall[] {
-  const nested = (transaction.nestedTransactions ?? [])
-    .filter((call) => call.to && call.data && call.data !== '0x')
-    .map((call) => ({
-      to: call.to as Hex,
-      data: call.data as Hex,
-      value: call.value ?? '0x0',
-    }));
-
-  if (nested.length > 0) {
-    return nested;
-  }
-
-  const { data, to, value } = transaction.txParams;
-  if (!to || !data || data === '0x') {
-    return [];
-  }
-
-  return [
-    {
-      to: to as Hex,
-      data: data as Hex,
-      value: (value as Hex | undefined) ?? '0x0',
-    },
-  ];
 }
 
 function getSingleTransactionData(
