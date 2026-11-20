@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
+- Add `@metamask/snaps-sdk` `^13.0.0` as a dependency ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [83.3.0]
 

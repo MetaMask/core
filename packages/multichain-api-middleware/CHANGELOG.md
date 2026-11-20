@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [5.1.1]
 

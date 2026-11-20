@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/account-api` from `^2.1.0` to `^2.2.0` ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
+- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
+- Bump `@metamask/snaps-sdk` from `^11.2.0` to `^13.0.0` ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [4.0.0]
 

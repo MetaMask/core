@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [78.1.0]
 
