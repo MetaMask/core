@@ -37,6 +37,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -520,14 +521,29 @@ describe('HyperLiquidProvider', () => {
     });
   });
   describe('Data Retrieval', () => {
-    it('gets positions successfully', async () => {
-      const positions = await provider.getPositions();
+    it('carries scaled display margin on cross positions read via REST', async () => {
+      const info = mockClientService.getInfoClient();
+      const user = await mockWalletService.getUserAddressWithDefault();
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          crossMarginSummary: {
+            accountValue: '95',
+            totalMarginUsed: '950',
+            totalNtlPos: '9500',
+            totalRawUsd: '0',
+          },
+        });
 
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBeGreaterThan(0);
-      expect(
-        mockClientService.getInfoClient().clearinghouseState,
-      ).toHaveBeenCalled();
+      const positions = await provider.getPositions({ skipCache: true });
+
+      expect(positions).toMatchObject([
+        { symbol: 'BTC', marginUsed: '500', displayMarginUsed: '50' },
+        { symbol: 'ETH', marginUsed: '450', displayMarginUsed: '45' },
+      ]);
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
     });
 
     it('gets account state successfully', async () => {
@@ -1022,15 +1038,61 @@ describe('HyperLiquidProvider', () => {
       ]);
     });
 
-    it('handles data retrieval errors gracefully', async () => {
+    it('reads close pricing positions without relying on the order feed', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValue(
+        new Error('TP/SL orders unavailable'),
+      );
+      const positions = await provider.getPositions({
+        throwOnUnavailable: true,
+        includeProtection: false,
+      });
+      expect(positions).toEqual([
+        expect.objectContaining({
+          symbol: 'BTC',
+          positionValue: '5000',
+        }),
+        expect.objectContaining({
+          symbol: 'ETH',
+          positionValue: '4500',
+        }),
+      ]);
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
+    });
+
+    it('checks TP/SL orders before using a nonempty position cache', async () => {
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockImplementation(
+        (requireProtection) =>
+          requireProtection ? null : [createMockPosition()],
+      );
+      const infoClient = mockClientService.getInfoClient();
+      const cause = new Error('TP/SL orders unavailable');
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValueOnce(cause);
+
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
+      expect(
+        mockSubscriptionService.getFreshPositionsForAllDexs,
+      ).toHaveBeenCalledWith(
+        true,
+        await mockWalletService.getUserAddressWithDefault(),
+      );
+    });
+
+    it('rejects when the position request fails', async () => {
+      const cause = new Error('API Error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('API Error'));
+      ).mockRejectedValueOnce(cause);
 
-      const positions = await provider.getPositions();
-
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
   });
 
@@ -1509,15 +1571,17 @@ describe('HyperLiquidProvider', () => {
       expect(result.error).not.toContain('Invalid withdrawal parameters');
     });
 
-    it('handles unknown errors gracefully', async () => {
+    it('retains the underlying error when positions are unavailable', async () => {
+      const cause = new Error('Unknown error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('Unknown error'));
+      ).mockRejectedValueOnce(cause);
 
-      const result = await provider.getPositions();
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
 
     describe('error mapping integration', () => {

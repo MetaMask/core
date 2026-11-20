@@ -2,6 +2,7 @@
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import type { FrontendOpenOrdersResponse } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
@@ -25,7 +26,6 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
-  Position,
 } from '../../../src/types/index.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
@@ -39,6 +39,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -1583,6 +1584,15 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  it('rejects a failed Hyperliquid order history fetch with its cause', async () => {
+    const cause = new Error('history unavailable');
+    mockClientService.fetchHistoricalOrders.mockRejectedValue(cause);
+
+    const call = provider.getOrders();
+    await expect(call).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+    await expect(call).rejects.toHaveProperty('cause', cause);
+  });
+
   describe('getOpenOrders additional coverage', () => {
     it('rejects strict position discovery instead of hiding failed account state reads', async () => {
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
@@ -1596,6 +1606,31 @@ describe('HyperLiquidProvider', () => {
       await expect(
         provider.getPositions({ skipCache: true, throwOnUnavailable: true }),
       ).rejects.toThrow('main: state transport down');
+    });
+
+    it('preserves the stale lifecycle error when DEX discovery crosses a disconnect', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const started = createDeferred<void>();
+      const response = createDeferred<[null, { name: string }]>();
+      const info = createMockInfoClient();
+      info.perpDexs.mockImplementation(() => {
+        started.resolve();
+        return response.promise;
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      const read = provider.getPositions({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      await provider.disconnect();
+      response.resolve([null, { name: 'xyz' }]);
+      await rejected;
+      expect(info.clearinghouseState).not.toHaveBeenCalled();
     });
 
     it('rejects strict discovery when the transport fails instead of reporting an empty venue', async () => {
@@ -1646,7 +1681,72 @@ describe('HyperLiquidProvider', () => {
       ).rejects.toThrow('xyz: xyz down');
     });
 
-    it('returns empty array when frontendOpenOrders throws error', async () => {
+    it('rejects open orders that arrive across a provider disconnect', async () => {
+      const started = createDeferred<void>();
+      const response = createDeferred<FrontendOpenOrdersResponse>();
+      mockClientService.getInfoClient().frontendOpenOrders = vi.fn(() => {
+        started.resolve();
+        return response.promise;
+      });
+
+      const read = provider.getOpenOrders({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      response.resolve([
+        {
+          coin: 'BTC',
+          side: 'B',
+          limitPx: '50000',
+          oid: 1,
+          sz: '1',
+          origSz: '1',
+          isPositionTpsl: false,
+          orderType: 'Limit',
+          timestamp: Date.now(),
+          triggerCondition: '',
+          isTrigger: false,
+          triggerPx: '',
+          children: [],
+          reduceOnly: false,
+          tif: 'Gtc',
+          cloid: null,
+        },
+      ]);
+      await provider.disconnect();
+      await rejected;
+    });
+
+    it('only requests position protection from DEXs with an open position', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const info = createMockInfoClient();
+      info.perpDexs.mockResolvedValue([null, { name: 'xyz' }]);
+      const mainState = await info.clearinghouseState();
+      info.clearinghouseState.mockImplementation(async ({ dex }) => ({
+        ...mainState,
+        assetPositions:
+          dex === 'xyz' ? [] : mainState.assetPositions.slice(0, 1),
+      }));
+      info.frontendOpenOrders.mockImplementation(async ({ dex }) => {
+        if (dex === 'xyz') {
+          throw new Error('flat DEX orders unavailable');
+        }
+        return [];
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      expect(await provider.getPositions({ skipCache: true })).toHaveLength(1);
+      expect(info.frontendOpenOrders).toHaveBeenCalledOnce();
+      expect(info.frontendOpenOrders).toHaveBeenCalledWith(
+        expect.not.objectContaining({ dex: 'xyz' }),
+      );
+    });
+
+    it('rejects an unavailable open order read', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),
@@ -1657,10 +1757,9 @@ describe('HyperLiquidProvider', () => {
       });
 
       // Act
-      const result = await provider.getOpenOrders({ skipCache: true });
-
-      // Assert
-      expect(result).toEqual([]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
     });
 
     it('returns cached orders when cache is initialized', async () => {
@@ -1694,34 +1793,43 @@ describe('HyperLiquidProvider', () => {
       // Assert
       expect(result).toEqual(cachedOrders);
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+      expect(
+        mockSubscriptionService.getOrdersCacheIfInitialized,
+      ).toHaveBeenCalledWith(true, {
+        userAddress: await mockWalletService.getUserAddressWithDefault(),
+        requirePositionSizes: true,
+      });
     });
 
-    it('falls back to REST when atomic cache getter returns null', async () => {
+    it('reads REST open orders once when the cache is unavailable', async () => {
       // Arrange - atomic getter returns null (cache not initialized or race condition)
       mockSubscriptionService.getOrdersCacheIfInitialized = vi
         .fn()
         .mockReturnValue(null);
 
-      const mockFrontendOpenOrders = vi.fn().mockResolvedValue([
-        {
-          coin: 'ETH',
-          side: 'B',
-          limitPx: '3000',
-          sz: '1.0',
-          oid: 501,
-          timestamp: Date.now(),
-          origSz: '1.0',
-          triggerCondition: '',
-          isTrigger: false,
-          triggerPx: '',
-          children: [],
-          isPositionTpsl: false,
-          reduceOnly: false,
-          orderType: 'Limit',
-          tif: 'Gtc',
-          cloid: null,
-        },
-      ]);
+      const mockFrontendOpenOrders = vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '3000',
+            sz: '1.0',
+            oid: 501,
+            timestamp: Date.now(),
+            origSz: '1.0',
+            triggerCondition: '',
+            isTrigger: false,
+            triggerPx: '',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+            tif: 'Gtc',
+            cloid: null,
+          },
+        ])
+        .mockRejectedValueOnce(new Error('unexpected repeat request'));
 
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         maxBuilderFee: vi.fn().mockResolvedValue(1),
@@ -1746,7 +1854,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.getOpenOrders();
 
       // Assert - should fall back to REST API
-      expect(mockFrontendOpenOrders).toHaveBeenCalled();
+      expect(mockFrontendOpenOrders).toHaveBeenCalledOnce();
       expect(result.length).toBe(1);
       expect(result[0].orderId).toBe('501');
     });
@@ -2022,6 +2130,57 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('retains discovered orders when whole-position sizing fails', async () => {
+      const order: FrontendOpenOrdersResponse[number] = {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '0',
+        sz: '0',
+        oid: 403,
+        timestamp: Date.now(),
+        origSz: '0',
+        triggerCondition: 'Price above 60000',
+        isTrigger: true,
+        triggerPx: '60000',
+        children: [],
+        isPositionTpsl: true,
+        reduceOnly: true,
+        orderType: 'Take Profit Market',
+        tif: null,
+        cloid: null,
+      };
+      const infoClient = createMockInfoClient();
+      vi.spyOn(infoClient, 'clearinghouseState').mockRejectedValue(
+        new Error('position read failed'),
+      );
+      vi.spyOn(infoClient, 'frontendOpenOrders').mockResolvedValue([
+        order,
+        {
+          ...order,
+          oid: 404,
+          sz: '0.5',
+          origSz: '0.5',
+          orderType: 'Limit',
+          isTrigger: false,
+          isPositionTpsl: false,
+        },
+      ]);
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+
+      const read = provider.getOpenOrders({
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+
+      await expect(read).resolves.toStrictEqual([
+        expect.objectContaining({ orderId: '403', symbol: 'BTC', size: '0' }),
+        expect.objectContaining({ orderId: '404', symbol: 'BTC', size: '0.5' }),
+      ]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+
     it('resolves a whole-position TP/SL size from positions under partial strict discovery', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
@@ -2036,10 +2195,25 @@ describe('HyperLiquidProvider', () => {
         .mockReturnValue(null);
       // HyperLiquid encodes "the whole position" as size 0 on a
       // position-bound TP/SL; the position supplies the real size.
-      vi.spyOn(hip3Provider, 'getPositions').mockResolvedValue([
-        { symbol: 'BTC', size: '-0.75' } as Position,
-      ]);
+      const { assetPositions, ...state } =
+        await createMockInfoClient().clearinghouseState();
+      const mainPosition = assetPositions[0];
+      const clearinghouseState = vi.fn().mockImplementation(({ dex }) => {
+        if (dex === 'xyz') {
+          return Promise.reject(new Error('unrelated position read failed'));
+        }
+        return Promise.resolve({
+          ...state,
+          assetPositions: [
+            {
+              ...mainPosition,
+              position: { ...mainPosition.position, szi: '-0.75' },
+            },
+          ],
+        });
+      });
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        clearinghouseState,
         frontendOpenOrders: vi
           .fn()
           .mockImplementation((params: { user: string; dex?: string }) =>
@@ -2071,10 +2245,8 @@ describe('HyperLiquidProvider', () => {
           .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
       });
 
-      const read = hip3Provider.getOpenOrders({
-        skipCache: true,
-        throwOnUnavailable: true,
-      });
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockReturnValue([]);
+      const read = hip3Provider.getOpenOrders({ throwOnUnavailable: true });
 
       await expect(read).rejects.toMatchObject({
         orders: [
@@ -2085,6 +2257,7 @@ describe('HyperLiquidProvider', () => {
           }),
         ],
       });
+      expect(clearinghouseState).toHaveBeenCalledOnce();
     });
   });
 

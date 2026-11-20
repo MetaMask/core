@@ -590,6 +590,7 @@ describe('MfaRecoveryController', () => {
           identifier: params.identifier,
           proofPublicKey: params.proofPublicKey,
           requestHash: '0xother-request',
+          notAfter: params.notAfter,
           providerAssertion: {},
         },
       }));
@@ -603,6 +604,46 @@ describe('MfaRecoveryController', () => {
       );
     });
 
+    it('rejects login tokens with another notAfter', async () => {
+      const identifierAuthProvider = new StubIdentifierAuthProvider();
+      vi.spyOn(
+        identifierAuthProvider,
+        'getKeyBoundIdentifierLogin',
+      ).mockImplementation(async (params) => ({
+        token: {
+          identifier: params.identifier,
+          proofPublicKey: params.proofPublicKey,
+          requestHash: params.requestHash,
+          notAfter: params.notAfter + 60,
+          providerAssertion: {},
+        },
+      }));
+      await withController(
+        { identifierAuthProvider },
+        async ({ controller }) => {
+          await expect(
+            controller.authenticateIdentifier(PASSKEY),
+          ).rejects.toMatchObject({ code: 'invalid_identifier_token' });
+        },
+      );
+    });
+
+    it('cannot read with an identifier session past its notAfter', async () => {
+      await withController(async ({ controller, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const earlier = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => unixNow() - 7 * 60,
+        });
+        const session = await earlier.authenticateIdentifier(PASSKEY);
+
+        await expect(
+          controller.getRecoverySecret(session),
+        ).rejects.toMatchObject({ code: 'read_failed' });
+      });
+    });
+
     it('rejects login tokens for another identifier', async () => {
       const identifierAuthProvider = new StubIdentifierAuthProvider();
       vi.spyOn(
@@ -613,6 +654,7 @@ describe('MfaRecoveryController', () => {
           identifier: OTHER_PASSKEY,
           proofPublicKey: params.proofPublicKey,
           requestHash: params.requestHash,
+          notAfter: params.notAfter,
           providerAssertion: {},
         },
       }));
@@ -637,6 +679,7 @@ describe('MfaRecoveryController', () => {
             identifier: OTHER_PASSKEY,
             proofPublicKey: params.proofPublicKey,
             requestHash: params.requestHash,
+            notAfter: params.notAfter,
             providerAssertion: {},
           },
         }));

@@ -944,16 +944,26 @@ export type Position = {
   positionValue: string; // Total position value in USD
   unrealizedPnl: string; // Unrealized profit/loss
   marginUsed: string; // Margin currently used for this position
+  /**
+   * Margin the venue shows for a cross position. Hyperliquid scales cross
+   * margin by `accountValue / totalMarginUsed` when cross equity is below
+   * initial margin, so this is `marginUsed` times that ratio (capped at 1).
+   * `marginUsed` keeps the raw venue figure. Absent for isolated positions
+   * and when the provider does not report one.
+   */
+  displayMarginUsed?: string;
   leverage: {
     type: 'isolated' | 'cross'; // Margin type
-    value: number; // Leverage multiplier
+    value?: number; // Leverage multiplier. Undefined when the venue does not report it
     rawUsd?: string; // USD amount (for isolated margin)
   };
   liquidationPrice: string | null; // Liquidation price (null if no risk)
   maxLeverage: number; // Maximum allowed leverage for this asset
   returnOnEquity: string; // ROE percentage
-  cumulativeFunding: {
-    // Funding payments history
+  /**
+   * Funding payments history. Absent when the venue does not report it.
+   */
+  cumulativeFunding?: {
     allTime: string; // Total funding since account opening
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
@@ -999,6 +1009,12 @@ export type PositionTriggerOrder = {
   triggerPrice: string; // Price at which the order activates
   size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
   isPartial: boolean; // true when `size` is smaller than the position size
+  /**
+   * Position coverage cannot be resolved yet. Use the trigger price and order
+   * ID normally, but do not present the size as resolved or use the partial
+   * flag until a fresh position arrives.
+   */
+  coverageUnavailable?: true;
   reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
@@ -1049,6 +1065,12 @@ export type AccountState = {
    * one for this read.
    */
   crossMarginSummary?: CrossMarginSummary;
+  /**
+   * Sub-accounts (Hyperliquid DEX names; `''` is the main DEX) whose state is
+   * unavailable: the read failed, or on the live stream it has not arrived.
+   * The totals exclude them, so the state is partial while this is present.
+   */
+  unavailableSubAccounts?: string[];
   /**
    * Spot USDC this venue counts as cross collateral, as a decimal string.
    * Pass it to `calculateAccountSummary` as `spotCollateral`.
@@ -1151,6 +1173,12 @@ export type AccountAggregateMetadata = {
 };
 
 export type ClosePositionParams = {
+  /**
+   * Account that supplied a batch close target. A changed account cannot close it.
+   *
+   * @internal
+   */
+  expectedAccountId?: CaipAccountId;
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
   /**
@@ -1990,6 +2018,12 @@ export type CheckEligibilityParams = {
 };
 
 export type GetPositionsParams = {
+  /**
+   * Skip protection lookup for reads that only need position data.
+   *
+   * @internal
+   */
+  includeProtection?: boolean;
   /** Reject unavailable discovery instead of returning an empty position list. */
   throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -2011,14 +2045,13 @@ export type GetAccountStateParams = {
   /** Required for standalone reads. Unsupported wallet scopes reject as above. */
   userAddress?: string;
   /**
-   * Optional: throw instead of returning an incomplete or zero-valued state
-   * when the core read fails. Lighter throws `ACCOUNT_STATE_FAILED` (with
-   * the cause attached); a wallet without a Lighter account still reads as
-   * empty. HyperLiquid rejects the read when any DEX clearinghouse read or
-   * the spot clearinghouse read fails, instead of summing the reachable
-   * DEXs. The optional venue-local `crossMarginSummary` stays best-effort:
-   * a read whose balances are valid is never failed because its margin
-   * metadata could not be loaded.
+   * Hyperliquid rejects the account read when any DEX or spot clearinghouse
+   * read fails. Without this option it can return partial DEX totals.
+   * Lighter rejects failed balance reads with or without this option.
+   * Ordinary Lighter read failures throw `ACCOUNT_STATE_FAILED` with a cause.
+   * Malformed payloads and capability errors propagate. Superseded sessions
+   * throw `PROVIDER_LIFECYCLE_STALE`. A confirmed absent Lighter account reads
+   * empty. An unavailable cross-margin summary does not invalidate balances.
    */
   throwOnUnavailable?: boolean;
 };
@@ -2485,7 +2518,9 @@ export type PositionModifyPreviewParams = {
   reduceOnly?: boolean;
   /**
    * Estimated trading fees in USD. Deducted from isolated margin on
-   * increases and flips. Omit or pass 0 when unknown.
+   * increases and flips. Omit when unknown: the resulting margin and
+   * liquidation price of an increase or flip are then unavailable. Pass 0
+   * only for a known zero fee.
    */
   feeAmountUsd?: number;
   /**
@@ -2789,6 +2824,8 @@ type ReadyPerpsOrderCapabilities = Readonly<{
    * explicit margin mode.
    */
   supportedMarginModes?: readonly MarginMode[];
+  /** Why a market that reports margin modes prohibits Cross. */
+  crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';
@@ -3288,6 +3325,14 @@ export type PerpsProvider = {
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
+  /**
+   * Discover close targets without requiring display margin.
+   *
+   * @internal
+   */
+  getClosePositionTargets?(): Promise<
+    Pick<ClosePositionParams, 'symbol' | 'expectedAccountId'>[]
+  >;
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   /**
    * Replace one TP/SL leg of a position and leave the other leg untouched. The

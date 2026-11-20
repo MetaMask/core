@@ -172,10 +172,10 @@ The controller writes `perpsBalances[providerId]` from live account updates —
 one entry per available venue with `totalBalance`, `unrealizedPnl` and
 `lastUpdated`. Live updates leave `accountValue1dAgo` unset. A venue whose
 data becomes unavailable has its entry removed rather than left looking live.
-A pending venue keeps its stored entry until it reports a snapshot, including
-when the first stream update is `null`. A `null` total clears `accountState`
-and removes only explicitly unavailable venues' entries. Every balance entry
-is cleared when the selected account changes or the network is toggled, and a
+A pending venue keeps its stored entry for the same wallet until it reports a
+snapshot, including when the first stream update is `null`. A `null` total
+clears `accountState` and removes explicitly unavailable venues' entries.
+A wallet change, deselection, or network toggle clears all balance entries. A
 stream for an explicit `accountId` other than the selected account only
 reaches its own callback: it neither writes nor clears `accountState` or
 balance entries.

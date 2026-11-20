@@ -457,6 +457,7 @@ export class MfaRecoveryController<
     const { seedlessAuthData, ...credential } = await requestIdentifierLogin({
       identifier,
       requestHash,
+      now: this.#now(),
       identifierAuthProvider: this.#identifierAuthProvider,
     });
     return {
@@ -1104,6 +1105,7 @@ export class MfaRecoveryController<
       const { token, proofPrivateKey } = await requestIdentifierLogin({
         identifier,
         requestHash: writing.mutation.requestHash,
+        now: this.#now(),
         identifierAuthProvider: this.#identifierAuthProvider,
       });
       credentials.push({ token, proofPrivateKey });

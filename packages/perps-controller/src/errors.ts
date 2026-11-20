@@ -115,7 +115,7 @@ export function createTpslLegReplaceUnsupportedError(): PerpsControllerError {
   );
 }
 
-/** A strict aggregated read failed on some venues; successful orders remain usable. */
+/** A strict open-order read was incomplete; discovered orders remain usable. */
 export class OrderDiscoveryError extends Error {
   readonly orders: Order[];
 

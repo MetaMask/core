@@ -490,6 +490,38 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return successful;
   }
 
+  /**
+   * Values of a read across venues. A venue whose read failed leaves the
+   * merged list unknown, never shorter: the first failure is rethrown when it
+   * is already classified, else wrapped in `failureCode` with the cause.
+   *
+   * @param results - Results from Promise.allSettled
+   * @param failureCode - Error code for an unclassified venue failure.
+   * @returns Every venue's values
+   */
+  #requireAllVenueResults<TResult>(
+    results: PromiseSettledResult<TResult>[],
+    failureCode: string,
+  ): TResult[] {
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) {
+      const reason: unknown = failure.reason;
+      if (
+        reason instanceof Error &&
+        (reason.message === failureCode ||
+          reason.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
+        throw reason;
+      }
+      throw new Error(failureCode, { cause: reason });
+    }
+    return results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+  }
+
   // ============================================================================
   // Asset Routes (Synchronous - delegate to default provider)
   // ============================================================================
@@ -682,7 +714,39 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
     const results = await Promise.allSettled(requests);
 
-    return this.#extractSuccessfulResults(results, 'getPositions').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.POSITIONS_FAILED,
+    ).flat();
+  }
+
+  /**
+   * Read positions for batch-close fee pricing. Each venue supplies its own
+   * notional independently, so an unavailable venue cannot affect another.
+   *
+   * @internal
+   * @param providerIds - Venues targeted by the batch close.
+   * @returns Positions from the targeted venues that answered.
+   */
+  async getPositionsForBatchClose(
+    providerIds: ReadonlySet<PerpsProviderType>,
+  ): Promise<Position[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders()
+        .filter(([id]) => providerIds.has(id))
+        .map(async ([id, provider]) => {
+          const positions = await provider.getPositions({
+            throwOnUnavailable: true,
+            includeProtection: false,
+          });
+          return positions.map((position) => ({ ...position, providerId: id }));
+        }),
+    );
+
+    return this.#extractSuccessfulResults(
+      results,
+      'getPositionsForBatchClose',
+    ).flat();
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
@@ -840,7 +904,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getOrders').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
@@ -880,7 +947,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       return orders;
     }
 
-    return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getFunding(
@@ -1531,17 +1601,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (provider.closePositions) {
       return provider.closePositions(params);
     }
-    const symbols =
-      params.closeAll === true
-        ? (await provider.getPositions({ throwOnUnavailable: true })).map(
-            (position) => position.symbol,
-          )
-        : (params.symbols ?? []);
-    if (symbols.length === 0) {
+    let targets = (params.symbols ?? []).map((symbol) => ({ symbol }));
+    if (params.closeAll === true) {
+      targets = provider.getClosePositionTargets
+        ? await provider.getClosePositionTargets()
+        : (await provider.getPositions({ throwOnUnavailable: true })).map(
+            ({ symbol }) => ({ symbol }),
+          );
+    }
+    if (targets.length === 0) {
       return { success: false, successCount: 0, failureCount: 0, results: [] };
     }
     const settled = await Promise.allSettled(
-      symbols.map((symbol) => provider.closePosition({ symbol })),
+      targets.map((target) => provider.closePosition(target)),
     );
     const results = settled.map((result, index) => {
       const failed = result.status === 'rejected';
@@ -1555,7 +1627,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         error = result.value.error;
       }
       return {
-        symbol: symbols[index],
+        symbol: targets[index].symbol,
         success,
         error,
       };

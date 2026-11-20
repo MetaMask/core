@@ -7,7 +7,7 @@ import { isCaipAccountId, parseCaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import type {
   HyperLiquidAbstractionMode,
@@ -19,6 +19,7 @@ import type {
   PerpsInternalAccount,
 } from '../types/index.js';
 import { aggregateAccountTotals } from './accountAggregation.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 
@@ -83,6 +84,7 @@ function isAccountLike(
     typeof value === 'object' &&
     value !== null &&
     typeof account?.address === 'string' &&
+    account.address.length > 0 &&
     typeof account.type === 'string'
   );
 }
@@ -90,31 +92,43 @@ function isAccountLike(
 export function getSelectedEvmAccountDetailsFromMessenger(
   messenger: SelectedEvmAccountMessenger,
 ): InternalAccount | PerpsInternalAccount | undefined {
+  let legacyEvmAccount: InternalAccount | PerpsInternalAccount | undefined;
   try {
     const selectedAccount = messenger.call(
       'AccountsController:getSelectedAccount',
     );
     if (isAccountLike(selectedAccount)) {
-      const evmAccount = findEvmAccount([selectedAccount]);
-      if (evmAccount) {
-        return evmAccount;
-      }
+      legacyEvmAccount = findEvmAccount([selectedAccount]) ?? undefined;
     }
   } catch {
-    // Fall back to the selected account group if the direct lookup is unavailable.
+    // Some clients expose only the account tree action.
   }
 
   try {
     const selectedAccountGroup = messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
-    return Array.isArray(selectedAccountGroup)
-      ? (findEvmAccount(selectedAccountGroup.filter(isAccountLike)) ??
-          undefined)
-      : undefined;
+    if (Array.isArray(selectedAccountGroup)) {
+      const groupAccounts = selectedAccountGroup.filter(isAccountLike);
+      if (groupAccounts.length > 0) {
+        // The legacy action can return the last EVM wallet when a different
+        // account group is selected. Keep it only if it belongs to this group.
+        const legacyAddress = legacyEvmAccount?.address.toLowerCase();
+        if (
+          legacyAddress &&
+          groupAccounts.some(
+            ({ address }) => address.toLowerCase() === legacyAddress,
+          )
+        ) {
+          return legacyEvmAccount;
+        }
+        return findEvmAccount(groupAccounts) ?? undefined;
+      }
+    }
   } catch {
-    return undefined;
+    // Older clients and startup can use the legacy selection.
   }
+  return legacyEvmAccount;
 }
 
 export function getSelectedEvmAccountFromMessenger(
@@ -128,6 +142,12 @@ export function getSelectedEvmAccountFromMessenger(
 export type ReturnOnEquityInput = {
   unrealizedPnl: string | number;
   returnOnEquity: string | number;
+  /**
+   * Margin the account uses. When given, it is the account's weight, so an
+   * account with an RoE of 0 still counts. Without it the weight is derived
+   * from PnL / RoE, which an RoE of 0 cannot give.
+   */
+  marginUsed?: string | number;
 };
 
 export function calculateWeightedReturnOnEquity(
@@ -137,8 +157,8 @@ export function calculateWeightedReturnOnEquity(
     return '0';
   }
 
-  let totalWeightedROE = 0;
-  let totalMarginUsed = 0;
+  let totalWeightedROE = new BigNumber(0);
+  let totalMarginUsed = new BigNumber(0);
 
   for (const account of accounts) {
     const unrealizedPnl =
@@ -150,32 +170,42 @@ export function calculateWeightedReturnOnEquity(
         ? Number.parseFloat(account.returnOnEquity)
         : account.returnOnEquity;
 
-    if (Number.isNaN(unrealizedPnl) || Number.isNaN(returnOnEquity)) {
+    if (!Number.isFinite(unrealizedPnl) || !Number.isFinite(returnOnEquity)) {
       continue;
     }
 
-    if (returnOnEquity === 0) {
+    let marginUsed: number | null;
+    if (account.marginUsed === undefined) {
+      if (returnOnEquity === 0) {
+        continue;
+      }
+      marginUsed = (unrealizedPnl / returnOnEquity) * 100;
+    } else {
+      marginUsed =
+        typeof account.marginUsed === 'string'
+          ? parseFiniteDecimal(account.marginUsed)
+          : account.marginUsed;
+    }
+
+    if (
+      marginUsed === null ||
+      !Number.isFinite(marginUsed) ||
+      marginUsed <= 0
+    ) {
       continue;
     }
 
-    const marginUsed = (unrealizedPnl / returnOnEquity) * 100;
-
-    if (Number.isNaN(marginUsed) || marginUsed <= 0) {
-      continue;
-    }
-
-    const roeDecimal = returnOnEquity / 100;
-
-    totalWeightedROE += roeDecimal * marginUsed;
-    totalMarginUsed += marginUsed;
+    totalWeightedROE = totalWeightedROE.plus(
+      new BigNumber(returnOnEquity).times(marginUsed),
+    );
+    totalMarginUsed = totalMarginUsed.plus(marginUsed);
   }
 
-  if (totalMarginUsed <= 0) {
+  if (totalMarginUsed.isZero()) {
     return '0';
   }
 
-  const weightedROE = (totalWeightedROE / totalMarginUsed) * 100;
-  return weightedROE.toString();
+  return totalWeightedROE.dividedBy(totalMarginUsed).toString();
 }
 
 // The release-branch balance bridge is USDC-only. Non-USDC spot assets must
@@ -639,19 +669,13 @@ export function calculateAccountSummary({
  *
  * @param states - The array of per-DEX account states to aggregate.
  * @returns The combined account state with summed balances and recalculated ROE.
+ * @throws `ACCOUNT_STATE_FAILED` when `states` is empty.
  */
 export function aggregateAccountStates(states: AccountState[]): AccountState {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
-
   if (states.length === 0) {
-    return fallback;
+    // No account answered: the state is unknown. A '--' placeholder in
+    // numeric fields parses as NaN downstream.
+    throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
   }
 
   const aggregated: AccountState = {
