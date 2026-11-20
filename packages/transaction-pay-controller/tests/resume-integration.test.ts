@@ -14,9 +14,9 @@ import {
   MUSD_MONAD_ADDRESS,
   TransactionPayStrategy,
 } from '../src/constants.js';
+import { isPayTransactionResumable } from '../src/helpers/resume-pay-transactions.js';
 import { submitDirectMusdAfterFiatCompletion } from '../src/strategy/fiat/fiat-direct-musd.js';
 import { TransactionPayController } from '../src/TransactionPayController.js';
-import { isPayTransactionResumable } from '../src/utils/resume.js';
 
 vi.mock(
   import('../src/strategy/fiat/fiat-direct-musd.js'),
@@ -69,7 +69,6 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
   clientTriggerMock: ReturnType<typeof vi.fn>;
   payController: TransactionPayController;
   transactionController: TransactionController;
-  waitForClientReadyMock: ReturnType<typeof vi.fn>;
 } {
   const rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
   const unrestrictedMessenger = rootMessenger as unknown as TestRootMessenger;
@@ -140,6 +139,22 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
     (): Record<string, never> => ({}),
   );
   unrestrictedMessenger.registerActionHandler(
+    'AccountTreeController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
+    'AssetsController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
+    'GasFeeController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
+    'RampsController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
     'ApprovalController:addRequest',
     async (): Promise<Record<string, never>> => ({}),
   );
@@ -187,6 +202,7 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
   unrestrictedMessenger.delegate({
     messenger: payMessenger,
     actions: [
+      'AccountTreeController:getState',
       'AccountsController:getState',
       'AssetsController:getState',
       'GasFeeController:getState',
@@ -194,8 +210,10 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
       'NetworkController:getNetworkConfigurationByChainId',
+      'NetworkController:getState',
       'RampsController:getOrder',
       'RampsController:getQuoteWithFees',
+      'RampsController:getState',
       'SentinelApiService:simulateTransactions',
       'TransactionController:addTransaction',
       'TransactionController:addTransactionBatch',
@@ -216,20 +234,17 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
   });
 
   const clientTriggerMock = vi.fn();
-  const waitForClientReadyMock = vi.fn().mockResolvedValue(undefined);
 
   const payController = new TransactionPayController({
     getAmountData: clientTriggerMock,
     getDelegationTransaction: clientTriggerMock,
     messenger: payMessenger,
-    waitForClientReady: waitForClientReadyMock,
   });
 
   return {
     clientTriggerMock,
     payController,
     transactionController,
-    waitForClientReadyMock,
   };
 }
 
@@ -246,14 +261,17 @@ describe('pay transaction resume integration', () => {
   });
 
   it('resumes an approved fiat Money Account deposit parent transaction after construction', async () => {
-    const { clientTriggerMock, transactionController, waitForClientReadyMock } =
-      setupControllers({
-        flags: {
-          confirmations_pay_extended: {
-            resume: { fiat: [TransactionType.moneyAccountDeposit] },
+    const { clientTriggerMock, transactionController } = setupControllers({
+      flags: {
+        confirmations_pay_extended: {
+          resume: {
+            [TransactionPayStrategy.Fiat]: {
+              transactionTypes: { [TransactionType.moneyAccountDeposit]: true },
+            },
           },
         },
-      });
+      },
+    });
 
     await vi.waitFor(() => {
       expect(transactionController.state.transactions[0]).toMatchObject({
@@ -262,7 +280,6 @@ describe('pay transaction resume integration', () => {
       });
     });
 
-    expect(waitForClientReadyMock).toHaveBeenCalledTimes(1);
     expect(clientTriggerMock).not.toHaveBeenCalled();
   });
 
