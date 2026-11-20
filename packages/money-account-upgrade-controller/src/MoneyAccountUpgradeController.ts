@@ -104,7 +104,7 @@ export type MoneyAccountUpgradeControllerState = {
 const moneyAccountUpgradeControllerMetadata = {
   upgradedAccounts: {
     includeInDebugSnapshot: false,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     persist: true,
     usedInUi: false,
   },
