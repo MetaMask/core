@@ -9,6 +9,14 @@ export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
 export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyAccountVaultConfig';
 
 /**
+ * The key under which the premium vault config (pvmUSD) is stored in
+ * `RemoteFeatureFlagController` state's `remoteFeatureFlags` map. Optional:
+ * when absent or malformed, premium holdings are not included in RPC balances.
+ */
+export const PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY =
+  'moneyAccountPremiumVaultConfig';
+
+/**
  * The key under which the Money account balance `staleTime` (in milliseconds)
  * is stored in `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
  * Falls back to {@link DEFAULT_BALANCE_STALE_TIME} when absent or malformed.
