@@ -1255,11 +1255,6 @@
       "count": 3
     }
   },
-  "packages/assets-controllers/src/types/vendor/multiformats.d.ts": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/utils/create-batch-handler.test.ts": {
     "id-length": {
       "count": 2
