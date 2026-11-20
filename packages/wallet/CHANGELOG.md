@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `@metamask/assets-controllers` `^113.3.2` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
+- Add `@metamask/assets-controllers` `^113.3.3` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
 - Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
 
