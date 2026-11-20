@@ -3446,11 +3446,17 @@ export class PerpsController extends BaseController<
       };
     }
 
+    const directProviderId = this.#getDirectProviderId(provider);
+    if (
+      directProviderId === undefined &&
+      !isPerpsProviderType(provider.protocolId)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
     return {
       status: 'resolved',
-      providerId:
-        this.#getDirectProviderId(provider) ??
-        (provider.protocolId as PerpsProviderType),
+      providerId: directProviderId ?? provider.protocolId,
     };
   }
 
@@ -5044,6 +5050,9 @@ export class PerpsController extends BaseController<
    *
    * @param params Withdrawal parameters
    * @returns WithdrawResult with withdrawal ID and tracking info
+   * @throws When the explicit `providerId` route conflicts with the active
+   * direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode refusals are
+   * returned as `{ success: false, error }` values rather than thrown.
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
