@@ -2,7 +2,10 @@
 
 Coordinates MFA recovery through `AuthenticationController` and injected identifier and escrow providers.
 
-Pending mutations are encrypted in controller state. `resume()` completes them;
+Pending mutations are persisted in controller state without their recovery
+secret, which is held only in memory. `resume()` completes them; after a
+restart it reads the secret back from an escrow that applied the mutation
+(pass an enrolled identifier to `resume(identifier)` for a pending `register`).
 `abort()` is allowed before writing, or once the write approval expired more
 than 5 minutes ago and no escrow applied the mutation. If the identifier an update started with can no
 longer authenticate, pass another enrolled one to `resume(identifier)`. See

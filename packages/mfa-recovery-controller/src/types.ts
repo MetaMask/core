@@ -3,6 +3,7 @@
  */
 
 import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
+import type { Json } from '@metamask/utils';
 
 export type { SeedlessAuthData };
 
@@ -10,7 +11,7 @@ export type Identifier = {
   type: string;
   namespace: string;
   value: string;
-  verifier?: unknown;
+  verifier?: Json;
 };
 
 export type PoPChallenge = {
@@ -204,29 +205,27 @@ export type MutationPayload =
   | UpdateIdentifiersPayload;
 
 /**
- * 0x-hex of a plaintext recovery secret. Encrypted pending state stores this
- * logical value; each escrow receives a {@link WrappedSecret} only at apply.
+ * 0x-hex of a plaintext recovery secret. `payloadHash` covers it, but it is
+ * held only in memory; each escrow receives a {@link WrappedSecret} at apply.
  */
 export type PendingRecoverySecretHex = string;
 
 /**
- * Logical register payload stored in encrypted pending state.
+ * Register payload stored in pending state. `payloadHash` also covers the
+ * recovery secret, which is not persisted.
  */
 export type PendingRegisterPayload = {
   identifiers: Identifier[];
-  recoverySecret: PendingRecoverySecretHex;
 };
 
 /**
- * Logical secret-update payload stored in encrypted pending state.
+ * Secret-update payload stored in pending state. `payloadHash` covers the
+ * recovery secret, which is not persisted.
  */
-export type PendingUpdateRecoverySecretPayload = Pick<
-  PendingRegisterPayload,
-  'recoverySecret'
->;
+export type PendingUpdateRecoverySecretPayload = Record<string, never>;
 
 /**
- * Logical identifier-update payload stored in encrypted pending state.
+ * Identifier-update payload stored in pending state.
  */
 export type PendingUpdateIdentifiersPayload = Pick<
   PendingRegisterPayload,
@@ -234,8 +233,8 @@ export type PendingUpdateIdentifiersPayload = Pick<
 >;
 
 /**
- * Logical mutation payload persisted in encrypted pending state. Distinct from
- * {@link MutationPayload}, which is the per-escrow apply body.
+ * Mutation payload persisted in pending state, without any recovery secret.
+ * Distinct from {@link MutationPayload}, which is the per-escrow apply body.
  */
 export type PendingMutationPayload =
   | PendingRegisterPayload
@@ -268,17 +267,6 @@ export type PendingOperation =
   | WritingPendingOperation;
 
 export type RecoveryPhase = 'idle' | PendingOperation['phase'];
-
-/**
- * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
- * encrypts this blob (including any hex recovery secret). A raw recovery
- * secret is never persisted in BaseController state.
- *
- * The recovery spec's pseudocode represents this as `Uint8Array`, but the
- * controller stores the encoded ciphertext as a string so BaseController state
- * persistence and serialization preserve it without binary coercion.
- */
-export type EncryptedPendingOperation = string;
 
 export type GetRecoverySecretResponse = {
   recoverySecret: WrappedSecretOutput;
@@ -410,12 +398,4 @@ export type RecoveryEscrowProvider = {
     mutation: Mutation,
     expectedEscrowId: string,
   ) => Promise<boolean>;
-};
-
-/**
- * Encrypts pending mutation state using wallet secure storage.
- */
-export type PendingOperationEncryptor = {
-  encrypt: (operation: PendingOperation) => Promise<EncryptedPendingOperation>;
-  decrypt: (ciphertext: EncryptedPendingOperation) => Promise<PendingOperation>;
 };

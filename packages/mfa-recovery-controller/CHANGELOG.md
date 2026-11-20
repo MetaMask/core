@@ -13,10 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Passkey providers must use `getEscrowPasskeyChallenge(request)`, which prefixes that hash with `MetaMask escrow login:`. Before signing an Auth API passkey challenge, clients must check `isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` ([#11576](https://github.com/MetaMask/core/pull/11576))
 - **BREAKING:** `MfaRecoveryController` no longer takes an `authProvider` option; it requests approvals through `AuthenticationController:requestMfaApproval` and resolves the canonical profile id through `AuthenticationController:refreshCanonicalProfileId` on its messenger ([#11643](https://github.com/MetaMask/core/pull/11643))
   - Delegate both actions to the controller's messenger and remove the `authProvider` option.
+- **BREAKING:** `MfaRecoveryController` no longer takes a `pendingOperationEncryptor` option, and its `pendingOperation` state is the `PendingOperation` itself instead of an encrypted string. The recovery secret of a pending `register` or `updateRecoverySecret` is held only in memory and never persisted ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+  - Remove the `pendingOperationEncryptor` option.
+  - Reset a persisted string `pendingOperation` to `null` in a client migration; the controller rejects it with `invalid_pending_operation`.
+  - `PendingRegisterPayload` and `PendingUpdateRecoverySecretPayload` no longer include `recoverySecret`, though `payloadHash` still covers it.
+- **BREAKING:** After a restart, `resume()` reads the recovery secret of a pending `writing` `register` or `updateRecoverySecret` back from the escrows that applied it, logging in with the update's identifier or, for `register`, the `identifier` passed to `resume` ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+  - Throws `identifier_required` for a pending `register` resumed without an `identifier`, and `payload_mismatch` if the secret read back does not match the mutation.
+  - Throws `recovery_secret_unavailable` when no escrow applied the mutation; it is cleared once its approval expired more than 5 minutes ago.
+  - Clears a pending `authorizing` `register` or `updateRecoverySecret`, which reached no escrow, and throws `MutationRejectedError`.
+- **BREAKING:** `Identifier.verifier` is typed as `Json` instead of `unknown`, since identifiers are persisted in controller state ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
 
 ### Removed
 
 - **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
+- **BREAKING:** Remove the `PendingOperationEncryptor` and `EncryptedPendingOperation` types ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
 
 ## [0.1.0]
 
