@@ -1319,6 +1319,20 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('is callable via messenger action', async () => {
+      const { rootMessenger, service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:fetchVaults',
+      );
+      expect(result).toStrictEqual(MOCK_VAULTS_RESPONSE);
+      service.destroy();
+    });
+
     it('throws MoneyAccountApiResponseValidationError on a malformed response without retrying', async () => {
       const { service } = createService(Env.DEV);
       const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
@@ -1759,6 +1773,30 @@ describe('MoneyAccountApiDataService', () => {
       expect(request.data).toStrictEqual(
         expect.objectContaining({
           operation: 'fetchVaultRate',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('emits a trace for fetchVaults on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      await service.fetchVaults();
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.VAULTS_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchVaults',
           success: true,
         }),
       );
