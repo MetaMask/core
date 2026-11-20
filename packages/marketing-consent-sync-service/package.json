@@ -1,6 +1,6 @@
 {
   "name": "@metamask/marketing-consent-sync-service",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Keeps marketing consent in sync with Authenticated User Storage",
   "keywords": [
     "Ethereum",
@@ -52,7 +52,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.3.1",
+    "@metamask/analytics-controller": "^4.4.0",
     "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/keyring-controller": "^28.2.2",
