@@ -1648,7 +1648,6 @@ describe('MfaRecoveryController', () => {
     it('cannot abort a writing mutation that may have been applied', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, options }) => {
-        options.authProvider.now = (): number => now;
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
@@ -2669,7 +2668,6 @@ describe('MfaRecoveryController', () => {
     it('aborts a writing mutation no escrow applied once its approval expires', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {
-        options.authProvider.now = (): number => now;
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
@@ -2701,7 +2699,6 @@ describe('MfaRecoveryController', () => {
     it('keeps an expired writing mutation when signed in to another profile', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {
-        options.authProvider.now = (): number => now;
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
@@ -2727,7 +2724,6 @@ describe('MfaRecoveryController', () => {
     it('clears instead of resuming a writing mutation no escrow applied once its approval expires', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {
-        options.authProvider.now = (): number => now;
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
@@ -2756,7 +2752,6 @@ describe('MfaRecoveryController', () => {
     it('aborts a writing register no escrow applied once its approval expires', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {
-        options.authProvider.now = (): number => now;
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger(options.authProvider)),
