@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Price gas station fees by simulating the full EIP-7702 batch instead of scaling the first transaction ([#11626](https://github.com/MetaMask/core/pull/11626))
+  - Multi-transaction quotes now pass every origin transaction, including the original transaction for post-quote flows, to `TransactionController:getGasFeeTokens` as the batch that is submitted.
+  - Predict withdrawals that pay from a Safe still simulate the first transaction and scale it by the total gas estimate.
+
 ## [32.1.1]
 
 ### Changed
@@ -33,9 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/ramps-controller` from `^30.0.0` to `^30.1.0` ([#11619](https://github.com/MetaMask/core/pull/11619))
 - Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11649](https://github.com/MetaMask/core/pull/11649))
-- Price gas station fees by simulating the full EIP-7702 batch instead of scaling the first transaction ([#11626](https://github.com/MetaMask/core/pull/11626))
-  - Multi-transaction quotes now pass every origin transaction, including the original transaction for post-quote flows, to `TransactionController:getGasFeeTokens` as the batch that is submitted.
-  - Predict withdrawals that pay from a Safe still simulate the first transaction and scale it by the total gas estimate.
 
 ### Fixed
 
