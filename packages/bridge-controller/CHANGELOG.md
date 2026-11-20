@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `getQuoteRefreshRate` util that reads the quote refresh interval from the client's LaunchDarkly config, including per-chain overrides ([#11181](https://github.com/MetaMask/core/pull/11181))
+
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
-- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
 
 ## [83.3.0]
 

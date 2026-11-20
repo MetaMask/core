@@ -5,6 +5,7 @@ import type { MetaResponse } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
+import { HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS } from '../../../src/constants/hyperLiquidConfig.js';
 import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -29,6 +30,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -2665,6 +2667,110 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      [undefined, '39600'],
+      [300, '42680'],
+    ] as const)(
+      'caps a whole-position market stop loss below its trigger with slippage %s',
+      async (maxSlippageBps, cappedPrice) => {
+        setOpenOrders([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '61000',
+          stopLossPrice: '44000',
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        const stopLoss = request.orders.find(
+          (order: { t: { trigger: { tpsl: string } } }) =>
+            order.t.trigger.tpsl === 'sl',
+        );
+        // The long closes by selling, so the cap sits below the trigger.
+        expect(stopLoss).toMatchObject({
+          p: cappedPrice,
+          t: { trigger: { isMarket: true, triggerPx: '44000', tpsl: 'sl' } },
+        });
+      },
+    );
+
+    it.each([
+      ['long', '0.1', '1.2345', 3, '1.2342', 1.23412965],
+      ['short', '-0.1', '1.2345', 3, '1.2348', 1.23487035],
+      [
+        'short at a power of ten',
+        '-0.1',
+        '9.9999',
+        0.1000010000099,
+        '9.9999',
+        10,
+      ],
+    ] as const)(
+      'keeps a %s whole-position market stop on the permitted side of its cap',
+      async (_side, szi, triggerPrice, maxSlippageBps, price, cap) => {
+        const info = mockClientService.getInfoClient();
+        const normalInfo = createMockInfoClient();
+        const withPriceGrid = ({
+          universe,
+        }: {
+          universe: {
+            name: string;
+            szDecimals: number;
+            maxLeverage: number;
+          }[];
+        }) => ({
+          universe: universe.map((asset) =>
+            asset.name === 'BTC' ? { ...asset, szDecimals: 2 } : asset,
+          ),
+        });
+        (info.meta as Mock).mockResolvedValue(
+          withPriceGrid(await normalInfo.meta()),
+        );
+        const [metadata, assetContexts] = await normalInfo.metaAndAssetCtxs();
+        (info.metaAndAssetCtxs as Mock).mockResolvedValue([
+          withPriceGrid(metadata),
+          assetContexts,
+        ]);
+        const state = await normalInfo.clearinghouseState();
+        (info.clearinghouseState as Mock).mockResolvedValue({
+          ...state,
+          assetPositions: state.assetPositions.map(
+            (entry: { position: { coin: string } }) =>
+              entry.position.coin === 'BTC'
+                ? { ...entry, position: { ...entry.position, szi } }
+                : entry,
+          ),
+        });
+        setOpenOrders([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: triggerPrice,
+          maxSlippageBps,
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        const [stopLoss] = request.orders;
+        expect(stopLoss).toMatchObject({
+          p: price,
+          b: szi.startsWith('-'),
+          t: {
+            trigger: { isMarket: true, triggerPx: triggerPrice, tpsl: 'sl' },
+          },
+        });
+        if (stopLoss.b) {
+          expect(Number(stopLoss.p)).toBeLessThanOrEqual(cap);
+        } else {
+          expect(Number(stopLoss.p)).toBeGreaterThanOrEqual(cap);
+        }
+      },
+    );
+
     it('replaces only this side from the warm order cache', async () => {
       const cachedTrigger = (leg: Leg): Order => ({
         orderId: String(oidFor(leg)),
@@ -2750,6 +2856,351 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
       expect(cancelledOrderIds()).toStrictEqual([TP_OID, 801]);
     });
+
+    it.each([
+      ['cancel', 'multi-sig', []],
+      ['replacement', 'multi-sig', ['cancel']],
+      ['restoration', 'multi-sig', ['cancel', 'replacement']],
+      ['cancel', 'unavailable', []],
+      ['cancel', 'denied during the position read', []],
+      ['replacement', 'denied during the position read', ['cancel']],
+    ] as const)(
+      'does not sign or dispatch a TP/SL %s when support is %s',
+      async (blockedWrite, support, allowed) => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          setOpenOrders([rawPositionTrigger('tp')]);
+          const info = mockClientService.getInfoClient();
+          const readSupport = vi.fn().mockResolvedValue(null);
+          info.userToMultiSigSigners = readSupport;
+          const holdPositionRead =
+            support === 'denied during the position read';
+          const readingPosition = createDeferred<void>();
+          const releasePosition = createDeferred<void>();
+          const positionState =
+            await createMockInfoClient().clearinghouseState();
+          const exchange = mockClientService.getExchangeClient();
+          const sign = vi.fn();
+          const dispatch = vi.fn();
+
+          const denySupport = (): void => {
+            vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+            readSupport.mockResolvedValue({
+              authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+              threshold: 2,
+            });
+          };
+
+          mockClientService.getExchangeClient.mockImplementation(
+            (beforeDispatch, hooks) => {
+              const write = async (stage: string): Promise<void> => {
+                if (stage === blockedWrite) {
+                  if (holdPositionRead) {
+                    vi.mocked(info.clearinghouseState).mockImplementationOnce(
+                      async () => {
+                        readingPosition.resolve();
+                        await releasePosition.promise;
+                        return positionState;
+                      },
+                    );
+                  } else if (support === 'unavailable') {
+                    vi.advanceTimersByTime(
+                      HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+                    );
+                    readSupport.mockRejectedValue(
+                      new Error('Support read unavailable'),
+                    );
+                  } else {
+                    denySupport();
+                  }
+                }
+                await hooks?.beforeSign?.();
+                sign(stage);
+                await beforeDispatch?.();
+                dispatch(stage);
+              };
+              const overrides = {
+                cancel: async () => {
+                  await write('cancel');
+                  return {
+                    status: 'ok',
+                    response: {
+                      type: 'cancel',
+                      data: { statuses: ['success'] },
+                    },
+                  };
+                },
+                order: async ({ orders }) => {
+                  const orderType = orders[0].t;
+                  if (!('trigger' in orderType)) {
+                    throw new Error('Expected a position trigger order');
+                  }
+                  const stage =
+                    orderType.trigger.triggerPx === '61000'
+                      ? 'replacement'
+                      : 'restoration';
+                  await write(stage);
+                  if (stage === 'replacement') {
+                    throw Object.assign(new Error('Rejected take profit'), {
+                      response: {
+                        status: 'ok',
+                        response: {
+                          type: 'order',
+                          data: {
+                            statuses: [{ error: 'Rejected take profit' }],
+                          },
+                        },
+                      },
+                    });
+                  }
+                  return {
+                    status: 'ok',
+                    response: {
+                      type: 'order',
+                      data: { statuses: [{ resting: { oid: 703 } }] },
+                    },
+                  };
+                },
+              } satisfies Pick<typeof exchange, 'cancel' | 'order'>;
+              return Object.assign({}, exchange, overrides);
+            },
+          );
+
+          const operation = provider.replacePositionTPSLLeg({
+            symbol: 'BTC',
+            leg: 'tp',
+            triggerPrice: '61000',
+            ...(holdPositionRead && {
+              expectedPosition: { size: '0.1', entryPrice: '50000' },
+            }),
+          });
+
+          if (holdPositionRead) {
+            try {
+              const reachedRead = await Promise.race([
+                readingPosition.promise.then(() => true),
+                operation.then(() => false),
+              ]);
+              expect(reachedRead).toBe(true);
+              denySupport();
+              expect(await provider.getAccountSupport()).toStrictEqual({
+                isSupported: false,
+                reason: 'multi_sig_account',
+              });
+            } finally {
+              releasePosition.resolve();
+              await operation;
+            }
+          }
+          const result = await operation;
+          expect(result.success).toBe(false);
+          expect(dispatch.mock.calls.flat()).toStrictEqual(allowed);
+          expect(sign.mock.calls.flat()).toStrictEqual(allowed);
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it.each([
+      ['restore signer probe recovers', 'sign', 'recovers', false],
+      ['restore transport probe recovers', 'dispatch', 'recovers', false],
+      ['restore probe stays unavailable', 'sign', 'unavailable', false],
+      ['venue denial arrives during restore probe', 'sign', 'denied', false],
+      ['wallet changes during restore probe', 'sign', 'wallet', false],
+      ['network changes during restore probe', 'sign', 'network', false],
+      ['venue denial wins over positive retry', 'sign', 'denied', true],
+      ['wallet changes during positive retry', 'sign', 'wallet', true],
+      ['network changes during positive retry', 'sign', 'network', true],
+    ] as const)(
+      'guards restore after TP/SL cancellation when %s',
+      async (_label, heldRestorePhase, outcome, holdOnRetry) => {
+        setOpenOrders([rawPositionTrigger('tp')]);
+        const exchange = mockClientService.getExchangeClient();
+        const info = mockClientService.getInfoClient();
+        const replacementRead = createDeferred<void>();
+        const releaseReplacementRead = createDeferred<void>();
+        const restorationRead = createDeferred<void>();
+        const releaseRestorationRead = createDeferred<void>();
+        const attempted: string[] = [];
+        const signed: string[] = [];
+        const dispatched: string[] = [];
+        const requestedCancels: (string | number)[] = [];
+        const requestedRestores: {
+          reduceOnly: boolean;
+          trigger: string | number;
+        }[] = [];
+        let stage = 'setup';
+        let phase = 'setup';
+        let restoreReads = 0;
+        let cancelAcknowledged = false;
+        let recordDenial: (() => void) | undefined;
+
+        info.userToMultiSigSigners = vi.fn(async () => {
+          if (stage === 'replacement') {
+            if (!cancelAcknowledged || phase !== 'dispatch') {
+              throw new Error('Unexpected replacement support read');
+            }
+            replacementRead.resolve();
+            await releaseReplacementRead.promise;
+            throw new Error('replacement support temporarily unavailable');
+          }
+          if (stage === 'restoration') {
+            restoreReads += 1;
+            const firstProbe = heldRestorePhase === 'sign' ? 1 : 2;
+            if (holdOnRetry && restoreReads === firstProbe) {
+              throw new Error('restoration support temporarily unavailable');
+            }
+            if (restoreReads === firstProbe + Number(holdOnRetry)) {
+              expect(phase).toBe(heldRestorePhase);
+              restorationRead.resolve();
+              await releaseRestorationRead.promise;
+              if (holdOnRetry) {
+                return null;
+              }
+              throw new Error('restoration support temporarily unavailable');
+            }
+            if (outcome === 'unavailable') {
+              throw new Error('restoration support remains unavailable');
+            }
+          }
+          return null;
+        });
+
+        mockClientService.getExchangeClient.mockImplementation(
+          (beforeDispatch, hooks) => {
+            const write = async (kind: string): Promise<void> => {
+              stage = kind;
+              attempted.push(stage);
+              phase = 'sign';
+              await hooks?.beforeSign?.();
+              signed.push(stage);
+              phase = 'dispatch';
+              await beforeDispatch?.();
+              dispatched.push(stage);
+            };
+            const overrides = {
+              cancel: async ({ cancels }) => {
+                requestedCancels.push(...cancels.map(({ o }) => o));
+                await write('cancel');
+                recordDenial = () =>
+                  hooks?.onExchangeResult?.({
+                    error: new Error('ApiRequestError: Multi-sig required'),
+                  });
+                cancelAcknowledged = true;
+                setOpenOrders([]);
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'cancel',
+                    data: { statuses: ['success'] },
+                  },
+                };
+              },
+              order: async ({ orders }) => {
+                const order = orders[0];
+                if (!('trigger' in order.t)) {
+                  throw new Error('Expected a TP/SL trigger');
+                }
+                const trigger = order.t.trigger.triggerPx;
+                if (trigger === '61000') {
+                  await write('replacement');
+                  throw new Error('Replacement must never reach transport');
+                }
+                requestedRestores.push({ reduceOnly: order.r, trigger });
+                await write('restoration');
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: { statuses: [{ resting: { oid: 703 } }] },
+                  },
+                };
+              },
+            } satisfies Pick<typeof exchange, 'cancel' | 'order'>;
+            return Object.assign({}, exchange, overrides);
+          },
+        );
+
+        const operation = provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice: '61000',
+          expectedPosition: { size: '0.1', entryPrice: '50000' },
+        });
+        try {
+          expect(
+            await Promise.race([
+              replacementRead.promise.then(() => 'replacement-read'),
+              operation.then(() => 'finished'),
+            ]),
+          ).toBe('replacement-read');
+          expect(cancelAcknowledged).toBe(true);
+          expect(signed).toStrictEqual(['cancel', 'replacement']);
+          expect(dispatched).toStrictEqual(['cancel']);
+
+          releaseReplacementRead.resolve();
+          expect(
+            await Promise.race([
+              restorationRead.promise.then(() => 'restore-read'),
+              operation.then(() => 'finished'),
+            ]),
+          ).toBe('restore-read');
+          if (outcome === 'denied') {
+            recordDenial?.();
+            expect(await provider.getAccountSupport()).toStrictEqual({
+              isSupported: false,
+              reason: 'multi_sig_account',
+            });
+          } else if (outcome === 'wallet') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            );
+          } else if (outcome === 'network') {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          }
+        } finally {
+          releaseReplacementRead.resolve();
+          releaseRestorationRead.resolve();
+        }
+
+        const result = await operation;
+        expect(requestedCancels).toStrictEqual([TP_OID]);
+        expect(requestedRestores).toStrictEqual([
+          { reduceOnly: true, trigger: '60000' },
+        ]);
+        expect(attempted).toStrictEqual([
+          'cancel',
+          'replacement',
+          'restoration',
+        ]);
+        expect(result.success).toBe(false);
+        if (outcome === 'recovers') {
+          expect(restoreReads).toBe(3);
+          expect(dispatched).toStrictEqual(['cancel', 'restoration']);
+          expect(signed).toStrictEqual([
+            'cancel',
+            'replacement',
+            'restoration',
+          ]);
+          expect(result.childOrderIds).toStrictEqual(['703']);
+          expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        } else {
+          expect(restoreReads).toBe(
+            holdOnRetry || outcome === 'unavailable' ? 2 : 1,
+          );
+          expect(dispatched).toStrictEqual(['cancel']);
+          expect(signed).toStrictEqual(['cancel', 'replacement']);
+          if (outcome === 'unavailable' || outcome === 'denied') {
+            expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
+          } else {
+            expect(result.error).toBe(
+              PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            );
+          }
+        }
+      },
+    );
 
     it('restores only its own leg when the new leg is rejected', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
@@ -2862,6 +3313,70 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it.each([NaN, Infinity, -Infinity, -1, 10_000])(
+      'keeps existing protection when the whole-position slippage cap is %s',
+      async (maxSlippageBps) => {
+        setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+        await expect(
+          provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '44000',
+            maxSlippageBps,
+          }),
+        ).resolves.toMatchObject({ success: false });
+
+        expect(
+          mockClientService.getExchangeClient().cancel,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('ignores an unused slippage cap on a limit leg replacement', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '43000',
+        maxSlippageBps: NaN,
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([SL_OID]);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orders: [
+            expect.objectContaining({
+              p: '43000',
+              t: {
+                trigger: { isMarket: false, triggerPx: '44000', tpsl: 'sl' },
+              },
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('removes both legs when the unused slippage cap is invalid', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        maxSlippageBps: -1,
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, SL_OID]);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
     it('keeps updatePositionTPSL sweeping both legs', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
 
@@ -2967,6 +3482,7 @@ describe('HyperLiquidProvider', () => {
         expect(request.orders[0].s).toBe('0.04');
         expect(request.orders[0].r).toBe(true);
         expect(request.orders[1].s).toBe('0.06');
+        expect(request.orders[1].p).toBe(request.orders[1].t.trigger.triggerPx);
         expect(request.orders[1].r).toBe(true);
       },
     );

@@ -15,6 +15,7 @@ export default mergeConfig(
         exclude: [
           'src/**/strategy/types.ts',
           'src/**/quote-status-manager/types.ts',
+          'src/**/__fixtures__/**',
         ],
 
         thresholds: {
@@ -30,10 +31,10 @@ export default mergeConfig(
             lines: 100,
             statements: 100,
           },
-          branches: 96.61,
-          functions: 98.88,
-          lines: 99.78,
-          statements: 99.78,
+          branches: 97.22,
+          functions: 99.37,
+          lines: 99.87,
+          statements: 99.88,
         },
       },
     },
