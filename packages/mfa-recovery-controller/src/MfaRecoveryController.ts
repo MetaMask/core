@@ -9,12 +9,7 @@ import type {
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerRequestMfaApprovalAction,
 } from '@metamask/profile-sync-controller/auth';
-import {
-  bytesToHex,
-  getSafeJson,
-  hexToBytes,
-  isHexAddress,
-} from '@metamask/utils';
+import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -65,8 +60,6 @@ import {
 import { getRecoveryPhase } from './state-machine.js';
 import type {
   AuthControllerToken,
-  DefaultEncryptionKey,
-  DefaultEncryptionResult,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
@@ -107,15 +100,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getIdentifiers',
   'resume',
   'abort',
-  'discardPendingOperation',
   'getPhase',
 ] as const;
-
-const UNLOADABLE_PENDING_CODES = [
-  'missing_encryption_key',
-  'invalid_encryption_key',
-  'pending_operation_unreadable',
-];
 
 export type MfaRecoveryControllerState = {
   /**
@@ -180,10 +166,7 @@ export type MfaRecoveryControllerMessenger = Messenger<
   MfaRecoveryControllerEvents | AllowedEvents
 >;
 
-export type MfaRecoveryControllerOptions<
-  EncryptionKey = DefaultEncryptionKey,
-  EncryptionResult = DefaultEncryptionResult,
-> = {
+export type MfaRecoveryControllerOptions = {
   /**
    * The messenger suited for this controller.
    */
@@ -212,18 +195,9 @@ export type MfaRecoveryControllerOptions<
   escrows: RecoveryEscrowProvider[];
 
   /**
-   * Imports the key returned by `getPendingOperationKey` and encrypts pending
-   * mutation state with it. Pass the same instance given to KeyringController.
+   * Encrypts pending mutation state using wallet secure storage.
    */
-  encryptor: PendingOperationEncryptor<EncryptionKey, EncryptionResult>;
-
-  /**
-   * Returns the serialized key that encrypts `pendingOperation`, or `null` if
-   * none exists. The key must be importable by `encryptor` and kept in
-   * host-owned secret storage, independent of controller state and the vault.
-   * The controller never creates or persists it.
-   */
-  getPendingOperationKey: () => Promise<string | null>;
+  pendingOperationEncryptor: PendingOperationEncryptor;
 
   /**
    * Clock used for AuthController token expiry checks. Unix seconds.
@@ -255,10 +229,7 @@ type MutateParams = {
 /**
  * Coordinates MFA recovery secret replication across independent escrows.
  */
-export class MfaRecoveryController<
-  EncryptionKey = DefaultEncryptionKey,
-  EncryptionResult = DefaultEncryptionResult,
-> extends BaseController<
+export class MfaRecoveryController extends BaseController<
   typeof CONTROLLER_NAME,
   MfaRecoveryControllerState,
   MfaRecoveryControllerMessenger
@@ -269,17 +240,9 @@ export class MfaRecoveryController<
 
   readonly #escrows: RecoveryEscrowProvider[];
 
-  readonly #encryptor: PendingOperationEncryptor<
-    EncryptionKey,
-    EncryptionResult
-  >;
-
-  readonly #getPendingOperationKey: () => Promise<string | null>;
+  readonly #encryptor: PendingOperationEncryptor;
 
   readonly #now: () => number;
-
-  // Shared by concurrent callers so the key is fetched and imported once.
-  #encryptionKey: Promise<EncryptionKey> | null = null;
 
   #lock: Promise<void> = Promise.resolve();
 
@@ -289,10 +252,9 @@ export class MfaRecoveryController<
     lockProvider,
     identifierAuthProvider,
     escrows,
-    encryptor,
-    getPendingOperationKey,
+    pendingOperationEncryptor,
     now = unixNow,
-  }: MfaRecoveryControllerOptions<EncryptionKey, EncryptionResult>) {
+  }: MfaRecoveryControllerOptions) {
     if (escrows.length === 0) {
       throw new MfaRecoveryError(
         'At least one escrow is required',
@@ -317,8 +279,7 @@ export class MfaRecoveryController<
     this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
-    this.#encryptor = encryptor;
-    this.#getPendingOperationKey = getPendingOperationKey;
+    this.#encryptor = pendingOperationEncryptor;
     this.#now = now;
 
     this.messenger.registerMethodActionHandlers(
@@ -638,45 +599,6 @@ export class MfaRecoveryController<
       if (pending) {
         await this.#clearPending();
       }
-    });
-  }
-
-  /**
-   * Last resort for pending state that cannot be loaded because the host key
-   * is missing (`missing_encryption_key`) or cannot be imported
-   * (`invalid_encryption_key`), or the blob cannot be decrypted with it
-   * (`pending_operation_unreadable`). Drops that state without touching the
-   * lease. Afterwards call {@link resume} with an identifier to copy the
-   * latest escrow record to escrows the dropped mutation left behind.
-   *
-   * These codes are not wallet password errors: hosts must not prompt for the
-   * wallet password on them.
-   *
-   * Does nothing when idle. Refuses readable pending state with
-   * `abort_not_allowed`; finish it with {@link resume} or drop it with
-   * {@link abort}. Rethrows any other load error.
-   */
-  async discardPendingOperation(): Promise<void> {
-    await this.#withLock(async () => {
-      if (this.state.pendingOperation === null) {
-        return;
-      }
-      try {
-        await this.#loadPending();
-      } catch (error) {
-        if (
-          error instanceof MfaRecoveryError &&
-          UNLOADABLE_PENDING_CODES.includes(error.code)
-        ) {
-          await this.#clearPending();
-          return;
-        }
-        throw error;
-      }
-      throw new MfaRecoveryError(
-        'Pending operation is readable; finish it with resume() or drop it with abort()',
-        'abort_not_allowed',
-      );
     });
   }
 
@@ -1274,71 +1196,19 @@ export class MfaRecoveryController<
     if (pendingOperation === null) {
       return null;
     }
-    const pending = await this.#decryptPending(pendingOperation);
+    const pending = (await this.#encryptor.decrypt(
+      pendingOperation,
+    )) as unknown;
     await this.#assertPending(pending);
     return pending as PendingOperation;
   }
 
   async #persistPending(operation: PendingOperation): Promise<void> {
     await this.#assertPending(operation);
-    const encrypted = await this.#encryptPending(operation);
+    const encrypted = await this.#encryptor.encrypt(operation);
     this.update((state) => {
       state.pendingOperation = encrypted;
     });
-  }
-
-  async #getEncryptionKey(): Promise<EncryptionKey> {
-    if (!this.#encryptionKey) {
-      const key = this.#loadEncryptionKey();
-      this.#encryptionKey = key;
-      key.catch(() => {
-        this.#encryptionKey = null;
-      });
-    }
-    return await this.#encryptionKey;
-  }
-
-  async #loadEncryptionKey(): Promise<EncryptionKey> {
-    const serialized = await this.#getPendingOperationKey();
-    if (!serialized) {
-      throw new MfaRecoveryError(
-        'Pending operation encryption key is unavailable',
-        'missing_encryption_key',
-      );
-    }
-    try {
-      return await this.#encryptor.importKey(serialized);
-    } catch (error) {
-      throw new MfaRecoveryError(
-        'Pending operation encryption key is invalid',
-        'invalid_encryption_key',
-        { cause: error },
-      );
-    }
-  }
-
-  async #encryptPending(operation: PendingOperation): Promise<string> {
-    const key = await this.#getEncryptionKey();
-    return JSON.stringify(
-      await this.#encryptor.encryptWithKey(key, getSafeJson(operation)),
-    );
-  }
-
-  // Unvalidated; callers assert the result with #assertPending.
-  async #decryptPending(ciphertext: string): Promise<unknown> {
-    const key = await this.#getEncryptionKey();
-    try {
-      const encrypted = JSON.parse(ciphertext) as EncryptionResult;
-      return await this.#encryptor.decryptWithKey(key, encrypted);
-    } catch (error) {
-      // Encryptors such as browser-passworder report a wrong key as
-      // "Incorrect password", which hosts must not treat as a vault password.
-      throw new MfaRecoveryError(
-        'Pending operation cannot be decrypted with the current key',
-        'pending_operation_unreadable',
-        { cause: error },
-      );
-    }
   }
 
   async #assertPending(pending: unknown): Promise<void> {
@@ -1352,8 +1222,6 @@ export class MfaRecoveryController<
     this.update((state) => {
       state.pendingOperation = null;
     });
-    // Picks up a re-provisioned host key on the next write.
-    this.#encryptionKey = null;
   }
 
   async #acquireLease(): Promise<void> {

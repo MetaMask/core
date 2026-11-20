@@ -67,7 +67,6 @@
   "devDependencies": {
     "@cubist-labs/cubesigner-sdk-fs-storage": "^0.4.284",
     "@metamask/auto-changelog": "^7.1.0",
-    "@metamask/keyring-controller": "^28.2.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.4",
     "tsx": "^4.20.5",

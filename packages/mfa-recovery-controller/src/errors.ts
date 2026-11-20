@@ -4,8 +4,8 @@
 export class MfaRecoveryError extends Error {
   readonly code: string;
 
-  constructor(message: string, code: string, options?: { cause?: unknown }) {
-    super(message, options);
+  constructor(message: string, code: string) {
+    super(message);
     this.name = 'MfaRecoveryError';
     this.code = code;
     Object.setPrototypeOf(this, new.target.prototype);

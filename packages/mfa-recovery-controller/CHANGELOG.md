@@ -7,32 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `discardPendingOperation`, also exposed as the `MfaRecoveryController:discardPendingOperation` messenger action, which clears pending state that cannot be loaded because the host key is missing (`missing_encryption_key`) or cannot be imported (`invalid_encryption_key`), or the blob cannot be decrypted with it (`pending_operation_unreadable`) ([#11644](https://github.com/MetaMask/core/pull/11644))
-  - Refuses readable pending state with `abort_not_allowed`; does nothing when idle and leaves `lockId` unchanged.
-  - Call `resume(identifier)` afterwards to copy the latest escrow record to escrows the discarded mutation left behind.
-- Export the `MfaRecoveryControllerDiscardPendingOperationAction` type ([#11644](https://github.com/MetaMask/core/pull/11644))
-- `MfaRecoveryError` takes an optional `options` argument whose `cause` is set on the error ([#11644](https://github.com/MetaMask/core/pull/11644))
-
 ### Changed
 
 - **BREAKING:** `getKeyBoundIdentifierLogin` receives a `notAfter` 5 minutes ahead, copies it into the token, and signs `hash([proofPublicKey, requestHash, notAfter])` as the passkey challenge or OIDC / SIWE nonce, so escrows reject identifier logins replayed later. The key-bound token must also match the requested `notAfter` ([#11571](https://github.com/MetaMask/core/pull/11571))
 - **BREAKING:** Passkey providers must use `getEscrowPasskeyChallenge(request)`, which prefixes that hash with `MetaMask escrow login:`. Before signing an Auth API passkey challenge, clients must check `isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` ([#11576](https://github.com/MetaMask/core/pull/11576))
 - **BREAKING:** `MfaRecoveryController` no longer takes an `authProvider` option; it requests approvals through `AuthenticationController:requestMfaApproval` and resolves the canonical profile id through `AuthenticationController:refreshCanonicalProfileId` on its messenger ([#11643](https://github.com/MetaMask/core/pull/11643))
   - Delegate both actions to the controller's messenger and remove the `authProvider` option.
-- **BREAKING:** Replace the `pendingOperationEncryptor` option with `encryptor` and a required `getPendingOperationKey` callback ([#11644](https://github.com/MetaMask/core/pull/11644))
-  - `PendingOperationEncryptor` is now an `importKey` / `encryptWithKey` / `decryptWithKey` interface, which KeyringController's `Encryptor` satisfies; pass the same instance given to `KeyringController`.
-  - `getPendingOperationKey` returns the serialized key from host-owned secret storage. The controller never creates or persists the key, and rejects with `missing_encryption_key` when the callback returns none.
-  - `MfaRecoveryController` and `MfaRecoveryControllerOptions` take optional `EncryptionKey` and `EncryptionResult` type parameters.
-  - Pending state encrypted by a previous `pendingOperationEncryptor` cannot be decrypted with the new `encryptor`.
-  - Pending state that cannot be decrypted with the host key rejects with `pending_operation_unreadable`, and a key `encryptor.importKey` rejects with `invalid_encryption_key`, instead of passing through the encryptor's error. The original error is the `cause`. Hosts must not prompt for the wallet password on these codes; call `discardPendingOperation()`, then `resume(identifier)`.
-  - The imported key is cached only while pending state exists; `getPendingOperationKey` is called again for the next mutation once pending state clears.
 
 ### Removed
 
 - **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
-- **BREAKING:** Remove the `EncryptedPendingOperation` type ([#11644](https://github.com/MetaMask/core/pull/11644))
 
 ## [0.1.0]
 

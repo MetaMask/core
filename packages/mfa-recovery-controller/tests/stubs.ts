@@ -4,7 +4,6 @@ import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import {
   bytesToBase64,
   bytesToHex,
-  getSafeJson,
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
@@ -29,7 +28,6 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
-  DefaultEncryptionResult,
   GetIdentifiersResponse,
   GetMutationReceiptResponse,
   Identifier,
@@ -865,91 +863,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 }
 
 /**
- * Serialized encryption key tests return from `getPendingOperationKey`, and
- * the default key for {@link encryptPending}.
+ * JSON round-trip encryptor for tests. Production uses wallet secure storage.
  */
-export const STUB_ENCRYPTION_KEY = 'stub-encryption-key';
-
-/**
- * Stub `getPendingOperationKey` that always returns {@link STUB_ENCRYPTION_KEY}.
- *
- * @returns The stub serialized encryption key.
- */
-export async function getStubPendingOperationKey(): Promise<string | null> {
-  return STUB_ENCRYPTION_KEY;
-}
-
-/**
- * Keyed JSON encryptor for tests. The "key" is a string that is also its
- * serialized form, and is recorded as `iv`, so decrypting with a different key
- * fails. Production uses the KeyringController encryptor.
- */
-export const stubEncryptor: PendingOperationEncryptor<string> = {
-  async importKey(key) {
-    return key;
+export const passthroughEncryptor: PendingOperationEncryptor = {
+  async encrypt(operation: PendingOperation): Promise<string> {
+    return JSON.stringify(operation);
   },
-  async encryptWithKey(key, object) {
-    return { data: JSON.stringify(object), iv: key };
-  },
-  async decryptWithKey(key, { data, iv }) {
-    if (iv !== key) {
-      throw new Error('Incorrect key');
-    }
-    const parsed: unknown = JSON.parse(data);
-    return parsed;
+  async decrypt(ciphertext: string): Promise<PendingOperation> {
+    return JSON.parse(ciphertext) as PendingOperation;
   },
 };
-
-/**
- * {@link stubEncryptor} that, like `@metamask/browser-passworder`, throws a
- * `TypeError` outside its key check when the payload has no string `data`.
- */
-export const strictPayloadEncryptor: PendingOperationEncryptor<string> = {
-  ...stubEncryptor,
-  async decryptWithKey(key, payload) {
-    if (typeof payload.data !== 'string') {
-      throw new TypeError('The first argument must be of type string');
-    }
-    return await stubEncryptor.decryptWithKey(key, payload);
-  },
-};
-
-/**
- * Encrypts a value the way the controller persists pending state. Accepts any
- * value so tests can persist malformed pending operations.
- *
- * @param operation - Value to encrypt.
- * @param key - Serialized encryption key.
- * @returns Ciphertext for `MfaRecoveryControllerState.pendingOperation`.
- */
-export async function encryptPending(
-  operation: unknown,
-  key: string = STUB_ENCRYPTION_KEY,
-): Promise<string> {
-  return JSON.stringify(
-    await stubEncryptor.encryptWithKey(
-      await stubEncryptor.importKey(key),
-      getSafeJson(JSON.parse(JSON.stringify(operation))),
-    ),
-  );
-}
-
-/**
- * Decrypts pending state written by the controller.
- *
- * @param ciphertext - `MfaRecoveryControllerState.pendingOperation`.
- * @param key - Serialized encryption key.
- * @returns The decrypted pending operation.
- */
-export async function decryptPending(
-  ciphertext: string,
-  key: string = STUB_ENCRYPTION_KEY,
-): Promise<PendingOperation> {
-  return (await stubEncryptor.decryptWithKey(
-    await stubEncryptor.importKey(key),
-    JSON.parse(ciphertext) as DefaultEncryptionResult,
-  )) as PendingOperation;
-}
 
 /**
  * @param identifier - Identifier to canonicalize.
