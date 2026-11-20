@@ -6680,7 +6680,7 @@ exports[`BridgeStatusController > subscription handlers > TransactionController:
 ]
 `;
 
-exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for completed bridge tx with featureId=perps 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for completed bridge tx with featureId=perps 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -6803,6 +6803,19 @@ exports[`BridgeStatusController > subscription handlers > TransactionController:
   [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  [
+    "AssetsController:getAssets",
+    [
+      Promise {},
+    ],
+    {
+      "bypassServerCache": true,
+      "chainIds": [
+        "eip155:42161",
+      ],
+      "forceUpdate": true,
+    },
   ],
 ]
 `;

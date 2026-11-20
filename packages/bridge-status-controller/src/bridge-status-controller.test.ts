@@ -7782,20 +7782,33 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy.mock.calls).toStrictEqual([
-          ['AuthenticationController:getBearerToken'],
-          ['AuthenticationController:getBearerToken'],
-          ['AccountsController:getAccountByAddress', '0xaccount1'],
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
-            'AssetsController:getAssets',
-            [expect.any(Promise)],
-            {
-              bypassServerCache: true,
-              chainIds: ['eip155:10'],
-              forceUpdate: true,
-            },
-          ],
-        ]);
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "AssetsController:getAssets",
+              [
+                Promise {},
+              ],
+              {
+                "bypassServerCache": true,
+                "chainIds": [
+                  "eip155:10",
+                ],
+                "forceUpdate": true,
+              },
+            ],
+          ]
+        `);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -7887,16 +7900,7 @@ describe('BridgeStatusController', () => {
             transaction_internal_id: 'swapTxMetaId1',
           }),
         );
-        expect(messengerCallSpy.mock.calls.slice(0, -1)).toMatchSnapshot();
-        expect(messengerCallSpy).toHaveBeenLastCalledWith(
-          'AssetsController:getAssets',
-          [expect.any(Promise)],
-          {
-            bypassServerCache: true,
-            chainIds: ['eip155:42161'],
-            forceUpdate: true,
-          },
-        );
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
       it('should not track completed event for swap transaction with perps featureId', () => {
