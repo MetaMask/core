@@ -573,9 +573,11 @@ describe('isPayTransactionResumable', () => {
       remoteFeatureFlags: {
         confirmations_pay_extended: {
           resume: {
-            ...REMOTE_FEATURE_FLAGS_MOCK.confirmations_pay_extended.resume,
-            timeouts: {
-              strategies: { [TransactionPayStrategy.Fiat]: 1000 },
+            [TransactionPayStrategy.Fiat]: {
+              ...REMOTE_FEATURE_FLAGS_MOCK.confirmations_pay_extended.resume[
+                TransactionPayStrategy.Fiat
+              ],
+              timeout: 1000,
             },
           },
         },

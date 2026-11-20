@@ -207,21 +207,15 @@ export type MaxBalanceRefreshIntervalConfig = {
   [key in TransactionType]?: number;
 };
 
-export type ResumeEnabledConfig = {
+export type ResumeStrategyConfig = {
   default?: boolean;
+  timeout?: number;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
-export type ResumeTimeoutsConfig = {
-  default?: number;
-  strategies?: Partial<Record<TransactionPayStrategy, number>>;
-};
-
 export type ResumeConfig = Partial<
-  Record<TransactionPayStrategy, ResumeEnabledConfig>
-> & {
-  timeouts?: ResumeTimeoutsConfig;
-};
+  Record<TransactionPayStrategy, ResumeStrategyConfig>
+>;
 
 export type ServerValidationEnabledConfig = {
   default?: boolean;
@@ -1172,8 +1166,8 @@ export function isResumeEnabled(
 /**
  * Returns how long after the first resume attempt a pay transaction using the
  * given strategy can still be resumed on later restarts.
- * Reads `confirmations_pay_extended.resume.timeouts`, where a per-strategy
- * value in `strategies` takes precedence over `default`.
+ * Reads `confirmations_pay_extended.resume[strategy].timeout`, falling back to
+ * {@link DEFAULT_RESUME_TIMEOUT_MS}.
  *
  * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
  * minimal TC init messenger that only exposes that action is sufficient.
@@ -1191,14 +1185,11 @@ export function getResumeTimeoutMs(
     | FeatureFlagsExtendedRaw
     | undefined;
 
-  const timeouts = featureFlags?.resume?.timeouts;
+  const timeout = featureFlags?.resume?.[strategy]?.timeout;
 
-  return (
-    [timeouts?.strategies?.[strategy], timeouts?.default].find(
-      (timeout): timeout is number =>
-        typeof timeout === 'number' && timeout > 0,
-    ) ?? DEFAULT_RESUME_TIMEOUT_MS
-  );
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_RESUME_TIMEOUT_MS;
 }
 
 /**

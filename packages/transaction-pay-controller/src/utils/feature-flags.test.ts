@@ -2128,48 +2128,44 @@ describe('Feature Flags Utils', () => {
   });
 
   describe('getResumeTimeoutMs', () => {
-    function mockResumeTimeouts(timeouts: Json): void {
+    function mockResumeFlags(resume: Json): void {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: { resume: { timeouts } },
+          confirmations_pay_extended: { resume },
         },
       });
     }
 
-    it('returns the built-in default when the flag is absent', () => {
+    it('returns the default when the flag is absent', () => {
       expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
         DEFAULT_RESUME_TIMEOUT_MS,
       );
     });
 
-    it('returns the flag default when the strategy has no override', () => {
-      mockResumeTimeouts({ default: 5000 });
-
-      expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
-        5000,
-      );
-    });
-
-    it('returns the strategy override over the flag default', () => {
-      mockResumeTimeouts({
-        default: 5000,
-        strategies: { [TransactionPayStrategy.Fiat]: 20000 },
+    it('returns the strategy timeout when set', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: { default: true, timeout: 20000 },
       });
 
       expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
         20000,
       );
+    });
+
+    it('returns the default when only another strategy sets a timeout', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: { timeout: 20000 },
+        [TransactionPayStrategy.Relay]: { default: true },
+      });
+
       expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Relay)).toBe(
-        5000,
+        DEFAULT_RESUME_TIMEOUT_MS,
       );
     });
 
-    it('ignores values that are not positive numbers', () => {
-      mockResumeTimeouts({
-        default: 0,
-        strategies: { [TransactionPayStrategy.Fiat]: -1 },
-      });
+    it('returns the default when the timeout is not a positive number', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { timeout: 0 } });
 
       expect(getResumeTimeoutMs(messenger, TransactionPayStrategy.Fiat)).toBe(
         DEFAULT_RESUME_TIMEOUT_MS,

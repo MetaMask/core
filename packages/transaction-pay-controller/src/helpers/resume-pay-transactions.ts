@@ -133,7 +133,8 @@ export async function resumePayTransactions(
  * transaction-pay-controller.
  *
  * A transaction can be resumed on every restart until the resume timeout
- * (`confirmations_pay_extended.resume.timeouts`, 10 minutes by default) has
+ * (`confirmations_pay_extended.resume[strategy].timeout`, 10 minutes by
+ * default) has
  * passed since its first resume attempt.
  *
  * All checks are synchronous and only read `RemoteFeatureFlagController:getState`
