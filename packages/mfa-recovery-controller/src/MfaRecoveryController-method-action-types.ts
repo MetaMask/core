@@ -130,26 +130,6 @@ export type MfaRecoveryControllerAbortAction = {
 };
 
 /**
- * Last resort for pending state that cannot be loaded because the host key
- * is missing (`missing_encryption_key`) or cannot be imported
- * (`invalid_encryption_key`), or the blob cannot be decrypted with it
- * (`pending_operation_unreadable`). Drops that state without touching the
- * lease. Afterwards call {@link resume} with an identifier to copy the
- * latest escrow record to escrows the dropped mutation left behind.
- *
- * These codes are not wallet password errors: hosts must not prompt for the
- * wallet password on them.
- *
- * Does nothing when idle. Refuses readable pending state with
- * `abort_not_allowed`; finish it with {@link resume} or drop it with
- * {@link abort}. Rethrows any other load error.
- */
-export type MfaRecoveryControllerDiscardPendingOperationAction = {
-  type: `MfaRecoveryController:discardPendingOperation`;
-  handler: MfaRecoveryController['discardPendingOperation'];
-};
-
-/**
  * @returns Current recovery phase.
  */
 export type MfaRecoveryControllerGetPhaseAction = {
@@ -171,5 +151,4 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerGetIdentifiersAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
-  | MfaRecoveryControllerDiscardPendingOperationAction
   | MfaRecoveryControllerGetPhaseAction;

@@ -18,8 +18,7 @@ import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
-  getStubPendingOperationKey,
-  stubEncryptor,
+  passthroughEncryptor,
 } from '../tests/stubs.js';
 
 /**
@@ -155,8 +154,7 @@ async function main(flags: Record<string, string>): Promise<void> {
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrow],
-    encryptor: stubEncryptor,
-    getPendingOperationKey: getStubPendingOperationKey,
+    pendingOperationEncryptor: passthroughEncryptor,
   });
 
   const recoverySecret = new Uint8Array(randomBytes(32));

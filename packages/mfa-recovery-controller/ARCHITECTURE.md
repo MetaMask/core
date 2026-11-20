@@ -18,6 +18,7 @@ flowchart LR
   Ctrl["MfaRecoveryController"]
   Auth["AuthenticationController"]
   IdP["RecoveryIdentifierAuthProvider"]
+  Enc["PendingOperationEncryptor"]
   EA["Escrow A"]
   EB["Escrow B"]
 
@@ -25,21 +26,21 @@ flowchart LR
   Messenger --> Ctrl
   Ctrl --> Auth
   Ctrl --> IdP
+  Ctrl --> Enc
   Ctrl --> EA
   Ctrl --> EB
 ```
 
-| Piece                    | Role                                                                                                           |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `pendingOperation`       | Persisted encrypted `authorizing` / `writing` blob, or `null`                                                  |
-| `lockId`                 | Persisted lease ID, reused on retry and restart, or `null`                                                     |
-| `getPendingOperationKey` | Host callback returning the serialized key for `pendingOperation`, or `null`; the key is never stored in state |
-| `escrows[]`              | Build-time replica set; non-empty, unique `id`s; mutations require **all**                                     |
-| `lockProvider`           | Per-profile lease, acquired before every approval                                                              |
-| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                                                |
-| `encryptor`              | `PendingOperationEncryptor`; imports the host key and encrypts / decrypts the pending blob with it             |
-| `now`                    | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow`                                    |
-| `#withLock`              | Serializes every public method except `authenticateIdentifier`                                                 |
+| Piece                       | Role                                                                        |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `pendingOperation`          | Persisted encrypted `authorizing` / `writing` blob, or `null`               |
+| `lockId`                    | Persisted lease ID, reused on retry and restart, or `null`                  |
+| `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
+| `lockProvider`              | Per-profile lease, acquired before every approval                           |
+| `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
+| `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
+| `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
+| `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
 
 `id` identifies the replica in mutations and receipts; `authAudience` identifies
 the approval audience. Cubist uses `id: "cubist"` and an `authAudience` matching
@@ -68,8 +69,8 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`,
-`discardPendingOperation`, `getPhase`, `acquireLock`, `releaseLock` (see
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
+`acquireLock`, `releaseLock` (see
 [Recovery Lock](README.md#recovery-lock)).
 
 `getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
@@ -111,32 +112,6 @@ Rules:
   pending state (`pending_mutation`). `resume()` finishes a persisted
   mutation. When idle it is a no-op, or repairs lagging replicas if given an
   identifier.
-
-### Pending state encryption
-
-Pending state is encrypted with a key the host supplies through the
-`getPendingOperationKey` constructor callback. The host owns the key and keeps
-it in secret storage that is independent of controller state and the vault,
-so `resume()` and `abort()` work while the wallet is locked. The controller
-never creates or persists the key. It calls the callback on first use, imports
-the serialized key with the injected `encryptor`, and caches the imported key
-until pending state clears, so the next mutation picks up a re-provisioned
-key. Concurrent first use shares one in-flight fetch, and a failed fetch or
-import is retried on the next use. The controller persists the
-JSON-serialized ciphertext.
-
-Every operation that touches pending state rejects with a coded
-`MfaRecoveryError` when it cannot be loaded, carrying the encryptor's error as
-`cause`: `missing_encryption_key` if the callback returns no key,
-`invalid_encryption_key` if `importKey` rejects it, and
-`pending_operation_unreadable` if the blob does not parse or decrypt under the
-key. None of these modifies state. They are not wallet password errors (the
-KeyringController encryptor reports a wrong key as "Incorrect password"), so
-hosts must not prompt for the password on them. Instead, call
-`discardPendingOperation()`, which clears only such unloadable pending state
-(readable pending state is refused with `abort_not_allowed`) and keeps the
-lease, then `resume(identifier)` to copy the latest escrow record to any
-escrow the dropped mutation left behind.
 
 ### Pending state validation
 
@@ -322,9 +297,10 @@ For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE
 
 ## Read sequence (`getRecoverySecret`)
 
-Reads tolerate down replicas. Reads do **not** repair pending writes. The selected replica version is returned as `epoch` so
-a later `updateRecoverySecret` / `updateIdentifiers` can be formed without a
-locally stored version.
+Reads tolerate down replicas. They do **not** repair pending writes. The
+selected replica version is returned as `epoch` so a later
+`updateRecoverySecret` / `updateIdentifiers` can be formed without a locally
+stored version.
 
 ```mermaid
 sequenceDiagram
@@ -341,7 +317,7 @@ sequenceDiagram
   M-->>C: IdentifierSession with seedlessAuthData if returned
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
-  M->>E: isAvailable (unavailable replicas skipped)
+  M->>E: isAvailable (failures skipped)
   alt none available
     M-->>C: no_available_escrow
   end
