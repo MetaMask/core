@@ -67,7 +67,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "jsdom": "^27.0.0",
+    "jsdom": "^31.0.1",
     "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
