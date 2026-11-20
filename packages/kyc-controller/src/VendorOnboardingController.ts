@@ -779,8 +779,11 @@ export class VendorOnboardingController extends BaseController<
     if (join && inflight) {
       return inflight;
     }
-    // Bound before the first await resumes, so the checks below see it.
-    const read = (async (): Promise<KycStep> => {
+    // `let` so the closure can see the promise it is assigning. The binding
+    // is written once, before the first await resumes.
+    // oxlint-disable-next-line prefer-const
+    let read!: Promise<KycStep>;
+    read = (async (): Promise<KycStep> => {
       try {
         const info = await this.messenger.call(
           'KycService:getStep',
