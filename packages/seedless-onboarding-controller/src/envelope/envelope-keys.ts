@@ -1,0 +1,408 @@
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
+import {
+  enums,
+  is,
+  literal,
+  nonempty,
+  number,
+  refine,
+  string,
+  type,
+} from '@metamask/superstruct';
+import type {
+  EnvelopeKeys,
+  KeyPair,
+  SEC1EncodedPublicKey,
+} from '@metamask/toprf-secure-backup';
+import {
+  base64ToBytes,
+  bigIntToHex,
+  bytesToBase64,
+  bytesToHex,
+  bytesToString,
+  concatBytes,
+  hexToBigInt,
+  hexToBytes,
+  stringToBytes,
+} from '@metamask/utils';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { bytesToNumberBE } from '@noble/curves/utils';
+
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import { SeedlessOnboardingError } from '../errors.js';
+
+/**
+ * The vault key set `K_v`. It addresses and encrypts the backend vault and
+ * does not change on password change.
+ */
+export type VaultKeySet = {
+  authKeyPair: KeyPair;
+  encKey: Uint8Array;
+  /** The key of the local wraps, stored in the vault as `toprfPwEncryptionKey`. */
+  localWrapKey: Uint8Array;
+};
+
+export type EnvelopePath = 'password' | 'recovery-secret';
+
+export type EnvelopeHeader = {
+  v: 1;
+  path: EnvelopePath;
+  /** Hex encoded uncompressed SEC1 public key of `K_v.authKeyPair`. */
+  vaultAuthPubKey: string;
+};
+
+export type Envelope = EnvelopeHeader & {
+  /** base64(iv || AES-256-GCM(wrapKey, serialize(K_v), aad = header)). */
+  ct: string;
+};
+
+/** An envelope and the keys of the partition it is written to. */
+export type SealedEnvelope = {
+  keys: EnvelopeKeys;
+  envelope: Envelope;
+};
+
+export type ControlRecord = {
+  v: 1;
+  /** Monotonically increasing. Breaks ties between matching records. */
+  seq: number;
+  passwordNamespace: {
+    verifier: string;
+    verifierId: string;
+    /** Hex encoded auth private key registered with the password OPRF key. */
+    authSk: string;
+    keyIndex: number;
+  };
+  migratedAt: number;
+};
+
+type SerializedVaultKeySet = {
+  authSk: string;
+  encKey: string;
+  localWrapKey: string;
+};
+
+const EnvelopeStruct = type({
+  v: literal(1),
+  path: enums(['password', 'recovery-secret'] as const),
+  vaultAuthPubKey: string(),
+  ct: string(),
+});
+
+/**
+ * @returns The error thrown for any malformed envelope or control record.
+ */
+function createInvalidEnvelopeError(): SeedlessOnboardingError {
+  return new SeedlessOnboardingError(
+    SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+  );
+}
+
+/**
+ * Check that a value is a non-null, non-array object.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a plain object.
+ */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Parse JSON bytes, throwing an invalid envelope error on failure.
+ *
+ * @param data - The JSON bytes.
+ * @returns The parsed value.
+ */
+function parseJsonBytes(data: Uint8Array): unknown {
+  try {
+    return JSON.parse(bytesToString(data));
+  } catch {
+    throw createInvalidEnvelopeError();
+  }
+}
+
+/**
+ * Derive the uncompressed SEC1 public key for a secp256k1 private key.
+ *
+ * @param sk - The private key.
+ * @returns The uncompressed public key.
+ */
+export function derivePubKey(sk: bigint): Uint8Array {
+  return secp256k1.getPublicKey(sk, false);
+}
+
+/**
+ * Check whether two SEC1 encoded public keys represent the same point.
+ *
+ * @param a - The first public key.
+ * @param b - The second public key.
+ * @returns `true` if both keys represent the same point.
+ */
+export function pubKeysEqual(
+  a: SEC1EncodedPublicKey,
+  b: SEC1EncodedPublicKey,
+): boolean {
+  return secp256k1.Point.fromHex(a).equals(secp256k1.Point.fromHex(b));
+}
+
+/**
+ * Derive a secp256k1 key pair from 32 bytes, the way the TOPRF SDK derives
+ * its authentication key pair.
+ *
+ * @param bytes - The 32 input bytes.
+ * @returns The key pair.
+ */
+export function deriveKeyPair(bytes: Uint8Array): KeyPair {
+  const sk = bytesToNumberBE(bytes) % secp256k1.Point.Fn.ORDER;
+  return { sk, pk: derivePubKey(sk) };
+}
+
+/**
+ * Serialize an envelope header with a fixed key order, so the same header
+ * always yields the same associated data.
+ *
+ * @param header - The envelope header.
+ * @returns The associated data.
+ */
+function headerToAad(header: EnvelopeHeader): Uint8Array<ArrayBuffer> {
+  const { v, path, vaultAuthPubKey } = header;
+  return stringToBytes(JSON.stringify({ v, path, vaultAuthPubKey }));
+}
+
+/**
+ * Seal a vault key set into an envelope.
+ *
+ * @param wrapKey - The envelope wrap key.
+ * @param path - The path the wrap key was derived on.
+ * @param vaultKeySet - The vault key set to seal.
+ * @returns The envelope.
+ */
+export async function sealEnvelope(
+  wrapKey: Uint8Array,
+  path: EnvelopePath,
+  vaultKeySet: VaultKeySet,
+): Promise<Envelope> {
+  const header: EnvelopeHeader = {
+    v: 1,
+    path,
+    vaultAuthPubKey: bytesToHex(vaultKeySet.authKeyPair.pk),
+  };
+  const body: SerializedVaultKeySet = {
+    authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
+    encKey: bytesToBase64(vaultKeySet.encKey),
+    localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
+  };
+  const { iv, ciphertext } = await encrypt(
+    wrapKey as Uint8Array<ArrayBuffer>,
+    stringToBytes(JSON.stringify(body)),
+    { additionalData: headerToAad(header) },
+  );
+  return { ...header, ct: bytesToBase64(concatBytes([iv, ciphertext])) };
+}
+
+/**
+ * Open an envelope: decrypt it with the header as associated data, check
+ * that the sealed auth key matches the header, and check the path.
+ *
+ * @param envelope - The envelope.
+ * @param wrapKey - The envelope wrap key.
+ * @param path - The path the wrap key was derived on.
+ * @returns The vault key set.
+ * @throws `InvalidEnvelope` if the envelope does not open or does not match.
+ */
+export async function openEnvelope(
+  envelope: Envelope,
+  wrapKey: Uint8Array,
+  path: EnvelopePath,
+): Promise<VaultKeySet> {
+  if (envelope.path !== path) {
+    throw createInvalidEnvelopeError();
+  }
+  const ct = base64ToBytes(envelope.ct);
+  let plaintext: Uint8Array;
+  try {
+    plaintext = await decrypt(
+      wrapKey as Uint8Array<ArrayBuffer>,
+      ct.slice(0, IV_LENGTH),
+      ct.slice(IV_LENGTH),
+      { additionalData: headerToAad(envelope) },
+    );
+  } catch {
+    throw createInvalidEnvelopeError();
+  }
+  const body = parseJsonBytes(plaintext);
+  if (
+    !isObject(body) ||
+    typeof body.authSk !== 'string' ||
+    typeof body.encKey !== 'string' ||
+    typeof body.localWrapKey !== 'string'
+  ) {
+    throw createInvalidEnvelopeError();
+  }
+  const sk = hexToBigInt(body.authSk);
+  const pk = derivePubKey(sk);
+  if (!pubKeysEqual(pk, hexToBytes(envelope.vaultAuthPubKey))) {
+    throw createInvalidEnvelopeError();
+  }
+  return {
+    authKeyPair: { sk, pk },
+    encKey: base64ToBytes(body.encKey),
+    localWrapKey: base64ToBytes(body.localWrapKey),
+  };
+}
+
+/**
+ * @param envelope - The envelope.
+ * @returns The envelope as item data.
+ */
+export function serializeEnvelope(envelope: Envelope): Uint8Array {
+  return stringToBytes(JSON.stringify(envelope));
+}
+
+/**
+ * @param data - The item data.
+ * @returns The envelope.
+ * @throws `InvalidEnvelope` if the data is not an envelope.
+ */
+export function parseEnvelope(data: Uint8Array): Envelope {
+  const value = parseJsonBytes(data);
+  if (!is(value, EnvelopeStruct)) {
+    throw createInvalidEnvelopeError();
+  }
+  return {
+    v: 1,
+    path: value.path,
+    vaultAuthPubKey: value.vaultAuthPubKey,
+    ct: value.ct,
+  };
+}
+
+/**
+ * @param record - The control record.
+ * @returns The control record as item data.
+ */
+export function serializeControlRecord(record: ControlRecord): Uint8Array {
+  return stringToBytes(JSON.stringify(record));
+}
+
+/**
+ * @param value - The value to check.
+ * @returns Whether the value is a hex encoded secp256k1 private key.
+ */
+function isAuthSk(value: string): boolean {
+  try {
+    derivePubKey(hexToBigInt(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const SafeSeqStruct = refine(
+  number(),
+  'safe integer of at least 1',
+  (value) => Number.isSafeInteger(value) && value >= 1,
+);
+
+const SafeNonNegativeIntegerStruct = refine(
+  number(),
+  'safe integer of at least 0',
+  (value) => Number.isSafeInteger(value) && value >= 0,
+);
+
+const ControlRecordStruct = type({
+  v: literal(1),
+  seq: SafeSeqStruct,
+  passwordNamespace: type({
+    verifier: nonempty(string()),
+    verifierId: nonempty(string()),
+    authSk: refine(string(), 'hex encoded secp256k1 private key', isAuthSk),
+    keyIndex: SafeNonNegativeIntegerStruct,
+  }),
+  migratedAt: SafeNonNegativeIntegerStruct,
+});
+
+/**
+ * Validate a value as a control record and copy its known fields.
+ *
+ * @param value - The value to check.
+ * @returns The control record without unknown fields, or undefined when the
+ * value is not a control record.
+ */
+export function toControlRecord(value: unknown): ControlRecord | undefined {
+  if (!is(value, ControlRecordStruct)) {
+    return undefined;
+  }
+  const { passwordNamespace: ns } = value;
+  return {
+    v: 1,
+    seq: value.seq,
+    passwordNamespace: {
+      verifier: ns.verifier,
+      verifierId: ns.verifierId,
+      authSk: ns.authSk,
+      keyIndex: ns.keyIndex,
+    },
+    migratedAt: value.migratedAt,
+  };
+}
+
+/**
+ * @param data - The item data.
+ * @returns The control record.
+ * @throws `InvalidEnvelope` if the data is not a control record.
+ */
+export function parseControlRecord(data: Uint8Array): ControlRecord {
+  const record = toControlRecord(parseJsonBytes(data));
+  if (!record) {
+    throw createInvalidEnvelopeError();
+  }
+  return record;
+}
+
+/**
+ * Select the control record of the live password OPRF key: the one whose auth
+ * key matches the nodes' `pub_key`, highest `seq` first.
+ *
+ * @param records - The control records of the vault.
+ * @param passwordAuthPubKey - The auth public key the nodes return.
+ * @returns The matching record, or undefined when none matches.
+ */
+export function selectControlRecord(
+  records: ControlRecord[],
+  passwordAuthPubKey: SEC1EncodedPublicKey,
+): ControlRecord | undefined {
+  return [...records]
+    .sort((a, b) => b.seq - a.seq)
+    .find((record) =>
+      pubKeysEqual(
+        derivePubKey(hexToBigInt(record.passwordNamespace.authSk)),
+        passwordAuthPubKey,
+      ),
+    );
+}
+
+/**
+ * @param records - The control records of the vault.
+ * @returns The `seq` of the next control record.
+ * @throws `InvalidEnvelope` if the next `seq` is not a safe integer.
+ */
+export function nextControlSeq(records: ControlRecord[]): number {
+  const seq = Math.max(0, ...records.map((record) => record.seq)) + 1;
+  if (!Number.isSafeInteger(seq)) {
+    throw createInvalidEnvelopeError();
+  }
+  return seq;
+}
+
+/**
+ * @param record - The control record.
+ * @returns The auth key pair registered with the password OPRF key.
+ */
+export function getPasswordNamespaceAuthKeyPair(
+  record: ControlRecord,
+): KeyPair {
+  const sk = hexToBigInt(record.passwordNamespace.authSk);
+  return { sk, pk: derivePubKey(sk) };
+}

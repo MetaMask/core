@@ -1,3 +1,4 @@
+import { SomeError } from '@metamask/auth-network-utils';
 import {
   EncAccountDataType,
   TOPRFError,
@@ -21,6 +22,8 @@ import {
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
   isAuthTokenError,
+  isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
@@ -370,6 +373,87 @@ describe('utils', () => {
       expect(isMaxKeyChainLengthError(new Error('not a TOPRF error'))).toBe(
         false,
       );
+    });
+
+    it('identifies could not derive encryption key errors', () => {
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'expired'),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(new Error('not a TOPRF error')),
+      ).toBe(false);
+    });
+
+    it('identifies could not derive threshold auth public key errors', () => {
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          TOPRFError.couldNotDeriveThresholdAuthPubKey(),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(
+          new Error('not a TOPRF error'),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true for a SomeError wrapping the nodes "Error getting pub key" response', () => {
+      // Nodes without a key for the verifier ID answer with this JSON-RPC
+      // error data, which `Some` surfaces as a `SomeError` rather than a
+      // `TOPRFError`.
+      const error = new SomeError({
+        errors: [new Error('Error getting pub key')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns true for the SomeError shape logged when every node lacks the key', () => {
+      const error = new SomeError({
+        errors: [
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+        ],
+        responses: [],
+        predicate: TOPRFError.insufficientValidResponses(
+          'Insufficient get pub key request results, expected 3 but got 0',
+        ),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns false for a SomeError with other errors', () => {
+      const error = new SomeError({
+        errors: [new Error('Some other failure')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);
     });
   });
 });

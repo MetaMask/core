@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action, which start an aal2 recovery session after `authenticate` ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Takes `authConnectionId` and `groupedAuthConnectionId`, and throws `MissingAuthUserInfo` if `authenticate` has not succeeded first.
+  - Authenticating as a different `userId` clears the recovery session and any recovered vault keys for the previous user.
+- Add non-persisted `recoverySession` state and the `RecoverySession` type, cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable key set for the account ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Takes a 32-byte `recoverySecret` and requires an unlocked vault in sync with the global password, an aal2 session, and `migrationVersion` `V1` or later.
+  - Completes when the vault has an `EnvelopeControl` record. Retries are safe and reuse the Recovery Secret OPRF key if one was already registered.
+  - Emits `Seedless Onboarding Envelope Migration Checkpoint` events with `phase` `STARTED` or `COMPLETED`, and `partial` set when a key from an earlier attempt exists.
+- Add `recoverWithRecoverySecret` and the `SeedlessOnboardingController:recoverWithRecoverySecret` messenger action, which recover an envelope-managed vault with the Recovery Secret and create a local vault under `password` ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Requires the social login session and an aal2 session, and returns the secret data.
+  - Replaces any existing local vault. Sets `isLocalPassword` and `envelope.passwordAuthPubKey`.
+  - Throws `RecoveryEnvelopeNotFound` or `EnvelopeControlRecordNotFound` when no committed migration matches, without creating a local vault.
+- Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password after `recoverWithRecoverySecret` without the old password ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Requires `isLocalPassword` and an aal2 session, and clears `isLocalPassword` on success.
+- Add `restoreVaultWithPassword` and the `SeedlessOnboardingController:restoreVaultWithPassword` messenger action, which restore the local vault with the global password and return the secret data ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
+  - Replaces any existing local vault.
+  - Uses the password's envelope when one exists, or a matching control record otherwise.
+- Add persisted `envelope` state and the `EnvelopeState` type, set once the vault is envelope-managed ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - `passwordAuthPubKey` is the password OPRF auth public key the local password is synced with.
+- Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared once the global password is set again ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which report whether the vault is envelope-managed and whether the password is local ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, and `PasswordResetRequiresRecovery` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
+
+### Changed
+
+- **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and does not change the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
+  - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })`.
+- `changePassword` on an envelope-managed vault keeps the vault keys: it seals them for the new password, appends a control record, and swaps the password OPRF key, under the vault's metadata lock ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - The legacy path throws `EnvelopeVaultRequiresEnvelopePasswordChange` without writing anything when the vault has a control record.
+- `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope for the global password first, and fall back to the existing key chain only when none exists. Envelope fetch failures are now errors ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - On vaults with `envelope` state, throws `PasswordEnvelopeNotFound` unless the global password still derives the vault keys and matches a control record.
+- `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on envelope-managed vaults ([#11220](https://github.com/MetaMask/core/pull/11220))
+
+### Security
+
+- Exclude `envelope` from state logs, since its public keys can fingerprint an account across logs ([#11220](https://github.com/MetaMask/core/pull/11220))
+
 ## [12.1.0]
 
 ### Added

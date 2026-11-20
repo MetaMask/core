@@ -131,6 +131,41 @@ export type InvalidPrimarySecretDataTypeErrorData = (
   | EncAccountDataType
 )[];
 
+/**
+ * The aal2 token set used for recovery verifier (TOPRF2) calls. It is never
+ * refreshed and is held in memory only.
+ */
+export type RecoverySession = {
+  /** Node auth tokens from the recovery verifier authenticate. */
+  nodeAuthTokens: NodeAuthTokens;
+  /** The aal2 token's `exp` in unix seconds. The session expires at this time. */
+  expiresAt: number;
+  /** The aal2 token's `sub` (profile ID), used as the `userId` of every recovery verifier call. */
+  userId: string;
+  /** The sub-verifier (`authConnectionId`) the aal2 set was authenticated against. */
+  authConnectionId: string;
+  /** The aggregate verifier (`groupedAuthConnectionId`) the aal2 set was authenticated against. */
+  groupedAuthConnectionId: string;
+  /** Whether the nodes held a recovery verifier share when the tokens were issued. */
+  hasRecoveryShare: boolean;
+};
+
+/**
+ * Marks a vault as envelope-managed: its key set `K_v` is sealed in envelopes
+ * and no longer changes on password change.
+ */
+export type EnvelopeState = {
+  v: 1;
+  /** base64 auth public key of the vault key set `K_v`. */
+  vaultAuthPubKey: string;
+  /**
+   * base64 auth public key of the password OPRF key the local password was
+   * last synced with, for the outdated check. After a recovery with the
+   * Recovery Secret, the live key matched by a control record at recovery.
+   */
+  passwordAuthPubKey: string;
+};
+
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
@@ -205,6 +240,25 @@ export type SeedlessOnboardingControllerState =
        * This token is used to access the metadata service before the vault is created or unlocked.
        */
       metadataAccessToken?: string;
+
+      /**
+       * The aal2 token set issued by `authenticateForRecovery`. Only the
+       * recovery verifier (TOPRF2) calls use it.
+       */
+      recoverySession?: RecoverySession;
+
+      /**
+       * Set once the vault is envelope-managed.
+       */
+      envelope?: EnvelopeState;
+
+      /**
+       * Whether the vault password is local to this device rather than the
+       * global password. Set by `recoverWithRecoverySecret` and cleared by a
+       * successful `resetPasswordWithVaultKeys`, `changePassword`,
+       * `syncLatestGlobalPassword` or `restoreVaultWithPassword`.
+       */
+      isLocalPassword?: boolean;
 
       /**
        * Whether the user is authenticated with social login and TOPRF service.

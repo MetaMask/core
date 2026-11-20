@@ -1,3 +1,4 @@
+import { SomeError } from '@metamask/auth-network-utils';
 import type { KeyPair } from '@metamask/toprf-secure-backup';
 import {
   EncAccountDataType,
@@ -25,6 +26,12 @@ import type {
   VaultData,
 } from '../types.js';
 import { assertIsValidVaultData } from './assertions.js';
+
+/**
+ * The JSON-RPC error data the TOPRF nodes return when they hold no key for
+ * the verifier ID.
+ */
+const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
 
 /**
  * Decode the node auth token from base64 to json object.
@@ -249,6 +256,49 @@ export function isMaxKeyChainLengthError(error: unknown): boolean {
   }
 
   return false;
+}
+
+/**
+ * Check whether an error indicates that the TOPRF evaluation didn't match the
+ * stored key, i.e. the input was wrong for the share.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive encryption key error.
+ */
+export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
+  return (
+    error instanceof TOPRFError &&
+    error.code === TOPRFErrorCode.CouldNotDeriveEncryptionKey
+  );
+}
+
+/**
+ * Check whether an error indicates that the TOPRF nodes hold no key to derive
+ * a threshold auth public key from, i.e. no OPRF key is registered.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive threshold auth public key
+ * error.
+ */
+export function isCouldNotDeriveThresholdAuthPubKeyError(
+  error: unknown,
+): boolean {
+  if (
+    error instanceof TOPRFError &&
+    error.code === TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
+  ) {
+    return true;
+  }
+
+  // Nodes without a key for the verifier ID answer with a JSON-RPC error whose
+  // data is `NO_PUB_KEY_NODE_ERROR_MESSAGE`. The `Some` helper wraps those
+  // responses in a `SomeError` instead of a `TOPRFError`.
+  return (
+    error instanceof SomeError &&
+    error.errors.some(
+      (innerError) => innerError?.message === NO_PUB_KEY_NODE_ERROR_MESSAGE,
+    )
+  );
 }
 
 /**

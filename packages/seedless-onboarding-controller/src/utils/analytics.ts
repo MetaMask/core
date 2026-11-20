@@ -18,6 +18,8 @@ export const SeedlessPrimarySrpMissingEventName =
   'Seedless Onboarding Primary SRP Missing';
 export const SeedlessPrimarySrpMismatchEventName =
   'Seedless Onboarding Primary SRP Mismatch';
+export const SeedlessEnvelopeMigrationCheckpointEventName =
+  'Seedless Onboarding Envelope Migration Checkpoint';
 
 export type IncompleteMetadataBackupEventProperties = {
   metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
