@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [79.0.0]
+
 ### Uncategorized
 
 - test(bridge-status-controller): avoid snapshotting Promise internals ([#11692](https://github.com/MetaMask/core/pull/11692))
@@ -1800,7 +1802,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@79.0.0...HEAD
+[79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...@metamask/bridge-status-controller@79.0.0
 [78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...@metamask/bridge-status-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.2...@metamask/bridge-status-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.1...@metamask/bridge-status-controller@78.0.2

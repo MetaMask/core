@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "feat(mfa-recovery-controller): encrypt pending state with a host-owned key" ([#11681](https://github.com/MetaMask/core/pull/11681))
-- feat(mfa-recovery-controller): encrypt pending state with a host-owned key ([#11644](https://github.com/MetaMask/core/pull/11644))
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Changed
 
 - **BREAKING:** `getKeyBoundIdentifierLogin` receives a `notAfter` 5 minutes ahead, copies it into the token, and signs `hash([proofPublicKey, requestHash, notAfter])` as the passkey challenge or OIDC / SIWE nonce, so escrows reject identifier logins replayed later. The key-bound token must also match the requested `notAfter` ([#11571](https://github.com/MetaMask/core/pull/11571))
