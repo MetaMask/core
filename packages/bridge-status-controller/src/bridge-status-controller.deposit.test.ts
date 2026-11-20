@@ -836,6 +836,7 @@ describe('BridgeStatusController (deposit)', () => {
               usd_amount_source: 1.01,
               usd_quoted_gas: 2.5778,
               usd_quoted_return: 0,
+              money_account_action: Operation.DEPOSIT,
             };
 
             expect(
@@ -1429,6 +1430,17 @@ describe('BridgeStatusController (deposit)', () => {
             action === 'BridgeController:trackUnifiedSwapBridgeEvent',
         )
         .map(([, eventName]) => eventName);
+    const trackedEventParams = (
+      messengerCall: Mock,
+      eventName: UnifiedSwapBridgeEventName,
+    ) =>
+      messengerCall.mock.calls
+        .filter(
+          ([action, eventNameParam]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventNameParam === eventName,
+        )
+        .map(([, , params]) => params);
 
     const defaultProvider = () => ({
       request: vi.fn(),
@@ -1736,6 +1748,16 @@ describe('BridgeStatusController (deposit)', () => {
           expect(trackedEvents(messengerCall)).toContain(
             UnifiedSwapBridgeEventName.Completed,
           );
+          expect(
+            trackedEventParams(
+              messengerCall,
+              UnifiedSwapBridgeEventName.Completed,
+            )[0],
+          ).toStrictEqual(
+            expect.objectContaining({
+              money_account_action: Operation.DEPOSIT,
+            }),
+          );
         },
       );
     });
@@ -1889,6 +1911,7 @@ describe('BridgeStatusController (deposit)', () => {
           });
         }
         const messengerCall = queueDepositMessenger([], options);
+        vi.spyOn(Date, 'now').mockReturnValue(1729964825189);
 
         await withController(
           {
@@ -1905,6 +1928,37 @@ describe('BridgeStatusController (deposit)', () => {
             );
             expect(trackedEvents(messengerCall)).toContain(
               UnifiedSwapBridgeEventName.Failed,
+            );
+            expect(
+              trackedEventParams(
+                messengerCall,
+                UnifiedSwapBridgeEventName.Failed,
+              )[0],
+            ).toStrictEqual(
+              expect.objectContaining({
+                account_hardware_type: null,
+                chain_id_destination: 'eip155:42161',
+                chain_id_source: 'eip155:42161',
+                destination_hash_present: true,
+                destination_transaction: 'FAILED',
+                error_code: 'unknown',
+                failure_phase: 'deposit_execution',
+                feature_id: 'unified_swap_bridge',
+                gas_included: false,
+                gas_included_7702: false,
+                is_hardware_wallet: false,
+                location: 'Unknown',
+                money_account_action: Operation.DEPOSIT,
+                provider: 'lifi_across',
+                source_hash_present: true,
+                source_transaction: 'COMPLETE',
+                swap_type: 'single_chain',
+                token_address_destination: 'eip155:42161/slip44:60',
+                token_address_source: 'eip155:42161/slip44:60',
+                token_security_type_destination: null,
+                token_symbol_destination: 'ETH',
+                token_symbol_source: 'ETH',
+              }),
             );
             expect(trackedEvents(messengerCall)).not.toContain(
               UnifiedSwapBridgeEventName.Completed,
@@ -1974,6 +2028,23 @@ describe('BridgeStatusController (deposit)', () => {
           );
           expect(trackedEvents(messengerCall)).toContain(
             UnifiedSwapBridgeEventName.Failed,
+          );
+          expect(
+            trackedEventParams(
+              messengerCall,
+              UnifiedSwapBridgeEventName.Failed,
+            )[0],
+          ).toStrictEqual(
+            expect.objectContaining({
+              error_code: 'unknown',
+              failure_phase: 'deposit_execution',
+              feature_id: 'unified_swap_bridge',
+              source_hash_present: true,
+              source_transaction: 'COMPLETE',
+              stx_enabled: false,
+              swap_type: 'single_chain',
+              money_account_action: Operation.DEPOSIT,
+            }),
           );
           expect(messenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -2109,6 +2180,23 @@ describe('BridgeStatusController (deposit)', () => {
           );
           expect(trackedEvents(messengerCall)).toContain(
             UnifiedSwapBridgeEventName.Failed,
+          );
+          expect(
+            trackedEventParams(
+              messengerCall,
+              UnifiedSwapBridgeEventName.Failed,
+            )[0],
+          ).toStrictEqual(
+            expect.objectContaining({
+              error_code: 'unknown',
+              error_message: 'Transaction failed. tx-error',
+              failure_phase: 'deposit_execution',
+              feature_id: 'unified_swap_bridge',
+              source_hash_present: true,
+              source_transaction: 'COMPLETE',
+              stx_enabled: false,
+              swap_type: 'single_chain',
+            }),
           );
         },
       );

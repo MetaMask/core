@@ -78,13 +78,6 @@ describe('metrics utils', () => {
       steps: [
         {
           action: ActionTypes.BRIDGE,
-          protocol: {
-            name: 'across',
-            displayName: 'Across',
-            icon: 'across-icon',
-          },
-          srcAmount: '1000000000000000000',
-          destAmount: '990000000000000000',
           srcAsset: {
             symbol: 'ETH',
             address: '0x0000000000000000000000000000000000000000',
@@ -698,7 +691,7 @@ describe('metrics utils', () => {
     it('should handle missing start time', () => {
       const noStartTimeHistoryItem = {
         ...mockHistoryItem,
-        startTime: undefined,
+        startTime: undefined as never,
       };
       const result = getFinalizedTxProperties(noStartTimeHistoryItem);
       expect(result.actual_time_minutes).toBe(0);
@@ -868,11 +861,6 @@ describe('metrics utils', () => {
           steps: [
             {
               ...mockHistoryItem.quote.steps[0],
-              protocol: {
-                name: 'stargate',
-                displayName: 'Stargate',
-                icon: 'stargate-icon',
-              },
             },
           ],
         },
@@ -1314,22 +1302,34 @@ describe('metrics utils', () => {
   describe('getStatusFailurePhase', () => {
     it('prefers destination_execution, then source_execution, then poll', () => {
       expect(
-        getStatusFailurePhase({
-          source_hash_present: true,
-          destination_hash_present: true,
-        }),
+        getStatusFailurePhase(
+          {
+            source_hash_present: true,
+            destination_hash_present: true,
+          },
+          null,
+          null,
+        ),
       ).toBe(FailurePhase.DestinationExecution);
       expect(
-        getStatusFailurePhase({
-          source_hash_present: true,
-          destination_hash_present: false,
-        }),
+        getStatusFailurePhase(
+          {
+            source_hash_present: true,
+            destination_hash_present: false,
+          },
+          null,
+          null,
+        ),
       ).toBe(FailurePhase.SourceExecution);
       expect(
-        getStatusFailurePhase({
-          source_hash_present: false,
-          destination_hash_present: false,
-        }),
+        getStatusFailurePhase(
+          {
+            source_hash_present: false,
+            destination_hash_present: false,
+          },
+          null,
+          null,
+        ),
       ).toBe(FailurePhase.Poll);
     });
   });
@@ -1402,15 +1402,28 @@ describe('metrics utils', () => {
 
   describe('getFailurePropertiesFromHistory', () => {
     it('uses status_failed_without_reason and phase from hashes', () => {
-      expect(getFailurePropertiesFromHistory('0xsrc', undefined)).toStrictEqual(
-        {
-          failure_phase: FailurePhase.SourceExecution,
-          error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
-          source_hash_present: true,
-          destination_hash_present: false,
-        },
-      );
-      expect(getFailurePropertiesFromHistory('0xsrc', '0xdest')).toStrictEqual({
+      expect(
+        getFailurePropertiesFromHistory({
+          status: {
+            status: StatusTypes.FAILED,
+            srcChain: { chainId: 1, txHash: '0xsrc' },
+          },
+        }),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.SourceExecution,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: true,
+        destination_hash_present: false,
+      });
+      expect(
+        getFailurePropertiesFromHistory({
+          status: {
+            status: StatusTypes.FAILED,
+            srcChain: { chainId: 1, txHash: '0xsrc' },
+            destChain: { chainId: 1, txHash: '0xdest' },
+          },
+        }),
+      ).toStrictEqual({
         failure_phase: FailurePhase.DestinationExecution,
         error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
         source_hash_present: true,

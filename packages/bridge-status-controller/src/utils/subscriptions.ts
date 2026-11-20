@@ -1,10 +1,22 @@
+import {
+  FailurePhase,
+  FeatureId,
+  SwapBridgeErrorCode,
+  MoneyAccountAction,
+} from '@metamask/bridge-controller';
+import type {
+  RequiredEventContextFromClient,
+  UnifiedSwapBridgeEventName,
+} from '@metamask/bridge-controller';
 import type { ExtractEventHandler, MessengerEvents } from '@metamask/messenger';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionPayControllerState } from '@metamask/transaction-pay-controller';
 
-import type { BridgeStatusControllerMessenger, Operation } from '../types.js';
+import { Operation } from '../types.js';
+import type { BridgeStatusControllerMessenger } from '../types.js';
 import { acceptApprovalRequest } from './approval.js';
+import { getEVMTxPropertiesFromTransactionMeta } from './metrics.js';
 import {
   setTransactionConfigForMmPay,
   updatePaymentToken,
@@ -29,6 +41,7 @@ export type SubscriptionHandlerParams = SubscriptionHandlerInputs & {
     txMeta: TransactionMeta;
     historyKey?: string;
     isApprovalTxMeta?: boolean;
+    eventProperties?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed];
   }) => void;
   onReportSubmittedOnce: (
     historyKey: string,
@@ -126,9 +139,17 @@ export const depositUpdateHandler = ({
       break;
     case TransactionStatus.failed:
     case TransactionStatus.dropped:
-    case TransactionStatus.rejected:
-      onTransactionFailed({ txMeta, historyKey });
+    case TransactionStatus.rejected: {
+      const eventProperties = {
+        ...getEVMTxPropertiesFromTransactionMeta(txMeta),
+        feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+        failure_phase: FailurePhase.DepositExecution,
+        error_code: SwapBridgeErrorCode.Unknown,
+        money_account_action: MoneyAccountAction.Deposit,
+      };
+      onTransactionFailed({ txMeta, historyKey, eventProperties });
       break;
+    }
     default:
       break;
   }
@@ -154,9 +175,17 @@ export const withdrawUpdateHandler = ({
       break;
     case TransactionStatus.failed:
     case TransactionStatus.dropped:
-    case TransactionStatus.rejected:
-      onTransactionFailed({ txMeta, historyKey });
+    case TransactionStatus.rejected: {
+      const eventProperties = {
+        ...getEVMTxPropertiesFromTransactionMeta(txMeta),
+        feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+        failure_phase: FailurePhase.WithdrawExecution,
+        error_code: SwapBridgeErrorCode.Unknown,
+        money_account_action: MoneyAccountAction.Withdraw,
+      };
+      onTransactionFailed({ txMeta, historyKey, eventProperties });
       break;
+    }
     default:
       break;
   }

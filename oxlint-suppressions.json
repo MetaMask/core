@@ -1511,7 +1511,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "id-length": {
-      "count": 4
+      "count": 1
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
