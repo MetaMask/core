@@ -125,6 +125,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(order).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(loggerError).not.toHaveBeenCalled();
@@ -148,6 +153,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(result).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(accountSigner.signTypedData).not.toHaveBeenCalled();
     expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -179,6 +189,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(result).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
@@ -210,6 +225,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(result).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
@@ -256,6 +276,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
     expect(result).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -310,6 +335,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(withdraw3.mock.calls).toStrictEqual([
         [{ destination: MAIN_ADDRESS, amount: '10' }],
@@ -333,6 +363,11 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.sendAsset.mock.calls).toStrictEqual([
         [

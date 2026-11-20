@@ -699,6 +699,31 @@ describe('TerminalMarketService', () => {
       ]);
     });
 
+    it('accepts the venue normal margin mode as no restriction', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [
+              createSnapshotMarket({
+                onlyIsolated: false,
+                marginMode: 'normal',
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result.marketInfos).toStrictEqual([
+        { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+      ]);
+    });
+
     it('rejects an unknown margin mode', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(

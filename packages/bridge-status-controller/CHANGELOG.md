@@ -7,14 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Require `BridgeController:fetchQuotes` on `BridgeStatusControllerMessenger` ([#11181](https://github.com/MetaMask/core/pull/11181))
+- Submit a background pre-swap money-account withdraw via `submitTx({ operation: 'withdraw' })` ([#11181](https://github.com/MetaMask/core/pull/11181))
+  - Queues a follow-up swap unless dest is already the vault underlying token
+  - Re-fetches an expired swap quote through `BridgeController:fetchQuotes` before that swap
+- **BREAKING:** New `BridgeStatusControllerMessenger` actions and events need to be allowlisted ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - Actions: `ApprovalController:acceptRequest` | `ApprovalController:rejectRequest` |`TransactionPayController:setTransactionConfig` | `TransactionPayController:updatePaymentToken` | `MoneyAccountController:getMoneyAccount`
+  - Events: `TransactionPayController:stateChange` | `TransactionController:unapprovedTransactionAdded`
+- Submit background post-swap deposit transaction via `submitTx({ operation: 'deposit' })` ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - `BridgeHistoryItem.next`: operations to execute after the swap/bridge completes. `Completed` event is not published until all the next actions have been executed
+  - `BridgeHistoryItem.depositTxMeta`: populated with the deposit's `batchId` to prevent duplicate submissions
+  - `deposit-strategy`: retrieves the wallet's primary money account and vault config, fetches the actual received amount from the swap/bridge tx, builds deposit transactions, then submits the batch
+  - `withMMPayApproval`: listens for an unapproved tx, triggers MM Pay quote generation, then accepts if quotes are available within 2 minutes. Otherwise, it rejects the transaction
+  - existing strategies: read incoming `historyKey` and update the existing item instead of creating a new history entry
+- New dependencies to support withdrawal/deposit submission ([#11147](https://github.com/MetaMask/core/pull/11147))
+  - `@ethersproject/providers` at `^5.8.0`
+  - `@metamask/approval-controller` at `^10.0.0`
+  - `@metamask/money-account-controller` at `^3.0.1`
+  - `@metamask/money-account-utils` at `^2.2.1`
+  - `@metamask/transaction-pay-controller` at `^32.0.0`
+  - `@metamask/eth-json-rpc-provider` at `^7.0.0` (dev)
+  - `@metamask/keyring-internal-api` at `^12.1.2` (dev)
+
+### Changed
+
+- **BREAKING:** Require `ApprovalController:rejectRequest` on `BridgeStatusControllerMessenger`. Clients must allow this action so MM Pay quote timeouts can unblock deposit batch approval.
+- Time out the MM Pay quotes waiter, the unapproved-tx waiter, and `addTransactionBatchFn` together after 30s. On timeout, reject the pending approval.
+- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+
+## [78.1.0]
+
 ### Changed
 
 - Split the swap/bridge-specific transactionStatusUpdated callback into a generic selector + txType router, and moved business logic into tx status handlers. To support a new tx type, add a selector, txType router, and update txStatus handlers ([#11403](https://github.com/MetaMask/core/pull/11403))
-- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/bridge-controller` from `^83.1.5` to `^83.2.0` ([#11596](https://github.com/MetaMask/core/pull/11596))
+- Bump `@metamask/bridge-controller` from `^83.1.5` to `^83.3.0` ([#11596](https://github.com/MetaMask/core/pull/11596), [#11649](https://github.com/MetaMask/core/pull/11649))
 
 ## [78.0.3]
 
@@ -1750,7 +1784,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...HEAD
+[78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...@metamask/bridge-status-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.2...@metamask/bridge-status-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.1...@metamask/bridge-status-controller@78.0.2
 [78.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.0...@metamask/bridge-status-controller@78.0.1

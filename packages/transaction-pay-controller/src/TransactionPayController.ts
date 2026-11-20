@@ -108,7 +108,6 @@ export class TransactionPayController extends BaseController<
     messenger,
     polymarket,
     state,
-    waitForClientReady,
   }: TransactionPayControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -153,11 +152,11 @@ export class TransactionPayController extends BaseController<
     });
 
     // Fire-and-forget: errors are caught and logged inside.
-    this.#scheduleResume(waitForClientReady);
+    this.#scheduleResume();
   }
 
-  #scheduleResume(waitForClientReady?: () => Promise<void>): void {
-    resumePayTransactions(this.messenger, waitForClientReady).catch((error) => {
+  #scheduleResume(): void {
+    resumePayTransactions(this.messenger).catch((error) => {
       log('Resume error', error);
     });
   }

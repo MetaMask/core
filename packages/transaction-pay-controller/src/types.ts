@@ -1,6 +1,7 @@
 import type {
   AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetStateAction,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
@@ -16,13 +17,17 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuoteWithFeesAction,
+  RampsControllerGetStateAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -65,6 +70,7 @@ import type { TransactionPayControllerMethodActions } from './TransactionPayCont
 export type AllowedActions =
   | AccountTreeControllerGetAccountContextAction
   | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetStateAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
   | GetGasFeeState
@@ -73,8 +79,10 @@ export type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | NetworkControllerGetStateAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuoteWithFeesAction
+  | RampsControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
@@ -287,13 +295,6 @@ export type TransactionPayControllerOptions = {
 
   /** Optional callback to override the source balance used for max-amount calculation. */
   getBalance?: GetBalanceCallback;
-
-  /**
-   * Resolves when all client-side controller dependencies (e.g. RampsController)
-   * are registered. The resume runner waits for this before attempting any
-   * strategy resume. Defaults to resolved.
-   */
-  waitForClientReady?: () => Promise<void>;
 
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
@@ -910,7 +911,8 @@ export type PayStrategy<OriginalQuote> = {
 
   /**
    * Resume a previously interrupted transaction.
-   * Called only after the wallet is unlocked and the client is ready.
+   * Called only after the wallet is unlocked and resume dependencies are
+   * registered.
    * Returns the final on-chain hash on success; throws on failure.
    */
   resume?: (request: PayStrategyResumeRequest) => Promise<{

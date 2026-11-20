@@ -97,7 +97,6 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
     'eip155:73115/erc20:0x0000000000000000000000000000000000000000', // ICB Network - Native symbol: ICBX
   'eip155:80094':
     'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera
-  'eip155:81457': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   'eip155:88888':
     'eip155:88888/erc20:0x0000000000000000000000000000000000000000', // Chiliz Chain - Native symbol: CHZ
   'eip155:97741':

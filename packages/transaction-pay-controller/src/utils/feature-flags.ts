@@ -40,6 +40,7 @@ export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
 export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
 export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_GAS_STATION_COST_BUFFER = 1.0;
@@ -206,6 +207,16 @@ export type MaxBalanceRefreshIntervalConfig = {
   [key in TransactionType]?: number;
 };
 
+export type ResumeStrategyConfig = {
+  default?: boolean;
+  timeout?: number;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
+export type ResumeConfig = Partial<
+  Record<TransactionPayStrategy, ResumeStrategyConfig>
+>;
+
 export type ServerValidationEnabledConfig = {
   default?: boolean;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
@@ -231,7 +242,7 @@ type FeatureFlagsExtendedRaw = {
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
-  resume?: Partial<Record<TransactionPayStrategy, TransactionType[]>>;
+  resume?: ResumeConfig;
 };
 
 type EIP7702FeatureFlag = {
@@ -1122,27 +1133,63 @@ export function getFiatEnabledTypes(
 }
 
 /**
- * Returns the transaction types enabled for resume for a given strategy.
- * Reads `confirmations_pay_extended.resume[strategy]`.
+ * Whether resume is enabled for a strategy and transaction type.
+ * Reads `confirmations_pay_extended.resume[strategy]`, where a per-type
+ * override in `transactionTypes` takes precedence over `default`.
  *
  * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
  * minimal TC init messenger that only exposes that action is sufficient.
  *
  * @param messenger - Controller messenger.
  * @param strategy - The pay strategy.
- * @returns Array of enabled transaction types, or `[]` if not configured.
+ * @param transactionType - The pay transaction type.
+ * @returns True if resume is enabled, false if not configured.
  */
-export function getResumeEnabledTypes(
+export function isResumeEnabled(
   messenger: TransactionPayControllerMessenger,
   strategy: TransactionPayStrategy,
-): TransactionType[] {
+  transactionType: TransactionType,
+): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
     (state.remoteFeatureFlags?.confirmations_pay_extended as
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  return featureFlags.resume?.[strategy] ?? [];
+  const config = featureFlags.resume?.[strategy];
+
+  return (
+    config?.transactionTypes?.[transactionType] ?? config?.default ?? false
+  );
+}
+
+/**
+ * Returns how long after the first resume attempt a pay transaction using the
+ * given strategy can still be resumed on later restarts.
+ * Reads `confirmations_pay_extended.resume[strategy].timeout`, falling back to
+ * {@link DEFAULT_RESUME_TIMEOUT_MS}.
+ *
+ * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
+ * minimal TC init messenger that only exposes that action is sufficient.
+ *
+ * @param messenger - Controller messenger.
+ * @param strategy - The pay strategy.
+ * @returns The resume timeout in milliseconds.
+ */
+export function getResumeTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+  strategy: TransactionPayStrategy,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags?.confirmations_pay_extended as
+    | FeatureFlagsExtendedRaw
+    | undefined;
+
+  const timeout = featureFlags?.resume?.[strategy]?.timeout;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_RESUME_TIMEOUT_MS;
 }
 
 /**

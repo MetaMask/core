@@ -2218,6 +2218,12 @@ export type AssetsFiatValues = {
 
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
+  /**
+   * ID of an `InternalAccount` overriding the default account for the transaction.
+   * Output recipient when `isPostQuote` is true, funding payer when false.
+   */
+  accountOverride?: string;
+
   /** Total fee from any bridge transactions, in fiat currency. */
   bridgeFeeFiat?: string;
 
@@ -2242,8 +2248,9 @@ export type MetamaskPayMetadata = {
   networkFeeFiat?: string;
 
   /**
-   * Timestamp (ms since epoch) set by the pay controller when it starts
-   * resuming this transaction after a restart. Used as a once-only guard —
+   * Timestamp (ms since epoch) set by the pay controller when it first starts
+   * resuming this transaction after a restart. Later restarts keep resuming
+   * until the pay controller's resume timeout has passed since this time.
    * TC does not read this field.
    */
   resumeAttemptedAt?: number;

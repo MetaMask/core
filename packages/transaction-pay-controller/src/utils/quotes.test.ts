@@ -12,6 +12,7 @@ import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   GetBalanceCallback,
+  QuoteRequest,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayControllerGetStateAction,
@@ -21,7 +22,6 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPaymentToken,
   TransactionPayRequiredToken,
-  UpdateTransactionDataCallback,
 } from '../types.js';
 import {
   getAssetAccount,
@@ -31,6 +31,7 @@ import {
 import type { AssetAccount } from './account.js';
 import type { UpdateQuotesRequest } from './quotes.js';
 import { refreshQuotes, updateQuotes } from './quotes.js';
+import { QuoteRoutingHelper } from './quotes.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import {
   checkStrategyQuoteSupport,
@@ -368,12 +369,160 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls.map((call) =>
-        call[1](transactionDataMock),
-      );
+      (
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
+      ).forEach((call) => {
+        call[1](transactionDataMock);
+      });
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
+      });
+    });
+
+    it('does not store no-op quote for pending max post-quote with zero amount', async () => {
+      const zeroAmountToken: TransactionPayRequiredToken = {
+        address: '0x789',
+        allowUnderMinimum: false,
+        amountFiat: '0',
+        amountHuman: '0',
+        amountRaw: '0',
+        amountUsd: '0',
+        balanceFiat: '0',
+        balanceHuman: '0',
+        balanceRaw: '0',
+        balanceUsd: '0',
+        chainId: '0x1',
+        decimals: 18,
+        skipIfBalance: false,
+        symbol: 'TEST',
+      };
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: true,
+          sourceAmounts: [],
+          tokens: [zeroAmountToken],
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      (
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
+      ).forEach((call) => {
+        call[1](transactionDataMock);
+      });
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+      });
+    });
+
+    it('stores no-op quote for genuine direct route in post-quote non-max flow', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: false,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      (
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
+      ).forEach((call) => {
+        call[1](transactionDataMock);
+      });
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
+      });
+    });
+
+    it('fetches real quote once amount is encoded for post-quote max flow', async () => {
+      const sourceAmount: TransactionPaySourceAmount = {
+        sourceAmountHuman: '1.0',
+        sourceAmountRaw: '1000000',
+        sourceBalanceRaw: '2000000',
+        sourceChainId: '0x1',
+        sourceTokenAddress: '0x789',
+        targetTokenAddress: '0x123',
+      };
+
+      const encodedToken: TransactionPayRequiredToken = {
+        address: '0x789',
+        allowUnderMinimum: false,
+        amountFiat: '1.0',
+        amountHuman: '1.0',
+        amountRaw: '1000000',
+        amountUsd: '1.0',
+        balanceFiat: '2.0',
+        balanceHuman: '2.0',
+        balanceRaw: '2000000',
+        balanceUsd: '2.0',
+        chainId: '0x1',
+        decimals: 6,
+        skipIfBalance: false,
+        symbol: 'TEST',
+      };
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: true,
+          sourceAmounts: [sourceAmount],
+          tokens: [encodedToken],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: expect.arrayContaining([
+            expect.objectContaining({
+              sourceTokenAmount: '1000000',
+            }),
+          ]),
+        }),
+      );
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      (
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
+      ).forEach((call) => {
+        call[1](transactionDataMock);
+      });
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
       });
     });
 
@@ -1201,6 +1350,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1226,6 +1376,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1235,6 +1386,49 @@ describe('Quotes Utils', () => {
         tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
         totalFiat: TOTALS_MOCK.total.usd,
       });
+    });
+
+    it('persists accountOverride in metadata when set', async () => {
+      const accountOverride = 'override-account-id';
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          accountOverride,
+        },
+      });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay).toMatchObject({
+        accountOverride,
+      });
+    });
+
+    it('clears previous accountOverride in metadata when unset', async () => {
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { accountOverride: 'override-account-id' },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.accountOverride).toBeUndefined();
+    });
+
+    it('preserves existing metamaskPay properties such as sourceHash during sync', async () => {
+      const sourceHash =
+        '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex;
+
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { sourceHash },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.sourceHash).toBe(sourceHash);
     });
 
     it('does not persist strategy in metadata when there are no executable quotes', async () => {
@@ -1951,6 +2145,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: undefined,
         isPostQuote: undefined,
@@ -2157,8 +2352,7 @@ describe('Quotes Utils', () => {
         getControllerStateMock as MockedFunction<
           TransactionPayControllerGetStateAction['handler']
         >;
-      const typedUpdateTransactionDataMock =
-        updateTransactionDataMock as MockedFunction<UpdateTransactionDataCallback>;
+      const typedUpdateTransactionDataMock = updateTransactionDataMock;
       const typedGetStrategiesMock = getStrategiesMock as MockedFunction<
         (transaction: TransactionMeta) => TransactionPayStrategy[]
       >;
@@ -2682,6 +2876,126 @@ describe('Quotes Utils', () => {
 
       // When no matching sourceAmount is found, requests array is empty
       expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('QuoteRoutingHelper.shouldSkipNoOpQuote', () => {
+    const mockToken: TransactionPayRequiredToken = {
+      address: '0x123',
+      allowUnderMinimum: false,
+      amountFiat: '0',
+      amountHuman: '0',
+      amountRaw: '0',
+      amountUsd: '0',
+      balanceFiat: '0',
+      balanceHuman: '0',
+      balanceRaw: '0',
+      balanceUsd: '0',
+      chainId: '0x1',
+      decimals: 18,
+      skipIfBalance: false,
+      symbol: 'TEST',
+    };
+
+    const mockQuoteRequest: QuoteRequest = {
+      from: '0xabc',
+      sourceAccountId: 'eip155:1:0xabc',
+      sourceAssetId: 'eip155:1/erc20:0x123',
+      sourceBalanceRaw: '1000000',
+      sourceTokenAmount: '1000000',
+      targetAmountMinimum: '0',
+      targetChainId: '0x1',
+      targetTokenAddress: '0x456',
+    };
+
+    it('returns false for non-post-quote flows', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: false,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [mockToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for non-max post-quote flows', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: false,
+          requests: [],
+          tokens: [mockToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when requests are present', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [mockQuoteRequest],
+          tokens: [mockToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when no tokens present', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true for pending max post-quote with zero-amount tokens', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [mockToken],
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for direct route max post-quote with non-zero amount tokens', () => {
+      const directRouteToken: TransactionPayRequiredToken = {
+        ...mockToken,
+        amountRaw: '1000000',
+        amountHuman: '1.0',
+        amountFiat: '1.0',
+        amountUsd: '1.0',
+      };
+
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [directRouteToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when tokens have mixed zero and non-zero amounts', () => {
+      const nonZeroToken: TransactionPayRequiredToken = {
+        ...mockToken,
+        amountRaw: '1000000',
+      };
+
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [mockToken, nonZeroToken],
+        }),
+      ).toBe(false);
     });
   });
 });

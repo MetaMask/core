@@ -3,7 +3,6 @@ import type { AssetsDataSource } from '../types.js';
 
 /** The sources the standard update lane composes. */
 export type UpdateSources = {
-  customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
   tokenDataSource: AssetsDataSource;
   priceDataSource: AssetsDataSource;
@@ -15,7 +14,6 @@ export type UpdateSources = {
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
  * @param options.isBasicFunctionality - When false, no enrichment runs.
- * @param options.includeCustomAssetGraduation - When to include graduation.
  * @param options.includeRpcFallback - When to include the RPC fallback.
  * @returns The composed source list, ready for `executeAssetsPipeline`.
  */
@@ -23,21 +21,12 @@ export function buildUpdateSources(
   sources: UpdateSources,
   options: {
     isBasicFunctionality: boolean;
-    includeCustomAssetGraduation: boolean;
     includeRpcFallback: boolean;
   },
 ): AssetsDataSource[] {
-  const {
-    customAssetGraduationMiddleware,
-    rpcFallbackMiddleware,
-    tokenDataSource,
-    priceDataSource,
-  } = sources;
+  const { rpcFallbackMiddleware, tokenDataSource, priceDataSource } = sources;
 
   return [
-    ...(options.includeCustomAssetGraduation
-      ? [customAssetGraduationMiddleware]
-      : []),
     ...(options.includeRpcFallback ? [rpcFallbackMiddleware] : []),
     ...(options.isBasicFunctionality
       ? [createParallelMiddleware([tokenDataSource, priceDataSource])]

@@ -13,7 +13,7 @@ import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
+import type { CaipAccountId, Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -93,6 +93,7 @@ import type {
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  WithBatchOperationStatus,
   DepositWithConfirmationParams,
   EditOrderParams,
   FeeCalculationParams,
@@ -140,6 +141,7 @@ import type {
   PerpsRecoveryVenueReview,
   ScaleOrderGroup,
   ResolveRecoveryProtectionParams,
+  ResolveWithdrawalRouteParams,
   PerpsRecoveryProtectionResult,
   Position,
   PublicTrade,
@@ -151,6 +153,8 @@ import type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   SubscribePublicTradesParams,
@@ -166,6 +170,7 @@ import type {
   ReplacePositionTPSLLegParams,
   WithdrawParams,
   WithdrawResult,
+  WithdrawalRoute,
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
@@ -176,6 +181,7 @@ import type {
   PerpsAccountSupport,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
+  PerpsProviderAccountStateEntry,
   PerpsProviderType,
   PerpsProviderTradeConfigurations,
   PerpsTradeConfiguration,
@@ -200,7 +206,22 @@ import {
   LastTransactionResult,
   TransactionStatus,
 } from './types/transactionTypes.js';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import { buildAggregatedAccountState } from './utils/accountAggregation.js';
+import {
+  getCaipAccountAddress,
+  getSelectedEvmAccountFromMessenger,
+} from './utils/accountUtils.js';
+import {
+  createLiveChaseOrderList,
+  createLiveTwapOrderList,
+} from './utils/advancedOrderLists.js';
+import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
+import { withBatchOperationStatus } from './utils/batchOperationStatus.js';
+import {
+  getUnroutedCancelOrdersRefusal,
+  resolveCancelSelection,
+} from './utils/cancelOrders.js';
+import { resolveCloseSelection } from './utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -265,7 +286,9 @@ function cloneUserDataSnapshot(
     positions: snapshot.positions.map((position) => ({
       ...position,
       leverage: { ...position.leverage },
-      cumulativeFunding: { ...position.cumulativeFunding },
+      ...(position.cumulativeFunding && {
+        cumulativeFunding: { ...position.cumulativeFunding },
+      }),
       ...(position.takeProfitOrders && {
         takeProfitOrders: position.takeProfitOrders.map((order) => ({
           ...order,
@@ -456,11 +479,16 @@ export type PerpsControllerState = {
   accountState: AccountState | null;
 
   // Perps balances per provider for portfolio display (historical data)
+  // Aggregated mode writes one entry per available venue, keyed by provider
+  // id. An entry's presence means the venue's balance was live as of
+  // `lastUpdated`; a venue whose data becomes unavailable has its entry
+  // removed rather than left looking live.
   perpsBalances: {
     [provider: string]: {
       totalBalance: string; // Current total account value (cash + positions) in USD
       unrealizedPnl: string; // Current P&L from open positions in USD
-      accountValue1dAgo: string; // Account value 24h ago for daily change calculation in USD
+      /** Legacy historical observation, absent from live account updates. */
+      accountValue1dAgo?: string;
       lastUpdated: number; // Timestamp of last update
     };
   };
@@ -493,6 +521,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this withdrawal
+    /**
+     * Venue that initiated the withdrawal, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -517,6 +551,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this deposit
+    /**
+     * Venue whose deposit route was chosen, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -1063,6 +1103,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountSupport',
   'getActiveProvider',
   'getActiveProviderOrNull',
+  'resolveWithdrawalRoute',
   'getAttributionContext',
   'getAvailableDexs',
   'getBlockExplorerUrl',
@@ -1153,7 +1194,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToAccount',
   'subscribeToAvailableToTrade',
   'subscribeToCandles',
+  'subscribeToChaseOrderLists',
   'subscribeToConnectionState',
+  'subscribeToLiveTwapOrders',
   'subscribeToOICaps',
   'subscribeToOrderBook',
   'subscribeToOrderFills',
@@ -1342,6 +1385,11 @@ export class PerpsController extends BaseController<
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
 
+  // Live chase lists waiting to hear which chase cancels succeeded.
+  readonly #chaseCancellationListeners = new Set<
+    (canceled: CanceledChaseOrder) => void
+  >();
+
   /**
    * Latest toggle number per `network:symbol` whose write is still pending,
    * so a failed write is undone only when no later toggle of the same market
@@ -1495,17 +1543,29 @@ export class PerpsController extends BaseController<
     // must learn the new trading address after every account switch, and the
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
-    const forgetRegisteredTradingAddresses = (): void => {
-      this.#selectedAccountGeneration += 1;
+    // A restored balance does not record which wallet it belongs to.
+    this.#hasUnverifiedAccountBalances =
+      this.state.accountState !== null ||
+      Object.keys(this.state.perpsBalances).length > 0;
+    this.#selectedTradingAddress = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    const updateSelectedTradingAccount = (
+      switchedAccount: ReturnType<
+        typeof getSelectedEvmAccountFromMessenger
+      > | null,
+    ): void => {
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+      this.#setSelectedTradingAddress(
+        switchedAccount === null
+          ? null
+          : switchedAccount?.address.toLowerCase(),
+      );
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
       // would otherwise be attributed to nothing, so the new address announces
       // itself here. Fire-and-forget: attribution plumbing must not block or
       // fail an account switch.
-      const switchedAccount = getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      );
       if (switchedAccount) {
         this.#rewardsIntegrationService
           .registerTradingAddress(switchedAccount.address, {
@@ -1516,13 +1576,19 @@ export class PerpsController extends BaseController<
           });
       }
     };
-    this.messenger.subscribe(
-      'AccountsController:selectedAccountChange',
-      forgetRegisteredTradingAddresses,
+    this.messenger.subscribe('AccountsController:selectedAccountChange', () =>
+      updateSelectedTradingAccount(
+        getSelectedEvmAccountFromMessenger(this.messenger),
+      ),
     );
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      forgetRegisteredTradingAddresses,
+      (groupId) =>
+        updateSelectedTradingAccount(
+          groupId === ''
+            ? null
+            : getSelectedEvmAccountFromMessenger(this.messenger),
+        ),
     );
 
     this.providers = new Map();
@@ -1744,37 +1810,50 @@ export class PerpsController extends BaseController<
       // Assemble from all registered provider entries
       const allPositions: Position[] = [];
       const allOrders: Order[] = [];
-      let defaultAccountState: AccountState | null = null;
+      const accountEntries: PerpsProviderAccountStateEntry[] = [];
       let hasValidEntry = false;
 
       for (const providerId of this.#getAggregatedCacheProviderIds(
         Object.keys(cache),
-      )) {
+      ).filter(isPerpsProviderType)) {
         const providerNetworkKey = buildProviderCacheKey(
           providerId,
           this.state.isTestnet,
         );
         const entry = cache[providerNetworkKey];
         if (!isValidEntry(providerId, entry)) {
+          accountEntries.push({ status: 'unavailable', providerId });
           continue;
         }
         hasValidEntry = true;
         allPositions.push(...entry.positions);
         allOrders.push(...entry.orders);
-        // AccountState from default provider (hyperliquid)
-        if (providerId === 'hyperliquid') {
-          defaultAccountState = entry.accountState;
-        }
+        accountEntries.push(
+          entry.accountState
+            ? {
+                status: 'available',
+                providerId,
+                state: { ...entry.accountState, providerId },
+              }
+            : { status: 'unavailable', providerId },
+        );
       }
 
       if (!hasValidEntry) {
         return null;
       }
 
+      // Match live reads: combine venue snapshots, but preserve venue-local
+      // detail and the direct shape when only one venue participates.
+      const [onlyEntry] = accountEntries;
+      const accountState =
+        accountEntries.length === 1 && onlyEntry.status === 'available'
+          ? onlyEntry.state
+          : buildAggregatedAccountState({ entries: accountEntries });
       return {
         positions: allPositions,
         orders: allOrders,
-        accountState: defaultAccountState,
+        accountState,
       };
     }
 
@@ -2304,6 +2383,9 @@ export class PerpsController extends BaseController<
             : 'hyperliquid';
           state.effectiveProvider = null;
           state.accountState = null;
+          // The direct stream covers one venue only: entries persisted by the
+          // aggregated session must not keep looking live.
+          state.perpsBalances = {};
         }
       });
       return;
@@ -2761,7 +2843,7 @@ export class PerpsController extends BaseController<
 
         // If not the last attempt, wait before retrying (exponential backoff)
         if (attempt < maxAttempts) {
-          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s
           this.#debugLog(
             `PerpsController: Retrying initialization in ${delay}ms`,
             {
@@ -2816,6 +2898,7 @@ export class PerpsController extends BaseController<
     // Always create HyperLiquid provider as the base provider
     const hyperLiquidProvider = new HyperLiquidProvider({
       isTestnet: this.state.isTestnet,
+      getCurrentIsTestnet: (): boolean => this.state.isTestnet,
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
@@ -3313,6 +3396,75 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Report the venue a withdrawal will sign on, using the same provider
+   * resolution and the same refusal as `withdraw`.
+   *
+   * While several venues are registered, a withdrawal without an explicit
+   * venue is refused with `PROVIDER_ROUTE_REQUIRED` rather than falling back
+   * to the routing default. This query reports that refusal as a
+   * `route_required` result instead of throwing, so callers cannot mistake it
+   * for a provider error or fail open around it. An explicit route that names
+   * an unknown venue, or that conflicts with the active direct provider,
+   * still throws `PROVIDER_NOT_FOUND`, matching `getAccountSupport`.
+   *
+   * Note that a no-argument `getAccountSupport` read routes through the
+   * routing default even when `withdraw` would refuse; use this method to
+   * learn which venue a withdrawal would actually use.
+   *
+   * @param params - Optional provider route, matching the route `withdraw` accepts.
+   * @returns The resolved venue, or the route-required refusal.
+   */
+  async resolveWithdrawalRoute(
+    params?: ResolveWithdrawalRouteParams,
+  ): Promise<WithdrawalRoute> {
+    const providerId = params?.providerId;
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(providerId);
+    if (unroutedRefusal) {
+      return { status: 'route_required', error: unroutedRefusal.error };
+    }
+
+    const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return { status: 'route_required', error: resolvedRefusal.error };
+    }
+
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
+    if (provider instanceof AggregatedPerpsProvider) {
+      if (providerId !== undefined && !provider.hasProvider(providerId)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      }
+      return {
+        status: 'resolved',
+        providerId: provider.getWriteProviderId(providerId),
+      };
+    }
+
+    const directProviderId = this.#getDirectProviderId(provider);
+    if (directProviderId !== undefined) {
+      return {
+        status: 'resolved',
+        providerId: directProviderId,
+      };
+    }
+
+    if (!isPerpsProviderType(provider.protocolId)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
+    return {
+      status: 'resolved',
+      providerId: provider.protocolId,
+    };
+  }
+
+  /**
    * Identify the account, network and provider an action runs under.
    *
    * @returns A key that changes when any of them changes.
@@ -3619,7 +3771,12 @@ export class PerpsController extends BaseController<
   #getUnroutedAggregatedWriteRefusal(
     providerId: PerpsProviderType | undefined,
     provider?: PerpsProvider,
-  ): { success: false; error: string } | undefined {
+  ):
+    | {
+        success: false;
+        error: typeof PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED;
+      }
+    | undefined {
     if (providerId !== undefined) {
       return undefined;
     }
@@ -3641,8 +3798,8 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode batch write.
    *
-   * Batch cancel and close cannot name a venue, so while multiple venues are
-   * registered they are refused instead of being sent to the default venue.
+   * Legacy symbol-only closes cannot identify a venue, so while multiple
+   * venues are registered they are refused instead of using the default.
    *
    * @param provider - Resolved provider, when initialization has settled.
    * @returns The batch refusal result, or undefined when the batch may proceed.
@@ -3800,6 +3957,8 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // Live lists only take an ending in the context the cancel started in.
+    const contextKey = this.#getOrderListContextKey();
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
       params.providerId,
     );
@@ -3819,11 +3978,35 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
 
-    return this.#tradingService.cancelOrder({
+    const result = await this.#tradingService.cancelOrder({
       provider,
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+    // A provider may resolve a plain child order ID to its chase, so the
+    // ending is keyed by the chase handle, not by what the caller passed.
+    const { chaseOrder } = result;
+    if (
+      result.success &&
+      chaseOrder &&
+      this.#getOrderListContextKey() === contextKey
+    ) {
+      const providerId = params.providerId ?? result.providerId;
+      for (const listener of [...this.#chaseCancellationListeners]) {
+        // A listener that throws must not undo the cancel or starve the rest.
+        try {
+          listener({ handle: chaseOrder.handle, providerId, chaseOrder });
+        } catch (error) {
+          this.#logError(
+            ensureError(error, 'PerpsController.cancelOrder'),
+            this.#getErrorContext('cancelOrder', {
+              orderId: params.orderId,
+            }),
+          );
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -3871,6 +4054,10 @@ export class PerpsController extends BaseController<
       );
     }
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -3944,6 +4131,10 @@ export class PerpsController extends BaseController<
       );
     }
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -4012,31 +4203,71 @@ export class PerpsController extends BaseController<
    * Batch version of cancelOrder() that cancels multiple orders simultaneously
    *
    * @param params - The operation parameters.
-   * @returns The batch cancellation results for each order.
+   * @returns Per-order results, plus `status`: `all`, `partial` or `none`.
    */
-  async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
+  async cancelOrders(
+    params: CancelOrdersParams,
+  ): Promise<WithBatchOperationStatus<CancelOrdersResult>> {
+    const selection = resolveCancelSelection(params);
+    const request = {
+      ...params,
+      ...(params.orders && {
+        orders: params.orders.map((order) => ({ ...order })),
+      }),
+      ...(params.orderIds && { orderIds: params.orderIds.slice() }),
+      ...(params.symbols && { symbols: params.symbols.slice() }),
+    };
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedProvider = this.activeProviderInstance;
+    const assertCurrent = (provider = issuedProvider): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (provider !== null && this.activeProviderInstance !== provider)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } finally {
+      assertCurrent();
+    }
+    const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
+    if (refusal) {
+      return withBatchOperationStatus(refusal);
     }
 
-    const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
+    if (
+      selection.kind === 'orders' &&
+      request.orders?.some((order) =>
+        this.#hasConflictingProviderRoute(order.providerId, provider),
+      )
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
-    return this.#tradingService.cancelOrders({
+    const result = await this.#tradingService.cancelOrders({
       provider,
-      params,
+      params: request,
+      assertCurrent: () => assertCurrent(provider),
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: () => this.getOpenOrders(),
+        getOpenOrders: (readParams) => {
+          assertCurrent(provider);
+          return this.getOpenOrders(readParams);
+        },
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,
         channels: string[],
       ) => this.#withStreamPause(operation, channels),
     });
+    return withBatchOperationStatus(result);
   }
 
   /**
@@ -4083,30 +4314,31 @@ export class PerpsController extends BaseController<
    * Batch version of closePosition() that closes multiple positions simultaneously
    *
    * @param params - The operation parameters.
-   * @returns The batch close results for each position.
+   * @returns Per-position results, plus `status`: `all`, `partial` or `none`.
    */
   async closePositions(
     params: ClosePositionsParams,
-  ): Promise<ClosePositionsResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+  ): Promise<WithBatchOperationStatus<ClosePositionsResult>> {
+    // closeAll fans out to every enabled venue, and explicit targets name
+    // their own venue. A legacy symbols-only close stays ambiguous in
+    // multi-venue aggregated mode and is refused below rather than guessed.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
+    if (resolveCloseSelection(params).kind === 'symbols') {
+      const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+      if (unroutedRefusal) {
+        return withBatchOperationStatus(unroutedRefusal);
+      }
     }
     this.#ensureTradingServiceDeps();
 
-    return this.#tradingService.closePositions({
+    const result = await this.#tradingService.closePositions({
       provider,
       params,
       context: this.#createServiceContext('closePositions', {
-        getPositions: () => this.getPositions(),
+        getPositions: (readParams) => this.getPositions(readParams),
       }),
     });
+    return withBatchOperationStatus(result);
   }
 
   /**
@@ -4137,10 +4369,13 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
     this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
 
     return this.#tradingService.updatePositionTPSL({
       provider,
-      params,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
       context: this.#createServiceContext('updatePositionTPSL'),
     });
   }
@@ -4250,6 +4485,7 @@ export class PerpsController extends BaseController<
       provider,
       position: params.position,
       trackingData: params.trackingData,
+      maxSlippageBps: this.state.maxSlippageBps,
       context: this.#createServiceContext('flipPosition'),
     });
   }
@@ -4314,13 +4550,21 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
-      } = await this.#depositService.prepareTransaction({ provider });
+        providerId: depositProviderId,
+      } = await this.#depositService.prepareTransaction({
+        provider,
+        ...(params.providerId !== undefined && {
+          providerId: params.providerId,
+        }),
+      });
       currentDepositId = depositId;
 
       // Get current account address via messenger (outside of update() for proper typing)
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const accountAddress = evmAccount?.address ?? 'unknown';
 
+      // Preparation resolves the venue from the route or executing provider,
+      // independent of later active-provider changes.
       this.update((state) => {
         state.lastDepositResult = null;
 
@@ -4331,6 +4575,9 @@ export class PerpsController extends BaseController<
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
           accountAddress, // Track which account initiated deposit
+          ...(depositProviderId === undefined
+            ? {}
+            : { providerId: depositProviderId }),
           success: false, // Will be updated when transaction completes
           txHash: undefined,
           status: 'pending' as TransactionStatus,
@@ -4807,6 +5054,11 @@ export class PerpsController extends BaseController<
    *
    * @param params Withdrawal parameters
    * @returns WithdrawResult with withdrawal ID and tracking info
+   * @throws When no provider is initialized or the provider lifecycle changes
+   * while waiting for it, or when the explicit `providerId` route conflicts
+   * with the active direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode
+   * refusals are returned as `{ success: false, error }` values rather than
+   * thrown.
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
@@ -4823,6 +5075,10 @@ export class PerpsController extends BaseController<
     );
     if (resolvedRefusal) {
       return resolvedRefusal;
+    }
+
+    if (this.#hasConflictingProviderRoute(params.providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
     return this.#accountService.withdraw({
@@ -5325,20 +5581,58 @@ export class PerpsController extends BaseController<
     }
 
     const provider = this.getActiveProvider();
+    const accountId = params?.accountId;
+    const selectedAddress = this.#reconcileSelectedTradingAddress(accountId);
+    const requestAddress =
+      accountId === undefined
+        ? selectedAddress
+        : getCaipAccountAddress(accountId);
+    const selectedAccountGeneration = this.#selectedAccountGeneration;
     return this.#marketDataService.getAccountState({
       provider,
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // Match the live account venue, including a temporary fallback when
-          // the saved default is unavailable. Read the route when the response
-          // arrives to reject balances from a previous venue.
-          isCurrent: (accountState) =>
-            accountState.providerId === undefined ||
-            accountState.providerId ===
-              (this.activeProviderInstance instanceof AggregatedPerpsProvider
-                ? this.activeProviderInstance.getWriteProviderId()
-                : this.state.activeProvider),
+          // Match the live account data context. A combined snapshot is
+          // current only while more than one venue is still registered: an
+          // in-flight result from before a venue was removed must not replace
+          // the remaining venue. A one-venue fallback (no `providerStates`)
+          // is current only while the wrapper still has that single venue
+          // and the result names it. After another venue recovers, that
+          // in-flight fallback must not replace the combined snapshot, even
+          // when it names the routing default. A direct-provider result is
+          // matched against the active venue, so a response from a previous
+          // venue is dropped when the route changed while it was in flight.
+          isCurrent: (accountState) => {
+            const currentAddress =
+              this.#reconcileSelectedTradingAddress(accountId);
+            if (
+              requestAddress === undefined ||
+              requestAddress !== currentAddress ||
+              this.#selectedAccountGeneration !== selectedAccountGeneration
+            ) {
+              return false;
+            }
+            const active = this.activeProviderInstance;
+            if (active instanceof AggregatedPerpsProvider) {
+              const venueCount = active.getProviderIds().length;
+              if (accountState.providerStates) {
+                return venueCount > 1;
+              }
+              return (
+                venueCount <= 1 &&
+                (accountState.providerId === undefined ||
+                  accountState.providerId === active.getWriteProviderId())
+              );
+            }
+            if (accountState.providerStates) {
+              return false;
+            }
+            return (
+              accountState.providerId === undefined ||
+              accountState.providerId === this.state.activeProvider
+            );
+          },
         },
       }),
     });
@@ -5547,8 +5841,13 @@ export class PerpsController extends BaseController<
 
   #lifecycleGeneration = 0;
 
-  // Account events also fence round trips that finish at the original address.
+  // Observed wallet changes also fence round trips to the original address.
   #selectedAccountGeneration = 0;
+
+  // Null records an explicit deselection while legacy selection catches up.
+  #selectedTradingAddress: string | null | undefined;
+
+  #hasUnverifiedAccountBalances: boolean;
 
   readonly #userSnapshotRequests = new Map<
     string,
@@ -6214,10 +6513,24 @@ export class PerpsController extends BaseController<
           );
         }
 
-        // AccountState — assign to its provider bucket
-        ensureBucket(
-          accountState.providerId ?? fallbackProviderId,
-        ).accountState = accountState;
+        // AccountState — assign per-venue snapshots to their own buckets. An
+        // aggregated result's combined total is venue-neutral and is never
+        // stored in a venue bucket merely because the aggregate itself has no
+        // providerId.
+        if (accountState.providerStates) {
+          for (const [pid, entry] of Object.entries(
+            accountState.providerStates,
+          )) {
+            if (entry) {
+              ensureBucket(pid).accountState =
+                entry.status === 'available' ? entry.state : null;
+            }
+          }
+        } else {
+          ensureBucket(
+            accountState.providerId ?? fallbackProviderId,
+          ).accountState = accountState;
+        }
 
         if (discardStalePreload()) {
           return;
@@ -6635,6 +6948,8 @@ export class PerpsController extends BaseController<
       this.update((state) => {
         state.isTestnet = !state.isTestnet;
         state.effectiveProvider = null;
+        // The previous network's balances are not observations of this one.
+        state.perpsBalances = {};
       });
 
       const newNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -6805,6 +7120,9 @@ export class PerpsController extends BaseController<
         // network toggle or disconnect/init does not migrate it away.
         state.hasExplicitProviderSelection = providerId !== 'aggregated';
         state.accountState = null;
+        // The new selection streams a different venue set: persisted entries
+        // from the previous topology must not keep looking live.
+        state.perpsBalances = {};
         state.initializationState = InitializationState.Uninitialized;
       });
 
@@ -6962,9 +7280,16 @@ export class PerpsController extends BaseController<
       if (aggregatedProvider) {
         state.effectiveProvider = providerId;
       }
-      // The cached snapshot came from the previous default venue's stream, so
-      // drop it until the new venue delivers matching data.
-      if (defaultChanged && aggregatedProvider) {
+      // A single-venue snapshot (for example a one-venue fallback read) was
+      // tied to the previous default route: drop it until matching data
+      // arrives. An aggregate snapshot spans every venue and stays valid
+      // across a routing-default change, so it is kept.
+      if (
+        defaultChanged &&
+        aggregatedProvider &&
+        state.accountState &&
+        !state.accountState.providerStates
+      ) {
         state.accountState = null;
       }
     });
@@ -7380,6 +7705,161 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Keep one merged, live TWAP list for the active provider: reads and the
+   * venue stream merged by schedule, execution totals raised from slice
+   * fills, and re-reads while a schedule runs. Split it with
+   * `partitionTwapOrders`. Follows the selected account.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads and the stream.
+   */
+  subscribeToLiveTwapOrders(params: SubscribeLiveTwapOrdersParams): () => void {
+    return createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async () => await this.getTwapOrders(),
+        subscribeToTwapOrders: (streamParams) =>
+          this.#subscribeToTwapOrdersWhenReady(streamParams),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Open the TWAP stream once the active provider is ready, and open it again
+   * each time the controller finishes initializing. A switch, or a client
+   * reconnect that keeps the same account, provider and network, tears the
+   * provider stream down, and the new provider has no stream until it is
+   * ready.
+   *
+   * @param params - Subscription parameters including callback.
+   * @returns A cleanup function that closes the stream, or cancels opening it.
+   */
+  #subscribeToTwapOrdersWhenReady(
+    params: SubscribeTwapOrdersParams,
+  ): () => void {
+    let closed = false;
+    let attempt = 0;
+    let unsubscribe: (() => void) | undefined;
+    const open = (): void => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      attempt += 1;
+      const current = attempt;
+      this.#getActiveProviderWhenReady()
+        .then(() => {
+          if (closed || current !== attempt) {
+            return;
+          }
+          const opened = this.subscribeToTwapOrders(params);
+          // A synchronous first push may already have closed this opener.
+          if (closed || current !== attempt) {
+            opened();
+          } else {
+            unsubscribe = opened;
+          }
+        })
+        // A read reports the same failure through the list's onError.
+        .catch(() => undefined);
+    };
+    let wasInitialized =
+      this.state.initializationState === InitializationState.Initialized;
+    const onStateChange = (): void => {
+      const isInitialized =
+        this.state.initializationState === InitializationState.Initialized;
+      if (isInitialized && !wasInitialized && !closed) {
+        open();
+      }
+      wasInitialized = isInitialized;
+    };
+    this.messenger.subscribe('PerpsController:stateChanged', onStateChange);
+    open();
+    return () => {
+      closed = true;
+      this.messenger.unsubscribe('PerpsController:stateChanged', onStateChange);
+      unsubscribe?.();
+    };
+  }
+
+  /**
+   * Keep running and history chase lists for the active provider. Ended
+   * chases stay in history after the provider drops them, up to
+   * `CHASE_ORDER_CONFIG.HistoryLimit`.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads.
+   */
+  subscribeToChaseOrderLists(
+    params: SubscribeChaseOrderListsParams,
+  ): () => void {
+    return createLiveChaseOrderList({
+      source: {
+        getChaseOrders: async () => await this.getChaseOrders(),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+        subscribeToChaseCancellations: (listener) => {
+          this.#chaseCancellationListeners.add(listener);
+          return () => {
+            this.#chaseCancellationListeners.delete(listener);
+          };
+        },
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Name the account, provider and network that order reads answer for, so a
+   * live list can drop rows when any of them changes.
+   *
+   * @returns Context key for live order lists.
+   */
+  #getOrderListContextKey(): string {
+    const account = getSelectedEvmAccountFromMessenger(this.messenger);
+    return [
+      this.state.activeProvider,
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      account?.address.toLowerCase() ?? '',
+    ].join(':');
+  }
+
+  /**
+   * Call a listener whenever the provider, network or selected account may
+   * have changed, so a live list can clear without waiting for its next read.
+   *
+   * @param listener - Called on each possible change.
+   * @returns A function that stops the calls.
+   */
+  #subscribeToOrderListContextChanges(listener: () => void): () => void {
+    const handler = (): void => listener();
+    this.messenger.subscribe('PerpsController:stateChanged', handler);
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      handler,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      handler,
+    );
+    return () => {
+      this.messenger.unsubscribe('PerpsController:stateChanged', handler);
+      this.messenger.unsubscribe(
+        'AccountsController:selectedAccountChange',
+        handler,
+      );
+      this.messenger.unsubscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        handler,
+      );
+    };
+  }
+
+  /**
    * Subscribe to live order updates
    *
    * @param params - The operation parameters.
@@ -7414,6 +7894,54 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Refresh the live balance owner if the selected group's membership changed.
+   * Alignment does not always emit a new selection event.
+   *
+   * @param accountId - Explicit scope, when supplied. Reads and streams for
+   * another wallet do not reconcile the selected wallet's state.
+   * @returns The current trading address, if selected.
+   */
+  #reconcileSelectedTradingAddress(
+    accountId?: CaipAccountId,
+  ): string | undefined {
+    if (this.#selectedTradingAddress === null) {
+      return undefined;
+    }
+    const address = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    if (
+      accountId === undefined ||
+      (address !== undefined && getCaipAccountAddress(accountId) === address)
+    ) {
+      this.#setSelectedTradingAddress(address);
+    }
+    return address;
+  }
+
+  /**
+   * Clear balances when the wallet changes or restored ownership is unknown.
+   * Account tree reinitialization may repeat a valid selection.
+   *
+   * @param address - Resolved wallet address, or null for explicit deselection.
+   */
+  #setSelectedTradingAddress(address: string | null | undefined): void {
+    const walletChanged =
+      (this.#selectedTradingAddress ?? undefined) !== (address ?? undefined);
+    this.#selectedTradingAddress = address;
+    if (walletChanged) {
+      this.#selectedAccountGeneration += 1;
+    }
+    if (walletChanged || this.#hasUnverifiedAccountBalances) {
+      this.#hasUnverifiedAccountBalances = false;
+      this.update((state) => {
+        state.accountState = null;
+        state.perpsBalances = {};
+      });
+    }
+  }
+
+  /**
    * Subscribe to live account updates.
    * Updates controller state (Redux) when new account data arrives so consumers
    * like usePerpsBalanceTokenFilter (PayWithModal) see the latest balance.
@@ -7429,23 +7957,132 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      const originalCallback = params.callback;
+      const { accountId, callback: originalCallback } = params;
       return this.#trackProviderSubscription(
         provider,
-        (nextProvider) =>
-          nextProvider.subscribeToAccount({
+        (nextProvider) => {
+          // Capture each opening's account, including implicit selection, so
+          // late emissions after an account switch cannot own selected state.
+          // A malformed explicit id names no account and never owns state.
+          if (accountId === undefined) {
+            this.#reconcileSelectedTradingAddress();
+          }
+          const streamAddress =
+            accountId === undefined
+              ? getSelectedEvmAccountFromMessenger(
+                  this.messenger,
+                )?.address.toLowerCase()
+              : getCaipAccountAddress(accountId);
+          const subscriptionParams: SubscribeAccountParams = {
             ...params,
-            callback: (account: AccountState | null) => {
-              if (account) {
+            callback: (account, aggregate) => {
+              const selectedAddress =
+                this.activeProviderInstance === nextProvider &&
+                streamAddress !== undefined
+                  ? this.#reconcileSelectedTradingAddress(accountId)
+                  : undefined;
+              const ownsState =
+                streamAddress !== undefined &&
+                streamAddress === selectedAddress &&
+                streamAddress === this.#selectedTradingAddress &&
+                this.activeProviderInstance === nextProvider;
+              if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
+
+                  // One balance entry per venue with data, keyed by the venue
+                  // that actually served it. Aggregated updates carry explicit
+                  // per-venue entries; direct-provider updates are attributed
+                  // to their own venue id, or the active direct provider when
+                  // the venue does not stamp one.
+                  const timestamp = Date.now();
+                  const writeBalance = (
+                    venueId: string,
+                    balance: Pick<
+                      AccountState,
+                      'totalBalance' | 'unrealizedPnl'
+                    >,
+                  ): void => {
+                    state.perpsBalances[venueId] = {
+                      totalBalance: balance.totalBalance,
+                      unrealizedPnl: balance.unrealizedPnl,
+                      lastUpdated: timestamp,
+                    };
+                  };
+                  if (account.providerStates) {
+                    for (const [providerId, entry] of Object.entries(
+                      account.providerStates,
+                    )) {
+                      if (!entry) {
+                        continue;
+                      }
+                      if (entry.status === 'available') {
+                        writeBalance(providerId, entry.state);
+                      } else if (entry.status === 'unavailable') {
+                        // The venue's data is unavailable: drop its entry
+                        // rather than keep exposing a stale value as live.
+                        delete state.perpsBalances[providerId];
+                      }
+                      // Keep pending venues' balances only for the same wallet.
+                    }
+                  } else {
+                    const directVenueId =
+                      state.activeProvider === 'aggregated'
+                        ? undefined
+                        : state.activeProvider;
+                    const venueId = account.providerId ?? directVenueId;
+                    if (venueId) {
+                      // A direct or single-venue emission is the whole live
+                      // topology: entries for venues this stream does not
+                      // serve (persisted by a previous session) must not keep
+                      // looking live.
+                      for (const staleVenue of Object.keys(
+                        state.perpsBalances,
+                      )) {
+                        if (staleVenue !== venueId) {
+                          delete state.perpsBalances[staleVenue];
+                        }
+                      }
+                      writeBalance(venueId, account);
+                    }
+                  }
+                });
+              } else if (ownsState) {
+                this.update((state) => {
+                  state.accountState = null;
+                  state.lastUpdateTimestamp = Date.now();
+                  if (aggregate) {
+                    // A null total may still contain pending venues. For the
+                    // same wallet, only explicit unavailability clears them.
+                    for (const providerId of aggregate.unavailableProviders) {
+                      delete state.perpsBalances[providerId];
+                    }
+                  } else {
+                    state.perpsBalances = {};
+                  }
                 });
               }
-              originalCallback(account);
+              if (aggregate) {
+                originalCallback(account, aggregate);
+              } else {
+                originalCallback(account);
+              }
             },
-          }),
+          };
+          try {
+            return nextProvider.subscribeToAccount(subscriptionParams);
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message === PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE
+            ) {
+              subscriptionParams.callback(null);
+            }
+            throw error;
+          }
+        },
         () => originalCallback(null),
       );
     } catch (error) {
@@ -7906,11 +8543,13 @@ export class PerpsController extends BaseController<
    * - `NO_ACCOUNT_SELECTED` when no account is selected;
    * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
    * changed during setup;
-   * - the venue's message when HyperLiquid refused the builder fee approval
-   * for a reason signing again cannot fix (for example "Builder has
-   * insufficient balance to be approved"); it is not logged, and the
-   * approval is not asked for again until the provider disconnects;
-   * - otherwise the message of the error that stopped setup, which is logged.
+   * - provider-tagged `UNKNOWN_ERROR` when HyperLiquid refused the builder fee
+   * approval for a reason signing again cannot fix (for example the builder
+   * wallet cannot be approved). The venue sentence stays on the error cause
+   * and in the debug log; it is not logged to Sentry, and the approval is not
+   * asked for again until the provider disconnects;
+   * - otherwise a provider-tagged code for the error that stopped setup,
+   * which is logged. Text that is not a known code becomes `UNKNOWN_ERROR`.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
    * when no active provider is available.

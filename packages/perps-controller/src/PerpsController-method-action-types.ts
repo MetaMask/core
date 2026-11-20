@@ -87,6 +87,30 @@ export type PerpsControllerGetAccountSupportAction = {
 };
 
 /**
+ * Report the venue a withdrawal will sign on, using the same provider
+ * resolution and the same refusal as `withdraw`.
+ *
+ * While several venues are registered, a withdrawal without an explicit
+ * venue is refused with `PROVIDER_ROUTE_REQUIRED` rather than falling back
+ * to the routing default. This query reports that refusal as a
+ * `route_required` result instead of throwing, so callers cannot mistake it
+ * for a provider error or fail open around it. An explicit route that names
+ * an unknown venue, or that conflicts with the active direct provider,
+ * still throws `PROVIDER_NOT_FOUND`, matching `getAccountSupport`.
+ *
+ * Note that a no-argument `getAccountSupport` read routes through the
+ * routing default even when `withdraw` would refuse; use this method to
+ * learn which venue a withdrawal would actually use.
+ *
+ * @param params - Optional provider route, matching the route `withdraw` accepts.
+ * @returns The resolved venue, or the route-required refusal.
+ */
+export type PerpsControllerResolveWithdrawalRouteAction = {
+  type: `PerpsController:resolveWithdrawalRoute`;
+  handler: PerpsController['resolveWithdrawalRoute'];
+};
+
+/**
  * Get the currently active provider, returning null if not available
  * Use this method when the caller can gracefully handle a missing provider
  * (e.g., UI components during initialization or reconnection)
@@ -240,7 +264,7 @@ export type PerpsControllerSuspendChaseOrdersAction = {
  * Batch version of cancelOrder() that cancels multiple orders simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch cancellation results for each order.
+ * @returns Per-order results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerCancelOrdersAction = {
   type: `PerpsController:cancelOrders`;
@@ -264,7 +288,7 @@ export type PerpsControllerClosePositionAction = {
  * Batch version of closePosition() that closes multiple positions simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch close results for each position.
+ * @returns Per-position results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerClosePositionsAction = {
   type: `PerpsController:closePositions`;
@@ -421,6 +445,11 @@ export type PerpsControllerGetWithdrawalProgressAction = {
  *
  * @param params Withdrawal parameters
  * @returns WithdrawResult with withdrawal ID and tracking info
+ * @throws When no provider is initialized or the provider lifecycle changes
+ * while waiting for it, or when the explicit `providerId` route conflicts
+ * with the active direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode
+ * refusals are returned as `{ success: false, error }` values rather than
+ * thrown.
  */
 export type PerpsControllerWithdrawAction = {
   type: `PerpsController:withdraw`;
@@ -1037,6 +1066,33 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
 };
 
 /**
+ * Keep one merged, live TWAP list for the active provider: reads and the
+ * venue stream merged by schedule, execution totals raised from slice
+ * fills, and re-reads while a schedule runs. Split it with
+ * `partitionTwapOrders`. Follows the selected account.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads and the stream.
+ */
+export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
+  type: `PerpsController:subscribeToLiveTwapOrders`;
+  handler: PerpsController['subscribeToLiveTwapOrders'];
+};
+
+/**
+ * Keep running and history chase lists for the active provider. Ended
+ * chases stay in history after the provider drops them, up to
+ * `CHASE_ORDER_CONFIG.HistoryLimit`.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads.
+ */
+export type PerpsControllerSubscribeToChaseOrderListsAction = {
+  type: `PerpsController:subscribeToChaseOrderLists`;
+  handler: PerpsController['subscribeToChaseOrderLists'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -1246,11 +1302,13 @@ export type PerpsControllerClearAgentSignersAction = {
  * - `NO_ACCOUNT_SELECTED` when no account is selected;
  * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
  * changed during setup;
- * - the venue's message when HyperLiquid refused the builder fee approval
- * for a reason signing again cannot fix (for example "Builder has
- * insufficient balance to be approved"); it is not logged, and the
- * approval is not asked for again until the provider disconnects;
- * - otherwise the message of the error that stopped setup, which is logged.
+ * - provider-tagged `UNKNOWN_ERROR` when HyperLiquid refused the builder fee
+ * approval for a reason signing again cannot fix (for example the builder
+ * wallet cannot be approved). The venue sentence stays on the error cause
+ * and in the debug log; it is not logged to Sentry, and the approval is not
+ * asked for again until the provider disconnects;
+ * - otherwise a provider-tagged code for the error that stopped setup,
+ * which is logged. Text that is not a known code becomes `UNKNOWN_ERROR`.
  * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
  * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
  * when no active provider is available.
@@ -1763,6 +1821,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetAccountSupportAction
+  | PerpsControllerResolveWithdrawalRouteAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerGetMarginModeLockAction
@@ -1839,6 +1898,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
   | PerpsControllerSubscribeToTwapOrdersAction
+  | PerpsControllerSubscribeToLiveTwapOrdersAction
+  | PerpsControllerSubscribeToChaseOrderListsAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction

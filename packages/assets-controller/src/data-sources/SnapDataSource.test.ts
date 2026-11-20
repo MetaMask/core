@@ -241,7 +241,6 @@ function setupController(
     accountAssets?: string[];
     balances?: Record<string, Balance>;
     configuredNetworks?: ChainId[];
-    isBalanceV6Enabled?: () => boolean;
     getAssetVisibility?: GetAssetVisibility;
     getAssetsState?: () => AssetsControllerState;
   } = {},
@@ -250,7 +249,6 @@ function setupController(
     installedSnaps = {},
     accountAssets = [],
     balances = {},
-    isBalanceV6Enabled = (): boolean => false,
     getAssetVisibility = (): ReturnType<GetAssetVisibility> => ({
       visibleAssetIds: [],
       hiddenAssetIds: [],
@@ -305,7 +303,6 @@ function setupController(
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated: activeChainsUpdateHandler,
     onAssetsUpdate: assetsUpdateHandler,
-    isBalanceV6Enabled,
     getAssetVisibility,
     getAssetsState,
   };
@@ -484,7 +481,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'merge',
+      updateMode: 'full',
     });
   });
 
@@ -513,7 +510,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'merge',
+      updateMode: 'full',
     });
   });
 
@@ -568,7 +565,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_PIN]: { amount: '7', unit: 'WSOL' },
         [MOCK_SOL_TRACKED]: { amount: '3', unit: 'USDC' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility,
       getAssetsState: () => ({
         ...getDefaultAssetsControllerState(),
@@ -618,7 +614,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
         hiddenAssetIds: [],
@@ -651,7 +646,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_STELLAR_ASSET]: { amount: '1000000000', unit: 'XLM' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_STELLAR_ASSET, MOCK_STELLAR_PIN],
         hiddenAssetIds: [],
@@ -699,7 +693,6 @@ describe('SnapDataSource', () => {
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {},
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
         hiddenAssetIds: [],
@@ -724,7 +717,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [],
@@ -760,7 +752,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],
@@ -801,7 +792,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
         [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],
@@ -834,7 +824,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
         [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [MOCK_SOL_PIN],
@@ -960,7 +949,6 @@ describe('SnapDataSource', () => {
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
-      isBalanceV6Enabled: () => true,
     });
     assetsUpdateHandler.mockClear();
 
@@ -1262,7 +1250,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [],
@@ -1371,7 +1358,6 @@ describe('SnapDataSource', () => {
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: vi.fn(),
       onAssetsUpdate: vi.fn(),
-      isBalanceV6Enabled: () => false,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],

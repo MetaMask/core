@@ -33,7 +33,6 @@ import {
 import type { AssetsControllerState } from './AssetsController.js';
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
-import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
@@ -135,7 +134,7 @@ function createGatedQueryApiClient(): {
         unprocessedNetworks: [],
       })),
       fetchV6MultiAccountBalances: gatedCall(() => ({
-        accounts: [],
+        balances: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       })),
@@ -330,7 +329,7 @@ type WithControllerOptions = {
   clientControllerState?: { isUiOpen: boolean };
   /**
    * When set, registers RemoteFeatureFlagController:getState so the controller can
-   * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
+   * read feature flags (for example the unlock spam-cleanup flag).
    */
   remoteFeatureFlags?: FeatureFlags;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
@@ -685,7 +684,6 @@ describe('AssetsController', () => {
           },
           accountsApiDataSourceConfig: {
             pollInterval: 15_000,
-            tokenDetectionEnabled: (): boolean => false,
           },
         });
         controller.destroy();
@@ -870,6 +868,105 @@ describe('AssetsController', () => {
       }
     });
 
+    describe('bypassServerCache', () => {
+      const setupV6QueryApiClient = (): {
+        queryApiClient: ApiPlatformClient;
+        fetchV2SupportedNetworks: ReturnType<typeof vi.fn>;
+        fetchV6MultiAccountBalances: ReturnType<typeof vi.fn>;
+      } => {
+        const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+          fullSupport: [1],
+          partialSupport: [],
+        });
+        const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
+          accounts: [],
+          unprocessedNetworks: [],
+          unprocessedIncludeAssetIds: [],
+        });
+        const queryApiClient = {
+          ...createMockQueryApiClient(),
+          accounts: {
+            fetchV2SupportedNetworks,
+            fetchV6MultiAccountBalances,
+            fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
+              balances: [],
+              unprocessedNetworks: [],
+            }),
+          },
+        } as unknown as ApiPlatformClient;
+        return {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        };
+      };
+
+      it('bypasses the Accounts API server cache when bypassServerCache is true', async () => {
+        const {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        } = setupV6QueryApiClient();
+
+        await withController(
+          {
+            queryApiClient,
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
+          },
+          async ({ controller }) => {
+            await waitUntilStable(() => [
+              fetchV2SupportedNetworks.mock.calls.length,
+            ]);
+            fetchV6MultiAccountBalances.mockClear();
+
+            await controller.addCustomAsset(
+              MOCK_ACCOUNT_ID,
+              MOCK_ASSET_ID,
+              undefined,
+              true,
+            );
+          },
+        );
+
+        expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            includeAssetIds: expect.arrayContaining([MOCK_ASSET_ID]),
+          }),
+          expect.objectContaining({ bypassServerCache: true }),
+        );
+      });
+
+      it('does not bypass the Accounts API server cache when bypassServerCache is omitted', async () => {
+        const {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        } = setupV6QueryApiClient();
+
+        await withController(
+          {
+            queryApiClient,
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
+          },
+          async ({ controller }) => {
+            await waitUntilStable(() => [
+              fetchV2SupportedNetworks.mock.calls.length,
+            ]);
+            fetchV6MultiAccountBalances.mockClear();
+
+            await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          },
+        );
+
+        expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+        for (const [, , fetchOptions] of fetchV6MultiAccountBalances.mock
+          .calls) {
+          expect(fetchOptions).not.toHaveProperty('bypassServerCache');
+        }
+      });
+    });
+
     it('does not overwrite an existing balance when re-adding a custom asset', async () => {
       await withController(
         {
@@ -1024,11 +1121,11 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('custom asset graduation', () => {
+  describe('custom asset pins', () => {
     const SOLANA_ASSET_ID =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 
-    it('graduates an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -1046,11 +1143,13 @@ describe('AssetsController', () => {
           'AccountsApiDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1065,11 +1164,13 @@ describe('AssetsController', () => {
           'AccountActivityDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('does not graduate when RpcDataSource reports a balance for a custom asset', async () => {
+    it('keeps an EVM custom asset when RpcDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1090,7 +1191,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('does not graduate a non-EVM (Solana) custom asset', async () => {
+    it('keeps a non-EVM (Solana) custom asset when a balance is reported for it', async () => {
       await withController(
         {
           state: {
@@ -1116,7 +1217,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('does not sync to AUS when graduation removes a custom asset', async () => {
+    it('does not sync to AUS when Accounts API reports a balance for a custom asset', async () => {
       await withController(
         {
           state: {
@@ -1137,9 +1238,9 @@ describe('AssetsController', () => {
             'AccountsApiDataSource',
           );
 
-          expect(
-            controller.state.customAssets[MOCK_ACCOUNT_ID],
-          ).toBeUndefined();
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+            MOCK_ASSET_ID,
+          );
           await waitUntilStable(() => [
             ausMocks.importTokens.mock.calls.length,
             ausMocks.hideTokens.mock.calls.length,
@@ -1147,8 +1248,8 @@ describe('AssetsController', () => {
             ausMocks.setUserAssets.mock.calls.length,
           ]);
 
-          // Graduation is automatic detection, not user intent: it must not
-          // strip the still-visible token from the AUS user-assets blob.
+          // A balance report is not a user import or hide, so it must not
+          // write the AUS user-assets blob.
           expect(ausMocks.importTokens).not.toHaveBeenCalled();
           expect(ausMocks.hideTokens).not.toHaveBeenCalled();
           expect(ausMocks.getUserAssets).not.toHaveBeenCalled();
@@ -1827,10 +1928,7 @@ describe('AssetsController', () => {
       );
     });
 
-    // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
-    // this asserts the controller wires its messenger through so the
-    // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
-    it('routes to the Accounts API v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
+    it('routes balance fetches to the Accounts API v6 endpoint', async () => {
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -1857,7 +1955,6 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await waitUntilStable(() => [
@@ -1991,51 +2088,6 @@ describe('AssetsController', () => {
           }
         },
       );
-    });
-
-    it('includes every pinned asset on the v5 force-update request, including other chains', async () => {
-      const mainnetToken =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const polygonToken =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware: MockedFunction<Middleware> = vi.fn(
-        async (ctx, next) => {
-          capturedCustomAssets.push(ctx.request.customAssets);
-          return next(ctx);
-        },
-      );
-      const middlewareGetter = vi
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'assetsMiddleware',
-          'get',
-        )
-        .mockReturnValue(
-          accountsApiMiddleware as never,
-        ) as unknown as MockInstance;
-
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
-
-        capturedCustomAssets.length = 0;
-        await controller.getAssets([createMockInternalAccount()], {
-          chainIds: ['eip155:1'],
-          forceUpdate: true,
-        });
-      });
-
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual(
-          expect.arrayContaining([mainnetToken, polygonToken]),
-        );
-      }
-
-      middlewareGetter.mockRestore();
     });
 
     it('includes only pins on the requested chains as includeAssetIds', async () => {
@@ -2649,81 +2701,6 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
-    it('re-reads tracked assets an Accounts API poll left empty via the RPC fallback', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
-        },
-      };
-      const rpcMiddleware = vi.fn(
-        async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
-          next(ctx),
-      );
-      const rpcMiddlewareGetter = vi
-        .spyOn(
-          RpcDataSource.prototype,
-          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'assetsMiddleware',
-          'get',
-        )
-        .mockReturnValue(rpcMiddleware as never);
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        const pollRequest: DataRequest = {
-          accountsWithSupportedChains: [
-            {
-              account: createMockInternalAccount(),
-              supportedChains: ['eip155:1'],
-            },
-          ],
-          chainIds: ['eip155:1'],
-          dataTypes: ['balance'],
-        };
-
-        // The poll response omits MOCK_ASSET_ID even though state tracks it —
-        // the fallback must hand it to RPC for an on-chain re-read.
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-          pollRequest,
-        );
-
-        expect(rpcMiddleware).toHaveBeenCalledTimes(1);
-        const [rpcCtx] = rpcMiddleware.mock.calls[0] as [
-          { request: DataRequest },
-        ];
-        expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
-        expect(rpcCtx.request.customAssets).toContain(MOCK_ASSET_ID);
-
-        // Same update from the WebSocket source must NOT trigger the
-        // fallback: its pushes are incremental single-asset updates, so an
-        // absent asset is not stale there.
-        rpcMiddleware.mockClear();
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountActivityDataSource',
-          pollRequest,
-        );
-        expect(rpcMiddleware).not.toHaveBeenCalled();
-      });
-
-      rpcMiddlewareGetter.mockRestore();
-    });
-
     it('does not fail when parent trace rejects after enrichment completes', async () => {
       const traceMock = vi
         .fn()
@@ -3491,7 +3468,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('adds default 0 balance for native tokens when missing from response', async () => {
+    it('does not invent a native balance when the response omits it', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
@@ -3511,7 +3488,7 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
             MOCK_NATIVE_ASSET_ID
           ],
-        ).toStrictEqual({ amount: '0' });
+        ).toBeUndefined();
       });
     });
 
@@ -3533,7 +3510,7 @@ describe('AssetsController', () => {
         const nativeIds = Object.keys(accountBalances).filter((id) =>
           id.includes('/slip44:'),
         );
-        expect(nativeIds).toStrictEqual([MOCK_NATIVE_ASSET_ID]);
+        expect(nativeIds).toStrictEqual([]);
       });
     });
 
@@ -3868,82 +3845,6 @@ describe('AssetsController', () => {
           ).toStrictEqual({ amount: '7' });
         },
       );
-    });
-
-    it('replaces covered-chain balances in merge mode when replaceCoveredChainBalances is set', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'TestSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-      });
-    });
-
-    it('preserves existing staked balances when replaceCoveredChainBalances omits them', async () => {
-      const stakingAssetId =
-        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-            [stakingAssetId]: { amount: '1.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[stakingAssetId],
-        ).toStrictEqual({ amount: '1.5' });
-      });
     });
 
     it('preserves existing staked balances when a full update omits them', async () => {
@@ -5081,68 +4982,6 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
           queryApiClient,
           remoteFeatureFlags: { assetsAccountsApiV6: true },
-          state: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '100' },
-                [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-              },
-            },
-          },
-        },
-        async ({ controller, messenger }) => {
-          messenger.publish(
-            'ClientController:stateChange',
-            { isUiOpen: true },
-            [],
-          );
-          messenger.publish('KeyringController:unlock');
-          messenger.publish(
-            'AccountTreeController:initialized',
-            getDefaultAccountTreeControllerState(),
-          );
-
-          await waitFor(() => {
-            expect(
-              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-            ).toBeUndefined();
-            expect(
-              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-                MOCK_NATIVE_ASSET_ID
-              ],
-            ).toStrictEqual({ amount: '2' });
-          });
-        },
-      );
-    });
-
-    it('replaces pre-lock balances on unlock via merge with covered-chain replacement', async () => {
-      const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
-        balances: [
-          {
-            accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
-            assetId: MOCK_NATIVE_ASSET_ID,
-            balance: '2',
-          },
-        ],
-        unprocessedNetworks: [],
-      });
-
-      const queryApiClient = {
-        ...createMockQueryApiClient(),
-        accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
-          fetchV5MultiAccountBalances,
-        },
-      } as unknown as ApiPlatformClient;
-
-      await withController(
-        {
-          clientControllerState: { isUiOpen: true },
-          queryApiClient,
           state: {
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {

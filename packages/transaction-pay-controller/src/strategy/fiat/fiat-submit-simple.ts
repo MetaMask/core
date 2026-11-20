@@ -4,8 +4,8 @@ import { createModuleLogger } from '@metamask/utils';
 import { projectLogger } from '../../logger.js';
 import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
 import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
 import type { FiatQuote } from './types.js';
 import { validateRelayRateDrift } from './utils.js';
 
@@ -51,7 +51,7 @@ export async function submitSimpleRelay({
     sourceTokenAmount: sourceAmountRaw,
   };
 
-  const relayQuotes = await getRelayQuotes({
+  const relayQuotes = await getServerQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
@@ -64,8 +64,8 @@ export async function submitSimpleRelay({
   }
 
   validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: relayQuotes[0].original,
+    originalQuote: request.quotes[0],
+    discoveryQuote: relayQuotes[0],
     maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
     transactionId,
   });
@@ -75,7 +75,7 @@ export async function submitSimpleRelay({
     transactionId,
   });
 
-  return await submitRelayQuotes({
+  return await submitServerQuotes({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,

@@ -1992,6 +1992,31 @@ describe('RampsService', () => {
       expect(quotesResponse.error).toHaveLength(0);
     });
 
+    it('fetches quotes from the environment origin even when baseUrlOverride is set', async () => {
+      // `getBuyWidgetUrl` requires buy URLs to share this origin, and the API
+      // builds them from the host that served the quotes request.
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query(true)
+        .reply(200, mockQuotesResponse);
+      const { service } = getService({
+        options: { baseUrlOverride: 'http://custom-url.test' },
+      });
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await settle();
+      await quotesPromise;
+
+      expect(interceptor.isDone()).toBe(true);
+    });
+
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/v2/quotes')
@@ -2719,6 +2744,118 @@ describe('RampsService', () => {
       ).rejects.toThrow('Wallet is locked');
       expect(interceptor.isDone()).toBe(false);
       nock.cleanAll();
+    });
+
+    it.each([
+      [RampsEnvironment.Production, 'https://on-ramp.api.cx.metamask.io'],
+      [RampsEnvironment.Staging, 'https://on-ramp.uat-api.cx.metamask.io'],
+      [RampsEnvironment.Development, 'https://on-ramp.dev-api.cx.metamask.io'],
+      [RampsEnvironment.Local, 'http://localhost:3000'],
+    ])(
+      'accepts a buy URL on the %s ramps API origin',
+      async (environment, origin) => {
+        nock(origin, {
+          reqheaders: {
+            Authorization: 'Bearer mock-bearer-token',
+          },
+        })
+          .get('/providers/transak-staging/buy-widget')
+          .query({
+            sdk: '2.1.6',
+            controller: CONTROLLER_VERSION,
+            context: 'mobile-ios',
+          })
+          .reply(200, {
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER',
+            orderId: null,
+          });
+        const { service, mockGetBearerToken } = getService({
+          options: { environment },
+        });
+
+        const buyWidgetPromise = service.getBuyWidgetUrl(
+          `${origin}/providers/transak-staging/buy-widget`,
+        );
+        await settle();
+        const buyWidget = await buyWidgetPromise;
+
+        expect(buyWidget).toStrictEqual({
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+        expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each([
+      [
+        'a foreign origin',
+        'https://evil.test/providers/transak-staging/buy-widget?apiKey=secret-value',
+        'https://evil.test',
+      ],
+      [
+        'a lookalike host',
+        'https://on-ramp.uat-api.cx.metamask.io.evil.test/providers/transak-staging/buy-widget?apiKey=secret-value',
+        'https://on-ramp.uat-api.cx.metamask.io.evil.test',
+      ],
+      [
+        'userinfo spoofing of the ramps API host',
+        'https://on-ramp.uat-api.cx.metamask.io@evil.test/providers/transak-staging/buy-widget?apiKey=secret-value',
+        'https://evil.test',
+      ],
+      [
+        'an http scheme downgrade',
+        'http://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget?apiKey=secret-value',
+        'http://on-ramp.uat-api.cx.metamask.io',
+      ],
+      [
+        'a non-default port',
+        'https://on-ramp.uat-api.cx.metamask.io:8443/providers/transak-staging/buy-widget?apiKey=secret-value',
+        'https://on-ramp.uat-api.cx.metamask.io:8443',
+      ],
+    ])(
+      'rejects %s without fetching or requesting a bearer token',
+      async (_label, buyUrl, rejectedOrigin) => {
+        const fetchMock = vi.fn();
+        const { service, mockGetBearerToken } = getService({
+          options: { fetch: fetchMock as unknown as typeof fetch },
+        });
+
+        const error = await service
+          .getBuyWidgetUrl(buyUrl)
+          .then(() => undefined)
+          .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(Error);
+        const { message } = error as Error;
+        expect(message).toContain(`origin '${rejectedOrigin}'`);
+        // The rejected URL's query string must not be echoed or logged.
+        expect(message).not.toContain('secret-value');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockGetBearerToken).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not let baseUrlOverride relax the origin check', async () => {
+      const fetchMock = vi.fn();
+      const { service, mockGetBearerToken } = getService({
+        options: {
+          baseUrlOverride: 'http://custom-url.test',
+          fetch: fetchMock as unknown as typeof fetch,
+        },
+      });
+
+      await expect(
+        service.getBuyWidgetUrl(
+          'http://custom-url.test/providers/transak-staging/buy-widget',
+        ),
+      ).rejects.toThrow(
+        "Refusing to request buy widget URL with origin 'http://custom-url.test': expected the ramps API origin 'https://on-ramp.uat-api.cx.metamask.io'",
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
     });
   });
 

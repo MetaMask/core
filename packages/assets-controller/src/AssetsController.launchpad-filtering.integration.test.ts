@@ -52,16 +52,8 @@ const METADATA = STATE_METADATA_SURFACE;
 
 const LANES: {
   name: string;
-  version: 'v5' | 'v6';
-  remoteFeatureFlags?: FeatureFlags;
-}[] = [
-  { name: 'the v5 update lane', version: 'v5' },
-  {
-    name: 'the v6 update lane',
-    version: 'v6',
-    remoteFeatureFlags: { assetsAccountsApiV6: true },
-  },
-];
+  version: 'v6';
+}[] = [{ name: 'the update lane', version: 'v6' }];
 
 const ALL_ASSET_IDS = [
   LAUNCHPAD_ASSET_ID,
@@ -123,64 +115,49 @@ type Result = {
   launchpadLookups: string[][];
 };
 
-async function runWebsocketEvent(
-  remoteFeatureFlags?: FeatureFlags,
-): Promise<Result> {
+async function runWebsocketEvent(): Promise<Result> {
   nock.cleanAll();
   const { accountsSupportedNetworks, launchpadLookups } = mockLaunchpadApis();
 
-  const state = await withController(
-    { remoteFeatureFlags },
-    async ({ controller, messenger }) => {
-      await waitFor(() =>
-        expect(accountsSupportedNetworks.isDone()).toBe(true),
-      );
+  const state = await withController({}, async ({ controller, messenger }) => {
+    await waitFor(() => expect(accountsSupportedNetworks.isDone()).toBe(true));
 
-      messenger.publish(
-        'AccountActivityService:balanceUpdated',
-        buildBalanceUpdatedEvent(),
-      );
+    messenger.publish(
+      'AccountActivityService:balanceUpdated',
+      buildBalanceUpdatedEvent(),
+    );
 
-      await waitFor(() => {
-        if (
-          BALANCES.lookUp(controller.state, ESTABLISHED_ASSET_ID) === undefined
-        ) {
-          throw new Error('Websocket balances have not landed yet');
-        }
-      });
-      await waitUntilStable(() => controller.state);
+    await waitFor(() => {
+      if (
+        BALANCES.lookUp(controller.state, ESTABLISHED_ASSET_ID) === undefined
+      ) {
+        throw new Error('Websocket balances have not landed yet');
+      }
+    });
+    await waitUntilStable(() => controller.state);
 
-      return controller.state;
-    },
-  );
+    return controller.state;
+  });
 
   return { state, launchpadLookups };
 }
 
-async function runAccountsApiFetch(
-  version: 'v5' | 'v6',
-  remoteFeatureFlags?: FeatureFlags,
-): Promise<Result> {
+async function runAccountsApiFetch(version: 'v6'): Promise<Result> {
   nock.cleanAll();
   const { accountsSupportedNetworks, launchpadLookups } = mockLaunchpadApis();
   mockLaunchpadBalances(version);
 
-  const state = await withController(
-    { remoteFeatureFlags },
-    async ({ controller }) => {
-      await waitFor(() =>
-        expect(accountsSupportedNetworks.isDone()).toBe(true),
-      );
+  const state = await withController({}, async ({ controller }) => {
+    await waitFor(() => expect(accountsSupportedNetworks.isDone()).toBe(true));
 
-      await controller.getAssets([buildWsAccount()], {
-        chainIds: [MAINNET_CHAIN_ID],
-        forceUpdate: true,
-      });
-      await waitUntilStable(() => controller.state);
+    await controller.getAssets([buildWsAccount()], {
+      chainIds: [MAINNET_CHAIN_ID],
+      forceUpdate: true,
+    });
+    await waitUntilStable(() => controller.state);
 
-      return controller.state;
-    },
-  );
+    return controller.state;
+  });
 
   return { state, launchpadLookups };
 }
@@ -233,12 +210,12 @@ describe('AssetsController: launchpad token filtering', () => {
     nock.cleanAll();
   });
 
-  describe.each(LANES)('$name', ({ version, remoteFeatureFlags }) => {
+  describe.each(LANES)('$name', ({ version }) => {
     describe('websocket balance update', () => {
       let result: Result;
 
       beforeAll(async () => {
-        result = await runWebsocketEvent(remoteFeatureFlags);
+        result = await runWebsocketEvent();
       });
 
       describeScenarios(() => result);
@@ -248,7 +225,7 @@ describe('AssetsController: launchpad token filtering', () => {
       let result: Result;
 
       beforeAll(async () => {
-        result = await runAccountsApiFetch(version, remoteFeatureFlags);
+        result = await runAccountsApiFetch(version);
       });
 
       describeScenarios(() => result);

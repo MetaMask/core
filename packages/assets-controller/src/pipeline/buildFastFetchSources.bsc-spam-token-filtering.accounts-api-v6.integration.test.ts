@@ -28,10 +28,8 @@ import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js'
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
-import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
-  AccountId,
   AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
@@ -46,7 +44,7 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 /**
  * Integration coverage for the fast fetch lane against the BNB Chain wallet
  * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report, on the Accounts API
- * **v6** balances endpoint (`assetsAccountsApiV6` on).
+ * balances endpoint.
  *
  * Executes the real fast-lane pipeline against the live-captured v6 APIs. The
  * v6 endpoint classifies every balance row and omits `Malicious` rows unless
@@ -101,7 +99,6 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: vi.fn(),
-    getAssetsState: (): AssetsControllerState => state,
     getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
       getAssetVisibility({
         state,
@@ -109,7 +106,6 @@ async function runPipeline(
         chainIds,
         getNativeAssetForChain: () => BNB_ASSET_ID,
       }),
-    isBalanceV6Enabled: (): boolean => true,
   });
 
   const rpcDataSource = new RpcDataSource({
@@ -166,27 +162,13 @@ async function runPipeline(
   const sources = buildFastFetchSources(
     {
       accountsApiDataSource,
-      customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
-        getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
-        removeCustomAsset: (): void => {
-          throw new Error(
-            'The v6 lane never graduates custom assets - pins travel as includeAssetIds!',
-          );
-        },
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
-        getAssetsState: (): AssetsControllerState => state,
-        isBalanceV6Enabled: (): boolean => true,
       }),
       tokenDataSource,
       priceDataSource,
     },
-    // The v6 lane never runs custom-asset graduation: pins are sent to the
-    // endpoint as `includeAssetIds`, and an endpoint that cannot resolve one
-    // fails the whole chain so the RPC fallback recovers it.
-    { isBasicFunctionality: true, includeCustomAssetGraduation: false },
+    { isBasicFunctionality: true },
   );
 
   const { response } = await executeAssetsPipeline({
