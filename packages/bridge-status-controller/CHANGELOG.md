@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/transaction-pay-controller` at `^32.0.0`
   - `@metamask/eth-json-rpc-provider` at `^7.0.0` (dev)
   - `@metamask/keyring-internal-api` at `^12.1.2` (dev)
+- Populate the `money_account_action` and `failure_phase` event properties for withdraw and deposit transactions ((#11677)[https://github.com/MetaMask/core/pull/11677])
 
 ### Changed
 
