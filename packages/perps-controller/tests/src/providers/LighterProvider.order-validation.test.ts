@@ -3653,10 +3653,26 @@ describe('LighterProvider', () => {
       expect(() => provider.setLiveDataConfig({})).not.toThrow();
     });
 
-    it('returns an explorer URL', () => {
-      const { provider } = buildProvider();
-      expect(provider.getBlockExplorerUrl('0xabc')).toContain('/address/0xabc');
-      expect(provider.getBlockExplorerUrl()).toMatch(/^https:/u);
+    it('returns explorer URLs that point at the explorer pages', () => {
+      const { provider: testnetProvider } = buildProvider({
+        isTestnet: true,
+      });
+      expect(testnetProvider.getBlockExplorerUrl('0xabc')).toBe(
+        'https://testnet.app.lighter.xyz/explorer/accounts/0xabc',
+      );
+      expect(testnetProvider.getBlockExplorerUrl()).toBe(
+        'https://testnet.app.lighter.xyz/explorer',
+      );
+
+      const { provider: mainnetProvider } = buildProvider({
+        isTestnet: false,
+      });
+      expect(mainnetProvider.getBlockExplorerUrl('0xabc')).toBe(
+        'https://app.lighter.xyz/explorer/accounts/0xabc',
+      );
+      expect(mainnetProvider.getBlockExplorerUrl()).toBe(
+        'https://app.lighter.xyz/explorer',
+      );
     });
   });
 });
