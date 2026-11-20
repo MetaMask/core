@@ -37,8 +37,6 @@ import type {
   Mutation,
   MutationPayload,
   MutationReceipt,
-  PendingOperation,
-  PendingOperationEncryptor,
   PoPChallenge,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
@@ -861,18 +859,6 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     );
   }
 }
-
-/**
- * JSON round-trip encryptor for tests. Production uses wallet secure storage.
- */
-export const passthroughEncryptor: PendingOperationEncryptor = {
-  async encrypt(operation: PendingOperation): Promise<string> {
-    return JSON.stringify(operation);
-  },
-  async decrypt(ciphertext: string): Promise<PendingOperation> {
-    return JSON.parse(ciphertext) as PendingOperation;
-  },
-};
 
 /**
  * @param identifier - Identifier to canonicalize.

@@ -111,8 +111,17 @@ export type MfaRecoveryControllerGetIdentifiersAction = {
  * `MutationRejectedError`, once its approval expired more than 5 minutes ago
  * and no escrow applied it.
  *
- * @param identifier - Enrolled identifier that authorizes the repair, or
- * replaces the one authorizing a pending update (e.g. if it was lost).
+ * The recovery secret of a pending `register` or `updateRecoverySecret` is
+ * held only in memory. After a restart, a `writing` one reads it back from an
+ * escrow that applied it, with the update's identifier or, for `register`,
+ * `identifier`. Without such an escrow it throws
+ * `recovery_secret_unavailable` until the approval expires. An
+ * `authorizing` one reached no escrow, so it is cleared, throwing
+ * `MutationRejectedError`.
+ *
+ * @param identifier - Enrolled identifier that authorizes the repair,
+ * replaces the one authorizing a pending update (e.g. if it was lost), or
+ * reads back the recovery secret of a pending `register`.
  */
 export type MfaRecoveryControllerResumeAction = {
   type: `MfaRecoveryController:resume`;
