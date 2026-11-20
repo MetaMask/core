@@ -60,6 +60,7 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import { LighterEnrollmentService } from './services/LighterEnrollmentService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
@@ -1418,6 +1419,8 @@ export class PerpsController extends BaseController<
 
   readonly #dataLakeService: DataLakeService;
 
+  readonly #lighterEnrollmentService: LighterEnrollmentService;
+
   readonly #depositService: DepositService;
 
   readonly #featureFlagConfigurationService: FeatureFlagConfigurationService;
@@ -1481,6 +1484,10 @@ export class PerpsController extends BaseController<
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
+    this.#lighterEnrollmentService = new LighterEnrollmentService(
+      infrastructure,
+      messenger,
+    );
     this.#depositService = new DepositService(infrastructure, messenger);
     this.#featureFlagConfigurationService = new FeatureFlagConfigurationService(
       infrastructure,
@@ -10084,12 +10091,14 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Report order events to data lake API with retry (non-blocking)
-   * Thin delegation to DataLakeService
+   * Report an order to notify-perps with retry (non-blocking).
+   * Hyperliquid orders go to the orders endpoint (DataLakeService). Lighter
+   * orders enroll the account for notifications instead and never reach it.
    *
    * @param params - The operation parameters.
    * @param params.action - The order action.
    * @param params.symbol - The trading pair symbol.
+   * @param params.providerId - The venue that executed the order, when known.
    * @param params.slPrice - The stop loss price.
    * @param params.tpPrice - The take profit price.
    * @param params.retryCount - Internal retry counter.
@@ -10099,11 +10108,24 @@ export class PerpsController extends BaseController<
   protected async reportOrderToDataLake(params: {
     action: 'open' | 'close';
     symbol: string;
+    providerId?: PerpsProviderType;
     slPrice?: number;
     tpPrice?: number;
     retryCount?: number;
     _traceId?: string;
   }): Promise<{ success: boolean; error?: string }> {
+    if (params.providerId === 'lighter') {
+      return this.#lighterEnrollmentService.enroll({
+        isTestnet: isProviderOnTestnet('lighter', this.state.isTestnet),
+        getAccountIndex: async () => {
+          const provider = await this.#getActiveProviderWhenReady();
+          if (!provider.getEnrollmentAccountIndex) {
+            throw new Error('Provider does not support enrollment');
+          }
+          return provider.getEnrollmentAccountIndex();
+        },
+      });
+    }
     return this.#dataLakeService.reportOrder({
       action: params.action,
       symbol: params.symbol,
