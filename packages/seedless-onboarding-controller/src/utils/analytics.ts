@@ -3,7 +3,11 @@ import type {
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { areUint8ArraysEqual, bytesToHex, stringToBytes } from '@metamask/utils';
+import {
+  areUint8ArraysEqual,
+  bytesToHex,
+  stringToBytes,
+} from '@metamask/utils';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 
