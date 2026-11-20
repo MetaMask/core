@@ -47,8 +47,8 @@ export const LIGHTER_ENDPOINTS: LighterEndpoints = {
     ws: 'wss://mainnet.zklighter.elliot.ai/stream',
   },
   testnet: {
-    http: 'https://testnet.zklighter.elliot.ai',
-    ws: 'wss://testnet.zklighter.elliot.ai/stream',
+    http: 'https://api.testnet.lighter.xyz',
+    ws: 'wss://api.testnet.lighter.xyz/stream',
   },
 };
 

@@ -176,7 +176,7 @@ globalThis.fetch = async (input, init): Promise<Response> => {
   const request = new globalThis.Request(input, init);
   const url = new URL(request.url);
   assert.equal(request.method, 'GET', 'Venue writes are forbidden');
-  assert.equal(url.origin, 'https://testnet.zklighter.elliot.ai');
+  assert.equal(url.origin, 'https://api.testnet.lighter.xyz');
   requests.push(url.pathname);
   const response = await fetch(request);
   if (url.pathname === '/api/v1/accountInactiveOrders') {

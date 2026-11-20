@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Point Lighter testnet REST and WebSocket endpoints at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream` ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Added
 
 - Add `PerpsController.resolveWithdrawalRoute` (messenger action `PerpsController:resolveWithdrawalRoute`) to report which venue a withdrawal will sign on, using the same provider resolution and `PROVIDER_ROUTE_REQUIRED` refusal as `withdraw` ([#11676](https://github.com/MetaMask/core/pull/11676))

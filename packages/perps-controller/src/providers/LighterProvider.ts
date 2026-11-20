@@ -1416,7 +1416,7 @@ const deriveLighterExecutionPrice = (
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
 const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
-const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
+const LIGHTER_TESTNET_EXPLORER_URL = 'https://explorerapi.testnet.lighter.xyz';
 const LIGHTER_TRIGGER_WIRE_TYPES: Readonly<Record<TriggerOrderType, number>> =
   Object.freeze({
     stop_market: LIGHTER_ORDER_TYPE_STOP_LOSS,

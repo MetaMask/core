@@ -209,7 +209,7 @@ describe('LighterClientService', () => {
   describe('network resolution', () => {
     it('uses the testnet base URL in testnet mode', () => {
       expect(buildService(true).baseUrl).toBe(
-        'https://testnet.zklighter.elliot.ai',
+        'https://api.testnet.lighter.xyz',
       );
       expect(buildService(true).network).toBe('testnet');
     });
@@ -236,7 +236,7 @@ describe('LighterClientService', () => {
       expect(second).toStrictEqual([ORDER_BOOK]);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://testnet.zklighter.elliot.ai/api/v1/orderBooks',
+        'https://api.testnet.lighter.xyz/api/v1/orderBooks',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -362,7 +362,7 @@ describe('LighterClientService', () => {
         nonce: 42,
       });
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://testnet.zklighter.elliot.ai/api/v1/tx?by=hash&value=aabbccdd',
+        'https://api.testnet.lighter.xyz/api/v1/tx?by=hash&value=aabbccdd',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -413,7 +413,7 @@ describe('LighterClientService', () => {
       const service = buildService();
       await service.getInactiveOrders(28, 'auth-token', 100, 'abc/def', 2);
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://testnet.zklighter.elliot.ai/api/v1/accountInactiveOrders?account_index=28&limit=100&cursor=abc%2Fdef&market_id=2',
+        'https://api.testnet.lighter.xyz/api/v1/accountInactiveOrders?account_index=28&limit=100&cursor=abc%2Fdef&market_id=2',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -538,7 +538,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
       await buildService().getOrdersByClientIds(28, 'auth-token', ['12', '34']);
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://testnet.zklighter.elliot.ai/api/v1/accountOrders?account_index=28&client_order_indexes=12%2C34',
+        'https://api.testnet.lighter.xyz/api/v1/accountOrders?account_index=28&client_order_indexes=12%2C34',
         expect.objectContaining({ headers: { authorization: 'auth-token' } }),
       );
     });
@@ -1288,7 +1288,7 @@ describe('LighterClientService', () => {
 
       expect(result.txHash).toBe('0xhash');
       const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://testnet.zklighter.elliot.ai/api/v1/sendTx');
+      expect(url).toBe('https://api.testnet.lighter.xyz/api/v1/sendTx');
       expect(init.method).toBe('POST');
       expect(init.headers).toStrictEqual({
         'content-type': 'application/x-www-form-urlencoded',
