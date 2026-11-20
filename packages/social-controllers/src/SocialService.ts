@@ -8,7 +8,6 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import { is } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
@@ -53,26 +52,6 @@ import type {
   UnfollowResponse,
 } from './social-types.js';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
-import {
-  BlockedContentResponseStruct,
-  BlockedProfilesResponseStruct,
-  CommentEngagementStruct,
-  CommentTranslationStruct,
-  CopyTradeIntentResponseStruct,
-  FollowResponseStruct,
-  FollowersResponseStruct,
-  FollowingResponseStruct,
-  GifPageResponseStruct,
-  LeaderboardResponseStruct,
-  ModerationStatusResponseStruct,
-  PositionStruct,
-  PositionsResponseStruct,
-  QuoteTokensResponseStruct,
-  SwapCommentResponseStruct,
-  TraderProfileResponseStruct,
-  UnfollowResponseStruct,
-  parseFeedResponse,
-} from './structs.js';
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -235,13 +214,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
         );
-        const leaderboardData = (await response.json()) as unknown;
-        if (!is(leaderboardData, LeaderboardResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
-          );
-        }
-        return leaderboardData;
+        return (await response.json()) as LeaderboardResponse;
       },
     });
 
@@ -275,13 +248,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
         );
-        const traderProfileData = (await response.json()) as unknown;
-        if (!is(traderProfileData, TraderProfileResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
-          );
-        }
-        return traderProfileData;
+        return (await response.json()) as TraderProfileResponse;
       },
     });
 
@@ -362,13 +329,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
         );
-        const followersData = (await response.json()) as unknown;
-        if (!is(followersData, FollowersResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
-          );
-        }
-        return followersData;
+        return (await response.json()) as FollowersResponse;
       },
     });
 
@@ -402,13 +363,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED,
         );
-        const followingData = (await response.json()) as unknown;
-        if (!is(followingData, FollowingResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
-          );
-        }
-        return followingData;
+        return (await response.json()) as FollowingResponse;
       },
     });
 
@@ -439,13 +394,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED,
         );
-        const positionData = (await response.json()) as unknown;
-        if (!is(positionData, PositionStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
-          );
-        }
-        return positionData;
+        return (await response.json()) as Position;
       },
     });
 
@@ -529,11 +478,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FEED_FAILED,
         );
-        const feedData = (await response.json()) as unknown;
-        return parseFeedResponse(
-          feedData,
-          SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-        );
+        return (await response.json()) as FeedResponse;
       },
     });
 
@@ -597,11 +542,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
         );
-        const feedData = (await response.json()) as unknown;
-        return parseFeedResponse(
-          feedData,
-          SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
-        );
+        return (await response.json()) as FeedResponse;
       },
     });
 
@@ -664,11 +605,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
         );
-        const feedData = (await response.json()) as unknown;
-        return parseFeedResponse(
-          feedData,
-          SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
-        );
+        return (await response.json()) as FeedResponse;
       },
     });
 
@@ -706,13 +643,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED,
         );
-        const metrics = (await response.json()) as unknown;
-        if (!is(metrics, CommentEngagementStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
-          );
-        }
-        return metrics;
+        return (await response.json()) as CommentEngagement;
       },
     });
   }
@@ -746,13 +677,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED,
         );
-        const metrics = (await response.json()) as unknown;
-        if (!is(metrics, CommentEngagementStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
-          );
-        }
-        return metrics;
+        return (await response.json()) as CommentEngagement;
       },
     });
   }
@@ -806,13 +731,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED,
         );
-        const comment = (await response.json()) as unknown;
-        if (!is(comment, SwapCommentResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
-          );
-        }
-        return comment;
+        return (await response.json()) as SwapCommentResponse;
       },
     });
   }
@@ -851,13 +770,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED,
         );
-        const translation = (await response.json()) as unknown;
-        if (!is(translation, CommentTranslationStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
-          );
-        }
-        return translation;
+        return (await response.json()) as CommentTranslation;
       },
     });
   }
@@ -901,13 +814,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_FAILED,
         );
-        const intent = (await response.json()) as unknown;
-        if (!is(intent, CopyTradeIntentResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
-          );
-        }
-        return intent;
+        return (await response.json()) as CopyTradeIntentResponse;
       },
     });
   }
@@ -936,13 +843,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
         );
-        const followingData = (await response.json()) as unknown;
-        if (!is(followingData, FollowingResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
-          );
-        }
-        return followingData;
+        return (await response.json()) as FollowingResponse;
       },
     });
 
@@ -981,13 +882,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED,
         );
-        const followersData = (await response.json()) as unknown;
-        if (!is(followersData, FollowersResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
-          );
-        }
-        return followersData;
+        return (await response.json()) as FollowersResponse;
       },
     });
 
@@ -1022,11 +917,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FOLLOW_FAILED,
         );
-        const followData = (await response.json()) as unknown;
-        if (!is(followData, FollowResponseStruct)) {
-          throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
-        }
-        return followData;
+        return (await response.json()) as FollowResponse;
       },
     });
 
@@ -1065,11 +956,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
         );
-        const unfollowData = (await response.json()) as unknown;
-        if (!is(unfollowData, UnfollowResponseStruct)) {
-          throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
-        }
-        return unfollowData;
+        return (await response.json()) as UnfollowResponse;
       },
     });
 
@@ -1257,13 +1144,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_FAILED,
         );
-        const blockedProfiles = (await response.json()) as unknown;
-        if (!is(blockedProfiles, BlockedProfilesResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_INVALID_RESPONSE,
-          );
-        }
-        return blockedProfiles;
+        return (await response.json()) as BlockedProfilesResponse;
       },
     });
   }
@@ -1301,13 +1182,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_FAILED,
         );
-        const blockedContent = (await response.json()) as unknown;
-        if (!is(blockedContent, BlockedContentResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_INVALID_RESPONSE,
-          );
-        }
-        return blockedContent;
+        return (await response.json()) as BlockedContentResponse;
       },
     });
   }
@@ -1333,13 +1208,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_MODERATION_STATUS_FAILED,
         );
-        const status = (await response.json()) as unknown;
-        if (!is(status, ModerationStatusResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_MODERATION_STATUS_INVALID_RESPONSE,
-          );
-        }
-        return status;
+        return (await response.json()) as ModerationStatusResponse;
       },
     });
   }
@@ -1364,13 +1233,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED,
         );
-        const quoteTokens = (await response.json()) as unknown;
-        if (!is(quoteTokens, QuoteTokensResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
-          );
-        }
-        return quoteTokens;
+        return (await response.json()) as QuoteTokensResponse;
       },
     });
   }
@@ -1418,10 +1281,6 @@ export class SocialService extends BaseDataService<
       resource === 'trending'
         ? SocialServiceErrorMessage.FETCH_TRENDING_GIFS_FAILED
         : SocialServiceErrorMessage.FETCH_SEARCH_GIFS_FAILED;
-    const invalidMessage =
-      resource === 'trending'
-        ? SocialServiceErrorMessage.FETCH_TRENDING_GIFS_INVALID_RESPONSE
-        : SocialServiceErrorMessage.FETCH_SEARCH_GIFS_INVALID_RESPONSE;
 
     return await this.fetchQuery({
       queryKey: [`${this.name}:${method}`, gifQueryCacheKey(params)],
@@ -1434,11 +1293,7 @@ export class SocialService extends BaseDataService<
           headers: authHeaders,
         });
         SocialService.#throwIfNotOk(response, failedMessage);
-        const body = (await response.json()) as unknown;
-        if (!is(body, GifPageResponseStruct)) {
-          throw new Error(invalidMessage);
-        }
-        return body;
+        return (await response.json()) as GifPageResponse;
       },
     });
   }
@@ -1460,10 +1315,6 @@ export class SocialService extends BaseDataService<
       status === 'open'
         ? SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_FAILED
         : SocialServiceErrorMessage.FETCH_CLOSED_POSITIONS_FAILED;
-    const invalidMessage =
-      status === 'open'
-        ? SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE
-        : SocialServiceErrorMessage.FETCH_CLOSED_POSITIONS_INVALID_RESPONSE;
 
     const positionsResponse = await this.fetchQuery({
       queryKey: [
@@ -1500,11 +1351,7 @@ export class SocialService extends BaseDataService<
           headers: authHeaders,
         });
         SocialService.#throwIfNotOk(response, failedMessage);
-        const positionsData = (await response.json()) as unknown;
-        if (!is(positionsData, PositionsResponseStruct)) {
-          throw new Error(invalidMessage);
-        }
-        return positionsData;
+        return (await response.json()) as PositionsResponse;
       },
     });
 
