@@ -71,6 +71,7 @@ import type {
 } from './types.js';
 import type { BridgeStatusControllerMessenger } from './types.js';
 import { BridgeClientId } from './types.js';
+import { addCustomAsset, refreshAssets } from './utils/assets.js';
 import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
@@ -1246,25 +1247,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           nativeChainIds.add(parseCaipAssetType(assetId).chainId);
           continue;
         }
-        this.messenger
-          .call(
-            'AssetsController:addCustomAsset',
-            account.id,
-            assetId,
-            undefined,
-            true,
-          )
-          .catch(logFailure);
+        addCustomAsset(this.messenger, account.id, assetId).catch(logFailure);
       }
 
       if (nativeChainIds.size > 0) {
-        this.messenger
-          .call('AssetsController:getAssets', [account], {
-            chainIds: [...nativeChainIds],
-            forceUpdate: true,
-            bypassServerCache: true,
-          })
-          .catch(logFailure);
+        refreshAssets(this.messenger, account, [...nativeChainIds]).catch(
+          logFailure,
+        );
       }
     } catch (error) {
       logFailure(error);
