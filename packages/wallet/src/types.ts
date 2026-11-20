@@ -7,6 +7,24 @@ import type {
 } from './initialization/defaults.js';
 import type { AnalyticsControllerInstanceOptions } from './initialization/instances/analytics-controller/types.js';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
+import type {
+  AccountTrackerControllerInstanceOptions,
+  AssetsContractControllerInstanceOptions,
+  CurrencyRateControllerInstanceOptions,
+  DeFiPositionsControllerInstanceOptions,
+  MultichainAssetsControllerInstanceOptions,
+  MultichainAssetsRatesControllerInstanceOptions,
+  MultichainBalancesControllerInstanceOptions,
+  NftControllerInstanceOptions,
+  NftDetectionControllerInstanceOptions,
+  RatesControllerInstanceOptions,
+  TokenBalancesControllerInstanceOptions,
+  TokenDetectionControllerInstanceOptions,
+  TokenListControllerInstanceOptions,
+  TokenRatesControllerInstanceOptions,
+  TokensControllerInstanceOptions,
+  TokenSearchDiscoveryDataControllerInstanceOptions,
+} from './initialization/instances/assets-controllers/types.js';
 import type { ClaimsServiceInstanceOptions } from './initialization/instances/claims-service/types.js';
 import type { ConfigRegistryApiServiceInstanceOptions } from './initialization/instances/config-registry-api-service/types.js';
 import type { ConfigRegistryControllerInstanceOptions } from './initialization/instances/config-registry-controller/types.js';
@@ -57,4 +75,20 @@ export type InstanceSpecificOptions = {
   selectedNetworkController: SelectedNetworkControllerInstanceOptions;
   shieldApiService?: ShieldApiServiceInstanceOptions;
   shieldController?: ShieldControllerInstanceOptions;
+  accountTrackerController?: AccountTrackerControllerInstanceOptions;
+  assetsContractController?: AssetsContractControllerInstanceOptions;
+  currencyRateController?: CurrencyRateControllerInstanceOptions;
+  deFiPositionsController?: DeFiPositionsControllerInstanceOptions;
+  multichainAssetsController?: MultichainAssetsControllerInstanceOptions;
+  multichainAssetsRatesController?: MultichainAssetsRatesControllerInstanceOptions;
+  multichainBalancesController?: MultichainBalancesControllerInstanceOptions;
+  nftController?: NftControllerInstanceOptions;
+  nftDetectionController?: NftDetectionControllerInstanceOptions;
+  ratesController?: RatesControllerInstanceOptions;
+  tokenBalancesController?: TokenBalancesControllerInstanceOptions;
+  tokenDetectionController?: TokenDetectionControllerInstanceOptions;
+  tokenListController?: TokenListControllerInstanceOptions;
+  tokenRatesController?: TokenRatesControllerInstanceOptions;
+  tokensController?: TokensControllerInstanceOptions;
+  tokenSearchDiscoveryDataController?: TokenSearchDiscoveryDataControllerInstanceOptions;
 };

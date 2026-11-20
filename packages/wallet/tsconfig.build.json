@@ -85,6 +85,9 @@
     },
     {
       "path": "../geolocation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../assets-controllers/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
