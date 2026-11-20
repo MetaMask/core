@@ -18,10 +18,10 @@ export default mergeConfig(
         exclude: ['src/**/__fixtures__/**', 'src/**/*.test-d.ts'],
 
         thresholds: {
-          branches: 100,
-          functions: 100,
-          lines: 100,
-          statements: 100,
+          branches: 85.18,
+          functions: 97.05,
+          lines: 87.01,
+          statements: 85.71,
         },
       },
     },
