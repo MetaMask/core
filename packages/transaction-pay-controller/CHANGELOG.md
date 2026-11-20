@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PaymentOverride.PerpsLighter` (`perpsLighter`) for a later direct Lighter target ([#11640](https://github.com/MetaMask/core/pull/11640))
+  - Quote building is unchanged. The first mainnet USDC deposit does not set this override.
+
 ## [32.1.1]
 
 ### Changed
