@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@noble/ciphers` from `^1.3.0` to `^2.4.0` ([#11585](https://github.com/MetaMask/core/pull/11585))
+
 ## [10.0.1]
 
 ### Fixed
