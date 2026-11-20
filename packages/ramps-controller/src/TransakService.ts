@@ -112,6 +112,7 @@ export type TransakBuyQuote = {
   notes: { [prop: string]: string | number | boolean | null }[];
   requestedAssetId: string;
   requestedChainId: string;
+  termsIds?: string[];
 };
 
 export type TransakKycRequirement = {
@@ -124,14 +125,21 @@ export type TransakKycRequirement = {
   isAllowedToPlaceOrder: boolean;
 };
 
+export type TransakAdditionalRequirementOption = {
+  name: string;
+  value: string;
+};
+
 export type TransakAdditionalRequirement = {
   type: string;
   metadata?: {
-    options: string[];
-    documentProofOptions: string[];
-    expiresAt: string;
-    kycUrl: string;
-    workFlowRunId: string;
+    options?: TransakAdditionalRequirementOption[];
+    documentProofOptions?: string[];
+    expiresAt?: string;
+    kycUrl?: string;
+    workFlowRunId?: string;
+    employmentStatusOptions?: TransakAdditionalRequirementOption[];
+    countryOfCitizenshipOptions?: TransakAdditionalRequirementOption[];
   };
 };
 
@@ -283,6 +291,32 @@ export type TransakIdProofStatus = {
   randomLogIdentifier: string;
 };
 
+export type SubmitMicaConsentRequest = {
+  consentedAt: string;
+};
+
+export type SubmitMicaConsentResponse = {
+  status: string;
+};
+
+export type SubmitSourceOfIncomeRequest = {
+  monthlyVolume: string;
+  sourceOfFundsType: string;
+};
+
+export type SubmitSourceOfIncomeResponse = {
+  status: string;
+};
+
+export type SubmitAdditionalDetailsNationalityRequest = {
+  employmentStatus: string;
+  countryOfCitizenship: string;
+};
+
+export type SubmitAdditionalDetailsNationalityResponse = {
+  status: 'SUBMITTED' | 'FAILED';
+};
+
 // === ENVIRONMENT ===
 
 export enum TransakEnvironment {
@@ -356,6 +390,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'cancelOrder',
   'cancelAllActiveOrders',
   'getActiveOrders',
+  'submitMicaConsent',
+  'submitSourceOfIncome',
+  'submitAdditionalDetailsNationality',
 ] as const;
 
 /**
@@ -598,6 +635,7 @@ const BuyQuoteStruct = looseObject({
   nonce: optional(number()),
   cryptoLiquidityProvider: optional(string()),
   notes: optional(array(record(string(), any()))),
+  termsIds: optional(array(string())),
 });
 
 const KycRequirementStruct = looseObject({
@@ -659,6 +697,14 @@ const IdProofStatusStruct = looseObject({
 const PaymentConfirmationStruct = looseObject({ success: boolean() });
 
 const WidgetUrlResponseStruct = looseObject({ widgetUrl: string() });
+
+const SubmitMicaConsentResponseStruct = looseObject({ status: string() });
+
+const SubmitSourceOfIncomeResponseStruct = looseObject({ status: string() });
+
+const SubmitAdditionalDetailsNationalityResponseStruct = looseObject({
+  status: string(),
+});
 
 /**
  * Wraps a struct in the `{ data }` envelope the Transak API gateway uses.
@@ -1674,6 +1720,50 @@ export class TransakService extends BaseDataService<
       'getActiveOrders',
       '/api/v2/active-orders',
       ActiveOrdersStruct,
+    );
+  }
+
+  async submitMicaConsent(
+    consentedAt: string,
+  ): Promise<SubmitMicaConsentResponse> {
+    this.#ensureAccessToken();
+    return this.#transakPost<SubmitMicaConsentResponse>(
+      'submitMicaConsent',
+      '/api/v2/user/consent',
+      SubmitMicaConsentResponseStruct,
+      { consentedAt },
+    );
+  }
+
+  async submitSourceOfIncome(
+    monthlyVolume: string,
+    sourceOfFundsType: string,
+  ): Promise<SubmitSourceOfIncomeResponse> {
+    this.#ensureAccessToken();
+    return this.#transakPost<SubmitSourceOfIncomeResponse>(
+      'submitSourceOfIncome',
+      '/api/v2/user/source-of-income',
+      SubmitSourceOfIncomeResponseStruct,
+      {
+        monthlyVolume,
+        sourceOfFundsType,
+      },
+    );
+  }
+
+  async submitAdditionalDetailsNationality(
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitAdditionalDetailsNationalityResponse> {
+    this.#ensureAccessToken();
+    return this.#transakPost<SubmitAdditionalDetailsNationalityResponse>(
+      'submitAdditionalDetailsNationality',
+      '/api/v2/kyc/additional-details-nationality',
+      SubmitAdditionalDetailsNationalityResponseStruct,
+      {
+        employmentStatus,
+        countryOfCitizenship,
+      },
     );
   }
 }

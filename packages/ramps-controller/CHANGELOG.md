@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with a caller-provided ISO 8601 timestamp. Returns `SubmitMicaConsentResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `submitSourceOfIncome` method to `TransakService` (also exposed on the messenger as `TransakService:submitSourceOfIncome`) for submitting source of income details including monthly volume and source of funds type. Returns `SubmitSourceOfIncomeResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `submitAdditionalDetailsNationality` method to `TransakService` (also exposed on the messenger as `TransakService:submitAdditionalDetailsNationality`) for submitting employment status and country of citizenship. Returns `SubmitAdditionalDetailsNationalityResponse` containing the submission status (`'SUBMITTED'` or `'FAILED'`) from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `transakSubmitMicaConsent` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitMicaConsent`) for submitting MiCA consent through the controller. Returns `SubmitMicaConsentResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `transakSubmitSourceOfIncome` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitSourceOfIncome`) for submitting source of income details through the controller. Returns `SubmitSourceOfIncomeResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `transakSubmitAdditionalDetailsNationality` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitAdditionalDetailsNationality`) for submitting additional nationality details through the controller. Returns `SubmitAdditionalDetailsNationalityResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `SubmitMicaConsentRequest`, `SubmitMicaConsentResponse`, `SubmitSourceOfIncomeRequest`, `SubmitSourceOfIncomeResponse`, `SubmitAdditionalDetailsNationalityRequest`, and `SubmitAdditionalDetailsNationalityResponse` types for MiCA/EEA KYC submission payloads and responses ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Add `ADDITIONAL_DETAILS_NATIONALITY` form type to `TransakAdditionalRequirement`, with metadata containing `employmentStatusOptions` and `countryOfCitizenshipOptions` (both arrays of `TransakAdditionalRequirementOption`) ([#11672](https://github.com/MetaMask/core/pull/11672))
+
+### Changed
+
+- **BREAKING:** `TransakService.submitMicaConsent` now returns `Promise<SubmitMicaConsentResponse>` instead of `Promise<void>`, allowing clients to check the submission status (e.g., `SUCCESS` or `FAILED`) returned by Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `TransakService.submitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `submitAdditionalDetailsNationality` method. Returns `Promise<SubmitSourceOfIncomeResponse>` instead of `Promise<void>` ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `RampsController.transakSubmitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `transakSubmitAdditionalDetailsNationality` method ([#11672](https://github.com/MetaMask/core/pull/11672))
+- **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now `TransakAdditionalRequirementOption[]` instead of `string[]` for the `SOURCE_OF_INCOME` form type, matching the structure of other MiCA/EEA option fields. Clients that handle `getAdditionalRequirements` responses must check whether option fields are `string[]` or `TransakAdditionalRequirementOption[]` ([#11672](https://github.com/MetaMask/core/pull/11672))
+- `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#11672](https://github.com/MetaMask/core/pull/11672))
+- `SOURCE_OF_INCOME` additional requirement metadata now contains only `options` (array of `TransakAdditionalRequirementOption`); employment status and citizenship options are in the separate `ADDITIONAL_DETAILS_NATIONALITY` form ([#11672](https://github.com/MetaMask/core/pull/11672))
+
 ## [30.1.0]
 
 ### Added
