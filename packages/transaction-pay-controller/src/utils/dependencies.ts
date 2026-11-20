@@ -59,7 +59,7 @@ export const DEPENDENCY_MAX_ATTEMPTS = 3;
  * @returns True if all dependencies are registered, false if any are still
  * missing after {@link DEPENDENCY_MAX_ATTEMPTS} checks.
  */
-export async function waitForTransactionPayControllerDependencies(
+export async function waitForDependencies(
   messenger: TransactionPayControllerMessenger,
 ): Promise<boolean> {
   for (let attempt = 1; attempt <= DEPENDENCY_MAX_ATTEMPTS; attempt++) {

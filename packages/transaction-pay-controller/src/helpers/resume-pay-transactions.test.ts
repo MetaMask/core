@@ -8,7 +8,7 @@ import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
-import { waitForTransactionPayControllerDependencies } from '../utils/dependencies.js';
+import { waitForDependencies } from '../utils/dependencies.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import {
   isPayTransactionResumable,
@@ -114,9 +114,7 @@ function getMessengerMock({
 
 describe('resumePayTransactions', () => {
   const getStrategyByNameMock = vi.mocked(getStrategyByName);
-  const waitForDependenciesMock = vi.mocked(
-    waitForTransactionPayControllerDependencies,
-  );
+  const waitForDependenciesMock = vi.mocked(waitForDependencies);
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -574,8 +572,12 @@ describe('isPayTransactionResumable', () => {
     const { messenger: flagMessenger } = getMessengerMock({
       remoteFeatureFlags: {
         confirmations_pay_extended: {
-          ...REMOTE_FEATURE_FLAGS_MOCK.confirmations_pay_extended,
-          resumeTimeoutMs: 1000,
+          resume: {
+            ...REMOTE_FEATURE_FLAGS_MOCK.confirmations_pay_extended.resume,
+            timeouts: {
+              strategies: { [TransactionPayStrategy.Fiat]: 1000 },
+            },
+          },
         },
       },
     });

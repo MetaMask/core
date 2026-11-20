@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resumeTimeoutMs` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume.timeouts` (per strategy, 10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
 

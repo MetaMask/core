@@ -212,6 +212,17 @@ export type ResumeEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type ResumeTimeoutsConfig = {
+  default?: number;
+  strategies?: Partial<Record<TransactionPayStrategy, number>>;
+};
+
+export type ResumeConfig = Partial<
+  Record<TransactionPayStrategy, ResumeEnabledConfig>
+> & {
+  timeouts?: ResumeTimeoutsConfig;
+};
+
 export type ServerValidationEnabledConfig = {
   default?: boolean;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
@@ -237,8 +248,7 @@ type FeatureFlagsExtendedRaw = {
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
-  resume?: Partial<Record<TransactionPayStrategy, ResumeEnabledConfig>>;
-  resumeTimeoutMs?: number;
+  resume?: ResumeConfig;
 };
 
 type EIP7702FeatureFlag = {
@@ -1160,28 +1170,35 @@ export function isResumeEnabled(
 }
 
 /**
- * Returns how long after the first resume attempt a pay transaction can still
- * be resumed on later restarts. Reads `confirmations_pay_extended.resumeTimeoutMs`.
+ * Returns how long after the first resume attempt a pay transaction using the
+ * given strategy can still be resumed on later restarts.
+ * Reads `confirmations_pay_extended.resume.timeouts`, where a per-strategy
+ * value in `strategies` takes precedence over `default`.
  *
  * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
  * minimal TC init messenger that only exposes that action is sufficient.
  *
  * @param messenger - Controller messenger.
+ * @param strategy - The pay strategy.
  * @returns The resume timeout in milliseconds.
  */
 export function getResumeTimeoutMs(
   messenger: TransactionPayControllerMessenger,
+  strategy: TransactionPayStrategy,
 ): number {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay_extended as
     | FeatureFlagsExtendedRaw
     | undefined;
 
-  const timeout = featureFlags?.resumeTimeoutMs;
+  const timeouts = featureFlags?.resume?.timeouts;
 
-  return typeof timeout === 'number' && timeout > 0
-    ? timeout
-    : DEFAULT_RESUME_TIMEOUT_MS;
+  return (
+    [timeouts?.strategies?.[strategy], timeouts?.default].find(
+      (timeout): timeout is number =>
+        typeof timeout === 'number' && timeout > 0,
+    ) ?? DEFAULT_RESUME_TIMEOUT_MS
+  );
 }
 
 /**

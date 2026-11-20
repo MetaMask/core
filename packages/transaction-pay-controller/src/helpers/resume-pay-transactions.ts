@@ -5,7 +5,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
-import { waitForTransactionPayControllerDependencies } from '../utils/dependencies.js';
+import { waitForDependencies } from '../utils/dependencies.js';
 import { getResumeTimeoutMs, isResumeEnabled } from '../utils/feature-flags.js';
 import { waitForKeyringUnlock } from '../utils/keyring.js';
 import { getStrategyByName } from '../utils/strategy.js';
@@ -21,7 +21,7 @@ const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
  * 0. Sync pre-check: if no resumable tx exists, return immediately.
  * 1. Await wallet unlock.
  * 2. Wait for every controller this controller depends on to be
- *    constructed, see {@link waitForTransactionPayControllerDependencies}.
+ *    constructed, see {@link waitForDependencies}.
  * 3. For each candidate captured at Step 0, sequentially:
  *    a. Re-read the current tx from TC state by id and skip it if it is
  *       missing or no longer resumable (e.g. it moved to a final state
@@ -51,8 +51,7 @@ export async function resumePayTransactions(
 
   await waitForKeyringUnlock(messenger);
 
-  const dependenciesReady =
-    await waitForTransactionPayControllerDependencies(messenger);
+  const dependenciesReady = await waitForDependencies(messenger);
 
   for (const transaction of candidates) {
     const { id } = transaction;
@@ -134,7 +133,7 @@ export async function resumePayTransactions(
  * transaction-pay-controller.
  *
  * A transaction can be resumed on every restart until the resume timeout
- * (`confirmations_pay_extended.resumeTimeoutMs`, 10 minutes by default) has
+ * (`confirmations_pay_extended.resume.timeouts`, 10 minutes by default) has
  * passed since its first resume attempt.
  *
  * All checks are synchronous and only read `RemoteFeatureFlagController:getState`
@@ -177,7 +176,7 @@ export function isPayTransactionResumable(
 
     if (
       resumeAttemptedAt &&
-      Date.now() - resumeAttemptedAt >= getResumeTimeoutMs(messenger)
+      Date.now() - resumeAttemptedAt >= getResumeTimeoutMs(messenger, strategy)
     ) {
       return false;
     }

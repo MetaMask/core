@@ -11,7 +11,7 @@ import {
   DEPENDENCY_MAX_ATTEMPTS,
   DEPENDENCY_RETRY_INTERVAL_MS,
   TRANSACTION_PAY_CONTROLLER_DEPENDENCIES,
-  waitForTransactionPayControllerDependencies,
+  waitForDependencies,
 } from './dependencies.js';
 
 type RootMessenger = Messenger<
@@ -54,7 +54,7 @@ function getMessengers(): {
   };
 }
 
-describe('waitForTransactionPayControllerDependencies', () => {
+describe('waitForDependencies', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -68,9 +68,7 @@ describe('waitForTransactionPayControllerDependencies', () => {
 
     TRANSACTION_PAY_CONTROLLER_DEPENDENCIES.forEach(register);
 
-    expect(await waitForTransactionPayControllerDependencies(messenger)).toBe(
-      true,
-    );
+    expect(await waitForDependencies(messenger)).toBe(true);
   });
 
   it('retries until missing dependencies are registered', async () => {
@@ -82,8 +80,7 @@ describe('waitForTransactionPayControllerDependencies', () => {
     otherDependencies.forEach(register);
 
     const onResolved = vi.fn();
-    const promise =
-      waitForTransactionPayControllerDependencies(messenger).then(onResolved);
+    const promise = waitForDependencies(messenger).then(onResolved);
 
     await vi.advanceTimersByTimeAsync(DEPENDENCY_RETRY_INTERVAL_MS - 1);
     expect(onResolved).not.toHaveBeenCalled();
@@ -99,7 +96,7 @@ describe('waitForTransactionPayControllerDependencies', () => {
     const { messenger } = getMessengers();
     const callSpy = vi.spyOn(messenger, 'call');
 
-    const promise = waitForTransactionPayControllerDependencies(messenger);
+    const promise = waitForDependencies(messenger);
 
     await vi.advanceTimersByTimeAsync(
       DEPENDENCY_RETRY_INTERVAL_MS * (DEPENDENCY_MAX_ATTEMPTS - 1),
