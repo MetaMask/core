@@ -6819,7 +6819,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
+"@metamask/json-rpc-middleware-stream@npm:^9.0.0, @metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
   dependencies:
@@ -9144,6 +9144,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/gas-fee-controller": "npm:^27.1.1"
     "@metamask/geolocation-controller": "npm:^2.0.0"
+    "@metamask/json-rpc-middleware-stream": "npm:^9.0.0"
     "@metamask/keyring-controller": "npm:^28.2.2"
     "@metamask/logging-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -9152,6 +9153,7 @@ __metadata:
     "@metamask/passkey-controller": "npm:^4.1.0"
     "@metamask/permission-controller": "npm:^14.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/seedless-onboarding-controller": "npm:^12.1.0"
     "@metamask/selected-network-controller": "npm:^27.1.0"
