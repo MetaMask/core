@@ -2103,6 +2103,35 @@ describe('BridgeStatusController', () => {
         });
       });
 
+      it('keeps the completed status when the destination asset ID cannot be parsed', async () => {
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
+
+        await withController(async ({ controller, rootMessenger }) => {
+          const { addCustomAsset, getAssets } = await setupAndPoll({
+            rootMessenger,
+            status: MockStatusResponse.getComplete(),
+            quote: {
+              destAsset: {
+                ...OPTIMISM_USDC_DEST_QUOTE.destAsset,
+                assetId: 'invalid-asset-id' as CaipAssetType,
+              },
+            },
+          });
+
+          const historyItem = controller.state.txHistory.bridgeTxMetaId1;
+          expect(historyItem.status.status).toBe(StatusTypes.COMPLETE);
+          expect(historyItem.attempts).toBeUndefined();
+          expect(addCustomAsset).not.toHaveBeenCalled();
+          expect(getAssets).not.toHaveBeenCalled();
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Failed to import destination asset',
+            expect.any(Error),
+          );
+        });
+      });
+
       it('keeps the completed status when AssetsController:addCustomAsset is not registered', async () => {
         const consoleWarnSpy = vi
           .spyOn(console, 'warn')
