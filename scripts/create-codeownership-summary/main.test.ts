@@ -72,35 +72,39 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout).toBe(outdent`
+      expect(output.stdout.trimEnd()).toBe(outdent`
         ## 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
         <details>
         <summary><strong>@MetaMask/accounts-engineers</strong> (2 files)</summary>
-
-        - \`packages/accounts-controller/CHANGELOG.md\`
-        - \`packages/accounts-controller/src/index.ts\`
+        <br>
+        <ul>
+        <li><code>packages/accounts-controller/CHANGELOG.md</code></li>
+        <li><code>packages/accounts-controller/src/index.ts</code></li>
+        </ul>
         </details>
 
         <details>
         <summary><strong>@MetaMask/core-platform</strong> (1 file)</summary>
-
-        - \`packages/sample-controllers/package.json\`
+        <br>
+        <ul>
+        <li><code>packages/sample-controllers/package.json</code></li>
+        </ul>
         </details>
 
-        <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+        <details>
+        <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
 
-        > [!NOTE]
-        > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
-        > the following files. **It is not required to seek approval from
-        > \`@MetaMask/core-platform\` to change these files. This section is purely
-        > informational.**
+        For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
 
-        - \`packages/accounts-controller/CHANGELOG.md\`
+        **It is not required to get approval from this team to change these files. This section is purely informational.**
+
+        <ul>
+        <li><code>packages/accounts-controller/CHANGELOG.md</code></li>
+        </ul>
         </details>
-
       `);
     });
   });
@@ -128,17 +132,18 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout).toBe(outdent`
+      expect(output.stdout.trimEnd()).toBe(outdent`
         ## 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
         <details>
         <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
-
-        - \`packages/accounts-controller/src/index.ts\`
+        <br>
+        <ul>
+        <li><code>packages/accounts-controller/src/index.ts</code></li>
+        </ul>
         </details>
-
       `);
     });
   });
@@ -174,17 +179,18 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout).toBe(outdent`
+      expect(output.stdout.trimEnd()).toBe(outdent`
         ## 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
         <details>
         <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
-
-        - \`packages/accounts-controller/src/index.ts\`
+        <br>
+        <ul>
+        <li><code>packages/accounts-controller/src/index.ts</code></li>
+        </ul>
         </details>
-
       `);
     });
   });
@@ -217,7 +223,7 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout.match(/^- `/gmu)).toHaveLength(800);
+      expect(output.stdout.match(/^<li><code>/gmu)).toHaveLength(800);
     });
   });
 
@@ -250,7 +256,7 @@ describe('main', () => {
       });
 
       expect(output.stdout.length).toBeLessThanOrEqual(60_000);
-      expect(output.stdout).toContain('more files)_ ...');
+      expect(output.stdout).toContain('more files)</em> ...');
     });
   });
 

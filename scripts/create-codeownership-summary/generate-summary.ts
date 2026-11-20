@@ -493,18 +493,16 @@ function renderApprovalRequiredSection({
     ({ owners }) => owners.length > 1,
   );
   const instructions = hasGroupWithMultipleOwners
-    ? `To merge this PR, you'll need to get approvals from the following owner groups.
-**For files with multiple owners, approval from one owner is sufficient.**`
+    ? `To merge this PR, you'll need to get approvals from the following owner groups.\n\n(Note: For files with multiple owners, approval from one owner is sufficient.)`
     : "To merge this PR, you'll need to get approvals from the following owners.";
   const groups = primaryOwnershipGroups.map(({ owners, filePaths }) => {
-    const ownerList = owners
-      .map((owner) => `<strong>${owner}</strong>`)
-      .join(' <em>or</em> ');
+    const ownerList = owners.join(' <em>or</em> ');
     return `
 <details>
-<summary>${ownerList} (${describeNumberOfFiles(filePaths.length)})</summary>
-
-${renderFileList(filePaths, maxFilesPerList)}</details>
+<summary><strong>${ownerList}</strong> (${describeNumberOfFiles(filePaths.length)})</summary>
+<br>
+${renderFileList(filePaths, maxFilesPerList)}
+</details>
 `;
   });
 
@@ -534,15 +532,15 @@ function renderApprovalOptionalSection({
   maxFilesPerList: number;
 }): string {
   return `
-<details><summary><h2>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code> (expand for more)</h2></summary>
+<details>
+<summary><h3>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code></h3></summary>
 
-> [!NOTE]
-> For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns
-> the following files. **It is not required to seek approval from
-> \`${maintenanceOwnershipGroup.owner}\` to change these files. This section is purely
-> informational.**
+For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns the following files.
 
-${renderFileList(maintenanceOwnershipGroup.filePaths, maxFilesPerList)}</details>
+**It is not required to get approval from this team to change these files. This section is purely informational.**
+
+${renderFileList(maintenanceOwnershipGroup.filePaths, maxFilesPerList)}
+</details>
 `;
 }
 
@@ -568,14 +566,20 @@ function renderFileList(filePaths: string[], maxFiles: number): string {
   const listedFilePaths = [...filePaths]
     .sort((first, second) => first.localeCompare(second))
     .slice(0, maxFiles);
-  const list = listedFilePaths
-    .map((filePath) => `- \`${filePath}\`\n`)
-    .join('');
+  const listItems = listedFilePaths.map(
+    (filePath) => `<li><code>${filePath}</code></li>`,
+  );
+  const list = `<ul>\n${listItems.join('\n')}\n</ul>`;
+
   if (listedFilePaths.length === filePaths.length) {
     return list;
   }
 
   const numberOfOmittedFiles = filePaths.length - listedFilePaths.length;
   const omittedFiles = `${numberOfOmittedFiles} more ${numberOfOmittedFiles === 1 ? 'file' : 'files'}`;
-  return `${list}- ... _(${omittedFiles})_ ...\n`;
+  const listItemsWithOmissionIndicator = [
+    ...listItems,
+    `<li>... <em>(${omittedFiles})</em> ...</li>`,
+  ];
+  return `<ul>\n${listItemsWithOmissionIndicator.join('\n')}\n</ul>`;
 }

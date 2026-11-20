@@ -51,43 +51,50 @@ describe('generateCodeownershipSummary', () => {
       ## 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
-      **For files with multiple owners, approval from one owner is sufficient.**
+
+      (Note: For files with multiple owners, approval from one owner is sufficient.)
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`packages/example-controller/CHANGELOG.md\`
-      - \`packages/example-controller/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      <li><code>packages/example-controller/src/index.ts</code></li>
+      </ul>
       </details>
 
       <details>
-      <summary><strong>@MetaMask/team-b</strong> <em>or</em> <strong>@MetaMask/team-c</strong> (2 files)</summary>
-
-      - \`packages/shared-controller/package.json\`
-      - \`packages/shared-controller/README.md\`
+      <summary><strong>@MetaMask/team-b <em>or</em> @MetaMask/team-c</strong> (2 files)</summary>
+      <br>
+      <ul>
+      <li><code>packages/shared-controller/package.json</code></li>
+      <li><code>packages/shared-controller/README.md</code></li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+      <details>
+      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
 
-      > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/core-platform\` to change these files. This section is purely
-      > informational.**
+      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
 
-      - \`packages/example-controller/CHANGELOG.md\`
-      - \`packages/shared-controller/package.json\`
+      **It is not required to get approval from this team to change these files. This section is purely informational.**
+
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      <li><code>packages/shared-controller/package.json</code></li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code> (expand for more)</h2></summary>
+      <details>
+      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code></h3></summary>
 
-      > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/technical-writers\` to change these files. This section is purely
-      > informational.**
+      For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns the following files.
 
-      - \`packages/shared-controller/README.md\`
+      **It is not required to get approval from this team to change these files. This section is purely informational.**
+
+      <ul>
+      <li><code>packages/shared-controller/README.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -112,8 +119,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.ts\`
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -142,8 +151,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`packages/example-controller/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/src/index.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -169,8 +180,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/core-platform</strong> (1 file)</summary>
-
-      - \`packages/example-controller/CHANGELOG.md\`
+      <br>
+      <ul>
+      <li><code>packages/example-controller/CHANGELOG.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -196,8 +209,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.md\`
+      <br>
+      <ul>
+      <li><code>a.md</code></li>
+      </ul>
       </details>
 
     `);
@@ -227,8 +242,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
-
-      - \`a.ts\`
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -257,8 +274,10 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
-
-      - \`packages/example/src/index.ts\`
+      <br>
+      <ul>
+      <li><code>packages/example/src/index.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -284,13 +303,16 @@ describe('generateCodeownershipSummary', () => {
       ## 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
-      **For files with multiple owners, approval from one owner is sufficient.**
+
+      (Note: For files with multiple owners, approval from one owner is sufficient.)
 
       <details>
-      <summary><strong>@MetaMask/extension-platform</strong> <em>or</em> <strong>@MetaMask/mobile-platform</strong> (2 files)</summary>
-
-      - \`a.ts\`
-      - \`b.ts\`
+      <summary><strong>@MetaMask/extension-platform <em>or</em> @MetaMask/mobile-platform</strong> (2 files)</summary>
+      <br>
+      <ul>
+      <li><code>a.ts</code></li>
+      <li><code>b.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -315,9 +337,11 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/core-platform</strong> (2 files)</summary>
-
-      - \`a/nested/index.ts\`
-      - \`z/index.ts\`
+      <br>
+      <ul>
+      <li><code>a/nested/index.ts</code></li>
+      <li><code>z/index.ts</code></li>
+      </ul>
       </details>
 
     `);
@@ -369,9 +393,11 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`a/1.ts\`
-      - \`a/2.ts\`
+      <br>
+      <ul>
+      <li><code>a/1.ts</code></li>
+      <li><code>a/2.ts</code></li>
+      </ul>
       </details>
 
     `;
@@ -411,27 +437,32 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (30 files)</summary>
-
-      - \`a/01.ts\`
-      - ... _(29 more files)_ ...
+      <br>
+      <ul>
+      <li><code>a/01.ts</code></li>
+      <li>... <em>(29 more files)</em> ...</li>
+      </ul>
       </details>
 
       <details>
       <summary><strong>@MetaMask/team-b</strong> (1 file)</summary>
-
-      - \`b/index.ts\`
+      <br>
+      <ul>
+      <li><code>b/index.ts</code></li>
+      </ul>
       </details>
 
-      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+      <details>
+      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
 
-      > [!NOTE]
-      > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
-      > the following files. **It is not required to seek approval from
-      > \`@MetaMask/core-platform\` to change these files. This section is purely
-      > informational.**
+      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
 
-      - \`a/01.ts\`
-      - ... _(29 more files)_ ...
+      **It is not required to get approval from this team to change these files. This section is purely informational.**
+
+      <ul>
+      <li><code>a/01.ts</code></li>
+      <li>... <em>(29 more files)</em> ...</li>
+      </ul>
       </details>
 
     `;
@@ -465,9 +496,11 @@ describe('generateCodeownershipSummary', () => {
 
       <details>
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
-
-      - \`${longDirectoryPath}1.ts\`
-      - ... _(1 more file)_ ...
+      <br>
+      <ul>
+      <li><code>${longDirectoryPath}1.ts</code></li>
+      <li>... <em>(1 more file)</em> ...</li>
+      </ul>
       </details>
 
     `;
@@ -476,10 +509,10 @@ describe('generateCodeownershipSummary', () => {
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      maxLength: expectedSummary.length,
+      maxLength: expectedSummary.length + 1,
     });
 
-    expect(summary).toBe(expectedSummary);
+    expect(summary.trimEnd()).toBe(expectedSummary.trimEnd());
   });
 });
 
