@@ -901,6 +901,20 @@ export const stubEncryptor: PendingOperationEncryptor<string> = {
 };
 
 /**
+ * {@link stubEncryptor} that, like `@metamask/browser-passworder`, throws a
+ * `TypeError` outside its key check when the payload has no string `data`.
+ */
+export const strictPayloadEncryptor: PendingOperationEncryptor<string> = {
+  ...stubEncryptor,
+  async decryptWithKey(key, payload) {
+    if (typeof payload.data !== 'string') {
+      throw new TypeError('The first argument must be of type string');
+    }
+    return await stubEncryptor.decryptWithKey(key, payload);
+  },
+};
+
+/**
  * Encrypts a value the way the controller persists pending state. Accepts any
  * value so tests can persist malformed pending operations.
  *

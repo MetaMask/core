@@ -15,6 +15,7 @@ export type {
   MfaRecoveryControllerAbortAction,
   MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
+  MfaRecoveryControllerDiscardPendingOperationAction,
   MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,

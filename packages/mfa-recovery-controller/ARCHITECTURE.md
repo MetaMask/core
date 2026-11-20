@@ -68,8 +68,8 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
-`acquireLock`, `releaseLock` (see
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`,
+`discardPendingOperation`, `getPhase`, `acquireLock`, `releaseLock` (see
 [Recovery Lock](README.md#recovery-lock)).
 
 `getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
@@ -120,12 +120,23 @@ it in secret storage that is independent of controller state and the vault,
 so `resume()` and `abort()` work while the wallet is locked. The controller
 never creates or persists the key. It calls the callback on first use, imports
 the serialized key with the injected `encryptor`, and caches the imported key
-for the controller's lifetime. Concurrent first use shares one in-flight
-fetch, and a failed fetch or import is retried on the next use. The controller
-persists the JSON-serialized ciphertext. If the callback returns no key, every
-operation that touches pending state rejects with `missing_encryption_key`.
-Pending state that does not decrypt under the host key propagates the
-encryptor's error. Neither case modifies state.
+until pending state clears, so the next mutation picks up a re-provisioned
+key. Concurrent first use shares one in-flight fetch, and a failed fetch or
+import is retried on the next use. The controller persists the
+JSON-serialized ciphertext.
+
+Every operation that touches pending state rejects with a coded
+`MfaRecoveryError` when it cannot be loaded, carrying the encryptor's error as
+`cause`: `missing_encryption_key` if the callback returns no key,
+`invalid_encryption_key` if `importKey` rejects it, and
+`pending_operation_unreadable` if the blob does not parse or decrypt under the
+key. None of these modifies state. They are not wallet password errors (the
+KeyringController encryptor reports a wrong key as "Incorrect password"), so
+hosts must not prompt for the password on them. Instead, call
+`discardPendingOperation()`, which clears only such unloadable pending state
+(readable pending state is refused with `abort_not_allowed`) and keeps the
+lease, then `resume(identifier)` to copy the latest escrow record to any
+escrow the dropped mutation left behind.
 
 ### Pending state validation
 
