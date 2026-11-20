@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [79.0.0]
+
 ### Added
 
 - **BREAKING:** Import the destination asset and refetch its balance when a bridge or swap completes ([#11668](https://github.com/MetaMask/core/pull/11668))
@@ -38,14 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/eth-json-rpc-provider` at `^7.0.0` (dev)
   - `@metamask/keyring-internal-api` at `^12.1.2` (dev)
 - Populate the `money_account_action` and `failure_phase` event properties for withdraw and deposit transactions ([#11677](https://github.com/MetaMask/core/pull/11677))
+- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 
 ### Changed
 
 - **BREAKING:** Require `ApprovalController:rejectRequest` on `BridgeStatusControllerMessenger`. Clients must allow this action so MM Pay quote timeouts can unblock deposit batch approval.
 - Time out the MM Pay quotes waiter, the unapproved-tx waiter, and `addTransactionBatchFn` together after 30s. On timeout, reject the pending approval.
-- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/bridge-controller` from `^83.3.0` to `^84.0.0` ([#11696](https://github.com/MetaMask/core/pull/11696))
 
 ## [78.1.0]
 
@@ -1792,7 +1795,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@79.0.0...HEAD
+[79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...@metamask/bridge-status-controller@79.0.0
 [78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...@metamask/bridge-status-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.2...@metamask/bridge-status-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.1...@metamask/bridge-status-controller@78.0.2
