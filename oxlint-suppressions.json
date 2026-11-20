@@ -1822,7 +1822,7 @@
   },
   "packages/client-utils/src/mappers/local-transaction-mapper.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 19
+      "count": 16
     }
   },
   "packages/client-utils/src/mappers/ramps-order-mapper.test.ts": {

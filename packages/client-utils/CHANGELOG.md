@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.3.0` ([#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `eth-chainlist` from `^0.0.873` to `^0.0.881` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
+### Fixed
+
+- Map `musdConversion` local transactions as `send` instead of `convert` ([#10217](https://github.com/MetaMask/core/pull/10217))
+
 ## [3.4.0]
 
 ### Added
