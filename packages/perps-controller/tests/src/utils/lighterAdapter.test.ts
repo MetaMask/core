@@ -242,6 +242,45 @@ describe('lighterAdapter', () => {
       });
       expect(adapted.liquidationPrice).toBeNull();
     });
+
+    it.each(['0', '', 'oops', '-5'])(
+      'rejects an open position with initial margin fraction %j instead of inventing 1x margin',
+      (initialMarginFraction) => {
+        expect(() =>
+          adaptPositionFromLighter({ ...position, initialMarginFraction }),
+        ).toThrow('Invalid Lighter venue data: initial margin fraction');
+      },
+    );
+
+    it('leaves leverage undefined on a flat row without a margin fraction', () => {
+      const adapted = adaptPositionFromLighter({
+        ...position,
+        position: '0',
+        positionValue: '0',
+        unrealizedPnl: '0',
+        initialMarginFraction: '0',
+      });
+      expect(adapted.leverage.value).toBeUndefined();
+      expect(adapted.marginUsed).toBe('0');
+      expect(adapted.returnOnEquity).toBe('0');
+    });
+
+    it('omits cumulative funding, which the account payload does not carry', () => {
+      const adapted = adaptPositionFromLighter(position);
+      expect(adapted).not.toHaveProperty('cumulativeFunding');
+    });
+
+    it.each([
+      ['position value', { positionValue: '50000oops' }],
+      ['unrealized PnL', { unrealizedPnl: 'NaN' }],
+    ])(
+      'rejects a malformed %s instead of producing NaN margin or RoE',
+      (_label, overrides) => {
+        expect(() =>
+          adaptPositionFromLighter({ ...position, ...overrides }),
+        ).toThrow('Invalid Lighter venue data');
+      },
+    );
   });
 
   describe('adaptAccountStateFromLighter', () => {
@@ -290,13 +329,19 @@ describe('lighterAdapter', () => {
       expect(state.returnOnEquity).toBe('25');
     });
 
-    it('handles accounts with no positions', () => {
+    it('reads an empty positions list as zero PnL', () => {
       const state = adaptAccountStateFromLighter({
         ...account,
-        positions: undefined,
+        positions: [],
       });
       expect(state.unrealizedPnl).toBe('0');
       expect(state.totalBalance).toBe('10000');
+    });
+
+    it('rejects a payload without positions instead of reading zero PnL', () => {
+      expect(() =>
+        adaptAccountStateFromLighter({ ...account, positions: undefined }),
+      ).toThrow('Invalid Lighter venue data: REST positions missing');
     });
 
     it.each([
@@ -434,7 +479,17 @@ describe('lighterAdapter', () => {
     });
 
     it('returns no summary when the response omits positions', () => {
-      expect(summarize(undefined)).toBeUndefined();
+      expect(
+        adaptCrossMarginSummaryFromLighter(
+          accountWith(undefined),
+          '10000',
+          lookup,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns no summary when an open cross position has no initial margin fraction', () => {
+      expect(summarize([row({ initialMarginFraction: '0' })])).toBeUndefined();
     });
 
     it('returns no summary when an open cross position has no maintenance fraction', () => {

@@ -5,7 +5,9 @@ import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
 } from '../../../src/constants/eventNames.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { TradingService } from '../../../src/services/TradingService.js';
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
@@ -23,7 +25,13 @@ import type {
   UpdatePositionTPSLParams,
   PerpsPlatformDependencies,
   PerpsFeeResolution,
+  PerpsProviderType,
 } from '../../../src/types/index.js';
+import {
+  attachProviderErrorCause,
+  getProviderErrorCause,
+} from '../../../src/utils/errorContext.js';
+import { createErrorResult } from '../../../src/utils/hyperLiquidValidation.js';
 import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
@@ -191,6 +199,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         { providerId: 'hyperliquid', isTestnet: false },
+        0,
       );
       expect(aggregatedProvider.getWriteProviderId).toHaveBeenCalledWith(
         'hyperliquid',
@@ -262,6 +271,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -287,6 +297,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         900,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -370,6 +381,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -397,6 +409,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -448,6 +461,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -471,6 +485,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2059,6 +2074,53 @@ describe('TradingService', () => {
       );
     });
 
+    it('logs the provider-attached cause of a normalized cancel failure', async () => {
+      const venueError = new Error('Unexpected cancel status: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.cancelOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.cancelOrder({
+        provider: mockProvider,
+        params: { orderId: 'order-123', symbol: 'BTC' },
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'cancelOrder',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        }),
+      );
+    });
+
     it('does not log a cancel the signer could not sign', async () => {
       mockProvider.cancelOrder.mockResolvedValue({
         success: false,
@@ -2151,6 +2213,44 @@ describe('TradingService', () => {
       },
     ];
 
+    const validSelection = {
+      providerId: 'hyperliquid',
+      symbol: 'BTC',
+      orderId: 'order-1',
+    };
+
+    it.each([
+      { orders: null },
+      { orderIds: {} },
+      { symbols: null },
+      { orders: [validSelection, null] },
+      {
+        orders: [
+          validSelection,
+          { ...validSelection, providerId: 'aggregated' },
+        ],
+      },
+      { orders: [validSelection, { ...validSelection, orderId: ' ' }] },
+      { orders: [validSelection, { ...validSelection, orderId: 123 }] },
+    ])(
+      'rejects an invalid batch filter before reading orders: %j',
+      async (params) => {
+        const getOpenOrders = vi.fn().mockResolvedValue(mockOrders);
+
+        await expect(
+          tradingService.cancelOrders({
+            provider: mockProvider,
+            // @ts-expect-error Invalid runtime selector intentionally bypasses the typed caller.
+            params,
+            context: { ...mockContext, getOpenOrders },
+            withStreamPause: async (operation) => operation(),
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED);
+        expect(getOpenOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      },
+    );
+
     it.each([
       { successCount: 2, failureCount: 0 },
       { successCount: 1, failureCount: 1 },
@@ -2180,6 +2280,57 @@ describe('TradingService', () => {
       },
     );
 
+    it('passes each order venue to the batch cancel', async () => {
+      mockGetOpenOrders.mockResolvedValue([
+        { ...mockOrders[0], providerId: 'hyperliquid' },
+        { ...mockOrders[0], orderId: 'order-4', providerId: 'lighter' },
+        { ...mockOrders[0], orderId: 'order-5' },
+      ]);
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
+        success: true,
+        successCount: 3,
+        failureCount: 0,
+        results: [],
+      });
+
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { cancelAll: true },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { symbol: 'BTC', orderId: 'order-1', providerId: 'hyperliquid' },
+        { symbol: 'BTC', orderId: 'order-4', providerId: 'lighter' },
+        { symbol: 'BTC', orderId: 'order-5' },
+      ]);
+    });
+
+    it('cancels only the named venue when the batch is scoped', async () => {
+      mockGetOpenOrders.mockResolvedValue([
+        { ...mockOrders[0], providerId: 'hyperliquid' },
+        { ...mockOrders[0], providerId: 'lighter' },
+      ]);
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [],
+      });
+
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { orders: [{ orderId: 'order-1', providerId: 'lighter' }] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { symbol: 'BTC', orderId: 'order-1', providerId: 'lighter' },
+      ]);
+    });
+
     it('cancels all orders excluding TP/SL when cancelAll is true', async () => {
       const params: CancelOrdersParams = {
         cancelAll: true,
@@ -2203,6 +2354,115 @@ describe('TradingService', () => {
         { symbol: 'BTC', orderId: 'order-1' },
       ]);
     });
+
+    it.each([true, false])(
+      'matches scoped order IDs on both venue and ID (batch: %s)',
+      async (batch) => {
+        const orders: Order[] = [
+          { ...mockOrders[0], providerId: 'hyperliquid' },
+          { ...mockOrders[0], providerId: 'lighter' },
+        ];
+        mockGetOpenOrders.mockResolvedValue(orders);
+        vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        });
+        if (!batch) {
+          delete mockProvider.cancelOrders;
+          mockProvider.cancelOrder.mockResolvedValue({
+            success: true,
+            orderId: 'order-1',
+          });
+        }
+        await tradingService.cancelOrders({
+          provider: mockProvider,
+          params: { orders: [{ orderId: 'order-1', providerId: 'lighter' }] },
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+        const target = {
+          orderId: 'order-1',
+          symbol: 'BTC',
+          providerId: 'lighter',
+        };
+        if (batch) {
+          expect(mockProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+            target,
+          ]);
+        } else {
+          expect(mockProvider.cancelOrder).toHaveBeenCalledExactlyOnceWith(
+            target,
+          );
+        }
+      },
+    );
+
+    it('matches a direct provider scoped target even when its orders are untagged', async () => {
+      mockGetOpenOrders.mockResolvedValue([mockOrders[0]]);
+      vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [],
+      });
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { orders: [{ orderId: 'order-1', providerId: 'hyperliquid' }] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+      expect(mockProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+        { orderId: 'order-1', symbol: 'BTC' },
+      ]);
+    });
+
+    it('refuses legacy bare order IDs on a multi-venue provider', async () => {
+      const provider = {
+        ...mockProvider,
+        getProviderIds: () => ['hyperliquid', 'lighter'] as PerpsProviderType[],
+      };
+      const result = await tradingService.cancelOrders({
+        provider,
+        params: { orderIds: ['order-1'] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      expect(mockGetOpenOrders).not.toHaveBeenCalled();
+      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { orders: [] },
+      { orders: [{ orderId: 'absent', providerId: 'lighter' as const }] },
+      { orderIds: [] },
+      { symbols: [] },
+    ])(
+      'does not turn an empty or unmatched filter into a cancel-all: %j',
+      async (params) => {
+        vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        });
+        mockGetOpenOrders.mockResolvedValue(mockOrders);
+        const result = await tradingService.cancelOrders({
+          provider: mockProvider,
+          params,
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+        expect(result.results).toStrictEqual([]);
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
 
     it('allows canceling TP/SL orders when specified by orderId', async () => {
       const params: CancelOrdersParams = {
@@ -2606,6 +2866,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2625,6 +2886,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         5000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2651,6 +2913,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2668,6 +2931,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4800,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2925,6 +3189,47 @@ describe('TradingService', () => {
       );
     });
 
+    it('logs the provider-attached cause of a normalized close failure without exposing raw text', async () => {
+      const rawSetupError = new Error('unexpected setup detail 0xdeadbeef');
+      const providerResult: OrderResult = createErrorResult(rawSetupError, {
+        success: false,
+      });
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue(providerResult);
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain('0xdeadbeef');
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(getProviderErrorCause(providerResult));
+      expect(loggedError).toBeInstanceOf(PerpsControllerError);
+      expect(loggedError.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(loggedError.cause).toBe(rawSetupError);
+      expect(loggedOptions.context.data.providerError).toBe(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      );
+      expect(JSON.stringify(loggedOptions)).not.toContain('0xdeadbeef');
+    });
+
     it('does not log a close the signer could not sign', async () => {
       mockGetPositions.mockResolvedValue([mockPosition]);
       mockProvider.closePosition.mockResolvedValue({
@@ -2951,46 +3256,706 @@ describe('TradingService', () => {
   });
 
   describe('closePositions', () => {
-    it('prices a batch close only from positions the route can close', async () => {
-      // An aggregating provider reads every active provider's positions while
-      // the batch submits through one. Summing the rest inflates the notional
-      // and shrinks the waiver for positions this call never touches.
-      const batchProvider = {
-        ...mockProvider,
-        getWriteProviderId: vi.fn(() => 'hyperliquid'),
-        getPositions: vi.fn().mockResolvedValue([
+    describe('batch close fee pricing across venues', () => {
+      const lighterMainnetScope = {
+        providerId: 'lighter',
+        isTestnet: false,
+      } as const;
+      const hyperliquidResolution: PerpsFeeResolution = {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      };
+      const lighterResolution: PerpsFeeResolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant',
+        subscription: { eligible: false, reason: 'no-source' },
+      };
+
+      const createAggregatedBatchProvider = (
+        defaultProviderId: PerpsProviderType = 'hyperliquid',
+      ): Mocked<PerpsProvider> =>
+        ({
+          ...mockProvider,
+          protocolId: 'aggregated',
+          getWriteProviderId: vi.fn(
+            (providerId?: PerpsProviderType) => providerId ?? defaultProviderId,
+          ),
+          getProviderIds: vi.fn(() => ['hyperliquid', 'lighter']),
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi.fn().mockResolvedValue([
+            {
+              symbol: 'BTC',
+              size: '0.5',
+              positionValue: '25000',
+              providerId: 'hyperliquid',
+            },
+            {
+              symbol: 'ETH',
+              size: '1',
+              positionValue: '3000',
+              providerId: 'hyperliquid',
+            },
+            {
+              symbol: 'BTC',
+              size: '2',
+              positionValue: '99000',
+              providerId: 'lighter',
+            },
+          ]),
+          closePositions: vi.fn().mockResolvedValue({
+            success: true,
+            successCount: 1,
+            failureCount: 0,
+            results: [],
+          }),
+        }) as unknown as Mocked<PerpsProvider>;
+
+      beforeEach(() => {
+        mockRewardsIntegrationService.resolveFee.mockImplementation(
+          async (_notional, scope) =>
+            scope?.providerId === 'lighter'
+              ? lighterResolution
+              : hyperliquidResolution,
+        );
+      });
+
+      it('skips fee lookups on venues that do not apply fee resolutions', async () => {
+        const batchProvider = {
+          ...createAggregatedBatchProvider(),
+          supportsFeeResolution: (providerId?: PerpsProviderType) =>
+            providerId === 'hyperliquid',
+        };
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+        expect(
+          mockRewardsIntegrationService.resolveFee,
+        ).toHaveBeenCalledExactlyOnceWith(28000, hyperliquidMainnetScope, 0);
+      });
+
+      it('reserves subscription allowance before resolving the next venue', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+        mockRewardsIntegrationService.resolveFee
+          .mockResolvedValueOnce({
+            ...hyperliquidResolution,
+            subscriptionCoveredNotionalUsd: 600,
+          })
+          .mockResolvedValueOnce(lighterResolution);
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+        expect(
+          mockRewardsIntegrationService.resolveFee,
+        ).toHaveBeenNthCalledWith(2, 99000, lighterMainnetScope, 600);
+      });
+
+      it('prices a closeAll fan-out per venue, each against its own positions', async () => {
+        // closeAll closes every venue. Each venue applies its own fee to its
+        // own batch, so each is priced against only the positions it closes.
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          28000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it('applies each venue resolution to that venue only and clears them all afterwards', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+        batchProvider.closePositions = vi.fn(async () => {
+          expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+            hyperliquidResolution,
+            'hyperliquid',
+          );
+          expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+            lighterResolution,
+            'lighter',
+          );
+          return {
+            success: true,
+            successCount: 3,
+            failureCount: 0,
+            results: [],
+          };
+        });
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(batchProvider.closePositions).toHaveBeenCalledTimes(1);
+        expect(batchProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+          undefined,
+        );
+      });
+
+      it('prices an empty request as a fan-out to every venue', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: {},
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          28000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it('prices the fan-out venue that is not the default with its own scope', async () => {
+        // With Lighter as the default write route, closeAll still closes the
+        // HyperLiquid positions under HyperLiquid's fee. Pricing them only
+        // from the default route would quote HyperLiquid an un-notionaled,
+        // Lighter-scoped fee.
+        const batchProvider = createAggregatedBatchProvider('lighter');
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          28000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it('prices a target on a non-default venue against that venue', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { targets: [{ symbol: 'BTC', providerId: 'lighter' }] },
+          context: mockContext,
+        });
+
+        // The HyperLiquid BTC position shares the symbol but is not closed.
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+        expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+          lighterResolution,
+          'lighter',
+        );
+      });
+
+      it('prices mixed-venue targets per venue from the targeted positions only', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: {
+            targets: [
+              { symbol: 'ETH', providerId: 'hyperliquid' },
+              { symbol: 'BTC', providerId: 'lighter' },
+            ],
+          },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          3000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it('lets targets win over closeAll, matching execution', async () => {
+        // The provider gives non-empty targets precedence over closeAll, so
+        // pricing every position would bill against positions never closed.
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: {
+            closeAll: true,
+            targets: [{ symbol: 'ETH', providerId: 'hyperliquid' }],
+          },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          3000,
+          hyperliquidMainnetScope,
+          0,
+        );
+      });
+
+      it('prices a legacy symbol list only from the default write route', async () => {
+        // A symbols-only close is a single write through the default route,
+        // so another venue's same-symbol position is not part of it.
+        const batchProvider = createAggregatedBatchProvider();
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { symbols: ['BTC'] },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          25000,
+          hyperliquidMainnetScope,
+          0,
+        );
+      });
+
+      it('prices a target on a direct provider when it names that provider', async () => {
+        const batchProvider = {
+          ...mockProvider,
+          protocolId: 'hyperliquid',
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi.fn().mockResolvedValue([
+            { symbol: 'BTC', size: '0.5', positionValue: '25000' },
+            { symbol: 'ETH', size: '1', positionValue: '3000' },
+          ]),
+          closePositions: vi.fn().mockResolvedValue({
+            success: true,
+            successCount: 1,
+            failureCount: 0,
+            results: [],
+          }),
+        } as unknown as Mocked<PerpsProvider>;
+
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: {
+            targets: [
+              { symbol: 'ETH', providerId: 'hyperliquid' },
+              { symbol: 'BTC', providerId: 'lighter' },
+            ],
+          },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          3000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        // A direct provider is the only venue, so the resolution is not scoped.
+        expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+          hyperliquidResolution,
+        );
+      });
+
+      it('executes an explicit HyperLiquid close with its own fee after an aggregated pricing read fails', async () => {
+        const hyperliquid = {
+          ...mockProvider,
+          protocolId: 'hyperliquid',
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi
+            .fn()
+            .mockRejectedValueOnce(new Error('pricing offline'))
+            .mockResolvedValue([
+              { symbol: 'BTC', size: '0.5', positionValue: '25000' },
+            ]),
+          closePosition: vi.fn(async () => {
+            expect(await hyperliquid.getPositions()).toHaveLength(1);
+            expect(hyperliquid.setUserFeeResolution).toHaveBeenLastCalledWith(
+              hyperliquidResolution,
+            );
+            return { success: true };
+          }),
+        } as unknown as Mocked<PerpsProvider>;
+        delete hyperliquid.closePositions;
+        const lighter = {
+          ...mockProvider,
+          protocolId: 'lighter',
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi
+            .fn()
+            .mockResolvedValue([
+              { symbol: 'BTC', size: '2', positionValue: '99000' },
+            ]),
+        } as unknown as Mocked<PerpsProvider>;
+        const aggregated = new AggregatedPerpsProvider({
+          providers: new Map([
+            ['hyperliquid', hyperliquid],
+            ['lighter', lighter],
+          ]),
+          defaultProvider: 'lighter',
+          infrastructure: mockDeps,
+        });
+
+        const result = await tradingService.closePositions({
+          provider: aggregated,
+          params: { targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }] },
+          context: mockContext,
+        });
+
+        expect(result.successCount).toBe(1);
+        expect(result.failureCount).toBe(0);
+        expect(
+          mockRewardsIntegrationService.resolveFee,
+        ).toHaveBeenCalledExactlyOnceWith(
+          undefined,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(hyperliquid.closePosition).toHaveBeenCalledExactlyOnceWith({
+          symbol: 'BTC',
+        });
+        expect(lighter.closePosition).not.toHaveBeenCalled();
+        expect(lighter.getPositions).not.toHaveBeenCalled();
+        expect(lighter.setUserFeeResolution).toHaveBeenCalledExactlyOnceWith(
+          undefined,
+        );
+        expect(hyperliquid.setUserFeeResolution).toHaveBeenLastCalledWith(
+          undefined,
+        );
+      });
+
+      it('prices a healthy batch even when another venue cannot report positions', async () => {
+        const hyperliquid = {
+          ...mockProvider,
+          protocolId: 'hyperliquid',
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi
+            .fn()
+            .mockResolvedValue([
+              { symbol: 'BTC', size: '0.5', positionValue: '25000' },
+            ]),
+          closePositions: vi.fn().mockResolvedValue({
+            success: true,
+            successCount: 1,
+            failureCount: 0,
+            results: [{ symbol: 'BTC', success: true }],
+          }),
+        } satisfies PerpsProvider;
+        const lighter = {
+          ...mockProvider,
+          protocolId: 'lighter',
+          getPositions: vi.fn().mockRejectedValue(new Error('Lighter offline')),
+          closePositions: vi
+            .fn()
+            .mockRejectedValue(new Error('Lighter offline')),
+        } satisfies PerpsProvider;
+        const aggregated = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', hyperliquid],
+            ['lighter', lighter],
+          ]),
+          defaultProvider: 'lighter',
+          infrastructure: mockDeps,
+        });
+
+        await tradingService.closePositions({
+          provider: aggregated,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          25000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(lighter.getPositions).toHaveBeenCalledExactlyOnceWith({
+          throwOnUnavailable: true,
+          includeProtection: false,
+        });
+        expect(hyperliquid.closePositions).toHaveBeenCalledWith({
+          closeAll: true,
+        });
+      });
+
+      it.each(['rejected', 'empty', 'other venue only'])(
+        'retains the explicit venue when pricing positions are %s',
+        async (readOutcome) => {
+          const batchProvider = createAggregatedBatchProvider('lighter');
+          if (readOutcome === 'rejected') {
+            batchProvider.getPositions.mockRejectedValueOnce(
+              new Error('offline'),
+            );
+          } else {
+            batchProvider.getPositions.mockResolvedValueOnce(
+              readOutcome === 'empty'
+                ? []
+                : [
+                    {
+                      symbol: 'BTC',
+                      size: '2',
+                      positionValue: '99000',
+                      providerId: 'lighter',
+                    } as Position,
+                  ],
+            );
+          }
+          // Execution can recover after the pricing read failed. Its fee must
+          // already be scoped to HyperLiquid, not the default Lighter venue.
+          batchProvider.closePositions = vi.fn(async () => {
+            expect(await batchProvider.getPositions()).toHaveLength(3);
+            expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+              hyperliquidResolution,
+              'hyperliquid',
+            );
+            return {
+              success: true,
+              successCount: 1,
+              failureCount: 0,
+              results: [],
+            };
+          });
+
+          await tradingService.closePositions({
+            provider: batchProvider,
+            params: { targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }] },
+            context: mockContext,
+          });
+
+          expect(
+            mockRewardsIntegrationService.resolveFee,
+          ).toHaveBeenCalledExactlyOnceWith(
+            undefined,
+            hyperliquidMainnetScope,
+            0,
+          );
+          expect(batchProvider.closePositions).toHaveBeenCalledTimes(1);
+          expect(batchProvider.setUserFeeResolution).not.toHaveBeenCalledWith(
+            lighterResolution,
+          );
+        },
+      );
+
+      it.each([{ closeAll: true }, {}])(
+        'keeps every execution venue when fan-out pricing fails for %j',
+        async (params) => {
+          const batchProvider = createAggregatedBatchProvider('lighter');
+          batchProvider.getPositions.mockRejectedValueOnce(
+            new Error('offline'),
+          );
+
+          await tradingService.closePositions({
+            provider: batchProvider,
+            params,
+            context: mockContext,
+          });
+
+          expect(
+            mockRewardsIntegrationService.resolveFee,
+          ).toHaveBeenCalledTimes(2);
+          expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+            undefined,
+            hyperliquidMainnetScope,
+            0,
+          );
+          expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+            undefined,
+            lighterMainnetScope,
+            0,
+          );
+          expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+            hyperliquidResolution,
+            'hyperliquid',
+          );
+          expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+            lighterResolution,
+            'lighter',
+          );
+          expect(batchProvider.closePositions).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('does not price a venue from a subtotal when one selected position value is non-finite', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+        batchProvider.getPositions.mockResolvedValue([
           {
             symbol: 'BTC',
-            size: '0.5',
-            positionValue: '25000',
+            positionValue: '600',
             providerId: 'hyperliquid',
-          },
+          } as Position,
           {
             symbol: 'ETH',
+            positionValue: 'Infinity',
+            providerId: 'hyperliquid',
+          } as Position,
+          {
+            symbol: 'BTC',
+            positionValue: '600',
+            providerId: 'lighter',
+          } as Position,
+        ]);
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          undefined,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          600,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it('keeps an unpriced venue alongside a priced venue in a partial fan-out read', async () => {
+        const batchProvider = createAggregatedBatchProvider('lighter');
+        batchProvider.getPositions.mockResolvedValue([
+          {
+            symbol: 'BTC',
             size: '2',
             positionValue: '99000',
             providerId: 'lighter',
-          },
-        ]),
-        closePositions: vi.fn().mockResolvedValue({
-          success: true,
-          successCount: 1,
-          failureCount: 0,
-          results: [],
-        }),
-      } as unknown as Mocked<PerpsProvider>;
+          } as Position,
+        ]);
 
-      await tradingService.closePositions({
-        provider: batchProvider,
-        params: { closeAll: true },
-        context: mockContext,
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          undefined,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+        expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+          hyperliquidResolution,
+          'hyperliquid',
+        );
       });
 
-      // 25000 only — the lighter position is not reachable by this write.
-      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
-        25000,
-        hyperliquidMainnetScope,
+      it('keeps unpriced target venues even when another target is priced', async () => {
+        const batchProvider = createAggregatedBatchProvider('lighter');
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: {
+            targets: [
+              { symbol: 'SOL', providerId: 'hyperliquid' },
+              { symbol: 'BTC', providerId: 'lighter' },
+            ],
+          },
+          context: mockContext,
+        });
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          undefined,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          99000,
+          lighterMainnetScope,
+          0,
+        );
+      });
+
+      it.each([{ targets: [] }, { targets: [], closeAll: true }])(
+        'closes nothing and resolves no fee for an empty target list %j',
+        async (params) => {
+          const batchProvider = createAggregatedBatchProvider();
+
+          const result = await tradingService.closePositions({
+            provider: batchProvider,
+            params,
+            context: mockContext,
+          });
+
+          expect(result).toEqual({
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          });
+          expect(batchProvider.closePositions).not.toHaveBeenCalled();
+          expect(batchProvider.getPositions).not.toHaveBeenCalled();
+          expect(
+            mockRewardsIntegrationService.resolveFee,
+          ).not.toHaveBeenCalled();
+        },
       );
+
+      it('retains the requested venue when nothing matches', async () => {
+        const batchProvider = createAggregatedBatchProvider();
+        await tradingService.closePositions({
+          provider: batchProvider,
+          params: { targets: [{ symbol: 'SOL', providerId: 'lighter' }] },
+          context: mockContext,
+        });
+        expect(
+          mockRewardsIntegrationService.resolveFee,
+        ).toHaveBeenCalledExactlyOnceWith(undefined, lighterMainnetScope, 0);
+        expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
+          lighterResolution,
+          'lighter',
+        );
+      });
     });
 
     it('prices a batch close from every position when closeAll overrides a symbol list', async () => {
@@ -3031,6 +3996,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         10000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3069,6 +4035,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3206,6 +4173,78 @@ describe('TradingService', () => {
       expect(result.results).toHaveLength(2);
     });
 
+    it('closes only tagged positions in the per-position fallback', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: {
+          targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockProvider.closePosition).toHaveBeenCalledTimes(1);
+      expect(mockProvider.closePosition).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: 'BTC' }),
+      );
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+    });
+
+    it('closes nothing in the per-position fallback for an empty target list', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: { targets: [], closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockGetPositions).not.toHaveBeenCalled();
+      expect(mockProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      });
+    });
+
+    it('does not close unlabeled positions for a different venue target', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: {
+          targets: [{ symbol: 'BTC', providerId: 'lighter' }],
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      });
+    });
+
     it('uses fallback when provider does not support batch closing', async () => {
       const params: ClosePositionsParams = {
         symbols: ['BTC'],
@@ -3229,6 +4268,117 @@ describe('TradingService', () => {
 
       expect(result.results).toHaveLength(1);
       expect(mockProvider.closePosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the attached cause of a mixed batch close without putting venue text on the result', async () => {
+      const venueError = new Error(
+        'post only order would have immediately matched',
+      );
+      const normalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      normalized.cause = venueError;
+      const failed = attachProviderErrorCause(
+        {
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+          errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+        },
+        normalized,
+      );
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 1,
+        results: [{ symbol: 'BTC', success: true }, failed],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(result.results[1]).toMatchObject({
+        error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      });
+      expect(JSON.stringify(result.results[1])).not.toContain(
+        'immediately matched',
+      );
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 1/2 failed (1 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}`,
+      );
+      expect(logged.cause).toBe(normalized);
+      expect(getProviderErrorCause(result.results[1])).toBe(normalized);
+    });
+
+    it('logs every attached cause of a batch close with several failures', async () => {
+      const ethNormalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      ethNormalized.cause = new Error(
+        'post only order would have immediately matched',
+      );
+      const solNormalized = new Error(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      solNormalized.cause = new Error('unclassified venue rejection');
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 3,
+        results: [
+          { symbol: 'BTC', success: true },
+          attachProviderErrorCause(
+            {
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+              errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+            },
+            ethNormalized,
+          ),
+          attachProviderErrorCause(
+            {
+              symbol: 'SOL',
+              success: false,
+              error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+              errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            },
+            solNormalized,
+          ),
+          {
+            symbol: 'DOGE',
+            success: false,
+            error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          },
+        ],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 3/4 failed (3 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}; SOL: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}; DOGE: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}`,
+      );
+      expect(logged.cause).toBeInstanceOf(AggregateError);
+      const aggregate = logged.cause as AggregateError;
+      expect(aggregate.message).toBe('closePositions per-position failures');
+      expect(aggregate.errors).toStrictEqual([ethNormalized, solNormalized]);
+      expect(aggregate.errors[0]).toBe(ethNormalized);
+      expect(aggregate.errors[1]).toBe(solNormalized);
     });
 
     it('logs batch error when provider.closePositions returns partial/full failure', async () => {
@@ -3435,6 +4585,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2750,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3461,6 +4612,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3486,6 +4638,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         22500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3507,6 +4660,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         27500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3530,6 +4684,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           30000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockGetPositions).toHaveBeenCalledTimes(1);
       },
@@ -3553,6 +4708,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3932,6 +5088,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         30000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3957,6 +5114,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         31000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4316,6 +5474,55 @@ describe('TradingService', () => {
       );
     });
 
+    it('signs the flip at the saved max slippage', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        maxSlippageBps: 100,
+        context: mockContext,
+      });
+
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ maxSlippageBps: 100 }),
+      );
+    });
+
+    it('uses Core’s 300 bps default for a Lighter flip when none is saved', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, providerId: 'lighter' },
+        context: mockContext,
+      });
+
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'lighter', maxSlippageBps: 300 }),
+      );
+    });
+
+    it('omits unknown leverage from flip position analytics', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, leverage: { type: 'cross' } },
+        context: mockContext,
+      });
+
+      const flipEvents = vi
+        .mocked(mockDeps.metrics.trackPerpsEvent)
+        .mock.calls.filter(
+          ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
+        );
+      expect(flipEvents).toHaveLength(2);
+      for (const [, properties] of flipEvents) {
+        expect(properties).not.toHaveProperty('leverage');
+      }
+    });
+
     it('places order with 2x position size to flip position', async () => {
       const mockResult: OrderResult = {
         success: true,
@@ -4397,11 +5604,59 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
         expect.objectContaining({
           currentPrice: expect.any(Number),
+        }),
+      );
+    });
+
+    it('logs the provider-attached cause of a normalized flip failure', async () => {
+      const venueError = new Error('Unexpected flip rejection: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.placeOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'flipPosition',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         }),
       );
     });
@@ -4589,6 +5844,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
     });
@@ -4611,6 +5867,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         50000,
         { providerId: 'lighter', isTestnet: false },
+        0,
       );
       expect(mockProvider.placeOrder).toHaveBeenCalledWith(
         expect.objectContaining({

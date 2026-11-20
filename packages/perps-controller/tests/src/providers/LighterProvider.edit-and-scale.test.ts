@@ -4260,6 +4260,73 @@ describe('LighterProvider', () => {
       expect((await built.provider.placeOrder(intent)).success).toBe(true);
     });
 
+    it('does not substitute market defaults for unknown leverage on a live position', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            defaultInitialMarginFraction: 1000,
+            maintenanceMarginFraction: 120,
+          },
+        ],
+      });
+      const { initialMarginFraction: _initialMarginFraction, ...position } =
+        ACCOUNT.positions[0];
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          { ...ACCOUNT, availableBalance: '20', positions: [position] },
+        ],
+      });
+
+      expect(await built.provider.validateOrder(intent)).toMatchObject({
+        isValid: false,
+        error: 'Invalid Lighter Scale margin state',
+      });
+    });
+
+    it.each([
+      ['10', 2000],
+      ['0', 1000],
+    ])(
+      'uses the configured leverage or market default for a flat row with fraction %s',
+      async (initialMarginFraction, defaultInitialMarginFraction) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        built.clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 100000,
+              minInitialMarginFraction: 200,
+              defaultInitialMarginFraction,
+              maintenanceMarginFraction: 120,
+            },
+          ],
+        });
+        const position = {
+          ...ACCOUNT.positions[0],
+          position: '0',
+          positionValue: '0',
+          initialMarginFraction,
+        };
+        built.clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            { ...ACCOUNT, availableBalance: '15', positions: [position] },
+          ],
+        });
+
+        expect(await built.provider.validateOrder(intent)).toMatchObject({
+          isValid: true,
+        });
+      },
+    );
+
     it('validates a complete scale before signer setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       expect(await built.provider.validateOrder(intent)).toStrictEqual({

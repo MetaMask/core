@@ -284,6 +284,10 @@ export const DEPOSIT_CONFIG = {
 // Withdrawal constants (HyperLiquid-specific)
 export const HYPERLIQUID_WITHDRAWAL_MINUTES = 5; // HyperLiquid withdrawal processing time in minutes
 
+// A supported-account probe is re-run after this long, so a wallet converted
+// to multi-sig mid-session is refused before signing instead of at the venue.
+export const HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS = 60_000;
+
 // Type helpers
 export type SupportedAsset = keyof typeof HYPERLIQUID_ASSET_CONFIGS;
 
@@ -328,6 +332,8 @@ export const HYPERLIQUID_CONFIG = {
   // Exchange name used in predicted funding data
   // HyperLiquid uses 'HlPerp' as their perps exchange identifier
   ExchangeName: 'HlPerp',
+  DexDiscoveryInitialWaitMs: 5000,
+  DexDiscoveryRetryDelayMs: 5000,
   // Maximum allowed deviation of the market (mid) price from the oracle (reference)
   // price before HyperLiquid rejects orders. HyperLiquid enforces "Order price cannot
   // be more than 95% away from the reference price", which makes markets — most often

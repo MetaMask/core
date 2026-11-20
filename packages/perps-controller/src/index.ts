@@ -82,6 +82,7 @@ export type {
   PerpsControllerFlipPositionAction,
   PerpsControllerGetAccountStateAction,
   PerpsControllerGetAccountSupportAction,
+  PerpsControllerResolveWithdrawalRouteAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
   PerpsControllerGetAttributionContextAction,
@@ -267,9 +268,14 @@ export type {
   AccountState,
   CrossMarginSummary,
   HyperLiquidAbstractionMode,
+  PerpsProviderAccountStateEntry,
+  AccountAggregateMetadata,
   ClosePositionParams,
   ClosePositionsParams,
+  ClosePositionsTarget,
   ClosePositionsResult,
+  BatchOperationStatus,
+  WithBatchOperationStatus,
   UpdateMarginParams,
   MarginResult,
   FlipPositionParams,
@@ -299,6 +305,8 @@ export type {
   DepositStepInfo,
   WithdrawParams,
   WithdrawResult,
+  ResolveWithdrawalRouteParams,
+  WithdrawalRoute,
   TransferBetweenDexsParams,
   TransferBetweenDexsResult,
   GetHistoricalPortfolioParams,
@@ -371,6 +379,8 @@ export type {
   ScalePriceLadderUnavailableReason,
   DirectProviderOrderCapabilities,
   PerpsOrderCapabilities,
+  PerpsPricePrecision,
+  PerpsOrderLimits,
   PerpsScalePriceLadder,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
@@ -770,7 +780,10 @@ export {
 } from './utils/index.js';
 export type { SortMarketsParams } from './utils/index.js';
 export { parseVolume, sortMarkets } from './utils/index.js';
-export type { StandaloneInfoClientOptions } from './utils/index.js';
+export type {
+  StandaloneClearinghouseStatesResult,
+  StandaloneInfoClientOptions,
+} from './utils/index.js';
 export {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -799,11 +812,27 @@ export {
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
   estimateIsolatedLeverageChange,
+  estimateCrossMaintenanceMargin,
+  estimateCrossLiquidationPrice,
 } from './utils/index.js';
 export type {
   HyperLiquidMarginTier,
   IsolatedLeverageChangeParams,
   IsolatedLeverageChange,
+  CrossMarginPosition,
+} from './utils/index.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+  getBatchOperationStatus,
+  PERPS_ERROR_COPY,
+  getPerpsErrorCopy,
+  PERPS_ORDER_TYPE_LABELS,
+} from './utils/index.js';
+export type {
+  GroupedOrderBook,
+  PerpsErrorCopy,
+  PerpsOrderTypeLabel,
 } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type {
@@ -878,7 +907,12 @@ export type {
 // Error codes (explicit named exports)
 export { isPerpsErrorCode, PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 export type { PerpsErrorCode } from './perpsErrorCodes.js';
-export type { PerpsErrorDetails, PriceMovedErrorDetails } from './errors.js';
+export { OrderDiscoveryError } from './errors.js';
+export type {
+  HyperLiquidErrorDetails,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+} from './errors.js';
 
 // Selectors (explicit named exports)
 export {
