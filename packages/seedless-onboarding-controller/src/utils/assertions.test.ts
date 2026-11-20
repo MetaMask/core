@@ -555,6 +555,33 @@ describe('assertIdTokenMismatchAndTrackEvent', () => {
       hasProperties: true,
     });
   });
+
+  it('tracks NONE as the actual user id when no id token is provided', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent(
+        [],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        reason: SeedlessIdentityMismatchReason.MissingIdToken,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: 'NONE',
+        metadata_schema_version: 'v1',
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
 });
 
 describe('assertIdentityUnchangedAndTrackEvent', () => {
