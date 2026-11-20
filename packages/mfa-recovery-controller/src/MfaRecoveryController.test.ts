@@ -171,11 +171,7 @@ describe('MfaRecoveryController', () => {
             controller.metadata,
             'usedInUi',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "pendingOperation": null,
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
   });

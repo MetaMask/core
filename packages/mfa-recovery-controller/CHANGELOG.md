@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove the `pendingOperationEncryptor` option.
   - Reset a persisted string `pendingOperation` to `null` in a client migration; the controller rejects it with `invalid_pending_operation`.
   - `PendingRegisterPayload` and `PendingUpdateRecoverySecretPayload` no longer include `recoverySecret`, though `payloadHash` still covers it.
+- **BREAKING:** `pendingOperation` is no longer exposed to the UI, since it holds identifiers and the approval token ([#11679](https://github.com/MetaMask/core/pull/11679))
+  - Use `getPhase()` instead of reading `pendingOperation` from UI state.
 - **BREAKING:** After a restart, `resume()` reads the recovery secret of a pending `writing` `register` or `updateRecoverySecret` back from the escrows that applied it, logging in with the update's identifier or, for `register`, the `identifier` passed to `resume` ([#11679](https://github.com/MetaMask/core/pull/11679))
   - Throws `identifier_required` for a pending `register` resumed without an `identifier`, and `payload_mismatch` if the secret read back does not match the mutation.
   - Throws `recovery_secret_unavailable` when no escrow applied the mutation; it is cleared once its approval expired more than 5 minutes ago.

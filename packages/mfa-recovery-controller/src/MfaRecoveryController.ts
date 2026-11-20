@@ -129,7 +129,7 @@ const mfaRecoveryControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
-    usedInUi: true,
+    usedInUi: false,
   },
 } satisfies StateMetadata<MfaRecoveryControllerState>;
 
