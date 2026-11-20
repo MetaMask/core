@@ -159,6 +159,12 @@ describe('@metamask/perps-controller public API', () => {
     expect(action).toBe('PerpsController:getAccountSupport');
   });
 
+  it('exports the withdrawal route resolution method and action', () => {
+    expect(typeof PerpsController.prototype.resolveWithdrawalRoute).toBe(
+      'function',
+    );
+  });
+
   it('exports the single-leg TP/SL replace method, action and error code', () => {
     const params: ReplacePositionTPSLLegParams = {
       symbol: 'BTC',

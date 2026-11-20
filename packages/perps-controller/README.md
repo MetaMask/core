@@ -78,6 +78,25 @@ registered venue, including HyperLiquid-only fallback when Lighter is
 unavailable, accepts these writes without an explicit route because there is
 only one destination.
 
+Before a withdrawal, call `resolveWithdrawalRoute` to learn which venue
+`withdraw` will sign on for the same optional `providerId`. It returns
+`{ status: 'resolved', providerId }` with the venue, or
+`{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when the
+withdrawal would be refused for not naming one. The route-required outcome is
+returned as a value, not thrown, so a UI cannot fail open around it. Resolve the
+route with this method rather than inferring it from `getAccountSupport()` with
+no arguments, which routes through the aggregated routing default even when
+`withdraw` would refuse.
+
+A resolved route does not establish account support. Check
+`getAccountSupport({ providerId })` for the resolved venue and pass that same
+`providerId` to `withdraw`. Discard preflight results if the account, network or
+provider context changes before submission. An explicit route that conflicts
+with the active direct provider rejects with `PROVIDER_NOT_FOUND` before
+withdrawal tracking or signing begins. `getWithdrawalRoutes()` lists routes
+from every active venue, not the signing venue; filter those routes by the
+resolved `providerId` rather than selecting the first matching asset.
+
 `cancelOrders` and `closePositions` are venue-attributed rather than refused.
 `cancelOrders({ orders: [{ orderId, providerId }] })` matches both fields,
 so a colliding ID on another venue is not cancelled. Non-empty legacy `orderIds`
