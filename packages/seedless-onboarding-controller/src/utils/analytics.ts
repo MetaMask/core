@@ -5,9 +5,24 @@ import type {
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
-import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
+import {
+  controllerName,
+  IDENTITY_MISMATCH_REASON_BY_DETAIL,
+  SecretType,
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+} from '../constants.js';
+import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import {
+  InvalidPrimarySecretDataTypeError,
+  isIdentityMismatchError,
+} from '../errors.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
+import {
+  assertIdentityUnchanged,
+  assertIdTokenMatchesUserId,
+} from './assertions.js';
 import {
   isPrimarySecretCandidate,
   parseSecretMetadata,
@@ -90,6 +105,8 @@ function getMetadataSchemaVersion(
   return 'mixed';
 }
 
+const log = createModuleLogger(projectLogger, controllerName);
+
 /**
  * Identify whether the local primary SRP is missing from or differs from the
  * remote TOPRF metadata backup.
@@ -104,13 +121,12 @@ function getMetadataSchemaVersion(
  * failures are logged and are not classified as affected users.
  *
  * @param params - Functions used to read the remote metadata and local primary
- * SRP, emit telemetry, and log inconclusive failures.
+ * SRP, and emit telemetry.
  * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
  * metadata items.
  * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
  * bytes from the keyring.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
- * @param params.logFn - Records failures that prevent identification.
  * @returns A promise that resolves after identification and best-effort
  * telemetry have completed.
  */
@@ -118,15 +134,10 @@ export async function trackIncompleteMetadataBackupEvents({
   fetchAllSecretDataFn,
   getPrimaryKeyringSeedPhraseFn,
   trackEvent,
-  logFn,
 }: {
   fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
-  trackEvent: (
-    event: AnalyticsTrackingEvent,
-    context?: AnalyticsContext,
-  ) => void | Promise<void>;
+  trackEvent: TrackEvent;
   getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
-  logFn: (message: string, error?: unknown) => void;
 }): Promise<void> {
   const trackEventSafely = async (
     event: AnalyticsTrackingEvent,
@@ -134,7 +145,7 @@ export async function trackIncompleteMetadataBackupEvents({
     try {
       await trackEvent(event);
     } catch (error) {
-      logFn('Error tracking incomplete metadata backup event', error);
+      log('Error tracking incomplete metadata backup event', error);
     }
   };
 
@@ -175,6 +186,120 @@ export async function trackIncompleteMetadataBackupEvents({
       return;
     }
 
-    logFn('Error identifying incomplete metadata backup', error);
+    log('Error identifying incomplete metadata backup', error);
+  }
+}
+
+type TrackEvent = (
+  event: AnalyticsTrackingEvent,
+  context?: AnalyticsContext,
+) => void | Promise<void>;
+
+/**
+ * Report an identity mismatch. Tracking failures are logged and do not
+ * replace the original error.
+ *
+ * @param params - The mismatch and the analytics callbacks.
+ * @param params.source - The flow that detected the mismatch.
+ * @param params.error - The caught identity mismatch.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ */
+export function trackIdentityMismatchEvent({
+  source,
+  error,
+  trackEvent,
+}: {
+  source: SeedlessIdentityMismatchSource;
+  error: unknown;
+  trackEvent: TrackEvent;
+}): void {
+  if (!isIdentityMismatchError(error)) {
+    return;
+  }
+
+  try {
+    const tracked = trackEvent({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source,
+        reason:
+          IDENTITY_MISMATCH_REASON_BY_DETAIL[error.details ?? ''] ??
+          SeedlessIdentityMismatchReason.Unknown,
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+    if (tracked instanceof Promise) {
+      tracked.catch((trackError: unknown) => {
+        log('Error tracking identity mismatch event', trackError);
+      });
+    }
+  } catch (trackError) {
+    log('Error tracking identity mismatch event', trackError);
+  }
+}
+
+/**
+ * Assert the first id token belongs to `userId`, and report a mismatch.
+ * The original error is rethrown. A tracking failure does not replace it.
+ *
+ * @param params - The tokens, expected user, and analytics callbacks.
+ * @param params.idTokens - Id tokens to check. Only the first is validated.
+ * @param params.userId - The user id the token should belong to.
+ * @param params.source - The flow that is checking the token.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ */
+export function trackIdTokenMismatchEvent({
+  idTokens,
+  userId,
+  source,
+  trackEvent,
+}: {
+  idTokens: string[];
+  userId: string | null | undefined;
+  source: SeedlessIdentityMismatchSource;
+  trackEvent: TrackEvent;
+}): asserts userId is string {
+  try {
+    assertIdTokenMatchesUserId(idTokens, userId);
+  } catch (error) {
+    trackIdentityMismatchEvent({ source, error, trackEvent });
+    throw error;
+  }
+}
+
+/**
+ * Assert the controller identity is unchanged, and report a mismatch.
+ * The original error is rethrown. A tracking failure does not replace it.
+ *
+ * @param params - The identities being compared and the analytics callbacks.
+ * @param params.currentState - Identity fields from the current controller state.
+ * @param params.expectedIdentity - Identity fields captured before the request.
+ * @param params.source - The flow that is checking the identity.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ */
+export function trackIdentityUnchangedEvent({
+  currentState,
+  expectedIdentity,
+  source,
+  trackEvent,
+}: {
+  currentState: {
+    userId?: string;
+    authConnectionId?: string;
+  };
+  expectedIdentity: {
+    userId?: string;
+    authConnectionId?: string;
+  };
+  source: SeedlessIdentityMismatchSource;
+  trackEvent: TrackEvent;
+}): void {
+  try {
+    assertIdentityUnchanged(currentState, expectedIdentity);
+  } catch (error) {
+    trackIdentityMismatchEvent({ source, error, trackEvent });
+    throw error;
   }
 }

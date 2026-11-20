@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation
+  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`) and `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`)
+  - The event does not include tokens, user ids, or other credentials
+  - A failure to send the event does not change the `IdentityMismatch` error returned to the caller
 - Export the OAuth idToken decode helpers `padBase64String`, `convertUrlSafeBase64StringToBase64String`, `decodeBase64WithSafeUrlReplacements`, and `decodeIdToken`, so clients can decode base64url JWTs the same way ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))
   - `authenticate` validates that the first idToken belongs to the provided `userId` before making any network request. The token user id is derived the same way clients derive it: `sub`, then Telegram `user_id` when `sub` is nullish, then `email`

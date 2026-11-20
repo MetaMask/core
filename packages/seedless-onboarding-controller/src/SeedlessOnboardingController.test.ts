@@ -1,3 +1,4 @@
+import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
@@ -68,6 +69,9 @@ import { createMockJWTToken } from '../tests/mocks/utils.js';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor.js';
 import {
   Web3AuthNetwork,
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+  SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
@@ -206,6 +210,58 @@ function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
  */
 function createMockVaultEncryptor(): MockVaultEncryptor {
   return new MockVaultEncryptor();
+}
+
+type TrackEvent = (event: AnalyticsTrackingEvent) => void;
+
+/**
+ * Register a handler for analytics events emitted by the controller.
+ *
+ * @param baseMessenger - The root messenger used by the test controller.
+ * @returns The mock invoked for each tracked event.
+ */
+function registerTrackEvent(baseMessenger: RootMessenger): Mock<TrackEvent> {
+  const trackEvent = vi.fn<TrackEvent>();
+  baseMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    trackEvent,
+  );
+  return trackEvent;
+}
+
+/**
+ * Assert that exactly one identity-mismatch analytics event was emitted.
+ *
+ * Other analytics events are ignored so vault unlock can still report
+ * incomplete metadata backups.
+ *
+ * @param trackEvent - The analytics mock.
+ * @param source - The expected flow that detected the mismatch.
+ * @param reason - The expected non-sensitive reason code.
+ */
+function expectIdentityMismatchEvent(
+  trackEvent: Mock<TrackEvent>,
+  source: SeedlessIdentityMismatchSource,
+  reason: SeedlessIdentityMismatchReason,
+): void {
+  const identityMismatchEvents = trackEvent.mock.calls.filter(
+    ([event]) => event.name === SeedlessIdentityMismatchEventName,
+  );
+
+  expect(identityMismatchEvents).toStrictEqual([
+    [
+      {
+        name: SeedlessIdentityMismatchEventName,
+        properties: {
+          source,
+          reason,
+        },
+        sensitiveProperties: {},
+        saveDataRecording: false,
+        hasProperties: true,
+      },
+    ],
+  ]);
 }
 
 /**
@@ -1119,6 +1175,7 @@ describe('SeedlessOnboardingController', () => {
     it('should throw IdentityMismatch and skip authentication when the idToken sub does not match the userId', async () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
+          const trackEvent = registerTrackEvent(baseMessenger);
           const authenticateSpy = vi
             .spyOn(toprfClient, 'authenticate')
             .mockResolvedValue({
@@ -1143,6 +1200,11 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(authenticateSpy).not.toHaveBeenCalled();
+          expectIdentityMismatchEvent(
+            trackEvent,
+            SeedlessIdentityMismatchSource.ToprfAuthenticate,
+            SeedlessIdentityMismatchReason.UserIdMismatch,
+          );
           expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
             false,
           );
@@ -1151,9 +1213,41 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should still throw IdentityMismatch when analytics tracking fails', async () => {
+      await withController(async ({ toprfClient, baseMessenger }) => {
+        vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+          isNewUser: false,
+        });
+        baseMessenger.registerActionHandler(
+          'AnalyticsController:trackEvent',
+          () => {
+            throw new Error('analytics unavailable');
+          },
+        );
+
+        await expect(
+          baseMessenger.call('SeedlessOnboardingController:authenticate', {
+            idTokens: [createMockJWTToken({ sub: 'different-user' })],
+            authConnectionId,
+            userId,
+            authConnection,
+            socialLoginEmail,
+            refreshToken,
+            revokeToken,
+            accessToken,
+            metadataAccessToken,
+          }),
+        ).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+        );
+      });
+    });
+
     it('should authenticate when the idToken sub matches the userId', async () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
+          const trackEvent = registerTrackEvent(baseMessenger);
           vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
@@ -1179,6 +1273,7 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
             true,
           );
+          expect(trackEvent).not.toHaveBeenCalled();
         },
       );
     });
@@ -7350,6 +7445,7 @@ describe('SeedlessOnboardingController', () => {
             mockRefreshJWTToken,
             baseMessenger,
           }) => {
+            const trackEvent = registerTrackEvent(baseMessenger);
             mockRefreshJWTToken.mockResolvedValueOnce({
               idTokens: [createMockJWTToken({ sub: 'different-user' })],
               accessToken,
@@ -7371,6 +7467,11 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(authenticateSpy).not.toHaveBeenCalled();
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.UserIdMismatch,
+            );
             expect(controller.state.nodeAuthTokens).toStrictEqual(
               MOCK_NODE_AUTH_TOKENS,
             );
@@ -7387,6 +7488,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
+            const trackEvent = registerTrackEvent(baseMessenger);
             mockRefreshJWTToken.mockResolvedValueOnce({
               idTokens: ['not-a-jwt'],
               accessToken,
@@ -7408,6 +7510,11 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(authenticateSpy).not.toHaveBeenCalled();
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.IdTokenUndecodable,
+            );
           },
         );
       });
@@ -7420,6 +7527,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
+            const trackEvent = registerTrackEvent(baseMessenger);
             mockRefreshJWTToken.mockResolvedValueOnce({
               idTokens: [createMockJWTToken({ sub: '' })],
               accessToken,
@@ -7441,6 +7549,11 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(authenticateSpy).not.toHaveBeenCalled();
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.UserIdMismatch,
+            );
           },
         );
       });
@@ -7453,6 +7566,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, toprfClient, baseMessenger }) => {
+            const trackEvent = registerTrackEvent(baseMessenger);
             let resolveAuthenticate!: (value: {
               nodeAuthTokens: typeof MOCK_NODE_AUTH_TOKENS;
               isNewUser: boolean;
@@ -7487,6 +7601,11 @@ describe('SeedlessOnboardingController', () => {
             await expect(refreshPromise).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
             );
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.IdentityChangedInFlight,
+            );
 
             // The stale identity must not be resurrected into state.
             expect(controller.state.userId).toBeUndefined();
@@ -7506,6 +7625,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, mockRefreshJWTToken, baseMessenger }) => {
+            const trackEvent = registerTrackEvent(baseMessenger);
             // Force the proactive refresh branch of #executeWithTokenRefresh.
             vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
               true,
@@ -7523,6 +7643,11 @@ describe('SeedlessOnboardingController', () => {
               ),
             ).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.UserIdMismatch,
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
@@ -7549,6 +7674,7 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:submitPassword',
               MOCK_PASSWORD,
             );
+            const trackEvent = registerTrackEvent(baseMessenger);
 
             vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -7589,6 +7715,11 @@ describe('SeedlessOnboardingController', () => {
 
             await expect(refreshPromise).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.TokenRefresh,
+              SeedlessIdentityMismatchReason.IdentityChangedInFlight,
             );
 
             // The refresh-token rotation side effect must not run.
@@ -8176,6 +8307,7 @@ describe('SeedlessOnboardingController', () => {
               'SeedlessOnboardingController:submitPassword',
               MOCK_PASSWORD,
             );
+            const trackEvent = registerTrackEvent(baseMessenger);
 
             const originalRefreshToken = controller.state.refreshToken;
 
@@ -8226,6 +8358,11 @@ describe('SeedlessOnboardingController', () => {
             // the caller — it must not be swallowed as a transient failure.
             await expect(refreshPromise).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+            expectIdentityMismatchEvent(
+              trackEvent,
+              SeedlessIdentityMismatchSource.RotateRefreshToken,
+              SeedlessIdentityMismatchReason.IdentityChangedInFlight,
             );
 
             // The switched identity must not end up with the previous
@@ -9270,6 +9407,7 @@ describe('SeedlessOnboardingController', () => {
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
           );
+          const trackEvent = registerTrackEvent(baseMessenger);
 
           const originalRefreshToken = controller.state.refreshToken;
           const originalRevokeToken = controller.state.revokeToken;
@@ -9283,6 +9421,11 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
           );
 
+          expectIdentityMismatchEvent(
+            trackEvent,
+            SeedlessIdentityMismatchSource.RotateRefreshToken,
+            SeedlessIdentityMismatchReason.UserIdMismatch,
+          );
           expect(mockRenewRefreshToken).not.toHaveBeenCalled();
           expect(controller.state.refreshToken).toBe(originalRefreshToken);
           expect(controller.state.revokeToken).toBe(originalRevokeToken);
@@ -9322,6 +9465,7 @@ describe('SeedlessOnboardingController', () => {
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
           );
+          const trackEvent = registerTrackEvent(baseMessenger);
 
           const originalRefreshToken = controller.state.refreshToken;
           const originalRevokeToken = controller.state.revokeToken;
@@ -9359,6 +9503,11 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(rotatePromise).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+          );
+          expectIdentityMismatchEvent(
+            trackEvent,
+            SeedlessIdentityMismatchSource.RotateRefreshToken,
+            SeedlessIdentityMismatchReason.IdentityChangedInFlight,
           );
 
           // The rotation results must not be written over the switched identity.

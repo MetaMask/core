@@ -1,4 +1,7 @@
-import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import {
+  IdentityMismatchDetail,
+  SeedlessOnboardingControllerErrorMessage,
+} from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
 import type { AuthenticatedUserDetails, VaultData } from '../types.js';
 import { decodeIdToken } from './token.js';
@@ -225,7 +228,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: 'The user ID is missing.',
+        details: IdentityMismatchDetail.MissingUserId,
       },
     );
   }
@@ -235,7 +238,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: 'The idToken is missing.',
+        details: IdentityMismatchDetail.MissingIdToken,
       },
     );
   }
@@ -247,7 +250,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: 'The idToken could not be decoded.',
+        details: IdentityMismatchDetail.UndecodableIdToken,
         cause: error,
       },
     );
@@ -257,7 +260,7 @@ export function assertIdTokenMatchesUserId(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: 'The idToken user id does not match the provided userId.',
+        details: IdentityMismatchDetail.UserIdMismatch,
       },
     );
   }
@@ -294,7 +297,7 @@ export function assertIdentityUnchanged(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details: 'Controller identity changed while the request was in flight.',
+        details: IdentityMismatchDetail.IdentityChangedInFlight,
       },
     );
   }

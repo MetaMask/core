@@ -76,3 +76,55 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
 }
+
+export const SeedlessIdentityMismatchEventName =
+  'Seedless Onboarding Identity Mismatch';
+
+/**
+ * Flow that detected an identity mismatch.
+ */
+export enum SeedlessIdentityMismatchSource {
+  ToprfAuthenticate = 'toprf_authenticate',
+  TokenRefresh = 'token_refresh',
+  RotateRefreshToken = 'rotate_refresh_token',
+}
+
+/**
+ * Non-sensitive reason sent with the identity-mismatch analytics event.
+ */
+export enum SeedlessIdentityMismatchReason {
+  MissingUserId = 'missing_user_id',
+  MissingIdToken = 'missing_id_token',
+  IdTokenUndecodable = 'id_token_undecodable',
+  UserIdMismatch = 'user_id_mismatch',
+  IdentityChangedInFlight = 'identity_changed_in_flight',
+  Unknown = 'unknown',
+}
+
+/**
+ * Detail strings for {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch}.
+ */
+export const IdentityMismatchDetail = {
+  MissingUserId: 'The user ID is missing.',
+  MissingIdToken: 'The idToken is missing.',
+  UndecodableIdToken: 'The idToken could not be decoded.',
+  UserIdMismatch: 'The idToken user id does not match the provided userId.',
+  IdentityChangedInFlight:
+    'Controller identity changed while the request was in flight.',
+} as const;
+
+export const IDENTITY_MISMATCH_REASON_BY_DETAIL: Record<
+  string,
+  SeedlessIdentityMismatchReason
+> = {
+  [IdentityMismatchDetail.MissingUserId]:
+    SeedlessIdentityMismatchReason.MissingUserId,
+  [IdentityMismatchDetail.MissingIdToken]:
+    SeedlessIdentityMismatchReason.MissingIdToken,
+  [IdentityMismatchDetail.UndecodableIdToken]:
+    SeedlessIdentityMismatchReason.IdTokenUndecodable,
+  [IdentityMismatchDetail.UserIdMismatch]:
+    SeedlessIdentityMismatchReason.UserIdMismatch,
+  [IdentityMismatchDetail.IdentityChangedInFlight]:
+    SeedlessIdentityMismatchReason.IdentityChangedInFlight,
+};

@@ -7,7 +7,12 @@ export {
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
 } from './assertions.js';
-export { trackIncompleteMetadataBackupEvents } from './analytics.js';
+export {
+  trackIdentityMismatchEvent,
+  trackIdentityUnchangedEvent,
+  trackIdTokenMismatchEvent,
+  trackIncompleteMetadataBackupEvents,
+} from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
   getDataTypeMigrationUpdates,
