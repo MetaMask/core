@@ -892,14 +892,6 @@
 /packages/type-utils/typedoc.json       @MetaMask/core-platform
 /packages/type-utils/vitest.config.*    @MetaMask/core-platform
 
-### user-operation-controller
-/packages/user-operation-controller                    @MetaMask/confirmations
-/packages/user-operation-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
-/packages/user-operation-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
-/packages/user-operation-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
-/packages/user-operation-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
-/packages/user-operation-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
-
 ### utils
 /packages/utils                    @MetaMask/core-platform
 /packages/utils/CHANGELOG.md       @MetaMask/core-platform

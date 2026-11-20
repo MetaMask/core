@@ -7,6 +7,10 @@ import type {
   ApprovalControllerRejectRequestAction,
 } from '@metamask/approval-controller';
 import type {
+  AssetsControllerAddCustomAssetAction,
+  AssetsControllerGetAssetsAction,
+} from '@metamask/assets-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -481,6 +485,8 @@ type AllowedActions =
   | BridgeControllerGetStateAction
   | BridgeControllerFetchQuotesAction
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerAddCustomAssetAction
+  | AssetsControllerGetAssetsAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction
   | MoneyAccountControllerGetMoneyAccountAction;

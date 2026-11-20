@@ -133,6 +133,9 @@ describe('retry logic in middleware connected to a port', () => {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let messageConsumer: any;
+  let clientStream:
+    | ReturnType<typeof createStreamMiddleware>['stream']
+    | undefined;
   beforeEach(() => {
     // create guest
     engineA = new JsonRpcEngine();
@@ -166,6 +169,7 @@ describe('retry logic in middleware connected to a port', () => {
 
     // connect both
     const clientSideStream = jsonRpcConnection.stream;
+    clientStream = clientSideStream;
     clientSideStream
       .pipe(connectionStream as unknown as Duplex)
       .pipe(clientSideStream);
@@ -242,12 +246,16 @@ describe('retry logic in middleware connected to a port', () => {
     await artificialDelay();
     expect(messages).toHaveLength(4);
 
-    // Reconnected, error is thrrown when trying to resend request more that 3 times
-    expect(() => {
-      messageConsumer({
-        method: RECONNECTED,
-      });
-    }).toThrow('StreamMiddleware - Retry limit exceeded for request id');
+    // Reconnected, error is emitted on the stream when trying to resend request more that 3 times
+    const streamError = new Promise<Error>((resolve) => {
+      clientStream?.once('error', resolve);
+    });
+    messageConsumer({
+      method: RECONNECTED,
+    });
+    expect((await streamError).message).toContain(
+      'StreamMiddleware - Retry limit exceeded for request id',
+    );
   });
 
   it('does not throw error when response is received for request not in map', async () => {
