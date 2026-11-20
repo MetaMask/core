@@ -9,7 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
+- **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+### Fixed
+
+- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting ([#11463](https://github.com/MetaMask/core/pull/11463))
+  - A review decision the SDK opens on (`TemporarilyDeclined`, `FinallyRejected` or `Approved`) now counts as a submission only when the SDK reported `Pending`, `Completed` or `ActionCompleted` earlier in the same launch
+  - A `Pending` that SumSub reports partway through a level is cleared by a later `Ready`, `Initial` or `Incomplete`
+  - After a close that looks like a submit, the session status is fetched up to three times, one second apart. If idOS still has the applicant on the `kyc` step with no decision, the launch reports `abandoned` and stores that status
+  - A stored `submitted` outcome becomes `abandoned` when a fetched session status shows the applicant still on the `kyc` step with no decision, so a session already stuck on `submitted` can resume
 
 ## [0.16.0]
 

@@ -731,6 +731,28 @@ describe('BaseDataService', () => {
 
       service.destroy();
     });
+
+    it('closes an open circuit when the circuit breaker is reset', async () => {
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        'Query failed with status code: 500.',
+      );
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        BrokenCircuitError,
+      );
+
+      service.resetBreaker();
+
+      mockAssets();
+      expect(await service.getAssets(MOCK_ASSETS)).toHaveLength(3);
+
+      service.destroy();
+    });
   });
 
   describe('persistence', () => {

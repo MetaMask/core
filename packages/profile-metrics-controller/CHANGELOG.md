@@ -19,14 +19,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fetchNonces` responses that do not match the expected shape or whose identifiers do not match the request now fail immediately instead of being retried, and no longer count toward the circuit breaker ([#11215](https://github.com/MetaMask/core/pull/11215))
   - The shape error is now `Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response: …`, instead of `Malformed response received from <url>`.
 - Add dependency `@metamask/base-data-service` ([#11215](https://github.com/MetaMask/core/pull/11215))
-- Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
-- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ### Removed
 
 - **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `ProfileMetricsService` ([#11215](https://github.com/MetaMask/core/pull/11215))
+
+## [5.3.0]
+
+### Added
+
+- Add `ProfileMetricsService.resetCircuitBreakers` method, which closes the nonce and metrics circuit breakers so clients can call it next to `clearState` on wallet reset ([#11632](https://github.com/MetaMask/core/pull/11632))
+- Add `ProfileMetricsController.clearState` method and `ProfileMetricsController:clearState` messenger action, which reset the controller to its default state so clients can clear the sync queue and reported accounts on wallet reset ([#11632](https://github.com/MetaMask/core/pull/11632))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+### Fixed
+
+- Drop sync queue batches whose entropy source no longer has any account, so a reset or recreated vault no longer leaves batches that can never be submitted and keep the service circuit breaker open ([#11632](https://github.com/MetaMask/core/pull/11632))
+- Stop retrying `ProfileMetricsService` requests that fail with a 4xx response, so a rejected nonce or submit request is made once per call instead of four times. Network errors and 5xx responses are still retried ([#11632](https://github.com/MetaMask/core/pull/11632))
+- Stop submitting the remaining batches for the current poll when the circuit breaker is open, logging once instead of once per batch ([#11632](https://github.com/MetaMask/core/pull/11632))
+
+## [5.2.2]
+
+### Changed
+
+- Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
 ## [5.2.1]
 
@@ -334,7 +361,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.3.0...HEAD
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.2...@metamask/profile-metrics-controller@5.3.0
+[5.2.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.1...@metamask/profile-metrics-controller@5.2.2
 [5.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.2.0...@metamask/profile-metrics-controller@5.2.1
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.4...@metamask/profile-metrics-controller@5.2.0
 [5.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...@metamask/profile-metrics-controller@5.1.4

@@ -35,6 +35,7 @@ export {
   serviceName as proofOfOwnershipServiceName,
 } from './ProofOfOwnershipService.js';
 export type {
+  ProfileMetricsControllerClearStateAction,
   ProfileMetricsControllerMethodActions,
   ProfileMetricsControllerSkipInitialDelayAction,
 } from './ProfileMetricsController-method-action-types.js';

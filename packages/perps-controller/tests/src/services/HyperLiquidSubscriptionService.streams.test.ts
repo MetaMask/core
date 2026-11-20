@@ -504,6 +504,10 @@ describe('HyperLiquidSubscriptionService', () => {
     mockWalletService = {
       createWalletAdapter: vi.fn(() => mockWalletAdapter),
       getUserAddressWithDefault: vi.fn().mockResolvedValue('0x123' as Hex),
+      getAccountStreamAddress: vi.fn(
+        (accountId?: CaipAccountId) =>
+          (accountId?.split(':').at(-1) ?? '0x123') as Hex,
+      ),
     } as any;
 
     service = new HyperLiquidSubscriptionService(
@@ -1528,7 +1532,7 @@ describe('HyperLiquidSubscriptionService', () => {
       await Promise.resolve();
       await vi.runAllTimersAsync();
 
-      expect(mockWalletService.getUserAddressWithDefault).toHaveBeenCalledWith(
+      expect(mockWalletService.getAccountStreamAddress).toHaveBeenCalledWith(
         params.accountId,
       );
 
@@ -1551,9 +1555,9 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should handle wallet service errors', async () => {
-      mockWalletService.getUserAddressWithDefault.mockRejectedValue(
-        new Error('Wallet error'),
-      );
+      mockWalletService.getAccountStreamAddress.mockImplementation(() => {
+        throw new Error('Wallet error');
+      });
 
       const mockCallback = vi.fn();
       const params: SubscribePositionsParams = {
@@ -2450,6 +2454,9 @@ describe('HyperLiquidSubscriptionService', () => {
                     position: {
                       coin: 'BTC',
                       szi: '1.5',
+                      unrealizedPnl: '100',
+                      marginUsed: '7500',
+                      returnOnEquity: '0.0133333333',
                     },
                   },
                 ],

@@ -3,8 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import fixtures from '../tests/fixtures.js';
 import { BIP44PurposeNodeToken } from './constants.js';
-import type { CryptographicFunctions } from './cryptography.js';
-import { pbkdf2Sha512, hmacSha512 } from './cryptography.js';
 import { ed25519, secp256k1 } from './curves/index.js';
 import { compressPublicKey } from './curves/secp256k1.js';
 import { createBip39KeyFromSeed, deriveChildKey } from './derivers/bip39.js';
@@ -14,23 +12,6 @@ import { hexStringToBytes, mnemonicPhraseToBytes } from './utils.js';
 
 const defaultBip39NodeToken = `bip39:${fixtures.local.mnemonic}` as const;
 const defaultBip39BytesToken = mnemonicPhraseToBytes(fixtures.local.mnemonic);
-
-/**
- * Get mock cryptographic functions for testing. The functions are wrappers
- * around the real implementations, but they also track how many times they
- * were called.
- *
- * @returns The mock cryptographic functions.
- */
-function getMockFunctions(): CryptographicFunctions {
-  const mockHmacSha512 = vi.fn().mockImplementation(hmacSha512);
-  const mockPbkdf2Sha512 = vi.fn().mockImplementation(pbkdf2Sha512);
-
-  return {
-    hmacSha512: mockHmacSha512,
-    pbkdf2Sha512: mockPbkdf2Sha512,
-  };
-}
 
 describe('SLIP10Node', () => {
   describe('constructor', () => {
@@ -224,48 +205,6 @@ describe('SLIP10Node', () => {
         expect(await SLIP10Node.fromJSON(neuteredNode.toJSON())).toStrictEqual(
           neuteredNode,
         );
-      });
-
-      it('initializes a new node from a private key with custom cryptographic functions', async () => {
-        const { privateKeyBytes, chainCodeBytes } = await deriveChildKey({
-          path: fixtures.local.seed,
-          curve: secp256k1,
-        });
-
-        const functions = getMockFunctions();
-        const node = await SLIP10Node.fromExtendedKey(
-          {
-            privateKey: privateKeyBytes,
-            chainCode: chainCodeBytes,
-            depth: 0,
-            parentFingerprint: 0,
-            index: 0,
-            curve: 'secp256k1',
-          },
-          functions,
-        );
-
-        await node.derive(['bip32:0']);
-
-        expect(node.depth).toBe(0);
-        expect(node.privateKeyBytes).toHaveLength(32);
-        expect(node.publicKeyBytes).toHaveLength(65);
-        expect(functions.hmacSha512).toHaveBeenCalled();
-      });
-
-      it('initializes a new node from JSON with custom cryptographic functions', async () => {
-        const baseNode = await deriveChildKey({
-          path: fixtures.local.seed,
-          curve: secp256k1,
-        });
-
-        const functions = getMockFunctions();
-        const node = await SLIP10Node.fromJSON(baseNode.toJSON(), functions);
-
-        await node.derive(['bip32:0']);
-
-        expect(node).toStrictEqual(baseNode);
-        expect(functions.hmacSha512).toHaveBeenCalled();
       });
 
       it('throws if no public or private key is specified', async () => {
@@ -484,25 +423,6 @@ describe('SLIP10Node', () => {
         expect(node.publicKey).toBe(publicKey);
       });
 
-      it('initializes a new node from a private key with custom cryptographic functions', async () => {
-        const { extendedKey, privateKey, chainCode } = await deriveChildKey({
-          path: fixtures.local.seed,
-          curve: secp256k1,
-        });
-
-        const functions = getMockFunctions();
-        const node = await SLIP10Node.fromExtendedKey(extendedKey, functions);
-
-        await node.derive(['bip32:0']);
-
-        expect(node.depth).toBe(0);
-        expect(node.privateKeyBytes).toHaveLength(32);
-        expect(node.publicKeyBytes).toHaveLength(65);
-        expect(node.privateKey).toBe(privateKey);
-        expect(node.chainCode).toBe(chainCode);
-        expect(functions.hmacSha512).toHaveBeenCalled();
-      });
-
       it('throws if the extended key is invalid', async () => {
         await expect(SLIP10Node.fromExtendedKey('foo')).rejects.toThrow(
           'Invalid extended key: Value is not base58-encoded, or the checksum is invalid.',
@@ -637,38 +557,6 @@ describe('SLIP10Node', () => {
       expect(node.toJSON()).toStrictEqual(stringNode.toJSON());
     });
 
-    it('initializes a new node from a derivation path with custom cryptographic functions', async () => {
-      const functions = getMockFunctions();
-
-      // Ethereum coin type node
-      const node = await SLIP10Node.fromDerivationPath(
-        {
-          derivationPath: [
-            defaultBip39NodeToken,
-            BIP44PurposeNodeToken,
-            `bip32:60'`,
-          ],
-          curve: 'secp256k1',
-        },
-        functions,
-      );
-
-      expect(node.depth).toBe(2);
-      expect(node.toJSON()).toStrictEqual({
-        depth: node.depth,
-        masterFingerprint: node.masterFingerprint,
-        parentFingerprint: node.parentFingerprint,
-        index: node.index,
-        network: node.network,
-        curve: 'secp256k1',
-        privateKey: node.privateKey,
-        publicKey: node.publicKey,
-        chainCode: node.chainCode,
-      });
-      expect(functions.hmacSha512).toHaveBeenCalled();
-      expect(functions.pbkdf2Sha512).toHaveBeenCalled();
-    });
-
     it('throws if the derivation path is empty', async () => {
       await expect(
         SLIP10Node.fromDerivationPath({
@@ -785,38 +673,6 @@ describe('SLIP10Node', () => {
       });
 
       expect(node.toJSON()).toStrictEqual(mnemonicNode.toJSON());
-    });
-
-    it('initializes a new node from a seed with custom cryptographic functions', async () => {
-      const functions = getMockFunctions();
-
-      const node = await SLIP10Node.fromSeed(
-        {
-          derivationPath: [
-            fixtures.local.seed,
-            BIP44PurposeNodeToken,
-            `bip32:60'`,
-          ],
-          curve: 'secp256k1',
-        },
-        functions,
-      );
-
-      expect(node.depth).toBe(2);
-      expect(node.toJSON()).toStrictEqual({
-        depth: node.depth,
-        masterFingerprint: node.masterFingerprint,
-        parentFingerprint: node.parentFingerprint,
-        index: node.index,
-        network: node.network,
-        curve: 'secp256k1',
-        privateKey: node.privateKey,
-        publicKey: node.publicKey,
-        chainCode: node.chainCode,
-      });
-
-      expect(functions.hmacSha512).toHaveBeenCalled();
-      expect(functions.pbkdf2Sha512).not.toHaveBeenCalled();
     });
 
     it('throws if the curve is `ed25519Bip32`', async () => {
@@ -961,28 +817,6 @@ describe('SLIP10Node', () => {
       });
     });
 
-    it('keeps the same cryptographic functions in the child node', async () => {
-      const functions = getMockFunctions();
-
-      const coinTypeNode = `bip32:40'`;
-      const node = await SLIP10Node.fromDerivationPath(
-        {
-          derivationPath: [defaultBip39NodeToken, BIP44PurposeNodeToken],
-          curve: 'secp256k1',
-        },
-        functions,
-      );
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(2);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-
-      const childNode = await node.derive([coinTypeNode]);
-      await childNode.derive(['bip32:0']);
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(4);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-    });
-
     it('throws when trying to derive a hardened node without a private key', async () => {
       const node = await SLIP10Node.fromDerivationPath({
         derivationPath: [defaultBip39NodeToken, BIP44PurposeNodeToken],
@@ -1024,6 +858,49 @@ describe('SLIP10Node', () => {
       await expect(node.derive(['slip10:0'])).rejects.toThrow(
         'Invalid path: Cannot derive unhardened child keys with ed25519.',
       );
+    });
+
+    describe('public key computation', () => {
+      it('computes the public key once for each derived node of a path', async () => {
+        const spy = vi.spyOn(secp256k1, 'getPublicKey');
+        const node = await SLIP10Node.fromDerivationPath({
+          derivationPath: [
+            defaultBip39NodeToken,
+            BIP44PurposeNodeToken,
+            `bip32:60'`,
+            `bip32:0'`,
+            'bip32:0',
+            'bip32:0',
+          ],
+          curve: 'secp256k1',
+        });
+
+        expect(node.publicKey).toBe(
+          '0x04e47161e7a085fe66b74e29176a7ecf0dcbce949730cdc57b646b08a4efbec094959ddf068a1d670f83a1c69d23207c70294e45975a2e3a82a69265c94b4850da',
+        );
+        expect(spy).toHaveBeenCalledTimes(6);
+      });
+
+      it('computes the public key once for each derived sibling node', async () => {
+        const node = await SLIP10Node.fromDerivationPath({
+          derivationPath: [
+            defaultBip39NodeToken,
+            BIP44PurposeNodeToken,
+            `bip32:60'`,
+            `bip32:0'`,
+            'bip32:0',
+          ],
+          curve: 'secp256k1',
+        });
+
+        const spy = vi.spyOn(secp256k1, 'getPublicKey');
+
+        for (let index = 0; index < 10; index++) {
+          await node.derive([`bip32:${index}`]);
+        }
+
+        expect(spy).toHaveBeenCalledTimes(10);
+      });
     });
   });
 
@@ -1105,30 +982,6 @@ describe('SLIP10Node', () => {
       expect(node.compressedPublicKey).toStrictEqual(
         bytesToHex(compressPublicKey(node.publicKeyBytes)),
       );
-    });
-  });
-
-  describe('publicKeyBytes', () => {
-    it('lazily computes the public key bytes', async () => {
-      const baseNode = await SLIP10Node.fromDerivationPath({
-        derivationPath: [
-          defaultBip39NodeToken,
-          BIP44PurposeNodeToken,
-          `bip32:0'`,
-          `bip32:0'`,
-        ],
-        curve: 'secp256k1',
-      });
-
-      const { publicKey, ...json } = baseNode.toJSON();
-
-      const spy = vi.spyOn(secp256k1, 'getPublicKey');
-
-      const node = await SLIP10Node.fromExtendedKey(json);
-      expect(spy).not.toHaveBeenCalled();
-
-      expect(node.publicKeyBytes).toStrictEqual(baseNode.publicKeyBytes);
-      expect(spy).toHaveBeenCalled();
     });
   });
 
@@ -1355,32 +1208,6 @@ describe('SLIP10Node', () => {
       expect(neuterNode.publicKey).toBe(node.publicKey);
       expect(neuterNode.privateKey).toBeUndefined();
       expect(neuterNode.privateKeyBytes).toBeUndefined();
-    });
-
-    it('keeps the same cryptographic functions in the child node', async () => {
-      const functions = getMockFunctions();
-
-      const node = await SLIP10Node.fromDerivationPath(
-        {
-          derivationPath: [
-            defaultBip39NodeToken,
-            BIP44PurposeNodeToken,
-            `bip32:0'`,
-            `bip32:0'`,
-          ],
-          curve: 'secp256k1',
-        },
-        functions,
-      );
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(4);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-
-      const neuterNode = node.neuter();
-      await neuterNode.derive(['bip32:0']);
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(5);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
     });
   });
 

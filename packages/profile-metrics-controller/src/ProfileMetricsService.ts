@@ -5,7 +5,7 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
-import { HttpError } from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -123,6 +123,20 @@ export const MAX_NONCE_BATCH_SIZE = 50;
 const MESSENGER_EXPOSED_METHODS = ['submitMetrics', 'fetchNonces'] as const;
 
 /**
+
+ * A 4xx response will not change on an immediate retry, so retrying it only
+ * adds load on the API. Network errors and 5xx responses stay retryable.
+ */
+const DO_NOT_RETRY_CLIENT_ERRORS = handleWhen(
+  (error) =>
+    !(
+      error instanceof HttpError &&
+      error.httpStatus >= 400 &&
+      error.httpStatus < 500
+    ),
+);
+
+/**
  * Invalidates cached queries for {@link ProfileMetricsService}.
  */
 export type ProfileMetricsServiceInvalidateQueriesAction =
@@ -231,7 +245,14 @@ export class ProfileMetricsService extends BaseDataService<
     policyOptions?: CreateServicePolicyOptions;
     env?: SDK.Env;
   }) {
-    super({ name: serviceName, messenger, policyOptions });
+    super({
+      name: serviceName,
+      messenger,
+      policyOptions: {
+        retryFilterPolicy: DO_NOT_RETRY_CLIENT_ERRORS,
+        ...policyOptions,
+      },
+    });
     this.#fetch = fetchFunction;
     this.#baseURL = getAuthUrl(env);
 
@@ -348,6 +369,15 @@ export class ProfileMetricsService extends BaseDataService<
       );
     }
     return result;
+  }
+
+  /**
+   * Close the circuit breaker shared by `fetchNonces` and `submitMetrics`, so
+   * requests are attempted again right away instead of after the circuit break
+   * duration.
+   */
+  resetCircuitBreakers(): void {
+    this.resetCircuitBreaker();
   }
 
   /**

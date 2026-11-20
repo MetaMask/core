@@ -81,10 +81,14 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
-        expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
-      });
+      const addresses = await Promise.all(
+        keys.map(async ({ privateKeyBytes }) =>
+          privateKeyToEthAddress(privateKeyBytes as Uint8Array<ArrayBuffer>),
+        ),
+      );
+      expect(addresses.map((address) => bytesToHex(address))).toStrictEqual(
+        expectedAddresses,
+      );
     });
 
     it('derives from Uint8Array BIP-39 nodes', async () => {
@@ -111,10 +115,14 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
-        expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
-      });
+      const addresses = await Promise.all(
+        keys.map(async ({ privateKeyBytes }) =>
+          privateKeyToEthAddress(privateKeyBytes as Uint8Array<ArrayBuffer>),
+        ),
+      );
+      expect(addresses.map((address) => bytesToHex(address))).toStrictEqual(
+        expectedAddresses,
+      );
     });
 
     it('derives the correct keys using a previously derived parent key', async () => {
@@ -143,10 +151,14 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
-        expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
-      });
+      const addresses = await Promise.all(
+        keys.map(async ({ privateKeyBytes }) =>
+          privateKeyToEthAddress(privateKeyBytes as Uint8Array<ArrayBuffer>),
+        ),
+      );
+      expect(addresses.map((address) => bytesToHex(address))).toStrictEqual(
+        expectedAddresses,
+      );
     });
 
     it('validates inputs', async () => {
@@ -385,19 +397,23 @@ describe('derivation', () => {
 
   // The outputs of this function are tested in key derivation above
   describe('privateKeyToEthAddress', () => {
-    it('throws for invalid inputs', () => {
-      [
+    it('throws for invalid inputs', async () => {
+      const invalidInputs = [
         new Uint8Array(31).fill(1),
         new Uint8Array(32).fill(0),
         'foo',
         {},
         null,
         undefined,
-      ].forEach((invalidInput) => {
-        expect(() => privateKeyToEthAddress(invalidInput as any)).toThrow(
+      ];
+
+      for (const invalidInput of invalidInputs) {
+        await expect(
+          privateKeyToEthAddress(invalidInput as any),
+        ).rejects.toThrow(
           'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
         );
-      });
+      }
     });
   });
 });

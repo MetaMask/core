@@ -524,6 +524,11 @@ describe('BridgeStatusController', () => {
                         ...txMeta,
                       })),
                     });
+                    // track event
+                    mockMessengerCall.mockImplementationOnce(vi.fn());
+                    // Destination asset import
+                    mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+                    mockMessengerCall.mockResolvedValueOnce(undefined);
 
                     // Publish confirmation event for swap
                     rootMessenger.publish(
@@ -535,7 +540,6 @@ describe('BridgeStatusController', () => {
                         },
                       },
                     );
-
                     expect(
                       getBatchSellHistoryItemsForTxHash(
                         controller.state.txHistory,
@@ -545,7 +549,7 @@ describe('BridgeStatusController', () => {
 
                     // Verify the messenger calls
                     expect(
-                      mockMessengerCall.mock.calls.slice(-3),
+                      mockMessengerCall.mock.calls.slice(-5),
                     ).toStrictEqual([
                       ['AccountsController:getAccountByAddress', '0xaccount1'],
                       ['TransactionController:getState'],
@@ -595,6 +599,14 @@ describe('BridgeStatusController', () => {
                           usd_quoted_gas: 0,
                           usd_quoted_return: 101,
                         },
+                      ],
+                      ['AccountsController:getAccountByAddress', '0xaccount1'],
+                      [
+                        'AssetsController:addCustomAsset',
+                        mockSelectedAccount.id,
+                        'eip155:10/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+                        undefined,
+                        true,
                       ],
                     ]);
 

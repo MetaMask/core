@@ -22,10 +22,7 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@ethereumjs/util': ['^8.1.0'],
-  '@ethereumjs/rlp': ['^4.0.1'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
  * Whether `yarn constraints --fix` may resolve a dependency range disagreement
@@ -229,6 +226,12 @@ module.exports = defineConfig({
 
         if (!PACKAGES_WITH_CUSTOM_TEST_SCRIPTS.includes(workspace.ident)) {
           expectTestScripts(workspace);
+        }
+
+        // Vitest has `vite` as a peer dependency, so any package that uses
+        // Vitest must list it as well.
+        if (get(workspace.manifest, 'devDependencies.vitest')) {
+          expectWorkspaceField(workspace, 'devDependencies.vite');
         }
 
         // All non-root packages must have scripts that lint-check tsconfig

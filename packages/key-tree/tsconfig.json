@@ -12,6 +12,9 @@
     },
     {
       "path": "../type-utils"
+    },
+    {
+      "path": "../cryptography"
     }
   ],
   "include": [

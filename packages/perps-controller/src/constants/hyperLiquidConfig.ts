@@ -16,10 +16,15 @@ import type {
   FeeRatesConfig,
 } from '../types/perps-types.js';
 import {
+  SCALE_ORDER_COUNT,
   STRATEGY_ORDER_TYPES,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
-import { PROVIDER_CONFIG } from './perpsConfig.js';
+import {
+  CHASE_ORDER_CONFIG,
+  HYPERLIQUID_TWAP_LIMITS,
+  PROVIDER_CONFIG,
+} from './perpsConfig.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -224,6 +229,23 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
   supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+  strategyRules: Object.freeze({
+    twap: Object.freeze({
+      minDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes,
+      maxDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes,
+      minNotionalUsd: HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd,
+      sliceIntervalSeconds: HYPERLIQUID_TWAP_LIMITS.SliceIntervalSeconds,
+    }),
+    chase: Object.freeze({
+      maxActiveSessions: CHASE_ORDER_CONFIG.MaxActiveSessions,
+      defaultIntervalMs: CHASE_ORDER_CONFIG.DefaultIntervalMs,
+      minIntervalMs: CHASE_ORDER_CONFIG.MinIntervalMs,
+    }),
+    scale: Object.freeze({
+      minOrders: SCALE_ORDER_COUNT.min,
+      maxOrders: SCALE_ORDER_COUNT.max,
+    }),
+  }),
   positionTpsl: Object.freeze({
     supportsExpectedPosition: true,
     childOrderIds: 'request-correlated',
@@ -261,6 +283,10 @@ export const DEPOSIT_CONFIG = {
 
 // Withdrawal constants (HyperLiquid-specific)
 export const HYPERLIQUID_WITHDRAWAL_MINUTES = 5; // HyperLiquid withdrawal processing time in minutes
+
+// A supported-account probe is re-run after this long, so a wallet converted
+// to multi-sig mid-session is refused before signing instead of at the venue.
+export const HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS = 60_000;
 
 // Type helpers
 export type SupportedAsset = keyof typeof HYPERLIQUID_ASSET_CONFIGS;
@@ -306,6 +332,8 @@ export const HYPERLIQUID_CONFIG = {
   // Exchange name used in predicted funding data
   // HyperLiquid uses 'HlPerp' as their perps exchange identifier
   ExchangeName: 'HlPerp',
+  DexDiscoveryInitialWaitMs: 5000,
+  DexDiscoveryRetryDelayMs: 5000,
   // Maximum allowed deviation of the market (mid) price from the oracle (reference)
   // price before HyperLiquid rejects orders. HyperLiquid enforces "Order price cannot
   // be more than 95% away from the reference price", which makes markets — most often
@@ -355,8 +383,7 @@ export const SPOT_ASSET_ID_OFFSET = 10000;
 /**
  * HIP-3 asset market type classifications (PRODUCTION DEFAULT)
  *
- * This is the production default configuration, can be overridden via feature flag
- * (remoteFeatureFlags.perpsAssetMarketTypes) for dynamic control.
+ * This is the production default configuration.
  *
  * Maps asset symbols (e.g., "xyz:TSLA") to their market type for badge display.
  *
@@ -682,8 +709,34 @@ export const MAINNET_HIP3_CONFIG = {
 } as const;
 
 /**
+ * Margin-mode values HyperLiquid sends on a market. `normal` means no
+ * restriction; `MarketInfo.marginMode` carries only the restricting values.
+ */
+export const HYPERLIQUID_VENUE_MARGIN_MODES = [
+  'normal',
+  'strictIsolated',
+  'noCross',
+] as const;
+
+/**
+ * Whether a venue `marginMode` places no restriction on the market. Absent,
+ * null and `normal` are unrestricted; any other value, including ones added
+ * later, restricts it.
+ *
+ * @param marginMode - The venue `marginMode`, if any.
+ * @returns True when the value allows Cross margin.
+ */
+export function isUnrestrictedMarginMode(
+  marginMode: string | null | undefined,
+): marginMode is 'normal' | null | undefined {
+  return (
+    marginMode === undefined || marginMode === null || marginMode === 'normal'
+  );
+}
+
+/**
  * HIP-3 margin management configuration
- * Controls margin buffers and auto-rebalance behavior for HIP-3 DEXes with isolated margin
+ * Controls margin buffers and auto-rebalance behavior for manual HIP-3 collateral transfers
  *
  * Background: HyperLiquid validates spendableBalance >= totalRequiredMargin BEFORE reallocating
  * existing locked margin. This requires temporary over-funding when increasing positions,

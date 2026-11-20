@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.3.0` ([#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `eth-chainlist` from `^0.0.873` to `^0.0.881` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [3.4.0]
+
+### Added
+
+- Add optional `currencyDisplay` option to `createFormatters`, which is passed to the `Intl.NumberFormat` used by the currency helpers (`formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`) ([#11565](https://github.com/MetaMask/core/pull/11565))
+  - Per-call `options.currencyDisplay` passed to `formatCurrency` still takes precedence
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [3.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [3.3.0]
+
+### Changed
+
+- Read `accountId`, `chainId`, and `assetId` on `V5TransactionRecord` as CAIP identifiers in `mapV5ApiTransaction` ([#11444](https://github.com/MetaMask/core/pull/11444))
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+
 ## [3.2.0]
 
 ### Added
@@ -235,7 +265,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.4.0...HEAD
+[3.4.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.1...@metamask/client-utils@3.4.0
+[3.3.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.0...@metamask/client-utils@3.3.1
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...@metamask/client-utils@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.1...@metamask/client-utils@3.2.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.0...@metamask/client-utils@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.4...@metamask/client-utils@3.1.0

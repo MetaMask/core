@@ -6,6 +6,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isServerValidationEnabled,
@@ -21,6 +22,7 @@ import {
   buildDelegationSimulation,
 } from '../../utils/simulation.js';
 import type { QuoteSimulation } from '../../utils/simulation.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import { validateQuotes } from '../../utils/validation.js';
 import { getServerDepositData } from './deposit-step.js';
 import {
@@ -58,7 +60,7 @@ export async function validateServerQuotes(
 
   await validateQuotes({
     buildSimulation: async (quote) =>
-      shouldSkipValidation(quote, transaction)
+      shouldSkipValidation(quote, transaction, messenger)
         ? undefined
         : await buildServerSimulation(quote, messenger, transaction),
     messenger,
@@ -70,6 +72,7 @@ export async function validateServerQuotes(
 function shouldSkipValidation(
   quote: TransactionPayQuote<ServerQuote>,
   transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
 ): boolean {
   const { request } = quote;
 
@@ -99,6 +102,16 @@ function shouldSkipValidation(
     return true;
   }
 
+  // Simulation rebuilds the submit calls, which signs a delegation through the
+  // client payment-override callback. Skip that for an MPC Money payer so
+  // quote refresh does not prompt for MFA ahead of the real submit.
+  if (isMpcMoneyAccountPayer(messenger, request, transaction.txParams.from)) {
+    log('Skipping quote validation: MPC Money account payer', {
+      from: transaction.txParams.from,
+    });
+    return true;
+  }
+
   return false;
 }
 
@@ -107,7 +120,8 @@ async function buildServerSimulation(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<QuoteSimulation> {
-  const { from, sourceChainId, targetChainId } = quote.request;
+  const { from, targetChainId } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const context = { from, sourceChainId, targetChainId };
 
   if (quote.request.isPolymarketDepositWallet) {

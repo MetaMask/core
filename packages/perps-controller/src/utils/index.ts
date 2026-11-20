@@ -5,6 +5,9 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export * from './advancedOrderLists.js';
+export * from './advancedOrders.js';
+export { getBatchOperationStatus } from './batchOperationStatus.js';
 export {
   estimateCloseReceive,
   calculateNetClosedPnl,
@@ -35,12 +38,31 @@ export {
 export * from './hyperLiquidOrderBookProcessor.js';
 export * from './hyperLiquidPositionPreview.js';
 export * from './hyperLiquidValidation.js';
+export {
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
+} from './marginAdjustment.js';
+export type {
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
+} from './marginAdjustment.js';
 export * from './idUtils.js';
 export * from './marketDataTransform.js';
 export * from './marketSearch.js';
 export * from './marketUtils.js';
+export {
+  aggregateOrderBookLevels,
+  groupOrderBook,
+} from './orderBookGrouping.js';
+export type { GroupedOrderBook } from './orderBookGrouping.js';
 export * from './orderCalculations.js';
 export * from './orderTypes.js';
+export {
+  getPerpsErrorCopy,
+  PERPS_ERROR_COPY,
+  PERPS_ORDER_TYPE_LABELS,
+} from './perpsClientCopy.js';
+export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';

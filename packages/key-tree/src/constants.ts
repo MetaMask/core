@@ -24,7 +24,7 @@ export type UnprefixedNode = `${number}'`;
 
 export type AnonymizedBIP39Node = 'm';
 export type BIP39StringNode = `bip39:${string}`;
-export type BIP39Node = BIP39StringNode | Uint8Array;
+export type BIP39Node = BIP39StringNode | Uint8Array<ArrayBuffer>;
 
 export type HardenedBIP32Node = `bip32:${number}'`;
 export type UnhardenedBIP32Node = `bip32:${number}`;
@@ -179,7 +179,7 @@ export type RootedSLIP10PathTuple = readonly [
 ];
 
 export type RootedSLIP10SeedPathTuple = readonly [
-  Uint8Array,
+  Uint8Array<ArrayBuffer>,
   ...(BIP32Node[] | SLIP10PathNode[] | CIP3PathNode[]),
 ];
 

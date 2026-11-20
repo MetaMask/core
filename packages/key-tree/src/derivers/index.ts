@@ -1,5 +1,4 @@
 import type { Network } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
 import type { Curve } from '../curves/index.js';
 import type { SLIP10Node } from '../SLIP10Node.js';
 import * as bip32 from './bip32.js';
@@ -11,23 +10,20 @@ export type DerivedKeys = {
   /**
    * The derived private key, can be undefined if public key derivation was used.
    */
-  privateKey?: Uint8Array;
-  publicKey: Uint8Array;
-  chainCode: Uint8Array;
+  privateKey?: Uint8Array<ArrayBuffer>;
+  publicKey: Uint8Array<ArrayBuffer>;
+  chainCode: Uint8Array<ArrayBuffer>;
 };
 
 export type DeriveChildKeyArgs = {
-  path: Uint8Array | string;
+  path: Uint8Array<ArrayBuffer> | string;
   curve: Curve;
   node?: SLIP10Node;
   network?: Network | undefined;
 };
 
 export type Deriver = {
-  deriveChildKey: (
-    args: DeriveChildKeyArgs,
-    cryptographicFunctions?: CryptographicFunctions,
-  ) => Promise<SLIP10Node>;
+  deriveChildKey: (args: DeriveChildKeyArgs) => Promise<SLIP10Node>;
 };
 
 export const derivers = {

@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.3.2]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
+
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the chain-ID-to-scan-name map and `blast` from the token and address scan supported chains, as the network is being terminated ([#11600](https://github.com/MetaMask/core/pull/11600))
+
+## [18.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
 
 ## [18.3.0]
 
@@ -726,7 +738,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.2...HEAD
+[18.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...@metamask/phishing-controller@18.3.2
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...@metamask/phishing-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...@metamask/phishing-controller@18.3.0
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0

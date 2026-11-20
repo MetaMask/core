@@ -1,4 +1,6 @@
 import { stringToBytes } from '@metamask/byte-utils';
+import { hmacSha512 } from '@metamask/cryptography/hmac';
+import { pbkdf2Sha512 } from '@metamask/cryptography/pbkdf2';
 import { mnemonicToEntropy } from '@metamask/scure-bip39';
 import { wordlist as englishWordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 import { assert, assertExhaustive } from '@metamask/type-utils';
@@ -11,8 +13,6 @@ import type {
   RootedSLIP10SeedPathTuple,
 } from '../constants.js';
 import { BYTES_KEY_LENGTH } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
-import { hmacSha512, pbkdf2Sha512 } from '../cryptography.js';
 import type { Curve, SupportedCurve } from '../curves/index.js';
 import { getCurveByName } from '../curves/index.js';
 import { PUBLIC_KEY_GUARD } from '../guard.js';
@@ -55,9 +55,9 @@ function validateMnemonicPhrase(mnemonicPhrase: string): void {
  * @returns The encoded mnemonic phrase.
  */
 function encodeMnemonicPhrase(
-  mnemonic: string | Uint8Array,
+  mnemonic: string | Uint8Array<ArrayBuffer>,
   wordlist: string[],
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   if (typeof mnemonic === 'string') {
     validateMnemonicPhrase(mnemonic);
     return stringToBytes(mnemonic.normalize('NFKD'));
@@ -78,22 +78,22 @@ function encodeMnemonicPhrase(
  * `Uint8Array`, it is assumed to contain the indices of the words in the
  * English wordlist.
  * @param passphrase - The passphrase to use.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The seed.
  */
 export async function mnemonicToSeed(
-  mnemonic: string | Uint8Array,
+  mnemonic: string | Uint8Array<ArrayBuffer>,
   passphrase = '',
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const salt = `mnemonic${passphrase}`.normalize('NFKD');
   return await pbkdf2Sha512(
     encodeMnemonicPhrase(mnemonic, englishWordlist),
     stringToBytes(salt),
     2048,
     64,
-    cryptographicFunctions,
+    {
+      // Iterations defined by the BIP-39 specification.
+      unsafeIterations: true,
+    },
   );
 }
 
@@ -115,7 +115,7 @@ export function bip39MnemonicToMultipath(mnemonic: string): BIP39StringNode {
  */
 export function multipathToBip39Mnemonic(
   value: BIP39Node,
-): string | Uint8Array {
+): string | Uint8Array<ArrayBuffer> {
   if (value instanceof Uint8Array) {
     return value;
   }
@@ -143,26 +143,26 @@ export type GetDerivationPathWithSeedOptions = {
  * provided, these will be used instead of the built-in implementations.
  * @returns The derivation path with the seed, or entropy in the case of CIP-3.
  */
-export async function getDerivationPathWithSeed(
-  { path, curve: curveName }: GetDerivationPathWithSeedOptions,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<RootedSLIP10SeedPathTuple> {
+export async function getDerivationPathWithSeed({
+  path,
+  curve: curveName,
+}: GetDerivationPathWithSeedOptions): Promise<RootedSLIP10SeedPathTuple> {
   const [mnemonicPhrase, ...rest] = path;
   const plainMnemonicPhrase = multipathToBip39Mnemonic(mnemonicPhrase);
 
   const curve = getCurveByName(curveName);
   switch (curve.masterNodeGenerationSpec) {
     case 'slip10': {
-      const seed = await mnemonicToSeed(
-        plainMnemonicPhrase,
-        '',
-        cryptographicFunctions,
-      );
+      const seed = await mnemonicToSeed(plainMnemonicPhrase, '');
       return [seed, ...rest];
     }
 
     case 'cip3': {
-      const seed = mnemonicToEntropy(plainMnemonicPhrase, englishWordlist);
+      const seed = mnemonicToEntropy(
+        plainMnemonicPhrase,
+        englishWordlist,
+      ) as Uint8Array<ArrayBuffer>;
+
       return [seed, ...rest];
     }
 
@@ -181,14 +181,13 @@ export async function getDerivationPathWithSeed(
  * @param options.curve - The curve to use for derivation.
  * @param options.network - The network for the node. This is only used for
  * extended keys, and defaults to `mainnet`.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The node.
  */
-export async function deriveChildKey(
-  { path, curve, network }: DeriveChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<SLIP10Node> {
+export async function deriveChildKey({
+  path,
+  curve,
+  network,
+}: DeriveChildKeyArgs): Promise<SLIP10Node> {
   assert(
     path instanceof Uint8Array,
     'Invalid path: The path must be a Uint8Array.',
@@ -196,19 +195,9 @@ export async function deriveChildKey(
 
   switch (curve.masterNodeGenerationSpec) {
     case 'slip10':
-      return createBip39KeyFromSeed(
-        path,
-        curve,
-        network,
-        cryptographicFunctions,
-      );
+      return createBip39KeyFromSeed(path, curve, network);
     case 'cip3':
-      return entropyToCip3MasterNode(
-        path,
-        curve,
-        network,
-        cryptographicFunctions,
-      );
+      return entropyToCip3MasterNode(path, curve, network);
     default:
       throw new Error('Unsupported master node generation spec.');
   }
@@ -227,17 +216,20 @@ export async function deriveChildKey(
  * code.
  */
 export async function createBip39KeyFromSeed(
-  seed: Uint8Array,
+  seed: Uint8Array<ArrayBuffer>,
   curve: Extract<Curve, { masterNodeGenerationSpec: 'slip10' }>,
   network?: Network | undefined,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   assert(
     seed.length >= 16 && seed.length <= 64,
     'Invalid seed: The seed must be between 16 and 64 bytes long.',
   );
 
-  const key = await hmacSha512(curve.secret, seed, cryptographicFunctions);
+  const key = await hmacSha512(curve.secret, seed, {
+    // BIP-39 accepts anything between 16-64 bytes.
+    unsafeKeyLength: true,
+  });
+
   const privateKey = key.slice(0, BYTES_KEY_LENGTH);
   const chainCode = key.slice(BYTES_KEY_LENGTH);
 
@@ -246,27 +238,24 @@ export async function createBip39KeyFromSeed(
     'Invalid private key: The private key must greater than 0 and less than the curve order.',
   );
 
-  const publicKey = curve.getPublicKey(privateKey, false);
+  const publicKey = await curve.getPublicKey(privateKey, false);
   const masterFingerprint = getFingerprint(
     curve.compressPublicKey(publicKey),
     curve.compressedPublicKeyLength,
   );
 
-  return SLIP10Node.fromExtendedKey(
-    {
-      privateKey,
-      publicKey,
-      chainCode,
-      masterFingerprint,
-      network,
-      depth: 0,
-      parentFingerprint: 0,
-      index: 0,
-      curve: curve.name,
-      guard: PUBLIC_KEY_GUARD,
-    },
-    cryptographicFunctions,
-  );
+  return SLIP10Node.fromExtendedKey({
+    privateKey,
+    publicKey,
+    chainCode,
+    masterFingerprint,
+    network,
+    depth: 0,
+    parentFingerprint: 0,
+    index: 0,
+    curve: curve.name,
+    guard: PUBLIC_KEY_GUARD,
+  });
 }
 
 /**
@@ -284,23 +273,19 @@ export async function createBip39KeyFromSeed(
  * @returns The root key pair consisting of 64-byte private key and 32-byte chain code.
  */
 export async function entropyToCip3MasterNode(
-  entropy: Uint8Array,
+  entropy: Uint8Array<ArrayBuffer>,
   curve: Extract<Curve, { masterNodeGenerationSpec: 'cip3' }>,
   network?: Network | undefined,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   assert(
     entropy.length >= 16 && entropy.length <= 64,
     'Invalid entropy: The entropy must be between 16 and 64 bytes long.',
   );
 
-  const rootNode = await pbkdf2Sha512(
-    curve.secret,
-    entropy,
-    4096,
-    96,
-    cryptographicFunctions,
-  );
+  const rootNode = await pbkdf2Sha512(curve.secret, entropy, 4096, 96, {
+    // Iterations defined by the CIP-3 specification.
+    unsafeIterations: true,
+  });
 
   // Consistent with the Icarus derivation scheme.
   // https://github.com/cardano-foundation/CIPs/blob/09d7d8ee1bd64f7e6b20b5a6cae088039dce00cb/CIP-0003/Icarus.md
@@ -314,25 +299,22 @@ export async function entropyToCip3MasterNode(
 
   assert(curve.isValidPrivateKey(privateKey), 'Invalid private key.');
 
-  const publicKey = curve.getPublicKey(privateKey, false);
+  const publicKey = await curve.getPublicKey(privateKey, false);
   const masterFingerprint = getFingerprint(
     curve.compressPublicKey(publicKey),
     curve.compressedPublicKeyLength,
   );
 
-  return SLIP10Node.fromExtendedKey(
-    {
-      privateKey,
-      publicKey,
-      chainCode,
-      masterFingerprint,
-      network,
-      depth: 0,
-      parentFingerprint: 0,
-      index: 0,
-      curve: curve.name,
-      guard: PUBLIC_KEY_GUARD,
-    },
-    cryptographicFunctions,
-  );
+  return SLIP10Node.fromExtendedKey({
+    privateKey,
+    publicKey,
+    chainCode,
+    masterFingerprint,
+    network,
+    depth: 0,
+    parentFingerprint: 0,
+    index: 0,
+    curve: curve.name,
+    guard: PUBLIC_KEY_GUARD,
+  });
 }

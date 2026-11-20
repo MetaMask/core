@@ -1,9 +1,7 @@
 import { bytesToHex } from '@metamask/byte-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import fixtures from '../tests/fixtures.js';
-import type { CryptographicFunctions } from './cryptography.js';
-import { hmacSha512, pbkdf2Sha512 } from './cryptography.js';
 import { encodeExtendedKey } from './extended-keys.js';
 import {
   BIP_44_COIN_TYPE_DEPTH,
@@ -17,23 +15,6 @@ import { mnemonicPhraseToBytes } from './utils.js';
 
 const defaultBip39NodeToken = `bip39:${fixtures.local.mnemonic}` as const;
 const defaultBip39BytesToken = mnemonicPhraseToBytes(fixtures.local.mnemonic);
-
-/**
- * Get mock cryptographic functions for testing. The functions are wrappers
- * around the real implementations, but they also track how many times they
- * were called.
- *
- * @returns The mock cryptographic functions.
- */
-function getMockFunctions(): CryptographicFunctions {
-  const mockHmacSha512 = vi.fn().mockImplementation(hmacSha512);
-  const mockPbkdf2Sha512 = vi.fn().mockImplementation(pbkdf2Sha512);
-
-  return {
-    hmacSha512: mockHmacSha512,
-    pbkdf2Sha512: mockPbkdf2Sha512,
-  };
-}
 
 describe('BIP44CoinTypeNode', () => {
   describe('fromJSON', () => {
@@ -71,36 +52,6 @@ describe('BIP44CoinTypeNode', () => {
         publicKey: node.publicKey,
         chainCode: node.chainCode,
       });
-    });
-
-    it('initializes a BIP44CoinTypeNode (serialized BIP44Node) with custom cryptographic functions', async () => {
-      const bip44Node = await BIP44Node.fromDerivationPath({
-        derivationPath: [
-          defaultBip39NodeToken,
-          BIP44PurposeNodeToken,
-          `bip32:60'`,
-        ],
-      });
-
-      const functions = getMockFunctions();
-
-      const coinType = 60;
-      const pathString = `m / bip32:44' / bip32:${coinType}'`;
-      const node = await BIP44CoinTypeNode.fromJSON(
-        bip44Node.toJSON(),
-        coinType,
-        functions,
-      );
-
-      await node.deriveBIP44AddressKey({ address_index: 0 });
-
-      expect(node.coin_type).toStrictEqual(coinType);
-      expect(node.depth).toBe(2);
-      expect(node.privateKey).toStrictEqual(bip44Node.privateKey);
-      expect(node.publicKey).toStrictEqual(bip44Node.publicKey);
-      expect(node.path).toStrictEqual(pathString);
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(3);
     });
 
     it('throws if node has invalid depth', async () => {
@@ -290,27 +241,6 @@ describe('BIP44CoinTypeNode', () => {
       expect(node.toJSON()).toStrictEqual(stringNode.toJSON());
     });
 
-    it('initializes a BIP44CoinTypeNode (derivation path) with custom cryptographic functions', async () => {
-      const functions = getMockFunctions();
-      const node = await BIP44CoinTypeNode.fromDerivationPath(
-        [defaultBip39NodeToken, BIP44PurposeNodeToken, `bip32:60'`],
-        'mainnet',
-        functions,
-      );
-
-      const coinType = 60;
-      const pathString = `m / bip32:44' / bip32:${coinType}'`;
-
-      expect(node.coin_type).toStrictEqual(coinType);
-      expect(node.depth).toBe(2);
-      expect(node.privateKeyBytes).toHaveLength(32);
-      expect(node.publicKeyBytes).toHaveLength(65);
-      expect(node.path).toStrictEqual(pathString);
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(3);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-    });
-
     it('throws if derivation path has invalid depth', async () => {
       await expect(
         BIP44CoinTypeNode.fromDerivationPath([
@@ -351,32 +281,6 @@ describe('BIP44CoinTypeNode', () => {
       ]);
 
       expect(node.toJSON()).toStrictEqual(mnemonicNode.toJSON());
-    });
-
-    it('initializes a BIP44CoinTypeNode from a seed with custom cryptographic functions', async () => {
-      const functions = getMockFunctions();
-      const node = await BIP44CoinTypeNode.fromSeed(
-        {
-          derivationPath: [
-            fixtures.local.seed,
-            BIP44PurposeNodeToken,
-            `bip32:60'`,
-          ],
-        },
-        functions,
-      );
-
-      const coinType = 60;
-      const pathString = `m / bip32:44' / bip32:${coinType}'`;
-
-      expect(node.coin_type).toStrictEqual(coinType);
-      expect(node.depth).toBe(2);
-      expect(node.privateKeyBytes).toHaveLength(32);
-      expect(node.publicKeyBytes).toHaveLength(65);
-      expect(node.path).toStrictEqual(pathString);
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(3);
-      expect(functions.pbkdf2Sha512).not.toHaveBeenCalled();
     });
 
     it('throws if derivation path has invalid depth', async () => {
@@ -507,31 +411,6 @@ describe('BIP44CoinTypeNode', () => {
       expect(childNode.privateKey).toStrictEqual(node.privateKey);
       expect(childNode.chainCode).toStrictEqual(node.chainCode);
     });
-
-    it('keeps the same cryptographic functions in the child node', async () => {
-      const node = await BIP44Node.fromDerivationPath({
-        derivationPath: [...coinTypePath, `bip32:0'`, `bip32:0`, `bip32:0`],
-      });
-
-      const functions = getMockFunctions();
-      const coinTypeNode = await BIP44CoinTypeNode.fromDerivationPath(
-        [defaultBip39NodeToken, BIP44PurposeNodeToken, `bip32:60'`],
-        'mainnet',
-        functions,
-      );
-
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(3);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-
-      const childNode = await coinTypeNode.deriveBIP44AddressKey({
-        address_index: 0,
-      });
-
-      expect(childNode.privateKey).toStrictEqual(node.privateKey);
-      expect(childNode.chainCode).toStrictEqual(node.chainCode);
-      expect(functions.hmacSha512).toHaveBeenCalledTimes(6);
-      expect(functions.pbkdf2Sha512).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('publicKey', () => {
@@ -617,7 +496,7 @@ describe('BIP44CoinTypeNode', () => {
 
       const extendedKey = encodeExtendedKey({
         type: 'private',
-        privateKey: node.privateKeyBytes as Uint8Array,
+        privateKey: node.privateKeyBytes as Uint8Array<ArrayBuffer>,
         chainCode: node.chainCodeBytes,
         depth: node.depth,
         parentFingerprint: node.parentFingerprint,
@@ -637,7 +516,7 @@ describe('BIP44CoinTypeNode', () => {
 
       const extendedKey = encodeExtendedKey({
         type: 'private',
-        privateKey: node.privateKeyBytes as Uint8Array,
+        privateKey: node.privateKeyBytes as Uint8Array<ArrayBuffer>,
         chainCode: node.chainCodeBytes,
         depth: node.depth,
         parentFingerprint: node.parentFingerprint,

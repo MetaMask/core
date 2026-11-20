@@ -2,6 +2,10 @@
  * MFA recovery protocol types from the recovery ADR.
  */
 
+import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
+
+export type { SeedlessAuthData };
+
 export type Identifier = {
   type: string;
   namespace: string;
@@ -27,6 +31,10 @@ export type KeyBoundIdentifierToken = {
    */
   proofPublicKey: Uint8Array;
   requestHash: string;
+  /**
+   * Unix seconds after which escrows reject this token.
+   */
+  notAfter: number;
   providerAssertion: unknown;
 };
 
@@ -98,12 +106,47 @@ export type KeyBoundCredential = {
 };
 
 /**
- * Result of first-factor identifier authentication, consumed by
- * `getRecoverySecret`.
+ * Parameters for requesting a key-bound identifier token from an IdP.
+ */
+export type KeyBoundIdentifierTokenRequest = {
+  identifier: Identifier;
+  /**
+   * Raw 32-byte Ed25519 public key to bind into the token.
+   */
+  proofPublicKey: Uint8Array;
+  requestHash: string;
+  /**
+   * Unix seconds to copy into the token. The provider assertion must sign
+   * `hash([proofPublicKey, requestHash, notAfter])` as its OIDC / SIWE nonce,
+   * or `getEscrowPasskeyChallenge(request)` as its passkey challenge.
+   */
+  notAfter: number;
+};
+
+/**
+ * Result of one identifier login. `token` is the key-bound recovery material
+ * presented to escrows (its `providerAssertion` carries the provider ID token
+ * or assertion). `seedlessAuthData` is present when the IdP issued seedless
+ * auth-server tokens in the same exchange (social logins); passkey / SIWE
+ * omit it.
+ */
+export type KeyBoundIdentifierLogin = {
+  token: KeyBoundIdentifierToken;
+  seedlessAuthData?: SeedlessAuthData;
+};
+
+/**
+ * Result of first-factor identifier authentication from
+ * `authenticateIdentifier`, and the input to `getRecoverySecret`.
  *
  * `proofPrivateKey` signs escrow challenges. `ephemeralPrivateKey` is the
  * private half of `pkE` and decrypts the recovery secret. Keep both in
  * memory only.
+ *
+ * `seedlessAuthData` is present when the same login also completed a seedless
+ * auth-server exchange. Use it for `SeedlessOnboardingController.authenticate`,
+ * then drop it before holding the session for a later `getRecoverySecret`.
+ * Escrow paths use only the key-bound credential fields.
  */
 export type IdentifierSession = KeyBoundCredential & {
   requestId: string;
@@ -115,6 +158,7 @@ export type IdentifierSession = KeyBoundCredential & {
    * Raw 32-byte X25519 public key, the client's one-time read key.
    */
   pkE: Uint8Array;
+  seedlessAuthData?: SeedlessAuthData;
 };
 
 /**
@@ -259,6 +303,11 @@ export type GetIdentifiersResponse = {
   version: number;
 };
 
+export type GetMutationReceiptResponse = {
+  receipt: MutationReceipt | null;
+  version: number;
+};
+
 /**
  * Enrolled identifiers and `epoch`, plus Auth's current identifiers to build
  * an `updateIdentifiers` set from.
@@ -270,33 +319,28 @@ export type RecoveryIdentifiers = {
 };
 
 /**
- * Authenticates the MetaMask profile and issues request-bound attestations.
+ * Per-profile recovery lease. It must outlive the approvals requested right
+ * after acquiring it. Acquiring a held lease again extends it.
  */
-export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
-  /**
-   * Returns the Auth API's approval and current recovery identifiers.
-   * `requireTwoFactor` requests recent AAL2 authentication.
-   */
-  authorizeRecoveryRequest: (params: {
-    requestHash: string;
-    audiences: string[];
-    requireTwoFactor?: boolean;
-  }) => Promise<RecoveryApproval>;
+export type RecoveryLockProvider = {
+  acquire: (lockId: string) => Promise<void>;
+  release: (lockId: string) => Promise<void>;
 };
 
 /**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
 export type RecoveryIdentifierAuthProvider = {
-  getKeyBoundIdentifierToken: (params: {
-    identifier: Identifier;
-    /**
-     * Raw 32-byte Ed25519 public key to bind into the token.
-     */
-    proofPublicKey: Uint8Array;
-    requestHash: string;
-  }) => Promise<KeyBoundIdentifierToken>;
+  /**
+   * One identifier login. Returns the key-bound token, bound to the requested
+   * `proofPublicKey`, `requestHash`, and `notAfter`, and any seedless
+   * auth-server tokens from the same exchange. Omit `seedlessAuthData` when the IdP does not
+   * issue it (e.g. passkey). Every controller path calls this method and uses
+   * only the parts it needs.
+   */
+  getKeyBoundIdentifierLogin: (
+    params: KeyBoundIdentifierTokenRequest,
+  ) => Promise<KeyBoundIdentifierLogin>;
 };
 
 /**
@@ -322,16 +366,34 @@ export type RecoveryEscrowProvider = {
   getIdentifiers: (
     authControllerToken: AuthControllerToken,
   ) => Promise<GetIdentifiersResponse>;
+  /**
+   * Returns the receipt the escrow stored for `mutation` at its `newVersion`,
+   * or `null` when there is none, with the record's current `version`.
+   * Escrows keep only recent receipts.
+   */
+  getMutationReceipt: (
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ) => Promise<GetMutationReceiptResponse>;
   getSecret: (
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: Uint8Array,
   ) => Promise<GetRecoverySecretResponse>;
+  /**
+   * On first application, `identifierAuthorizations` share one challenge: one
+   * proof per SIWE identifier the escrow has not enrolled, plus one
+   * enrolled-identifier proof for updates.
+   *
+   * An escrow that already applied the mutation returns its matching stored
+   * receipt before validating proofs, which may include SIWE identifiers still
+   * missing from other escrows.
+   */
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;

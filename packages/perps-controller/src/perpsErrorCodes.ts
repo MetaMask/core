@@ -12,16 +12,22 @@ export const PERPS_ERROR_CODES = {
   CLIENT_REINITIALIZING: 'CLIENT_REINITIALIZING',
   PROVIDER_NOT_AVAILABLE: 'PROVIDER_NOT_AVAILABLE',
   PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  // With multiple registered venues a write must name the venue it is for
+  PROVIDER_ROUTE_REQUIRED: 'PROVIDER_ROUTE_REQUIRED',
   PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
+  // Some venues or discovery targets could not complete a batch.
+  BATCH_INCOMPLETE: 'BATCH_INCOMPLETE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',
   POSITIONS_FAILED: 'POSITIONS_FAILED',
   ACCOUNT_STATE_FAILED: 'ACCOUNT_STATE_FAILED',
+  ORDERS_FAILED: 'ORDERS_FAILED', // An orders read failed; the order list is unknown, not empty
   MARKETS_FAILED: 'MARKETS_FAILED',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
   // Provider-agnostic order errors
   ORDER_LEVERAGE_REDUCTION_FAILED: 'ORDER_LEVERAGE_REDUCTION_FAILED',
+  ORDER_NO_LONGER_OPEN: 'ORDER_NO_LONGER_OPEN', // A cancel found no resting order: never placed, already cancelled, or filled; not proof of a fill or successful cancellation
   // HyperLiquid-specific order errors
   IOC_CANCEL: 'IOC_CANCEL', // Order could not immediately match (insufficient liquidity)
   // Connection errors
@@ -82,6 +88,8 @@ export const PERPS_ERROR_CODES = {
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
   ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
   ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
+  ORDER_SCALE_SIZE_CONSERVATION_FAILED: 'ORDER_SCALE_SIZE_CONSERVATION_FAILED', // Internal: a ladder split lost a grid unit or left the size grid; not caused by input
+  ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT: 'ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT', // Internal: a sized ladder exceeds the requested size or USD amount; not caused by input
   ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
   ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
   ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
@@ -89,6 +97,9 @@ export const PERPS_ERROR_CODES = {
   ORDER_CHASE_ABANDONED: 'ORDER_CHASE_ABANDONED', // The provider was torn down while the chase was being placed; its order rests but no strategy runs
   ORDER_CHASE_LIMIT_REACHED: 'ORDER_CHASE_LIMIT_REACHED', // The venue's cap on simultaneously active chase orders is already in use
   ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
+  // HyperLiquid post-only rejections
+  ORDER_POST_ONLY_WOULD_CROSS: 'ORDER_POST_ONLY_WOULD_CROSS', // A post-only order was refused because its price would cross the spread. When it replaced a resting order via editOrder, HyperLiquid has already cancelled the original.
+  ORDER_POST_ONLY_WINDOW: 'ORDER_POST_ONLY_WINDOW', // HyperLiquid accepts only post-only orders for a while after a network upgrade
   // HyperLiquid client/service errors
   EXCHANGE_CLIENT_NOT_AVAILABLE: 'EXCHANGE_CLIENT_NOT_AVAILABLE',
   INFO_CLIENT_NOT_AVAILABLE: 'INFO_CLIENT_NOT_AVAILABLE',
@@ -113,6 +124,7 @@ export const PERPS_ERROR_CODES = {
   SWAP_FAILED: 'SWAP_FAILED',
   SPOT_PAIR_NOT_FOUND: 'SPOT_PAIR_NOT_FOUND',
   PRICE_UNAVAILABLE: 'PRICE_UNAVAILABLE',
+  LIQUIDATION_PRICE_UNAVAILABLE: 'LIQUIDATION_PRICE_UNAVAILABLE',
   // Market/collateral errors
   UNSUPPORTED_COLLATERAL: 'UNSUPPORTED_COLLATERAL', // DEX collateral token is not USDC (TAT-3304)
   // Batch operation errors

@@ -7,6 +7,7 @@ import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   WithdrawParams,
   WithdrawResult,
   PerpsPlatformDependencies,
@@ -234,6 +235,106 @@ describe('AccountService', () => {
           destination: mockWithdrawParams.destination,
         }),
       );
+    });
+
+    it('attributes the withdrawal request to the venue the aggregated wrapper resolves', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+      const aggregatedProvider = {
+        getWriteProviderId: vi.fn(() => 'lighter' as const),
+      };
+
+      await accountService.withdraw({
+        provider: aggregatedProvider as unknown as PerpsProvider,
+        params: mockWithdrawParams,
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
+        .calls[0][0];
+      const mockState: Pick<
+        PerpsControllerState,
+        | 'withdrawInProgress'
+        | 'withdrawalRequests'
+        | 'lastError'
+        | 'lastUpdateTimestamp'
+        | 'lastWithdrawResult'
+      > = {
+        withdrawInProgress: false,
+        withdrawalRequests: [],
+        lastError: null,
+        lastUpdateTimestamp: 0,
+        lastWithdrawResult: null,
+      };
+      updateCall(mockState);
+
+      expect(mockState.withdrawalRequests[0].providerId).toBe('lighter');
+    });
+
+    it.each(['hyperliquid', 'unknown'])(
+      'uses the direct provider identity, never tracing metadata (%s)',
+      async (protocolId) => {
+        const provider = { ...mockProvider, protocolId };
+        mockContext.tracingContext.provider = 'lighter';
+        await accountService.withdraw({
+          provider,
+          params: mockWithdrawParams,
+          context: mockContext,
+          refreshAccountState: mockRefreshAccountState,
+        });
+        const updateCall = (mockContext.stateManager?.update as Mock).mock
+          .calls[0][0];
+        const state = {
+          withdrawalRequests: [],
+        } as unknown as PerpsControllerState;
+        updateCall(state);
+        expect(state.withdrawalRequests[0].providerId).toBe(
+          protocolId === 'hyperliquid' ? 'hyperliquid' : undefined,
+        );
+      },
+    );
+
+    it('keeps an explicitly named withdrawal venue on the record', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+      const aggregatedProvider = {
+        // Default is hyperliquid; the caller named lighter.
+        getWriteProviderId: vi.fn(
+          (providerId?: PerpsProviderType) => providerId ?? 'hyperliquid',
+        ),
+      };
+
+      await accountService.withdraw({
+        provider: aggregatedProvider as unknown as PerpsProvider,
+        params: { ...mockWithdrawParams, providerId: 'lighter' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
+        .calls[0][0];
+      const mockState: Pick<
+        PerpsControllerState,
+        | 'withdrawInProgress'
+        | 'withdrawalRequests'
+        | 'lastError'
+        | 'lastUpdateTimestamp'
+        | 'lastWithdrawResult'
+      > = {
+        withdrawInProgress: false,
+        withdrawalRequests: [],
+        lastError: null,
+        lastUpdateTimestamp: 0,
+        lastWithdrawResult: null,
+      };
+      updateCall(mockState);
+
+      expect(mockState.withdrawalRequests[0].providerId).toBe('lighter');
     });
 
     it('removes withdrawal request from queue when provider returns tx hash', async () => {

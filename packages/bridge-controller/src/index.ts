@@ -281,7 +281,10 @@ export {
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';
 
-export { getBridgeFeatureFlags } from './utils/feature-flags.js';
+export {
+  getBridgeFeatureFlags,
+  getQuoteRefreshRate,
+} from './utils/feature-flags.js';
 
 export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage.js';
 
@@ -291,3 +294,6 @@ export {
   fetchTokens,
   type SwapsToken,
 } from './utils/swaps.js';
+
+export { getAccountByAddress } from './utils/controllers/accounts.js';
+export { getFeatureFlags } from './utils/controllers/remote-feature-flags.js';

@@ -4,8 +4,6 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import type { QuoteRequest } from '../../types.js';
-
 /**
  * Parent transaction types enabled for the server strategy by default.
  *
@@ -19,85 +17,34 @@ export const DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES: TransactionType[] = [];
 
 /** Why the server strategy declined to handle a request. */
 export enum ServerUnsupportedReason {
-  /** The direct mUSD Money Account fiat flow is not implemented. */
-  DirectMusdMoneyAccount = 'directMusdMoneyAccount',
-
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
-
-  /** Reserving the HyperLiquid activation fee is not implemented. */
-  HyperliquidActivationFee = 'hyperliquidActivationFee',
-
-  /** Two-phase max-amount gas station probing is not implemented. */
-  MaxAmount = 'maxAmount',
 }
 
 /**
- * Determine whether the server strategy can handle a set of quote requests.
+ * Determine whether the server strategy can handle a transaction.
  *
- * Gating has two independent layers:
- *
- * 1. A remote-flag allowlist of transaction types, so flows can be rolled out
- *    and rolled back one at a time.
- * 2. Code-level capability guards for request shapes the server strategy does
- *    not implement yet. These cannot be overridden by the flag; each one is
- *    deleted as the corresponding capability lands.
- *
- * A transaction can carry several types across its nested transactions, so
- * both layers match against the transaction and its nested transactions.
+ * Flows are gated by a remote-flag allowlist of transaction types, so they can
+ * be rolled out and rolled back one at a time. A transaction can carry several
+ * types across its nested transactions, so the allowlist is matched against the
+ * transaction and its nested transactions.
  *
  * @param options - Options bag.
  * @param options.enabledTransactionTypes - Transaction types opted in via
  * remote feature flag.
- * @param options.requests - Quote requests for required tokens.
  * @param options.transaction - Metadata of the original target transaction.
- * @returns The first reason the requests are unsupported, or `undefined` if
- * every request is supported.
+ * @returns The reason the transaction is unsupported, or `undefined` if it is
+ * supported.
  */
 export function getServerUnsupportedReason({
   enabledTransactionTypes,
-  requests,
   transaction,
 }: {
   enabledTransactionTypes: TransactionType[];
-  requests: QuoteRequest[];
   transaction?: TransactionMeta;
 }): ServerUnsupportedReason | undefined {
   if (!hasTransactionType(transaction, enabledTransactionTypes)) {
     return ServerUnsupportedReason.DisabledTransactionType;
-  }
-
-  for (const request of requests) {
-    const reason = getRequestUnsupportedReason(request);
-
-    if (reason) {
-      return reason;
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Determine whether a single quote request uses a capability the server
- * strategy has not implemented yet.
- *
- * @param request - Quote request for a required token.
- * @returns The reason the request is unsupported, or `undefined`.
- */
-function getRequestUnsupportedReason(
-  request: QuoteRequest,
-): ServerUnsupportedReason | undefined {
-  if (request.hyperliquidActivationFeeUsd !== undefined) {
-    return ServerUnsupportedReason.HyperliquidActivationFee;
-  }
-
-  if (request.isDirectMusdMoneyAccount === true) {
-    return ServerUnsupportedReason.DirectMusdMoneyAccount;
-  }
-
-  if (request.isMaxAmount === true) {
-    return ServerUnsupportedReason.MaxAmount;
   }
 
   return undefined;

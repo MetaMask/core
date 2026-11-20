@@ -3,7 +3,10 @@ import type { MetaResponse } from '@nktkas/hyperliquid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
-import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import {
+  BUILDER_FEE_CONFIG,
+  HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import { SUBSCRIPTION_CLOID_FLAGS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -12,6 +15,7 @@ import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiqui
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type { OrderParams } from '../../../src/types/index.js';
 import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import {
   hasFeeReductionAppliedFlag,
   isSubscriptionProgramCloid,
@@ -20,7 +24,9 @@ import {
 import {
   activeEthTwapHistory,
   baseOrder,
+  clearinghouseWithEthSize,
   createClearinghouseBalance,
+  createTestProvider,
   mockPlatformDependencies,
   setUpStrategyProvider,
   useStrategyClients,
@@ -437,6 +443,148 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
   });
 
+  describe('HIP-3 manual collateral transfer', () => {
+    afterEach(async () => {
+      await provider.disconnect();
+    });
+
+    // Without Unified Account, a 5-coin buy at 5x adds to an open 10-coin
+    // position worth 1000. A market buy is priced at mid + 3% slippage (103),
+    // plus the 0.3% buffer.
+    it.each([
+      // Isolated: the venue checks the whole position's margin (15 * 103 / 5).
+      {
+        case: 'isolated',
+        marginMode: 'isolated',
+        positionLeverage: 5,
+        marginUsed: '200',
+        expectedTransfer: 309 * 1.003,
+      },
+      // Cross at the same leverage: the position's margin (1000 / 5) is already
+      // in the DEX balance, so only the new order's margin (5 * 103 / 5) moves.
+      {
+        case: 'Cross, same leverage',
+        marginMode: 'cross',
+        positionLeverage: 5,
+        marginUsed: '200',
+        expectedTransfer: 103 * 1.003,
+      },
+      // Cross from 10x to 5x: the existing size now needs 1000 / 5 = 200 but
+      // holds 100, so the 100 shortfall moves with the new order's 103.
+      {
+        case: 'Cross, leverage lowered',
+        marginMode: 'cross',
+        positionLeverage: 10,
+        marginUsed: '100',
+        expectedTransfer: 203 * 1.003,
+      },
+      // Cross from 2x to 5x: the existing margin (500) already covers 200.
+      {
+        case: 'Cross, leverage raised',
+        marginMode: 'cross',
+        positionLeverage: 2,
+        marginUsed: '500',
+        expectedTransfer: 103 * 1.003,
+      },
+    ] as const)(
+      'funds a position increase with the margin the venue checks ($case)',
+      async ({
+        marginMode,
+        positionLeverage,
+        marginUsed,
+        expectedTransfer,
+      }) => {
+        const sendAsset = vi
+          .fn<
+            (params: {
+              sourceDex: string;
+              destinationDex: string;
+              amount: string;
+            }) => Promise<{ status: string }>
+          >()
+          .mockResolvedValue({ status: 'ok' });
+        // Main DEX reads omit `dex`; the HIP-3 DEX holds the open position.
+        const clearinghouseByDex: Record<string, unknown> = {
+          undefined: createClearinghouseBalance('10000'),
+          xyz: {
+            ...createClearinghouseBalance('0'),
+            assetPositions: [
+              {
+                type: 'oneWay',
+                position: {
+                  coin: 'xyz:TSLA',
+                  szi: '10',
+                  entryPx: '100',
+                  positionValue: '1000',
+                  unrealizedPnl: '0',
+                  marginUsed,
+                  leverage: { type: marginMode, value: positionLeverage },
+                  liquidationPx: '50',
+                },
+              },
+            ],
+          },
+        };
+        useStrategyClients({
+          exchange: {
+            sendAsset,
+            order: vi.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    { filled: { oid: 77, totalSz: '5', avgPx: '100' } },
+                  ],
+                },
+              },
+            }),
+          },
+          info: {
+            clearinghouseState: vi
+              .fn()
+              .mockImplementation(({ dex }: { dex?: string }) =>
+                Promise.resolve(clearinghouseByDex[String(dex)]),
+              ),
+            frontendOpenOrders: vi.fn().mockResolvedValue([]),
+            perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+            meta: vi.fn().mockResolvedValue({
+              universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+              collateralToken: 0,
+            }),
+            allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '100' }),
+          },
+        });
+        provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+          useUnifiedAccount: false,
+          initialAssetMapping: [['xyz:TSLA', 110000]],
+        });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          symbol: 'xyz:TSLA',
+          orderType: 'market',
+          size: '5',
+          usdAmount: '500',
+          currentPrice: 100,
+          leverage: 5,
+          marginMode,
+        } satisfies OrderParams);
+
+        expect(result).toMatchObject({ success: true });
+        expect(sendAsset.mock.calls[0][0]).toMatchObject({
+          sourceDex: '',
+          destinationDex: 'xyz',
+        });
+        expect(Number(sendAsset.mock.calls[0][0].amount)).toBeCloseTo(
+          expectedTransfer,
+          4,
+        );
+      },
+    );
+  });
+
   describe('Builder fee policy', () => {
     it('applies one builder context to a default parent and TP/SL batch', async () => {
       const { exchangeClient } = useStrategyClients();
@@ -506,6 +654,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalled();
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
@@ -545,6 +698,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['456'],
       });
       expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -594,6 +752,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['456', '457'],
       });
       expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -847,6 +1010,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
                 code: 'EXISTING',
               },
             }),
+            userToMultiSigSigners: vi.fn().mockResolvedValue(null),
             maxBuilderFee: vi.fn().mockResolvedValue(100000),
             frontendOpenOrders: vi
               .fn()
@@ -958,9 +1122,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(orderRequests).toBe(mode === 'partial-error' ? 2 : 1);
         expect(result.error).toBe(
           mode === 'partial-error'
-            ? 'order 1: SL rejected'
+            ? PERPS_ERROR_CODES.UNKNOWN_ERROR
             : PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
         );
+        expect(result.error).not.toContain('SL rejected');
       },
     );
 
@@ -969,6 +1134,56 @@ describe('HyperLiquidProvider - strategy order types', () => {
         type: string;
         orders?: { c?: string }[];
         cancels?: { o: number }[];
+      };
+      const restoreCreateErrorResult = (
+        createErrorResult: {
+          mockImplementation: (
+            implementation: NonNullable<
+              ReturnType<Mock['getMockImplementation']>
+            >,
+          ) => void;
+        },
+        previous: ReturnType<Mock['getMockImplementation']>,
+      ): void => {
+        if (previous) {
+          createErrorResult.mockImplementation(previous);
+        }
+      };
+      const installWrappedSigningRefusal = (
+        change: 'position' | 'support',
+        infoClient: ReturnType<typeof useStrategyClients>['infoClient'],
+        request: Mock,
+        actions: SignedAction[],
+        defaultResponse: (action: SignedAction) => unknown,
+      ): void => {
+        let cancelSubmitted = false;
+        let readsAfterCancel = 0;
+        const baseline = clearinghouseWithEthSize('1.5');
+        const driftedState = clearinghouseWithEthSize('2');
+        if (change === 'position') {
+          infoClient.clearinghouseState.mockImplementation(async () => {
+            const drifted = cancelSubmitted && readsAfterCancel > 0;
+            if (cancelSubmitted) {
+              readsAfterCancel += 1;
+            }
+            return drifted ? driftedState : baseline;
+          });
+        }
+        request.mockImplementation(
+          async (_endpoint: string, payload: { action: SignedAction }) => {
+            actions.push(payload.action);
+            if (payload.action.type === 'cancel') {
+              cancelSubmitted = true;
+              vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+              if (change === 'support') {
+                infoClient.userToMultiSigSigners.mockRejectedValueOnce(
+                  new Error('support read failed'),
+                );
+              }
+            }
+            return defaultResponse(payload.action);
+          },
+        );
       };
       const setup = (
         oldCount = 1,
@@ -1067,8 +1282,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         });
         mockClientService.getExchangeClient.mockImplementation(
-          (guard?: () => Promise<void>) =>
-            guard ? createGuardedHyperLiquidClient(sdk, guard) : sdk,
+          (
+            guard?: () => Promise<void>,
+            signHooks?: Parameters<typeof createGuardedHyperLiquidClient>[3],
+          ) =>
+            guard
+              ? createGuardedHyperLiquidClient(sdk, guard, undefined, signHooks)
+              : sdk,
         );
         return { infoClient, actions, hooks, defaultResponse, request };
       };
@@ -1112,7 +1332,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'order',
           ]);
           expect(result.success).toBe(false);
-          expect(result.error).toContain('Too many cumulative requests sent');
+          expect(result).toMatchObject({
+            error: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            errorCode: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+              provider: 'hyperliquid',
+            },
+          });
+          expect(result.error).not.toContain('Too many cumulative requests');
           expect(result.childOrderIds).toStrictEqual(['901']);
         },
       );
@@ -1170,6 +1398,60 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result.error).toStrictEqual(expectedError);
           expect(result.error).not.toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
           expect(result.childOrderIds).toBeUndefined();
+        },
+      );
+
+      it.each([
+        ['position', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['support', PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE],
+      ] as const)(
+        'keeps a %s refusal wrapped by SDK signing after restoration succeeds',
+        async (change, code) => {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          const createErrorResult = vi.mocked(
+            hyperLiquidValidationModule.createErrorResult,
+          );
+          const previous = createErrorResult.getMockImplementation();
+          const actualValidation = await vi.importActual<
+            typeof import('../../../src/utils/hyperLiquidValidation.js')
+          >('../../../src/utils/hyperLiquidValidation.js');
+          createErrorResult.mockImplementation(
+            actualValidation.createErrorResult,
+          );
+          try {
+            const { actions, infoClient, request, defaultResponse } = setup();
+            // The pre-sign position read must still match. Drift on the next
+            // read, which is the signing fence inside the SDK.
+            installWrappedSigningRefusal(
+              change,
+              infoClient,
+              request,
+              actions,
+              defaultResponse,
+            );
+
+            const result = await provider.updatePositionTPSL({
+              symbol: 'ETH',
+              takeProfitPrice: '3500',
+              expectedPosition: { size: '1.5', entryPrice: '3000' },
+            });
+
+            expect(actions.map((action) => action.type)).toStrictEqual([
+              'cancel',
+              'order',
+            ]);
+            expect(result).toMatchObject({
+              success: false,
+              error: code,
+              errorCode: code,
+              errorDetails: { code, provider: 'hyperliquid' },
+              childOrderIds: ['901'],
+            });
+          } finally {
+            restoreCreateErrorResult(createErrorResult, previous);
+            vi.useRealTimers();
+          }
         },
       );
 
@@ -1320,6 +1602,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              provider: 'hyperliquid',
+            },
             childOrderIds: ['777'],
           });
           expect(actions.map((action) => action.type)).toStrictEqual(
@@ -1365,6 +1652,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(errorLog.mock.calls).toMatchObject([
@@ -1413,6 +1705,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              provider: 'hyperliquid',
+            },
             childOrderIds: [],
           });
           expect(actions.map((action) => action.type)).toStrictEqual(
@@ -1618,6 +1915,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(order).toHaveBeenCalledTimes(2);
@@ -1699,6 +2001,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['789'],
       });
       expect(order).toHaveBeenCalledTimes(2);
@@ -2348,6 +2655,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['123'],
       });
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -2448,6 +2760,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['457', '123'],
       });
       expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
@@ -2705,6 +3022,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: [],
       });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
@@ -2763,6 +3085,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(exchangeClient.cancel).toHaveBeenCalledWith({

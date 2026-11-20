@@ -1,7 +1,6 @@
 import { concatBytes } from '@metamask/byte-utils';
 
 import { BIP_32_HARDENED_OFFSET } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
 import type { SLIP10Node } from '../SLIP10Node.js';
 import { numberToUint32 } from '../utils.js';
 import type { DeriveChildKeyArgs } from './index.js';
@@ -15,20 +14,13 @@ import type { DeriveNodeArgs } from './shared.js';
  * Derive a SLIP-10 child key with a given path from a parent key.
  *
  * @param options - The options for deriving a child key.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns A tuple containing the derived private key, public key and chain
  * code.
  */
 export async function deriveChildKey(
   options: DeriveChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
-  return await sharedDeriveChildKey(
-    options,
-    handleError,
-    cryptographicFunctions,
-  );
+  return await sharedDeriveChildKey(options, handleError);
 }
 
 /**
@@ -36,14 +28,11 @@ export async function deriveChildKey(
  *
  * @param error - The error that occurred.
  * @param options - The options that were used for derivation.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The new options to use for derivation.
  */
 async function handleError(
   error: unknown,
   options: DeriveNodeArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<DeriveNodeArgs> {
   const { curve, isHardened, childIndex, entropy, chainCode } = options;
 
@@ -61,17 +50,14 @@ async function handleError(
   // generated as follows:
   // Key material (32 bytes), child chain code (32 bytes) =
   //   HMAC-SHA512(parent chain code, 0x01 || chain code from invalid key || index).
-  const newEntropy = await generateEntropy(
-    {
-      chainCode,
-      extension: concatBytes([
-        0x01,
-        entropy.slice(32, 64),
-        numberToUint32(actualChildIndex),
-      ]),
-    },
-    cryptographicFunctions,
-  );
+  const newEntropy = await generateEntropy({
+    chainCode,
+    extension: concatBytes([
+      0x01,
+      entropy.slice(32, 64),
+      numberToUint32(actualChildIndex),
+    ]),
+  });
 
   return {
     ...options,

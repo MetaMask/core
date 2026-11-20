@@ -7,14 +7,18 @@ import {
 import type {
   FeatureFlagsPlatformConfig,
   ChainConfiguration,
+  GenericQuoteRequest,
 } from '../types.js';
 import { validateFeatureFlagsResponse } from '../validators/feature-flags.js';
 import { formatChainIdToCaip } from './caip-formatters.js';
+import { getFeatureFlags } from './controllers/remote-feature-flags.js';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
-) => {
-  const getChainsObj = (chains: Record<string, ChainConfiguration>) =>
+): FeatureFlagsPlatformConfig => {
+  const getChainsObj = (
+    chains: Record<string, ChainConfiguration>,
+  ): Record<string, ChainConfiguration> =>
     Object.entries(chains).reduce(
       (acc, [chainId, value]) => ({
         ...acc,
@@ -55,32 +59,30 @@ export const processFeatureFlags = (
  * @param messenger - Any messenger with access to RemoteFeatureFlagController:getState
  * @returns The bridge feature flags
  */
-export function getBridgeFeatureFlags<
-  T extends {
+export const getBridgeFeatureFlags = <
+  MessengerType extends {
     call(
       action: 'RemoteFeatureFlagController:getState',
     ): RemoteFeatureFlagControllerState;
   },
->(messenger: T): FeatureFlagsPlatformConfig {
-  // This will return the bridgeConfig for the current platform even without specifying the platform
-  const remoteFeatureFlagControllerState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
+>(
+  messenger: MessengerType,
+): FeatureFlagsPlatformConfig => {
+  const remoteFeatureFlags = getFeatureFlags(messenger);
 
   // bridgeConfigV2 is the feature flag for the mobile app
   // bridgeConfig for Mobile has been deprecated since release of bridge and Solana in 7.46.0 was pushed back
   // and there's no way to turn on bridgeConfig for 7.47.0 without affecting 7.46.0 as well.
-  // You will still get bridgeConfig returned from remoteFeatureFlagControllerState but you should use bridgeConfigV2 instead
+  // You will still get bridgeConfig returned from remoteFeatureFlags but you should use bridgeConfigV2 instead
   // Mobile's bridgeConfig will be permanently serving the disabled variation, so falling back to it in Mobile will be ok
-  const rawMobileFlags =
-    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfigV2;
+  const rawMobileFlags = remoteFeatureFlags?.bridgeConfigV2;
 
   // Extension LaunchDarkly will not have the bridgeConfigV2 field, so we'll continue to use bridgeConfig
-  const rawBridgeConfig =
-    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
+  const rawBridgeConfig = remoteFeatureFlags?.bridgeConfig;
 
+  // oxlint-disable-next-line typescript/prefer-nullish-coalescing
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
-}
+};
 
 /**
  * Checks if the client version is greater than or equal to the minimum required version
@@ -92,7 +94,7 @@ export function getBridgeFeatureFlags<
 export const hasMinimumRequiredVersion = (
   clientVersion: string,
   minRequiredVersion: string,
-) => {
+): boolean => {
   const [clientMajor, clientMinor, clientPatch] = clientVersion
     .split('.')
     .map(Number);
@@ -110,4 +112,23 @@ export const hasMinimumRequiredVersion = (
     clientMinor === minRequiredMinor &&
     clientPatch >= minRequiredPatch
   );
+};
+
+export const getQuoteRefreshRate = <
+  MessengerType extends {
+    call(
+      action: 'RemoteFeatureFlagController:getState',
+    ): RemoteFeatureFlagControllerState;
+  },
+>(
+  messenger: MessengerType,
+  srcChainId?: GenericQuoteRequest['srcChainId'],
+): number => {
+  const bridgeFeatureFlags = getBridgeFeatureFlags(messenger);
+
+  const refreshRateOverride = srcChainId
+    ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
+    : undefined;
+  const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
+  return refreshRateOverride ?? defaultRefreshRate;
 };

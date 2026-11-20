@@ -1,16 +1,17 @@
+import { ecsign, publicToAddress } from '@ethereumjs/util';
+import type { ToBytesInputTypes } from '@ethereumjs/util';
 import {
-  bufferToHex,
-  ecsign,
-  hashPersonalMessage,
-  publicToAddress,
-  toBuffer,
-  ToBufferInputTypes,
-} from '@ethereumjs/util';
+  bigIntToBytes,
+  bytesToHex,
+  concatBytes,
+  stringToBytes,
+} from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import {
   concatSig,
   isNullish,
-  legacyToBuffer,
+  legacyToBytes,
   recoverPublicKey,
 } from './utils.js';
 
@@ -29,8 +30,8 @@ export function personalSign({
   privateKey,
   data,
 }: {
-  privateKey: Buffer;
-  data: ToBufferInputTypes;
+  privateKey: Uint8Array;
+  data: ToBytesInputTypes;
 }): string {
   if (isNullish(data)) {
     throw new Error('Missing data parameter');
@@ -38,10 +39,10 @@ export function personalSign({
     throw new Error('Missing privateKey parameter');
   }
 
-  const message = legacyToBuffer(data);
-  const msgHash = hashPersonalMessage(message);
-  const signature = ecsign(msgHash, privateKey);
-  return concatSig(toBuffer(signature.v), signature.r, signature.s);
+  const message = legacyToBytes(data);
+  const messageHash = hashPersonalMessage(message);
+  const signature = ecsign(messageHash, privateKey);
+  return concatSig(bigIntToBytes(signature.v), signature.r, signature.s);
 }
 
 /**
@@ -57,7 +58,7 @@ export function recoverPersonalSignature({
   data,
   signature,
 }: {
-  data: ToBufferInputTypes;
+  data: ToBytesInputTypes;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -68,7 +69,7 @@ export function recoverPersonalSignature({
 
   const publicKey = getPublicKeyFor(data, signature);
   const sender = publicToAddress(publicKey);
-  const senderHex = bufferToHex(sender);
+  const senderHex = bytesToHex(sender);
   return senderHex;
 }
 
@@ -85,7 +86,7 @@ export function extractPublicKey({
   data,
   signature,
 }: {
-  data: ToBufferInputTypes;
+  data: ToBytesInputTypes;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -95,7 +96,20 @@ export function extractPublicKey({
   }
 
   const publicKey = getPublicKeyFor(data, signature);
-  return `0x${publicKey.toString('hex')}`;
+  return bytesToHex(publicKey);
+}
+
+/**
+ * Produce the keccak256 hash for a personal_sign message.
+ *
+ * @param message The message.
+ * @returns The hash.
+ */
+function hashPersonalMessage(message: Uint8Array): Uint8Array {
+  const prefix = stringToBytes(
+    `\u0019Ethereum Signed Message:\n${message.length}`,
+  );
+  return keccak256(concatBytes([prefix, message]));
 }
 
 /**
@@ -106,9 +120,9 @@ export function extractPublicKey({
  * @returns The public key of the signer.
  */
 function getPublicKeyFor(
-  message: ToBufferInputTypes,
+  message: ToBytesInputTypes,
   signature: string,
-): Buffer {
-  const messageHash = hashPersonalMessage(legacyToBuffer(message));
+): Uint8Array {
+  const messageHash = hashPersonalMessage(legacyToBytes(message));
   return recoverPublicKey(messageHash, signature);
 }

@@ -11,6 +11,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isRelayValidationEnabled,
@@ -25,6 +26,7 @@ import {
   buildDelegationSimulation,
 } from '../../utils/simulation.js';
 import type { QuoteSimulation } from '../../utils/simulation.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import { validateQuotes } from '../../utils/validation.js';
 import { getRelayDepositData } from './deposit-step.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
@@ -49,7 +51,7 @@ export async function validateRelayQuotes(
 
   await validateQuotes({
     buildSimulation: async (quote) =>
-      shouldSkipValidation(quote, request.transaction)
+      shouldSkipValidation(quote, request.transaction, request.messenger)
         ? undefined
         : await buildValidationSimulation(request, quote),
     messenger: request.messenger,
@@ -61,6 +63,7 @@ export async function validateRelayQuotes(
 function shouldSkipValidation(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
 ): boolean {
   const { request } = quote;
 
@@ -79,6 +82,16 @@ function shouldSkipValidation(
   ) {
     log('Skipping quote validation: legacy Safe Predict withdraw', {
       from: request.from,
+    });
+    return true;
+  }
+
+  // Simulation rebuilds the submit calls, which signs a delegation through the
+  // client payment-override callback. Skip that for an MPC Money payer so
+  // quote refresh does not prompt for MFA ahead of the real submit.
+  if (isMpcMoneyAccountPayer(messenger, request, transaction.txParams.from)) {
+    log('Skipping quote validation: MPC Money account payer', {
+      from: transaction.txParams.from,
     });
     return true;
   }
@@ -129,7 +142,8 @@ function buildRelayValidationSimulation(
   calls: TransactionParams[],
   executeRequest?: Omit<RelayExecuteRequest, 'metamask'>,
 ): QuoteSimulation {
-  const { from, sourceChainId, targetChainId } = quote.request;
+  const { from, targetChainId } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const context = { from, sourceChainId, targetChainId };
 
   if (executeRequest) {
@@ -165,7 +179,8 @@ function buildRelay7702BatchSimulation(
   quote: TransactionPayQuote<RelayQuote>,
   calls: TransactionParams[],
 ): QuoteSimulation {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
 
   // The batch call is an ERC-7821 `execute` on the sender's own account, so the
   // account must appear upgraded for the simulation to succeed. The quote does

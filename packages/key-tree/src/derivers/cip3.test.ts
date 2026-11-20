@@ -23,9 +23,9 @@ import {
 const fixtureNodeToParentNode = (
   fixtureNode: (typeof fixtures.cip3)[number]['nodes'][keyof (typeof fixtures.cip3)[number]['nodes']],
 ): {
-  privateKeyBytes: Uint8Array;
-  publicKeyBytes: Uint8Array;
-  chainCodeBytes: Uint8Array;
+  privateKeyBytes: Uint8Array<ArrayBuffer>;
+  publicKeyBytes: Uint8Array<ArrayBuffer>;
+  chainCodeBytes: Uint8Array<ArrayBuffer>;
 } => ({
   privateKeyBytes: hexToBytes(fixtureNode.privateKey),
   publicKeyBytes: hexToBytes(fixtureNode.publicKey),

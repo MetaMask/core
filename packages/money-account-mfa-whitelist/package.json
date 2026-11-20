@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-mfa-whitelist",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Determines which Money Account signature requests can be signed without MFA approval",
   "keywords": [
     "Ethereum",
@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/abi-utils": "^3.0.0",
     "@metamask/delegation-core": "^2.2.1",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/utils": "^12.0.2",
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
@@ -62,15 +62,16 @@
     "@metamask/delegation-controller": "^4.0.0",
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/money-account-utils": "^2.2.0",
-    "@metamask/transaction-controller": "^73.1.2",
+    "@metamask/money-account-utils": "^2.2.1",
+    "@metamask/transaction-controller": "^74.3.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "ethers": "^6.17.0",
-    "rimraf": "^6.1.3",
+    "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "5.0.3"
+    "vite": "^8.3.8",
+    "vitest": "5.1.1"
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"

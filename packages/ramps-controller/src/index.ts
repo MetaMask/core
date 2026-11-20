@@ -21,7 +21,10 @@ export type {
   VbaKycStatus,
   VbaOnboardingSnapshot,
   VbaProviderFlowStatus,
+  SelectProviderForAssetOptions,
 } from './RampsController.js';
+export type { RampsProviderHistoryEntry } from './providerHistory.js';
+export { getPreviouslyUsedProviders } from './providerHistory.js';
 export type {
   RampsControllerExecuteRequestAction,
   RampsControllerAbortRequestAction,
@@ -29,6 +32,7 @@ export type {
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
   RampsControllerSetSelectedProviderForAssetAction,
+  RampsControllerSelectProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,
@@ -322,6 +326,7 @@ export type {
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  SepaDepositInstructions,
   UsBankDepositInstructions,
   UsBankDepositRail,
 } from './autoramp-types.js';
@@ -367,6 +372,7 @@ export {
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
   extractPixDepositInstructions,
+  extractSepaDepositInstructions,
   extractUsBankDepositInstructions,
 } from './NeoBankService.js';
 export type {

@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   CARD_SIGN_IN_DOMAIN,
+  CHOMP_SIGN_IN_DOMAIN,
   CHAIN_ID,
   CONFIG,
   CONTRACTS,
@@ -45,6 +46,7 @@ import type {
   MfaSignerContext,
   MfaRequirement,
   MfaWhitelistConfig,
+  MfaWhitelistRule,
   MoneyAccountSignatureRequest,
 } from './types.js';
 
@@ -188,8 +190,39 @@ function buildCardSignInMessage(
   return `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nProve address ownership\n\nURI: ${uri}\nVersion: 1\nChain ID: ${chainId}\nNonce: 5f2c1e0a-nonce\nIssued At: ${issuedAt}\nExpiration Time: ${expirationTime}`;
 }
 
-const whitelistedAs = (rule: string): MfaRequirement =>
-  ({ mfaRequired: false, rule }) as MfaRequirement;
+const PREDECESSOR = '0xc1c732b47c6604f94ae69db0a34ced0b03f1fbe8';
+
+function buildChompSuccessorMessage(
+  overrides: Partial<{
+    domain: string;
+    address: string;
+    successor: string;
+    predecessor: string;
+    resourcePredecessor: string;
+    uri: string;
+    chainId: string;
+    issuedAt: string;
+    expirationTime: string;
+  }> = {},
+): string {
+  const {
+    domain = CHOMP_SIGN_IN_DOMAIN,
+    address = MONEY_ACCOUNT,
+    successor = MONEY_ACCOUNT.toLowerCase(),
+    predecessor = PREDECESSOR,
+    resourcePredecessor = predecessor,
+    uri = `https://${domain}/`,
+    chainId = '143',
+    issuedAt = new Date(NOW).toISOString(),
+    expirationTime = new Date(NOW + 5 * MINUTE).toISOString(),
+  } = overrides;
+  return `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nAssociate ${successor} as the successor of ${predecessor} for CHOMP Money Account migration.\n\nURI: ${uri}\nVersion: 1\nChain ID: ${chainId}\nNonce: f60ff0d2a6c02b70ce5106097dabd163\nIssued At: ${issuedAt}\nExpiration Time: ${expirationTime}\nRequest ID: bcde79a3-12a8-419a-b404-579f7b5f69c3\nResources:\n- urn:chomp:profile:79678b20-061e-4246-a1de-5dc1a8074564\n- urn:chomp:purpose:ASSOCIATE_SUCCESSOR\n- urn:chomp:predecessor:${resourcePredecessor}`;
+}
+
+const whitelistedAs = (rule: MfaWhitelistRule): MfaRequirement => ({
+  mfaRequired: false,
+  rule,
+});
 
 const mfaRequired = (reason: string): MfaRequirement => ({
   mfaRequired: true,
@@ -542,6 +575,96 @@ describe('getMfaRequirement', () => {
         expect(
           evaluateMessage(bindingFor(MONEY_ACCOUNT, NOW - 10 * MINUTE)),
         ).toStrictEqual(mfaRequired('Rewards binding timestamp is not fresh'));
+      });
+    });
+
+    describe('CHOMP successor association', () => {
+      it('whitelists a fresh association of the Money Account as successor', () => {
+        expect(evaluateMessage(buildChompSuccessorMessage())).toStrictEqual(
+          whitelistedAs('chomp-successor-association'),
+        );
+      });
+
+      it('requires MFA when no CHOMP domain is configured', () => {
+        expect(
+          evaluateMessage(buildChompSuccessorMessage(), {
+            ...CONFIG,
+            chompSignInDomain: undefined,
+          }),
+        ).toStrictEqual(
+          mfaRequired('Sign-in message is not for the CHOMP domain'),
+        );
+      });
+
+      it('requires MFA for another domain', () => {
+        expect(
+          evaluateMessage(
+            buildChompSuccessorMessage({ domain: 'evil.example' }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Sign-in message is not for the CHOMP domain'),
+        );
+      });
+
+      it('requires MFA when the URI does not match the domain', () => {
+        expect(
+          evaluateMessage(
+            buildChompSuccessorMessage({ uri: 'https://evil.example/' }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Sign-in message URI does not match its domain'),
+        );
+      });
+
+      it.each([
+        ['signer', { address: RECIPIENT }],
+        ['successor', { successor: RECIPIENT }],
+      ])('requires MFA when the %s is another address', (_name, overrides) => {
+        expect(
+          evaluateMessage(buildChompSuccessorMessage(overrides)),
+        ).toStrictEqual(
+          mfaRequired('Sign-in message is not for the Money Account'),
+        );
+      });
+
+      it('requires MFA when the statement and resources name different predecessors', () => {
+        expect(
+          evaluateMessage(
+            buildChompSuccessorMessage({ resourcePredecessor: RECIPIENT }),
+          ),
+        ).toStrictEqual(mfaRequired('Sign-in message names two predecessors'));
+      });
+
+      it('requires MFA for another chain', () => {
+        expect(
+          evaluateMessage(buildChompSuccessorMessage({ chainId: '59144' })),
+        ).toStrictEqual(
+          mfaRequired('Sign-in message is not for the Money Account chain'),
+        );
+      });
+
+      it('requires MFA when the message has expired', () => {
+        expect(
+          evaluateMessage(
+            buildChompSuccessorMessage({
+              issuedAt: new Date(NOW - 3 * MINUTE).toISOString(),
+              expirationTime: new Date(NOW - MINUTE).toISOString(),
+            }),
+          ),
+        ).toStrictEqual(mfaRequired('Sign-in message is expired or not fresh'));
+      });
+
+      it('requires MFA for another purpose', () => {
+        expect(
+          evaluateMessage(
+            buildChompSuccessorMessage().replace(
+              'urn:chomp:purpose:ASSOCIATE_SUCCESSOR',
+              'urn:chomp:purpose:ASSOCIATE',
+            ),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Message does not match a whitelisted format'),
+        );
       });
     });
 
@@ -1125,6 +1248,36 @@ describe('getMfaRequirement', () => {
         },
       );
 
+      it.each([
+        ['the extension', false],
+        ['Mobile', true],
+      ])(
+        'whitelists a deposit with a deadline and relay redeemers, with caveats ordered as %s orders them',
+        async (_client, mobileOrder) => {
+          expect(
+            await evaluateDelegation(
+              buildSingleUseDelegation(buildDepositCalls(), {
+                mobileOrder,
+                deadline: 1_800_000_000,
+                redeemers: [RECIPIENT, MUSD],
+              }),
+            ),
+          ).toStrictEqual(whitelistedAs('vault-deposit-delegation'));
+        },
+      );
+
+      it('requires MFA for a withdrawal with relay redeemers', async () => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(buildWithdrawCalls(), {
+              redeemers: [RECIPIENT],
+            }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Delegation executions are not a vault deposit'),
+        );
+      });
+
       it('requires MFA for a withdrawal with a deadline', async () => {
         expect(
           await evaluateDelegation(
@@ -1445,6 +1598,17 @@ describe('getMfaRequirement', () => {
               args: '0x' as Hex,
             };
             caveats.push(deadline, deadline);
+          },
+        ],
+        [
+          'there are two redeemer allowlists',
+          (caveats: UnsignedDelegation['caveats']): void => {
+            const redeemer = {
+              enforcer: CONTRACTS.RedeemerEnforcer,
+              terms: createRedeemerTerms({ redeemers: [RECIPIENT] }),
+              args: '0x' as Hex,
+            };
+            caveats.push(redeemer, redeemer);
           },
         ],
         [

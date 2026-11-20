@@ -1,7 +1,6 @@
 import { assert } from '@metamask/type-utils';
 
 import { BYTES_KEY_LENGTH } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
 import { keccak256 } from '../cryptography.js';
 import { secp256k1 } from '../curves/index.js';
 import type { SLIP10Node } from '../SLIP10Node.js';
@@ -26,13 +25,15 @@ import {
  * address.
  * @returns The Ethereum address corresponding to the given key.
  */
-export function privateKeyToEthAddress(key: Uint8Array): Uint8Array {
+export async function privateKeyToEthAddress(
+  key: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
   assert(
     key instanceof Uint8Array && isValidBytesKey(key, BYTES_KEY_LENGTH),
     'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
   );
 
-  const publicKey = secp256k1.getPublicKey(key, false);
+  const publicKey = await secp256k1.getPublicKey(key, false);
   return publicKeyToEthAddress(publicKey);
 }
 
@@ -47,7 +48,9 @@ export function privateKeyToEthAddress(key: Uint8Array): Uint8Array {
  * address.
  * @returns The Ethereum address corresponding to the given key.
  */
-export function publicKeyToEthAddress(key: Uint8Array): Uint8Array {
+export function publicKeyToEthAddress(
+  key: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> {
   assert(
     key instanceof Uint8Array &&
       isValidBytesKey(key, secp256k1.publicKeyLength),
@@ -64,20 +67,17 @@ export function publicKeyToEthAddress(key: Uint8Array): Uint8Array {
  * @param options.path - The derivation path part to derive.
  * @param options.node - The node to derive from.
  * @param options.curve - The curve to use for derivation.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived child key as a {@link SLIP10Node}.
  */
 export async function deriveChildKey(
   options: DeriveChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   assert(
     options.curve.name === 'secp256k1',
     'Invalid curve: Only secp256k1 is supported by BIP-32.',
   );
 
-  return sharedDeriveChildKey(options, handleError, cryptographicFunctions);
+  return sharedDeriveChildKey(options, handleError);
 }
 
 /**
@@ -86,15 +86,12 @@ export async function deriveChildKey(
  *
  * @param _ - The error that was thrown.
  * @param options - The options for deriving a child key.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The options for deriving a child key with the child index
  * incremented by one.
  */
 async function handleError(
   _: unknown,
   options: DeriveNodeArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<DeriveNodeArgs> {
   const { childIndex, privateKey, publicKey, isHardened, chainCode, curve } =
     options;
@@ -110,13 +107,10 @@ async function handleError(
       curve,
     });
 
-    const newEntropy = await generateEntropy(
-      {
-        chainCode,
-        extension: secretExtension,
-      },
-      cryptographicFunctions,
-    );
+    const newEntropy = await generateEntropy({
+      chainCode,
+      extension: secretExtension,
+    });
 
     return {
       ...options,

@@ -904,7 +904,7 @@ describe('PerpsController', () => {
       },
     );
 
-    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+    it('registerLighterProvider registers the provider and forwards the signer bridge and idle close from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must
       // forward it (the shared platform surface stays venue-agnostic).
@@ -920,7 +920,9 @@ describe('PerpsController', () => {
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
         clientConfig: {
-          providerCredentials: { lighter: { signerBridge: mockBridge } },
+          providerCredentials: {
+            lighter: { signerBridge: mockBridge, socketIdleCloseMs: 12_000 },
+          },
         },
         infrastructure: mockInfrastructure,
       });
@@ -941,6 +943,7 @@ describe('PerpsController', () => {
           // mainnet writes are blocked inside LighterProvider instead.
           isTestnet: false,
           signerBridge: mockBridge,
+          socketIdleCloseMs: 12_000,
         }),
       );
     });
@@ -1265,6 +1268,7 @@ describe('PerpsController', () => {
             subscriptionBuilderAddressTestnet: undefined,
             subscriptionBuilderAddressMainnet: undefined,
             onChaseOrderMaxDistanceReached: expect.any(Function),
+            getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
@@ -2439,7 +2443,15 @@ describe('PerpsController', () => {
             address: '0x1234567890abcdef1234567890abcdef12345678',
             positions: [createMockPosition({ symbol: 'ETH', size: '2.0' })],
             orders: [],
-            accountState: null,
+            accountState: {
+              totalBalance: '1000.20',
+              spendableBalance: '800.20',
+              withdrawableBalance: '700.20',
+              marginUsed: '200',
+              unrealizedPnl: '60',
+              returnOnEquity: '30',
+              providerId: 'lighter',
+            },
             timestamp,
           },
         ],
@@ -2474,7 +2486,20 @@ describe('PerpsController', () => {
         skipTTL: true,
       });
       expect(aggregated?.positions).toHaveLength(2);
-      expect(aggregated?.accountState?.providerId).toBe('hyperliquid');
+      expect(aggregated?.accountState).toMatchObject({
+        totalBalance: '6000.2',
+        spendableBalance: '4800.2',
+        withdrawableBalance: '4700.2',
+        marginUsed: '1200',
+        unrealizedPnl: '60',
+        returnOnEquity: '5',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+      expect(aggregated?.accountState?.providerId).toBeUndefined();
     });
 
     it('hydrates user data from disk at construction time', () => {
@@ -3827,6 +3852,153 @@ describe('PerpsController', () => {
       ).not.toBeNull();
     });
 
+    it('reconstructs combined cached totals after preloading separate venue snapshots', async () => {
+      const venueAccount = (
+        totalBalance: string,
+        providerId: PerpsProviderType,
+      ): AccountState => ({
+        totalBalance,
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId,
+      });
+      const hlAccount = venueAccount('100', 'hyperliquid');
+      const lighterAccount = venueAccount('200', 'lighter');
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        totalBalance: '300',
+        spendableBalance: '300',
+        withdrawableBalance: '300',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerStates: {
+          hyperliquid: {
+            status: 'available',
+            providerId: 'hyperliquid',
+            state: hlAccount,
+          },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toStrictEqual(
+        hlAccount,
+      );
+      expect(cache['lighter:mainnet'].accountState).toStrictEqual(
+        lighterAccount,
+      );
+      expect(cache['aggregated:mainnet'].accountState).toBeNull();
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '300',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+    });
+
+    it('clears a previously cached balance for an unavailable venue during aggregated preload', async () => {
+      const lighterAccount: AccountState = {
+        totalBalance: '200',
+        spendableBalance: '200',
+        withdrawableBalance: '200',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId: 'lighter',
+      };
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          address: mockEvmAccount.address,
+          accountState: { ...lighterAccount, providerId: 'hyperliquid' },
+          timestamp: Date.now(),
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+          positions: [],
+          orders: [],
+        };
+      });
+      vi.spyOn(preloadController, 'getPositions').mockResolvedValue([
+        lighterPosition,
+      ]);
+      vi.spyOn(preloadController, 'getOpenOrders').mockResolvedValue([]);
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        ...lighterAccount,
+        providerId: undefined,
+        providerStates: {
+          hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toBeNull();
+      expect(cache['lighter:mainnet'].positions).toStrictEqual([
+        lighterPosition,
+      ]);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '200',
+        aggregate: {
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
+        },
+      });
+    });
+
     it('stamps Hyperliquid identity for aggregated preload before initialization', async () => {
       preloadController.testUpdate((state) => {
         state.activeProvider = 'aggregated';
@@ -4550,52 +4722,188 @@ describe('PerpsController', () => {
       expect(result?.accountState?.totalBalance).toBe('50000');
     });
 
-    it('assembles user data from multiple providers in aggregated mode', () => {
-      const hlPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
-      const lighterPosition = createMockPosition({
-        symbol: 'ETH',
-        size: '5.0',
-      });
-      const mockLighterProvider = createMockHyperLiquidProvider();
-      markControllerAsInitialized();
-      controller.testSetProviders(
-        new Map([
-          ['hyperliquid', mockProvider],
-          ['lighter', mockLighterProvider],
-        ] as any),
-      );
-      controller.testUpdate((state) => {
-        state.activeProvider = 'aggregated';
-        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
-          positions: [hlPosition],
-          orders: [],
-          accountState: {
-            totalBalance: '50000',
-            spendableBalance: '45000',
-            withdrawableBalance: '45000',
-            marginUsed: '5000',
-            unrealizedPnl: '1000',
-            returnOnEquity: '20',
+    describe('aggregated account totals', () => {
+      const hlAccount: AccountState = {
+        totalBalance: '50000.10',
+        spendableBalance: '45000.10',
+        withdrawableBalance: '45000.10',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '50000.10',
+            spendableBalance: '45000.10',
+            withdrawableBalance: '45000.10',
           },
-          timestamp: Date.now(),
-          address: mockAddress,
-          hip3ConfigVersion: 0,
-          dexes: ['main'],
-        };
-        state.cachedUserDataByProvider['lighter:mainnet'] = {
-          positions: [lighterPosition],
-          orders: [],
-          accountState: null,
-          timestamp: Date.now(),
-          address: mockAddress,
-        };
+        },
+      };
+      const lighterAccount: AccountState = {
+        totalBalance: '1000.20',
+        spendableBalance: '800.20',
+        withdrawableBalance: '700.20',
+        marginUsed: '1000',
+        unrealizedPnl: '-100',
+        returnOnEquity: '-10',
+      };
+
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(
+          new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', mockProvider],
+            ['lighter', createMockHyperLiquidProvider()],
+          ]),
+        );
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+          state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'BTC', size: '1.0' })],
+            orders: [],
+            accountState: hlAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          };
+          state.cachedUserDataByProvider['lighter:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'ETH', size: '5.0' })],
+            orders: [],
+            accountState: lighterAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+          };
+        });
       });
 
-      const result = controller.getCachedUserDataForActiveProvider();
+      it('combines venue totals and retains venue-local details only in providerStates', () => {
+        const result = controller.getCachedUserDataForActiveProvider();
 
-      expect(result).not.toBeNull();
-      expect(result?.positions).toHaveLength(2);
-      expect(result?.accountState?.totalBalance).toBe('50000');
+        expect(result?.positions.map(({ symbol }) => symbol)).toEqual([
+          'BTC',
+          'ETH',
+        ]);
+        expect(result?.accountState).toStrictEqual({
+          totalBalance: '51000.3',
+          spendableBalance: '45800.3',
+          withdrawableBalance: '45700.3',
+          marginUsed: '6000',
+          unrealizedPnl: '900',
+          returnOnEquity: '15',
+          providerStates: {
+            hyperliquid: {
+              status: 'available',
+              providerId: 'hyperliquid',
+              state: { ...hlAccount, providerId: 'hyperliquid' },
+            },
+            lighter: {
+              status: 'available',
+              providerId: 'lighter',
+              state: { ...lighterAccount, providerId: 'lighter' },
+            },
+          },
+          aggregate: {
+            status: 'complete',
+            availableProviders: ['hyperliquid', 'lighter'],
+            unavailableProviders: [],
+          },
+        });
+      });
+
+      it.each([
+        'missing',
+        'expired',
+        'other account',
+        'other network',
+        'HIP-3',
+        'null',
+        'malformed',
+      ])(
+        'returns a Lighter subtotal when the HyperLiquid cache is %s',
+        (invalidity) => {
+          controller.testUpdate((state) => {
+            const key = 'hyperliquid:mainnet';
+            const entry = state.cachedUserDataByProvider[key];
+            switch (invalidity) {
+              case 'missing':
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'expired':
+                entry.timestamp = Date.now() - 60_000;
+                break;
+              case 'other account':
+                entry.address = '0x9999999999999999999999999999999999999999';
+                break;
+              case 'other network':
+                state.cachedUserDataByProvider['hyperliquid:testnet'] = entry;
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'HIP-3':
+                entry.hip3ConfigVersion = state.hip3ConfigVersion + 1;
+                break;
+              case 'null':
+                entry.accountState = null;
+                break;
+              case 'malformed':
+                entry.accountState!.totalBalance = 'NaN';
+                break;
+            }
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toMatchObject({
+            totalBalance: '1000.2',
+            aggregate: {
+              status: 'partial',
+              availableProviders: ['lighter'],
+              unavailableProviders: ['hyperliquid'],
+            },
+            providerStates: {
+              hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+              lighter: { status: 'available', providerId: 'lighter' },
+            },
+          });
+          if (invalidity === 'expired') {
+            expect(
+              controller.getCachedUserDataForActiveProvider({ skipTTL: true })
+                ?.accountState?.totalBalance,
+            ).toBe('51000.3');
+          }
+        },
+      );
+
+      it('returns no account total when neither venue has a usable account snapshot', () => {
+        controller.testUpdate((state) => {
+          for (const entry of Object.values(state.cachedUserDataByProvider)) {
+            entry.accountState = null;
+          }
+        });
+
+        const result = controller.getCachedUserDataForActiveProvider();
+
+        expect(result?.positions).toHaveLength(2);
+        expect(result?.accountState).toBeNull();
+      });
+
+      it.each(['hyperliquid', 'lighter'] as const)(
+        'preserves the direct snapshot shape when only %s participates',
+        (providerId) => {
+          controller.testSetProviders(new Map([[providerId, mockProvider]]));
+          controller.testUpdate((state) => {
+            const otherProvider =
+              providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid';
+            delete state.cachedUserDataByProvider[`${otherProvider}:mainnet`];
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toStrictEqual({
+            ...(providerId === 'hyperliquid' ? hlAccount : lighterAccount),
+            providerId,
+          });
+        },
+      );
     });
 
     it('returns null in aggregated mode when no valid entries exist', () => {

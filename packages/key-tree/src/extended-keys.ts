@@ -26,17 +26,17 @@ type ExtendedKeyLike = {
   parentFingerprint: number;
   index: number;
   network: Network;
-  chainCode: Uint8Array;
+  chainCode: Uint8Array<ArrayBuffer>;
 };
 
 type ExtendedPublicKey = ExtendedKeyLike & {
   type: 'public';
-  publicKey: Uint8Array;
+  publicKey: Uint8Array<ArrayBuffer>;
 };
 
 type ExtendedPrivateKey = ExtendedKeyLike & {
   type: 'private';
-  privateKey: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
 };
 
 export type ExtendedKey = ExtendedPublicKey | ExtendedPrivateKey;

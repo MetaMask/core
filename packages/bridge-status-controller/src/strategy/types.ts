@@ -1,7 +1,5 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   BatchSellTradesResponse,
-  BridgeClientId,
   SwapTraceFunction,
   QuoteMetadata,
   QuoteResponseV1,
@@ -12,7 +10,6 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
 import type { TraceName } from '../constants.js';
 import type {
@@ -21,7 +18,12 @@ import type {
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
+  SubmitStrategyParamsJson,
 } from '../types.js';
+import type {
+  rekeyHistoryItemInState,
+  updateHistoryItemInState,
+} from '../utils/history.js';
 
 export enum SubmitStep {
   /**
@@ -29,10 +31,13 @@ export enum SubmitStep {
    */
   AddHistoryItem = 'addHistoryItem',
   /**
-   * Rekeys the history item keyed by the old history key to the new history key,
-   * and merges in the tradeMeta's id and hash
+   * Rekeys and updates the history item keyed by the old history key to the new history key.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
+  /**
+   * Merges history data into the existing history item
+   */
+  UpdateHistoryItem = 'updateHistoryItem',
   /**
    * Triggers polling for the transaction's status
    */
@@ -60,12 +65,17 @@ export type SubmitStepResult =
       type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
-        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
+        | 'approvalTxId'
+        | 'bridgeTxMeta'
+        | 'originalTransactionId'
+        | 'orderId'
+        | 'withdrawTxMeta'
       > & {
         historyKey: string;
         quoteResponse: QuoteResponseV1 & QuoteMetadata;
         batchSellData?: BatchSellTradesResponse;
         quoteIds?: string[];
+        next?: BridgeHistoryItem['next'];
       };
     }
   | {
@@ -75,12 +85,16 @@ export type SubmitStepResult =
         oldHistoryKey: string;
         /** Usually the txMeta.id of the `trade` transaction */
         newHistoryKey: string;
-        /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
+        /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully
+         *  @deprecated use `historyItemOverrides` instead
+         */
         tradeMeta?: TransactionMeta;
-        historyItemOverrides?: Partial<
-          Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
-        >;
+        historyItemOverrides?: Parameters<typeof rekeyHistoryItemInState>[3];
       };
+    }
+  | {
+      type: SubmitStep.UpdateHistoryItem;
+      payload: Parameters<typeof updateHistoryItemInState>[1];
     }
   | {
       type: SubmitStep.StartPolling;
@@ -115,41 +129,15 @@ export type SubmitStepResult =
  */
 export type SubmitStrategyParams<
   TradeType extends Trade = TxData,
-  BatchSellTradesResponseType extends
-    | BatchSellTradesResponse
-    | undefined
-    | null = BatchSellTradesResponse | undefined | null,
+  BatchSellTradesResponseType extends BatchSellTradesResponse | null =
+    BatchSellTradesResponse | null,
 > = {
-  /**
-   * The response from obtainGaslessBatch API containing submittable transactions and their fees
-   */
-  batchSellTrades: BatchSellTradesResponseType;
   /**
    * The function to add a transaction batch to the {@link TransactionControllers}
    */
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
-  isBridgeTx: boolean;
-  isDelegatedAccount: boolean;
-  /**
-   * Whether the STX is enabled in the wallet. Does not necessarily mean that
-   * STX will be used to submit the transaction.
-   */
-  isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponses: (QuoteResponseV1<TradeType, TradeType> & QuoteMetadata)[];
-  /**
-   * Set to true so hardware wallets get prompted for approval on mobile
-   */
-  requireApproval: boolean;
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: SwapTraceFunction<TraceName>;
   // Used for intent transactions
   fetchFn: FetchFunction;
-  clientId: BridgeClientId;
-  bridgeApiBaseUrl: string;
-  /**
-   * The batch ID of the transaction batch passed to the addTransactionBatchFn
-   * This is only used for batch-sell transactions.
-   */
-  batchId?: Hex;
-};
+} & SubmitStrategyParamsJson<TradeType, BatchSellTradesResponseType>;

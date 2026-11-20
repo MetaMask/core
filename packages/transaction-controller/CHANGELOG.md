@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.3.0]
+
+### Added
+
+- Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
+- Add optional `accountOverride` property to `MetamaskPayMetadata` to persist the `InternalAccount` ID overriding the default account (output recipient when `isPostQuote` is true, funding payer when false) ([#11588](https://github.com/MetaMask/core/pull/11588))
+
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [74.2.0]
+
+### Added
+
+- Add `perpsLighterDeposit`, `perpsLighterWithdraw`, and `perpsLighterDepositAndOrder` to `TransactionType` ([#11574](https://github.com/MetaMask/core/pull/11574))
+  - These identify a Perps deposit, withdraw, or deposit-and-order that targets Lighter, so clients can tell it apart from the existing Hyperliquid Perps types in metrics and confirmations.
+
+### Changed
+
+- Bump `@metamask/sentinel-api-service` from `^2.2.0` to `^2.3.0` ([#11590](https://github.com/MetaMask/core/pull/11590))
+
+## [74.1.0]
+
+### Changed
+
+- Refactor transaction creation into explicit lifecycle stages with shared state helpers ([#10255](https://github.com/MetaMask/core/pull/10255))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))
+
+## [74.0.0]
+
+### Changed
+
+- **BREAKING:** Detect Permit2 `approve(address token, address spender, uint160 amount, uint48 expiration)` transactions as `tokenMethodApprove` instead of `contractInteraction` ([#11416](https://github.com/MetaMask/core/pull/11416))
+  - This applies wherever the type is detected from the transaction data, including nested batch transactions without an explicit `type`.
+  - `txParams.to` is the Permit2 contract rather than the token. Consumers that read the token from `txParams.to`, or decode `tokenMethodApprove` data as ERC-20 `approve(spender, amount)`, must read the token, spender, amount and expiration from the Permit2 calldata instead.
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
 ## [73.1.2]
 
 ### Changed
@@ -2902,7 +2944,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...HEAD
+[74.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...@metamask/transaction-controller@74.3.0
+[74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0
+[74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...@metamask/transaction-controller@73.1.0

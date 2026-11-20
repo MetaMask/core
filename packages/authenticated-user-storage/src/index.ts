@@ -6,6 +6,7 @@ export {
   ASSETS_WATCHLIST_MAX_ASSETS,
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
+  USER_ASSETS_MAX_ASSETS,
 } from './validators.js';
 export type {
   AuthenticatedUserStorageActions,
@@ -27,6 +28,11 @@ export type {
   AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
+  AuthenticatedUserStorageServiceGetUserAssetsAction,
+  AuthenticatedUserStorageServiceSetUserAssetsAction,
+  AuthenticatedUserStorageServiceImportTokensAction,
+  AuthenticatedUserStorageServiceHideTokensAction,
+  AuthenticatedUserStorageServiceClearUserAssetsAction,
 } from './authenticated-user-storage-method-action-types.js';
 export { getUserStorageApiUrl } from './env.js';
 export type { Environment } from './env.js';
@@ -51,5 +57,6 @@ export type {
   PriceAlertPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
+  UserAssetsBlob,
   ClientType,
 } from './types.js';

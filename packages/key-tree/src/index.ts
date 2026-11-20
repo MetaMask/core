@@ -13,7 +13,6 @@ export type {
   SLIP10DerivationPathOptions,
 } from './SLIP10Node.js';
 export { SLIP10Node } from './SLIP10Node.js';
-export type { CryptographicFunctions } from './cryptography.js';
 export type { SupportedCurve } from './curves/index.js';
 export { secp256k1, ed25519, ed25519Bip32 } from './curves/index.js';
 export type {

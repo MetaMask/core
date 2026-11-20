@@ -1846,9 +1846,34 @@ describe('AuthenticationController', () => {
       },
     );
 
+    it('exchanges the token before the vault is written', async () => {
+      const requests: { body: unknown; authorization: string }[] = [];
+      const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+        requests.push(request),
+      );
+      arrangeAuthAPIs();
+      const { controller } = arrangeSocialLogin({ vault: null });
+
+      const result = await controller.exchangeSocialAccessToken();
+
+      expect(mockSocialLoginUrl.isDone()).toBe(true);
+      expect(requests).toStrictEqual([
+        {
+          body: { identifier_type: 'GOOGLE' },
+          authorization: `Bearer ${MOCK_SOCIAL_JWT}`,
+        },
+      ]);
+      expect(result.profile.canonicalProfileId).toBe(
+        MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      );
+    });
+
     it.each([
-      ['there is no social vault', { vault: null }],
       ['the social provider is unknown', { authConnection: 'github' }],
+      [
+        'the social provider is unknown before the vault is written',
+        { authConnection: 'github', vault: null },
+      ],
     ])('throws when %s', async (_case, options) => {
       const mockSocialLoginUrl = handleMockSocialLogin();
       const { controller } = arrangeSocialLogin(options);
@@ -4494,7 +4519,12 @@ describe('MFA while the wallet is locked', () => {
   function createController({
     isUnlocked = false,
     vault = 'encrypted',
-  }: { isUnlocked?: boolean; vault?: string | null } = {}): {
+    authConnection = 'google',
+  }: {
+    isUnlocked?: boolean;
+    vault?: string | null;
+    authConnection?: string;
+  } = {}): {
     controller: AuthenticationController;
     baseMessenger: RootMessenger;
   } {
@@ -4511,7 +4541,7 @@ describe('MFA while the wallet is locked', () => {
     });
     mockSeedlessOnboardingGetState.mockReturnValue({
       vault,
-      authConnection: 'google',
+      authConnection,
     });
     mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
     return {
@@ -4569,6 +4599,18 @@ describe('MFA while the wallet is locked', () => {
 
       expect(credentials).toHaveLength(2);
       expect(controller.state).toBe(stateBefore);
+    });
+
+    it('lists the credentials before the vault is written', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_CREDENTIALS_URL,
+        'get',
+        MOCK_MFA_CREDENTIALS_RESPONSE,
+      );
+      const { controller } = createController({ vault: null });
+
+      expect(await controller.refreshSocialLoginCredentials()).toHaveLength(2);
     });
 
     it('is exposed via the messenger registry', async () => {
@@ -4735,7 +4777,7 @@ describe('MFA while the wallet is locked', () => {
 
   it('throws when the wallet has no social login', async () => {
     const mockSocialLoginUrl = handleMockSocialLogin();
-    const { controller } = createController({ vault: null });
+    const { controller } = createController({ authConnection: 'github' });
 
     await expect(controller.refreshSocialLoginCredentials()).rejects.toThrow(
       'exchangeSocialAccessToken - the wallet has no social login',

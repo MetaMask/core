@@ -36,6 +36,29 @@ const CARD_SIGN_IN_PATTERN = new RegExp(
   'u',
 );
 
+/** Signed by `MoneyAccountUpgradeController` to link the MPC Money Account to the account it replaces. */
+const CHOMP_SUCCESSOR_PATTERN = new RegExp(
+  [
+    '^(?<domain>\\S+) wants you to sign in with your Ethereum account:',
+    '(?<address>0x[0-9a-fA-F]{40})',
+    '',
+    'Associate (?<successor>0x[0-9a-fA-F]{40}) as the successor of (?<predecessor>0x[0-9a-fA-F]{40}) for CHOMP Money Account migration\\.',
+    '',
+    'URI: (?<uri>\\S+)',
+    'Version: 1',
+    'Chain ID: (?<chainId>\\d+)',
+    'Nonce: \\S+',
+    'Issued At: (?<issuedAt>\\S+)',
+    'Expiration Time: (?<expirationTime>\\S+)',
+    'Request ID: \\S+',
+    'Resources:',
+    '- urn:chomp:profile:\\S+',
+    '- urn:chomp:purpose:ASSOCIATE_SUCCESSOR',
+    '- urn:chomp:predecessor:(?<resourcePredecessor>0x[0-9a-fA-F]{40})$',
+  ].join('\n'),
+  'u',
+);
+
 type PersonalMessageContext = {
   address: Hex;
   config: MfaWhitelistConfig;
@@ -57,6 +80,31 @@ function parseIsoTimestamp(value: string): number | undefined {
     return undefined;
   }
   return time;
+}
+
+/**
+ * Whether a sign-in message was issued recently and has not expired.
+ *
+ * @param groups - The named groups, with `issuedAt` and `expirationTime`.
+ * @param now - The current time in milliseconds.
+ * @param maxMessageAge - The maximum message age in milliseconds.
+ * @returns Whether the message is fresh.
+ */
+function isFreshSignIn(
+  groups: Record<string, string>,
+  now: number,
+  maxMessageAge: number,
+): boolean {
+  const issuedAt = parseIsoTimestamp(groups.issuedAt);
+  const expirationTime = parseIsoTimestamp(groups.expirationTime);
+  return (
+    issuedAt !== undefined &&
+    expirationTime !== undefined &&
+    isFresh(issuedAt, now, maxMessageAge) &&
+    expirationTime > issuedAt &&
+    expirationTime - issuedAt <= maxMessageAge &&
+    now <= expirationTime
+  );
 }
 
 /**
@@ -89,16 +137,7 @@ function getCardSignInRequirement(
     return requireMfa('Sign-in message is not for the Money Account chain');
   }
 
-  const issuedAt = parseIsoTimestamp(groups.issuedAt);
-  const expirationTime = parseIsoTimestamp(groups.expirationTime);
-  if (
-    issuedAt === undefined ||
-    expirationTime === undefined ||
-    !isFresh(issuedAt, now, maxMessageAge) ||
-    expirationTime <= issuedAt ||
-    expirationTime - issuedAt > maxMessageAge ||
-    now > expirationTime
-  ) {
+  if (!isFreshSignIn(groups, now, maxMessageAge)) {
     return requireMfa('Sign-in message is expired or not fresh');
   }
 
@@ -106,11 +145,54 @@ function getCardSignInRequirement(
 }
 
 /**
+ * Checks the CHOMP message that links the MPC Money Account, as successor, to
+ * the Money Account it replaces. Moving the funds needs the predecessor's own
+ * signature, so this only links the two addresses.
+ *
+ * @param groups - The named groups of {@link CHOMP_SUCCESSOR_PATTERN}.
+ * @param context - The request context.
+ * @param context.address - The Money Account address.
+ * @param context.config - The whitelist config.
+ * @param context.maxMessageAge - The maximum message age in milliseconds.
+ * @param context.now - The current time in milliseconds.
+ * @returns Whether MFA is required.
+ */
+function getChompSuccessorRequirement(
+  groups: Record<string, string>,
+  { address, config, maxMessageAge, now }: PersonalMessageContext,
+): MfaRequirement {
+  const { chompSignInDomain } = config;
+  if (!chompSignInDomain || groups.domain !== chompSignInDomain) {
+    return requireMfa('Sign-in message is not for the CHOMP domain');
+  }
+  if (groups.uri !== `https://${chompSignInDomain}/`) {
+    return requireMfa('Sign-in message URI does not match its domain');
+  }
+  if (
+    !isSameHex(groups.address, address) ||
+    !isSameHex(groups.successor, address)
+  ) {
+    return requireMfa('Sign-in message is not for the Money Account');
+  }
+  if (!isSameHex(groups.predecessor, groups.resourcePredecessor)) {
+    return requireMfa('Sign-in message names two predecessors');
+  }
+  if (groups.chainId !== String(hexToNumber(config.chainId))) {
+    return requireMfa('Sign-in message is not for the Money Account chain');
+  }
+  if (!isFreshSignIn(groups, now, maxMessageAge)) {
+    return requireMfa('Sign-in message is expired or not fresh');
+  }
+
+  return whitelisted('chomp-successor-association');
+}
+
+/**
  * Determines whether a personal message requires MFA.
  *
- * Whitelisted are the CHOMP authentication message, the card provider
- * sign-in message and the Rewards binding message, each with a fresh
- * timestamp. At worst, signing them without MFA lets someone tie the Money
+ * Whitelisted are the CHOMP authentication message, the CHOMP successor
+ * association message, the card provider sign-in message and the Rewards
+ * binding message, each with a fresh timestamp. At worst, signing them without MFA lets someone tie the Money
  * Account to another CHOMP profile or Rewards subscription, which can deny
  * service but not move funds.
  *
@@ -144,6 +226,11 @@ export function getPersonalMessageMfaRequirement(
     return isFresh(Number(rewards.timestamp), now, maxMessageAge)
       ? whitelisted('rewards-binding')
       : requireMfa('Rewards binding timestamp is not fresh');
+  }
+
+  const chompSuccessor = CHOMP_SUCCESSOR_PATTERN.exec(text)?.groups;
+  if (chompSuccessor) {
+    return getChompSuccessorRequirement(chompSuccessor, context);
   }
 
   const cardSignIn = CARD_SIGN_IN_PATTERN.exec(text)?.groups;

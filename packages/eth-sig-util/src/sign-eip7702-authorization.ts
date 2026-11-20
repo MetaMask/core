@@ -1,6 +1,12 @@
 import { encode } from '@ethereumjs/rlp';
-import { ecsign, publicToAddress, toBuffer } from '@ethereumjs/util';
-import { bytesToHex, Hex, isValidHexAddress } from '@metamask/utils';
+import { ecsign, publicToAddress } from '@ethereumjs/util';
+import {
+  bigIntToBytes,
+  bytesToHex,
+  concatBytes,
+  Hex,
+  isValidHexAddress,
+} from '@metamask/utils';
 import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import { concatSig, isNullish, recoverPublicKey } from './utils.js';
@@ -34,7 +40,7 @@ export function signEIP7702Authorization({
   privateKey,
   authorization,
 }: {
-  privateKey: Buffer;
+  privateKey: Uint8Array;
   authorization: EIP7702Authorization;
 }): string {
   validateEIP7702Authorization(authorization);
@@ -48,9 +54,9 @@ export function signEIP7702Authorization({
   const { r, s, v } = ecsign(messageHash, privateKey);
 
   // v is either 27n or 28n so is guaranteed to be a single byte
-  const vBuffer = toBuffer(v);
+  const vBytes = bigIntToBytes(v);
 
-  return concatSig(vBuffer, r, s);
+  return concatSig(vBytes, r, s);
 }
 
 /**
@@ -89,21 +95,18 @@ export function recoverEIP7702Authorization({
  * The message is encoded according to EIP-7702.
  *
  * @param authorization - The authorization data to hash.
- * @returns The hash of the authorization message as a Buffer.
+ * @returns The hash of the authorization message as a `Uint8Array`.
  */
 export function hashEIP7702Authorization(
   authorization: EIP7702Authorization,
-): Buffer {
+): Uint8Array {
   validateEIP7702Authorization(authorization);
 
   const encodedAuthorization = encode(authorization);
 
-  const message = Buffer.concat([
-    Buffer.from('05', 'hex'),
-    encodedAuthorization,
-  ]);
+  const message = concatBytes([Uint8Array.of(0x05), encodedAuthorization]);
 
-  return Buffer.from(keccak256(message));
+  return keccak256(message);
 }
 
 /**

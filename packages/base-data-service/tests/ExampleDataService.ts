@@ -134,6 +134,10 @@ export class ExampleDataService extends BaseDataService<
     );
   }
 
+  resetBreaker(): void {
+    this.resetCircuitBreaker();
+  }
+
   async getAssets(assets: string[]): Promise<GetAssetsResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getAssets`, assets],
