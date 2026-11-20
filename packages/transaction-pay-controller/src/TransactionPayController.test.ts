@@ -317,7 +317,7 @@ describe('TransactionPayController', () => {
 
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
-      ).toBe(PaymentOverride.PerpsLighter);
+      ).toBe('perpsLighter');
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
