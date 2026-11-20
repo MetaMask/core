@@ -107,6 +107,8 @@ import {
   getBroadcastFailureProperties,
   getFailurePropertiesFromHistory,
   promoteFailurePhase,
+  getSubmitErrorCode,
+  getMoneyAccountActionData,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
 import { normalizeQuoteResponses } from './utils/quotes.js';
@@ -1297,6 +1299,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #nextTx = async (historyKey: string): Promise<void> => {
+    let eventProperties:
+      | Omit<
+          RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed],
+          'error_message' | 'error_code'
+        >
+      | undefined;
+
     try {
       const { batchId, next, quoteResponse, operation } =
         this.#lockHistoryItem(historyKey);
@@ -1339,6 +1348,28 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             selectedAccount.address as Hex,
             [formatChainIdToHex(quoteResponse.quote.srcChainId)],
           );
+
+      eventProperties = {
+        ...getPreConfirmationPropertiesFromQuote(
+          validQuotes[0],
+          Boolean(historyItem.isStxEnabled),
+          null, // hardware wallets require approval so they can't use queueing
+          historyItem.location,
+          historyItem.abTests,
+          historyItem.activeAbTests,
+          historyItem.tokenSecurityTypeDestination,
+          historyItem.batchSellData,
+          batchId,
+          undefined,
+          operation,
+        ),
+        failure_phase:
+          operation === Operation.DEPOSIT
+            ? FailurePhase.DepositExecution // deposit after swap tx
+            : FailurePhase.Broadcast, // swap after withdraw tx
+        source_hash_present: operation === Operation.DEPOSIT,
+        destination_hash_present: operation === Operation.DEPOSIT,
+      };
 
       const { error, txMeta } = await this.#executeSubmitStrategy(
         {
@@ -1391,6 +1422,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       this.#onTransactionFailed({
         historyKey,
+        ...(eventProperties && {
+          eventProperties: {
+            ...eventProperties,
+            error_message: (error as Error)?.message,
+            error_code: getSubmitErrorCode(error),
+          },
+        }),
       });
     }
   };
@@ -1796,6 +1834,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       batchSellTrades,
       batchId,
       quotesReceivedContext,
+      operation,
     );
 
     let historyKey: string | undefined;
@@ -2011,6 +2050,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       {
         polling_status: pollingStatus,
         retry_attempts: historyItem.attempts?.counter ?? 0,
+        ...getMoneyAccountActionData(historyItem),
       },
     );
   };
@@ -2196,6 +2236,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+        ...getMoneyAccountActionData(historyItem),
       }),
       ...(eventName === UnifiedSwapBridgeEventName.Failed && {
         ...failurePropertiesFromHistory,
