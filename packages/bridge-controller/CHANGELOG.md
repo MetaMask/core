@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `MoneyAccountAction` enum containing supported actions and use it to populate MixPanel event property `money_account_action` ((#11677)[https://github.com/MetaMask/core/pull/11677])
+- Export `MoneyAccountAction` enum containing supported actions and use it to populate MixPanel event property `money_account_action` ([#11677](https://github.com/MetaMask/core/pull/11677))
 - Add `DiscountType` entry for free quotes ([#11674](https://github.com/MetaMask/core/pull/11674))
 - Export `getQuoteRefreshRate` util that reads the quote refresh interval from the client's LaunchDarkly config, including per-chain overrides ([#11181](https://github.com/MetaMask/core/pull/11181))
 
 ### Changed
 
-- Add `FailurePhase` constants for withdraw and deposit transactions ((#11677)[https://github.com/MetaMask/core/pull/11677])
+- Add `FailurePhase` constants for withdraw and deposit transactions ([#11677](https://github.com/MetaMask/core/pull/11677))
 - Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11669](https://github.com/MetaMask/core/pull/11669))
