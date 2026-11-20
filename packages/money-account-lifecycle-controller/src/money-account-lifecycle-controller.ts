@@ -1224,7 +1224,10 @@ export class MoneyAccountLifecycleController extends BaseController<
       })
       .catch((error: unknown) => {
         const summary = summarizeError(error);
-        if (!deepEqual(this.#registrationStatusFailures.get(role), summary)) {
+        if (
+          this.#registrationStatusRequests.get(addressKey) === request &&
+          !deepEqual(this.#registrationStatusFailures.get(role), summary)
+        ) {
           this.#registrationStatusFailures.set(role, summary);
           this.#log({
             type: 'registrationStatusFetchFailed',

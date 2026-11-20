@@ -424,6 +424,52 @@ describe('MoneyAccountLifecycleController diagnostics', () => {
         ).toHaveLength(2);
       });
     });
+
+    it('does not log or record a failed lookup superseded by another, but still reports it', async () => {
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        const first = createDeferredPromise<{ isRegistered: boolean }>();
+        mocks.getRegistrationStatus
+          .mockReturnValueOnce(first.promise)
+          .mockResolvedValueOnce({ isRegistered: true });
+
+        await init();
+        await refetch();
+        first.reject(new Error('Superseded'));
+        await flushPromises();
+
+        expect(getLoggedTypes(mocks.log)).not.toContain(
+          'registrationStatusFetchFailed',
+        );
+        expect(getHistoryTypes(controller)).not.toContain(
+          'registrationStatusFetchFailed',
+        );
+        expect(mocks.captureException).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'Superseded' }),
+        );
+      });
+    });
+
+    it('records nothing for a lookup that fails after clearState, and records the next failure with the same error', async () => {
+      await withController(async ({ controller, mocks, init, refetch }) => {
+        const error = new Error('Lookup failed');
+        const first = createDeferredPromise<{ isRegistered: boolean }>();
+        mocks.getRegistrationStatus.mockReturnValueOnce(first.promise);
+
+        await init();
+        controller.clearState();
+        first.reject(error);
+        await flushPromises();
+
+        expect(getHistoryTypes(controller)).toStrictEqual(['stateCleared']);
+
+        mocks.getRegistrationStatus.mockRejectedValueOnce(error);
+        await refetch();
+
+        expect(getHistoryTypes(controller)).toContain(
+          'registrationStatusFetchFailed',
+        );
+      });
+    });
   });
 
   describe('upgradeMoneyAccount', () => {
