@@ -235,7 +235,7 @@ describe('parseRealtimeFeedItem', () => {
     });
   });
 
-  it('drops the realtime item when a translation is not a string', () => {
+  it('keeps the realtime item when a translation is not a string', () => {
     const value = {
       ...fullHydratedPosition,
       authorComment: {
@@ -248,7 +248,13 @@ describe('parseRealtimeFeedItem', () => {
       },
     };
 
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+    expect(parseRealtimeFeedItem(value)).toMatchObject({
+      positionId: 'position-1',
+      authorComment: {
+        uid: 'comment-2',
+        translations: { en: 'Hello', pt: 1 },
+      },
+    });
   });
 
   it('rejects compact event payloads', () => {
@@ -363,33 +369,43 @@ describe('parseRealtimeFeedItem', () => {
     ]);
   });
 
-  it('drops malformed trade comments and keeps the realtime item', () => {
+  it('soft-maps trade comments and keeps the realtime item', () => {
     const item = parseRealtimeFeedItem(fullHydratedPosition);
 
     expect(item).toMatchObject({ positionId: 'position-1' });
-    expect(item?.trades.map((trade) => trade.comments)).toStrictEqual([
-      [],
-      [],
-      [],
+    // comment-0 dropped (metrics null); comment-1 kept with reactions as sent
+    expect(item?.trades.map((trade) => trade.comments.length)).toStrictEqual([
+      0, 1, 0,
     ]);
+    expect(item?.trades[1].comments[0]).toMatchObject({
+      uid: 'comment-1',
+      text: 'Hello',
+      timestamp: 100,
+      sourceLanguage: 'ko',
+      translations: { en: 'Hello' },
+      engagement: {
+        userReaction: '👍',
+        replyCount: 1,
+      },
+    });
   });
 
   it('rejects incomplete event data', () => {
     expect(parseRealtimeFeedItem({ itemId: 'missing-fields' })).toBeUndefined();
   });
 
-  it('rejects incomplete normalized feed items', () => {
-    expect(
-      parseRealtimeFeedItem({
-        positionId: 'position-1',
-        tokenSymbol: 'TKN',
-        tokenName: 'Token',
-        tokenAddress: '0xtoken',
-        chain: 'base',
-        trades: [],
-        actor: {},
-      }),
-    ).toBeUndefined();
+  it('accepts incomplete normalized feed items when positionId is present', () => {
+    const incomplete = {
+      positionId: 'position-1',
+      tokenSymbol: 'TKN',
+      tokenName: 'Token',
+      tokenAddress: '0xtoken',
+      chain: 'base',
+      trades: [],
+      actor: {},
+    };
+
+    expect(parseRealtimeFeedItem(incomplete)).toStrictEqual(incomplete);
   });
 
   it('normalizes a full position without optional comments or metrics', () => {
@@ -511,10 +527,13 @@ describe('parseRealtimeFeedItem', () => {
     expect(item).not.toHaveProperty('authorComment');
   });
 
-  it('rejects a realtime item whose author comment is malformed', () => {
+  it('keeps a realtime item whose author comment is malformed', () => {
     const value = { ...fullHydratedPosition, authorComment: { uid: 1 } };
 
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+    expect(parseRealtimeFeedItem(value)).toMatchObject({
+      positionId: 'position-1',
+      authorComment: { uid: 1 },
+    });
   });
 
   it('copies position flags from the hydrated card and ignores metadata', () => {
@@ -574,10 +593,13 @@ describe('parseRealtimeFeedItem', () => {
     expect(result).not.toHaveProperty('pnlPercent');
   });
 
-  it('rejects a realtime item whose price is not a number', () => {
+  it('keeps a realtime item whose price is not a number', () => {
     const value = { ...fullHydratedPosition, currentValueUSD: '150' };
 
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+    expect(parseRealtimeFeedItem(value)).toMatchObject({
+      positionId: 'position-1',
+      currentValueUSD: '150',
+    });
   });
 
   it('keeps flags on an already normalized feed item', () => {
@@ -587,7 +609,7 @@ describe('parseRealtimeFeedItem', () => {
     expect(parseRealtimeFeedItem(flagged)?.flags).toStrictEqual(['insider']);
     expect(
       parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
-    ).toBeUndefined();
+    ).toMatchObject({ flags: 'insider' });
   });
 
   it('copies the Profile API identity from the actor profile', () => {
@@ -623,7 +645,7 @@ describe('parseRealtimeFeedItem', () => {
     expect(item?.actor).not.toHaveProperty('tradingPrivacy');
   });
 
-  it('rejects a realtime item whose actor trading privacy is unknown', () => {
+  it('keeps a realtime item whose actor trading privacy is unknown', () => {
     const value = {
       ...fullHydratedPosition,
       actor: {
@@ -635,6 +657,9 @@ describe('parseRealtimeFeedItem', () => {
       },
     };
 
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+    expect(parseRealtimeFeedItem(value)).toMatchObject({
+      positionId: 'position-1',
+      actor: { tradingPrivacy: 'friends' },
+    });
   });
 });
