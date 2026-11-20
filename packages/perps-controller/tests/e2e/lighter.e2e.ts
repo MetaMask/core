@@ -14,7 +14,7 @@
  *                        testnet key (accountIndex 28; never use for funds).
  *   --account-index=N    Lighter account index (default 28).
  *   --api-key-index=N    API key slot (default 7).
- *   --wasm-dir=DIR       Cache dir from build-wasm.sh (default
+ *   --wasm-dir=DIR       Verified artifact dir from build-wasm.sh (default
  *                        <repo>/temp/lighter-wasm).
  *
  * Each phase writes <out>/<phase>.json and prints PASS/FAIL lines;

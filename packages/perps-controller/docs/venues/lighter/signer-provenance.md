@@ -33,7 +33,20 @@ shasum -a 256 "$out/main.wasm" "$out/wasm_exec.js"
 
 The build uses a fresh source checkout and stages output outside that checkout.
 It compares both hashes before putting the files in the requested directory.
-Compare the printed hashes with the table and the upstream manifest.
+The builder always uses the pinned release. The `LIGHTER_GO_REF` override has
+been removed.
+
+Pass the verified output directory to the E2E driver:
+
+```sh
+yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts \
+  --phase=sign-only --use-dummy-eth-key --wasm-dir="$out"
+```
+
+The driver checks both pinned hashes before evaluating `wasm_exec.js` or
+instantiating `main.wasm`. This applies to the default `temp/lighter-wasm` cache
+and custom directories. Rebuild to `temp/lighter-wasm` with `build-wasm.sh` to
+run the driver without `--wasm-dir`.
 
 The E2E validation target is Lighter testnet. Mainnet remains unvalidated
 pending a separate mainnet check.
