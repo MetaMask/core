@@ -13,6 +13,7 @@ export type {
   MoneyAccountApiDataServiceFetchHistoryAction,
   MoneyAccountApiDataServiceFetchRateHistoryAction,
   MoneyAccountApiDataServiceFetchVaultRateAction,
+  MoneyAccountApiDataServiceFetchVaultsAction,
   MoneyAccountApiDataServiceFetchVaultShareValuationsAction,
   MoneyAccountApiDataServiceFetchVbaTransfersAction,
 } from './money-account-api-data-service-method-action-types.js';
@@ -24,6 +25,8 @@ export type {
   HistoryResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VaultSummary,
+  VaultsResponse,
   VaultShareValuation,
   VaultShareValuationResult,
   VaultShareValuationsResponse,
