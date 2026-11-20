@@ -387,7 +387,7 @@ export class HyperLiquidSubscriptionService {
   readonly #dexAccountCache = new Map<string, AccountState>(); // Per-DEX account state
 
   #cachedSpotState: SpotClearinghouseStateResponse | null = null;
-  #streamedSpot: { binding: UserDataBinding; epoch: number } | null = null;
+  #crossMarginSpot: { binding: UserDataBinding; epoch: number } | null = null;
 
   #streamedAbstraction: {
     binding: UserDataBinding;
@@ -426,10 +426,8 @@ export class HyperLiquidSubscriptionService {
 
   #spotStatePromiseUserAddress?: string;
 
-  // Monotonic token bumped on cleanUp/clearAll and on each new fetch.
-  // Any in-flight #refreshSpotState that resolves with a stale token
-  // discards its result, preventing cross-account cache contamination
-  // when accounts are switched mid-fetch.
+  // Invalidate in-flight spot reads on cleanup, mode changes, new reads,
+  // and WebSocket spot updates.
   #spotStateGeneration = 0;
 
   #cachedPositions: Position[] | null = null; // Aggregated positions
@@ -1719,16 +1717,54 @@ export class HyperLiquidSubscriptionService {
     mode: HyperLiquidAbstractionMode,
   ): void {
     const previousMode = this.#abstractionModeByUser.get(userAddress);
+    this.#abstractionModeByUser.set(userAddress, mode);
+    const binding = this.#userDataBinding;
     if (
       previousMode !== undefined &&
       previousMode !== mode &&
-      this.#hasUserDataWallet(userAddress)
+      binding?.address.toLowerCase() === userAddress
     ) {
       this.#crossMarginAccountDexs.clear();
-      this.#streamedSpot = null;
+      this.#crossMarginSpot = null;
       this.#streamedAbstraction = null;
+      this.#spotStateGeneration += 1;
+      if (mode === HL_UNIFIED_ACCOUNT_MODE) {
+        // The live spot channel may stay quiet across a mode change.
+        this.#trackSpotStateRefresh(
+          binding.address,
+          this.#refreshCrossMarginSpot(binding, this.#spotStateGeneration),
+        ).catch((error) => {
+          this.#logErrorUnlessClearing(
+            ensureError(
+              error,
+              'HyperLiquidSubscriptionService.refreshCrossMarginSpot',
+            ),
+            this.#getErrorContext('refreshCrossMarginSpot'),
+          );
+        });
+      }
     }
-    this.#abstractionModeByUser.set(userAddress, mode);
+  }
+
+  async #refreshCrossMarginSpot(
+    binding: UserDataBinding,
+    generation: number,
+  ): Promise<void> {
+    const epoch = this.#clientService.getConnectionEpoch();
+    const spotState = await this.#clientService
+      .getInfoClient({ useHttp: true })
+      .spotClearinghouseState({ user: binding.address });
+    if (
+      generation !== this.#spotStateGeneration ||
+      binding !== this.#userDataBinding ||
+      epoch !== this.#clientService.getConnectionEpoch()
+    ) {
+      return;
+    }
+    this.#cachedSpotState = spotState;
+    this.#cachedSpotStateUserAddress = binding.address.toLowerCase();
+    this.#crossMarginSpot = { binding, epoch };
+    this.#notifyAccountSubscribers();
   }
 
   /**
@@ -1859,7 +1895,7 @@ export class HyperLiquidSubscriptionService {
     // start a fresh fetch; the stale one will self-discard via generation check.
     if (
       this.#spotStatePromise &&
-      this.#spotStatePromiseUserAddress === userAddress
+      this.#spotStatePromiseUserAddress === lowerUserAddress
     ) {
       await this.#spotStatePromise;
       return;
@@ -1867,9 +1903,18 @@ export class HyperLiquidSubscriptionService {
 
     this.#spotStateGeneration += 1;
     const generation = this.#spotStateGeneration;
-    const promise = this.#refreshSpotState(userAddress, generation);
+    await this.#trackSpotStateRefresh(
+      userAddress,
+      this.#refreshSpotState(userAddress, generation),
+    );
+  }
+
+  async #trackSpotStateRefresh(
+    userAddress: Hex,
+    promise: Promise<void>,
+  ): Promise<void> {
     this.#spotStatePromise = promise;
-    this.#spotStatePromiseUserAddress = userAddress;
+    this.#spotStatePromiseUserAddress = userAddress.toLowerCase();
 
     try {
       await promise;
@@ -2047,7 +2092,7 @@ export class HyperLiquidSubscriptionService {
             this.#spotStateGeneration += 1;
             this.#cachedSpotState = event.spotState;
             if (this.#userDataBinding) {
-              this.#streamedSpot = {
+              this.#crossMarginSpot = {
                 binding: this.#userDataBinding,
                 epoch: this.#clientService.getConnectionEpoch(),
               };
@@ -3357,7 +3402,7 @@ export class HyperLiquidSubscriptionService {
       this.#cachedPositions = null;
       this.#cachedOrders = null;
       this.#cachedSpotState = null;
-      this.#streamedSpot = null;
+      this.#crossMarginSpot = null;
       this.#streamedAbstraction = null;
       this.#crossMarginAccountDexs.clear();
       this.#abstractionModeRevision += 1;
@@ -4216,8 +4261,8 @@ export class HyperLiquidSubscriptionService {
     if (
       mode === HL_UNIFIED_ACCOUNT_MODE &&
       this.#positionSnapshotDexs.has(dexName) &&
-      this.#streamedSpot?.binding === binding &&
-      this.#streamedSpot?.epoch === epoch &&
+      this.#crossMarginSpot?.binding === binding &&
+      this.#crossMarginSpot?.epoch === epoch &&
       Array.from(this.#positionSnapshotDexs).every((key) =>
         this.#crossMarginAccountDexs.has(key),
       ) &&
@@ -6395,7 +6440,7 @@ export class HyperLiquidSubscriptionService {
     this.#dexAccountCache.clear();
     this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;
-    this.#streamedSpot = null;
+    this.#crossMarginSpot = null;
     this.#streamedAbstraction = null;
     this.#crossMarginAccountDexs.clear();
     this.#abstractionModeRevision += 1;
