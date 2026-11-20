@@ -184,6 +184,7 @@ vi.mock(import('./multicall.js'), async (importOriginal) => ({
  * `PreferencesController:getState` before `init`.
  * @param args.publishInitialPreferences - Whether setup publishes an initial
  * preferences state change. Defaults to true.
+ * @param args.callInit - Whether setup calls `init`. Defaults to true.
  * @param args.captureException - Reports messenger errors from `init`.
  * @returns A collection of test controllers and mocks.
  */
@@ -203,6 +204,7 @@ function setupController({
   displayNftMedia = true,
   preferencesState,
   publishInitialPreferences = true,
+  callInit = true,
   captureException,
 }: {
   options?: Partial<ConstructorParameters<typeof NftController>[0]>;
@@ -261,6 +263,7 @@ function setupController({
   displayNftMedia?: boolean;
   preferencesState?: PreferencesState & { openSeaEnabled?: boolean };
   publishInitialPreferences?: boolean;
+  callInit?: boolean;
   captureException?: (error: Error) => void;
 } = {}) {
   const messenger: RootMessenger = new Messenger({
@@ -437,7 +440,9 @@ function setupController({
     messenger: nftControllerMessenger,
     ...options,
   });
-  nftController.init();
+  if (callInit) {
+    nftController.init();
+  }
 
   const triggerPreferencesStateChange = (
     state: PreferencesState & { openSeaEnabled?: boolean },
@@ -607,6 +612,55 @@ describe('NftController', () => {
         displayNftMedia: true,
         ipfsGateway: 'https://persisted.example/ipfs/',
         isIpfsGatewayEnabled: false,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps NFT preferences from a state change that arrives before init', async () => {
+      const stalePreferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://stale.example/ipfs/',
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: false,
+      };
+      const eventPreferences = {
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://event.example/ipfs/',
+        isIpfsGatewayEnabled: true,
+        displayNftMedia: true,
+      };
+      const {
+        nftController,
+        nftControllerMessenger,
+        triggerPreferencesStateChange,
+        mockGetAccount,
+      } = setupController({
+        preferencesState: stalePreferences,
+        publishInitialPreferences: false,
+        callInit: false,
+      });
+      triggerPreferencesStateChange(eventPreferences);
+      const callSpy = vi.spyOn(nftControllerMessenger, 'call');
+
+      nftController.init();
+
+      expect(callSpy).not.toHaveBeenCalledWith(
+        'PreferencesController:getState',
+      );
+      const spy = vi.spyOn(nftController, 'updateNftMetadata');
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', 'mainnet', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerPreferencesStateChange(eventPreferences);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      triggerPreferencesStateChange({
+        ...eventPreferences,
+        ipfsGateway: 'https://changed.example/ipfs/',
       });
 
       expect(spy).toHaveBeenCalledTimes(1);

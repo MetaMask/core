@@ -1411,6 +1411,70 @@ describe('TokenListController', () => {
       expect(callCount).toBeGreaterThan(0);
       expect(call).toHaveBeenCalledTimes(callCount);
     });
+
+    it('reloads the token list cache on a later init when the first load fails', async () => {
+      const messenger = getMessenger();
+      const getAllKeys = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('storage unavailable'))
+        .mockResolvedValue([`tokensChainsCache:${ChainId.mainnet}`]);
+      messenger.unregisterActionHandler('StorageService:getAllKeys');
+      messenger.registerActionHandler('StorageService:getAllKeys', getAllKeys);
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const subscribeSpy = vi.spyOn(restrictedMessenger, 'subscribe');
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      const persistedCache: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: 1,
+      };
+      const tokenListStateChangeCount = (): number =>
+        subscribeSpy.mock.calls.filter(
+          ([eventName]) => eventName === 'TokenListController:stateChange',
+        ).length;
+
+      expect(await controller.init()).toBeUndefined();
+
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+      expect(getAllKeys).toHaveBeenCalledTimes(1);
+      expect(tokenListStateChangeCount()).toBe(0);
+
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        persistedCache,
+      );
+
+      await controller.init();
+
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toStrictEqual(
+        persistedCache,
+      );
+      expect(getAllKeys).toHaveBeenCalledTimes(2);
+      expect(tokenListStateChangeCount()).toBe(1);
+
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        {
+          data: sampleBinanceTokensChainsCache,
+          timestamp: 2,
+        },
+      );
+      await controller.init();
+
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toStrictEqual(
+        persistedCache,
+      );
+      expect(getAllKeys).toHaveBeenCalledTimes(2);
+      expect(tokenListStateChangeCount()).toBe(1);
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
   });
 
   describe('StorageService migration', () => {

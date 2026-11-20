@@ -125,6 +125,13 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #initPromise?: Promise<void>;
 
   /**
+   * True after a storage load (or the disabled-state reset) has finished.
+   * A failed load leaves this unset so {@link TokenListController.init} can
+   * try again.
+   */
+  #hasCompletedInit = false;
+
+  /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
    */
@@ -247,12 +254,26 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Initialize the controller by loading cache from storage and running
    * migration. Same as {@link TokenListController.initialize}, except that
-   * calling it more than once has no effect.
+   * calling it again has no effect once the load has succeeded. A failed
+   * storage load still resolves, and a later call retries the load and
+   * attaches the persist subscription.
    *
    * @returns A promise that resolves when initialization is complete.
    */
   async init(): Promise<void> {
-    this.#initPromise ??= this.initialize();
+    if (this.#hasCompletedInit) {
+      return;
+    }
+
+    if (!this.#initPromise) {
+      const initPromise = this.initialize().finally(() => {
+        if (!this.#hasCompletedInit && this.#initPromise === initPromise) {
+          this.#initPromise = undefined;
+        }
+      });
+      this.#initPromise = initPromise;
+    }
+
     await this.#initPromise;
   }
 
@@ -272,6 +293,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       try {
         if (this.#isDeprecated()) {
           await this.#enforceDisabledState();
+          this.#hasCompletedInit = true;
           return;
         }
 
@@ -283,8 +305,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
           (controllerState) => controllerState.tokensChainsCache,
         );
+        this.#hasCompletedInit = true;
       } catch {
-        // do nothing
+        // A failed load leaves `#hasCompletedInit` unset so `init` can retry.
       } finally {
         this.#initializePromise = undefined;
       }
@@ -481,6 +504,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         'TokenListController: Failed to load cache from storage:',
         error,
       );
+      // `initialize` swallows this so callers still resolve, and skips the
+      // persist subscription. `init` then retries the load.
+      throw error;
     }
   }
 

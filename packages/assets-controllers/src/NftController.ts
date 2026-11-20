@@ -493,7 +493,9 @@ export class NftController extends BaseController<
    * The constructor does not call other controllers, so it can run before they
    * are constructed. Until this is called, the selected account is read on
    * demand and the preference-backed options stay at their constructor
-   * defaults. A missing `PreferencesController:getState` is reported once.
+   * defaults. A `PreferencesController:stateChange` that arrives before this
+   * call is kept and is not overwritten by `PreferencesController:getState`.
+   * A missing `PreferencesController:getState` is reported once.
    * Calling this more than once has no effect.
    */
   init(): void {
@@ -594,6 +596,9 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
+    // A preference event is the source of truth, including one that arrives
+    // before `init`. Keep `init` from overwriting these values.
+    this.#nftPreferencesRead = true;
 
     const newDisplayNftMedia = Boolean(displayNftMedia || openSeaEnabled);
 
