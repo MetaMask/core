@@ -10,6 +10,10 @@ import type {
   RootMessenger,
 } from './initialization/defaults.js';
 import { initialize } from './initialization/initialization.js';
+import {
+  ConnectProviderRpcOptions,
+  connectProviderRpc,
+} from './json-rpc/engine.js';
 import { WalletOptions } from './types.js';
 
 export class Wallet {
@@ -139,6 +143,10 @@ export class Wallet {
         )
         .map(async (instance) => instance.init()),
     );
+  }
+
+  connectProviderRpc(options: Omit<ConnectProviderRpcOptions, 'messenger'>) {
+    return connectProviderRpc({ ...options, messenger: this.messenger });
   }
 
   /**
