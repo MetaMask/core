@@ -597,6 +597,7 @@ describe('parseRealtimeFeedItem', () => {
       createdAt: '2025-11-02T10:00:00.000Z',
       updatedAt: '2026-10-30T08:30:00.000Z',
       connectedToX: false,
+      verified: true,
       tradingPrivacy: 'private',
     };
     const value = {
@@ -620,6 +621,7 @@ describe('parseRealtimeFeedItem', () => {
     expect(item?.actor).not.toHaveProperty('createdAt');
     expect(item?.actor).not.toHaveProperty('updatedAt');
     expect(item?.actor).not.toHaveProperty('connectedToX');
+    expect(item?.actor).not.toHaveProperty('verified');
     expect(item?.actor).not.toHaveProperty('tradingPrivacy');
   });
 
