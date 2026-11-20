@@ -1,9 +1,9 @@
+import { SomeError } from '@metamask/auth-network-utils';
 import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
-import { SomeError } from '@metamask/auth-network-utils';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 import { describe, expect, it } from 'vitest';
