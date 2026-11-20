@@ -1404,7 +1404,10 @@ describe('metrics utils', () => {
     it('uses status_failed_without_reason and phase from hashes', () => {
       expect(
         getFailurePropertiesFromHistory({
-          status: { srcChain: { txHash: '0xsrc' } },
+          status: {
+            status: StatusTypes.FAILED,
+            srcChain: { chainId: 1, txHash: '0xsrc' },
+          },
         }),
       ).toStrictEqual({
         failure_phase: FailurePhase.SourceExecution,
@@ -1415,8 +1418,9 @@ describe('metrics utils', () => {
       expect(
         getFailurePropertiesFromHistory({
           status: {
-            srcChain: { txHash: '0xsrc' },
-            destChain: { txHash: '0xdest' },
+            status: StatusTypes.FAILED,
+            srcChain: { chainId: 1, txHash: '0xsrc' },
+            destChain: { chainId: 1, txHash: '0xdest' },
           },
         }),
       ).toStrictEqual({

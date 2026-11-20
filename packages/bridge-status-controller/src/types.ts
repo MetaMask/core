@@ -144,7 +144,7 @@ export type Operation = (typeof Operation)[keyof typeof Operation];
 
 export type NextAction = {
   // Subset of operations that can be performed after a tx
-  operation: Exclude<Operation, 'WITHDRAW'>;
+  operation: 'swap' | 'deposit'; //Exclude<Operation, typeof Operation.WITHDRAW>;
   partialQuote: Omit<QuoteResponseV1<Trade, Trade>, 'quote'>;
 };
 

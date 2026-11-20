@@ -113,7 +113,7 @@ export enum MetricsSwapType {
 export const MoneyAccountAction = {
   Withdraw: 'withdraw',
   Deposit: 'deposit',
-};
+} as const;
 export type MoneyAccountAction =
   (typeof MoneyAccountAction)[keyof typeof MoneyAccountAction];
 
