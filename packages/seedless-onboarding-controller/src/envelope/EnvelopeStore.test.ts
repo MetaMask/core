@@ -232,11 +232,11 @@ describe('EnvelopeStore', () => {
   });
 
   describe('control records', () => {
-    it('adds a control record to the vault partition under K_v', async () => {
+    it('adds a control record to the vault partition under K_v and the held lock', async () => {
       const { store, toprfClient } = createStore();
       const record = createRecord(1);
 
-      await store.writeControlRecord(vaultKeySet, record);
+      await store.writeControlRecord(vaultKeySet, record, 'held-lock-id');
 
       expect(toprfClient.batchAddSecretDataItems).toHaveBeenCalledWith({
         secretData: [
@@ -247,6 +247,7 @@ describe('EnvelopeStore', () => {
         ],
         encKey: vaultKeySet.encKey,
         authKeyPair: vaultKeySet.authKeyPair,
+        lockId: 'held-lock-id',
       });
       expect(toprfClient.addSecretDataItem).not.toHaveBeenCalled();
     });

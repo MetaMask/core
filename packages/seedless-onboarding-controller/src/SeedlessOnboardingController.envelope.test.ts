@@ -173,8 +173,10 @@ describe('SeedlessOnboardingController', () => {
      *
      * Metadata items are kept per partition (auth public key) and only
      * decrypt under the key they were written with. Like the Metadata
-     * Service, `addSecretDataItem` is rejected while the partition is locked
-     * and `batchAddSecretDataItems` requires the lock.
+     * Service, `addSecretDataItem` is rejected while the partition is locked.
+     * Like the SDK, `batchAddSecretDataItems` takes the lock itself, so it is
+     * rejected while the partition is locked, unless it is given the id of
+     * the held lock.
      *
      * @param toprfClient - The ToprfSecureBackup instance.
      * @param options - The options.
@@ -312,20 +314,28 @@ describe('SeedlessOnboardingController', () => {
           ),
         batchAddSecretDataItems: vi
           .spyOn(toprfClient, 'batchAddSecretDataItems')
-          .mockImplementation(async ({ encKey, authKeyPair, secretData }) => {
-            const partitionId = bytesToHex(authKeyPair.pk);
-            if (!lockedPartitions.has(partitionId)) {
-              throw new Error('partition is not locked');
-            }
-            secretData.forEach(({ data, itemId, dataType }, index) => {
-              const itemEncKey = Array.isArray(encKey) ? encKey[index] : encKey;
-              storeItem(
-                partitionId,
-                { encKey: bytesToHex(itemEncKey), dataType, data },
-                itemId,
-              );
-            });
-          }),
+          .mockImplementation(
+            async ({ encKey, authKeyPair, secretData, lockId }) => {
+              const partitionId = bytesToHex(authKeyPair.pk);
+              if (lockId === undefined) {
+                if (lockedPartitions.has(partitionId)) {
+                  throw new Error('partition is already locked');
+                }
+              } else if (lockedPartitions.get(partitionId) !== lockId) {
+                throw new Error('lock is not held');
+              }
+              secretData.forEach(({ data, itemId, dataType }, index) => {
+                const itemEncKey = Array.isArray(encKey)
+                  ? encKey[index]
+                  : encKey;
+                storeItem(
+                  partitionId,
+                  { encKey: bytesToHex(itemEncKey), dataType, data },
+                  itemId,
+                );
+              });
+            },
+          ),
         fetchAllSecretDataItems: vi
           .spyOn(toprfClient, 'fetchAllSecretDataItems')
           .mockImplementation(async ({ decKey, authKeyPair }) => {
@@ -1611,6 +1621,7 @@ describe('SeedlessOnboardingController', () => {
               ],
               encKey: vaultKeySet.encKey,
               authKeyPair: vaultKeySet.authKeyPair,
+              lockId: LOCK_ID,
             });
           });
         });
@@ -2786,6 +2797,7 @@ describe('SeedlessOnboardingController', () => {
             ],
             encKey: vaultKeySetFor().encKey,
             authKeyPair: vaultKeySetFor().authKeyPair,
+            lockId: LOCK_ID,
           });
           expect(network.spies.acquireMetadataLock).toHaveBeenCalledWith(
             vaultKeySetFor().authKeyPair,

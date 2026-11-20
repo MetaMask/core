@@ -979,12 +979,13 @@ export class SeedlessOnboardingController<
       },
     };
 
-    await this.#withMetadataLock(vaultKeySet.authKeyPair, async () => {
+    await this.#withMetadataLock(vaultKeySet.authKeyPair, async (lockId) => {
       await this.#assertGlobalAuthPubKeyUnchanged(globalAuthPubKey);
       await this.#writeAndVerifyEnvelope(sealed);
       await this.#envelopeStore.writeControlRecord(
         vaultKeySet,
         nextControlRecord,
+        lockId,
       );
 
       this.#assertIsAuthenticatedUser(this.state);
@@ -3024,34 +3025,41 @@ export class SeedlessOnboardingController<
   async #writeEnvelopeMigrationControlRecord(
     vaultKeySet: VaultKeySet,
   ): Promise<SEC1EncodedPublicKey> {
-    return await this.#withMetadataLock(vaultKeySet.authKeyPair, async () => {
-      const { authPubKey, keyIndex, controlRecords } =
-        await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
-      let records = controlRecords;
-      if (records.length === 0) {
-        this.#assertIsAuthenticatedUser(this.state);
-        const { authConnectionId, groupedAuthConnectionId, userId } =
-          this.state;
-        await this.#envelopeStore.writeControlRecord(vaultKeySet, {
-          v: 1,
-          seq: 1,
-          passwordNamespace: {
-            verifier: groupedAuthConnectionId ?? authConnectionId,
-            verifierId: userId,
-            authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
-            keyIndex,
-          },
-          migratedAt: Date.now(),
-        });
-        records = await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-      }
-      if (!selectControlRecord(records, authPubKey)) {
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
-        );
-      }
-      return authPubKey;
-    });
+    return await this.#withMetadataLock(
+      vaultKeySet.authKeyPair,
+      async (lockId) => {
+        const { authPubKey, keyIndex, controlRecords } =
+          await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
+        let records = controlRecords;
+        if (records.length === 0) {
+          this.#assertIsAuthenticatedUser(this.state);
+          const { authConnectionId, groupedAuthConnectionId, userId } =
+            this.state;
+          await this.#envelopeStore.writeControlRecord(
+            vaultKeySet,
+            {
+              v: 1,
+              seq: 1,
+              passwordNamespace: {
+                verifier: groupedAuthConnectionId ?? authConnectionId,
+                verifierId: userId,
+                authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
+                keyIndex,
+              },
+              migratedAt: Date.now(),
+            },
+            lockId,
+          );
+          records = await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+        }
+        if (!selectControlRecord(records, authPubKey)) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+          );
+        }
+        return authPubKey;
+      },
+    );
   }
 
   /**
@@ -3309,16 +3317,17 @@ export class SeedlessOnboardingController<
    * Run a callback while holding the metadata lock of a partition.
    *
    * @param authKeyPair - The auth key pair of the partition.
-   * @param callback - The callback.
+   * @param callback - The callback, given the lock id to pass to batch
+   * writes, which would otherwise try to acquire the lock again.
    * @returns The callback result.
    */
   async #withMetadataLock<Result>(
     authKeyPair: KeyPair,
-    callback: () => Promise<Result>,
+    callback: (lockId: string) => Promise<Result>,
   ): Promise<Result> {
     const lockId = await this.toprfClient.acquireMetadataLock(authKeyPair);
     try {
-      return await callback();
+      return await callback(lockId);
     } finally {
       await this.toprfClient
         .releaseMetadataLock(authKeyPair, lockId)
