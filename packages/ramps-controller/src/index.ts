@@ -91,6 +91,7 @@ export type {
   RampsControllerTransakGetActiveOrdersAction,
   RampsControllerTransakSubmitMicaConsentAction,
   RampsControllerTransakSubmitSourceOfIncomeAction,
+  RampsControllerTransakSubmitAdditionalDetailsNationalityAction,
   RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
@@ -276,6 +277,8 @@ export type {
   SubmitMicaConsentResponse,
   SubmitSourceOfIncomeRequest,
   SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityRequest,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 export {
   TransakApiError,

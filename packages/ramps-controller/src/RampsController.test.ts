@@ -15951,6 +15951,13 @@ describe('RampsController', () => {
             'RampsController:transakSubmitSourceOfIncome',
             '5000',
             'salary',
+          ),
+      },
+      {
+        name: 'transakSubmitAdditionalDetailsNationality',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitAdditionalDetailsNationality',
             'employed',
             'DE',
           ),

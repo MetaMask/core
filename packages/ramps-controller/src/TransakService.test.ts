@@ -1624,20 +1624,15 @@ describe('TransakService', () => {
           (body) =>
             body.monthlyVolume === '5000' &&
             body.sourceOfFundsType === 'salary' &&
-            body.employmentStatus === 'employed' &&
-            body.countryOfCitizenship === 'DE',
+            body.employmentStatus === undefined &&
+            body.countryOfCitizenship === undefined,
         )
         .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.submitSourceOfIncome(
-        '5000',
-        'salary',
-        'employed',
-        'DE',
-      );
+      const promise = service.submitSourceOfIncome('5000', 'salary');
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1645,27 +1640,22 @@ describe('TransakService', () => {
       expect(result).toEqual({ status: 'SUCCESS' });
     });
 
-    it('submits source of income with different employment status', async () => {
+    it('submits source of income with different type', async () => {
       nock(STAGING_TRANSAK_BASE)
         .post(
           '/api/v2/user/source-of-income',
           (body) =>
             body.monthlyVolume === '10000' &&
             body.sourceOfFundsType === 'business_income' &&
-            body.employmentStatus === 'self_employed' &&
-            body.countryOfCitizenship === 'FR',
+            body.employmentStatus === undefined &&
+            body.countryOfCitizenship === undefined,
         )
         .reply(200, { data: { status: 'SUCCESS' } });
 
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.submitSourceOfIncome(
-        '10000',
-        'business_income',
-        'self_employed',
-        'FR',
-      );
+      const promise = service.submitSourceOfIncome('10000', 'business_income');
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1676,7 +1666,7 @@ describe('TransakService', () => {
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(
-        service.submitSourceOfIncome('5000', 'salary', 'employed', 'DE'),
+        service.submitSourceOfIncome('5000', 'salary'),
       ).rejects.toThrow('Authentication required');
     });
 
@@ -1690,17 +1680,129 @@ describe('TransakService', () => {
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.submitSourceOfIncome(
-        '5000',
-        'invalid-type',
+      const promise = service.submitSourceOfIncome('5000', 'invalid-type');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '422'");
+    });
+  });
+
+  describe('submitAdditionalDetailsNationality', () => {
+    it('submits additional nationality details', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/kyc/additional-details-nationality',
+          (body) =>
+            body.employmentStatus === 'mid_level_employee' &&
+            body.countryOfCitizenship === 'DE',
+        )
+        .reply(200, { data: { status: 'SUBMITTED' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'mid_level_employee',
+        'DE',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUBMITTED' });
+    });
+
+    it('submits additional nationality details for a different country', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/kyc/additional-details-nationality',
+          (body) =>
+            body.employmentStatus === 'student' &&
+            body.countryOfCitizenship === 'FR',
+        )
+        .reply(200, { data: { status: 'SUBMITTED' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'student',
+        'FR',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUBMITTED' });
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitAdditionalDetailsNationality('employed', 'DE'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns error code 2034', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '2034', message: 'Invalid country selection' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
         'employed',
+        'XX',
+      );
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+
+    it('throws when the API returns error code 2035', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '2035', message: 'Invalid employment status' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'invalid',
         'DE',
       );
       promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
-      await expect(promise).rejects.toThrow("failed with status '422'");
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+
+    it('throws when the API returns error code 9001', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '9001', message: 'Invalid request payload input' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality('', '');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
     });
   });
 

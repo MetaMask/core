@@ -133,12 +133,11 @@ export type TransakAdditionalRequirementOption = {
 export type TransakAdditionalRequirement = {
   type: string;
   metadata?: {
-    options?: string[];
+    options?: TransakAdditionalRequirementOption[];
     documentProofOptions?: string[];
     expiresAt?: string;
     kycUrl?: string;
     workFlowRunId?: string;
-    sourceOfFundsTypeOptions?: TransakAdditionalRequirementOption[];
     employmentStatusOptions?: TransakAdditionalRequirementOption[];
     countryOfCitizenshipOptions?: TransakAdditionalRequirementOption[];
   };
@@ -303,12 +302,19 @@ export type SubmitMicaConsentResponse = {
 export type SubmitSourceOfIncomeRequest = {
   monthlyVolume: string;
   sourceOfFundsType: string;
-  employmentStatus: string;
-  countryOfCitizenship: string;
 };
 
 export type SubmitSourceOfIncomeResponse = {
   status: string;
+};
+
+export type SubmitAdditionalDetailsNationalityRequest = {
+  employmentStatus: string;
+  countryOfCitizenship: string;
+};
+
+export type SubmitAdditionalDetailsNationalityResponse = {
+  status: 'SUBMITTED' | 'FAILED';
 };
 
 // === ENVIRONMENT ===
@@ -386,6 +392,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getActiveOrders',
   'submitMicaConsent',
   'submitSourceOfIncome',
+  'submitAdditionalDetailsNationality',
 ] as const;
 
 /**
@@ -694,6 +701,10 @@ const WidgetUrlResponseStruct = looseObject({ widgetUrl: string() });
 const SubmitMicaConsentResponseStruct = looseObject({ status: string() });
 
 const SubmitSourceOfIncomeResponseStruct = looseObject({ status: string() });
+
+const SubmitAdditionalDetailsNationalityResponseStruct = looseObject({
+  status: string(),
+});
 
 /**
  * Wraps a struct in the `{ data }` envelope the Transak API gateway uses.
@@ -1727,8 +1738,6 @@ export class TransakService extends BaseDataService<
   async submitSourceOfIncome(
     monthlyVolume: string,
     sourceOfFundsType: string,
-    employmentStatus: string,
-    countryOfCitizenship: string,
   ): Promise<SubmitSourceOfIncomeResponse> {
     this.#ensureAccessToken();
     return this.#transakPost<SubmitSourceOfIncomeResponse>(
@@ -1738,6 +1747,20 @@ export class TransakService extends BaseDataService<
       {
         monthlyVolume,
         sourceOfFundsType,
+      },
+    );
+  }
+
+  async submitAdditionalDetailsNationality(
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitAdditionalDetailsNationalityResponse> {
+    this.#ensureAccessToken();
+    return this.#transakPost<SubmitAdditionalDetailsNationalityResponse>(
+      'submitAdditionalDetailsNationality',
+      '/api/v2/kyc/additional-details-nationality',
+      SubmitAdditionalDetailsNationalityResponseStruct,
+      {
         employmentStatus,
         countryOfCitizenship,
       },

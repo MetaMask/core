@@ -1032,13 +1032,23 @@ export type RampsControllerTransakSubmitMicaConsentAction = {
  *
  * @param monthlyVolume - Expected monthly transaction volume.
  * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
- * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
- * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
  * @returns The submission response containing the status.
  */
 export type RampsControllerTransakSubmitSourceOfIncomeAction = {
   type: `RampsController:transakSubmitSourceOfIncome`;
   handler: RampsController['transakSubmitSourceOfIncome'];
+};
+
+/**
+ * Submits additional nationality details for the authenticated user.
+ *
+ * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+ * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitAdditionalDetailsNationalityAction = {
+  type: `RampsController:transakSubmitAdditionalDetailsNationality`;
+  handler: RampsController['transakSubmitAdditionalDetailsNationality'];
 };
 
 /**
@@ -1111,4 +1121,5 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakCancelAllActiveOrdersAction
   | RampsControllerTransakGetActiveOrdersAction
   | RampsControllerTransakSubmitMicaConsentAction
-  | RampsControllerTransakSubmitSourceOfIncomeAction;
+  | RampsControllerTransakSubmitSourceOfIncomeAction
+  | RampsControllerTransakSubmitAdditionalDetailsNationalityAction;

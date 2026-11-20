@@ -157,6 +157,7 @@ import type {
   TransakServiceGetActiveOrdersAction,
   TransakServiceSubmitMicaConsentAction,
   TransakServiceSubmitSourceOfIncomeAction,
+  TransakServiceSubmitAdditionalDetailsNationalityAction,
 } from './TransakService-method-action-types.js';
 import type {
   TransakAccessToken,
@@ -175,6 +176,7 @@ import type {
   TransakOrder,
   SubmitMicaConsentResponse,
   SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
 import {
@@ -242,6 +244,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:getActiveOrders',
   'TransakService:submitMicaConsent',
   'TransakService:submitSourceOfIncome',
+  'TransakService:submitAdditionalDetailsNationality',
   'NeoBankService:getAutoramp',
   'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
@@ -1210,6 +1213,7 @@ type AllowedActions =
   | TransakServiceGetActiveOrdersAction
   | TransakServiceSubmitMicaConsentAction
   | TransakServiceSubmitSourceOfIncomeAction
+  | TransakServiceSubmitAdditionalDetailsNationalityAction
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
@@ -1529,6 +1533,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakGetActiveOrders',
   'transakSubmitMicaConsent',
   'transakSubmitSourceOfIncome',
+  'transakSubmitAdditionalDetailsNationality',
   'syncOrdersWithUserStorage',
 ] as const;
 
@@ -6000,15 +6005,11 @@ export class RampsController extends BaseController<
    *
    * @param monthlyVolume - Expected monthly transaction volume.
    * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
-   * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
-   * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
    * @returns The submission response containing the status.
    */
   async transakSubmitSourceOfIncome(
     monthlyVolume: string,
     sourceOfFundsType: string,
-    employmentStatus: string,
-    countryOfCitizenship: string,
   ): Promise<SubmitSourceOfIncomeResponse> {
     this.#assertNetworkAccessAllowed();
     try {
@@ -6016,6 +6017,28 @@ export class RampsController extends BaseController<
         'TransakService:submitSourceOfIncome',
         monthlyVolume,
         sourceOfFundsType,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits additional nationality details for the authenticated user.
+   *
+   * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+   * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitAdditionalDetailsNationality(
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitAdditionalDetailsNationalityResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitAdditionalDetailsNationality',
         employmentStatus,
         countryOfCitizenship,
       );
