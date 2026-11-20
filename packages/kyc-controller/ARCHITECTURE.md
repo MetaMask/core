@@ -182,9 +182,10 @@ touches `KycController` state.
   flight; an action always starts its own. An answer that arrives after a newer
   read started (or after `reset`) is dropped.
 - **Session authorization** lives in `src/ukyc/sessionAuthorization.ts`:
-  `startSession` opens or resumes the UKYC session, then wraps the
-  `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
-  both encryption schemas' `jwtChain`. It does not create a vendor customer.
+  a new session opened by `startSession` wraps the `data_encryption_key` and a
+  `ukyc_capability_token` for idOS after verifying both encryption schemas'
+  `jwtChain`. A session kyc-api already has is picked up as it is. It does not
+  create a vendor customer.
 - **Injected adapters.** `vendorRequestSigners` signs Kalshi calls
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
   key into `{ path, headers, body }` objects, where `body` is the exact signed

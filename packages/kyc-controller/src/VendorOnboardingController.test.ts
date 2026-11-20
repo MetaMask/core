@@ -1144,8 +1144,8 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it.each(['new', 'expired'])(
-      'sends fresh authorizations when the session says they are %s',
+    it.each(['new', 'expired', 'stored'])(
+      'does not refresh authorizations when the session says they are %s',
       async (capabilityAuthorizationStatus) => {
         await withController(async ({ controller, handlers }) => {
           handlers.getSessionStatusForVendor.mockResolvedValue({
@@ -1155,29 +1155,12 @@ describe('VendorOnboardingController', () => {
 
           await controller.startSession({ vendor: 'kalshi' });
 
-          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
-            sessionId: 'sid-1',
-            sessionClientPublicKey: expect.any(String),
-          });
-          expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
         });
       },
     );
-
-    it('leaves authorizations alone once KYC has finished', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue({
-          ...SESSION_STATUS,
-          finalStatus: 'approved',
-          capabilityAuthorizationStatus: 'expired',
-        });
-
-        await controller.startSession({ vendor: 'kalshi' });
-
-        expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
-      });
-    });
 
     it('needs an AAL2 token to create a session', async () => {
       await withController(async ({ controller, handlers }) => {

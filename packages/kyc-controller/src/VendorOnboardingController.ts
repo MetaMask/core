@@ -20,11 +20,7 @@ import {
   isSumSubSubmissionStatus,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
-import {
-  KYC_SIGNED_REQUEST_LIMITS,
-  KYC_VENDOR_SIGN_PATHS,
-  needsCapabilityAuthorizationRefresh,
-} from './types.js';
+import { KYC_SIGNED_REQUEST_LIMITS, KYC_VENDOR_SIGN_PATHS } from './types.js';
 import type {
   KycClientContext,
   KycConsentRecord,
@@ -37,10 +33,7 @@ import type {
   KycStepStatus,
 } from './types.js';
 import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
-import {
-  createUkycSession,
-  refreshAuthorizations,
-} from './ukyc/sessionAuthorization.js';
+import { createUkycSession } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 
 // === GENERAL ===
@@ -296,9 +289,7 @@ export class VendorOnboardingController extends BaseController<
    *
    * A new session creates the user's `local_user_secret` when it is missing,
    * then wraps the encryption key and a capability token for idOS. An existing
-   * session only gets fresh authorizations if its status says they are
-   * `new` or `expired`, so a reinstall or a second device carries on where the
-   * user left off.
+   * session is picked up as it is: its authorizations are left alone.
    *
    * This does not create a vendor customer. A vendor that needs one before
    * its session (Iron) adds that when it moves to this controller.
@@ -330,13 +321,6 @@ export class VendorOnboardingController extends BaseController<
 
     if (existing) {
       this.#write(vendor, { sessionId: existing.id });
-      if (needsCapabilityAuthorizationRefresh(existing)) {
-        await refreshAuthorizations({
-          messenger: this.messenger,
-          localUserSecretStore: this.#localUserSecretStore,
-          sessionId: existing.id,
-        });
-      }
       return this.#readStep(vendor, { supersede: true });
     }
 

@@ -43,9 +43,7 @@ export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
  *
  * A new session creates the user's `local_user_secret` when it is missing,
  * then wraps the encryption key and a capability token for idOS. An existing
- * session only gets fresh authorizations if its status says they are
- * `new` or `expired`, so a reinstall or a second device carries on where the
- * user left off.
+ * session is picked up as it is: its authorizations are left alone.
  *
  * This does not create a vendor customer. A vendor that needs one before
  * its session (Iron) adds that when it moves to this controller.
