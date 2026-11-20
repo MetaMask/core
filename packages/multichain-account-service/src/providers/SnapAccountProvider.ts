@@ -329,7 +329,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return this.withKeyringV2<SnapKeyringV2, CallbackResult>(
       {
         filter: (keyring) =>
-          isSnapKeyring(keyring) && keyring.snapId === this.snapId,
+          // `@metamask/eth-snap-keyring` still depends on its own copy of
+          // `@metamask/snaps-sdk`, so its `SnapId` is a different branded type.
+          isSnapKeyring(keyring) && String(keyring.snapId) === this.snapId,
       },
       (args) => operation(args),
     );
