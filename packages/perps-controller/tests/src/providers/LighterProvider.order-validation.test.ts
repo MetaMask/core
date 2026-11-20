@@ -562,6 +562,70 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('market order market status', () => {
+    const marketOrder = {
+      symbol: 'BTC',
+      isBuy: true,
+      orderType: 'market' as const,
+      size: '0.001',
+    };
+
+    it('refreshes metadata and refuses a market order once the market is no longer active', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await provider.getMarkets();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      expect(await provider.validateOrder(marketOrder)).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(await provider.placeOrder(marketOrder)).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('keeps a reduce-only market close available on an inactive market', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      const validation = await provider.validateOrder({
+        ...marketOrder,
+        reduceOnly: true,
+      });
+
+      expect(validation.error).not.toBe(PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN);
+    });
+  });
+
+  describe('validateOrder leverage and price bounds', () => {
+    it.each([
+      [{ leverage: 0 }, 'Invalid leverage'],
+      [{ leverage: -2 }, 'Invalid leverage'],
+      [{ price: 'Infinity' }, 'Invalid limit price'],
+    ])('rejects %o', async (overrides, error) => {
+      const { provider, calls } = buildProvider();
+
+      const validation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'limit',
+        price: '90000',
+        size: '0.001',
+        ...overrides,
+      });
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain(error);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
   describe('round-9 finite-positive intent parity', () => {
     it('rejects non-finite size, usdAmount, and leverage in validateOrder and placeOrder before any signer call', async () => {
       const { provider, calls } = buildProvider();
@@ -2084,6 +2148,55 @@ describe('LighterProvider', () => {
       expect(marketPlacement.success).toBe(true);
     });
 
+    it('resolves the canonical symbol on a cold strict open-orders snapshot', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const orderIndex = venue.seedTrigger('stop-loss', '80000');
+      expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
+
+      const orders = await provider.getOpenOrders({
+        throwOnUnavailable: true,
+      });
+
+      expect(orders).toMatchObject([
+        { symbol: 'BTC', orderId: String(orderIndex) },
+      ]);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a strict open-orders snapshot with an unknown market ID', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      venue.rawTriggers[0].marketIndex = 999;
+
+      await expect(
+        provider.getOpenOrders({ throwOnUnavailable: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads a confirmed missing account as empty without swallowing outages', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const options = { throwOnUnavailable: true } as const;
+
+      expect(await provider.getOpenOrders(options)).toStrictEqual([]);
+      clientInstance.getAccountsByL1Address.mockRejectedValueOnce(
+        new Error('lookup offline'),
+      );
+      await expect(provider.getOpenOrders(options)).rejects.toThrow(
+        'lookup offline',
+      );
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+    });
+
     it('preserves subscriber state when channel setup hits a capability gate', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,
@@ -2553,9 +2666,10 @@ describe('LighterProvider', () => {
       // External switch: nothing else observes it before the response lands.
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseResponse({ code: 200, accounts: [ACCOUNT] });
-      const result = await delayedRead;
-      // Cancelled → empty state, never account A's balances.
-      expect(result.totalBalance).toBe('0');
+      // Cancelled → stale, never account A's balances or an invented zero.
+      await expect(delayedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
     it('a delayed cross margin metadata read never surfaces the old account', async () => {
@@ -2583,12 +2697,12 @@ describe('LighterProvider', () => {
       await metadataReadStarted;
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseMetadata();
-      const result = await delayedRead;
-      expect(result.totalBalance).toBe('0');
-      expect(result).not.toHaveProperty('crossMarginSummary');
+      await expect(delayedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
-    it('getOpenOrders returns nothing when the account switches between index and token', async () => {
+    it('getOpenOrders rejects as stale when the account switches between index and token', async () => {
       const { provider, clientInstance, getUserAddressMock, bridge } =
         buildProvider({ configuredAccountIndex: null });
       clientInstance.getAccountsByL1Address.mockImplementation(
@@ -2616,8 +2730,9 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseToken();
-      const orders = await readUnderA;
-      expect(orders).toStrictEqual([]);
+      await expect(readUnderA).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
       // The A index + fresh token pairing never reached the venue.
       expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
     });
@@ -2643,9 +2758,10 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseOpen({ code: 200, orders: [] });
-      const orders = await mergedRead;
       // The merge is refused outright — no A-historical leakage.
-      expect(orders).toStrictEqual([]);
+      await expect(mergedRead).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
     });
 
     it('a paused write never signs after ALL accounts are deselected', async () => {
@@ -3472,14 +3588,14 @@ describe('LighterProvider', () => {
           asset: 'UNKNOWN',
         }),
       ).rejects.toThrow('maintenance margin metadata unavailable');
-      // Malformed inputs report the explicit zero contract.
-      expect(
-        await provider.calculateLiquidationPrice({
+      // Malformed inputs have no liquidation price.
+      await expect(
+        provider.calculateLiquidationPrice({
           entryPrice: 0,
           leverage: 10,
           direction: 'long',
         }),
-      ).toBe('0.00');
+      ).rejects.toThrow(PERPS_ERROR_CODES.PRICE_UNAVAILABLE);
       await expect(
         provider.calculateLiquidationPrice({
           entryPrice: 100,
@@ -3488,7 +3604,9 @@ describe('LighterProvider', () => {
           marginType: 'cross',
           asset: 'BTC',
         }),
-      ).rejects.toThrow('cross-margin liquidation previews');
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
+      });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

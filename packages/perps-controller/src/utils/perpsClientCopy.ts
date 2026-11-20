@@ -415,6 +415,15 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.spotPairNotFound',
     defaultMessage: 'Trading pair is not available at this time.',
   },
+  [PERPS_ERROR_CODES.ORDERS_FAILED]: {
+    key: 'perps.errors.ordersFailed',
+    defaultMessage: 'Unable to load orders. Please refresh and try again.',
+  },
+  [PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE]: {
+    key: 'perps.errors.liquidationPriceUnavailable',
+    defaultMessage:
+      'A liquidation price estimate is unavailable for this order.',
+  },
   [PERPS_ERROR_CODES.PRICE_UNAVAILABLE]: {
     key: 'perps.errors.priceUnavailable',
     defaultMessage: 'Price data is unavailable. Please refresh and try again.',

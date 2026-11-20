@@ -319,22 +319,6 @@ export type RecoveryIdentifiers = {
 };
 
 /**
- * Authenticates the MetaMask profile and issues request-bound attestations.
- */
-export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
-  /**
-   * Returns the Auth API's approval and current recovery identifiers.
-   * `requireTwoFactor` requests recent AAL2 authentication.
-   */
-  authorizeRecoveryRequest: (params: {
-    requestHash: string;
-    audiences: string[];
-    requireTwoFactor?: boolean;
-  }) => Promise<RecoveryApproval>;
-};
-
-/**
  * Per-profile recovery lease. It must outlive the approvals requested right
  * after acquiring it. Acquiring a held lease again extends it.
  */

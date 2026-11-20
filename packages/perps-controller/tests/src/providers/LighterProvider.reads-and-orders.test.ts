@@ -14,6 +14,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsProvider,
+  PerpsProviderType,
 } from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
@@ -34,7 +35,14 @@ import type {
   BuiltProvider,
   MockClientInstance,
 } from '../../helpers/lighterProvider.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../../helpers/providerMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 vi.mock(
   import('../../../src/services/LighterClientService'),
@@ -904,6 +912,41 @@ describe('LighterProvider', () => {
       expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
     });
 
+    it('rejects position reads when the venue omits the bound account', async () => {
+      const { provider, clientInstance } = buildProvider();
+      await provider.getPositions();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [],
+      });
+
+      await expect(provider.getPositions()).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+    });
+
+    it('rejects position reads when the account omits positions', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const { positions: _positions, ...withoutPositions } = ACCOUNT;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [withoutPositions],
+      });
+
+      await expect(provider.getPositions()).rejects.toThrow(
+        'Invalid Lighter venue data: REST positions missing',
+      );
+    });
+
+    it('returns an empty position list for an explicitly empty account', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, positions: [] }],
+      });
+      expect(await provider.getPositions()).toStrictEqual([]);
+    });
+
     it('returns adapted account state', async () => {
       const { provider } = buildProvider();
       const state = await provider.getAccountState();
@@ -1023,11 +1066,15 @@ describe('LighterProvider', () => {
       });
     });
 
-    it('returns empty account state on failure', async () => {
+    it('throws ACCOUNT_STATE_FAILED with the cause instead of a zero balance on failure', async () => {
       const { provider, clientInstance } = buildProvider();
-      clientInstance.getAccountByIndex.mockRejectedValue(new Error('down'));
-      const state = await provider.getAccountState();
-      expect(state.totalBalance).toBe('0');
+      const cause = new Error('down');
+      clientInstance.getAccountByIndex.mockRejectedValue(cause);
+      const read = provider.getAccountState();
+      await expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+      );
+      await expect(read).rejects.toHaveProperty('cause', cause);
     });
 
     it('attaches the cross margin summary from the account positions', async () => {
@@ -1087,22 +1134,16 @@ describe('LighterProvider', () => {
       expect(strictState).not.toHaveProperty('crossMarginSummary');
     });
 
-    it('keeps the account state without a summary when the response omits positions', async () => {
+    it('rejects a response without positions instead of reading zero PnL', async () => {
       const { provider, clientInstance } = buildProvider();
       const { positions: _positions, ...withoutPositions } = ACCOUNT;
       clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
         accounts: [withoutPositions],
       });
-      const state = await provider.getAccountState();
-      expect(state.totalBalance).toBe('10000');
-      expect(state).not.toHaveProperty('crossMarginSummary');
-      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
-      const strictState = await provider.getAccountState({
-        throwOnUnavailable: true,
-      });
-      expect(strictState.totalBalance).toBe('10000');
-      expect(strictState).not.toHaveProperty('crossMarginSummary');
+      await expect(provider.getAccountState()).rejects.toThrow(
+        'Invalid Lighter venue data: REST positions missing',
+      );
     });
 
     describe('with throwOnUnavailable', () => {
@@ -1131,20 +1172,46 @@ describe('LighterProvider', () => {
           code: 200,
           accounts: [],
         });
-        expect((await provider.getAccountState()).totalBalance).toBe('0');
+        await expect(provider.getAccountState()).rejects.toThrow(
+          PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+        );
         await expect(
           provider.getAccountState({ throwOnUnavailable: true }),
         ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
       });
 
-      it('keeps balances without a summary when margin metadata for the summary is unavailable', async () => {
+      it('keeps an aggregated venue balance when its optional margin metadata is unavailable', async () => {
         const { provider, clientInstance } = buildProvider();
         clientInstance.getOrderBookDetails.mockRejectedValue(new Error('down'));
-        const state = await provider.getAccountState({
-          throwOnUnavailable: true,
+        const hyperliquid = createMockHyperLiquidProvider();
+        hyperliquid.getAccountState.mockResolvedValue({
+          totalBalance: '250',
+          spendableBalance: '250',
+          withdrawableBalance: '250',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
         });
-        expect(state.totalBalance).toBe('10500');
-        expect(state).not.toHaveProperty('crossMarginSummary');
+        const aggregate = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', hyperliquid],
+            ['lighter', provider],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: createMockInfrastructure(),
+        });
+
+        const state = await aggregate.getAccountState();
+
+        expect(state.totalBalance).toBe('10750');
+        expect(state.aggregate).toMatchObject({ status: 'complete' });
+        expect(state.providerStates?.lighter).toMatchObject({
+          status: 'available',
+          state: { totalBalance: '10500' },
+        });
+        expect(state.providerStates?.lighter).not.toHaveProperty(
+          'state.crossMarginSummary',
+        );
       });
 
       it('still reads a wallet without a Lighter account as empty', async () => {
@@ -1160,6 +1227,7 @@ describe('LighterProvider', () => {
           throwOnUnavailable: true,
         });
         expect(state.totalBalance).toBe('0');
+        expect(await provider.getPositions()).toStrictEqual([]);
       });
 
       it('surfaces malformed venue numbers unwrapped', async () => {
@@ -1185,6 +1253,64 @@ describe('LighterProvider', () => {
         'Invalid Lighter venue data',
       );
     });
+
+    it('keeps Hyperliquid orders when the wallet has no Lighter account', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+
+      const hyperliquid = createMockHyperLiquidProvider();
+      const order = createMockOrder({ providerId: 'hyperliquid' });
+      hyperliquid.getOpenOrders.mockResolvedValue([order]);
+      hyperliquid.getOrders.mockResolvedValue([order]);
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hyperliquid],
+          ['lighter', provider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: createMockInfrastructure(),
+      });
+
+      expect(await aggregated.getOpenOrders()).toStrictEqual([order]);
+      expect(await aggregated.getOrders()).toStrictEqual([order]);
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+      expect(clientInstance.getInactiveOrders).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'getOpenOrders',
+      'getOrders',
+      'getPositions',
+      'getAccountState',
+    ] as const)(
+      '%s rejects a no-account response from a disconnected session',
+      async (read) => {
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+        });
+        const lookup = createDeferred<never>();
+        const started = createDeferred<void>();
+        clientInstance.getAccountsByL1Address.mockImplementationOnce(() => {
+          started.resolve();
+          return lookup.promise;
+        });
+
+        const result = provider[read]();
+        await started.promise;
+        await provider.disconnect();
+        lookup.reject(new LighterApiError('account not found', 21100));
+
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+      },
+    );
 
     it('returns open orders through the auth-token path', async () => {
       const { provider, clientInstance } = buildProvider();
@@ -1230,6 +1356,61 @@ describe('LighterProvider', () => {
         'Invalid Lighter venue data',
       );
     });
+
+    it('throws ORDERS_FAILED with the cause instead of [] when the open-orders read fails', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const cause = new Error('down');
+      clientInstance.getActiveOrders.mockRejectedValue(cause);
+
+      const read = provider.getOpenOrders();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', cause);
+    });
+
+    it('throws ORDERS_FAILED instead of [] when the order-history read fails', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const cause = new Error('down');
+      clientInstance.getInactiveOrders.mockRejectedValue(cause);
+
+      const read = provider.getOrders();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', cause);
+    });
+
+    it('keeps ORDERS_FAILED from the open-orders leg of the order history', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [],
+      });
+      clientInstance.getActiveOrders.mockRejectedValue(new Error('down'));
+
+      await expect(provider.getOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+
+    it.each([
+      ['entry price', { entryPrice: 0, leverage: 5 }, 'PRICE_UNAVAILABLE'],
+      [
+        'leverage',
+        { entryPrice: 100, leverage: Number.NaN },
+        'ORDER_LEVERAGE_INVALID',
+      ],
+    ])(
+      'throws instead of returning 0.00 for an invalid %s',
+      async (_label, input, code) => {
+        const { provider } = buildProvider();
+        await expect(
+          provider.calculateLiquidationPrice({
+            ...input,
+            direction: 'long',
+            asset: 'BTC',
+            marginType: 'isolated',
+          }),
+        ).rejects.toThrow(code);
+      },
+    );
 
     it('builds a CAIP account id from the L1 address', async () => {
       const { provider } = buildProvider();
@@ -2586,6 +2767,37 @@ describe('LighterProvider', () => {
       expect(
         calls.find((call) => call.function === '_signCreateOrder')?.params[3],
       ).toBe('1');
+    });
+
+    it('sizes a reduce-only close without adapting another market’s leverage', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const btc = ACCOUNT.positions[0];
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              btc,
+              {
+                ...btc,
+                symbol: 'ETH',
+                marketId: btc.marketId + 1,
+                initialMarginFraction: 'unavailable',
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(
+        await provider.validateClosePosition({ symbol: 'BTC' }),
+      ).toMatchObject({
+        isValid: true,
+      });
+      expect(await provider.closePosition({ symbol: 'BTC' })).toMatchObject({
+        success: true,
+      });
     });
 
     it('does not apply maker minimums to a dust market full close', async () => {

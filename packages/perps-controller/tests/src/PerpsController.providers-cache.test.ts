@@ -1268,6 +1268,7 @@ describe('PerpsController', () => {
             subscriptionBuilderAddressTestnet: undefined,
             subscriptionBuilderAddressMainnet: undefined,
             onChaseOrderMaxDistanceReached: expect.any(Function),
+            getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
@@ -3920,6 +3921,80 @@ describe('PerpsController', () => {
           status: 'complete',
           availableProviders: ['hyperliquid', 'lighter'],
           unavailableProviders: [],
+        },
+      });
+    });
+
+    it('clears a previously cached balance for an unavailable venue during aggregated preload', async () => {
+      const lighterAccount: AccountState = {
+        totalBalance: '200',
+        spendableBalance: '200',
+        withdrawableBalance: '200',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId: 'lighter',
+      };
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          address: mockEvmAccount.address,
+          accountState: { ...lighterAccount, providerId: 'hyperliquid' },
+          timestamp: Date.now(),
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+          positions: [],
+          orders: [],
+        };
+      });
+      vi.spyOn(preloadController, 'getPositions').mockResolvedValue([
+        lighterPosition,
+      ]);
+      vi.spyOn(preloadController, 'getOpenOrders').mockResolvedValue([]);
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        ...lighterAccount,
+        providerId: undefined,
+        providerStates: {
+          hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toBeNull();
+      expect(cache['lighter:mainnet'].positions).toStrictEqual([
+        lighterPosition,
+      ]);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '200',
+        aggregate: {
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
         },
       });
     });
