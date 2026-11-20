@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose the confirmed Hyperliquid `AccountState.accountMode` and optional `includeSnapshotStatus` on direct Hyperliquid position and order subscriptions. Opted-in callbacks wait for complete wallet and connection coverage of their own channel. ([TAT-4746](https://consensyssoftware.atlassian.net/browse/TAT-4746))
+- Expose the confirmed Hyperliquid `AccountState.accountMode` and optional `includeSnapshotStatus` on direct Hyperliquid position and order subscriptions. Opted-in callbacks wait for complete wallet and connection coverage of their own channel. ([TAT-4746](https://consensyssoftware.atlassian.net/browse/TAT-4746)) ([#11695](https://github.com/MetaMask/core/pull/11695))
 - Add `PerpsController.resolveWithdrawalRoute` (messenger action `PerpsController:resolveWithdrawalRoute`) to report which venue a withdrawal will sign on, using the same provider resolution and `PROVIDER_ROUTE_REQUIRED` refusal as `withdraw` ([#11676](https://github.com/MetaMask/core/pull/11676))
   - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use complete current-wallet Hyperliquid streams to price Cross openings without repeat account requests. Incomplete streams still use fresh venue reads. ([TAT-4746](https://consensyssoftware.atlassian.net/browse/TAT-4746))
+- Use complete current-wallet Hyperliquid streams to price Cross openings without repeat account requests. Incomplete streams still use fresh venue reads. ([TAT-4746](https://consensyssoftware.atlassian.net/browse/TAT-4746)) ([#11695](https://github.com/MetaMask/core/pull/11695))
 - Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins ([#11676](https://github.com/MetaMask/core/pull/11676))
 
 ## [25.0.0]
