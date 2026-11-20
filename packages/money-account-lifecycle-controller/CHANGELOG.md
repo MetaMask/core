@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `diagnostics` to the controller state, included in state logs and persisted, recording what the controller did recently for debugging ([#11648](https://github.com/MetaMask/core/pull/11648))
+- Add an optional `log` hook, which receives every `MoneyAccountLifecycleLogEntry`, for example to forward them to error monitoring; entries never contain addresses ([#11648](https://github.com/MetaMask/core/pull/11648))
+- Add `MoneyAccountLifecycleError` and `MoneyAccountLifecycleErrorCode`; every error the controller throws itself is now a `MoneyAccountLifecycleError` with a `code` ([#11648](https://github.com/MetaMask/core/pull/11648))
+- Export `getDefaultMoneyAccountLifecycleDiagnostics`, `MAX_DIAGNOSTICS_HISTORY_LENGTH` and the diagnostics and log entry types ([#11648](https://github.com/MetaMask/core/pull/11648))
+
 ### Changed
 
+- Remove addresses from the messages of the errors `startMigration` throws, so they are safe to report to error monitoring ([#11648](https://github.com/MetaMask/core/pull/11648))
+- Only update `addressRegistrations` when a registration status changes ([#11648](https://github.com/MetaMask/core/pull/11648))
 - Bump `@metamask/subscription-controller` from `^15.2.2` to `^15.3.0` ([#11594](https://github.com/MetaMask/core/pull/11594), [#11611](https://github.com/MetaMask/core/pull/11611))
 
 ## [1.1.0]

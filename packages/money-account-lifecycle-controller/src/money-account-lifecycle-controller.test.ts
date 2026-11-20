@@ -14,6 +14,7 @@ import {
   flushPromises,
   withController,
 } from '../tests/helpers.js';
+import { getDefaultMoneyAccountLifecycleDiagnostics } from './diagnostics.js';
 import { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
 
 describe('MoneyAccountLifecycleController', () => {
@@ -23,12 +24,22 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state).toStrictEqual({
           moneyAccounts: {},
           addressRegistrations: {},
+          diagnostics: getDefaultMoneyAccountLifecycleDiagnostics(),
         });
       });
     });
 
     it('accepts initial state', async () => {
       const state = {
+        diagnostics: {
+          ...getDefaultMoneyAccountLifecycleDiagnostics(),
+          history: [
+            {
+              type: 'mpcMoneyAccountSetAsDefault' as const,
+              timestamp: 1,
+            },
+          ],
+        },
         moneyAccounts: {
           [MONEY_ACCOUNT_KEY]: {
             type: 'sfa' as const,
@@ -502,6 +513,17 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state).toStrictEqual({
           moneyAccounts: {},
           addressRegistrations: {},
+          diagnostics: {
+            ...getDefaultMoneyAccountLifecycleDiagnostics(),
+            history: [
+              {
+                type: 'stateCleared',
+                upgradeWasInFlight: false,
+                migrationWasInFlight: false,
+                timestamp: expect.any(Number),
+              },
+            ],
+          },
         });
       });
     });
@@ -706,6 +728,25 @@ describe('MoneyAccountLifecycleController', () => {
         ).toMatchInlineSnapshot(`
           {
             "addressRegistrations": {},
+            "diagnostics": {
+              "history": [],
+              "identitiesFetch": {
+                "failingSince": null,
+                "identityCount": null,
+                "lastFailure": null,
+                "succeedingSince": null,
+              },
+              "migration": {
+                "consecutiveFailures": 0,
+                "lastAttempt": null,
+                "lastFailure": null,
+              },
+              "upgrade": {
+                "consecutiveFailures": 0,
+                "lastAttempt": null,
+                "lastFailure": null,
+              },
+            },
             "moneyAccounts": {},
           }
         `);
@@ -723,6 +764,25 @@ describe('MoneyAccountLifecycleController', () => {
         ).toMatchInlineSnapshot(`
           {
             "addressRegistrations": {},
+            "diagnostics": {
+              "history": [],
+              "identitiesFetch": {
+                "failingSince": null,
+                "identityCount": null,
+                "lastFailure": null,
+                "succeedingSince": null,
+              },
+              "migration": {
+                "consecutiveFailures": 0,
+                "lastAttempt": null,
+                "lastFailure": null,
+              },
+              "upgrade": {
+                "consecutiveFailures": 0,
+                "lastAttempt": null,
+                "lastFailure": null,
+              },
+            },
             "moneyAccounts": {},
           }
         `);

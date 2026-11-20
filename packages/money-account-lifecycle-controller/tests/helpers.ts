@@ -35,6 +35,7 @@ import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import type { MoneyAccountLifecycleLogEntry } from '../src/diagnostics.js';
 import type { MoneyAccountLifecycle } from '../src/get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from '../src/money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from '../src/money-account-lifecycle-controller.js';
@@ -236,6 +237,7 @@ type Mocks = {
   >;
   setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
+  log: Mock<(entry: MoneyAccountLifecycleLogEntry) => void>;
   captureException: Mock<(error: Error) => void>;
 };
 
@@ -262,6 +264,16 @@ export function getLifecycle(
   controller: MoneyAccountLifecycleController,
 ): MoneyAccountLifecycle | undefined {
   return controller.state.moneyAccounts[MONEY_ACCOUNT_KEY];
+}
+
+/**
+ * Lists the types of the entries passed to the `log` hook, in order.
+ *
+ * @param log - The `log` hook mock.
+ * @returns The logged event types.
+ */
+export function getLoggedTypes(log: Mocks['log']): string[] {
+  return log.mock.calls.map(([entry]) => entry.type);
 }
 
 export async function flushPromises(): Promise<void> {
@@ -447,6 +459,7 @@ export async function withController<ReturnValue>(
     isEnabled: vi
       .fn<(remoteFeatureFlags: FeatureFlags) => boolean>()
       .mockImplementation(() => gates.isEnabled),
+    log: vi.fn<(entry: MoneyAccountLifecycleLogEntry) => void>(),
     captureException: vi.fn<(error: Error) => void>(),
   };
 
@@ -545,7 +558,7 @@ export async function withController<ReturnValue>(
   const messenger = getMessenger(rootMessenger);
   const controller = new MoneyAccountLifecycleController({
     messenger,
-    hooks: { isEnabled: mocks.isEnabled },
+    hooks: { isEnabled: mocks.isEnabled, log: mocks.log },
     ...options,
   });
 

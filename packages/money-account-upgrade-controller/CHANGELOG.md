@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Include `upgradedAccounts` in state logs ([#11648](https://github.com/MetaMask/core/pull/11648))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/money-account-utils` from `^2.2.0` to `^2.2.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))

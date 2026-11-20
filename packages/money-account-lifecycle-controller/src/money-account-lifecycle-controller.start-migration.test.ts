@@ -19,11 +19,14 @@ import {
   MIGRATING_IDENTITY,
   MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
   SUBSCRIPTION_DELEGATION_HASH,
-  SUCCESSOR_ADDRESS,
   buildLinkedIdentityResponse,
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
+import {
+  MoneyAccountLifecycleError,
+  MoneyAccountLifecycleErrorCode,
+} from './errors.js';
 
 function buildCryptoSubscription(payerAddress: Hex): Subscription {
   return {
@@ -77,7 +80,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
           await expect(controller.startMigration()).rejects.toThrow(
-            `Money Account ${MONEY_ACCOUNT_ADDRESS} is migrating to ${SUCCESSOR_ADDRESS}, which is not the MPC Money Account of this wallet`,
+            'The Money Account is migrating to an address that is not the MPC Money Account of this wallet',
           );
 
           expect(getLifecycle(controller)).toStrictEqual({
@@ -138,7 +141,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
           await expect(controller.startMigration()).rejects.toThrow(
-            `Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be migrated while it is '${type}'`,
+            `The Money Account cannot be migrated while it is '${type}'`,
           );
           expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
         });
@@ -166,7 +169,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
           await expect(controller.startMigration()).rejects.toThrow(
-            `Money Account ${MONEY_ACCOUNT_ADDRESS} belongs to more than one identity`,
+            'The Money Account belongs to more than one identity',
           );
           expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
         });
@@ -530,7 +533,10 @@ describe('MoneyAccountLifecycleController', () => {
           await vi.advanceTimersByTimeAsync(2000);
 
           expect(await migration).toStrictEqual(
-            new Error('Money Account migration is not available'),
+            new MoneyAccountLifecycleError(
+              MoneyAccountLifecycleErrorCode.MigrationNotAvailable,
+              'Money Account migration is not available',
+            ),
           );
           expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
@@ -781,7 +787,7 @@ describe('MoneyAccountLifecycleController', () => {
               mocks.getSubscriptions.mockResolvedValue(subscriptions);
 
               await expect(controller.startMigration()).rejects.toThrow(
-                `The premium migration of Money Account ${MONEY_ACCOUNT_ADDRESS} needs an active Money Account Plus subscription paid in crypto by it or by ${MFA_ACCOUNT_ADDRESS}`,
+                'The premium migration of the Money Account needs an active Money Account Plus subscription paid in crypto by it or by its successor',
               );
               expect(mocks.prepareDelegation).not.toHaveBeenCalled();
               expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
@@ -1020,7 +1026,7 @@ describe('MoneyAccountLifecycleController', () => {
             });
 
             await expect(controller.startMigration()).rejects.toThrow(
-              `Money Account ${MONEY_ACCOUNT_ADDRESS} is migrating to ${MFA_ACCOUNT_ADDRESS.toLowerCase()}, which is not the MPC Money Account of this wallet`,
+              'The Money Account is migrating to an address that is not the MPC Money Account of this wallet',
             );
             expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
             expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
@@ -1057,7 +1063,7 @@ describe('MoneyAccountLifecycleController', () => {
             });
 
             await expect(controller.startMigration()).rejects.toThrow(
-              `The migration of Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be resumed`,
+              'The migration of the Money Account cannot be resumed',
             );
             expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
           },
@@ -1116,7 +1122,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
         await expect(controller.startMigration()).rejects.toThrow(
-          `MFA account ${MFA_ACCOUNT_ADDRESS} is already part of a Money Account identity`,
+          'The MPC Money Account is already part of a Money Account identity',
         );
         expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
       });
@@ -1212,7 +1218,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
           await expect(controller.startMigration()).rejects.toThrow(
-            `MFA account ${MFA_ACCOUNT_ADDRESS} is already part of a Money Account identity`,
+            'The MPC Money Account is already part of a Money Account identity',
           );
         });
       },

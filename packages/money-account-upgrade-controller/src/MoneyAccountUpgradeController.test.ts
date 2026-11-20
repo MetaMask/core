@@ -1,4 +1,5 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AddressIdentityResponse,
   ChompApiServiceVerifyDelegationAction,
@@ -613,6 +614,25 @@ describe('MoneyAccountUpgradeController', () => {
       expect(
         controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
       ).toStrictEqual(status);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes the upgraded accounts in state logs', () => {
+      const status = { configFingerprint: 'fingerprint', completedAt: 123 };
+      const { controller } = setup({
+        state: { upgradedAccounts: { [MOCK_ACCOUNT_ADDRESS]: status } },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toStrictEqual({
+        upgradedAccounts: { [MOCK_ACCOUNT_ADDRESS]: status },
+      });
     });
   });
 
