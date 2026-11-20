@@ -1,4 +1,5 @@
 import type { KeyPair } from '@metamask/cryptography';
+import type { AuthenticationControllerRequestMfaApprovalAction } from '@metamask/profile-sync-controller/auth';
 import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import {
   bytesToBase64,
@@ -39,8 +40,6 @@ import type {
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
-  RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryLockProvider,
@@ -105,10 +104,16 @@ export function createAuthControllerToken({
   return `${encode({ alg: 'none' })}.${encode(payload)}.stub-signature`;
 }
 
+type RequestMfaApprovalHandler =
+  AuthenticationControllerRequestMfaApprovalAction['handler'];
+
+const APPROVAL_TTL_SECS = 5 * 60;
+
 /**
- * In-memory AuthController used in tests.
+ * In-memory AuthenticationController used in tests. Its methods back the
+ * `AuthenticationController:*` action handlers.
  */
-export class StubAuthProvider implements RecoveryAuthProvider {
+export class StubAuthProvider {
   profileId = 'profile-1';
 
   now: () => number = unixNow;
@@ -119,23 +124,25 @@ export class StubAuthProvider implements RecoveryAuthProvider {
     this.identifiers = identifiers;
   }
 
-  async getAuthenticatedProfileId(): Promise<string> {
+  async refreshCanonicalProfileId(): Promise<string> {
     return this.profileId;
   }
 
-  async authorizeRecoveryRequest(params: {
-    requestHash: string;
-    requireTwoFactor?: boolean;
-  }): Promise<RecoveryApproval> {
+  async requestMfaApproval(
+    request: Parameters<RequestMfaApprovalHandler>[0],
+  ): ReturnType<RequestMfaApprovalHandler> {
     return {
       approval: createAuthControllerToken({
         sub: this.profileId,
-        exp: this.now() + 5 * 60,
-        requestHash: params.requestHash,
-        aal: params.requireTwoFactor ? 2 : 1,
+        exp: this.now() + APPROVAL_TTL_SECS,
+        requestHash: request.requestHash,
+        aal: request.requireVerification ? 2 : 1,
         identifiersHash: await hash(this.identifiers),
       }),
-      identifiers: this.identifiers,
+      expiresIn: APPROVAL_TTL_SECS,
+      ...(request.includeIdentifiers === false
+        ? {}
+        : { identifiers: this.identifiers }),
     };
   }
 }
@@ -196,11 +203,13 @@ export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvide
         identifier: params.identifier,
         proofPublicKey: params.proofPublicKey,
         requestHash: params.requestHash,
+        notAfter: params.notAfter,
         providerAssertion: {
-          bound: await hash({
-            proofPublicKey: params.proofPublicKey,
-            requestHash: params.requestHash,
-          }),
+          bound: await hash([
+            params.proofPublicKey,
+            params.requestHash,
+            params.notAfter,
+          ]),
         },
       },
     };
@@ -795,6 +804,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         throw new MfaRecoveryError(
           'Invalid PoP challenge',
           'invalid_challenge',
+        );
+      }
+      // Same window as the escrow: 1 minute late to 6 minutes ahead.
+      if (
+        token.notAfter + 60 < this.now() ||
+        token.notAfter > this.now() + 6 * 60
+      ) {
+        throw new MfaRecoveryError(
+          'Identifier token expired',
+          'identifier_token_expired',
         );
       }
       const message = await hash([token, proof.challengeId, requestHash]);

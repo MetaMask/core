@@ -6,9 +6,15 @@ import type {
   AuthConnection,
   SeedlessAuthData,
 } from '@metamask/seedless-onboarding-controller';
-import { areUint8ArraysEqual, isObject } from '@metamask/utils';
+import {
+  areUint8ArraysEqual,
+  concatBytes,
+  hexToBytes,
+  isObject,
+  stringToBytes,
+} from '@metamask/utils';
 
-import { generateSigningKey, hash, sign } from './crypto.js';
+import { fromBase64Url, generateSigningKey, hash, sign } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isEnrolledInEvery, isFulfilledResult } from './replica-utils.js';
 import type {
@@ -20,6 +26,7 @@ import type {
   KeyBoundCredential,
   KeyBoundIdentifierLogin,
   KeyBoundIdentifierToken,
+  KeyBoundIdentifierTokenRequest,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   WritingPendingOperation,
@@ -34,6 +41,12 @@ export const MIN_IDENTIFIERS = 2;
  * Maximum identifier count escrows accept.
  */
 export const MAX_IDENTIFIERS = 16;
+
+/**
+ * Seconds an identifier token stays valid. Escrows allow one more minute of
+ * clock difference.
+ */
+const IDENTIFIER_TOKEN_LIFETIME_SECONDS = 5 * 60;
 
 /**
  * Distinct identifier identities (`type` + `namespace` + `value`).
@@ -100,6 +113,7 @@ export type AuthorizedEscrow = {
  * @param params - Identifier login parameters.
  * @param params.identifier - Identifier to log in.
  * @param params.requestHash - Request hash bound to the token.
+ * @param params.now - Current Unix time in seconds.
  * @param params.identifierAuthProvider - Provider for key-bound assertions.
  * @returns Key-bound credential and the unvalidated seedless auth data, if
  * the provider returned any.
@@ -108,24 +122,25 @@ export type AuthorizedEscrow = {
 export async function requestIdentifierLogin({
   identifier,
   requestHash,
+  now,
   identifierAuthProvider,
 }: {
   identifier: Identifier;
   requestHash: string;
+  now: number;
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
 }): Promise<KeyBoundCredential & { seedlessAuthData?: unknown }> {
   const proofKey = await generateSigningKey();
+  const request = {
+    identifier,
+    proofPublicKey: proofKey.publicKey,
+    requestHash,
+    notAfter: now + IDENTIFIER_TOKEN_LIFETIME_SECONDS,
+  };
   const login: Partial<KeyBoundIdentifierLogin> | null | undefined =
-    await identifierAuthProvider.getKeyBoundIdentifierLogin({
-      identifier,
-      proofPublicKey: proofKey.publicKey,
-      requestHash,
-    });
+    await identifierAuthProvider.getKeyBoundIdentifierLogin(request);
   const token: unknown = login?.token;
-  if (
-    !login ||
-    !isTokenBoundToRequest(token, identifier, proofKey.publicKey, requestHash)
-  ) {
+  if (!login || !isTokenBoundToRequest(token, request)) {
     throwInvalidIdentifierToken();
   }
   return {
@@ -135,27 +150,61 @@ export async function requestIdentifierLogin({
   };
 }
 
+const ESCROW_PASSKEY_CHALLENGE_PREFIX = stringToBytes('MetaMask escrow login:');
+
+/**
+ * @param request - Login request sent to the identifier provider.
+ * @returns The WebAuthn challenge for an escrow passkey login:
+ * `MetaMask escrow login:` followed by
+ * `hash([proofPublicKey, requestHash, notAfter])`.
+ */
+export async function getEscrowPasskeyChallenge(
+  request: KeyBoundIdentifierTokenRequest,
+): Promise<Uint8Array> {
+  const { proofPublicKey, requestHash, notAfter } = request;
+  return concatBytes([
+    ESCROW_PASSKEY_CHALLENGE_PREFIX,
+    hexToBytes(await hash([proofPublicKey, requestHash, notAfter])),
+  ]);
+}
+
+/**
+ * Clients must refuse to sign any non-escrow passkey challenge (e.g. Auth API
+ * MFA) for which this returns `true`, so a compromised Auth API cannot collect
+ * a passkey signature the escrow accepts.
+ *
+ * @param challenge - Base64url WebAuthn challenge.
+ * @returns Whether the challenge starts with the escrow passkey prefix.
+ * @throws If the challenge is not base64url. Treat this as a refusal too.
+ */
+export function isEscrowPasskeyChallenge(challenge: string): boolean {
+  const bytes = fromBase64Url(challenge);
+  return areUint8ArraysEqual(
+    bytes.subarray(0, ESCROW_PASSKEY_CHALLENGE_PREFIX.length),
+    ESCROW_PASSKEY_CHALLENGE_PREFIX,
+  );
+}
+
 /**
  * @param token - Token returned by the identifier provider.
- * @param identifier - Identifier the provider was asked to authenticate.
- * @param proofPublicKey - Proof public key sent to the provider.
- * @param requestHash - Request hash sent to the provider.
- * @returns Whether the token is bound to the identifier, proof key, and
- * request. An empty request `value` binds to any non-empty token `value`.
+ * @param request - Login request sent to the provider.
+ * @returns Whether the token is bound to the identifier, proof key, request,
+ * and `notAfter`. An empty request `value` binds to any non-empty token
+ * `value`.
  */
 function isTokenBoundToRequest(
   token: unknown,
-  identifier: Identifier,
-  proofPublicKey: Uint8Array,
-  requestHash: string,
+  request: KeyBoundIdentifierTokenRequest,
 ): token is KeyBoundIdentifierToken {
   if (typeof token !== 'object' || token === null) {
     return false;
   }
+  const { identifier, proofPublicKey, requestHash, notAfter } = request;
   const candidate = token as Partial<KeyBoundIdentifierToken>;
   const tokenIdentifier = candidate.identifier;
   if (
     candidate.requestHash !== requestHash ||
+    candidate.notAfter !== notAfter ||
     !(candidate.proofPublicKey instanceof Uint8Array) ||
     !areUint8ArraysEqual(candidate.proofPublicKey, proofPublicKey) ||
     tokenIdentifier === undefined ||

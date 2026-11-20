@@ -6,10 +6,13 @@ import {
   InitializationState,
   PerpsController,
 } from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
+  AccountState,
   PerpsActiveProviderMode,
+  PerpsChaseOrderOwnership,
   PerpsProvider,
   PerpsRecoveredDispatch,
   ReconcileChaseOrderCancellationParams,
@@ -33,6 +36,14 @@ vi.mock('../../src/utils/wait.js', () => ({ wait: vi.fn() }));
 const ACCOUNT_A = createMockEvmAccount().address;
 const ACCOUNT_B = '0xabcdef1234567890abcdef1234567890abcdef12';
 const LEGACY_ID = '42:nohash';
+const ACCOUNT_BALANCE: AccountState = {
+  totalBalance: '123',
+  spendableBalance: '123',
+  withdrawableBalance: '123',
+  marginUsed: '0',
+  unrealizedPnl: '0',
+  returnOnEquity: '0',
+};
 
 class RecoveryContextController extends PerpsController {
   /**
@@ -84,9 +95,13 @@ type Fixture = {
  * Only the provider boundary and initialization delay are mocked.
  *
  * @param initialized - Whether to start with an already available provider.
+ * @param state - Optional persisted state to restore.
  * @returns Controller, provider calls, local outcomes and host selection.
  */
-function createFixture(initialized = true): Fixture {
+function createFixture(
+  initialized = true,
+  state: Partial<PerpsControllerState> = {},
+): Fixture {
   const host = createKeyringlessMessenger();
   host.rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
@@ -114,7 +129,7 @@ function createFixture(initialized = true): Fixture {
   }) satisfies PerpsProvider;
   const controller = new RecoveryContextController({
     messenger: host.messenger,
-    state: { ...getDefaultPerpsControllerState(), isTestnet: true },
+    state: { ...getDefaultPerpsControllerState(), isTestnet: true, ...state },
     infrastructure: createMockInfrastructure(),
     deferEligibilityCheck: true,
   });
@@ -184,6 +199,211 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
   beforeEach(() => {
     vi.mocked(wait).mockReset().mockResolvedValue(undefined);
     vi.mocked(HyperLiquidProvider).mockReset();
+  });
+
+  it('review: keeps a newer wallet balance when the old opening refuses', () => {
+    const { controller, provider, selectAccount } = createFixture();
+    const callback = vi.fn();
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      selectAccount(ACCOUNT_B);
+      provider.subscribeToAccount.mockImplementationOnce((params) => {
+        params.callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+
+    controller.subscribeToAccount({ callback });
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+  });
+
+  it('review: clears state when the selected wallet cannot open a stream', async () => {
+    const { controller, provider, selectAccount } = createFixture();
+    controller.subscribeToOrders({ callback: vi.fn() });
+    selectAccount(ACCOUNT_B);
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toBeNull();
+  });
+
+  const startChaseOwnership = async (
+    fixture: Fixture,
+  ): Promise<{
+    pending: Promise<PerpsChaseOrderOwnership>;
+    ownership: PerpsChaseOrderOwnership;
+    complete: () => void;
+  }> => {
+    const { controller, provider } = fixture;
+    const ownership: PerpsChaseOrderOwnership = {
+      status: 'unsupported',
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+      reason: 'No ownership history',
+    };
+    const pendingOwnership = createDeferred<PerpsChaseOrderOwnership>();
+    const entered = createDeferred<void>();
+    Object.assign(provider, {
+      getChaseOrderOwnership: vi.fn(() => {
+        entered.resolve();
+        return pendingOwnership.promise;
+      }),
+    });
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+
+    const pending = controller.getChaseOrderOwnership({
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+    });
+    await entered.promise;
+    return {
+      pending,
+      ownership,
+      complete: (): void => pendingOwnership.resolve(ownership),
+    };
+  };
+
+  it.each([
+    {
+      name: 'startup refresh',
+      update: async ({ controller }: Fixture): Promise<void> => {
+        await controller.getAccountState();
+      },
+    },
+    {
+      name: 'repeat selection',
+      update: ({ host }: Fixture): Promise<void> => {
+        host.rootMessenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          'entropy:default/0',
+          'entropy:default/0',
+        );
+        return Promise.resolve();
+      },
+    },
+  ])(
+    'keeps a Chase ownership read current across $name',
+    async ({ update }) => {
+      const fixture = createFixture(true, {
+        perpsBalances: {
+          hyperliquid: {
+            totalBalance: '123',
+            unrealizedPnl: '0',
+            lastUpdated: 1,
+          },
+        },
+      });
+      const { pending, ownership, complete } =
+        await startChaseOwnership(fixture);
+      await update(fixture);
+      complete();
+      expect(await pending).toStrictEqual(ownership);
+    },
+  );
+
+  it('rejects Chase ownership if balance reconciliation changes the selected wallet', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+    const getChaseOrderOwnership = vi.fn();
+    Object.assign(provider, { getChaseOrderOwnership });
+
+    await expect(
+      controller.getChaseOrderOwnership({
+        providerId: 'hyperliquid',
+        handle: 'original-chase',
+      }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    expect(getChaseOrderOwnership).not.toHaveBeenCalled();
+  });
+
+  it('stores a valid synchronous replay after reconciliation returns to the provider wallet', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+
+    provider.subscribeToAccount.mockImplementation(
+      ({ accountId, callback }) => {
+        expect(accountId).toBeUndefined();
+        expect(
+          host.messenger.call('AccountsController:getSelectedAccount').address,
+        ).toBe(ACCOUNT_A);
+        callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      },
+    );
+
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledWith(ACCOUNT_BALANCE);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    expect(controller.state.perpsBalances.hyperliquid?.totalBalance).toBe(
+      '123',
+    );
+  });
+
+  it('binds an implicit stream after balance reconciliation publishes its state change', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    let addressAtOpen: string | undefined;
+    provider.subscribeToAccount.mockImplementation(() => {
+      addressAtOpen = host.messenger.call(
+        'AccountsController:getSelectedAccount',
+      ).address;
+      return vi.fn();
+    });
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+
+    controller.subscribeToAccount({ callback: vi.fn() });
+    const [stream] = provider.subscribeToAccount.mock.calls[0];
+    expect(addressAtOpen).toBe(ACCOUNT_A);
+    stream.callback({ ...ACCOUNT_BALANCE, totalBalance: '234' });
+    expect(controller.state.accountState?.totalBalance).toBe('234');
+  });
+
+  it('keeps a Chase read started after a silent wallet change current', async () => {
+    const fixture = createFixture();
+    fixture.host.selectAccount(ACCOUNT_B);
+    const { pending, ownership, complete } = await startChaseOwnership(fixture);
+    await fixture.controller.getAccountState();
+    complete();
+    expect(await pending).toStrictEqual(ownership);
+  });
+
+  it('invalidates an in-flight Chase ownership read after an observed wallet round trip', async () => {
+    const fixture = createFixture();
+    const { controller, host } = fixture;
+    const { pending, complete } = await startChaseOwnership(fixture);
+    host.selectAccount(ACCOUNT_B);
+    await controller.getAccountState();
+    host.selectAccount(ACCOUNT_A);
+    await controller.getAccountState();
+    complete();
+    await expect(pending).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    );
   });
 
   it.each(CONTEXT_CHANGES)(

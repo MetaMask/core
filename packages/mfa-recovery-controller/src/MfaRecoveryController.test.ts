@@ -111,7 +111,6 @@ describe('MfaRecoveryController', () => {
         () =>
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
-            authProvider: new StubAuthProvider(),
             lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             trustedIdentifierStore: new StubTrustedIdentifierStore(),
@@ -129,7 +128,6 @@ describe('MfaRecoveryController', () => {
         () =>
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
-            authProvider: new StubAuthProvider(),
             lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             trustedIdentifierStore: new StubTrustedIdentifierStore(),
@@ -212,9 +210,8 @@ describe('MfaRecoveryController', () => {
               calls.push(`acquire ${lockId}`);
             },
           );
-          const authorize =
-            authProvider.authorizeRecoveryRequest.bind(authProvider);
-          vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
+          const authorize = authProvider.requestMfaApproval.bind(authProvider);
+          vi.spyOn(authProvider, 'requestMfaApproval').mockImplementation(
             async (params) => {
               calls.push('approval');
               return await authorize(params);
@@ -257,13 +254,13 @@ describe('MfaRecoveryController', () => {
       await withController(
         async ({ controller, authProvider, lockProvider }) => {
           lockProvider.lockId = 'other-operation';
-          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
 
           await expect(
             controller.register(SECRET, IDENTIFIERS),
           ).rejects.toMatchObject({ code: 'recovery_lock_conflict' });
           expect(authorize).not.toHaveBeenCalledWith(
-            expect.objectContaining({ requireTwoFactor: true }),
+            expect.objectContaining({ requireVerification: true }),
           );
         },
       );
@@ -438,15 +435,14 @@ describe('MfaRecoveryController', () => {
     });
 
     it.each([
-      ['an AAL1 approval', { requireTwoFactor: false }, {}],
+      ['an AAL1 approval', { requireVerification: false }, {}],
       ['identifiers the approval does not bind', {}, { identifiers: [SOCIAL] }],
     ])(
       'rejects %s before writing',
       async (_name, paramsPatch, approvalPatch) => {
         await withController(async ({ controller, authProvider, escrowA }) => {
-          const approve =
-            authProvider.authorizeRecoveryRequest.bind(authProvider);
-          vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
+          const approve = authProvider.requestMfaApproval.bind(authProvider);
+          vi.spyOn(authProvider, 'requestMfaApproval').mockImplementation(
             async (params) => ({
               ...(await approve({ ...params, ...paramsPatch })),
               ...approvalPatch,
@@ -496,7 +492,7 @@ describe('MfaRecoveryController', () => {
       'rejects %s no user device saw, before any approval',
       async (_name, identifiers) => {
         await withController(async ({ controller, authProvider }) => {
-          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
           await expect(
             controller.register(SECRET, identifiers),
           ).rejects.toMatchObject({ code: 'untrusted_identifier' });
@@ -562,10 +558,9 @@ describe('MfaRecoveryController', () => {
       );
       const applyA = vi.spyOn(escrowA, 'applyMutation');
       const applyB = vi.spyOn(escrowB, 'applyMutation');
-      const controller = new MfaRecoveryController({
-        ...getOptions(escrowA, escrowB),
-        messenger: getMessenger(getRootMessenger()),
-      });
+      const controller = new MfaRecoveryController(
+        getOptions(escrowA, escrowB),
+      );
 
       await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
         'Invalid public key length: Public key must be exactly 32 bytes for X25519.',
@@ -690,6 +685,7 @@ describe('MfaRecoveryController', () => {
           identifier: params.identifier,
           proofPublicKey: params.proofPublicKey,
           requestHash: '0xother-request',
+          notAfter: params.notAfter,
           providerAssertion: {},
         },
       }));
@@ -703,6 +699,46 @@ describe('MfaRecoveryController', () => {
       );
     });
 
+    it('rejects login tokens with another notAfter', async () => {
+      const identifierAuthProvider = new StubIdentifierAuthProvider();
+      vi.spyOn(
+        identifierAuthProvider,
+        'getKeyBoundIdentifierLogin',
+      ).mockImplementation(async (params) => ({
+        token: {
+          identifier: params.identifier,
+          proofPublicKey: params.proofPublicKey,
+          requestHash: params.requestHash,
+          notAfter: params.notAfter + 60,
+          providerAssertion: {},
+        },
+      }));
+      await withController(
+        { identifierAuthProvider },
+        async ({ controller }) => {
+          await expect(
+            controller.authenticateIdentifier(PASSKEY),
+          ).rejects.toMatchObject({ code: 'invalid_identifier_token' });
+        },
+      );
+    });
+
+    it('cannot read with an identifier session past its notAfter', async () => {
+      await withController(async ({ controller, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const earlier = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => unixNow() - 7 * 60,
+        });
+        const session = await earlier.authenticateIdentifier(PASSKEY);
+
+        await expect(
+          controller.getRecoverySecret(session),
+        ).rejects.toMatchObject({ code: 'read_failed' });
+      });
+    });
+
     it('rejects login tokens for another identifier', async () => {
       const identifierAuthProvider = new StubIdentifierAuthProvider();
       vi.spyOn(
@@ -713,6 +749,7 @@ describe('MfaRecoveryController', () => {
           identifier: OTHER_PASSKEY,
           proofPublicKey: params.proofPublicKey,
           requestHash: params.requestHash,
+          notAfter: params.notAfter,
           providerAssertion: {},
         },
       }));
@@ -737,6 +774,7 @@ describe('MfaRecoveryController', () => {
             identifier: OTHER_PASSKEY,
             proofPublicKey: params.proofPublicKey,
             requestHash: params.requestHash,
+            notAfter: params.notAfter,
             providerAssertion: {},
           },
         }));
@@ -856,10 +894,7 @@ describe('MfaRecoveryController', () => {
         await withController(
           { identifierAuthProvider: new StubSeedlessIdentifierAuthProvider() },
           async ({ controller, authProvider }) => {
-            const authorize = vi.spyOn(
-              authProvider,
-              'authorizeRecoveryRequest',
-            );
+            const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
 
             await controller.authenticateIdentifier(SOCIAL);
 
@@ -1319,14 +1354,16 @@ describe('MfaRecoveryController', () => {
     it('requests a request-bound AAL2 approval for each read', async () => {
       await withController(async ({ controller, authProvider, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
         const generateChallenge = vi.spyOn(escrowA, 'generateChallenge');
         const session = await controller.authenticateIdentifier(PASSKEY);
         await controller.getRecoverySecret(session);
         expect(authorize).toHaveBeenCalledExactlyOnceWith({
           requestHash: session.token.requestHash,
           audiences: ['stub-audience', 'stub-audience'],
-          requireTwoFactor: true,
+          requireVerification: true,
+          includeIdentifiers: true,
+          reason: { operation: 'mfa_recovery' },
         });
         const { approval } = await authorize.mock.results[0].value;
         expect(generateChallenge).toHaveBeenCalledExactlyOnceWith(approval);
@@ -1508,7 +1545,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, escrowB, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
         escrowB.available = false;
-        const auth = vi.spyOn(options.authProvider, 'authorizeRecoveryRequest');
+        const auth = vi.spyOn(options.authProvider, 'requestMfaApproval');
         auth.mockClear();
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
@@ -1521,11 +1558,11 @@ describe('MfaRecoveryController', () => {
     it('does not authorize a resumed authorizing mutation when an escrow is unavailable', async () => {
       await withController(async ({ controller, escrowB, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const authorize = options.authProvider.authorizeRecoveryRequest.bind(
+        const authorize = options.authProvider.requestMfaApproval.bind(
           options.authProvider,
         );
         const auth = vi
-          .spyOn(options.authProvider, 'authorizeRecoveryRequest')
+          .spyOn(options.authProvider, 'requestMfaApproval')
           .mockImplementationOnce(authorize)
           .mockRejectedValueOnce(new Error('auth down'));
         await expect(
@@ -1548,10 +1585,10 @@ describe('MfaRecoveryController', () => {
       await withController(
         async ({ controller, escrowA, escrowB, options }) => {
           await controller.register(SECRET, IDENTIFIERS);
-          const authorize = options.authProvider.authorizeRecoveryRequest.bind(
+          const authorize = options.authProvider.requestMfaApproval.bind(
             options.authProvider,
           );
-          vi.spyOn(options.authProvider, 'authorizeRecoveryRequest')
+          vi.spyOn(options.authProvider, 'requestMfaApproval')
             .mockImplementationOnce(authorize)
             .mockRejectedValueOnce(new Error('auth down'));
           await expect(
@@ -1716,7 +1753,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ escrowA, options }) => {
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           now: (): number => now,
         });
         await controller.register(SECRET, IDENTIFIERS);
@@ -1750,7 +1787,7 @@ describe('MfaRecoveryController', () => {
           ).rejects.toBeInstanceOf(IncompleteMutationError);
           const later = new MfaRecoveryController({
             ...options,
-            messenger: getMessenger(getRootMessenger()),
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
             state: { ...controller.state },
             now: (): number => unixNow() + 400,
           });
@@ -1806,7 +1843,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, authProvider }) => {
         await controller.register(SECRET, IDENTIFIERS);
         authProvider.identifiers = [...IDENTIFIERS, OTHER_PASSKEY];
-        const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
         expect(await controller.getIdentifiers()).toStrictEqual({
           identifiers: IDENTIFIERS,
           epoch: REGISTERED_EPOCH,
@@ -1815,6 +1852,26 @@ describe('MfaRecoveryController', () => {
         expect(authorize).toHaveBeenCalledExactlyOnceWith({
           requestHash: await hash({ operation: 'getIdentifiers' }),
           audiences: ['stub-audience', 'stub-audience'],
+          requireVerification: false,
+          includeIdentifiers: true,
+          reason: { operation: 'mfa_recovery' },
+        });
+      });
+    });
+
+    it('returns no Auth identifiers when the approval omits them', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const approve = authProvider.requestMfaApproval.bind(authProvider);
+        vi.spyOn(authProvider, 'requestMfaApproval').mockImplementation(
+          async (request) => {
+            const { identifiers: _identifiers, ...approval } =
+              await approve(request);
+            return approval;
+          },
+        );
+        expect(await controller.getIdentifiers()).toMatchObject({
+          authIdentifiers: [],
         });
       });
     });
@@ -1924,16 +1981,42 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('Auth identifiers', () => {
+    it('requests Auth identifiers with every approval', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
+        await controller.register(SECRET, IDENTIFIERS);
+        await controller.getIdentifiers();
+        await recover(controller, PASSKEY);
+        expect(authorize).toHaveBeenCalledTimes(4);
+        for (const [request] of authorize.mock.calls) {
+          expect(request.includeIdentifiers).toBe(true);
+        }
+      });
+    });
+
+    it('binds mutations to the canonical profile id', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        authProvider.profileId = 'canonical-profile';
+        const refresh = vi.spyOn(authProvider, 'refreshCanonicalProfileId');
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.register(SECRET, IDENTIFIERS);
+        expect(refresh).toHaveBeenCalledOnce();
+        expect(apply.mock.calls[0][0].profileId).toBe('canonical-profile');
+      });
+    });
+
     it('sends the caller identifiers with all Auth-approved identifiers', async () => {
       await withController(async ({ controller, authProvider, escrowA }) => {
         authProvider.identifiers = [SOCIAL, OTHER_PASSKEY, PASSKEY];
-        const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
         const apply = vi.spyOn(escrowA, 'applyMutation');
         await controller.register(SECRET, IDENTIFIERS);
         expect(authorize).toHaveBeenLastCalledWith({
           requestHash: apply.mock.calls[0][0].requestHash,
           audiences: ['stub-audience', 'stub-audience'],
-          requireTwoFactor: true,
+          requireVerification: true,
+          includeIdentifiers: true,
+          reason: { operation: 'mfa_recovery' },
         });
         expect(apply.mock.calls[0][3]).toMatchObject({
           identifiers: IDENTIFIERS,
@@ -2008,7 +2091,7 @@ describe('MfaRecoveryController', () => {
       'rejects %s before authorization',
       async (_, identifiers, code) => {
         await withController(async ({ controller, authProvider, options }) => {
-          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
           const login = vi.spyOn(
             options.identifierAuthProvider,
             'getKeyBoundIdentifierLogin',
@@ -2326,14 +2409,14 @@ describe('MfaRecoveryController', () => {
             ),
           ).rejects.toBeInstanceOf(IncompleteMutationError);
           const restarted = restartWithoutPending(controller, options);
-          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
 
           await expect(restarted.resume(OTHER_PASSKEY)).rejects.toMatchObject({
             code: 'identifier_not_enrolled',
           });
 
           expect(authorize).not.toHaveBeenCalledWith(
-            expect.objectContaining({ requireTwoFactor: true }),
+            expect.objectContaining({ requireVerification: true }),
           );
           expect(await restarted.getPhase()).toBe('idle');
           await restarted.resume(PASSKEY);
@@ -2419,7 +2502,7 @@ describe('MfaRecoveryController', () => {
         );
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           escrows: [escrowA, escrowB, escrowC],
         });
         await controller.register(SECRET, IDENTIFIERS);
@@ -2492,7 +2575,7 @@ describe('MfaRecoveryController', () => {
           }
           const resumed = new MfaRecoveryController({
             ...options,
-            messenger: getMessenger(getRootMessenger()),
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
             state: {
               lockId: controller.state.lockId,
               pendingOperation: await passthroughEncryptor.encrypt(pending),
@@ -2534,7 +2617,7 @@ describe('MfaRecoveryController', () => {
         options.authProvider.identifiers = IDENTIFIERS;
         return new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { ...controller.state },
           now: (): number => unixNow() + 600,
         });
@@ -2545,7 +2628,7 @@ describe('MfaRecoveryController', () => {
           const later = await writeThenRemoveFromAuth(args);
           args.escrowB.patchRecord('profile-1', { version: 3 });
           const apply = vi.spyOn(args.escrowB, 'applyMutation');
-          const auth = vi.spyOn(args.authProvider, 'authorizeRecoveryRequest');
+          const auth = vi.spyOn(args.authProvider, 'requestMfaApproval');
 
           await expect(later.resume()).rejects.toMatchObject({
             code: 'mutation_superseded',
@@ -2553,7 +2636,7 @@ describe('MfaRecoveryController', () => {
 
           expect(apply).not.toHaveBeenCalled();
           expect(auth).toHaveBeenCalledTimes(1);
-          expect(auth.mock.calls[0][0].requireTwoFactor).toBeUndefined();
+          expect(auth.mock.calls[0][0].requireVerification).toBe(false);
           expect(await later.getPhase()).toBe('idle');
         });
       });
@@ -2588,7 +2671,7 @@ describe('MfaRecoveryController', () => {
             options.authProvider.identifiers = IDENTIFIERS;
             const later = new MfaRecoveryController({
               ...options,
-              messenger: getMessenger(getRootMessenger()),
+              messenger: getMessenger(getRootMessenger(options.authProvider)),
               state: { ...controller.state },
               now: (): number => unixNow() + 600,
             });
@@ -2619,13 +2702,13 @@ describe('MfaRecoveryController', () => {
             ).rejects.toBeInstanceOf(IncompleteMutationError);
             const later = new MfaRecoveryController({
               ...options,
-              messenger: getMessenger(getRootMessenger()),
+              messenger: getMessenger(getRootMessenger(options.authProvider)),
               state: { ...controller.state },
               now: (): number => unixNow() + 400,
             });
             const authorize =
-              authProvider.authorizeRecoveryRequest.bind(authProvider);
-            vi.spyOn(authProvider, 'authorizeRecoveryRequest')
+              authProvider.requestMfaApproval.bind(authProvider);
+            vi.spyOn(authProvider, 'requestMfaApproval')
               .mockImplementationOnce(authorize)
               .mockRejectedValueOnce(new Error('step up required'));
 
@@ -2687,7 +2770,6 @@ describe('MfaRecoveryController', () => {
 
         const resumed = new MfaRecoveryController({
           ...getOptions(escrowA, escrowB),
-          messenger: getMessenger(getRootMessenger()),
           state: { pendingOperation: encrypted },
         });
 
@@ -2704,7 +2786,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ escrowA, escrowB, options }) => {
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           now: (): number => now,
         });
         await controller.register(SECRET, IDENTIFIERS);
@@ -2735,7 +2817,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ escrowA, escrowB, options }) => {
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           now: (): number => now,
         });
         await controller.register(SECRET, IDENTIFIERS);
@@ -2760,7 +2842,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ escrowA, escrowB, options }) => {
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           now: (): number => now,
         });
         await controller.register(SECRET, IDENTIFIERS);
@@ -2769,10 +2851,7 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
-        const authorize = vi.spyOn(
-          options.authProvider,
-          'authorizeRecoveryRequest',
-        );
+        const authorize = vi.spyOn(options.authProvider, 'requestMfaApproval');
 
         now += 10 * 60;
         await expect(controller.resume()).rejects.toBeInstanceOf(
@@ -2781,7 +2860,7 @@ describe('MfaRecoveryController', () => {
 
         expect(await controller.getPhase()).toBe('idle');
         expect(authorize).not.toHaveBeenCalledWith(
-          expect.objectContaining({ requireTwoFactor: true }),
+          expect.objectContaining({ requireVerification: true }),
         );
       });
     });
@@ -2791,7 +2870,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ escrowA, escrowB, options }) => {
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           now: (): number => now,
         });
         escrowA.failNextApplyCount = 1;
@@ -2823,7 +2902,9 @@ describe('MfaRecoveryController', () => {
           payload: validPending.payload,
           identifier: validPending.identifier,
         });
-        const authorizingMessenger = getMessenger(getRootMessenger());
+        const authorizingMessenger = getMessenger(
+          getRootMessenger(options.authProvider),
+        );
         const idleController = new MfaRecoveryController({
           ...options,
           messenger: authorizingMessenger,
@@ -2846,7 +2927,9 @@ describe('MfaRecoveryController', () => {
             },
           ],
         });
-        const writingMessenger = getMessenger(getRootMessenger());
+        const writingMessenger = getMessenger(
+          getRootMessenger(options.authProvider),
+        );
         const writingController = new MfaRecoveryController({
           ...options,
           messenger: writingMessenger,
@@ -2887,7 +2970,7 @@ describe('MfaRecoveryController', () => {
         });
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: authorizing },
         });
         await controller.resume();
@@ -2924,7 +3007,7 @@ describe('MfaRecoveryController', () => {
         };
         const resumed = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: {
             lockId: controller.state.lockId,
             pendingOperation: await passthroughEncryptor.encrypt(authorizing),
@@ -2994,7 +3077,7 @@ describe('MfaRecoveryController', () => {
           });
           const resumed = new MfaRecoveryController({
             ...options,
-            messenger: getMessenger(getRootMessenger()),
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
             state: { pendingOperation: writing },
           });
           await resumed.resume();
@@ -3025,7 +3108,7 @@ describe('MfaRecoveryController', () => {
         });
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: writing },
         });
         await expect(controller.resume()).rejects.toThrow(
@@ -3063,7 +3146,7 @@ describe('MfaRecoveryController', () => {
         });
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: writing },
         });
         await expect(controller.resume()).rejects.toThrow(
@@ -3124,7 +3207,7 @@ describe('MfaRecoveryController', () => {
         });
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: writing },
         });
         await expect(controller.resume()).rejects.toThrow(
@@ -3186,7 +3269,7 @@ describe('MfaRecoveryController', () => {
         });
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: writing },
         });
         await expect(controller.resume()).rejects.toThrow(
@@ -3275,7 +3358,7 @@ describe('MfaRecoveryController', () => {
         });
         const resumed = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: {
             lockId: controller.state.lockId,
             pendingOperation: JSON.stringify(pending),
@@ -3293,12 +3376,12 @@ describe('MfaRecoveryController', () => {
 
     it('rejects a null decrypted pending operation before external calls', async () => {
       await withController(async ({ escrowA, escrowB, options }) => {
-        const auth = vi.spyOn(options.authProvider, 'authorizeRecoveryRequest');
+        const auth = vi.spyOn(options.authProvider, 'requestMfaApproval');
         const availabilityA = vi.spyOn(escrowA, 'isAvailable');
         const availabilityB = vi.spyOn(escrowB, 'isAvailable');
         const controller = new MfaRecoveryController({
           ...options,
-          messenger: getMessenger(getRootMessenger()),
+          messenger: getMessenger(getRootMessenger(options.authProvider)),
           state: { pendingOperation: 'null' },
         });
 
@@ -3536,17 +3619,14 @@ describe('MfaRecoveryController', () => {
             JSON.stringify(await getValidWritingPending(options.escrows)),
           ) as Record<string, unknown>;
           await mutate(pending);
-          const auth = vi.spyOn(
-            options.authProvider,
-            'authorizeRecoveryRequest',
-          );
+          const auth = vi.spyOn(options.authProvider, 'requestMfaApproval');
           const availabilityA = vi.spyOn(escrowA, 'isAvailable');
           const availabilityB = vi.spyOn(escrowB, 'isAvailable');
           const applyA = vi.spyOn(escrowA, 'applyMutation');
           const applyB = vi.spyOn(escrowB, 'applyMutation');
           const controller = new MfaRecoveryController({
             ...options,
-            messenger: getMessenger(getRootMessenger()),
+            messenger: getMessenger(getRootMessenger(options.authProvider)),
             state: { pendingOperation: JSON.stringify(pending) },
           });
 
@@ -3611,7 +3691,7 @@ describe('MfaRecoveryController', () => {
       'rejects a SIWE identifier with an invalid verifier or namespace',
       async (wallet) => {
         await withController(async ({ controller, authProvider }) => {
-          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
           await expect(
             controller.register(SECRET, [PASSKEY, wallet]),
           ).rejects.toMatchObject({ code: 'invalid_identifier' });
@@ -3660,17 +3740,38 @@ type WithControllerCallback<ReturnValue> = (payload: {
   options: ReturnType<typeof getOptions>;
 }) => Promise<ReturnValue> | ReturnValue;
 
-function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+function getRootMessenger(
+  authProvider = new StubAuthProvider(IDENTIFIERS),
+): RootMessenger {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:refreshCanonicalProfileId',
+    async () => await authProvider.refreshCanonicalProfileId(),
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:requestMfaApproval',
+    async (request) => await authProvider.requestMfaApproval(request),
+  );
+  return rootMessenger;
 }
 
 function getMessenger(
   rootMessenger: RootMessenger,
 ): MfaRecoveryControllerMessenger {
-  return new Messenger({
+  const messenger: MfaRecoveryControllerMessenger = new Messenger({
     namespace: 'MfaRecoveryController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AuthenticationController:refreshCanonicalProfileId',
+      'AuthenticationController:requestMfaApproval',
+    ],
+  });
+  return messenger;
 }
 
 function getOptions(
@@ -3681,9 +3782,10 @@ function getOptions(
   lockProvider: StubRecoveryLockProvider;
   trustedIdentifierStore: StubTrustedIdentifierStore;
 } {
+  const authProvider = new StubAuthProvider(IDENTIFIERS);
   return {
-    messenger: getMessenger(getRootMessenger()),
-    authProvider: new StubAuthProvider(IDENTIFIERS),
+    messenger: getMessenger(getRootMessenger(authProvider)),
+    authProvider,
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     trustedIdentifierStore: new StubTrustedIdentifierStore([...TRUSTED]),
@@ -3699,7 +3801,7 @@ function restartWithoutPending(
 ): MfaRecoveryController {
   return new MfaRecoveryController({
     ...options,
-    messenger: getMessenger(getRootMessenger()),
+    messenger: getMessenger(getRootMessenger(options.authProvider)),
     state: { lockId: controller.state.lockId },
   });
 }
@@ -3757,8 +3859,6 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ identifierAuthProvider }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
-  const rootMessenger = getRootMessenger();
-  const controllerMessenger = getMessenger(rootMessenger);
   const escrowA = new StubEscrowProvider(
     'escrow-a',
     await generateWrapKey(),
@@ -3770,6 +3870,8 @@ async function withController<ReturnValue>(
     await generateSigningKey(),
   );
   const defaultOptions = getOptions(escrowA, escrowB);
+  const rootMessenger = getRootMessenger(defaultOptions.authProvider);
+  const controllerMessenger = getMessenger(rootMessenger);
   const options = {
     ...defaultOptions,
     identifierAuthProvider:

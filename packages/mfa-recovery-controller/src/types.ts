@@ -31,6 +31,10 @@ export type KeyBoundIdentifierToken = {
    */
   proofPublicKey: Uint8Array;
   requestHash: string;
+  /**
+   * Unix seconds after which escrows reject this token.
+   */
+  notAfter: number;
   providerAssertion: unknown;
 };
 
@@ -111,6 +115,12 @@ export type KeyBoundIdentifierTokenRequest = {
    */
   proofPublicKey: Uint8Array;
   requestHash: string;
+  /**
+   * Unix seconds to copy into the token. The provider assertion must sign
+   * `hash([proofPublicKey, requestHash, notAfter])` as its OIDC / SIWE nonce,
+   * or `getEscrowPasskeyChallenge(request)` as its passkey challenge.
+   */
+  notAfter: number;
 };
 
 /**
@@ -309,22 +319,6 @@ export type RecoveryIdentifiers = {
 };
 
 /**
- * Authenticates the MetaMask profile and issues request-bound attestations.
- */
-export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
-  /**
-   * Returns the Auth API's approval and current recovery identifiers.
-   * `requireTwoFactor` requests recent AAL2 authentication.
-   */
-  authorizeRecoveryRequest: (params: {
-    requestHash: string;
-    audiences: string[];
-    requireTwoFactor?: boolean;
-  }) => Promise<RecoveryApproval>;
-};
-
-/**
  * Per-profile recovery lease. It must outlive the approvals requested right
  * after acquiring it. Acquiring a held lease again extends it.
  */
@@ -371,8 +365,8 @@ export type RecoveryTrustedIdentifierStore = {
 export type RecoveryIdentifierAuthProvider = {
   /**
    * One identifier login. Returns the key-bound token, bound to the requested
-   * `proofPublicKey` and `requestHash`, and any seedless auth-server tokens
-   * from the same exchange. Omit `seedlessAuthData` when the IdP does not
+   * `proofPublicKey`, `requestHash`, and `notAfter`, and any seedless
+   * auth-server tokens from the same exchange. Omit `seedlessAuthData` when the IdP does not
    * issue it (e.g. passkey). Every controller path calls this method and uses
    * only the parts it needs.
    */

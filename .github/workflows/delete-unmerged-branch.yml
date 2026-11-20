@@ -1,0 +1,35 @@
+name: Delete unmerged branch
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions: {}
+
+jobs:
+  delete-branch:
+    name: Delete branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.merged == false }}
+    steps:
+      - name: Delete branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          open=$(gh api --method GET "repos/${REPOSITORY}/pulls" \
+            -f head="${OWNER}:${BRANCH}" -f state=open --jq length)
+
+          if [[ "${open}" -gt 0 ]]; then
+            echo "Skipping: ${open} open pull request(s) still use ${BRANCH}."
+            exit 0
+          fi
+
+          gh api --method DELETE "repos/${REPOSITORY}/git/refs/heads/${BRANCH}"

@@ -109,6 +109,39 @@ describe('createGuardedHyperLiquidClient', () => {
     expect(onDispatchRefused).not.toHaveBeenCalled();
   });
 
+  it('refuses before the wallet signer and transport are called', async () => {
+    const signTypedData = vi.fn((_payload: unknown) =>
+      Promise.resolve(`0x${'11'.repeat(64)}1b` as const),
+    );
+    const request = vi.fn();
+    const bare = new ExchangeClient({
+      wallet: {
+        address: '0x1111111111111111111111111111111111111111',
+        signTypedData,
+      },
+      transport: { isTestnet: true, request },
+    });
+    const beforeDispatch = vi.fn();
+    const guarded = createGuardedHyperLiquidClient(
+      bare,
+      beforeDispatch,
+      undefined,
+      {
+        beforeSign: async () => {
+          throw new Error('account is now multi-sig');
+        },
+      },
+    );
+
+    await expect(guarded.order(order)).rejects.toHaveProperty(
+      'cause.message',
+      'account is now multi-sig',
+    );
+    expect(signTypedData).not.toHaveBeenCalled();
+    expect(beforeDispatch).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it('preserves SDK signing configuration without changing the shared client or transport', async () => {
     const events: string[] = [];
     const wallet = {
