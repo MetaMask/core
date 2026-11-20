@@ -9,60 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - `authenticateForRecovery` takes `authConnectionId` and `groupedAuthConnectionId`, and uses the aal2 token as the id token and its `sub` as the user ID.
-  - Requires a successful `authenticate` first; throws `MissingAuthUserInfo` otherwise.
-  - Running `authenticate` for a different `userId` clears the recovery session and any recovered vault keys held for the previous user.
-- Add non-persisted `recoverySession` state and the `RecoverySession` type. The session holds recovery-node tokens, expiry, profile ID, verifier IDs, and whether the nodes hold a recovery share, and is cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
-- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable vault key set of the account ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Takes the 32-byte `recoverySecret` and no password. It throws `InvalidRecoverySecret` before any request unless `recoverySecret` is a 32-byte `Uint8Array`. It requires an unlocked vault that is in sync with the global password, an aal2 session from `authenticateForRecovery`, and `migrationVersion` `V1` or later.
-  - The migration is complete once the vault has a control record. Every call first fetches the Recovery Secret OPRF key from the recovery verifier with the aal2 session, so an aal2 session is required even when the vault is already envelope-managed. If the key exists and the vault has a control record, it checks that the key belongs to `recoverySecret`, throwing `RecoveryKeyShareConflict` otherwise, seals the vault keys again if the newest Recovery Secret envelope does not hold them, and sets `envelope` state; nothing else is written. If the vault has a control record but the recovery verifier holds no key, it throws `EnvelopeMigrationInconsistent`.
-  - Without a key at the recovery verifier, it re-checks that the password is in sync, creates a fresh Recovery Secret OPRF key and, in this order:
-    - writes the `KeyEnvelope` sealed for the Recovery Secret into that key's partition and reads it back;
-    - registers the Recovery Secret OPRF key on the recovery verifier;
-    - under the vault's metadata lock, re-checks that the password is in sync and writes the control record as an `EnvelopeControl` item in the vault partition (encrypted with the vault keys and signed with the vault auth key) using a batch write, which commits the migration.
-  - With a key at the recovery verifier but no control record, e.g. after an earlier attempt failed once the key was registered, it derives the Recovery Secret envelope keys of the registered key, seals the vault keys again if the newest Recovery Secret envelope does not hold them, and writes the control record. It throws `RecoveryKeyShareConflict` if the key belongs to another Recovery Secret. The same path runs when registering fails but the recovery verifier then holds a key.
-  - Nothing is stored locally between attempts. A failed call can be retried with the escrowed Recovery Secret. If no key was registered, a retry uses a new OPRF key and writes a new Recovery Secret envelope; envelopes whose OPRF key is never registered can never be opened. Until the control record is written, other devices restore the vault as not envelope-managed.
-  - The password is in sync if the global password still derives the vault keys, or, for a vault that already has a control record, if one matches the global password's auth public key. `envelope.passwordAuthPubKey` is set to the live password OPRF auth public key. Throws `OutdatedPassword` if the password is not in sync.
-  - No envelope is written for the password, because the current password still derives the vault keys. The first `changePassword` after migration writes it.
-  - Secret data items and the vault are not changed.
-  - Emits a `Seedless Onboarding Envelope Migration Checkpoint` analytics event with `phase` set to `STARTED` when an attempt starts writing and to `COMPLETED` when it commits, and `partial`, which indicates whether the recovery verifier already held a Recovery Secret OPRF key from an earlier attempt. Nothing is emitted when the migration was already complete.
-- Add `recoverWithRecoverySecret` and the `SeedlessOnboardingController:recoverWithRecoverySecret` messenger action, which recover an envelope-managed vault with the Recovery Secret instead of the password and create the local vault ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Takes the 32-byte `recoverySecret` and the `password` of the new local vault, and requires the social login session and an aal2 session from `authenticateForRecovery`. It throws `InvalidRecoverySecret` before any request unless `recoverySecret` is a 32-byte `Uint8Array`.
-  - Opens the vault keys sealed for the Recovery Secret, fetches the secret data with them, creates the local vault under `password` with the vault keys, and returns the secret data. The vault keys are not kept in memory after the call.
-  - Replaces an existing local vault, e.g. a locked vault whose password is forgotten. If the device has `envelope` state, it throws `RecoveryEnvelopeNotFound` when the recovered vault keys are not the ones `envelope.vaultAuthPubKey` names.
-  - Throws `RecoveryEnvelopeNotFound` if the vault has no control record, as its migration is not committed, and `EnvelopeControlRecordNotFound` if no control record matches the live password OPRF auth public key. No local vault is created when it throws.
-  - Sets `envelope.passwordAuthPubKey` to the live password OPRF key, so `checkIsPasswordOutdated` reports a password change made elsewhere after recovery. It sets `isLocalPassword`, which `resetPasswordWithVaultKeys`, `changePassword` and `syncLatestGlobalPassword` clear once they make the password global. `addNewSecretData` skips the out-of-sync check while it is set.
-- Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password on an unlocked, envelope-managed vault without the old password after `recoverWithRecoverySecret` ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Only allowed while `isLocalPassword` is set and with a valid aal2 session from `authenticateForRecovery`; otherwise it throws `PasswordResetRequiresRecovery` or `Aal2Required`. A successful reset clears `isLocalPassword`; after that, use `changePassword`.
-  - The password OPRF key swap is signed with the auth key stored in the vault's control record. The vault keys and secret data are not changed, and the local vault is re-encrypted under `newPassword`.
+- Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action, which start an aal2 recovery session after `authenticate` ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Takes `authConnectionId` and `groupedAuthConnectionId`, and throws `MissingAuthUserInfo` if `authenticate` has not succeeded first.
+  - Authenticating as a different `userId` clears the recovery session and any recovered vault keys for the previous user.
+- Add non-persisted `recoverySession` state and the `RecoverySession` type, cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable key set for the account ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Takes a 32-byte `recoverySecret` and requires an unlocked vault in sync with the global password, an aal2 session, and `migrationVersion` `V1` or later.
+  - Completes when the vault has an `EnvelopeControl` record. Retries are safe and reuse the Recovery Secret OPRF key if one was already registered.
+  - Emits `Seedless Onboarding Envelope Migration Checkpoint` events with `phase` `STARTED` or `COMPLETED`, and `partial` set when a key from an earlier attempt exists.
+- Add `recoverWithRecoverySecret` and the `SeedlessOnboardingController:recoverWithRecoverySecret` messenger action, which recover an envelope-managed vault with the Recovery Secret and create a local vault under `password` ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Requires the social login session and an aal2 session, and returns the secret data.
+  - Replaces any existing local vault. Sets `isLocalPassword` and `envelope.passwordAuthPubKey`.
+  - Throws `RecoveryEnvelopeNotFound` or `EnvelopeControlRecordNotFound` when no committed migration matches, without creating a local vault.
+- Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password after `recoverWithRecoverySecret` without the old password ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - Requires `isLocalPassword` and an aal2 session, and clears `isLocalPassword` on success.
 - Add `restoreVaultWithPassword` and the `SeedlessOnboardingController:restoreVaultWithPassword` messenger action, which restore the local vault with the global password and return the secret data ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
-  - Derives the keys from `password`, fetches the secret data, and creates the local vault under `password`, replacing any existing one.
-  - Opens the envelope sealed for the password first, and restores the vault with the sealed vault keys and sets `envelope` state if there is one.
-  - If the password has no envelope but a control record in the vault has a `passwordNamespace.authSk` matching the password's auth public key, it restores with the password's keys and sets `envelope` state. Control records are `EnvelopeControl` items in the vault partition, and vault fetches ignore them when reading secrets.
-  - Malformed control records are ignored, including records with a non-positive or unsafe `seq`, empty verifier fields, or a `passwordNamespace.authSk` that is not a valid secp256k1 private key. Unknown fields of a control record are dropped.
-  - Clears `isLocalPassword`, and clears `envelope` state if the restored vault is not envelope-managed.
+  - Replaces any existing local vault.
+  - Uses the password's envelope when one exists, or a matching control record otherwise.
 - Add persisted `envelope` state and the `EnvelopeState` type, set once the vault is envelope-managed ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - `EnvelopeState.passwordAuthPubKey` is the password OPRF auth public key the local password is synced with; after `recoverWithRecoverySecret`, the live key at recovery.
-- Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which derive whether the vault is envelope-managed and whether the password is local, from the existing state ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared by a successful `resetPasswordWithVaultKeys`, `changePassword`, `syncLatestGlobalPassword` or `restoreVaultWithPassword` ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - `passwordAuthPubKey` is the password OPRF auth public key the local password is synced with.
+- Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared once the global password is set again ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which report whether the vault is envelope-managed and whether the password is local ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, and `PasswordResetRequiresRecovery` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
 
 ### Changed
 
-- **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and never changes the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
-  - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })` to restore the vault with the password.
-- `changePassword` on an envelope-managed vault keeps the vault keys: it seals them for the new password, appends a control record using a batch write, and then swaps the password OPRF key, all under the vault's metadata lock. Vaults that another device migrated are detected through their control record ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - The legacy `changePassword` path, which uses the SDK `changeEncKey`, throws `EnvelopeVaultRequiresEnvelopePasswordChange` without writing anything when the vault contains a control record.
-- `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope sealed for the global password first, and fall back to the existing key chain if there is none. A failed envelope fetch is reported as an error, not treated as a missing envelope ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - When `syncLatestGlobalPassword` falls back on a vault without `envelope` state, it sets `envelope` state if a control record's `passwordNamespace.authSk` matches the password's auth public key.
-  - On a vault with `envelope` state, `syncLatestGlobalPassword` only falls back when the global password still derives the vault keys and a control record matches it, as for a migrated vault before its first envelope password change. Otherwise it throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state.
-  - On a vault with `envelope` state, `syncLatestGlobalPassword` also throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state when the envelope sealed for the global password holds vault keys other than `envelope.vaultAuthPubKey`.
-- `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on an envelope-managed vault ([#11220](https://github.com/MetaMask/core/pull/11220))
+- **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and does not change the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
+  - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })`.
+- `changePassword` on an envelope-managed vault keeps the vault keys: it seals them for the new password, appends a control record, and swaps the password OPRF key, under the vault's metadata lock ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - The legacy path throws `EnvelopeVaultRequiresEnvelopePasswordChange` without writing anything when the vault has a control record.
+- `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope for the global password first, and fall back to the existing key chain only when none exists. Envelope fetch failures are now errors ([#11220](https://github.com/MetaMask/core/pull/11220))
+  - On vaults with `envelope` state, throws `PasswordEnvelopeNotFound` unless the global password still derives the vault keys and matches a control record.
+- `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on envelope-managed vaults ([#11220](https://github.com/MetaMask/core/pull/11220))
 
 ### Security
 
-- Exclude `envelope` from state logs. `vaultAuthPubKey` and `passwordAuthPubKey` are public keys, but they can fingerprint an account across logs
+- Exclude `envelope` from state logs, since its public keys can fingerprint an account across logs ([#11220](https://github.com/MetaMask/core/pull/11220))
 
 ## [12.1.0]
 
