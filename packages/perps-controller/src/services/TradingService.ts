@@ -8,7 +8,10 @@ import {
 } from '../constants/eventNames.js';
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import {
+  ORDER_SLIPPAGE_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
 import {
   createTpslLegReplaceUnsupportedError,
   OrderDiscoveryError,
@@ -2108,6 +2111,7 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.assertCurrent - Verifies the issuing account and provider before writes.
    * @param options.withStreamPause - The with stream pause value.
    * @returns The result of the operation.
    */
@@ -2115,6 +2119,7 @@ export class TradingService {
     provider: PerpsProvider;
     params: CancelOrdersParams;
     context: ServiceContext;
+    assertCurrent?: () => void;
     withStreamPause: <TResult>(
       operation: () => Promise<TResult>,
       channels: string[],
@@ -2228,6 +2233,8 @@ export class TradingService {
               }),
             });
           }
+        } finally {
+          options.assertCurrent?.();
         }
 
         // Execute the same normalized selector used by both route guards.
@@ -3403,9 +3410,12 @@ export class TradingService {
     provider: PerpsProvider;
     position: Position;
     trackingData?: TrackingData;
+    /** Saved max slippage. Core's market default applies when absent. */
+    maxSlippageBps?: number;
     context: ServiceContext;
   }): Promise<OrderResult> {
-    const { provider, position, trackingData, context } = options;
+    const { provider, position, trackingData, maxSlippageBps, context } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     const flipIntentProperties = this.#buildTradeIntentProperties({
@@ -3451,6 +3461,8 @@ export class TradingService {
         ...(position.providerId === undefined
           ? {}
           : { providerId: position.providerId }),
+        maxSlippageBps:
+          maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps,
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.

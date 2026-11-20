@@ -30,25 +30,39 @@ export async function* submitBatchHandler(
     isBridgeTx,
     addTransactionBatchFn,
     isDelegatedAccount,
+    next,
   } = args;
+
+  const batchId = args.batchId ?? generateBatchId();
+  const historyKey = args.historyKey ?? batchId;
+
+  // Add new history item if historyKey is not provided
+  if (args.historyKey) {
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey,
+        historyItemOverrides: { next, quote: quoteResponse.quote },
+      },
+    };
+  } else {
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey,
+        quoteResponse,
+        bridgeTxMeta: {
+          batchId,
+        },
+        next,
+      },
+    };
+  }
 
   const tradeData = toQuoteAndTxMetadata({
     quoteResponse,
     isBridgeTx,
   });
-
-  const batchId = generateBatchId();
-
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      historyKey: batchId,
-      quoteResponse,
-      bridgeTxMeta: {
-        batchId,
-      },
-    },
-  };
 
   const transactionParams = await getAddTransactionBatchParams({
     tradeData,
@@ -115,7 +129,7 @@ export async function* submitBatchHandler(
   yield {
     type: SubmitStep.RekeyHistoryItem,
     payload: {
-      oldHistoryKey: batchId,
+      oldHistoryKey: historyKey,
       newHistoryKey: tradeMeta.id,
       historyItemOverrides: {
         approvalTxId: approvalMeta?.id,

@@ -58,7 +58,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/signature-controller": "^40.1.1",
-    "@metamask/transaction-controller": "^74.2.0",
+    "@metamask/transaction-controller": "^74.3.0",
     "@metamask/utils": "^12.0.2",
     "@tanstack/query-core": "^5.107.1",
     "cockatiel": "^3.2.1"
@@ -75,6 +75,7 @@
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^14.0.3",
+    "vite": "^8.3.8",
     "vitest": "5.1.1"
   },
   "engines": {

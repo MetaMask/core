@@ -62,7 +62,7 @@
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.2.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^74.2.0",
+    "@metamask/transaction-controller": "^74.3.0",
     "@metamask/utils": "^12.0.2"
   },
   "devDependencies": {
@@ -74,6 +74,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.8",
     "vitest": "5.1.1"
   },
   "engines": {

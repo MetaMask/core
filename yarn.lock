@@ -5133,6 +5133,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -5161,7 +5162,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@metamask/watch-only-keyring": "npm:^0.1.1"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     ethereum-cryptography: "npm:^3.2.0"
     immer: "npm:^11.2.10"
@@ -5171,6 +5172,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -5204,6 +5206,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5218,6 +5221,7 @@ __metadata:
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5235,6 +5239,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5256,6 +5261,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5272,11 +5278,12 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5293,6 +5300,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5316,6 +5324,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5335,6 +5344,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5361,7 +5371,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/account-tree-controller": "npm:^11.2.0"
     "@metamask/accounts-controller": "npm:^40.2.0"
-    "@metamask/assets-controllers": "npm:^113.3.2"
+    "@metamask/assets-controllers": "npm:^113.3.3"
     "@metamask/authenticated-user-storage": "npm:^4.2.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
@@ -5377,31 +5387,32 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-transactions-controller": "npm:^8.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/network-enablement-controller": "npm:^7.1.3"
+    "@metamask/network-enablement-controller": "npm:^7.1.4"
     "@metamask/permission-controller": "npm:^14.1.0"
-    "@metamask/phishing-controller": "npm:^18.3.1"
+    "@metamask/phishing-controller": "npm:^18.3.2"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^113.3.2, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^113.3.3, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -5434,9 +5445,9 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^14.1.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/network-enablement-controller": "npm:^7.1.3"
+    "@metamask/network-enablement-controller": "npm:^7.1.4"
     "@metamask/permission-controller": "npm:^14.1.0"
-    "@metamask/phishing-controller": "npm:^18.3.1"
+    "@metamask/phishing-controller": "npm:^18.3.2"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
@@ -5447,7 +5458,7 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^11.2.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@types/bn.js": "npm:^5.2.0"
@@ -5461,7 +5472,7 @@ __metadata:
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     multiformats: "npm:^9.9.0"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     single-call-balance-checker-abi: "npm:^1.0.0"
@@ -5469,6 +5480,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -5505,11 +5517,12 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5553,6 +5566,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5583,12 +5597,13 @@ __metadata:
     cockatiel: "npm:^3.2.1"
     fast-deep-equal: "npm:^3.1.3"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5604,6 +5619,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   bin:
     bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.js
@@ -5621,7 +5637,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.2.0"
     "@metamask/assets-controller": "npm:^21.0.0"
-    "@metamask/assets-controllers": "npm:^113.3.2"
+    "@metamask/assets-controllers": "npm:^113.3.3"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -5637,18 +5653,19 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5657,30 +5674,38 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
+    "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.2.0"
+    "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/bridge-controller": "npm:^83.3.0"
     "@metamask/controller-utils": "npm:^13.0.0"
+    "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/gas-fee-controller": "npm:^27.1.1"
     "@metamask/keyring-controller": "npm:^28.2.2"
+    "@metamask/keyring-internal-api": "npm:^12.1.2"
     "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/money-account-controller": "npm:^3.0.1"
+    "@metamask/money-account-utils": "npm:^2.2.1"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
+    "@metamask/transaction-pay-controller": "npm:^32.1.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5706,6 +5731,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5722,6 +5748,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5743,6 +5770,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5759,11 +5787,12 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5787,6 +5816,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5803,6 +5833,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5818,7 +5849,7 @@ __metadata:
     "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/keyring-api": "npm:^24.3.0"
     "@metamask/slip44": "npm:^4.5.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     eth-chainlist: "npm:^0.0.881"
@@ -5826,6 +5857,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5841,12 +5873,13 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5865,6 +5898,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5886,12 +5920,13 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5909,6 +5944,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -5985,11 +6021,12 @@ __metadata:
     fast-deep-equal: "npm:^3.1.3"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -6018,6 +6055,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6060,7 +6098,7 @@ __metadata:
     ignore: "npm:^7.0.14"
     knip: "npm:^6.45.1"
     lodash: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     outdent: "npm:^0.8.0"
     oxfmt: "npm:^0.72.0"
     oxlint: "npm:^1.85.0"
@@ -6118,6 +6156,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6136,6 +6175,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6172,13 +6212,14 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/stake-sdk": "npm:^3.4.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6193,7 +6234,7 @@ __metadata:
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     klona: "npm:^2.0.6"
@@ -6203,6 +6244,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6221,6 +6263,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6242,6 +6285,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6258,6 +6302,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6278,6 +6323,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6347,6 +6393,7 @@ __metadata:
     safe-stable-stringify: "npm:^3.0.1"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6383,6 +6430,7 @@ __metadata:
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6450,6 +6498,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6605,13 +6654,14 @@ __metadata:
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
     minipass: "npm:^7.1.3"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     tar: "npm:^7.5.23"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.5"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     yaml: "npm:^2.9.1"
     yargs: "npm:^18.2.0"
@@ -6638,12 +6688,13 @@ __metadata:
     "@types/bn.js": "npm:^5.2.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -6667,13 +6718,14 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.2.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6693,6 +6745,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6708,6 +6761,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   bin:
     java-tron-up: ./dist/bin/java-tron-up.js
@@ -6747,6 +6801,7 @@ __metadata:
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6771,14 +6826,15 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
     "@metamask/utils": "npm:^12.0.2"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     extension-port-stream: "npm:^3.0.0"
-    readable-stream: "npm:^3.6.2"
+    readable-stream: "npm:^4.8.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill-ts: "npm:^0.26.0"
   languageName: unknown
@@ -6814,6 +6870,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6863,6 +6920,7 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     ulid: "npm:^2.4.0"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6976,12 +7034,13 @@ __metadata:
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     chokidar-cli: "npm:^3.0.0"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     tweetnacl: "npm:^1.0.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -6992,11 +7051,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     yaml: "npm:^2.9.1"
   languageName: unknown
@@ -7016,6 +7076,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7036,6 +7097,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7057,6 +7119,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7076,6 +7139,7 @@ __metadata:
     prettier: "npm:^3.10.1"
     rimraf: "npm:^6.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     yargs: "npm:^18.2.0"
   peerDependencies:
@@ -7128,6 +7192,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     typescript: ">=5.0.0"
@@ -7162,6 +7227,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7216,11 +7282,12 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7242,11 +7309,12 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7270,6 +7338,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7294,6 +7363,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7321,7 +7391,7 @@ __metadata:
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-utils": "npm:^2.2.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@noble/hashes": "npm:^1.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7330,6 +7400,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7358,6 +7429,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7370,13 +7442,14 @@ __metadata:
     "@ethersproject/abstract-provider": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.8.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7423,6 +7496,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -7457,6 +7531,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7480,11 +7555,12 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     immer: "npm:^11.2.10"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7514,6 +7590,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7533,6 +7610,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7548,7 +7626,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^28.2.2"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/network-enablement-controller": "npm:^7.1.3"
+    "@metamask/network-enablement-controller": "npm:^7.1.4"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     reselect: "npm:^5.3.0"
@@ -7556,6 +7634,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7595,7 +7674,7 @@ __metadata:
     immer: "npm:^11.2.10"
     lodash-es: "npm:^4.18.1"
     loglevel: "npm:^1.9.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     node-fetch: "npm:^2.7.0"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
@@ -7604,11 +7683,12 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uri-js: "npm:^4.4.1"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@npm:^7.1.3, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^7.1.4, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
@@ -7621,7 +7701,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^4.1.1"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/slip44": "npm:^4.5.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     reselect: "npm:^5.3.0"
@@ -7629,6 +7709,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7646,6 +7727,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7677,7 +7759,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/utils": "npm:^12.0.2"
     "@types/lodash-es": "npm:^4.17.12"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -7686,13 +7768,14 @@ __metadata:
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     loglevel: "npm:^1.9.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     semver: "npm:^7.8.6"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7780,6 +7863,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7803,6 +7887,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7867,6 +7952,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7888,11 +7974,12 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/perps-controller@npm:^24.1.0, @metamask/perps-controller@workspace:packages/perps-controller":
+"@metamask/perps-controller@npm:^25.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
@@ -7912,7 +7999,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/subscription-controller": "npm:^15.3.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@nktkas/hyperliquid": "npm:^0.33.3"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7925,11 +8012,12 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
     viem: "npm:^2.57.20"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^18.3.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^18.3.2, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
@@ -7939,18 +8027,19 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/punycode": "npm:^2.1.4"
     "@typescript/native": "npm:typescript@^7.0.2"
     ethereum-cryptography: "npm:^3.2.0"
     fastest-levenshtein: "npm:^1.0.16"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     punycode: "npm:^2.3.1"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -7981,6 +8070,7 @@ __metadata:
     rimraf: "npm:^6.1.4"
     ts-morph: "npm:^28.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     yargs: "npm:^18.2.0"
   bin:
@@ -8003,6 +8093,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8029,6 +8120,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8050,6 +8142,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8071,16 +8164,17 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^11.2.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8115,11 +8209,12 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     loglevel: "npm:^1.9.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -8165,11 +8260,12 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     fast-deep-equal: "npm:^3.1.3"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8188,6 +8284,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8203,12 +8300,13 @@ __metadata:
     "@tanstack/query-core": "npm:^5.107.1"
     "@tanstack/react-query": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8233,12 +8331,13 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8274,11 +8373,12 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8316,11 +8416,12 @@ __metadata:
     "@types/json-stable-stringify-without-jsonify": "npm:^1.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8341,11 +8442,12 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8362,11 +8464,12 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8385,7 +8488,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/signature-controller": "npm:^40.1.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8396,6 +8499,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8424,6 +8528,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8464,7 +8569,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.3.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -8474,6 +8579,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8501,6 +8607,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8641,6 +8748,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8656,6 +8764,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   bin:
     solana-test-validator-up: ./dist/bin/solana-test-validator-up.js
@@ -8679,6 +8788,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8705,6 +8815,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8733,7 +8844,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/seedless-onboarding-controller": "npm:^12.1.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@tanstack/query-core": "npm:^5.107.1"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8743,6 +8854,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8779,7 +8891,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^74.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^74.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -8822,12 +8934,13 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -8835,7 +8948,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
+"@metamask/transaction-pay-controller@npm:^32.1.1, @metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller"
   dependencies:
@@ -8856,7 +8969,7 @@ __metadata:
     "@metamask/ramps-controller": "npm:^30.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.3.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -8867,6 +8980,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8881,11 +8995,11 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/perps-controller": "npm:^24.1.0"
+    "@metamask/perps-controller": "npm:^25.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -8893,6 +9007,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8907,6 +9022,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -8928,7 +9044,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
@@ -8939,6 +9055,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
     "@metamask/eth-block-tracker": ">=9"
@@ -8989,6 +9106,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
     web3: "npm:^4.16.0"
   languageName: unknown
@@ -9031,12 +9149,13 @@ __metadata:
     "@tanstack/query-core": "npm:^5.107.1"
     "@types/react": "npm:^19.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:^15.0.6"
+    nock: "npm:15.0.5"
     prism-react-renderer: "npm:^2.4.1"
     raw-loader: "npm:^4.0.2"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -9063,7 +9182,7 @@ __metadata:
     "@metamask/logging-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/network-enablement-controller": "npm:^7.1.3"
+    "@metamask/network-enablement-controller": "npm:^7.1.4"
     "@metamask/passkey-controller": "npm:^4.1.0"
     "@metamask/permission-controller": "npm:^14.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
@@ -9073,13 +9192,14 @@ __metadata:
     "@metamask/shield-controller": "npm:^7.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/subscription-controller": "npm:^15.3.0"
-    "@metamask/transaction-controller": "npm:^74.2.0"
+    "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -9097,6 +9217,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
   linkType: soft
@@ -9115,17 +9236,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mswjs/interceptors@npm:^0.45.11":
-  version: 0.45.12
-  resolution: "@mswjs/interceptors@npm:0.45.12"
+"@mswjs/interceptors@npm:^0.44.0":
+  version: 0.44.0
+  resolution: "@mswjs/interceptors@npm:0.44.0"
   dependencies:
     "@open-draft/until": "npm:^3.0.1"
     "@types/debug": "npm:^4.1.13"
     debug: "npm:^4.4.3"
     is-node-process: "npm:^1.2.0"
     outvariant: "npm:^1.4.3"
-    rettime: "npm:^0.11.12"
-  checksum: 10/4f96940fd89595438902dd91ef89f00a61af23869d3e0cc023fd16229f94c422946fbffa09f421feb91ea9a3982cf9270f25f27dfa3dd9e32281350a09ce2b40
+    rettime: "npm:^0.11.11"
+  checksum: 10/af37f7d5434333d9b60150868c2e6827373e94afdb7fddbe7529dd74cc756b9b8ca7cb319731a097fdbe2aa05401e907fc9d99d8678345a37bfa9bc2b0b4d708
   languageName: node
   linkType: hard
 
@@ -11855,13 +11976,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/readable-stream@npm:^2.3.0":
-  version: 2.3.15
-  resolution: "@types/readable-stream@npm:2.3.15"
+"@types/readable-stream@npm:^4.0.25":
+  version: 4.0.25
+  resolution: "@types/readable-stream@npm:4.0.25"
   dependencies:
     "@types/node": "npm:*"
-    safe-buffer: "npm:~5.1.1"
-  checksum: 10/49b51e56f9cc401cb31c72973a7565ef4208d7e2465a789843104ec0fcbe609727b0b5bf4682fbec773c7f7bd14858e5dba739fd85e14d8a85e41185d65984d3
+  checksum: 10/2917d1acb71df534ce1446c873fa2925f86ac1bb907501f165e7ede15361844465075c19c113d62c0e850b2a66f9e552d4533d62752d3e251f7d6341e7b0e1de
   languageName: node
   linkType: hard
 
@@ -21031,12 +21151,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nock@npm:^15.0.6":
-  version: 15.0.6
-  resolution: "nock@npm:15.0.6"
+"nock@npm:15.0.5":
+  version: 15.0.5
+  resolution: "nock@npm:15.0.5"
   dependencies:
-    "@mswjs/interceptors": "npm:^0.45.11"
-  checksum: 10/785c23ea89a38ca2ba99aff26c552dcca5c4c2c60ddbcf38b69881c239ce907f60a98fb7c6dadadd5bd60035ed4a400f7abfc38681a6732f7f721dc680cead34
+    "@mswjs/interceptors": "npm:^0.44.0"
+  checksum: 10/dd3a64adc6424c3cd7521f0a5fcecc8ea1b3dd8f419e231e347e425500ccd6b0685790cd760314c87c3410415880ecbd4cf89d24b8c4432061101b2385d38b11
   languageName: node
   linkType: hard
 
@@ -23679,16 +23799,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"readable-stream@npm:^3.6.2 || ^4.4.2":
-  version: 4.5.2
-  resolution: "readable-stream@npm:4.5.2"
+"readable-stream@npm:^3.6.2 || ^4.4.2, readable-stream@npm:^4.8.0":
+  version: 4.8.0
+  resolution: "readable-stream@npm:4.8.0"
   dependencies:
     abort-controller: "npm:^3.0.0"
     buffer: "npm:^6.0.3"
     events: "npm:^3.3.0"
     process: "npm:^0.11.10"
     string_decoder: "npm:^1.3.0"
-  checksum: 10/01b128a559c5fd76a898495f858cf0a8839f135e6a69e3409f986e88460134791657eb46a2ff16826f331682a3c4d0c5a75cef5e52ef259711021ba52b1c2e82
+  checksum: 10/f576d061e4600db2f214451dc079d06ce64b71a9aeb7c8c1c70aa2c798888b1791f7c3012817bbca7c19bc081b933ce5b0ee8076bac95d83e18cac3cdb3d69a6
   languageName: node
   linkType: hard
 
@@ -24119,7 +24239,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rettime@npm:^0.11.12":
+"rettime@npm:^0.11.11":
   version: 0.11.12
   resolution: "rettime@npm:0.11.12"
   checksum: 10/a85faa82ca460c43f216df1b8db71747c54bc3c269fb99d8bddb9bed5bfd600da4c1ad2ea9368b68f98692d6d1014ff767e40576e024a1b5d8b7abb2e46e58bf

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS } from '../../../src/constants/hyperLiquidConfig.js';
 import { CHASE_ORDER_STATUS } from '../../../src/constants/perpsConfig.js';
 import type { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import {
@@ -110,6 +111,39 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('rechecks account support before the first repricing write after expiry', async () => {
+    const order = vi.fn().mockResolvedValue(restedAs(55));
+    const userToMultiSigSigners = vi.fn().mockResolvedValue(null);
+    const { exchangeClient } = useStrategyClients({
+      exchange: { order },
+      info: {
+        userToMultiSigSigners,
+        l2Book: vi
+          .fn()
+          .mockResolvedValueOnce(ethBook([{ px: '2998.9', sz: '10' }]))
+          .mockResolvedValue(ethBook([{ px: '2999.5', sz: '10' }])),
+      },
+    });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+    });
+    expect(placed).toMatchObject({ success: true });
+    const initialProbeCount = userToMultiSigSigners.mock.calls.length;
+    userToMultiSigSigners.mockResolvedValue({
+      authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+      threshold: 1,
+    });
+    vi.setSystemTime(Date.now() + HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(userToMultiSigSigners).toHaveBeenCalledTimes(initialProbeCount + 1);
+    expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    expect(order).toHaveBeenCalledTimes(1);
   });
 
   it('nets its own order off a whole-number level the book prints with a decimal', async () => {

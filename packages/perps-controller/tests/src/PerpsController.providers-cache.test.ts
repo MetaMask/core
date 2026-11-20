@@ -1268,6 +1268,7 @@ describe('PerpsController', () => {
             subscriptionBuilderAddressTestnet: undefined,
             subscriptionBuilderAddressMainnet: undefined,
             onChaseOrderMaxDistanceReached: expect.any(Function),
+            getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },

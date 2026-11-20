@@ -1681,6 +1681,78 @@ describe('HyperLiquidProvider', () => {
       ).rejects.toThrow('xyz: xyz down');
     });
 
+    it.each([
+      new Error('DEX discovery offline'),
+      { invalid: true },
+      [null, {}],
+    ])(
+      'refuses an incomplete HIP-3 snapshot with a healthy main DEX (%j)',
+      async (failure) => {
+        const hip3Provider = createTestProvider({ hip3Enabled: true });
+        const frontendOpenOrders = vi.fn().mockResolvedValue([]);
+        const perpDexs =
+          failure instanceof Error
+            ? vi.fn().mockRejectedValue(failure)
+            : vi.fn().mockResolvedValue(failure);
+        mockClientService.getInfoClient = vi.fn().mockReturnValue({
+          ...mockClientService.getInfoClient(),
+          perpDexs,
+          frontendOpenOrders,
+        });
+
+        await expect(
+          hip3Provider.getOpenOrders({ throwOnUnavailable: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(frontendOpenOrders).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { orders: { orders: [] } },
+      { row: { coin: '', oid: 112, orderType: 'Limit', isTrigger: false } },
+      { row: { coin: 'BTC', oid: null, orderType: 'Limit', isTrigger: false } },
+      { row: { coin: 'BTC', oid: 112, isTrigger: true, reduceOnly: true } },
+      {
+        row: {
+          coin: 'BTC',
+          oid: 112,
+          orderType: 'Limit',
+          isTrigger: true,
+          reduceOnly: true,
+        },
+      },
+    ])('rejects malformed strict open orders (%j)', async ({ orders, row }) => {
+      vi.mocked(
+        mockSubscriptionService.getOrdersCacheIfInitialized,
+      ).mockReturnValue([]);
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue(
+            orders ?? [
+              {
+                coin: 'BTC',
+                oid: 111,
+                orderType: 'Limit',
+                isTrigger: false,
+                reduceOnly: false,
+              },
+              { reduceOnly: false, ...row },
+            ],
+          ),
+        }),
+      );
+
+      await expect(
+        provider.getOpenOrders({ throwOnUnavailable: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(
+        mockSubscriptionService.getOrdersCacheIfInitialized,
+      ).not.toHaveBeenCalled();
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+    });
+
     it('rejects open orders that arrive across a provider disconnect', async () => {
       const started = createDeferred<void>();
       const response = createDeferred<FrontendOpenOrdersResponse>();
@@ -2047,88 +2119,99 @@ describe('HyperLiquidProvider', () => {
       ).toBe(true);
     });
 
-    it('retains main-DEX orders when a HIP-3 DEX is down under strict discovery', async () => {
-      const hip3Provider = createTestProvider({
-        hip3Enabled: true,
-        allowlistMarkets: ['xyz:*'],
-        initialAssetMapping: [
-          ['BTC', 0],
-          ['xyz:STOCK1', 1],
-        ],
-      });
-
-      mockSubscriptionService.getOrdersCacheIfInitialized = vi
-        .fn()
-        .mockReturnValue(null);
-
-      const mockFrontendOpenOrders = vi
-        .fn()
-        .mockImplementation((params: { user: string; dex?: string }) => {
-          if (params.dex === 'xyz') {
-            return Promise.reject(new Error('xyz dex outage'));
-          }
-          // Main DEX stays healthy
-          return Promise.resolve([
-            {
-              coin: 'BTC',
-              side: 'A',
-              limitPx: '51000',
-              sz: '0.5',
-              oid: 402,
-              timestamp: Date.now(),
-              origSz: '0.5',
-              triggerCondition: '',
-              isTrigger: false,
-              triggerPx: '',
-              children: [],
-              isPositionTpsl: false,
-              reduceOnly: false,
-              orderType: 'Limit',
-              tif: 'Gtc',
-              cloid: null,
-            },
-          ]);
-        });
-      mockClientService.getInfoClient = vi.fn().mockReturnValue({
-        maxBuilderFee: vi.fn().mockResolvedValue(1),
-        referral: vi.fn().mockResolvedValue({
-          referrerState: { stage: 'ready', data: { code: 'MMCSI' } },
-          referredBy: { code: 'MMCSI' },
-        }),
-        frontendOpenOrders: mockFrontendOpenOrders,
-        clearinghouseState: vi.fn().mockResolvedValue({
-          marginSummary: { totalMarginUsed: '0', accountValue: '1000' },
-          withdrawable: '1000',
-          assetPositions: [],
-          crossMarginSummary: { accountValue: '1000', totalMarginUsed: '0' },
-        }),
-        meta: vi.fn().mockResolvedValue({
-          universe: [
-            { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-            { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+    it.each([
+      { malformed: false, expectedError: 'xyz: xyz dex outage' },
+      {
+        malformed: true,
+        expectedError: 'xyz: ' + PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      },
+    ])(
+      'retains main-DEX orders on partial strict discovery (malformed=$malformed)',
+      async ({ malformed, expectedError }) => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+          initialAssetMapping: [
+            ['BTC', 0],
+            ['xyz:STOCK1', 1],
           ],
-        }),
-        perpDexs: vi
+        });
+
+        mockSubscriptionService.getOrdersCacheIfInitialized = vi
           .fn()
-          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
-      });
+          .mockReturnValue(null);
 
-      const read = hip3Provider.getOpenOrders({
-        skipCache: true,
-        throwOnUnavailable: true,
-      });
-
-      await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
-      await expect(read).rejects.toMatchObject({
-        orders: [expect.objectContaining({ orderId: '402', symbol: 'BTC' })],
-        failures: [
-          expect.objectContaining({
-            providerId: 'hyperliquid',
-            error: expect.stringContaining('xyz: xyz dex outage'),
+        const mockFrontendOpenOrders = vi
+          .fn()
+          .mockImplementation((params: { user: string; dex?: string }) => {
+            if (params.dex === 'xyz') {
+              return malformed
+                ? Promise.resolve([{ coin: '', oid: 999 }])
+                : Promise.reject(new Error('xyz dex outage'));
+            }
+            // Main DEX stays healthy
+            return Promise.resolve([
+              {
+                coin: 'BTC',
+                side: 'A',
+                limitPx: '51000',
+                sz: '0.5',
+                oid: 402,
+                timestamp: Date.now(),
+                origSz: '0.5',
+                triggerCondition: '',
+                isTrigger: false,
+                triggerPx: '',
+                children: [],
+                isPositionTpsl: false,
+                reduceOnly: false,
+                orderType: 'Limit',
+                tif: 'Gtc',
+                cloid: null,
+              },
+            ]);
+          });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue({
+          maxBuilderFee: vi.fn().mockResolvedValue(1),
+          referral: vi.fn().mockResolvedValue({
+            referrerState: { stage: 'ready', data: { code: 'MMCSI' } },
+            referredBy: { code: 'MMCSI' },
           }),
-        ],
-      });
-    });
+          frontendOpenOrders: mockFrontendOpenOrders,
+          clearinghouseState: vi.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '0', accountValue: '1000' },
+            withdrawable: '1000',
+            assetPositions: [],
+            crossMarginSummary: { accountValue: '1000', totalMarginUsed: '0' },
+          }),
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+              { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+            ],
+          }),
+          perpDexs: vi
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        });
+
+        const read = hip3Provider.getOpenOrders({
+          skipCache: true,
+          throwOnUnavailable: true,
+        });
+
+        await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
+        await expect(read).rejects.toMatchObject({
+          orders: [expect.objectContaining({ orderId: '402', symbol: 'BTC' })],
+          failures: [
+            expect.objectContaining({
+              providerId: 'hyperliquid',
+              error: expect.stringContaining(expectedError),
+            }),
+          ],
+        });
+      },
+    );
 
     it('retains discovered orders when whole-position sizing fails', async () => {
       const order: FrontendOpenOrdersResponse[number] = {

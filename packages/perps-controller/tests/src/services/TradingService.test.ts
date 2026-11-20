@@ -2213,6 +2213,44 @@ describe('TradingService', () => {
       },
     ];
 
+    const validSelection = {
+      providerId: 'hyperliquid',
+      symbol: 'BTC',
+      orderId: 'order-1',
+    };
+
+    it.each([
+      { orders: null },
+      { orderIds: {} },
+      { symbols: null },
+      { orders: [validSelection, null] },
+      {
+        orders: [
+          validSelection,
+          { ...validSelection, providerId: 'aggregated' },
+        ],
+      },
+      { orders: [validSelection, { ...validSelection, orderId: ' ' }] },
+      { orders: [validSelection, { ...validSelection, orderId: 123 }] },
+    ])(
+      'rejects an invalid batch filter before reading orders: %j',
+      async (params) => {
+        const getOpenOrders = vi.fn().mockResolvedValue(mockOrders);
+
+        await expect(
+          tradingService.cancelOrders({
+            provider: mockProvider,
+            // @ts-expect-error Invalid runtime selector intentionally bypasses the typed caller.
+            params,
+            context: { ...mockContext, getOpenOrders },
+            withStreamPause: async (operation) => operation(),
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED);
+        expect(getOpenOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      },
+    );
+
     it.each([
       { successCount: 2, failureCount: 0 },
       { successCount: 1, failureCount: 1 },
@@ -2241,6 +2279,57 @@ describe('TradingService', () => {
         );
       },
     );
+
+    it('passes each order venue to the batch cancel', async () => {
+      mockGetOpenOrders.mockResolvedValue([
+        { ...mockOrders[0], providerId: 'hyperliquid' },
+        { ...mockOrders[0], orderId: 'order-4', providerId: 'lighter' },
+        { ...mockOrders[0], orderId: 'order-5' },
+      ]);
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
+        success: true,
+        successCount: 3,
+        failureCount: 0,
+        results: [],
+      });
+
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { cancelAll: true },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { symbol: 'BTC', orderId: 'order-1', providerId: 'hyperliquid' },
+        { symbol: 'BTC', orderId: 'order-4', providerId: 'lighter' },
+        { symbol: 'BTC', orderId: 'order-5' },
+      ]);
+    });
+
+    it('cancels only the named venue when the batch is scoped', async () => {
+      mockGetOpenOrders.mockResolvedValue([
+        { ...mockOrders[0], providerId: 'hyperliquid' },
+        { ...mockOrders[0], providerId: 'lighter' },
+      ]);
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [],
+      });
+
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { orders: [{ orderId: 'order-1', providerId: 'lighter' }] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { symbol: 'BTC', orderId: 'order-1', providerId: 'lighter' },
+      ]);
+    });
 
     it('cancels all orders excluding TP/SL when cancelAll is true', async () => {
       const params: CancelOrdersParams = {
@@ -5385,6 +5474,35 @@ describe('TradingService', () => {
       );
     });
 
+    it('signs the flip at the saved max slippage', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        maxSlippageBps: 100,
+        context: mockContext,
+      });
+
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ maxSlippageBps: 100 }),
+      );
+    });
+
+    it('uses Core’s 300 bps default for a Lighter flip when none is saved', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, providerId: 'lighter' },
+        context: mockContext,
+      });
+
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'lighter', maxSlippageBps: 300 }),
+      );
+    });
+
     it('omits unknown leverage from flip position analytics', async () => {
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 
@@ -5486,6 +5604,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
@@ -5725,6 +5844,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
     });

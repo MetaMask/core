@@ -141,6 +141,7 @@ import type {
   PerpsRecoveryVenueReview,
   ScaleOrderGroup,
   ResolveRecoveryProtectionParams,
+  ResolveWithdrawalRouteParams,
   PerpsRecoveryProtectionResult,
   Position,
   PublicTrade,
@@ -169,6 +170,7 @@ import type {
   ReplacePositionTPSLLegParams,
   WithdrawParams,
   WithdrawResult,
+  WithdrawalRoute,
   GetHistoricalPortfolioParams,
   HistoricalPortfolioResult,
   OrderType,
@@ -1101,6 +1103,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountSupport',
   'getActiveProvider',
   'getActiveProviderOrNull',
+  'resolveWithdrawalRoute',
   'getAttributionContext',
   'getAvailableDexs',
   'getBlockExplorerUrl',
@@ -2895,6 +2898,7 @@ export class PerpsController extends BaseController<
     // Always create HyperLiquid provider as the base provider
     const hyperLiquidProvider = new HyperLiquidProvider({
       isTestnet: this.state.isTestnet,
+      getCurrentIsTestnet: (): boolean => this.state.isTestnet,
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
@@ -3392,6 +3396,75 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Report the venue a withdrawal will sign on, using the same provider
+   * resolution and the same refusal as `withdraw`.
+   *
+   * While several venues are registered, a withdrawal without an explicit
+   * venue is refused with `PROVIDER_ROUTE_REQUIRED` rather than falling back
+   * to the routing default. This query reports that refusal as a
+   * `route_required` result instead of throwing, so callers cannot mistake it
+   * for a provider error or fail open around it. An explicit route that names
+   * an unknown venue, or that conflicts with the active direct provider,
+   * still throws `PROVIDER_NOT_FOUND`, matching `getAccountSupport`.
+   *
+   * Note that a no-argument `getAccountSupport` read routes through the
+   * routing default even when `withdraw` would refuse; use this method to
+   * learn which venue a withdrawal would actually use.
+   *
+   * @param params - Optional provider route, matching the route `withdraw` accepts.
+   * @returns The resolved venue, or the route-required refusal.
+   */
+  async resolveWithdrawalRoute(
+    params?: ResolveWithdrawalRouteParams,
+  ): Promise<WithdrawalRoute> {
+    const providerId = params?.providerId;
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(providerId);
+    if (unroutedRefusal) {
+      return { status: 'route_required', error: unroutedRefusal.error };
+    }
+
+    const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return { status: 'route_required', error: resolvedRefusal.error };
+    }
+
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
+    if (provider instanceof AggregatedPerpsProvider) {
+      if (providerId !== undefined && !provider.hasProvider(providerId)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      }
+      return {
+        status: 'resolved',
+        providerId: provider.getWriteProviderId(providerId),
+      };
+    }
+
+    const directProviderId = this.#getDirectProviderId(provider);
+    if (directProviderId !== undefined) {
+      return {
+        status: 'resolved',
+        providerId: directProviderId,
+      };
+    }
+
+    if (!isPerpsProviderType(provider.protocolId)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
+    return {
+      status: 'resolved',
+      providerId: provider.protocolId,
+    };
+  }
+
+  /**
    * Identify the account, network and provider an action runs under.
    *
    * @returns A key that changes when any of them changes.
@@ -3698,7 +3771,12 @@ export class PerpsController extends BaseController<
   #getUnroutedAggregatedWriteRefusal(
     providerId: PerpsProviderType | undefined,
     provider?: PerpsProvider,
-  ): { success: false; error: string } | undefined {
+  ):
+    | {
+        success: false;
+        error: typeof PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED;
+      }
+    | undefined {
     if (providerId !== undefined) {
       return undefined;
     }
@@ -4130,21 +4208,59 @@ export class PerpsController extends BaseController<
   async cancelOrders(
     params: CancelOrdersParams,
   ): Promise<WithBatchOperationStatus<CancelOrdersResult>> {
-    // All-order batches fan out; filtered batches must identify their venue.
-    const provider = await this.#getActiveProviderWhenReady();
-    const refusal = getUnroutedCancelOrdersRefusal(
-      provider,
-      resolveCancelSelection(params),
-    );
+    const selection = resolveCancelSelection(params);
+    const request = {
+      ...params,
+      ...(params.orders && {
+        orders: params.orders.map((order) => ({ ...order })),
+      }),
+      ...(params.orderIds && { orderIds: params.orderIds.slice() }),
+      ...(params.symbols && { symbols: params.symbols.slice() }),
+    };
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedProvider = this.activeProviderInstance;
+    const assertCurrent = (provider = issuedProvider): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (provider !== null && this.activeProviderInstance !== provider)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } finally {
+      assertCurrent();
+    }
+    const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
     if (refusal) {
       return withBatchOperationStatus(refusal);
     }
 
+    if (
+      selection.kind === 'orders' &&
+      request.orders?.some((order) =>
+        this.#hasConflictingProviderRoute(order.providerId, provider),
+      )
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
     const result = await this.#tradingService.cancelOrders({
       provider,
-      params,
+      params: request,
+      assertCurrent: () => assertCurrent(provider),
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: (readParams) => this.getOpenOrders(readParams),
+        getOpenOrders: (readParams) => {
+          assertCurrent(provider);
+          return this.getOpenOrders(readParams);
+        },
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,
@@ -4253,10 +4369,13 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
     this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
 
     return this.#tradingService.updatePositionTPSL({
       provider,
-      params,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
       context: this.#createServiceContext('updatePositionTPSL'),
     });
   }
@@ -4366,6 +4485,7 @@ export class PerpsController extends BaseController<
       provider,
       position: params.position,
       trackingData: params.trackingData,
+      maxSlippageBps: this.state.maxSlippageBps,
       context: this.#createServiceContext('flipPosition'),
     });
   }
@@ -4934,6 +5054,11 @@ export class PerpsController extends BaseController<
    *
    * @param params Withdrawal parameters
    * @returns WithdrawResult with withdrawal ID and tracking info
+   * @throws When no provider is initialized or the provider lifecycle changes
+   * while waiting for it, or when the explicit `providerId` route conflicts
+   * with the active direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode
+   * refusals are returned as `{ success: false, error }` values rather than
+   * thrown.
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
@@ -4950,6 +5075,10 @@ export class PerpsController extends BaseController<
     );
     if (resolvedRefusal) {
       return resolvedRefusal;
+    }
+
+    if (this.#hasConflictingProviderRoute(params.providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
     return this.#accountService.withdraw({

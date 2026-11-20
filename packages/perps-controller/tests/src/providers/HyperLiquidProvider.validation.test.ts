@@ -1520,6 +1520,120 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it.each([0, Number.NaN, -2])(
+      'rejects leverage %s as invalid',
+      async (leverage) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
+      },
+    );
+
+    it.each(['', '0'])(
+      'leaves an empty or zero size (%j) to the minimum-size check',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        });
+      },
+    );
+
+    it.each(['Infinity', '0', '-1'])(
+      'rejects an invalid reduce-only size cap %s alongside a valid USD amount',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: false,
+          orderType: 'market',
+          reduceOnly: true,
+          currentPrice: 50000,
+          usdAmount: '100',
+        });
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
+    it.each(['abc', 'Infinity', '-1'])(
+      'rejects size %s when no USD amount is given',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
+    it.each([
+      [
+        { orderType: 'limit', price: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: Infinity },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: NaN },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'stop_market', triggerPrice: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      ],
+    ] as const)(
+      'rejects a non-finite price for %j',
+      async (priceParams, error) => {
+        const actualValidation = await vi.importActual<
+          typeof import('../../../src/utils/hyperLiquidValidation.js')
+        >('../../../src/utils/hyperLiquidValidation.js');
+        mockValidateOrderParams.mockImplementation(
+          actualValidation.validateOrderParams,
+        );
+
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          ...priceParams,
+        });
+
+        expect(result).toStrictEqual({ isValid: false, error });
+      },
+    );
+
     it('handles validation errors gracefully', async () => {
       mockValidateOrderParams.mockImplementation(() => {
         throw new Error('Unexpected error');

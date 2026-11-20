@@ -562,6 +562,70 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('market order market status', () => {
+    const marketOrder = {
+      symbol: 'BTC',
+      isBuy: true,
+      orderType: 'market' as const,
+      size: '0.001',
+    };
+
+    it('refreshes metadata and refuses a market order once the market is no longer active', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await provider.getMarkets();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      expect(await provider.validateOrder(marketOrder)).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(await provider.placeOrder(marketOrder)).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('keeps a reduce-only market close available on an inactive market', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      const validation = await provider.validateOrder({
+        ...marketOrder,
+        reduceOnly: true,
+      });
+
+      expect(validation.error).not.toBe(PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN);
+    });
+  });
+
+  describe('validateOrder leverage and price bounds', () => {
+    it.each([
+      [{ leverage: 0 }, 'Invalid leverage'],
+      [{ leverage: -2 }, 'Invalid leverage'],
+      [{ price: 'Infinity' }, 'Invalid limit price'],
+    ])('rejects %o', async (overrides, error) => {
+      const { provider, calls } = buildProvider();
+
+      const validation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'limit',
+        price: '90000',
+        size: '0.001',
+        ...overrides,
+      });
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain(error);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
   describe('round-9 finite-positive intent parity', () => {
     it('rejects non-finite size, usdAmount, and leverage in validateOrder and placeOrder before any signer call', async () => {
       const { provider, calls } = buildProvider();
@@ -2082,6 +2146,55 @@ describe('LighterProvider', () => {
         currentPrice: 100000,
       });
       expect(marketPlacement.success).toBe(true);
+    });
+
+    it('resolves the canonical symbol on a cold strict open-orders snapshot', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const orderIndex = venue.seedTrigger('stop-loss', '80000');
+      expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
+
+      const orders = await provider.getOpenOrders({
+        throwOnUnavailable: true,
+      });
+
+      expect(orders).toMatchObject([
+        { symbol: 'BTC', orderId: String(orderIndex) },
+      ]);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a strict open-orders snapshot with an unknown market ID', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      venue.rawTriggers[0].marketIndex = 999;
+
+      await expect(
+        provider.getOpenOrders({ throwOnUnavailable: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads a confirmed missing account as empty without swallowing outages', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const options = { throwOnUnavailable: true } as const;
+
+      expect(await provider.getOpenOrders(options)).toStrictEqual([]);
+      clientInstance.getAccountsByL1Address.mockRejectedValueOnce(
+        new Error('lookup offline'),
+      );
+      await expect(provider.getOpenOrders(options)).rejects.toThrow(
+        'lookup offline',
+      );
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
     });
 
     it('preserves subscriber state when channel setup hits a capability gate', async () => {

@@ -3137,6 +3137,11 @@ export type UpdatePositionTPSLParams = {
   stopLossSize?: string;
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
+  /**
+   * HyperLiquid: max slippage in basis points for a whole-position market leg. Omit
+   * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -3245,6 +3250,25 @@ export type PerpsAccountSupport =
 export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
+
+/**
+ * Selects the provider route whose withdrawal destination should be resolved.
+ * Accepts the same optional route `withdraw` accepts.
+ */
+export type ResolveWithdrawalRouteParams = {
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * The venue a withdrawal will sign on, or the same refusal `withdraw` returns
+ * when several venues are registered and no route is named.
+ */
+export type WithdrawalRoute =
+  | { status: 'resolved'; providerId: PerpsProviderType }
+  | {
+      status: 'route_required';
+      error: Extract<PerpsErrorCode, 'PROVIDER_ROUTE_REQUIRED'>;
+    };
 
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
