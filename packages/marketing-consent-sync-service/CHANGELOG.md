@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Initial release ([#11170](https://github.com/MetaMask/core/pull/11170))
@@ -16,4 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `refresh` method and `MarketingConsentSyncService:refresh` action, which re-read consent from Authenticated User Storage
   - This package replaces `@metamask/marketing-consent-controller`. The service holds no state: the local change waiting to be saved is the `marketingConsentSyncPending` state of `AnalyticsController`, so it requires a version of `@metamask/analytics-controller` that includes it.
 
-[Unreleased]: https://github.com/MetaMask/core/
+### Changed
+
+- Require `@metamask/analytics-controller` `^4.4.0`, which adds `marketingConsentSyncPending`, `applyRemoteMarketingConsent` and `clearMarketingConsentSyncPending` ([#11469](https://github.com/MetaMask/core/pull/11469))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-sync-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/marketing-consent-sync-service@1.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "30.1.0",
+  "version": "30.1.1",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "Ethereum",
@@ -75,7 +75,7 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.6.10",
-    "@metamask/analytics-controller": "^4.3.1",
+    "@metamask/analytics-controller": "^4.4.0",
     "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
