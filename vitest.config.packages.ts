@@ -39,17 +39,21 @@ function findInstalledPackage(
  * Published packages can depend on a version range that a workspace package
  * satisfies, in which case Yarn links them to it. Workspace packages have no
  * build output when tests run, so resolve such imports to the source of the
- * workspace package. Imports that resolve to a registry copy are left alone.
+ * workspace package. Subpath imports, such as `@metamask/cryptography/sha`, map
+ * to the file of the same name in `src/`. Imports that resolve to a registry
+ * copy are left alone.
  */
 const workspacePackageSources: Plugin = {
   name: 'workspace-package-sources',
   enforce: 'pre',
   resolveId(source, importer) {
-    if (!importer || !/^@metamask\/[^/]+$/u.test(source)) {
+    const match = /^(@metamask\/[^/]+)(?:\/(.+))?$/u.exec(source);
+    if (!importer || !match) {
       return null;
     }
 
-    const installed = findInstalledPackage(importer.split('?')[0], source);
+    const [, packageName, subpath] = match;
+    const installed = findInstalledPackage(importer.split('?')[0], packageName);
     if (
       installed === undefined ||
       path.dirname(installed) !== WORKSPACE_PACKAGES_DIRECTORY
@@ -57,7 +61,10 @@ const workspacePackageSources: Plugin = {
       return null;
     }
 
-    const entry = path.join(installed, 'src/index.ts');
+    const entry = path.join(
+      installed,
+      subpath === undefined ? 'src/index.ts' : `src/${subpath}.ts`,
+    );
     return fs.existsSync(entry) ? entry : null;
   },
 };
