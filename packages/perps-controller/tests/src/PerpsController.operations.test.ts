@@ -778,6 +778,16 @@ describe('PerpsController', () => {
       });
     });
 
+    it('rejects an unregistered direct provider whose protocol is not a venue', async () => {
+      const provider = setDirectMode('lighter');
+      Object.defineProperty(provider, 'protocolId', { value: 'unknown' });
+      controller.testSetProviders(new Map());
+
+      await expect(controller.resolveWithdrawalRoute()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+    });
+
     it.each(['hyperliquid', 'lighter'] as const)(
       'accepts an explicit matching route in direct %s mode',
       async (providerId) => {
