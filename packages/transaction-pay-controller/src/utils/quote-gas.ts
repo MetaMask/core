@@ -147,6 +147,33 @@ export async function estimateSourceGas({
   return originalTransaction ? gas : addPrependedGas(gas, request, transaction);
 }
 
+/**
+ * Get every source-chain transaction submitted for a quote, in submission
+ * order. Post-quote flows prepend the original transaction when it can be
+ * submitted alongside the quote transactions.
+ *
+ * @param options - Options bag.
+ * @param options.request - Quote request.
+ * @param options.transaction - Original transaction metadata.
+ * @param options.transactions - Quote transactions.
+ * @returns The source-chain transactions in submission order.
+ */
+export function getSourceTransactions({
+  request,
+  transaction,
+  transactions,
+}: {
+  request: QuoteRequest;
+  transaction: TransactionMeta;
+  transactions: QuoteGasTransaction[];
+}): QuoteGasTransaction[] {
+  const originalTransaction = getOriginalTransactionGas(request, transaction);
+
+  return originalTransaction
+    ? [originalTransaction, ...transactions]
+    : transactions;
+}
+
 async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
