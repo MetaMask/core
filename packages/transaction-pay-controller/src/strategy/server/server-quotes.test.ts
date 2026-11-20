@@ -1503,6 +1503,7 @@ describe('server-quotes', () => {
     it('quotes mainnet USDC and embeds the deposit calls', async () => {
       await getServerQuotes({
         accountSupports7702: true,
+        from: FROM_MOCK,
         messenger,
         requests: [
           {
@@ -1536,6 +1537,7 @@ describe('server-quotes', () => {
     it('adds no calls when the Lighter deposit has no calldata and keeps the client target', async () => {
       await getServerQuotes({
         accountSupports7702: true,
+        from: FROM_MOCK,
         messenger,
         requests: [
           {
@@ -1545,7 +1547,14 @@ describe('server-quotes', () => {
             targetTokenAddress: MAINNET_USDC_ADDRESS,
           },
         ],
-        transaction: TRANSACTION_META_MOCK,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: '0x',
+            from: FROM_MOCK,
+            to: DEPOSIT_CALL.to,
+          },
+        },
       });
 
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
@@ -1560,6 +1569,121 @@ describe('server-quotes', () => {
       );
       expect(fetchServerQuoteMock.mock.calls[0][1]).not.toHaveProperty('calls');
       expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('skips nested calls without calldata and defaults a missing value to zero', async () => {
+      const deposit = {
+        data: DEPOSIT_CALL.data,
+        to: DEPOSIT_CALL.to,
+      };
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            paymentOverride: PaymentOverride.PerpsLighter,
+            targetChainId: CHAIN_ID_MAINNET,
+            targetTokenAddress: MAINNET_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            { data: APPROVE_CALL.data },
+            { to: MAINNET_USDC_ADDRESS },
+            { data: '0x', to: MAINNET_USDC_ADDRESS },
+            deposit,
+          ],
+        },
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [{ ...deposit, value: '0x0' }],
+        }),
+        undefined,
+      );
+    });
+
+    it('embeds the parent call when the Lighter deposit has no nested calls', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            paymentOverride: PaymentOverride.PerpsLighter,
+            targetChainId: CHAIN_ID_MAINNET,
+            targetTokenAddress: MAINNET_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: DEPOSIT_CALL.data,
+            from: FROM_MOCK,
+            to: DEPOSIT_CALL.to,
+            value: '0x1',
+          },
+        },
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [
+            {
+              data: DEPOSIT_CALL.data,
+              to: DEPOSIT_CALL.to,
+              value: '0x1',
+            },
+          ],
+        }),
+        undefined,
+      );
+
+      fetchServerQuoteMock.mockClear();
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            paymentOverride: PaymentOverride.PerpsLighter,
+            targetChainId: CHAIN_ID_MAINNET,
+            targetTokenAddress: MAINNET_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: DEPOSIT_CALL.data,
+            from: FROM_MOCK,
+            to: DEPOSIT_CALL.to,
+          },
+        },
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [
+            {
+              data: DEPOSIT_CALL.data,
+              to: DEPOSIT_CALL.to,
+              value: '0x0',
+            },
+          ],
+        }),
+        undefined,
+      );
     });
   });
 

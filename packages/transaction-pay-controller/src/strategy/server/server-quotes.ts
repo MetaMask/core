@@ -955,7 +955,7 @@ function getDefinedTransactionCalls(
     .map((call) => ({
       to: call.to as Hex,
       data: call.data as Hex,
-      value: (call.value as Hex | undefined) ?? '0x0',
+      value: call.value ?? '0x0',
     }));
 
   if (nested.length > 0) {
