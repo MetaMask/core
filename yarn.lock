@@ -5162,7 +5162,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@metamask/watch-only-keyring": "npm:^0.1.1"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     ethereum-cryptography: "npm:^3.2.0"
     immer: "npm:^11.2.10"
@@ -5674,20 +5674,28 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
+    "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.2.0"
+    "@metamask/approval-controller": "npm:^10.0.0"
+    "@metamask/assets-controller": "npm:^21.0.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/bridge-controller": "npm:^83.3.0"
     "@metamask/controller-utils": "npm:^13.0.0"
+    "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/gas-fee-controller": "npm:^27.1.1"
     "@metamask/keyring-controller": "npm:^28.2.2"
+    "@metamask/keyring-internal-api": "npm:^12.1.2"
     "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/money-account-controller": "npm:^3.0.1"
+    "@metamask/money-account-utils": "npm:^2.2.1"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^74.3.0"
+    "@metamask/transaction-pay-controller": "npm:^32.1.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -6819,10 +6827,10 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
     "@metamask/utils": "npm:^12.0.2"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@typescript/native": "npm:typescript@^7.0.2"
     extension-port-stream: "npm:^3.0.0"
-    readable-stream: "npm:^3.6.2"
+    readable-stream: "npm:^4.8.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7752,7 +7760,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/utils": "npm:^12.0.2"
     "@types/lodash-es": "npm:^4.17.12"
-    "@types/readable-stream": "npm:^2.3.0"
+    "@types/readable-stream": "npm:^4.0.25"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -8941,7 +8949,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
+"@metamask/transaction-pay-controller@npm:^32.1.1, @metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller"
   dependencies:
@@ -9017,41 +9025,6 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
     vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
-  languageName: unknown
-  linkType: soft
-
-"@metamask/user-operation-controller@workspace:packages/user-operation-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/user-operation-controller@workspace:packages/user-operation-controller"
-  dependencies:
-    "@metamask/approval-controller": "npm:^10.0.0"
-    "@metamask/auto-changelog": "npm:^7.1.0"
-    "@metamask/base-controller": "npm:^10.1.0"
-    "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-block-tracker": "npm:^16.0.0"
-    "@metamask/eth-query": "npm:^4.0.0"
-    "@metamask/gas-fee-controller": "npm:^27.1.1"
-    "@metamask/keyring-controller": "npm:^28.2.2"
-    "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.3"
-    "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^74.3.0"
-    "@metamask/utils": "npm:^12.0.2"
-    "@typescript/native": "npm:typescript@^7.0.2"
-    bn.js: "npm:^5.2.5"
-    immer: "npm:^11.2.10"
-    lodash-es: "npm:^4.18.1"
-    rimraf: "npm:^6.1.4"
-    typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^4.1.4"
-    typescript: "npm:@typescript/typescript6@^6.0.2"
-    uuid: "npm:^14.0.3"
-    vite: "npm:^8.3.8"
-    vitest: "npm:5.1.1"
-  peerDependencies:
-    "@metamask/eth-block-tracker": ">=9"
   languageName: unknown
   linkType: soft
 
@@ -11969,13 +11942,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/readable-stream@npm:^2.3.0":
-  version: 2.3.15
-  resolution: "@types/readable-stream@npm:2.3.15"
+"@types/readable-stream@npm:^4.0.25":
+  version: 4.0.25
+  resolution: "@types/readable-stream@npm:4.0.25"
   dependencies:
     "@types/node": "npm:*"
-    safe-buffer: "npm:~5.1.1"
-  checksum: 10/49b51e56f9cc401cb31c72973a7565ef4208d7e2465a789843104ec0fcbe609727b0b5bf4682fbec773c7f7bd14858e5dba739fd85e14d8a85e41185d65984d3
+  checksum: 10/2917d1acb71df534ce1446c873fa2925f86ac1bb907501f165e7ede15361844465075c19c113d62c0e850b2a66f9e552d4533d62752d3e251f7d6341e7b0e1de
   languageName: node
   linkType: hard
 
@@ -23793,16 +23765,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"readable-stream@npm:^3.6.2 || ^4.4.2":
-  version: 4.5.2
-  resolution: "readable-stream@npm:4.5.2"
+"readable-stream@npm:^3.6.2 || ^4.4.2, readable-stream@npm:^4.8.0":
+  version: 4.8.0
+  resolution: "readable-stream@npm:4.8.0"
   dependencies:
     abort-controller: "npm:^3.0.0"
     buffer: "npm:^6.0.3"
     events: "npm:^3.3.0"
     process: "npm:^0.11.10"
     string_decoder: "npm:^1.3.0"
-  checksum: 10/01b128a559c5fd76a898495f858cf0a8839f135e6a69e3409f986e88460134791657eb46a2ff16826f331682a3c4d0c5a75cef5e52ef259711021ba52b1c2e82
+  checksum: 10/f576d061e4600db2f214451dc079d06ce64b71a9aeb7c8c1c70aa2c798888b1791f7c3012817bbca7c19bc081b933ce5b0ee8076bac95d83e18cac3cdb3d69a6
   languageName: node
   linkType: hard
 

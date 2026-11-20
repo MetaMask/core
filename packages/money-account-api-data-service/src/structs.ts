@@ -155,6 +155,25 @@ export const VaultRateResponseStruct = type({
   indexer_lag_seconds: number(),
 });
 
+export const VaultSummaryStruct = type({
+  chain_id: number(),
+  vault_address: string(),
+  vault_key: string(),
+  name: string(),
+  asset_symbol: string(),
+  asset_decimals: number(),
+  asset_contract_address: string(),
+  current_apy: string(),
+  as_of_block: number(),
+  as_of_timestamp: string(),
+  data_freshness: DataFreshnessStruct,
+  indexer_lag_seconds: number(),
+});
+
+export const VaultsResponseStruct = type({
+  vaults: array(VaultSummaryStruct),
+});
+
 const VaultShareValuationStruct = type({
   vault_address: string(),
   vault_key: string(),

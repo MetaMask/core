@@ -87,6 +87,30 @@ export type PerpsControllerGetAccountSupportAction = {
 };
 
 /**
+ * Report the venue a withdrawal will sign on, using the same provider
+ * resolution and the same refusal as `withdraw`.
+ *
+ * While several venues are registered, a withdrawal without an explicit
+ * venue is refused with `PROVIDER_ROUTE_REQUIRED` rather than falling back
+ * to the routing default. This query reports that refusal as a
+ * `route_required` result instead of throwing, so callers cannot mistake it
+ * for a provider error or fail open around it. An explicit route that names
+ * an unknown venue, or that conflicts with the active direct provider,
+ * still throws `PROVIDER_NOT_FOUND`, matching `getAccountSupport`.
+ *
+ * Note that a no-argument `getAccountSupport` read routes through the
+ * routing default even when `withdraw` would refuse; use this method to
+ * learn which venue a withdrawal would actually use.
+ *
+ * @param params - Optional provider route, matching the route `withdraw` accepts.
+ * @returns The resolved venue, or the route-required refusal.
+ */
+export type PerpsControllerResolveWithdrawalRouteAction = {
+  type: `PerpsController:resolveWithdrawalRoute`;
+  handler: PerpsController['resolveWithdrawalRoute'];
+};
+
+/**
  * Get the currently active provider, returning null if not available
  * Use this method when the caller can gracefully handle a missing provider
  * (e.g., UI components during initialization or reconnection)
@@ -421,6 +445,11 @@ export type PerpsControllerGetWithdrawalProgressAction = {
  *
  * @param params Withdrawal parameters
  * @returns WithdrawResult with withdrawal ID and tracking info
+ * @throws When no provider is initialized or the provider lifecycle changes
+ * while waiting for it, or when the explicit `providerId` route conflicts
+ * with the active direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode
+ * refusals are returned as `{ success: false, error }` values rather than
+ * thrown.
  */
 export type PerpsControllerWithdrawAction = {
   type: `PerpsController:withdraw`;
@@ -1792,6 +1821,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetAccountSupportAction
+  | PerpsControllerResolveWithdrawalRouteAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerGetMarginModeLockAction
