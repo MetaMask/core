@@ -5,11 +5,16 @@ import type {
   UserStorageControllerPerformGetStorageAllFeatureEntriesAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
+import {
+  AUTH_CONNECTION_BY_NAMESPACE,
+  AuthConnection,
+} from '@metamask/seedless-onboarding-controller';
+import type { SeedlessOnboardingControllerState } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, isObject, remove0x, stringToBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
-import { fromBase64Url, hash } from './crypto.js';
+import { fromBase64Url } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import type {
   Identifier,
@@ -24,22 +29,32 @@ const STORAGE_FEATURE = 'mfaRecoveryTrustedIdentifiers';
 const CREDENTIAL_ID_OFFSET = 55;
 const FLAG_ATTESTED_CREDENTIAL = 0x40;
 
+// The escrow identifies Google logins by email and Apple logins by `sub`.
+const IDENTITY_FIELD: Partial<
+  Record<AuthConnection, 'socialLoginEmail' | 'userId'>
+> = {
+  [AuthConnection.Google]: 'socialLoginEmail',
+  [AuthConnection.Apple]: 'userId',
+};
+
 /**
- * @param witness - What the device saw.
- * @returns The identifier facts to trust.
+ * The device's seedless social login.
+ */
+export type SocialLogin = Pick<
+  SeedlessOnboardingControllerState,
+  'authConnection' | 'userId' | 'socialLoginEmail'
+>;
+
+/**
+ * Reads the RP ID hash, credential ID and COSE public key from the
+ * authenticator data of a passkey's creation attestation.
+ *
+ * @param witness - The passkey's creation attestation.
+ * @returns The passkey to trust.
  */
 export function toTrustedIdentifier(
   witness: IdentifierWitness,
 ): TrustedIdentifier {
-  if (witness.type === 'social') {
-    return {
-      type: 'social',
-      namespace: trimSlash(witness.namespace),
-      value: remove0x(
-        bytesToHex(keccak256(stringToBytes(witness.identity.toLowerCase()))),
-      ),
-    };
-  }
   try {
     const [attestation] = decodePartialCBOR(
       fromBase64Url(witness.attestationObject),
@@ -75,23 +90,21 @@ export function toTrustedIdentifier(
 
 /**
  * @param identifier - Identifier to check.
- * @param trusted - Trusted identifier list.
- * @returns Whether a user device saw this identifier exactly, including the
- * passkey's RP ID, credential ID and public key. The RP ID check matches the
- * escrow's passkey login check.
+ * @param trusted - Trusted passkey list.
+ * @param socialLogin - The device's seedless social login.
+ * @returns Whether the identifier is the device's social login, or a passkey a
+ * user device created, matching its RP ID, credential ID and public key. The
+ * RP ID check matches the escrow's passkey login check.
  */
 export function isTrustedIdentifier(
   identifier: Identifier,
   trusted: TrustedIdentifier[],
+  socialLogin: SocialLogin,
 ): boolean {
+  if (identifier.type === 'social') {
+    return isSocialLogin(identifier, socialLogin);
+  }
   return trusted.some((entry) => {
-    if (entry.type === 'social') {
-      return (
-        identifier.type === 'social' &&
-        trimSlash(identifier.namespace) === entry.namespace &&
-        identifier.value === entry.value
-      );
-    }
     const { verifier } = identifier;
     if (
       identifier.type !== 'passkey' ||
@@ -116,6 +129,22 @@ export function isTrustedIdentifier(
   });
 }
 
+function isSocialLogin(identifier: Identifier, login: SocialLogin): boolean {
+  if (
+    AUTH_CONNECTION_BY_NAMESPACE[trimSlash(identifier.namespace)] !==
+    login.authConnection
+  ) {
+    return false;
+  }
+  const field = login.authConnection && IDENTITY_FIELD[login.authConnection];
+  const identity = field && login[field];
+  return (
+    identity !== undefined &&
+    identifier.value ===
+      remove0x(bytesToHex(keccak256(stringToBytes(identity.toLowerCase()))))
+  );
+}
+
 function trimSlash(namespace: string): string {
   let end = namespace.length;
   while (namespace[end - 1] === '/') {
@@ -132,9 +161,8 @@ export type UserStorageTrustedIdentifierStoreMessenger = Messenger<
 >;
 
 /**
- * Keeps trusted identifiers in encrypted user storage, one entry per
- * identifier, so devices adding different identifiers never overwrite each
- * other. Its key comes from the seed phrase, so Auth can delete or roll back
+ * Keeps trusted passkeys in encrypted user storage, one entry per credential
+ * ID, so devices adding different passkeys never overwrite each other. Its key comes from the seed phrase, so Auth can delete or roll back
  * entries but not write one.
  */
 export class UserStorageTrustedIdentifierStore implements RecoveryTrustedIdentifierStore {
@@ -164,7 +192,7 @@ export class UserStorageTrustedIdentifierStore implements RecoveryTrustedIdentif
   async add(entry: TrustedIdentifier): Promise<void> {
     await this.#messenger.call(
       'UserStorageController:performSetStorage',
-      await storagePath(entry),
+      storagePath(entry),
       JSON.stringify(entry),
     );
   }
@@ -172,13 +200,13 @@ export class UserStorageTrustedIdentifierStore implements RecoveryTrustedIdentif
   async remove(entry: TrustedIdentifier): Promise<void> {
     await this.#messenger.call(
       'UserStorageController:performDeleteStorage',
-      await storagePath(entry),
+      storagePath(entry),
     );
   }
 }
 
-async function storagePath(
+function storagePath(
   entry: TrustedIdentifier,
-): Promise<`${typeof STORAGE_FEATURE}.${string}`> {
-  return `${STORAGE_FEATURE}.${remove0x(await hash(entry))}`;
+): `${typeof STORAGE_FEATURE}.${string}` {
+  return `${STORAGE_FEATURE}.${remove0x(entry.credentialId)}`;
 }

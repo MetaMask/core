@@ -23,9 +23,9 @@ export type MfaRecoveryControllerReleaseLockAction = {
 };
 
 /**
- * Records an identifier the device saw itself, such as a passkey it just
- * created. `register` and `updateIdentifiers` only accept recorded passkey
- * and social identifiers, so a compromised Auth API cannot add its own.
+ * Records a passkey the device just created. `register` and
+ * `updateIdentifiers` only accept recorded passkeys and the device's social
+ * login, so a compromised Auth API cannot add its own.
  *
  * @param witness - What the device saw.
  */

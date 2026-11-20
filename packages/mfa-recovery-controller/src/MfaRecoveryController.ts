@@ -9,6 +9,7 @@ import type {
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerRequestMfaApprovalAction,
 } from '@metamask/profile-sync-controller/auth';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
@@ -157,7 +158,8 @@ export type MfaRecoveryControllerActions =
 
 type AllowedActions =
   | AuthenticationControllerRefreshCanonicalProfileIdAction
-  | AuthenticationControllerRequestMfaApprovalAction;
+  | AuthenticationControllerRequestMfaApprovalAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 export type MfaRecoveryControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -348,9 +350,9 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Records an identifier the device saw itself, such as a passkey it just
-   * created. `register` and `updateIdentifiers` only accept recorded passkey
-   * and social identifiers, so a compromised Auth API cannot add its own.
+   * Records a passkey the device just created. `register` and
+   * `updateIdentifiers` only accept recorded passkeys and the device's social
+   * login, so a compromised Auth API cannot add its own.
    *
    * @param witness - What the device saw.
    */
@@ -368,7 +370,11 @@ export class MfaRecoveryController extends BaseController<
   async isTrusted(identifier: Identifier): Promise<boolean> {
     return (
       identifier.type === 'siwe' ||
-      isTrustedIdentifier(identifier, await this.#trustedIdentifierStore.get())
+      isTrustedIdentifier(
+        identifier,
+        await this.#trustedIdentifierStore.get(),
+        this.messenger.call('SeedlessOnboardingController:getState'),
+      )
     );
   }
 
@@ -381,7 +387,7 @@ export class MfaRecoveryController extends BaseController<
   async untrustPasskey(credentialId: string): Promise<void> {
     const id = bytesToHex(fromBase64Url(credentialId));
     for (const entry of await this.#trustedIdentifierStore.get()) {
-      if (entry.type === 'passkey' && entry.credentialId === id) {
+      if (entry.credentialId === id) {
         await this.#trustedIdentifierStore.remove(entry);
       }
     }
@@ -1218,11 +1224,14 @@ export class MfaRecoveryController extends BaseController<
   // SIWE identifiers are proven by their own authorizations.
   async #assertTrusted(identifiers: Identifier[]): Promise<void> {
     const trusted = await this.#trustedIdentifierStore.get();
+    const socialLogin = this.messenger.call(
+      'SeedlessOnboardingController:getState',
+    );
     if (
       identifiers.some(
         (identifier) =>
           identifier.type !== 'siwe' &&
-          !isTrustedIdentifier(identifier, trusted),
+          !isTrustedIdentifier(identifier, trusted, socialLogin),
       )
     ) {
       throw new MfaRecoveryError(

@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 import { describe, expect, it } from 'vitest';
@@ -96,42 +97,60 @@ describe('toTrustedIdentifier', () => {
       toTrustedIdentifier({ type: 'passkey', attestationObject: attestation }),
     ).toThrow(expect.objectContaining({ code: 'invalid_witness' }));
   });
-
-  it('hashes the lowercased social identity like the escrow', () => {
-    expect(
-      toTrustedIdentifier({
-        type: 'social',
-        namespace: 'https://accounts.google.com/',
-        identity: 'User@Example.com',
-      }),
-    ).toStrictEqual({
-      type: 'social',
-      namespace: 'https://accounts.google.com',
-      value: EMAIL_HASH,
-    });
-  });
 });
 
 describe('isTrustedIdentifier', () => {
-  const social: TrustedIdentifier = {
+  const login = {
+    authConnection: AuthConnection.Google,
+    socialLoginEmail: 'User@Example.com',
+  };
+  const google: Identifier = {
     type: 'social',
-    namespace: 'https://accounts.google.com',
+    namespace: 'https://accounts.google.com/',
     value: EMAIL_HASH,
   };
 
-  it('accepts identifiers matching a trusted entry', () => {
-    const trusted = [TRUSTED_PASSKEY, social];
-    expect(isTrustedIdentifier(PASSKEY, trusted)).toBe(true);
+  it('accepts a trusted passkey', () => {
+    expect(isTrustedIdentifier(PASSKEY, [TRUSTED_PASSKEY], {})).toBe(true);
+  });
+
+  it("accepts the device's Google login by its lowercased email", () => {
+    expect(isTrustedIdentifier(google, [], login)).toBe(true);
+  });
+
+  it("accepts the device's Apple login by its sub", () => {
     expect(
       isTrustedIdentifier(
         {
           type: 'social',
-          namespace: 'https://accounts.google.com/',
-          value: EMAIL_HASH,
+          namespace: 'https://appleid.apple.com',
+          // keccak256('apple-sub')
+          value:
+            'cd8b238198cbcfb8527787a6db62ac659185c9d4c08b47799d016417fbc2327a',
         },
-        trusted,
+        [],
+        { authConnection: AuthConnection.Apple, userId: 'apple-sub' },
       ),
     ).toBe(true);
+  });
+
+  it.each([
+    ['no social login', {}],
+    ['another provider', { ...login, authConnection: AuthConnection.Apple }],
+    ['another email', { ...login, socialLoginEmail: 'other@example.com' }],
+    ['no email', { authConnection: AuthConnection.Google }],
+  ])('rejects a social identifier when the device has %s', (_name, device) => {
+    expect(isTrustedIdentifier(google, [], device)).toBe(false);
+  });
+
+  it('rejects a Telegram login, which the escrow does not identify', () => {
+    expect(
+      isTrustedIdentifier(
+        { ...google, namespace: 'https://oauth.telegram.org' },
+        [],
+        { ...login, authConnection: AuthConnection.Telegram },
+      ),
+    ).toBe(false);
   });
 
   it.each([
@@ -174,22 +193,8 @@ describe('isTrustedIdentifier', () => {
         verifier: { ...(PASSKEY.verifier as object), publicKey: { cose: '%' } },
       },
     ],
-    [
-      'another social identity',
-      { type: 'social', namespace: social.namespace, value: 'other' },
-    ],
-    [
-      'another social issuer',
-      {
-        type: 'social',
-        namespace: 'https://appleid.apple.com',
-        value: EMAIL_HASH,
-      },
-    ],
   ])('rejects %s', (_name, identifier) => {
-    expect(isTrustedIdentifier(identifier, [TRUSTED_PASSKEY, social])).toBe(
-      false,
-    );
+    expect(isTrustedIdentifier(identifier, [TRUSTED_PASSKEY], {})).toBe(false);
   });
 });
 
@@ -258,23 +263,22 @@ describe('UserStorageTrustedIdentifierStore', () => {
     expect(await store.get()).toStrictEqual([]);
   });
 
-  it('stores each identifier under its own key, once, and removes it', async () => {
+  it('stores each passkey under its credential ID, once, and removes it', async () => {
     const { store, storage } = setup();
-    const social: TrustedIdentifier = {
-      type: 'social',
-      namespace: 'https://accounts.google.com',
-      value: EMAIL_HASH,
+    const other: TrustedIdentifier = {
+      ...TRUSTED_PASSKEY,
+      credentialId: '0xcc',
     };
     await store.add(TRUSTED_PASSKEY);
-    await store.add(social);
+    await store.add(other);
     await store.add(TRUSTED_PASSKEY);
     expect([...storage.keys()]).toStrictEqual([
-      expect.stringMatching(/^mfaRecoveryTrustedIdentifiers\.[0-9a-f]{64}$/u),
-      expect.stringMatching(/^mfaRecoveryTrustedIdentifiers\.[0-9a-f]{64}$/u),
+      'mfaRecoveryTrustedIdentifiers.aabb',
+      'mfaRecoveryTrustedIdentifiers.cc',
     ]);
-    expect(await store.get()).toStrictEqual([TRUSTED_PASSKEY, social]);
+    expect(await store.get()).toStrictEqual([TRUSTED_PASSKEY, other]);
 
     await store.remove(TRUSTED_PASSKEY);
-    expect(await store.get()).toStrictEqual([social]);
+    expect(await store.get()).toStrictEqual([other]);
   });
 });

@@ -75,14 +75,12 @@ build the new set from Auth's entries.
 ## Trusted Identifiers
 
 `register` and `updateIdentifiers` reject, with `untrusted_identifier`, any
-passkey or social identifier no user device recorded, so a compromised Auth API
-cannot add its own or swap a passkey's public key. Record identifiers with
-`trustIdentifier(witness)`:
-
-- After creating a passkey, pass its `attestationObject`. Auth's verifier must
-  carry the same `rpId`, `credentialId` and `publicKey.cose`.
-- After a social login, pass its issuer and identity (the email for Google,
-  `sub` for Apple) from the device's own login.
+passkey no user device recorded and any social identifier other than the
+device's seedless login (the email for Google, `sub` for Apple, read through
+`SeedlessOnboardingController:getState`), so a compromised Auth API cannot add
+its own or swap a passkey's public key. After creating a passkey, record it with
+`trustIdentifier({ type: 'passkey', attestationObject })`. Auth's verifier must
+carry the same `rpId`, `credentialId` and `publicKey.cose`.
 
 Before removing a passkey from Auth, call `untrustPasskey(credentialId)` so a
 later approval cannot add it back.
@@ -90,7 +88,7 @@ later approval cannot add it back.
 Auth may also return identifiers another client never recorded. Pick from
 Auth's identifiers with `isTrusted(identifier)`.
 
-`UserStorageTrustedIdentifierStore` keeps one entry per identifier in user
+`UserStorageTrustedIdentifierStore` keeps one entry per passkey in user
 storage encrypted from the seed phrase, so Auth can delete entries but not
 write them. Its messenger needs
 `UserStorageController:performGetStorageAllFeatureEntries`,

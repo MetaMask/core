@@ -328,26 +328,20 @@ export type RecoveryLockProvider = {
 };
 
 /**
- * What a user device saw for an identifier, so Auth cannot add or swap one.
- * Passkey fields are hex; `value` is the escrow's social identifier value.
+ * A passkey a user device created, so Auth cannot add or swap one. Fields are
+ * hex.
  */
-export type TrustedIdentifier =
-  | {
-      type: 'passkey';
-      rpIdHash: string;
-      credentialId: string;
-      publicKey: string;
-    }
-  | { type: 'social'; namespace: string; value: string };
+export type TrustedIdentifier = {
+  type: 'passkey';
+  rpIdHash: string;
+  credentialId: string;
+  publicKey: string;
+};
 
 /**
- * Proof the device saw an identifier: the passkey's base64url
- * `attestationObject` from its creation, or the social login's issuer and
- * identity (the email for Google, `sub` for Apple).
+ * Proof the device created a passkey: its base64url `attestationObject`.
  */
-export type IdentifierWitness =
-  | { type: 'passkey'; attestationObject: string }
-  | { type: 'social'; namespace: string; identity: string };
+export type IdentifierWitness = { type: 'passkey'; attestationObject: string };
 
 /**
  * Stores {@link TrustedIdentifier}s where only the user can write them.
