@@ -1,3 +1,4 @@
+import { SomeError } from '@metamask/auth-network-utils';
 import type { KeyPair } from '@metamask/toprf-secure-backup';
 import {
   EncAccountDataType,
@@ -11,6 +12,12 @@ import {
   bytesToString,
   hexToBigInt,
 } from '@metamask/utils';
+
+/**
+ * The JSON-RPC error data the TOPRF nodes return when they hold no key for
+ * the verifier ID.
+ */
+const NO_PUB_KEY_NODE_ERROR_MESSAGE = 'Error getting pub key';
 
 import {
   SeedlessOnboardingControllerErrorMessage,
@@ -276,9 +283,21 @@ export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
 export function isCouldNotDeriveThresholdAuthPubKeyError(
   error: unknown,
 ): boolean {
-  return (
+  if (
     error instanceof TOPRFError &&
     error.code === TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
+  ) {
+    return true;
+  }
+
+  // Nodes without a key for the verifier ID answer with a JSON-RPC error whose
+  // data is `NO_PUB_KEY_NODE_ERROR_MESSAGE`. The `Some` helper wraps those
+  // responses in a `SomeError` instead of a `TOPRFError`.
+  return (
+    error instanceof SomeError &&
+    error.errors.some(
+      (innerError) => innerError?.message === NO_PUB_KEY_NODE_ERROR_MESSAGE,
+    )
   );
 }
 

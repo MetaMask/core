@@ -3,6 +3,7 @@ import {
   TOPRFError,
   TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
+import { SomeError } from '@metamask/auth-network-utils';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 import { describe, expect, it } from 'vitest';
@@ -412,6 +413,47 @@ describe('utils', () => {
           new Error('not a TOPRF error'),
         ),
       ).toBe(false);
+    });
+
+    it('returns true for a SomeError wrapping the nodes "Error getting pub key" response', () => {
+      // Nodes without a key for the verifier ID answer with this JSON-RPC
+      // error data, which `Some` surfaces as a `SomeError` rather than a
+      // `TOPRFError`.
+      const error = new SomeError({
+        errors: [new Error('Error getting pub key')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns true for the SomeError shape logged when every node lacks the key', () => {
+      const error = new SomeError({
+        errors: [
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+          new Error('Error getting pub key'),
+        ],
+        responses: [],
+        predicate: TOPRFError.insufficientValidResponses(
+          'Insufficient get pub key request results, expected 3 but got 0',
+        ),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns false for a SomeError with other errors', () => {
+      const error = new SomeError({
+        errors: [new Error('Some other failure')],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);
     });
   });
 });
