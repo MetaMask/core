@@ -11,6 +11,7 @@ import { createMockNetworkConfig } from '../tests/helpers.js';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
 import type { FetchConfigResult } from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController.js';
+import { ConfigRegistryControllerStateStruct } from './ConfigRegistryController.js';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
@@ -180,6 +181,44 @@ async function withController<ReturnValue>(
 }
 
 describe('ConfigRegistryController', () => {
+  describe('struct', () => {
+    it('validates a persisted state', () => {
+      const state = {
+        configs: {
+          networks: {
+            'eip155:1': createMockNetworkConfig({ chainId: 'eip155:1' }),
+          },
+          eventsConfig: {
+            schemaVersion: '1',
+            version: '1.2.3',
+            timestamp: 1234567890,
+            events: { 'test.event': ['global'] },
+          },
+        },
+        version: 'v1.0.0',
+        lastFetched: 1234567890,
+        etag: '"abc123"',
+        eventsConfigEtag: '"def456"',
+      };
+
+      expect(ConfigRegistryControllerStateStruct.validate(state)).toStrictEqual(
+        [undefined, state],
+      );
+    });
+
+    it('rejects a corrupt state', () => {
+      const [error] = ConfigRegistryControllerStateStruct.validate({
+        configs: { networks: { notAChainId: {} } },
+        version: 123,
+        lastFetched: null,
+        etag: null,
+        eventsConfigEtag: null,
+      });
+
+      expect(error).toBeDefined();
+    });
+  });
+
   describe('constructor', () => {
     it('sets default state', async () => {
       await withController(({ controller }) => {
