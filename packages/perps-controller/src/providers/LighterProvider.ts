@@ -20230,7 +20230,7 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #bridgeRoute = (minAmount: string): AssetRoute[] => {
     // Only the MAINNET bridge is ever advertised: the effective-testnet
-    // branches return [] before reaching here (devnet L1 unreachable).
+    // branches return [] before reaching here (testnet routes are not advertised).
     const bridge = LIGHTER_BRIDGE_CONFIG.mainnet;
     return [
       {
@@ -20251,7 +20251,7 @@ export class LighterProvider implements PerpsProvider {
   }
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    // Same devnet-L1 reality and fail-closed network binding as deposits.
+    // Same fail-closed network binding as deposits: no testnet routes.
     const isTestnet = this.#isTestnet || params?.isTestnet === true;
     if (isTestnet) {
       return [];

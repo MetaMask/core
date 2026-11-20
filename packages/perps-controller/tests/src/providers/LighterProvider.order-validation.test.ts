@@ -3459,10 +3459,9 @@ describe('LighterProvider', () => {
     });
 
     it('suppresses deposits until the Lighter bridge call is implemented; withdrawals remain mainnet-only', () => {
-      // Testnet settles on the venue-hosted devnet chain 123456 that the
-      // wallet cannot reach: advertising it made mobile pay-with flows
-      // build a deposit transaction on an unknown chain and fail the
-      // trade ("Invalid chain ID 0x1e240" — found in device validation).
+      // Testnet routes are not advertised: the old testnet settled on an
+      // unreachable devnet chain, which made mobile pay-with flows build a
+      // deposit transaction on an unknown chain and fail the trade.
       const { provider } = buildProvider();
       expect(provider.getDepositRoutes()).toStrictEqual([]);
       expect(provider.getWithdrawalRoutes()).toStrictEqual([]);
