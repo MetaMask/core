@@ -204,18 +204,15 @@ export class VendorOnboardingController extends BaseController<
   readonly #sumsubLauncher?: KycSumSubLauncher;
 
   /**
-   * The current step generation per vendor. Each step read and each `reset`
-   * starts a new generation. An answer from an older generation is ignored, so
-   * a slow response cannot undo a later one.
-   */
-  readonly #stepGenerations: Partial<Record<OnboardingVendor, object>> = {};
-
-  /**
    * The step read in flight per vendor, which a plain `refreshStep` joins
    * instead of starting its own. Every other path starts its own read, so an
-   * action never reports a step computed before it ran.
+   * action never reports a step computed before it ran. A read saves its
+   * answer only while it is still the one stored here, so a later read or a
+   * `reset` wins over a slow response.
    */
-  readonly #stepReads: Partial<Record<OnboardingVendor, Promise<KycStep>>> = {};
+  readonly #readStepPromises: Partial<
+    Record<OnboardingVendor, Promise<KycStep>>
+  > = {};
 
   /**
    * Constructs a new {@link VendorOnboardingController}.
@@ -629,14 +626,13 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor to forget. Omit to forget all.
    */
   reset({ vendor }: { vendor?: OnboardingVendor } = {}): void {
-    // Outdate any step read in flight, so its answer cannot bring back the
+    // Drop any step read in flight, so its answer cannot bring back the
     // entry being forgotten.
     const vendors = vendor
       ? [vendor]
-      : (Object.keys(this.#stepGenerations) as OnboardingVendor[]);
+      : (Object.keys(this.#readStepPromises) as OnboardingVendor[]);
     for (const each of vendors) {
-      this.#stepGenerations[each] = {};
-      delete this.#stepReads[each];
+      delete this.#readStepPromises[each];
     }
     this.update((state) => {
       if (vendor) {
@@ -778,33 +774,31 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor,
     { join }: { join: boolean },
   ): Promise<KycStep> {
-    const inflight = this.#stepReads[vendor];
+    const inflight = this.#readStepPromises[vendor];
     if (join && inflight) {
       return inflight;
     }
-    const generation = {};
-    this.#stepGenerations[vendor] = generation;
-    const read = (async (): Promise<KycStep> => {
+    // Assigned before the first await resumes, so the checks below see it.
+    let read!: Promise<KycStep>;
+    read = (async (): Promise<KycStep> => {
       try {
         const info = await this.messenger.call(
           'KycService:getStep',
           vendor,
           this.#clientContext(vendor),
         );
-        // Drop the answer when a newer generation started while this was in
-        // flight, so a slow read cannot overwrite a fresher step.
-        if (this.#stepGenerations[vendor] === generation) {
+        // A later read, or a reset, has taken this slot.
+        if (this.#readStepPromises[vendor] === read) {
           this.#write(vendor, { step: info.step, status: info.status });
         }
         return info.step;
       } finally {
-        // A newer generation has taken over from this one.
-        if (this.#stepGenerations[vendor] === generation) {
-          delete this.#stepReads[vendor];
+        if (this.#readStepPromises[vendor] === read) {
+          delete this.#readStepPromises[vendor];
         }
       }
     })();
-    this.#stepReads[vendor] = read;
+    this.#readStepPromises[vendor] = read;
     return read;
   }
 
