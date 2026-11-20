@@ -308,6 +308,18 @@ describe('TransactionPayController', () => {
       ).toBe(PaymentOverride.MoneyAccount);
     });
 
+    it('stores a Lighter perps payment override', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.PerpsLighter;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe('perpsLighter');
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 
