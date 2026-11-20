@@ -5278,7 +5278,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5402,7 +5402,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5460,7 +5460,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@types/bn.js": "npm:^5.2.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node": "npm:^22.13.14"
@@ -5472,7 +5472,7 @@ __metadata:
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     multiformats: "npm:^9.9.0"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     single-call-balance-checker-abi: "npm:^1.0.0"
@@ -5517,7 +5517,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5591,13 +5591,13 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
     fast-deep-equal: "npm:^3.1.3"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5658,7 +5658,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -5700,7 +5700,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5786,9 +5786,9 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5811,7 +5811,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -5853,7 +5853,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    eth-chainlist: "npm:^0.0.881"
+    eth-chainlist: "npm:^0.0.882"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -5874,7 +5874,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -5919,9 +5919,9 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -6022,7 +6022,7 @@ __metadata:
     fast-deep-equal: "npm:^3.1.3"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -6046,7 +6046,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     cockatiel: "npm:^3.2.1"
@@ -6096,10 +6096,10 @@ __metadata:
     comment-json: "npm:^4.6.2"
     eslint-plugin-n: "npm:^18.5.0"
     execa: "npm:^10.2.1"
-    ignore: "npm:^7.0.14"
+    ignore: "npm:^7.0.16"
     knip: "npm:^6.45.1"
     lodash: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     outdent: "npm:^0.8.0"
     oxfmt: "npm:^0.72.0"
     oxlint: "npm:^1.85.0"
@@ -6655,7 +6655,7 @@ __metadata:
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
     minipass: "npm:^7.1.3"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     tar: "npm:^7.5.23"
     typedoc: "npm:^0.28.20"
@@ -6689,7 +6689,7 @@ __metadata:
     "@types/bn.js": "npm:^5.2.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7032,10 +7032,10 @@ __metadata:
     "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^2.4.0"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     chokidar-cli: "npm:^3.0.0"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     tweetnacl: "npm:^1.0.3"
     typedoc: "npm:^0.28.20"
@@ -7052,7 +7052,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7281,9 +7281,9 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7310,7 +7310,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7556,7 +7556,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     immer: "npm:^11.2.10"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7675,7 +7675,7 @@ __metadata:
     immer: "npm:^11.2.10"
     lodash-es: "npm:^4.18.1"
     loglevel: "npm:^1.9.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     node-fetch: "npm:^2.7.0"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.4"
@@ -7769,7 +7769,7 @@ __metadata:
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     loglevel: "npm:^1.9.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     semver: "npm:^7.8.6"
     typedoc: "npm:^0.28.20"
@@ -8012,7 +8012,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
-    viem: "npm:^2.57.20"
+    viem: "npm:^2.58.0"
     vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
@@ -8034,7 +8034,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     ethereum-cryptography: "npm:^3.2.0"
     fastest-levenshtein: "npm:^1.0.16"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     punycode: "npm:^2.3.1"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -8169,7 +8169,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8210,7 +8210,7 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     loglevel: "npm:^1.9.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8261,7 +8261,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     fast-deep-equal: "npm:^3.1.3"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8298,10 +8298,10 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
-    "@tanstack/react-query": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
+    "@tanstack/react-query": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8332,7 +8332,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8372,9 +8372,9 @@ __metadata:
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8417,7 +8417,7 @@ __metadata:
     "@types/json-stable-stringify-without-jsonify": "npm:^1.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8443,7 +8443,7 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8463,9 +8463,9 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -8491,7 +8491,7 @@ __metadata:
     "@metamask/signature-controller": "npm:^40.1.1"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
     lodash-es: "npm:^4.18.1"
@@ -8847,7 +8847,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     fast-deep-equal: "npm:^3.1.3"
@@ -8935,7 +8935,7 @@ __metadata:
     immer: "npm:^11.2.10"
     jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -9147,10 +9147,10 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.107.2"
     "@types/react": "npm:^19.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nock: "npm:15.0.5"
+    nock: "npm:15.0.6"
     prism-react-renderer: "npm:^2.4.1"
     raw-loader: "npm:^4.0.2"
     react: "npm:^19.3.1"
@@ -9237,17 +9237,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mswjs/interceptors@npm:^0.44.0":
-  version: 0.44.0
-  resolution: "@mswjs/interceptors@npm:0.44.0"
+"@mswjs/interceptors@npm:^0.45.11":
+  version: 0.45.12
+  resolution: "@mswjs/interceptors@npm:0.45.12"
   dependencies:
     "@open-draft/until": "npm:^3.0.1"
     "@types/debug": "npm:^4.1.13"
     debug: "npm:^4.4.3"
     is-node-process: "npm:^1.2.0"
     outvariant: "npm:^1.4.3"
-    rettime: "npm:^0.11.11"
-  checksum: 10/af37f7d5434333d9b60150868c2e6827373e94afdb7fddbe7529dd74cc756b9b8ca7cb319731a097fdbe2aa05401e907fc9d99d8678345a37bfa9bc2b0b4d708
+    rettime: "npm:^0.11.12"
+  checksum: 10/4f96940fd89595438902dd91ef89f00a61af23869d3e0cc023fd16229f94c422946fbffa09f421feb91ea9a3982cf9270f25f27dfa3dd9e32281350a09ce2b40
   languageName: node
   linkType: hard
 
@@ -11391,25 +11391,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:5.107.1, @tanstack/query-core@npm:^5.107.1":
-  version: 5.107.1
-  resolution: "@tanstack/query-core@npm:5.107.1"
-  checksum: 10/a0346fb46f2d2326409d15c7b82e818c2c85770e3624989e9f4a8ca2bd631d31fa051d176c31ef1f98487487313a5d352bf10cab1d123d5ead5461f52748cc4a
+"@tanstack/query-core@npm:5.107.2, @tanstack/query-core@npm:^5.107.2":
+  version: 5.107.2
+  resolution: "@tanstack/query-core@npm:5.107.2"
+  checksum: 10/cbfc15e34c8047a7173646a4431088760030349daf38123f60c6e8ea013c3740a0761b62e9dcbd43a9cd76f851ff14c6e175db3de59d59e0b051d50a529e6b6d
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:^5.107.1":
-  version: 5.107.1
-  resolution: "@tanstack/react-query@npm:5.107.1"
+"@tanstack/react-query@npm:^5.107.2":
+  version: 5.107.2
+  resolution: "@tanstack/react-query@npm:5.107.2"
   dependencies:
-    "@tanstack/query-core": "npm:5.107.1"
+    "@tanstack/query-core": "npm:5.107.2"
   peerDependencies:
     "@types/react": ^18 || ^19
     react: ^18 || ^19
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10/04fc353d85fee5108ea7aec2fad558dc30429c5730ba59b8c22dd4556bafdcf9ae9fd6f22840f2ff378ec969db4d196d066592d2f98fd3eaf24c9067c1f2857f
+  checksum: 10/60352a64eec6df24c00b09c4f3f4bcd861bd103890d48ccbe4da532e92bc4c7e0171cc3a338463edefa3f02211ad4d70413fa803f2727b8b28242455712c48ea
   languageName: node
   linkType: hard
 
@@ -16589,10 +16589,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-chainlist@npm:^0.0.881":
-  version: 0.0.881
-  resolution: "eth-chainlist@npm:0.0.881"
-  checksum: 10/ca5d988f15f2928953083a9fe329a217a5cf177b54c36f2715dfdaab9063d93f72436c69600fbca6703497bdd72b2c4c597eaa55b08e37f7db6a847946d33db4
+"eth-chainlist@npm:^0.0.882":
+  version: 0.0.882
+  resolution: "eth-chainlist@npm:0.0.882"
+  checksum: 10/4aa6e4b2ce26a567377efb732d67ef2d3efa63a3f1661f4b696874eb069576736411dc87f8e0245f34d011212cbff69b4a412b55b1fa48f12b6021bac454ef08
   languageName: node
   linkType: hard
 
@@ -18364,10 +18364,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ignore@npm:^7.0.14":
-  version: 7.0.14
-  resolution: "ignore@npm:7.0.14"
-  checksum: 10/47ed87f5943d538b5320a8aff31e09e5b7a87505fbddf254f86604f222486b0fa36993269acab5697d5b707d336d0c26b8fb24b0adb2ddbea0aa7ce225757458
+"ignore@npm:^7.0.16":
+  version: 7.0.16
+  resolution: "ignore@npm:7.0.16"
+  checksum: 10/1b7ce35ee1013f39b2b62135ab6ca4355a1b3b5a448f69355b17a62ee65a2fad7b90987f3d1fefefa596dbc8e2e92629c8a5d71648d707cdeb5c6b27a4c57b5f
   languageName: node
   linkType: hard
 
@@ -21152,12 +21152,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nock@npm:15.0.5":
-  version: 15.0.5
-  resolution: "nock@npm:15.0.5"
+"nock@npm:15.0.6":
+  version: 15.0.6
+  resolution: "nock@npm:15.0.6"
   dependencies:
-    "@mswjs/interceptors": "npm:^0.44.0"
-  checksum: 10/dd3a64adc6424c3cd7521f0a5fcecc8ea1b3dd8f419e231e347e425500ccd6b0685790cd760314c87c3410415880ecbd4cf89d24b8c4432061101b2385d38b11
+    "@mswjs/interceptors": "npm:^0.45.11"
+  checksum: 10/785c23ea89a38ca2ba99aff26c552dcca5c4c2c60ddbcf38b69881c239ce907f60a98fb7c6dadadd5bd60035ed4a400f7abfc38681a6732f7f721dc680cead34
   languageName: node
   linkType: hard
 
@@ -24240,7 +24240,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rettime@npm:^0.11.11":
+"rettime@npm:^0.11.12":
   version: 0.11.12
   resolution: "rettime@npm:0.11.12"
   checksum: 10/a85faa82ca460c43f216df1b8db71747c54bc3c269fb99d8bddb9bed5bfd600da4c1ad2ea9368b68f98692d6d1014ff767e40576e024a1b5d8b7abb2e46e58bf
@@ -26444,9 +26444,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.57.20":
-  version: 2.57.20
-  resolution: "viem@npm:2.57.20"
+"viem@npm:^2.58.0":
+  version: 2.58.0
+  resolution: "viem@npm:2.58.0"
   dependencies:
     "@noble/curves": "npm:1.9.1"
     "@noble/hashes": "npm:1.8.0"
@@ -26464,7 +26464,7 @@ __metadata:
       optional: true
     typescript:
       optional: true
-  checksum: 10/4d2074461f90c5ef9af8966623770211fbed1bdab47d83ff913b4aaab70c1d281a7664821c20459e2841b4bec9e7d55d2d1466973fa774eb71c4c75b1a2d411b
+  checksum: 10/3fbd93b6561decf09c6c985df2438811136e73e8a3d45036be584271227e10e19d4305b63e817d31618330314efd71163b1afec1897600d0c40921eeb943bd21
   languageName: node
   linkType: hard
 

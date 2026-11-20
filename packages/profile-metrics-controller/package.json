@@ -72,7 +72,7 @@
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/keyring-internal-api": "^12.1.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "nock": "15.0.5",
+    "nock": "15.0.6",
     "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
