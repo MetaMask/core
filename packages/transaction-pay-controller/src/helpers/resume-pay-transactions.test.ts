@@ -228,6 +228,33 @@ describe('resumePayTransactions', () => {
     );
   });
 
+  it('keeps the first resumeAttemptedAt when resuming again after another restart', async () => {
+    const resumeAttemptedAt = Date.now() - 60 * 1000;
+    const transaction = getTransactionMock('tx-1', {
+      metamaskPay: { resumeAttemptedAt, strategy: TransactionPayStrategy.Fiat },
+    });
+    const { call, messenger, state } = getMessengerMock({
+      transactions: [transaction],
+    });
+
+    await resumePayTransactions(messenger);
+
+    expect(
+      call.mock.calls.filter(
+        (callArgs: unknown[]) =>
+          callArgs[0] === 'TransactionController:updateTransaction',
+      ),
+    ).toHaveLength(0);
+    expect(state.transactions[0].metamaskPay?.resumeAttemptedAt).toBe(
+      resumeAttemptedAt,
+    );
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:finalizeResumedTransaction',
+      'tx-1',
+      '0x1234',
+    );
+  });
+
   it('fails the transaction when resume throws', async () => {
     const transaction = getTransactionMock('tx-1');
     const { messenger } = getMessengerMock({ transactions: [transaction] });
@@ -515,13 +542,50 @@ describe('isPayTransactionResumable', () => {
     ).toBe(false);
   });
 
-  it('returns false when resume was already attempted', () => {
+  it('returns true when resume was attempted within the default timeout', () => {
     expect(
       isPayTransactionResumable(
         messenger,
         getTransactionMock('tx-1', {
           metamaskPay: {
-            resumeAttemptedAt: 123,
+            resumeAttemptedAt: Date.now() - 9 * 60 * 1000,
+            strategy: TransactionPayStrategy.Fiat,
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false when the default timeout has passed since the first resume attempt', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', {
+          metamaskPay: {
+            resumeAttemptedAt: Date.now() - 10 * 60 * 1000,
+            strategy: TransactionPayStrategy.Fiat,
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('uses the resume timeout from the feature flag', () => {
+    const { messenger: flagMessenger } = getMessengerMock({
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          ...REMOTE_FEATURE_FLAGS_MOCK.confirmations_pay_extended,
+          resumeTimeoutMs: 1000,
+        },
+      },
+    });
+
+    expect(
+      isPayTransactionResumable(
+        flagMessenger,
+        getTransactionMock('tx-1', {
+          metamaskPay: {
+            resumeAttemptedAt: Date.now() - 2000,
             strategy: TransactionPayStrategy.Fiat,
           },
         }),

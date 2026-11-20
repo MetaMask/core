@@ -40,6 +40,7 @@ export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
 export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
 export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_GAS_STATION_COST_BUFFER = 1.0;
@@ -237,6 +238,7 @@ type FeatureFlagsExtendedRaw = {
     };
   };
   resume?: Partial<Record<TransactionPayStrategy, ResumeEnabledConfig>>;
+  resumeTimeoutMs?: number;
 };
 
 type EIP7702FeatureFlag = {
@@ -1155,6 +1157,31 @@ export function isResumeEnabled(
   return (
     config?.transactionTypes?.[transactionType] ?? config?.default ?? false
   );
+}
+
+/**
+ * Returns how long after the first resume attempt a pay transaction can still
+ * be resumed on later restarts. Reads `confirmations_pay_extended.resumeTimeoutMs`.
+ *
+ * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
+ * minimal TC init messenger that only exposes that action is sufficient.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The resume timeout in milliseconds.
+ */
+export function getResumeTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags?.confirmations_pay_extended as
+    | FeatureFlagsExtendedRaw
+    | undefined;
+
+  const timeout = featureFlags?.resumeTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_RESUME_TIMEOUT_MS;
 }
 
 /**

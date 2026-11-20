@@ -37,6 +37,8 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
   isResumeEnabled,
+  getResumeTimeoutMs,
+  DEFAULT_RESUME_TIMEOUT_MS,
   getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
@@ -2122,6 +2124,34 @@ describe('Feature Flags Utils', () => {
       const result = getFiatEnabledTypes(messenger);
 
       expect(result).toStrictEqual(customTypes);
+    });
+  });
+
+  describe('getResumeTimeoutMs', () => {
+    it('returns the default when the flag is absent', () => {
+      expect(getResumeTimeoutMs(messenger)).toBe(DEFAULT_RESUME_TIMEOUT_MS);
+    });
+
+    it('returns the flag value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: { resumeTimeoutMs: 5000 },
+        },
+      });
+
+      expect(getResumeTimeoutMs(messenger)).toBe(5000);
+    });
+
+    it('returns the default when the flag value is not positive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: { resumeTimeoutMs: 0 },
+        },
+      });
+
+      expect(getResumeTimeoutMs(messenger)).toBe(DEFAULT_RESUME_TIMEOUT_MS);
     });
   });
 

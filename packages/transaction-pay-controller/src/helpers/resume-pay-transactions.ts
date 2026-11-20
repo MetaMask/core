@@ -6,7 +6,7 @@ import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { waitForTransactionPayControllerDependencies } from '../utils/dependencies.js';
-import { isResumeEnabled } from '../utils/feature-flags.js';
+import { getResumeTimeoutMs, isResumeEnabled } from '../utils/feature-flags.js';
 import { waitForKeyringUnlock } from '../utils/keyring.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import { getPayTransactionType } from '../utils/transaction-type.js';
@@ -27,7 +27,8 @@ const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
  *       missing or no longer resumable (e.g. it moved to a final state
  *       while gates were pending).
  *    b. If dependencies never became available → failTransaction.
- *    c. Set metamaskPay.resumeAttemptedAt before calling resume.
+ *    c. Set metamaskPay.resumeAttemptedAt before calling resume, unless an
+ *       earlier restart already set it.
  *    d. Call strategy.resume(). On success → finalizeResumedTransaction.
  *       On failure → failTransaction.
  *
@@ -78,13 +79,15 @@ export async function resumePayTransactions(
       const strategyName = transaction.metamaskPay
         ?.strategy as TransactionPayStrategy;
 
-      updateTransaction(
-        { transactionId: id, messenger, note: 'Set resumeAttemptedAt' },
-        (tx) => {
-          tx.metamaskPay ??= {};
-          tx.metamaskPay.resumeAttemptedAt = Date.now();
-        },
-      );
+      if (!currentTransaction?.metamaskPay?.resumeAttemptedAt) {
+        updateTransaction(
+          { transactionId: id, messenger, note: 'Set resumeAttemptedAt' },
+          (tx) => {
+            tx.metamaskPay ??= {};
+            tx.metamaskPay.resumeAttemptedAt = Date.now();
+          },
+        );
+      }
 
       const strategy = getStrategyByName(strategyName);
 
@@ -130,6 +133,10 @@ export async function resumePayTransactions(
  * Returns true if the given transaction is eligible for resume by the
  * transaction-pay-controller.
  *
+ * A transaction can be resumed on every restart until the resume timeout
+ * (`confirmations_pay_extended.resumeTimeoutMs`, 10 minutes by default) has
+ * passed since its first resume attempt.
+ *
  * All checks are synchronous and only read `RemoteFeatureFlagController:getState`
  * from the messenger — this is intentional so the function can be called at
  * TransactionController boot time (before Pay is constructed) with a minimal
@@ -166,7 +173,12 @@ export function isPayTransactionResumable(
       return false;
     }
 
-    if (metamaskPay?.resumeAttemptedAt) {
+    const { resumeAttemptedAt } = metamaskPay ?? {};
+
+    if (
+      resumeAttemptedAt &&
+      Date.now() - resumeAttemptedAt >= getResumeTimeoutMs(messenger)
+    ) {
       return false;
     }
 
