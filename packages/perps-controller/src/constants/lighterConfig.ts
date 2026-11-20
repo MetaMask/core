@@ -447,8 +447,8 @@ export function computeLighterMinOrderSize(
 /**
  * L1 bridge facts per network, as reported live by
  * `GET /api/v1/layer1BasicInfo` (contract addresses) and the venue docs
- * (minimums). Mainnet settles against Ethereum L1; testnet runs on a
- * venue-hosted devnet L1 (chain id 123456), so its route is informational.
+ * (minimums). Mainnet settles against Ethereum L1; testnet settles on
+ * Sepolia (chain id 11155111), and its route is informational.
  */
 export const LIGHTER_BRIDGE_CONFIG = {
   mainnet: {
@@ -463,9 +463,9 @@ export const LIGHTER_BRIDGE_CONFIG = {
     minWithdrawUsdc: '1',
   },
   testnet: {
-    chainId: 'eip155:123456',
-    bridgeContract: '0xe034801BC49cCDC79FB683022dA0591C86077261',
-    usdcContract: '0x57382a12EC72eBb1e717b7BB76c78CdDAfE3A396',
+    chainId: 'eip155:11155111',
+    bridgeContract: '0x652358Be8bbE20Cb7349ddb8A35dac7c870B4596',
+    usdcContract: '0xf3E575A90F325a3A806E3CEC99d0baC5719E41eC',
     minDepositUsdc: '1',
     minWithdrawUsdc: '1',
   },
