@@ -2895,6 +2895,7 @@ export class PerpsController extends BaseController<
     // Always create HyperLiquid provider as the base provider
     const hyperLiquidProvider = new HyperLiquidProvider({
       isTestnet: this.state.isTestnet,
+      getCurrentIsTestnet: (): boolean => this.state.isTestnet,
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
@@ -4130,21 +4131,59 @@ export class PerpsController extends BaseController<
   async cancelOrders(
     params: CancelOrdersParams,
   ): Promise<WithBatchOperationStatus<CancelOrdersResult>> {
-    // All-order batches fan out; filtered batches must identify their venue.
-    const provider = await this.#getActiveProviderWhenReady();
-    const refusal = getUnroutedCancelOrdersRefusal(
-      provider,
-      resolveCancelSelection(params),
-    );
+    const selection = resolveCancelSelection(params);
+    const request = {
+      ...params,
+      ...(params.orders && {
+        orders: params.orders.map((order) => ({ ...order })),
+      }),
+      ...(params.orderIds && { orderIds: params.orderIds.slice() }),
+      ...(params.symbols && { symbols: params.symbols.slice() }),
+    };
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedProvider = this.activeProviderInstance;
+    const assertCurrent = (provider = issuedProvider): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (provider !== null && this.activeProviderInstance !== provider)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } finally {
+      assertCurrent();
+    }
+    const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
     if (refusal) {
       return withBatchOperationStatus(refusal);
     }
 
+    if (
+      selection.kind === 'orders' &&
+      request.orders?.some((order) =>
+        this.#hasConflictingProviderRoute(order.providerId, provider),
+      )
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+
     const result = await this.#tradingService.cancelOrders({
       provider,
-      params,
+      params: request,
+      assertCurrent: () => assertCurrent(provider),
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: (readParams) => this.getOpenOrders(readParams),
+        getOpenOrders: (readParams) => {
+          assertCurrent(provider);
+          return this.getOpenOrders(readParams);
+        },
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,
@@ -4253,10 +4292,13 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
     this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
 
     return this.#tradingService.updatePositionTPSL({
       provider,
-      params,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
       context: this.#createServiceContext('updatePositionTPSL'),
     });
   }
@@ -4366,6 +4408,7 @@ export class PerpsController extends BaseController<
       provider,
       position: params.position,
       trackingData: params.trackingData,
+      maxSlippageBps: this.state.maxSlippageBps,
       context: this.#createServiceContext('flipPosition'),
     });
   }

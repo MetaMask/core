@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Added
 
+- Add optional `maxSlippageBps` to `UpdatePositionTPSLParams`, the slippage cap for a HyperLiquid market-executed TP/SL leg ([#11650](https://github.com/MetaMask/core/pull/11650))
 - Add `crossMarginUnavailableReason` to HyperLiquid order capabilities when Cross is restricted, distinguishing the venue's no-Cross and strict-isolated modes from generic isolated-only markets. ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** Add exported `HyperLiquidErrorDetails` and widen `PerpsErrorDetails` to `PriceMovedErrorDetails | HyperLiquidErrorDetails`. Every normalized Hyperliquid failure now carries `{ code, provider: 'hyperliquid' }` details, so clients can translate stable codes without parsing venue messages. `PRICE_MOVED` keeps its existing numeric payload. ([#11206](https://github.com/MetaMask/core/pull/11206))
   - Code that reads `PriceMovedErrorDetails` fields must first narrow on `errorDetails.code === PERPS_ERROR_CODES.PRICE_MOVED`. `HyperLiquidErrorDetails['code']` never includes `PRICE_MOVED`, so that check still narrows.
@@ -118,7 +121,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document these in `docs/client-contract.md` ([#11639](https://github.com/MetaMask/core/pull/11639))
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
-
 - **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
   - Result `error` fields now hold the stable code instead of venue text, and unknown failures return `UNKNOWN_ERROR`. Clients read `errorCode` instead. Mobile does this in [metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018) and Extension in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
   - Failed Perps analytics events emitted from Hyperliquid result failures (trade, edit, cancel, close, flip, margin, and withdrawal) now carry the stable `PerpsErrorCode` in `error_message` instead of venue text. Unrecognized failures are grouped as `UNKNOWN_ERROR`; dashboards that group by `error_message` must use code-based buckets. Original venue details remain in error-reporting causes, not analytics properties.
@@ -132,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `HyperLiquidProvider.subscribeToAccount` throws `PROVIDER_NOT_AVAILABLE` if its shared feed is owned by another wallet. Close the old feed's subscriptions before opening a different wallet. Through `PerpsController`, this reports an unavailable balance to the subscriber and leaves other venues live ([#11629](https://github.com/MetaMask/core/pull/11629))
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Removed
 
@@ -139,6 +142,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PerpsController.flipPosition` now signs the flip at the saved max slippage (`setMaxSlippage`); with nothing saved it uses `ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps` on both venues ([#11650](https://github.com/MetaMask/core/pull/11650))
+- HyperLiquid `validateOrder` now rejects leverage `0`, `NaN` or below `1` with `ORDER_LEVERAGE_INVALID`, a non-finite or negative size (or `usdAmount`) with `ORDER_SIZE_POSITIVE`, invalid reduce-only coin caps alongside USD sizes, non-finite limit or current prices with `ORDER_PRICE_POSITIVE`, and a non-finite trigger with `ORDER_TRIGGER_PRICE_POSITIVE` ([#11650](https://github.com/MetaMask/core/pull/11650))
+- HyperLiquid refreshes expired account support before ordinary SDK signing and at dispatch. The SDK accessor records multi-sig venue rejections, including singular TWAP status errors. TWAP and Scale can roll back an acknowledged placement after teardown when the account and network still match ([#11650](https://github.com/MetaMask/core/pull/11650))
+- `PerpsController.updatePositionTPSL` applies the per-call `maxSlippageBps`, saved preference or 10% default to whole-position market stop losses on HyperLiquid. Its take-profit leg stays a limit at the trigger. `replacePositionTPSLLeg` applies the cap to either leg when no explicit limit is supplied. Market limits round inward from the signed trigger. Standalone partial legs and explicit fill prices retain their pricing. An invalid cap used by a whole-position market leg or an invalid limit refuses the update before existing protection is canceled ([#11650](https://github.com/MetaMask/core/pull/11650))
+- Lighter market entries now refresh market metadata and require an active perpetual market. They report the existing `ORDER_UNKNOWN_COIN` code if the market is unavailable for entry. Reduce-only closes stay available ([#11650](https://github.com/MetaMask/core/pull/11650))
+- Batch cancellation rejects malformed selections and stops if the issuing account or provider changes before submission. Strict discovery validates fresh venue responses and preserves available orders alongside venue discovery errors. ([#11650](https://github.com/MetaMask/core/pull/11650))
+- A TP/SL replacement refused inside SDK signing keeps `TPSL_UPDATE_FAILED` or `PROVIDER_NOT_AVAILABLE` after the SDK wraps the refusal, including when the old protection is restored ([#11650](https://github.com/MetaMask/core/pull/11650))
 - Return combined portfolio totals and per-venue completeness metadata from aggregated cached user-data reads, including disk-hydrated startup data, instead of returning only HyperLiquid's account snapshot ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Prevent account streams opened without an `accountId` from overwriting or clearing selected-account state after the selected wallet changes ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Clear live account state and per-venue balances when the selected EVM wallet changes, is cleared, or a group with no EVM wallet is selected. A repeat selection preserves balances known to belong to that wallet. Pending venues do not inherit restored balances with no wallet attribution ([#11629](https://github.com/MetaMask/core/pull/11629))
@@ -154,7 +164,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve exact decimal `marginUsed` and `unrealizedPnl` totals and the margin-weighted `returnOnEquity` in `aggregateAccountStates` by sharing the account-total calculation with cross-venue aggregation instead of using binary floating-point arithmetic ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
 - Avoid cancelling all orders when `CancelOrdersParams.orderIds` or `symbols` is an empty list; empty filters now select no orders ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
 - Fix `LighterProvider` account subscribers receiving an all-zero `AccountState` when the wallet switches accounts or is deselected. They now receive `null` (balance not yet known), so the aggregated account stream marks Lighter `unavailable` after a prior snapshot (or keeps it `pending` before its first snapshot) instead of recording a confirmed $0 for the new account. A wallet the venue confirms has no Lighter account still receives the empty state ([#11461](https://github.com/MetaMask/core/pull/11461))
-
 - HyperLiquid chase cancels whose child the venue reports gone now read that child's status. A child that filled before the cancel ends the chase as `filled` with its final unfilled size, instead of `canceled` with the size from the last read ([#11592](https://github.com/MetaMask/core/pull/11592))
   - When that status cannot be read, the chase keeps its last status instead of `canceled`. A session kept for HIP-3 collateral cleanup asks for the child's status again on each `getChaseOrders` read until the venue reports it
 - HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
@@ -1749,7 +1758,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...@metamask/perps-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...@metamask/perps-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.1.0...@metamask/perps-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.0.0...@metamask/perps-controller@23.1.0

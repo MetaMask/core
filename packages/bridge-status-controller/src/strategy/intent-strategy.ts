@@ -182,27 +182,54 @@ export async function* submitIntentHandler(
     },
   };
 
-  // Update txHistory with synthetic txMeta and order id
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      // Use orderId as the history key for intent transactions
-      historyKey: orderUid,
-      bridgeTxMeta: {
-        id: syntheticTxMeta?.id,
-      },
-      approvalTxId,
-      // Keep original txId for TransactionController updates
-      originalTransactionId: syntheticTxMeta?.id,
-      quoteResponse: args.quoteResponses[0],
-    },
-  };
+  const intentId =
+    args.batchId ??
+    // Use orderId because it's always defined for intent transactions
+    orderUid;
 
-  // Start polling using the orderId as the history key
+  const historyKeyToUse = args.historyKey ?? intentId;
+
+  // If no historyKey is provided, add a new history item
+  if (args.historyKey) {
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey: historyKeyToUse,
+        historyItemOverrides: {
+          txMetaId: syntheticTxMeta?.id,
+          approvalTxId,
+          // Keep original txId for TransactionController updates
+          originalTransactionId: syntheticTxMeta?.id,
+          orderId: orderUid,
+          quote: args.quoteResponses[0].quote,
+          next: args.next,
+        },
+      },
+    };
+  } else {
+    // Update txHistory with synthetic txMeta and order id
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey: historyKeyToUse,
+        bridgeTxMeta: {
+          id: syntheticTxMeta?.id,
+        },
+        orderId: orderUid,
+        approvalTxId,
+        // Keep original txId for TransactionController updates
+        originalTransactionId: syntheticTxMeta?.id,
+        quoteResponse: args.quoteResponses[0],
+        next: args.next,
+      },
+    };
+  }
+
+  // Poll the same txHistory key that was just added/updated
   yield {
     type: SubmitStep.StartPolling,
     payload: {
-      historyKey: orderUid,
+      historyKey: historyKeyToUse,
     },
   };
 }
