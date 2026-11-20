@@ -604,10 +604,10 @@ describe('AuthenticatedUserStorageService', () => {
 
       await expect(
         service.putIdentitySharingConsent({
-          audience: 'kalshi',
+          audience: 'unknown',
           granted: true,
         } as never),
-      ).rejects.toThrow(/Expected.*"kyc"|"iron"/u);
+      ).rejects.toThrow(/Expected.*"kyc"|"iron"|"kalshi"/u);
     });
   });
 

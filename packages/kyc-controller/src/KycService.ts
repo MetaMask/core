@@ -391,12 +391,6 @@ export type CreateUkycSessionParams = {
    */
   partnerIdentityToken?: string;
   /**
-   * The Kalshi email the user typed. Sent with `signedRequests`, which carry
-   * the same address in `users/link`. Omitted for vendors that do not link an
-   * account this way.
-   */
-  email?: string;
-  /**
    * Kalshi calls the phone signed: `[enrollment/intents, users/link]`, or
    * `[users/link]` when an intent is already open. kyc-api forwards them to
    * the relay, which checks the signatures and sends them to Kalshi. A
@@ -910,7 +904,6 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
-          ...(params.email && { email: params.email }),
           ...(params.signedRequests && {
             signedRequests: params.signedRequests,
           }),

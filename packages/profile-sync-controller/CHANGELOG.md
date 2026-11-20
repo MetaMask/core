@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `kalshi` to `OidcTokenAudience`, so `getPartnerIdentityToken` can mint a token for the Kalshi audience ([#11686](https://github.com/MetaMask/core/pull/11686))
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))

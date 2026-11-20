@@ -138,7 +138,7 @@ export type MarketingConsent = {
 // ---------------------------------------------------------------------------
 
 /** Partner audience that may receive verified identity claims. */
-export type IdentitySharingAudience = 'kyc' | 'iron';
+export type IdentitySharingAudience = 'kyc' | 'iron' | 'kalshi';
 
 /**
  * Granted identity-sharing audiences for the authenticated user.
@@ -147,6 +147,7 @@ export type IdentitySharingAudience = 'kyc' | 'iron';
 export type IdentitySharingConsent = {
   kyc?: boolean;
   iron?: boolean;
+  kalshi?: boolean;
 };
 
 /** Body for granting or revoking a single identity-sharing audience. */

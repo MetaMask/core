@@ -54,9 +54,10 @@ export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
  * @param params.vendor - The vendor.
  * @param params.aal2Token - AAL2 token from MFA. Required only when a new
  * session has to be created. Omit it to pick up an existing session.
- * @param params.email - The Kalshi email the user typed. Required when
- * creating a Kalshi session. The phone signs `users/link` with it, and it
- * goes to kyc-api beside the signed calls. A resumed session ignores it.
+ * @param params.email - The Kalshi email the phone signs into `users/link`.
+ * Required when creating a Kalshi session. kyc-api does not receive it: the
+ * relay is given the verified email from the partner identity token, so
+ * this must be that address. A resumed session ignores it.
  * @param params.intentOpen - Whether the user already has an open Kalshi
  * enrollment intent. The phone then signs `users/link` alone, where a new
  * session signs `enrollment/intents` first.
