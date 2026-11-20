@@ -8011,7 +8011,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^14.0.3"
-    viem: "npm:^2.57.20"
+    viem: "npm:^2.58.0"
     vite: "npm:^8.3.8"
     vitest: "npm:5.1.1"
   languageName: unknown
@@ -26444,9 +26444,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.57.20":
-  version: 2.57.20
-  resolution: "viem@npm:2.57.20"
+"viem@npm:^2.58.0":
+  version: 2.58.0
+  resolution: "viem@npm:2.58.0"
   dependencies:
     "@noble/curves": "npm:1.9.1"
     "@noble/hashes": "npm:1.8.0"
@@ -26464,7 +26464,7 @@ __metadata:
       optional: true
     typescript:
       optional: true
-  checksum: 10/4d2074461f90c5ef9af8966623770211fbed1bdab47d83ff913b4aaab70c1d281a7664821c20459e2841b4bec9e7d55d2d1466973fa774eb71c4c75b1a2d411b
+  checksum: 10/3fbd93b6561decf09c6c985df2438811136e73e8a3d45036be584271227e10e19d4305b63e817d31618330314efd71163b1afec1897600d0c40921eeb943bd21
   languageName: node
   linkType: hard
 
