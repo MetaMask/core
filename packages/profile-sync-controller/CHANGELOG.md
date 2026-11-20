@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `kalshi` to `OidcTokenAudience`, so `getPartnerIdentityToken` can mint a token for the Kalshi audience
+- Add `kalshi` to `OidcTokenAudience`, so `getPartnerIdentityToken` can mint a token for the Kalshi audience ([#11686](https://github.com/MetaMask/core/pull/11686))
 
 ### Changed
 

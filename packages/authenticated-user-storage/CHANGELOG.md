@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `kalshi` to `IdentitySharingAudience` and the identity-sharing consent record, so a Kalshi partner identity token can be consented and minted
+- Add `kalshi` to `IdentitySharingAudience` and the identity-sharing consent record, so a Kalshi partner identity token can be consented and minted ([#11686](https://github.com/MetaMask/core/pull/11686))
 
 ## [4.2.0]
 
