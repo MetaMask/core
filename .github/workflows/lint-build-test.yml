@@ -91,6 +91,11 @@ jobs:
         id: packages
         if: matrix.node-version == needs.prepare-environment.outputs.latest-version
         run: |
+          IS_RELEASE=false
+          if [[ -n "$MERGE_BASE" && "$(git show "$MERGE_BASE:package.json" | jq -r .version)" != "$(jq -r .version package.json)" ]]; then
+            IS_RELEASE=true
+          fi
+
           if [[ -n "$MERGE_BASE" && "$IS_RELEASE" != "true" ]]; then
             OUTPUT=$(yarn get-changed-workspaces --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
@@ -106,7 +111,6 @@ jobs:
           echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
           echo "changed-paths=$CHANGED_PATHS" >> "$GITHUB_OUTPUT"
         env:
-          IS_RELEASE: ${{ startsWith(github.head_ref, 'release/') }}
           MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       - name: Get test shards
