@@ -9,14 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [79.0.0]
 
-### Uncategorized
-
-- test(bridge-status-controller): avoid snapshotting Promise internals ([#11692](https://github.com/MetaMask/core/pull/11692))
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-
 ### Added
 
 - **BREAKING:** Import the destination asset and refetch its balance when a bridge or swap completes ([#11668](https://github.com/MetaMask/core/pull/11668))
@@ -56,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/bridge-controller` from `^83.3.0` to `^84.0.0` ([#11696](https://github.com/MetaMask/core/pull/11696))
 
 ## [78.1.0]
 
