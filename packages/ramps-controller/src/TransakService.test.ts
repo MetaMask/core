@@ -1509,9 +1509,15 @@ describe('TransakService', () => {
 
       expect(result).toStrictEqual(sourceOfIncomeRequirement);
       expect(result.formsRequired[0].type).toBe('SOURCE_OF_INCOME');
-      expect(result.formsRequired[0].metadata?.sourceOfFundsTypeOptions).toHaveLength(3);
-      expect(result.formsRequired[0].metadata?.employmentStatusOptions).toHaveLength(3);
-      expect(result.formsRequired[0].metadata?.countryOfCitizenshipOptions).toHaveLength(3);
+      expect(
+        result.formsRequired[0].metadata?.sourceOfFundsTypeOptions,
+      ).toHaveLength(3);
+      expect(
+        result.formsRequired[0].metadata?.employmentStatusOptions,
+      ).toHaveLength(3);
+      expect(
+        result.formsRequired[0].metadata?.countryOfCitizenshipOptions,
+      ).toHaveLength(3);
     });
 
     it('throws when not authenticated', async () => {
@@ -1637,7 +1643,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       const result = await promise;
-      expect(result).toEqual({ status: 'SUCCESS' });
+      expect(result).toStrictEqual({ status: 'SUCCESS' });
     });
 
     it('submits source of income with different type', async () => {
@@ -1660,7 +1666,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       const result = await promise;
-      expect(result).toEqual({ status: 'SUCCESS' });
+      expect(result).toStrictEqual({ status: 'SUCCESS' });
     });
 
     it('throws when not authenticated', async () => {
@@ -1711,7 +1717,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       const result = await promise;
-      expect(result).toEqual({ status: 'SUBMITTED' });
+      expect(result).toStrictEqual({ status: 'SUBMITTED' });
     });
 
     it('submits additional nationality details for a different country', async () => {
@@ -1735,7 +1741,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       const result = await promise;
-      expect(result).toEqual({ status: 'SUBMITTED' });
+      expect(result).toStrictEqual({ status: 'SUBMITTED' });
     });
 
     it('throws when not authenticated', async () => {
