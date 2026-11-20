@@ -30,7 +30,10 @@ import type {
   SpotClearinghouseStateResponse,
   HyperLiquidAbstractionMode,
 } from '../types/hyperliquid-types.js';
-import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import {
+  HL_UNIFIED_ACCOUNT_MODE,
+  hyperLiquidModeFoldsSpot,
+} from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   PriceUpdate,
@@ -38,6 +41,7 @@ import type {
   OrderFill,
   Order,
   AccountState,
+  CrossMarginSummary,
   TwapOrder,
   SubscribePricesParams,
   SubscribePositionsParams,
@@ -383,6 +387,18 @@ export class HyperLiquidSubscriptionService {
   readonly #dexAccountCache = new Map<string, AccountState>(); // Per-DEX account state
 
   #cachedSpotState: SpotClearinghouseStateResponse | null = null;
+  #streamedSpot: { binding: UserDataBinding; epoch: number } | null = null;
+
+  #streamedAbstraction: {
+    binding: UserDataBinding;
+    epoch: number;
+    mode: HyperLiquidAbstractionMode;
+  } | null = null;
+
+  // Account slices from before a mode change can belong to a different pool.
+  readonly #crossMarginAccountDexs = new Set<string>();
+
+  #abstractionModeRevision = 0;
 
   // HL abstraction mode (Unified / Standard / Portfolio / DEX-abstraction).
   // Gates spot→perps folding in addSpotBalanceToAccountState. Keyed by user
@@ -1136,10 +1152,17 @@ export class HyperLiquidSubscriptionService {
     // JSON keeps the main DEX ('') distinct from a complete account.
     const unavailable = JSON.stringify(account.unavailableSubAccounts ?? null);
     const breakdown = JSON.stringify(account.subAccountBreakdown ?? null);
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${account.returnOnEquity}:${spotCollateral}:${summaryHash}:${unavailable}:${breakdown}`;
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${account.returnOnEquity}:${spotCollateral}:${account.accountMode ?? ''}:${summaryHash}:${unavailable}:${breakdown}`;
   }
 
   // Cache hashes to avoid recomputation
+  readonly #completePositionSubscribers = new Set<
+    (positions: Position[]) => void
+  >();
+  readonly #completeOrderSubscribers = new Set<(orders: Order[]) => void>();
+  #completePositionsHash = '';
+  #completeOrdersHash = '';
+
   #cachedPositionsHash = '';
 
   #cachedOrdersHash = '';
@@ -1604,6 +1627,7 @@ export class HyperLiquidSubscriptionService {
       (dex) =>
         !this.#dexAccountCache.has(dex) || !this.#isPositionDexFresh(dex),
     );
+    const accountMode = this.#getStreamedAccountMode();
 
     return addSpotBalanceToAccountState(
       {
@@ -1611,6 +1635,7 @@ export class HyperLiquidSubscriptionService {
         ...aggregatedAccountState,
         subAccountBreakdown,
         returnOnEquity,
+        ...(accountMode !== undefined && { accountMode }),
         ...(unavailableSubAccounts.length > 0 && { unavailableSubAccounts }),
       },
       this.#hasSpotForBoundWallet() ? this.#cachedSpotState : null,
@@ -1681,12 +1706,29 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     mode: HyperLiquidAbstractionMode,
   ): void {
-    const lower = userAddress.toLowerCase();
-    this.#abstractionModeByUser.set(lower, mode);
+    this.#abstractionModeRevision += 1;
+    this.#recordAbstractionMode(userAddress.toLowerCase(), mode);
 
     if (this.#dexAccountCache.size > 0) {
       this.#aggregateAndNotifySubscribers();
     }
+  }
+
+  #recordAbstractionMode(
+    userAddress: string,
+    mode: HyperLiquidAbstractionMode,
+  ): void {
+    const previousMode = this.#abstractionModeByUser.get(userAddress);
+    if (
+      previousMode !== undefined &&
+      previousMode !== mode &&
+      this.#hasUserDataWallet(userAddress)
+    ) {
+      this.#crossMarginAccountDexs.clear();
+      this.#streamedSpot = null;
+      this.#streamedAbstraction = null;
+    }
+    this.#abstractionModeByUser.set(userAddress, mode);
   }
 
   /**
@@ -1715,13 +1757,19 @@ export class HyperLiquidSubscriptionService {
     if (now - lastWsRefreshAt < ABSTRACTION_MODE_REFRESH_THROTTLE_MS) {
       return undefined;
     }
+    const binding = this.#userDataBinding;
+    const revision = this.#abstractionModeRevision;
+    const epoch = this.#clientService.getConnectionEpoch();
     const inflight: Promise<void> = (async (): Promise<void> => {
       try {
         const infoClient = this.#clientService.getInfoClient();
         const mode = await infoClient.userAbstraction({ user: userAddress });
-        const previousMode =
-          this.#abstractionModeByUser.get(normalizedUser) ?? null;
-        this.#abstractionModeByUser.set(normalizedUser, mode);
+        if (
+          binding !== this.#userDataBinding ||
+          epoch !== this.#clientService.getConnectionEpoch()
+        ) {
+          return;
+        }
         // Set timestamp only on success; a hanging/failed fetch must not
         // ratchet the throttle window forward (which would silence every
         // subsequent spot WS tick for the full throttle duration).
@@ -1729,6 +1777,13 @@ export class HyperLiquidSubscriptionService {
           normalizedUser,
           Date.now(),
         );
+        if (revision !== this.#abstractionModeRevision) {
+          return;
+        }
+        const previousMode =
+          this.#abstractionModeByUser.get(normalizedUser) ?? null;
+        const previousStreamedMode = this.#getStreamedAccountMode();
+        this.#recordAbstractionMode(normalizedUser, mode);
 
         // Re-aggregate when the published account changes. The fold covers
         // spendable and withdrawable. Spot collateral also changes when an
@@ -1746,7 +1801,9 @@ export class HyperLiquidSubscriptionService {
           hyperLiquidModeFoldsSpot(previousMode) !==
           hyperLiquidModeFoldsSpot(mode);
         if (
-          (foldChanged || collateralChanged) &&
+          (foldChanged ||
+            collateralChanged ||
+            previousStreamedMode !== this.#getStreamedAccountMode()) &&
           this.#dexAccountCache.size > 0
         ) {
           this.#aggregateAndNotifySubscribers();
@@ -1852,6 +1909,8 @@ export class HyperLiquidSubscriptionService {
       // Register the userAbstraction call in `#abstractionModeInflightByUser`
       // so a concurrent WS-driven `#refreshAbstractionModeThrottled` awaits
       // this fetch instead of duplicating the REST round-trip.
+      const revision = this.#abstractionModeRevision;
+      const epoch = this.#clientService.getConnectionEpoch();
       const abstractionFetch = infoClient.userAbstraction({
         user: userAddress,
       });
@@ -1874,18 +1933,15 @@ export class HyperLiquidSubscriptionService {
         this.#abstractionModeInflightByUser.delete(lowerUserAddress);
       }
 
-      // Record the abstraction mode regardless of generation. The mode is
-      // user-keyed (independent of the spot snapshot generation) so a WS
-      // push that bumped generation while we awaited cannot make this
-      // result wrong for this user. Discarding it would strand
-      // Unified / Portfolio Margin users at fail-closed until another
-      // subscribe runs — exactly the race the WS-vs-REST guard creates.
-      if (abstractionResult.status === 'fulfilled') {
-        this.#abstractionModeByUser.set(
-          lowerUserAddress,
-          abstractionResult.value,
-        );
-      } else {
+      // A newer account-mode confirmation supersedes this REST read even
+      // if the spot balance itself did not change during the request.
+      const resolvedMode =
+        abstractionResult.status === 'fulfilled' &&
+        revision === this.#abstractionModeRevision &&
+        epoch === this.#clientService.getConnectionEpoch();
+      if (resolvedMode) {
+        this.#recordAbstractionMode(lowerUserAddress, abstractionResult.value);
+      } else if (abstractionResult.status === 'rejected') {
         this.#deps.debugLogger.log(
           'User abstraction fetch failed during spot refresh; spot fold disabled until the mode resolves',
           {
@@ -1905,7 +1961,7 @@ export class HyperLiquidSubscriptionService {
         // owner could mean cleanUp ran for a different user), re-aggregate
         // now so the active subscribers immediately see the correct fold.
         if (
-          abstractionResult.status === 'fulfilled' &&
+          resolvedMode &&
           this.#cachedSpotState &&
           this.#cachedSpotStateUserAddress === lowerUserAddress
         ) {
@@ -1917,7 +1973,10 @@ export class HyperLiquidSubscriptionService {
       }
 
       const boundAddress = this.#userDataBinding?.address.toLowerCase();
-      if (boundAddress !== undefined && boundAddress !== lowerUserAddress) {
+      if (
+        epoch !== this.#clientService.getConnectionEpoch() ||
+        (boundAddress !== undefined && boundAddress !== lowerUserAddress)
+      ) {
         return;
       }
       if (spotResult.status === 'rejected') {
@@ -1976,6 +2035,8 @@ export class HyperLiquidSubscriptionService {
             const address = userAddress.toLowerCase();
             if (
               startGeneration !== this.#spotStateSubscriptionGeneration ||
+              subscriptionClient !==
+                this.#clientService.getSubscriptionClient() ||
               event.user.toLowerCase() !== address ||
               (boundAddress !== undefined && boundAddress !== address)
             ) {
@@ -1985,6 +2046,12 @@ export class HyperLiquidSubscriptionService {
             // its result instead of overwriting this fresher WS snapshot.
             this.#spotStateGeneration += 1;
             this.#cachedSpotState = event.spotState;
+            if (this.#userDataBinding) {
+              this.#streamedSpot = {
+                binding: this.#userDataBinding,
+                epoch: this.#clientService.getConnectionEpoch(),
+              };
+            }
             // Always record the spot owner so subsequent generation guards
             // and recovery branches can identify whose data is cached.
             // Fast-path eligibility is gated separately in #ensureSpotState
@@ -2341,8 +2408,8 @@ export class HyperLiquidSubscriptionService {
 
     return new Promise<void>((resolve, reject) => {
       // Use per-DEX clearinghouseState + openOrders subscriptions for
-      // positions/orders/account on every path. webData3 is used only for OI
-      // caps extraction. The deprecated webData2 channel is no longer used.
+      // positions/orders/account on every path. webData3 supplies the account
+      // mode and OI caps.
 
       // Determine which DEXs to subscribe to:
       // - HIP-3 enabled: main DEX + each enabled HIP-3 DEX.
@@ -2388,15 +2455,32 @@ export class HyperLiquidSubscriptionService {
         );
       }
 
-      // Also set up webData3 for OI caps only
+      // webData3 provides the account mode and OI caps.
       const webData3Promise = subscriptionClient
         .webData3({ user: userAddress }, (data: WebData3WsEvent) => {
           if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
             return;
           }
           try {
-            // webData3 is ONLY used for OI caps extraction
-            // Positions, orders, and account data come from individual subscriptions
+            const previousMode = this.#getStreamedAccountMode();
+            const { user, abstraction } = data.userState ?? {};
+            const address = userAddress.toLowerCase();
+            if (user?.toLowerCase() === address && abstraction) {
+              this.#abstractionModeRevision += 1;
+              this.#recordAbstractionMode(address, abstraction);
+              this.#streamedAbstraction = {
+                binding,
+                epoch: this.#clientService.getConnectionEpoch(),
+                mode: abstraction,
+              };
+            }
+            if (
+              this.#accountSubscribers.size > 0 &&
+              previousMode !== this.#getStreamedAccountMode()
+            ) {
+              this.#notifyAccountSubscribers();
+            }
+            // Position and order data come from the individual subscriptions.
             const allOICaps: string[] = [];
             data.perpDexStates.forEach((dexState, index) => {
               // Map webData3 index to DEX name
@@ -2624,6 +2708,7 @@ export class HyperLiquidSubscriptionService {
           ) {
             return;
           }
+          this.#crossMarginAccountDexs.delete(cacheKey);
 
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
@@ -2679,6 +2764,7 @@ export class HyperLiquidSubscriptionService {
 
           this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
           this.#cacheDexAccount(cacheKey, data.clearinghouseState);
+          this.#crossMarginAccountDexs.add(cacheKey);
 
           // Mark this DEX as initialized (has sent first data)
           this.#initializedDexs.add(cacheKey);
@@ -2962,6 +3048,11 @@ export class HyperLiquidSubscriptionService {
       return;
     }
 
+    this.#notifyCompleteSnapshots(binding);
+    if (binding !== this.#userDataBinding) {
+      return;
+    }
+
     // Wait for all expected DEXs to send initial data before notifying
     // This ensures positions from all DEXs appear simultaneously
     if (this.#expectedDexs.size > 0) {
@@ -3005,6 +3096,56 @@ export class HyperLiquidSubscriptionService {
       this.#orderSubscribers.forEach((callback) => {
         callback(aggregatedOrders);
       });
+    }
+  }
+
+  #notifyCompleteSnapshots(binding: UserDataBinding | undefined): void {
+    if (
+      this.#completePositionSubscribers.size === 0 &&
+      this.#completeOrderSubscribers.size === 0
+    ) {
+      return;
+    }
+    const scope = [
+      this.#clientService.getConnectionEpoch(),
+      [...this.#accountSnapshotDexs],
+    ];
+    // Complete snapshots also carry identity and order details that the
+    // legacy display hashes skip.
+    if (this.#completePositionSubscribers.size > 0) {
+      const positions = this.getFreshPositionsForAllDexs();
+      if (positions !== null) {
+        const hash = JSON.stringify([scope, positions]);
+        if (hash !== this.#completePositionsHash) {
+          this.#completePositionsHash = hash;
+          for (const callback of this.#completePositionSubscribers) {
+            if (binding !== this.#userDataBinding) {
+              return;
+            }
+            callback(positions);
+          }
+        }
+      }
+    }
+    if (
+      binding !== this.#userDataBinding ||
+      this.#completeOrderSubscribers.size === 0
+    ) {
+      return;
+    }
+    const orders = this.getOrdersCacheIfInitialized(true);
+    if (orders === null) {
+      return;
+    }
+    const hash = JSON.stringify([scope, orders]);
+    if (hash !== this.#completeOrdersHash) {
+      this.#completeOrdersHash = hash;
+      for (const callback of this.#completeOrderSubscribers) {
+        if (binding !== this.#userDataBinding) {
+          return;
+        }
+        callback(orders);
+      }
     }
   }
 
@@ -3217,6 +3358,10 @@ export class HyperLiquidSubscriptionService {
       this.#cachedPositions = null;
       this.#cachedOrders = null;
       this.#cachedSpotState = null;
+      this.#streamedSpot = null;
+      this.#streamedAbstraction = null;
+      this.#crossMarginAccountDexs.clear();
+      this.#abstractionModeRevision += 1;
       this.#cachedSpotStateUserAddress = null;
       this.#abstractionModeByUser.clear();
       this.#abstractionModeLastWsRefreshAtByUser.clear();
@@ -3233,6 +3378,8 @@ export class HyperLiquidSubscriptionService {
 
       // Clear hash caches
       this.#cachedPositionsHash = '';
+      this.#completePositionsHash = '';
+      this.#completeOrdersHash = '';
       this.#cachedOrdersHash = '';
       this.#cachedAccountHash = '';
 
@@ -3249,11 +3396,25 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from position updates.
    */
   public subscribeToPositions(params: SubscribePositionsParams): () => void {
-    const { callback, accountId } = params;
-    const removeListener = this.#createSubscription(
-      this.#positionSubscribers,
-      (positions: Position[]) => callback(positions),
-    );
+    const { callback, accountId, includeSnapshotStatus } = params;
+    const scopedUserAddress = includeSnapshotStatus
+      ? this.#walletService.getAccountStreamAddress(accountId)
+      : undefined;
+    const removeListener = includeSnapshotStatus
+      ? this.#createSubscription(
+          this.#completePositionSubscribers,
+          (positions) => {
+            if (
+              scopedUserAddress &&
+              this.#hasUserDataWallet(scopedUserAddress)
+            ) {
+              callback(positions, true);
+            }
+          },
+        )
+      : this.#createSubscription(this.#positionSubscribers, (positions) =>
+          callback(positions),
+        );
     this.#positionSubscriberCount += 1;
     const unsubscribe = (): void => {
       removeListener();
@@ -3263,7 +3424,15 @@ export class HyperLiquidSubscriptionService {
 
     // Replay is synchronous. A failed callback has no cleanup handle yet.
     try {
-      if (this.#cachedPositions) {
+      if (includeSnapshotStatus) {
+        const positions = this.getFreshPositionsForAllDexs(
+          false,
+          scopedUserAddress,
+        );
+        if (positions !== null) {
+          callback(positions, true);
+        }
+      } else if (this.#cachedPositions) {
         callback(this.#cachedPositions);
       }
     } catch (error) {
@@ -3849,18 +4018,40 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from order updates.
    */
   public subscribeToOrders(params: SubscribeOrdersParams): () => void {
-    const { callback, accountId } = params;
-    const unsubscribe = this.#createSubscription(
-      this.#orderSubscribers,
-      callback,
-    );
-
+    const { callback, accountId, includeSnapshotStatus } = params;
+    const scopedUserAddress = includeSnapshotStatus
+      ? this.#walletService.getAccountStreamAddress(accountId)
+      : undefined;
+    const removeListener = includeSnapshotStatus
+      ? this.#createSubscription(this.#completeOrderSubscribers, (orders) => {
+          if (scopedUserAddress && this.#hasUserDataWallet(scopedUserAddress)) {
+            callback(orders, undefined, true);
+          }
+        })
+      : this.#createSubscription(this.#orderSubscribers, callback);
     // Increment order subscriber count
     this.#orderSubscriberCount += 1;
+    const unsubscribe = (): void => {
+      removeListener();
+      this.#orderSubscriberCount -= 1;
+      this.#cleanupSharedWebData3ISubscription();
+    };
 
-    // Immediately provide cached data if available
-    if (this.#cachedOrders) {
-      callback(this.#cachedOrders);
+    // Replay is synchronous. A failed callback has no cleanup handle yet.
+    try {
+      if (includeSnapshotStatus) {
+        const orders = this.getOrdersCacheIfInitialized(true, {
+          userAddress: scopedUserAddress,
+        });
+        if (orders !== null) {
+          callback(orders, undefined, true);
+        }
+      } else if (this.#cachedOrders) {
+        callback(this.#cachedOrders);
+      }
+    } catch (error) {
+      unsubscribe();
+      throw error;
     }
 
     // Ensure shared subscription is active
@@ -3871,11 +4062,7 @@ export class HyperLiquidSubscriptionService {
       );
     });
 
-    return () => {
-      unsubscribe();
-      this.#orderSubscriberCount -= 1;
-      this.#cleanupSharedWebData3ISubscription();
-    };
+    return unsubscribe;
   }
 
   /**
@@ -3985,6 +4172,74 @@ export class HyperLiquidSubscriptionService {
    */
   public isPositionsCacheInitialized(): boolean {
     return this.#positionsCacheInitialized;
+  }
+
+  #getStreamedAccountMode(): HyperLiquidAbstractionMode | undefined {
+    const mode = this.#streamedAbstraction;
+    return mode &&
+      mode.binding === this.#userDataBinding &&
+      mode.epoch === this.#clientService.getConnectionEpoch()
+      ? mode.mode
+      : undefined;
+  }
+
+  /**
+   * Read Cross preview inputs from the current wallet's live account data.
+   *
+   * @param userAddress - The account the caller is pricing.
+   * @param asset - The proposed position's market.
+   * @returns Preview inputs or null when the caller needs a venue read.
+   */
+  public getFreshCrossMarginContext(
+    userAddress: string,
+    asset: string,
+  ): {
+    summary: CrossMarginSummary;
+    spotCollateral: string;
+    hasPosition: boolean;
+  } | null {
+    const mode = this.#getStreamedAccountMode();
+    const binding = this.#userDataBinding;
+    const epoch = this.#clientService.getConnectionEpoch();
+    if (!mode || !this.#hasUserDataWallet(userAddress)) {
+      return null;
+    }
+
+    const { dex } = parseAssetName(asset);
+    const dexName = dex ?? '';
+    const positions = this.getCachedPositionsForDex(dexName, userAddress);
+    if (positions === null || !this.#crossMarginAccountDexs.has(dexName)) {
+      return null;
+    }
+
+    let summary: CrossMarginSummary | undefined;
+    let spotCollateral: string | undefined;
+    if (
+      mode === HL_UNIFIED_ACCOUNT_MODE &&
+      this.#positionSnapshotDexs.has(dexName) &&
+      this.#streamedSpot?.binding === binding &&
+      this.#streamedSpot?.epoch === epoch &&
+      Array.from(this.#positionSnapshotDexs).every((key) =>
+        this.#crossMarginAccountDexs.has(key),
+      ) &&
+      this.#isAccountSnapshotComplete()
+    ) {
+      const account = this.#aggregateAccountStates();
+      summary = account?.crossMarginSummary;
+      spotCollateral = account?.spotCollateral;
+    } else if ((mode === 'disabled' || mode === 'default') && dex === null) {
+      summary = this.#dexAccountCache.get('')?.crossMarginSummary;
+      spotCollateral = '0';
+    }
+
+    if (summary === undefined || spotCollateral === undefined) {
+      return null;
+    }
+    return {
+      summary,
+      spotCollateral,
+      hasPosition: positions.some(({ symbol }) => symbol === asset),
+    };
   }
 
   /**
@@ -6054,10 +6309,12 @@ export class HyperLiquidSubscriptionService {
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
     this.#positionSubscribers.clear();
+    this.#completePositionSubscribers.clear();
     this.#orderFillSubscribers.clear();
     this.#twapOrderSubscribers.clear();
     this.#twapOrderAdapters.clear();
     this.#orderSubscribers.clear();
+    this.#completeOrderSubscribers.clear();
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
@@ -6114,6 +6371,8 @@ export class HyperLiquidSubscriptionService {
 
     // Clear hash caches
     this.#cachedPositionsHash = '';
+    this.#completePositionsHash = '';
+    this.#completeOrdersHash = '';
     this.#cachedOrdersHash = '';
     this.#cachedAccountHash = '';
 
@@ -6137,6 +6396,10 @@ export class HyperLiquidSubscriptionService {
     this.#dexAccountCache.clear();
     this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;
+    this.#streamedSpot = null;
+    this.#streamedAbstraction = null;
+    this.#crossMarginAccountDexs.clear();
+    this.#abstractionModeRevision += 1;
     this.#cachedSpotStateUserAddress = null;
     this.#abstractionModeByUser.clear();
     this.#abstractionModeLastWsRefreshAtByUser.clear();

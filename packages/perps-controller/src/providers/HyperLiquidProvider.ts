@@ -17911,18 +17911,93 @@ export class HyperLiquidProvider implements PerpsProvider {
       return null;
     }
 
-    const infoClient = this.#clientService.getInfoClient();
-    const [mode, meta] = await Promise.all([
-      infoClient.userAbstraction({ user: userAddress }),
-      this.#getCachedMeta({ dexName: dex }),
-    ]);
+    const meta = await this.#getCachedMeta({ dexName: dex });
+    const currentAccount = await this.getCurrentAccountId();
     const market = meta.universe.find((item) => item.name === asset);
-    if (!market || !this.#isCrossMarginSupported(market)) {
+    if (
+      currentAccount !== accountId ||
+      generation !== this.#lifecycleGeneration ||
+      !market ||
+      !this.#isCrossMarginSupported(market)
+    ) {
       return null;
     }
 
     // An add, close or flip needs the existing position's change in
     // maintenance. This preview only models an opening in a flat market.
+    const streamed = this.#subscriptionService.getFreshCrossMarginContext(
+      userAddress,
+      asset,
+    );
+    if (streamed?.hasPosition) {
+      return null;
+    }
+    const context =
+      streamed ??
+      (await this.#readCrossMarginContext(
+        asset,
+        accountId,
+        userAddress,
+        generation,
+      ));
+    if (!context) {
+      return null;
+    }
+    const { summary, spotCollateral } = context;
+    const accountValue = getCrossCollateral(summary, spotCollateral);
+    if (
+      accountValue === undefined ||
+      summary === undefined ||
+      summary.maintenanceMargin.trim() === ''
+    ) {
+      return null;
+    }
+    const priorMaintenance = Number(summary.maintenanceMargin);
+    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
+      return null;
+    }
+    const marginTiers = resolveHyperLiquidMarginTiers({
+      marginTableId: market.marginTableId,
+      maxLeverage: market.maxLeverage,
+      marginTables: meta.marginTables,
+    });
+    const addedMaintenance = estimateCrossMaintenanceMargin([
+      { notional: entryPrice * positionSize, marginTiers },
+    ]);
+    if (addedMaintenance === null) {
+      return null;
+    }
+    return estimateCrossLiquidationPrice({
+      isLong,
+      markPrice: entryPrice,
+      positionSize,
+      accountValue,
+      maintenanceMargin: priorMaintenance + addedMaintenance,
+      marginTiers,
+    });
+  }
+
+  /**
+   * Read Cross inputs when live account coverage is incomplete.
+   *
+   * @param asset - The proposed position's market.
+   * @param accountId - Selected account when the quote began.
+   * @param userAddress - Venue address for the selected account.
+   * @param generation - Provider lifecycle when the quote began.
+   * @returns Confirmed margin inputs for a flat market, or null.
+   */
+  async #readCrossMarginContext(
+    asset: string,
+    accountId: CaipAccountId,
+    userAddress: Hex,
+    generation: number,
+  ): Promise<{
+    summary: CrossMarginSummary | undefined;
+    spotCollateral: string | undefined;
+  } | null> {
+    const { dex } = parseAssetName(asset);
+    const infoClient = this.#clientService.getInfoClient();
+    const mode = await infoClient.userAbstraction({ user: userAddress });
     let summary: CrossMarginSummary | undefined;
     let spotCollateral: string | undefined;
     if (mode === HL_UNIFIED_ACCOUNT_MODE) {
@@ -17971,37 +18046,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return null;
     }
-    const accountValue = getCrossCollateral(summary, spotCollateral);
-    if (
-      accountValue === undefined ||
-      summary === undefined ||
-      summary.maintenanceMargin.trim() === ''
-    ) {
-      return null;
-    }
-    const priorMaintenance = Number(summary.maintenanceMargin);
-    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
-      return null;
-    }
-    const marginTiers = resolveHyperLiquidMarginTiers({
-      marginTableId: market.marginTableId,
-      maxLeverage: market.maxLeverage,
-      marginTables: meta.marginTables,
-    });
-    const addedMaintenance = estimateCrossMaintenanceMargin([
-      { notional: entryPrice * positionSize, marginTiers },
-    ]);
-    if (addedMaintenance === null) {
-      return null;
-    }
-    return estimateCrossLiquidationPrice({
-      isLong,
-      markPrice: entryPrice,
-      positionSize,
-      accountValue,
-      maintenanceMargin: priorMaintenance + addedMaintenance,
-      marginTiers,
-    });
+    return { summary, spotCollateral };
   }
 
   /**

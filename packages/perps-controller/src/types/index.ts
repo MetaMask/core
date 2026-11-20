@@ -1035,6 +1035,8 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Venue account mode when confirmed by the current account stream. */
+  accountMode?: string;
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
    * HL: marginSummary.accountValue + spot(USDC) − spot.hold
@@ -2175,7 +2177,10 @@ export type SubscribePricesParams = {
 };
 
 export type SubscribePositionsParams = {
-  callback: (positions: Position[]) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Future: include historical data
 };
@@ -2203,7 +2208,14 @@ export type SubscribeOrdersParams = {
    * setup failures through this optional callback.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
-  callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (
+    orders: Order[],
+    sourceProviderId?: PerpsProviderType,
+    completeSnapshot?: boolean,
+  ) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish orders for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };

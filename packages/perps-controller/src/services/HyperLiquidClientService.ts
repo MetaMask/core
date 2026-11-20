@@ -353,8 +353,7 @@ export class HyperLiquidClientService {
   }
 
   /**
-   * Create all SDK clients using the current transports.
-   * Shared by initialize() and #handleConnectionDrop() to avoid drift.
+   * Ensure SDK clients use the current transports and signing wallet.
    *
    * @param wallet - Optional wallet params. Uses stored #walletParams when omitted (reconnection path).
    */
@@ -363,8 +362,10 @@ export class HyperLiquidClientService {
       throw new Error('Transports must be created before clients');
     }
 
-    this.#infoClient = new InfoClient({ transport: this.#wsTransport });
-    this.#subscriptionClient = new SubscriptionClient({
+    this.#infoClient ??= new InfoClient({ transport: this.#wsTransport });
+    // A stream can initialize before the first provider read. Keep its
+    // client on the same transport so its listeners remain current.
+    this.#subscriptionClient ??= new SubscriptionClient({
       transport: this.#wsTransport,
     });
     this.#createHttpClients(wallet);

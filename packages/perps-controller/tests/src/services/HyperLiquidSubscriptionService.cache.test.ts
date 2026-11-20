@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
+import type { SpotClearinghouseStateResponse } from '@nktkas/hyperliquid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
@@ -1385,6 +1386,130 @@ describe('HyperLiquidSubscriptionService', () => {
         await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
         return { hip3Service, callbacks };
       };
+
+      it('uses only current, mode-compatible Cross inputs from the required DEXs', async () => {
+        const staleMode = createDeferred<'disabled'>();
+        const staleSpot = createDeferred<SpotClearinghouseStateResponse>();
+        mockClientService.getInfoClient.mockReturnValue({
+          userAbstraction: vi
+            .fn()
+            .mockReturnValueOnce(staleMode.promise)
+            .mockResolvedValue('unifiedAccount'),
+          spotClearinghouseState: vi.fn().mockReturnValue(staleSpot.promise),
+        } as never);
+        vi.mocked(parseAssetName).mockImplementation((symbol) => ({
+          symbol,
+          dex: symbol.split(':').length > 1 ? symbol.split(':')[0] : null,
+        }));
+        const crossSummary = {
+          accountValue: '400',
+          maintenanceMargin: '10',
+          marginUsed: '30',
+          notional: '1200',
+        };
+        vi.mocked(adaptAccountStateFromSDK).mockReturnValue({
+          totalBalance: '400',
+          spendableBalance: '370',
+          withdrawableBalance: '370',
+          marginUsed: '30',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          crossMarginSummary: crossSummary,
+        });
+
+        const { hip3Service, callbacks } = await createHip3Service();
+        const onAccount = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: onAccount,
+        });
+        await vi.runAllTimersAsync();
+        const user = '0x123';
+        const publishMode = mockSubscriptionClient.webData3.mock.calls[0][1];
+        const publishSpot = mockSubscriptionClient.spotState.mock.calls[0][1];
+        const spot = {
+          user,
+          spotState: {
+            balances: [{ coin: 'USDC', token: 0, total: '150', hold: '50' }],
+          },
+        };
+        publishMode({
+          userState: { user, abstraction: 'unifiedAccount' },
+          perpDexStates: [],
+        });
+        publishAccount(callbacks, '', '400');
+        publishSpot(spot);
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toBeNull();
+        publishAccount(callbacks, 'xyz', '400');
+
+        const unified = {
+          summary: {
+            accountValue: '800',
+            maintenanceMargin: '20',
+            marginUsed: '60',
+            notional: '2400',
+          },
+          spotCollateral: '100',
+          hasPosition: false,
+        };
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toStrictEqual(unified);
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'other:TSLA'),
+        ).toBeNull();
+        expect(
+          hip3Service.getFreshCrossMarginContext('0x456', 'BTC'),
+        ).toBeNull();
+
+        staleMode.resolve('disabled');
+        staleSpot.resolve({ balances: [] });
+        await vi.runAllTimersAsync();
+        expect(onAccount).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            accountMode: 'unifiedAccount',
+            spotCollateral: '100',
+          }),
+        );
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual(unified);
+
+        publishMode({
+          userState: { user, abstraction: 'default' },
+          perpDexStates: [],
+        });
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishAccount(callbacks, '', '400');
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual({
+          summary: crossSummary,
+          spotCollateral: '0',
+          hasPosition: false,
+        });
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toBeNull();
+
+        mockClientService.getConnectionEpoch.mockReturnValue(2);
+        publishAccount(callbacks, '', '400');
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishMode({
+          userState: { user, abstraction: 'unifiedAccount' },
+          perpDexStates: [],
+        });
+        publishAccount(callbacks, '', '400');
+        publishAccount(callbacks, 'xyz', '400');
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishSpot(spot);
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual(unified);
+        unsubscribe();
+      });
 
       it('emits null while a configured DEX account subscription has failed', async () => {
         const { hip3Service, callbacks } = await createHip3Service('xyz');
