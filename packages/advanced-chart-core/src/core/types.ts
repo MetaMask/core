@@ -133,6 +133,12 @@ export type ChartConfig = {
  */
 export type TVResolution = string; // NOSONAR — intentional semantic alias for TradingView resolution strings
 
+export type TVTimeRange = {
+  type: 'time-range';
+  from: number;
+  to: number;
+};
+
 export type TVWidgetEvent = 'mouse_down' | 'mouse_up' | 'panes_height_changed';
 
 export type TVChartingLibraryWidget = {

@@ -249,12 +249,12 @@ describe('createChartWidget', () => {
     expect(customThemes.dark.color3).toHaveLength(19);
   });
 
-  it('uses a transparent loading_screen so the host skeleton shows instead of the built-in spinner', () => {
+  it('sets loading_screen colors from theme', () => {
     createChartWidget(baseConfig, defaultOptions);
     const args = ctor.mock.calls[0][0] as Record<string, unknown>;
     const ls = args.loading_screen as Record<string, string>;
-    expect(ls.backgroundColor).toBe('transparent');
-    expect(ls.foregroundColor).toBe('transparent');
+    expect(ls.backgroundColor).toBe(baseTheme.backgroundColor);
+    expect(ls.foregroundColor).toBe(baseTheme.successColor);
   });
 
   it('uses provided timezone instead of resolving', () => {

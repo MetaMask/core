@@ -174,9 +174,7 @@ export function bootstrap(): ChartConfig {
     reportErrorToRN(error);
   });
 
-  // Builds the widget and wires all post-ready listeners. The initial view is
-  // framed by the interval's window via buildInitialTimeframe.
-  const buildChartWidget = (): void => {
+  onFirstOhlcvData(() => {
     loadTradingViewLibrary(config.libraryUrl)
       .then(() => {
         return createChartWidget(config, {
@@ -224,9 +222,7 @@ export function bootstrap(): ChartConfig {
       .catch((error) => {
         reportErrorToRN(error);
       });
-  };
-
-  onFirstOhlcvData(() => buildChartWidget());
+  });
 
   postToRN('DEBUG', { message: 'modular-bootstrap-ready' });
 

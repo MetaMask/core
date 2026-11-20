@@ -206,7 +206,6 @@ export const customDatafeed: TVDatafeed = {
       const { countBack, firstDataRequest } = periodParams;
 
       const bars = filterBarsForRange(fromMs, toMs, countBack);
-
       if (bars.length > 0) {
         onResult(bars, { noData: false });
         return;
