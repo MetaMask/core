@@ -91,7 +91,12 @@ jobs:
         id: packages
         if: matrix.node-version == needs.prepare-environment.outputs.latest-version
         run: |
-          if [[ -n "$MERGE_BASE" ]]; then
+          IS_RELEASE=false
+          if [[ -n "$MERGE_BASE" && "$(git show "$MERGE_BASE:package.json" | jq -r .version)" != "$(jq -r .version package.json)" ]]; then
+            IS_RELEASE=true
+          fi
+
+          if [[ -n "$MERGE_BASE" && "$IS_RELEASE" != "true" ]]; then
             OUTPUT=$(yarn get-changed-workspaces --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
