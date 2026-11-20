@@ -348,7 +348,7 @@ export class HyperLiquidSubscriptionService {
 
   readonly #dexSubscriberCounts = new Map<string, number>(); // Track subscribers per DEX for assetCtxs
 
-  // Multi-DEX webData3 subscription for all user data (positions, orders, account, OI caps)
+  // Shared webData3 subscription for account mode and open-interest caps.
   readonly #webData3Subscriptions = new Map<string, ISubscription>(); // Key: dex name ('' for main)
 
   #webData3SubscriptionPromise?: Promise<void>;
@@ -2344,11 +2344,10 @@ export class HyperLiquidSubscriptionService {
   /**
    * Create WebSocket subscription for user data (positions, orders, account).
    *
-   * Positions, orders, and account/spot balance are always delivered via
-   * per-DEX `clearinghouseState` + `openOrders` subscriptions (sub-second
-   * updates). webData3 is used only for OI caps extraction (not
-   * latency-sensitive). The deprecated webData2 snapshot channel is no longer
-   * used (TAT-3332).
+   * Per-DEX `clearinghouseState` supplies positions and account data, and
+   * `openOrders` supplies orders. `spotState` supplies spot balances.
+   * `webData3` supplies open-interest caps and the bound wallet's account
+   * mode, which Cross previews use only on the current connection.
    *
    * - HIP-3 disabled: subscribe to the main DEX only (`dexsToSubscribe = ['']`).
    * - HIP-3 enabled: subscribe to the main DEX plus each enabled HIP-3 DEX.
