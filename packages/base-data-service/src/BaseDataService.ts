@@ -566,6 +566,14 @@ export class BaseDataService<
   }
 
   /**
+   * Close the service policy's circuit breaker, so requests are attempted
+   * again right away instead of after the circuit break duration.
+   */
+  protected resetCircuitBreaker(): void {
+    this.#policy.reset();
+  }
+
+  /**
    * Prepares the service for garbage collection. This should be extended
    * by any subclasses to clean up any additional connections or events.
    */

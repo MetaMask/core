@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ProfileMetricsServiceInvalidateQueriesAction`, `ProfileMetricsServiceCacheUpdatedEvent` and `ProfileMetricsServiceGranularCacheUpdatedEvent`, also included in `ProfileMetricsServiceActions` and `ProfileMetricsServiceEvents` ([#11215](https://github.com/MetaMask/core/pull/11215))
+
+### Changed
+
+- **BREAKING:** `ProfileMetricsService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11215](https://github.com/MetaMask/core/pull/11215))
+- `submitMetrics` failures now count one at a time toward `maxConsecutiveFailures` (default 12) instead of the previous default of 3, because the request is never retried ([#11215](https://github.com/MetaMask/core/pull/11215))
+- `fetchNonces` responses that do not match the expected shape now fail immediately instead of being retried, and no longer count toward the circuit breaker ([#11215](https://github.com/MetaMask/core/pull/11215))
+  - The shape error is now `Fetching '<url>' returned an unexpected response: …`, instead of `Malformed response received from <url>`.
+- Add dependency `@metamask/base-data-service` ([#11215](https://github.com/MetaMask/core/pull/11215))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `ProfileMetricsService` ([#11215](https://github.com/MetaMask/core/pull/11215))
+
 ## [5.3.0]
 
 ### Added

@@ -12,7 +12,10 @@ export {
 } from './ProfileMetricsController.js';
 export type {
   ProfileMetricsServiceActions,
+  ProfileMetricsServiceCacheUpdatedEvent,
   ProfileMetricsServiceEvents,
+  ProfileMetricsServiceGranularCacheUpdatedEvent,
+  ProfileMetricsServiceInvalidateQueriesAction,
   ProfileMetricsServiceMessenger,
   ProfileMetricsSubmitMetricsRequest,
 } from './ProfileMetricsService.js';

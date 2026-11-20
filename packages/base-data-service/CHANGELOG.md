@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `resetCircuitBreaker` protected method to `BaseDataService`, which closes the service policy's circuit breaker so subclasses can resume requests right away ([#11215](https://github.com/MetaMask/core/pull/11215))
 
 ### Changed
 
