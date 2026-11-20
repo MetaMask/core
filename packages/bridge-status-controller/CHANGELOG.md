@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Import the destination asset and refetch its balance when a bridge or swap completes ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- **BREAKING:** Import the destination asset and refetch its balance when a bridge or swap completes ([#11668](https://github.com/MetaMask/core/pull/11668))
   - `BridgeStatusController` now calls `AssetsController:addCustomAsset` with `bypassServerCache: true`, so the post-trade balance is not served from the Accounts API's cached snapshot.
   - A native destination asset is not imported, since its bridge asset ID can differ from the one `AssetsController` tracks (e.g. on MegaETH). Instead, `BridgeStatusController` refetches the destination chain by calling `AssetsController:getAssets` with `forceUpdate: true` and `bypassServerCache: true`.
   - The asset is imported for the account that owns the quote's `destWalletAddress`. Without one, it falls back to the history item's account when the source and destination chains use the same account type, and is skipped otherwise.
   - This runs when a status-polled bridge or swap reaches `StatusTypes.COMPLETE`, and when a same-chain EVM swap transaction is confirmed. A 7702 batch sell imports the destination asset of every quote in the batch.
   - Clients must delegate the `AssetsController:addCustomAsset` and `AssetsController:getAssets` actions to the `BridgeStatusController` messenger. Failures are logged and do not affect the history item.
-  - Adds `@metamask/assets-controller` `^20.4.1` as a dependency.
+  - Adds `@metamask/assets-controller` `^21.0.0` as a dependency.
 - **BREAKING:** Require `BridgeController:fetchQuotes` on `BridgeStatusControllerMessenger` ([#11181](https://github.com/MetaMask/core/pull/11181))
 - Submit a background pre-swap money-account withdraw via `submitTx({ operation: 'withdraw' })` ([#11181](https://github.com/MetaMask/core/pull/11181))
   - Queues a follow-up swap unless dest is already the vault underlying token
