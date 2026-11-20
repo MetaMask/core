@@ -5,16 +5,21 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
-import { handleWhen, HttpError } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  handleWhen,
+  HttpError,
+} from '@metamask/controller-utils';
+import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { Infer } from '@metamask/superstruct';
 import {
   array,
   number,
   string,
   type as structType,
+  validate,
 } from '@metamask/superstruct';
 
 import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
@@ -34,8 +39,6 @@ const NonceBatchResponseStruct = array(
     nonce: string(),
   }),
 );
-
-type NonceBatchResponse = Infer<typeof NonceBatchResponseStruct>;
 
 // === GENERAL ===
 
@@ -211,10 +214,11 @@ export class ProfileMetricsService extends BaseDataService<
   readonly #baseURL: string;
 
   /**
-   * Counter used to give every nonce request its own query key, so that
-   * concurrent `fetchNonces` calls never share a request or a result.
+   * Policy for `fetchNonces`. Nonces are single use and secret, so they bypass
+   * the data service cache (and the cache events it publishes) and get their
+   * own circuit breaker, separate from `submitMetrics`.
    */
-  #nonceRequestCounter = 0;
+  readonly #fetchNoncesPolicy: ServicePolicy;
 
   /**
    * Constructs a new ProfileMetricsService object.
@@ -231,7 +235,7 @@ export class ProfileMetricsService extends BaseDataService<
    * soft-degrades to a proof-less submit that clears the queue, so retries
    * here are what preserve proofs across transient errors. `submitMetrics` is
    * never retried (proof nonces are single-use; the controller poll re-fetches
-   * nonces and retries failed submits). Both share one circuit breaker.
+   * nonces and retries failed submits). Each has its own circuit breaker.
    * @param args.env - The environment to determine the correct API endpoints.
    */
   constructor({
@@ -254,6 +258,10 @@ export class ProfileMetricsService extends BaseDataService<
       },
     });
     this.#fetch = fetchFunction;
+    this.#fetchNoncesPolicy = createServicePolicy({
+      retryFilterPolicy: DO_NOT_RETRY_CLIENT_ERRORS,
+      ...policyOptions,
+    });
     this.#baseURL = getAuthUrl(env);
 
     this.messenger.registerMethodActionHandlers(
@@ -321,39 +329,37 @@ export class ProfileMetricsService extends BaseDataService<
     identifiers: string[],
     entropySourceId: string | null | undefined,
   ): Promise<Record<string, string>> {
-    this.#nonceRequestCounter += 1;
-    const body = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchNonces`, this.#nonceRequestCounter],
-      // The private query client is never mounted, so a request paused while
-      // offline would never resume and would hold the controller's poll mutex.
-      networkMode: 'always',
-      staleTime: 0,
-      gcTime: 0,
-      responseStruct: NonceBatchResponseStruct,
-      queryFn: async () => {
-        const authToken = await this.messenger.call(
-          'AuthenticationController:getBearerToken',
-          entropySourceId ?? undefined,
+    const url = new URL(`${this.#baseURL}/nonce/batch`);
+    const json = await this.#fetchNoncesPolicy.execute(async () => {
+      const authToken = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+        entropySourceId ?? undefined,
+      );
+      const response = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ identifiers }),
+        credentials: 'omit',
+      });
+      if (!response.ok) {
+        throw new HttpError(
+          response.status,
+          `Fetching '${url.toString()}' failed with status '${response.status}'`,
         );
-        const url = new URL(`${this.#baseURL}/nonce/batch`);
-        const response = await this.#fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ identifiers }),
-          credentials: 'omit',
-        });
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Fetching '${url.toString()}' failed with status '${response.status}'`,
-          );
-        }
-        return (await response.json()) as NonceBatchResponse;
-      },
+      }
+      return (await response.json()) as unknown;
     });
+    // Validated outside the policy: a malformed response will not change on
+    // retry, and it says nothing about the health of the endpoint.
+    const [validationError, body] = validate(json, NonceBatchResponseStruct);
+    if (validationError) {
+      throw new Error(
+        `Fetching '${url.toString()}' returned an unexpected response: ${validationError.message}`,
+      );
+    }
     const result: Record<string, string> = {};
     for (const entry of body) {
       result[entry.identifier] = entry.nonce;
@@ -365,18 +371,18 @@ export class ProfileMetricsService extends BaseDataService<
       );
     if (!echoesRequest) {
       throw new Error(
-        `Fetching '${this.#baseURL}/nonce/batch' returned a response whose identifier set does not match the request`,
+        `Fetching '${url.toString()}' returned a response whose identifier set does not match the request`,
       );
     }
     return result;
   }
 
   /**
-   * Close the circuit breaker shared by `fetchNonces` and `submitMetrics`, so
-   * requests are attempted again right away instead of after the circuit break
-   * duration.
+   * Close the circuit breakers of `fetchNonces` and `submitMetrics`, so requests
+   * are attempted again right away instead of after the circuit break duration.
    */
   resetCircuitBreakers(): void {
+    this.#fetchNoncesPolicy.reset();
     this.resetCircuitBreaker();
   }
 
@@ -391,7 +397,8 @@ export class ProfileMetricsService extends BaseDataService<
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
     await this.executeMutation({
       mutationKey: [`${this.name}:submitMetrics`],
-      // See `fetchNoncesChunk`: a paused request would never resume.
+      // The private query client is never mounted, so a request paused while
+      // offline would never resume and would hold the controller's poll mutex.
       networkMode: 'always',
       mutationFn: async () => {
         const authToken = await this.messenger.call(

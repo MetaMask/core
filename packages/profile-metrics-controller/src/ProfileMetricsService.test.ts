@@ -75,7 +75,7 @@ describe('ProfileMetricsService', () => {
       ).toBeUndefined();
     });
 
-    it('publishes cacheUpdated after fetching nonces', async () => {
+    it('publishes no cache events for fetched nonces', async () => {
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
         .reply(200, [
@@ -84,11 +84,13 @@ describe('ProfileMetricsService', () => {
       const { service, messenger } = getService();
       const publishSpy = vi.spyOn(messenger, 'publish');
 
-      await service.fetchNonces({ identifiers: ['0xAddressOne'] });
+      await service.fetchNonces({
+        identifiers: ['0xAddressOne'],
+        entropySourceId: 'mock-entropy-source-id',
+      });
 
-      expect(publishSpy).toHaveBeenCalledWith(
+      expect(JSON.stringify(publishSpy.mock.calls)).not.toContain(
         'ProfileMetricsService:cacheUpdated',
-        expect.objectContaining({ objectType: 'query' }),
       );
     });
 
@@ -213,8 +215,15 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('shares one circuit breaker with fetchNonces', async () => {
-      nock(defaultBaseEndpoint).put('/profile/accounts').times(2).reply(500);
+    it('does not let an open submitMetrics circuit breaker block fetchNonces', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .times(2)
+        .reply(500)
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce' },
+        ]);
       const { rootMessenger } = getService({
         options: {
           policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
@@ -229,10 +238,76 @@ describe('ProfileMetricsService', () => {
           ),
         ).rejects.toThrow(/failed with status '500'/u);
       }
-      await expect(
-        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+
+      expect(
+        await rootMessenger.call('ProfileMetricsService:fetchNonces', {
           identifiers: ['0xAddressOne'],
         }),
+      ).toStrictEqual({ '0xAddressOne': 'nonce' });
+    });
+
+    it('does not let an open fetchNonces circuit breaker block submitMetrics', async () => {
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(2)
+        .reply(500)
+        .put('/profile/accounts')
+        .reply(200, { data: { success: true } });
+      const { rootMessenger } = getService({
+        options: {
+          policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
+        },
+      });
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await expect(
+          rootMessenger.call('ProfileMetricsService:fetchNonces', {
+            identifiers: ['0xAddressOne'],
+          }),
+        ).rejects.toThrow(/failed with status '500'/u);
+      }
+
+      expect(
+        await rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('opens the submitMetrics circuit breaker even when fetchNonces succeeds between failures', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .times(2)
+        .reply(500)
+        .post('/nonce/batch')
+        .times(2)
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce' },
+        ]);
+      const { rootMessenger } = getService({
+        options: {
+          policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
+        },
+      });
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        });
+        await expect(
+          rootMessenger.call(
+            'ProfileMetricsService:submitMetrics',
+            createMockRequest(),
+          ),
+        ).rejects.toThrow(/failed with status '500'/u);
+      }
+
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
@@ -732,7 +807,7 @@ describe('ProfileMetricsService', () => {
           identifiers,
         }),
       ).rejects.toThrow(
-        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
+        /Fetching '.*\/nonce\/batch' returned an unexpected response/u,
       );
     });
 
@@ -749,7 +824,7 @@ describe('ProfileMetricsService', () => {
           identifiers,
         }),
       ).rejects.toThrow(
-        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
+        /Fetching '.*\/nonce\/batch' returned an unexpected response/u,
       );
     });
 
@@ -772,7 +847,7 @@ describe('ProfileMetricsService', () => {
           identifiers,
         }),
       ).rejects.toThrow(
-        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
+        /Fetching '.*\/nonce\/batch' returned an unexpected response/u,
       );
     });
 
@@ -850,35 +925,6 @@ describe('ProfileMetricsService', () => {
       await service.fetchNonces({ identifiers: ['0xAddressOne'] });
 
       expect(scope.isDone()).toBe(true);
-    });
-
-    it('does not put identifiers or the entropy source ID in the published cache event hashes', async () => {
-      // Only the hashes are checked: the event state still carries the response.
-      nock(defaultBaseEndpoint)
-        .post('/nonce/batch')
-        .reply(200, [
-          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce-one' },
-        ]);
-      const { service, messenger } = getService();
-      const publishSpy = vi.spyOn(messenger, 'publish');
-
-      await service.fetchNonces({
-        identifiers: ['0xAddressOne'],
-        entropySourceId: 'mock-entropy-source-id',
-      });
-
-      const eventTypes = publishSpy.mock.calls.map(([eventType]) =>
-        String(eventType),
-      );
-      expect(eventTypes.length).toBeGreaterThan(0);
-      const serializedKeys = JSON.stringify(
-        publishSpy.mock.calls.map(([eventType, payload]) => [
-          eventType,
-          (payload as { hash?: string } | undefined)?.hash,
-        ]),
-      );
-      expect(serializedKeys).not.toContain('0xAddressOne');
-      expect(serializedKeys).not.toContain('mock-entropy-source-id');
     });
 
     it.each([400, 403, 429])(
