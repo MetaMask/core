@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Require `@metamask/analytics-controller` `^4.4.0`, which adds `marketingConsentSyncPending`, `applyRemoteMarketingConsent` and `clearMarketingConsentSyncPending` ([#11469](https://github.com/MetaMask/core/pull/11469), [#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-sync-service@1.0.0...HEAD
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/marketing-consent-sync-service@1.0.0
