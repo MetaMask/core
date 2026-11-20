@@ -779,9 +779,8 @@ export class VendorOnboardingController extends BaseController<
     if (join && inflight) {
       return inflight;
     }
-    // Assigned before the first await resumes, so the checks below see it.
-    let read!: Promise<KycStep>;
-    read = (async (): Promise<KycStep> => {
+    // Bound before the first await resumes, so the checks below see it.
+    const read = (async (): Promise<KycStep> => {
       try {
         const info = await this.messenger.call(
           'KycService:getStep',

@@ -492,11 +492,6 @@
       "count": 1
     }
   },
-  "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
-    "TS2741": {
-      "count": 1
-    }
-  },
   "packages/money-account-api-data-service/src/money-account-api-data-service.test.ts": {
     "TS2322": {
       "count": 8
