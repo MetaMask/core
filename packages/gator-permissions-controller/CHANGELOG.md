@@ -11,9 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
+- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^13.0.0` ([#10737](https://github.com/MetaMask/core/pull/10737), [#11687](https://github.com/MetaMask/core/pull/11687))
 - Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
-- Bump `@metamask/snaps-sdk` from `^11.2.0` to `^13.0.0` ([#11687](https://github.com/MetaMask/core/pull/11687))
 - Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.2` ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [6.1.2]

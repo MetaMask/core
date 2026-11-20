@@ -23,15 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.2` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `immer` from `^9.0.6` to `^11.2.10` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382), [#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
-- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^23.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719), [#11687](https://github.com/MetaMask/core/pull/11687))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/core-backend` from `^13.0.0` to `^14.0.0` ([#11300](https://github.com/MetaMask/core/pull/11300))
-- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
-- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^23.0.1` ([#11687](https://github.com/MetaMask/core/pull/11687))
-- Bump `@metamask/snaps-sdk` from `^11.2.0` to `^13.0.0` ([#11687](https://github.com/MetaMask/core/pull/11687))
+- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^13.0.0` ([#10737](https://github.com/MetaMask/core/pull/10737), [#11687](https://github.com/MetaMask/core/pull/11687))
 - Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.2` ([#11687](https://github.com/MetaMask/core/pull/11687))
 
 ## [8.0.0]
