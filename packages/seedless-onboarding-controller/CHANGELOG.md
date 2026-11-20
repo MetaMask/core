@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation
-  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`), `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`), `expected_user_id`, and `actual_user_id`
+  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`), `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`), `expected_user_id`, `actual_user_id`, and `metadata_schema_version`
+  - `metadata_schema_version` is `v2` when `state.migrationVersion` is at least 1, and `v1` otherwise
   - `expected_user_id` is the user id the flow expected. `actual_user_id` is the id token subject, or the current controller user id when the identity changed in flight
   - A present user id is an HMAC-SHA256 hex digest keyed with a fixed salt. A missing user id is `NONE`. The raw user id is not included. Tokens and other credentials are not included
   - A failure to send the event does not change the `IdentityMismatch` error returned to the caller

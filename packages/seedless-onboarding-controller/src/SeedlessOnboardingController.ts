@@ -2583,8 +2583,12 @@ export class SeedlessOnboardingController<
     userId: string | null | undefined,
     source: SeedlessIdentityMismatchSource,
   ): asserts userId is string {
-    assertIdTokenMismatchAndTrackEvent(idTokens, userId, source, (event) =>
-      this.messenger.call('AnalyticsController:trackEvent', event),
+    assertIdTokenMismatchAndTrackEvent(
+      idTokens,
+      userId,
+      source,
+      (event) => this.messenger.call('AnalyticsController:trackEvent', event),
+      this.state.migrationVersion,
     );
   }
 
@@ -2612,6 +2616,7 @@ export class SeedlessOnboardingController<
       source,
       trackEvent: (event) =>
         this.messenger.call('AnalyticsController:trackEvent', event),
+      migrationVersion: this.state.migrationVersion,
     });
   }
 

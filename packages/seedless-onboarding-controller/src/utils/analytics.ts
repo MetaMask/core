@@ -13,6 +13,7 @@ import {
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
   SeedlessIdentityUserIdSalt,
+  SeedlessOnboardingMigrationVersion,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
@@ -98,6 +99,20 @@ function getMetadataSchemaVersion(
   }
 
   return 'mixed';
+}
+
+/**
+ * Map the controller migration version to the analytics schema version.
+ *
+ * @param migrationVersion - `state.migrationVersion`.
+ * @returns `v2` once the v1 migration has run, otherwise `v1`.
+ */
+function getMetadataSchemaVersionFromMigration(
+  migrationVersion: number,
+): 'v1' | 'v2' {
+  return migrationVersion >= SeedlessOnboardingMigrationVersion.V1
+    ? 'v2'
+    : 'v1';
 }
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -222,6 +237,7 @@ function hashUserId(userId?: string | null): string {
  * @param params.trackEvent - Emits a non-sensitive analytics event.
  * @param params.expectedUserId - The user id the flow expected.
  * @param params.actualUserId - The user id it was compared with.
+ * @param params.migrationVersion - Controller migration version from state.
  */
 export function trackIdentityMismatchEvent({
   source,
@@ -229,12 +245,14 @@ export function trackIdentityMismatchEvent({
   trackEvent,
   expectedUserId,
   actualUserId,
+  migrationVersion = 0,
 }: {
   source: SeedlessIdentityMismatchSource;
   error: unknown;
   trackEvent: TrackEvent;
   expectedUserId?: string | null;
   actualUserId?: string | null;
+  migrationVersion?: number;
 }): void {
   if (!isIdentityMismatchError(error)) {
     return;
@@ -254,6 +272,8 @@ export function trackIdentityMismatchEvent({
           ) ?? SeedlessIdentityMismatchReason.Unknown,
         expected_user_id: expectedUserIdHash,
         actual_user_id: actualUserIdHash,
+        metadata_schema_version:
+          getMetadataSchemaVersionFromMigration(migrationVersion),
       },
       sensitiveProperties: {},
       saveDataRecording: false,

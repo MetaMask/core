@@ -343,12 +343,14 @@ type TrackEvent = (
  * @param userId - The user id the token should belong to.
  * @param source - The flow that is checking the token.
  * @param trackEvent - Emits a non-sensitive analytics event.
+ * @param migrationVersion - Controller migration version from state.
  */
 export function assertIdTokenMismatchAndTrackEvent(
   idTokens: string[],
   userId: string | null | undefined,
   source: SeedlessIdentityMismatchSource,
   trackEvent: TrackEvent,
+  migrationVersion = 0,
 ): asserts userId is string {
   try {
     assertIdTokenMatchesUserId(idTokens, userId);
@@ -359,6 +361,7 @@ export function assertIdTokenMismatchAndTrackEvent(
       trackEvent,
       expectedUserId: userId,
       actualUserId: getComparableTokenUserId(idTokens[0]),
+      migrationVersion,
     });
     throw error;
   }
@@ -373,12 +376,14 @@ export function assertIdTokenMismatchAndTrackEvent(
  * @param params.expectedIdentity - Identity fields captured before the request.
  * @param params.source - The flow that is checking the identity.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @param params.migrationVersion - Controller migration version from state.
  */
 export function assertIdentityUnchangedAndTrackEvent({
   currentState,
   expectedIdentity,
   source,
   trackEvent,
+  migrationVersion = 0,
 }: {
   currentState: {
     userId?: string;
@@ -390,6 +395,7 @@ export function assertIdentityUnchangedAndTrackEvent({
   };
   source: SeedlessIdentityMismatchSource;
   trackEvent: TrackEvent;
+  migrationVersion?: number;
 }): void {
   try {
     assertIdentityUnchanged(currentState, expectedIdentity);
@@ -400,6 +406,7 @@ export function assertIdentityUnchangedAndTrackEvent({
       trackEvent,
       expectedUserId: expectedIdentity.userId,
       actualUserId: currentState.userId,
+      migrationVersion,
     });
     throw error;
   }

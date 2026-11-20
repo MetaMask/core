@@ -436,6 +436,7 @@ describe('trackIdentityMismatchEvent', () => {
         reason: SeedlessIdentityMismatchReason.UserIdMismatch,
         expected_user_id: 'NONE',
         actual_user_id: 'NONE',
+        metadata_schema_version: 'v1',
       },
       sensitiveProperties: {},
       saveDataRecording: false,
@@ -477,6 +478,7 @@ describe('trackIdentityMismatchEvent', () => {
       reason: SeedlessIdentityMismatchReason.UserIdMismatch,
       expected_user_id: hashUserId(expectedUserId),
       actual_user_id: hashUserId(actualUserId),
+      metadata_schema_version: 'v1',
     });
     expect(JSON.stringify(properties)).not.toContain(expectedUserId);
     expect(JSON.stringify(properties)).not.toContain(actualUserId);
@@ -494,6 +496,7 @@ describe('trackIdentityMismatchEvent', () => {
       trackEvent,
       expectedUserId: 'user-1',
       actualUserId: undefined,
+      migrationVersion: 1,
     });
 
     expect(trackEvent.mock.calls[0]?.[0].properties).toStrictEqual({
@@ -501,6 +504,7 @@ describe('trackIdentityMismatchEvent', () => {
       reason: SeedlessIdentityMismatchReason.MissingIdToken,
       expected_user_id: hashUserId('user-1'),
       actual_user_id: 'NONE',
+      metadata_schema_version: 'v2',
     });
   });
 
