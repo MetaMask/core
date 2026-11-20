@@ -85,6 +85,13 @@ export const SeedlessIdentityMismatchEventName =
   'Seedless Onboarding Identity Mismatch';
 
 /**
+ * HMAC key for user ids on the identity-mismatch event.
+ * The same user id always hashes to the same value. The raw id is not sent.
+ */
+export const SeedlessIdentityUserIdSalt =
+  'metamask-seedless-onboarding-identity-mismatch-v1';
+
+/**
  * Flow that detected an identity mismatch.
  */
 export enum SeedlessIdentityMismatchSource {

@@ -211,6 +211,26 @@ function getUserIdFromIdToken(token: string): string {
 }
 
 /**
+ * Read the user id from an id token without throwing.
+ *
+ * @param token - The id token to read, when one was provided.
+ * @returns The derived user id, or `undefined` when it cannot be read.
+ */
+function getComparableTokenUserId(
+  token: string | undefined,
+): string | undefined {
+  if (!token) {
+    return undefined;
+  }
+
+  try {
+    return getUserIdFromIdToken(token) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Assert that the first idToken belongs to the userId being sent to the TOPRF
  * nodes. The nodes reject mismatched pairs server-side, but failing locally
  * first avoids a wasted network round-trip and surfaces a distinguishable
@@ -333,7 +353,13 @@ export function assertIdTokenMismatchAndTrackEvent(
   try {
     assertIdTokenMatchesUserId(idTokens, userId);
   } catch (error) {
-    trackIdentityMismatchEvent({ source, error, trackEvent });
+    trackIdentityMismatchEvent({
+      source,
+      error,
+      trackEvent,
+      expectedUserId: userId,
+      actualUserId: getComparableTokenUserId(idTokens[0]),
+    });
     throw error;
   }
 }
@@ -368,7 +394,13 @@ export function assertIdentityUnchangedAndTrackEvent({
   try {
     assertIdentityUnchanged(currentState, expectedIdentity);
   } catch (error) {
-    trackIdentityMismatchEvent({ source, error, trackEvent });
+    trackIdentityMismatchEvent({
+      source,
+      error,
+      trackEvent,
+      expectedUserId: expectedIdentity.userId,
+      actualUserId: currentState.userId,
+    });
     throw error;
   }
 }

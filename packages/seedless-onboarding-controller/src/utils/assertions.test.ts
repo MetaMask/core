@@ -1,5 +1,13 @@
-import { base64ToBytes, bytesToBase64, bytesToString } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToHex,
+  bytesToString,
+  stringToBytes,
+} from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createMockJWTToken } from '../../tests/mocks/utils.js';
@@ -7,6 +15,7 @@ import {
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
   SeedlessIdentityMismatchSource,
+  SeedlessIdentityUserIdSalt,
   SeedlessOnboardingControllerErrorMessage,
 } from '../constants.js';
 import { DecodedBaseJWTToken, VaultData } from '../types.js';
@@ -494,6 +503,16 @@ describe('assertIdentityUnchanged', () => {
   });
 });
 
+function hashUserId(userId: string): string {
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
 describe('assertIdTokenMismatchAndTrackEvent', () => {
   it('does not track when the id token belongs to the user', () => {
     const trackEvent = vi.fn();
@@ -527,6 +546,8 @@ describe('assertIdTokenMismatchAndTrackEvent', () => {
       properties: {
         source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
         reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: hashUserId('other-user'),
       },
       sensitiveProperties: {},
       saveDataRecording: false,
@@ -570,6 +591,8 @@ describe('assertIdentityUnchangedAndTrackEvent', () => {
       properties: {
         source: SeedlessIdentityMismatchSource.RotateRefreshToken,
         reason: SeedlessIdentityMismatchReason.IdentityChangedInFlight,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: hashUserId('user-2'),
       },
       sensitiveProperties: {},
       saveDataRecording: false,

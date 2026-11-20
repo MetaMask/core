@@ -248,20 +248,15 @@ function expectIdentityMismatchEvent(
     ([event]) => event.name === SeedlessIdentityMismatchEventName,
   );
 
-  expect(identityMismatchEvents).toStrictEqual([
-    [
-      {
-        name: SeedlessIdentityMismatchEventName,
-        properties: {
-          source,
-          reason,
-        },
-        sensitiveProperties: {},
-        saveDataRecording: false,
-        hasProperties: true,
-      },
-    ],
-  ]);
+  expect(identityMismatchEvents).toHaveLength(1);
+  const [event] = identityMismatchEvents[0];
+  expect(event).toMatchObject({
+    name: SeedlessIdentityMismatchEventName,
+    sensitiveProperties: {},
+    saveDataRecording: false,
+    hasProperties: true,
+  });
+  expect(event.properties).toMatchObject({ source, reason });
 }
 
 /**

@@ -3,13 +3,16 @@ import type {
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { areUint8ArraysEqual } from '@metamask/utils';
+import { areUint8ArraysEqual, bytesToHex, stringToBytes } from '@metamask/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
 
 import {
   controllerName,
   SecretType,
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
+  SeedlessIdentityUserIdSalt,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from '../constants.js';
@@ -188,26 +191,57 @@ type TrackEvent = (
 ) => void | Promise<void>;
 
 /**
+ * HMAC-SHA256 hex of a user id. A missing id is reported as `NONE`.
+ *
+ * @param userId - The user id to mask.
+ * @returns The salted hash, or `NONE` when there is no user id.
+ */
+function hashUserId(userId?: string | null): string {
+  if (!userId) {
+    return 'NONE';
+  }
+
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
+/**
  * Report an identity mismatch. Tracking failures are logged and do not
  * replace the original error.
+ *
+ * User ids are included only as salted HMAC-SHA256 hashes.
  *
  * @param params - The mismatch and the analytics callbacks.
  * @param params.source - The flow that detected the mismatch.
  * @param params.error - The caught identity mismatch.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @param params.expectedUserId - The user id the flow expected.
+ * @param params.actualUserId - The user id it was compared with.
  */
 export function trackIdentityMismatchEvent({
   source,
   error,
   trackEvent,
+  expectedUserId,
+  actualUserId,
 }: {
   source: SeedlessIdentityMismatchSource;
   error: unknown;
   trackEvent: TrackEvent;
+  expectedUserId?: string | null;
+  actualUserId?: string | null;
 }): void {
   if (!isIdentityMismatchError(error)) {
     return;
   }
+
+  const expectedUserIdHash = hashUserId(expectedUserId);
+  const actualUserIdHash = hashUserId(actualUserId);
 
   try {
     const tracked = trackEvent({
@@ -218,6 +252,8 @@ export function trackIdentityMismatchEvent({
           Object.values(SeedlessIdentityMismatchReason).find(
             (reason) => reason === error.details,
           ) ?? SeedlessIdentityMismatchReason.Unknown,
+        expected_user_id: expectedUserIdHash,
+        actual_user_id: actualUserIdHash,
       },
       sensitiveProperties: {},
       saveDataRecording: false,

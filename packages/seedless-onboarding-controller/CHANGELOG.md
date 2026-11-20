@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation
-  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`) and `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`)
-  - The event does not include tokens, user ids, or other credentials
+  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`), `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`), `expected_user_id`, and `actual_user_id`
+  - `expected_user_id` is the user id the flow expected. `actual_user_id` is the id token subject, or the current controller user id when the identity changed in flight
+  - A present user id is an HMAC-SHA256 hex digest keyed with a fixed salt. A missing user id is `NONE`. The raw user id is not included. Tokens and other credentials are not included
   - A failure to send the event does not change the `IdentityMismatch` error returned to the caller
 - Export the OAuth idToken decode helpers `padBase64String`, `convertUrlSafeBase64StringToBase64String`, `decodeBase64WithSafeUrlReplacements`, and `decodeIdToken`, so clients can decode base64url JWTs the same way ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))

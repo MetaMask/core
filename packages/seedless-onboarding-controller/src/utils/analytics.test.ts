@@ -1,5 +1,8 @@
+import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { stringToBytes } from '@metamask/utils';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +22,7 @@ import {
   SeedlessIdentityMismatchEventName,
   SeedlessIdentityMismatchReason,
   SeedlessIdentityMismatchSource,
+  SeedlessIdentityUserIdSalt,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
@@ -397,6 +401,16 @@ describe('getIncompleteMetadataBackupEventProperties', () => {
   });
 });
 
+function hashUserId(userId: string): string {
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
 describe('trackIdentityMismatchEvent', () => {
   beforeEach(() => {
     logMock.mockClear();
@@ -420,6 +434,8 @@ describe('trackIdentityMismatchEvent', () => {
       properties: {
         source: SeedlessIdentityMismatchSource.TokenRefresh,
         reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+        expected_user_id: 'NONE',
+        actual_user_id: 'NONE',
       },
       sensitiveProperties: {},
       saveDataRecording: false,
@@ -437,6 +453,55 @@ describe('trackIdentityMismatchEvent', () => {
     });
 
     expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('includes salted hashes of the user ids', () => {
+    const trackEvent = vi.fn<(event: AnalyticsTrackingEvent) => void>();
+    const expectedUserId = 'user-1';
+    const actualUserId = 'other-user';
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      error: new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+        { details: SeedlessIdentityMismatchReason.UserIdMismatch },
+      ),
+      trackEvent,
+      expectedUserId,
+      actualUserId,
+    });
+
+    const properties = trackEvent.mock.calls[0]?.[0].properties;
+    expect(properties).toStrictEqual({
+      source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+      expected_user_id: hashUserId(expectedUserId),
+      actual_user_id: hashUserId(actualUserId),
+    });
+    expect(JSON.stringify(properties)).not.toContain(expectedUserId);
+    expect(JSON.stringify(properties)).not.toContain(actualUserId);
+  });
+
+  it('reports NONE when a user id is missing', () => {
+    const trackEvent = vi.fn<(event: AnalyticsTrackingEvent) => void>();
+
+    trackIdentityMismatchEvent({
+      source: SeedlessIdentityMismatchSource.TokenRefresh,
+      error: new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+        { details: SeedlessIdentityMismatchReason.MissingIdToken },
+      ),
+      trackEvent,
+      expectedUserId: 'user-1',
+      actualUserId: undefined,
+    });
+
+    expect(trackEvent.mock.calls[0]?.[0].properties).toStrictEqual({
+      source: SeedlessIdentityMismatchSource.TokenRefresh,
+      reason: SeedlessIdentityMismatchReason.MissingIdToken,
+      expected_user_id: hashUserId('user-1'),
+      actual_user_id: 'NONE',
+    });
   });
 
   it('logs a tracking failure without throwing', async () => {
