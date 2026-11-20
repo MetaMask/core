@@ -1511,7 +1511,7 @@
   },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "id-length": {
-      "count": 4
+      "count": 1
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -3011,13 +3011,13 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 12
+      "count": 7
     },
     "typescript/no-unsafe-call": {
-      "count": 11
+      "count": 7
     },
     "typescript/no-unsafe-member-access": {
-      "count": 7
+      "count": 3
     },
     "typescript/no-unsafe-return": {
       "count": 8
@@ -5557,13 +5557,13 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 152
+      "count": 162
     },
     "typescript/no-unsafe-call": {
-      "count": 115
+      "count": 117
     },
     "typescript/no-unsafe-member-access": {
-      "count": 115
+      "count": 117
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {
@@ -5774,144 +5774,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/BlockTrackerPollingController.test.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/BlockTrackerPollingController.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/UserOperationController.test.ts": {
-    "no-new": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 6
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
-    }
-  },
-  "packages/user-operation-controller/src/UserOperationController.ts": {
-    "id-length": {
-      "count": 3
-    },
-    "jsdoc/require-returns": {
-      "count": 2
-    },
-    "no-useless-return": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 19
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/helpers/Bundler.test.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/user-operation-controller/src/helpers/Bundler.ts": {
-    "id-length": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 5
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    },
-    "typescript/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.test.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 11
-    }
-  },
-  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.ts": {
-    "id-length": {
-      "count": 3
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 6
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
-  "packages/user-operation-controller/src/helpers/SnapSmartContractAccount.test.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/utils/gas-fees.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 5
-    },
-    "typescript/prefer-nullish-coalescing": {
-      "count": 2
-    }
-  },
-  "packages/user-operation-controller/src/utils/gas.test.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/user-operation-controller/src/utils/gas.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/utils/transaction.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/utils/validation.test.ts": {
-    "id-length": {
-      "count": 2
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/user-operation-controller/src/utils/validation.ts": {
-    "id-length": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
-      "count": 8
     }
   },
   "packages/utils/src/caip-types.test.ts": {

@@ -211,9 +211,6 @@ const config: KnipConfig = {
         'bn.js',
       ],
     },
-    'packages/user-operation-controller': {
-      ignoreDependencies: ['immer'],
-    },
     'packages/wallet-framework-docs': {
       // Source lives under `site/` instead of `src/`; tell knip to scan it
       // so the type imports of `@docusaurus/*` / `prism-react-renderer` in

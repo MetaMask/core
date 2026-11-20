@@ -52,6 +52,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
+    "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/contracts": "^5.8.0",
     "@ethersproject/providers": "^5.8.0",
     "@metamask/base-data-service": "^2.1.0",

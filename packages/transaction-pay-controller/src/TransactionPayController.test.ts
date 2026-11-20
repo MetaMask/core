@@ -14,6 +14,7 @@ import {
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { resumePayTransactions } from './helpers/resume-pay-transactions.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
@@ -36,6 +37,7 @@ vi.mock(import('./actions/update-fiat-payment.js'));
 vi.mock(import('./actions/update-payment-token.js'));
 vi.mock(import('./strategy/fiat/utils.js'));
 vi.mock(import('./helpers/QuoteRefresher.js'));
+vi.mock(import('./helpers/resume-pay-transactions.js'));
 vi.mock(import('./utils/source-amounts.js'));
 vi.mock(import('./utils/quotes.js'));
 vi.mock(import('./utils/transaction.js'));
@@ -81,6 +83,7 @@ describe('TransactionPayController', () => {
   const subscribeAssetChangesMock = vi.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = vi.mocked(getStrategyOrder);
   const QuoteRefresherMock = vi.mocked(QuoteRefresher);
+  const resumePayTransactionsMock = vi.mocked(resumePayTransactions);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: Mock;
 
@@ -120,6 +123,7 @@ describe('TransactionPayController', () => {
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
+    resumePayTransactionsMock.mockResolvedValue(undefined);
   });
 
   describe('constructor', () => {
@@ -155,6 +159,18 @@ describe('TransactionPayController', () => {
           getBalance: undefined,
         }),
       );
+    });
+
+    it('schedules resume', () => {
+      createController();
+
+      expect(resumePayTransactionsMock).toHaveBeenCalledWith(messenger);
+    });
+
+    it('does not throw when scheduled resume rejects', () => {
+      resumePayTransactionsMock.mockRejectedValue(new Error('resume failed'));
+
+      expect(() => createController()).not.toThrow();
     });
   });
 

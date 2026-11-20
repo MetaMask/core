@@ -24,6 +24,7 @@ export type {
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
+  PayStrategyResumeRequest,
   TransactionPayQuote,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
@@ -50,3 +51,6 @@ export {
 } from './constants.js';
 export { TransactionPayController } from './TransactionPayController.js';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';
+export { getPayTransactionType } from './utils/transaction-type.js';
+export { isResumeEnabled } from './utils/feature-flags.js';
+export { isPayTransactionResumable } from './helpers/resume-pay-transactions.js';
