@@ -1393,16 +1393,7 @@ describe('HyperLiquidSubscriptionService', () => {
         balances: [{ coin: 'USDC', token: 0, total, hold: '0', entryNtl: '0' }],
       });
 
-      const startStandardCrossStream = async () => {
-        const refresh = createDeferred<SpotClearinghouseStateResponse>();
-        mockSpotClearinghouseState
-          .mockResolvedValueOnce(crossSpotState('100'))
-          .mockReturnValueOnce(refresh.promise);
-        const userAbstraction = vi.fn().mockResolvedValue('disabled');
-        mockClientService.getInfoClient.mockReturnValue({
-          userAbstraction,
-          spotClearinghouseState: mockSpotClearinghouseState,
-        } as never);
+      const mockCrossAccount = (): void => {
         vi.mocked(adaptAccountStateFromSDK).mockReturnValue({
           totalBalance: '400',
           spendableBalance: '370',
@@ -1417,6 +1408,68 @@ describe('HyperLiquidSubscriptionService', () => {
             notional: '1200',
           },
         });
+      };
+
+      it.each([
+        { scenario: 'uses current', newEpoch: false },
+        { scenario: 'rejects old-connection', newEpoch: true },
+      ])(
+        '$scenario initial REST spot for Unified Cross',
+        async ({ newEpoch }) => {
+          const spot = createDeferred<SpotClearinghouseStateResponse>();
+          mockSpotClearinghouseState.mockReturnValueOnce(spot.promise);
+          mockClientService.getInfoClient.mockReturnValue({
+            userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+            spotClearinghouseState: mockSpotClearinghouseState,
+          } as never);
+          mockCrossAccount();
+          const { hip3Service, callbacks } = await createHip3Service();
+          const user = '0x123';
+          const unsubscribe = hip3Service.subscribeToAccount({
+            callback: vi.fn(),
+          });
+          await vi.runAllTimersAsync();
+          expect(mockSpotClearinghouseState.mock.calls).toStrictEqual([
+            [{ user }],
+          ]);
+
+          if (newEpoch) {
+            mockClientService.getConnectionEpoch.mockReturnValue(2);
+          }
+          mockSubscriptionClient.webData3.mock.lastCall[1]({
+            userState: { user, abstraction: 'unifiedAccount' },
+            perpDexStates: [],
+          });
+          publishAccount(callbacks, '', '400');
+          publishAccount(callbacks, 'xyz', '400');
+          expect(
+            hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+          ).toBeNull();
+
+          spot.resolve(crossSpotState('175'));
+          await vi.runAllTimersAsync();
+          const context = hip3Service.getFreshCrossMarginContext(user, 'BTC');
+          if (newEpoch) {
+            expect(context).toBeNull();
+          } else {
+            expect(context).toMatchObject({ spotCollateral: '175' });
+          }
+          expect(mockSpotClearinghouseState).toHaveBeenCalledTimes(1);
+          unsubscribe();
+        },
+      );
+
+      const startStandardCrossStream = async () => {
+        const refresh = createDeferred<SpotClearinghouseStateResponse>();
+        mockSpotClearinghouseState
+          .mockResolvedValueOnce(crossSpotState('100'))
+          .mockReturnValueOnce(refresh.promise);
+        const userAbstraction = vi.fn().mockResolvedValue('disabled');
+        mockClientService.getInfoClient.mockReturnValue({
+          userAbstraction,
+          spotClearinghouseState: mockSpotClearinghouseState,
+        } as never);
+        mockCrossAccount();
         const { hip3Service, callbacks } = await createHip3Service();
         const user = '0x123';
         const unsubscribe = hip3Service.subscribeToAccount({

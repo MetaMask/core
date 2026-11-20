@@ -1932,6 +1932,7 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     generation: number,
   ): Promise<void> {
+    const binding = this.#userDataBinding;
     try {
       // Cold-start safety: getInfoClient() throws until the SDK has been
       // initialized via ensureSubscriptionClient. On a fresh service
@@ -1983,6 +1984,7 @@ export class HyperLiquidSubscriptionService {
       const resolvedMode =
         abstractionResult.status === 'fulfilled' &&
         revision === this.#abstractionModeRevision &&
+        binding === this.#userDataBinding &&
         epoch === this.#clientService.getConnectionEpoch();
       if (resolvedMode) {
         this.#recordAbstractionMode(lowerUserAddress, abstractionResult.value);
@@ -2017,8 +2019,9 @@ export class HyperLiquidSubscriptionService {
         return;
       }
 
-      const boundAddress = this.#userDataBinding?.address.toLowerCase();
+      const boundAddress = binding?.address.toLowerCase();
       if (
+        binding !== this.#userDataBinding ||
         epoch !== this.#clientService.getConnectionEpoch() ||
         (boundAddress !== undefined && boundAddress !== lowerUserAddress)
       ) {
@@ -2035,6 +2038,9 @@ export class HyperLiquidSubscriptionService {
       // a transient abstraction failure leaves the user out of the map and
       // the next #ensureSpotState retries both fetches.
       this.#cachedSpotStateUserAddress = lowerUserAddress;
+      if (binding) {
+        this.#crossMarginSpot = { binding, epoch };
+      }
 
       if (this.#dexAccountCache.size > 0) {
         this.#aggregateAndNotifySubscribers();
