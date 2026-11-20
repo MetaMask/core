@@ -3333,6 +3333,12 @@ export type PerpsProvider = {
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
   /**
+   * Resolve the venue account index the client enrolls for notifications.
+   * Optional: only providers whose notification events are keyed by account
+   * index (Lighter) implement it.
+   */
+  getEnrollmentAccountIndex?(): Promise<number>;
+  /**
    * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
    * push channel omit it, and clients fall back to polling `getTwapOrders`.
    */
@@ -4288,6 +4294,17 @@ export type PerpsPlatformDependencies = {
      * (`GET /v4/perpetuals`).
      */
     globalSnapshotUrl?: string;
+  };
+
+  // === notify-perps API (Lighter account enrollment) ===
+  notifyPerpsApi?: {
+    /**
+     * Base URL of the notify-perps API for the current environment (for
+     * example `https://perps.api.cx.metamask.io`). Lighter accounts are
+     * enrolled at `${baseUrl}/api/v1/lighter/accounts`. When omitted,
+     * enrollment is skipped.
+     */
+    baseUrl?: string;
   };
 
   /** @deprecated Use `terminalApi.marketDataUrl`. */

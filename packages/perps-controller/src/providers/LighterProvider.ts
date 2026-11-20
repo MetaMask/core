@@ -2678,6 +2678,16 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Account index notify-perps watches for this wallet: the master (lowest)
+   * account, the one the provider always trades with.
+   *
+   * @returns The account index.
+   */
+  async getEnrollmentAccountIndex(): Promise<number> {
+    return await this.#ensureAccountIndex();
+  }
+
+  /**
    * Verify venue identity before caching it or recording recovery authority.
    *
    * @param account - Venue account returned for the bound wallet.

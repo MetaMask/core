@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
+- Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+  - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
+  - New optional `PerpsProvider.getEnrollmentAccountIndex` method, implemented by the Lighter provider and the aggregated provider
+
+### Changed
+
+- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
 
 ### Fixed
 

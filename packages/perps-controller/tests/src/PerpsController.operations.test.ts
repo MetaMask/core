@@ -33,6 +33,7 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import * as lighterEnrollmentServiceModule from '../../src/services/LighterEnrollmentService.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   OrderParams,
@@ -174,6 +175,16 @@ const mockDataLakeServiceInstance = {
 vi.mock('../../src/services/DataLakeService', () => ({
   DataLakeService: vi.fn().mockImplementation(function () {
     return mockDataLakeServiceInstance;
+  }),
+}));
+
+// Mock LighterEnrollmentService as a class with instance methods
+const mockLighterEnrollmentServiceInstance = {
+  enroll: vi.fn(),
+};
+vi.mock('../../src/services/LighterEnrollmentService', () => ({
+  LighterEnrollmentService: vi.fn().mockImplementation(function () {
+    return mockLighterEnrollmentServiceInstance;
   }),
 }));
 
@@ -419,6 +430,12 @@ describe('PerpsController', () => {
         .DataLakeService as Mock
     ).mockImplementation(function () {
       return mockDataLakeServiceInstance;
+    });
+    (
+      (lighterEnrollmentServiceModule as unknown as Record<string, Mock>)
+        .LighterEnrollmentService as Mock
+    ).mockImplementation(function () {
+      return mockLighterEnrollmentServiceInstance;
     });
     (
       (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
@@ -2807,6 +2824,90 @@ describe('PerpsController', () => {
         }),
         retryCount: undefined,
         _traceId: undefined,
+      });
+    });
+
+    describe('lighter', () => {
+      const mockLighterProvider = {
+        getEnrollmentAccountIndex: vi.fn().mockResolvedValue(9828),
+      } as unknown as PerpsProvider;
+      const lighterOrder = {
+        action: 'open' as const,
+        symbol: 'BTC',
+        providerId: 'lighter' as const,
+      };
+
+      beforeEach(() => {
+        (
+          mockLighterProvider.getEnrollmentAccountIndex as Mock
+        ).mockResolvedValue(9828);
+        mockDataLakeServiceInstance.reportOrder.mockClear();
+        mockLighterEnrollmentServiceInstance.enroll.mockReset();
+        mockLighterEnrollmentServiceInstance.enroll.mockResolvedValue({
+          success: true,
+        });
+        controller.testSetProviders(
+          new Map([['lighter', mockLighterProvider]]),
+        );
+      });
+
+      it('enrolls the account instead of reporting to the orders endpoint', async () => {
+        const result = await controller.testReportOrderToDataLake(lighterOrder);
+
+        expect(result).toEqual({ success: true });
+        expect(mockDataLakeServiceInstance.reportOrder).not.toHaveBeenCalled();
+        const { isTestnet, getAccountIndex } =
+          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+        expect(isTestnet).toBe(controller.state.isTestnet);
+        await expect(getAccountIndex()).resolves.toBe(9828);
+      });
+
+      it('keeps reporting hyperliquid orders to the orders endpoint', async () => {
+        mockDataLakeServiceInstance.reportOrder.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.testReportOrderToDataLake({
+          ...lighterOrder,
+          providerId: 'hyperliquid',
+        });
+
+        expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(
+          mockLighterEnrollmentServiceInstance.enroll,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps reporting orders without a venue to the orders endpoint', async () => {
+        mockDataLakeServiceInstance.reportOrder.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.testReportOrderToDataLake({
+          action: 'open',
+          symbol: 'BTC',
+        });
+
+        expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(
+          mockLighterEnrollmentServiceInstance.enroll,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('fails the account index lookup when the provider cannot enroll', async () => {
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+        await controller.testReportOrderToDataLake(lighterOrder);
+
+        const { getAccountIndex } =
+          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+        await expect(getAccountIndex()).rejects.toThrow(
+          'Provider does not support enrollment',
+        );
       });
     });
   });

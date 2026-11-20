@@ -10,7 +10,7 @@ import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 import { ensureError } from '../utils/errorUtils.js';
-import { isMissingActionHandlerError } from './missingActionHandler.js';
+import { getOptionalBearerToken } from './getOptionalBearerToken.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -39,32 +39,6 @@ export class DataLakeService {
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
-  }
-
-  /**
-   * Get bearer token via DI authentication controller
-   *
-   * @returns The bearer token string for API authentication, or undefined when
-   * the host does not provide `AuthenticationController:getBearerToken`.
-   */
-  async #getBearerToken(): Promise<string | undefined> {
-    try {
-      return await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-    } catch (error) {
-      // Reporting is optional: a host without authentication skips it rather
-      // than logging and retrying a call that can never succeed.
-      if (
-        isMissingActionHandlerError(
-          error,
-          'AuthenticationController:getBearerToken',
-        )
-      ) {
-        return undefined;
-      }
-      throw error;
-    }
   }
 
   /**
@@ -148,7 +122,7 @@ export class DataLakeService {
     const apiCallStartTime = this.#deps.performance.now();
 
     try {
-      const token = await this.#getBearerToken();
+      const token = await getOptionalBearerToken(this.#messenger);
       const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
       if (!evmAccount || !token) {

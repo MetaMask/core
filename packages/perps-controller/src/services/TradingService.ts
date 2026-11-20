@@ -560,6 +560,18 @@ export class TradingService {
   }
 
   /**
+   * The venue an order executed on, so the report goes to the right endpoint.
+   * Anything that is not a direct venue (for example `aggregated`) is
+   * unresolved, which keeps the default report.
+   *
+   * @param candidate - Venue named by the result, the request or the provider.
+   * @returns The venue, or undefined when it is not a direct venue.
+   */
+  #resolveReportedVenue(candidate: string): PerpsProviderType | undefined {
+    return isPerpsProviderType(candidate) ? candidate : undefined;
+  }
+
+  /**
    * Handle successful order placement (state updates, analytics, data lake reporting)
    *
    * @param options - The configuration options.
@@ -569,15 +581,17 @@ export class TradingService {
    */
   async #handleOrderSuccess(options: {
     params: OrderParams;
+    providerId?: PerpsProviderType;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
       slPrice?: number;
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
   }): Promise<void> {
-    const { params, context, reportOrderToDataLake } = options;
+    const { params, providerId, context, reportOrderToDataLake } = options;
 
     // Update state on success
     if (context.stateManager) {
@@ -600,6 +614,7 @@ export class TradingService {
     reportOrderToDataLake({
       action: 'open',
       symbol: params.symbol,
+      ...(providerId === undefined ? {} : { providerId }),
       slPrice: params.stopLossPrice
         ? parseFloat(params.stopLossPrice)
         : undefined,
@@ -742,6 +757,7 @@ export class TradingService {
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
       slPrice?: number;
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
@@ -911,6 +927,9 @@ export class TradingService {
         // Handle success: state updates, data lake reporting
         await this.#handleOrderSuccess({
           params,
+          providerId: this.#resolveReportedVenue(
+            result.providerId ?? params.providerId ?? provider.protocolId,
+          ),
           context,
           reportOrderToDataLake,
         });
@@ -1362,18 +1381,22 @@ export class TradingService {
    * @param reportOrderToDataLake - The report order to data lake value.
    * @param symbol - The trading pair symbol.
    * @param context - The service context for dependencies.
+   * @param providerId - The venue that executed the order, when known.
    */
   #handleDataLakeReporting(
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
     }) => Promise<{ success: boolean; error?: string }>,
     symbol: string,
     context: ServiceContext,
+    providerId?: PerpsProviderType,
   ): void {
     reportOrderToDataLake({
       action: 'close',
       symbol,
+      ...(providerId === undefined ? {} : { providerId }),
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleDataLakeReporting'),
@@ -2461,6 +2484,7 @@ export class TradingService {
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
     }) => Promise<{ success: boolean; error?: string }>;
     bulkActionId?: string;
   }): Promise<OrderResult> {
@@ -2552,6 +2576,9 @@ export class TradingService {
           reportOrderToDataLake,
           params.symbol,
           context,
+          this.#resolveReportedVenue(
+            result.providerId ?? params.providerId ?? provider.protocolId,
+          ),
         );
 
         traceData = { success: true, filledSize: result.filledSize ?? '' };

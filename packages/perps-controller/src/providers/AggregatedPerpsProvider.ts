@@ -1400,6 +1400,20 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Account index to enroll for notifications. Only Lighter keys its events by
+   * account index, so this delegates to that venue.
+   *
+   * @returns The Lighter account index.
+   */
+  async getEnrollmentAccountIndex(): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault('lighter');
+    if (!provider.getEnrollmentAccountIndex) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return await provider.getEnrollmentAccountIndex();
+  }
+
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
     const [providerId, provider] = this.#getProviderOrDefault(
       params.providerId,

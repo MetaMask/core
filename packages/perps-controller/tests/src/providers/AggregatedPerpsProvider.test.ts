@@ -4875,4 +4875,37 @@ describe('AggregatedPerpsProvider', () => {
       await expect(testProvider.reconnect()).resolves.toBeUndefined();
     });
   });
+
+  describe('getEnrollmentAccountIndex', () => {
+    it('delegates to the lighter provider', async () => {
+      const lighter = {
+        ...createMockProvider('lighter'),
+        getEnrollmentAccountIndex: vi.fn().mockResolvedValue(9828),
+      };
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', createMockProvider('hyperliquid')],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(provider.getEnrollmentAccountIndex()).resolves.toBe(9828);
+    });
+
+    it('throws when the lighter provider cannot enroll', async () => {
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', createMockProvider('hyperliquid')],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(provider.getEnrollmentAccountIndex()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+    });
+  });
 });
