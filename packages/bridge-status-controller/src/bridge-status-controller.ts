@@ -109,6 +109,7 @@ import {
   promoteFailurePhase,
   getSubmitErrorCode,
   getMoneyAccountActionData,
+  getFailurePropertiesForNextAction,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
 import { normalizeQuoteResponses } from './utils/quotes.js';
@@ -1331,6 +1332,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         operation,
       );
 
+      eventProperties = getFailurePropertiesForNextAction(
+        historyItem,
+        validQuotes,
+        operation,
+        batchId,
+      );
+
       const selectedAccount = getAccountByAddress(
         this.messenger,
         historyItem.account,
@@ -1348,28 +1356,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             selectedAccount.address as Hex,
             [formatChainIdToHex(quoteResponse.quote.srcChainId)],
           );
-
-      eventProperties = {
-        ...getPreConfirmationPropertiesFromQuote(
-          validQuotes[0],
-          Boolean(historyItem.isStxEnabled),
-          null, // hardware wallets require approval so they can't use queueing
-          historyItem.location,
-          historyItem.abTests,
-          historyItem.activeAbTests,
-          historyItem.tokenSecurityTypeDestination,
-          historyItem.batchSellData,
-          batchId,
-          undefined,
-          operation,
-        ),
-        failure_phase:
-          operation === Operation.DEPOSIT
-            ? FailurePhase.DepositExecution // deposit after swap tx
-            : FailurePhase.Broadcast, // swap after withdraw tx
-        source_hash_present: operation === Operation.DEPOSIT,
-        destination_hash_present: operation === Operation.DEPOSIT,
-      };
 
       const { error, txMeta } = await this.#executeSubmitStrategy(
         {
@@ -2050,7 +2036,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       {
         polling_status: pollingStatus,
         retry_attempts: historyItem.attempts?.counter ?? 0,
-        ...getMoneyAccountActionData(historyItem),
       },
     );
   };

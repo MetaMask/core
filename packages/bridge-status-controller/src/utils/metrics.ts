@@ -44,7 +44,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { Operation } from '../types.js';
-import type { BridgeHistoryItem } from '../types.js';
+import type { BridgeHistoryItem, NextAction } from '../types.js';
 import { calcActualGasUsed } from './gas.js';
 import {
   getActualBridgeReceivedAmount,
@@ -546,5 +546,37 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     error_code: transactionMeta.error
       ? SwapBridgeErrorCode.Unknown
       : SwapBridgeErrorCode.MissingErrorObject,
+  };
+};
+
+export const getFailurePropertiesForNextAction = (
+  historyItem: BridgeHistoryItem,
+  quotes: (QuoteResponseV1 & QuoteMetadata)[],
+  operation: NextAction['operation'],
+  batchId?: Hex,
+): Omit<
+  RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed],
+  'error_code' | 'error_message'
+> => {
+  return {
+    ...getPreConfirmationPropertiesFromQuote(
+      quotes[0],
+      Boolean(historyItem.isStxEnabled),
+      null, // hardware wallets require approval so they can't set `next` action
+      historyItem.location,
+      historyItem.abTests,
+      historyItem.activeAbTests,
+      historyItem.tokenSecurityTypeDestination,
+      historyItem.batchSellData,
+      batchId,
+      undefined,
+      operation,
+    ),
+    failure_phase:
+      operation === Operation.DEPOSIT
+        ? FailurePhase.DepositExecution // deposit after swap tx
+        : FailurePhase.Broadcast, // swap after withdraw tx
+    source_hash_present: operation === Operation.DEPOSIT,
+    destination_hash_present: operation === Operation.DEPOSIT,
   };
 };
