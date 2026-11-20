@@ -445,6 +445,9 @@ export type PerpsControllerGetWithdrawalProgressAction = {
  *
  * @param params Withdrawal parameters
  * @returns WithdrawResult with withdrawal ID and tracking info
+ * @throws When the explicit `providerId` route conflicts with the active
+ * direct provider (`PROVIDER_NOT_FOUND`). The aggregated-mode refusals are
+ * returned as `{ success: false, error }` values rather than thrown.
  */
 export type PerpsControllerWithdrawAction = {
   type: `PerpsController:withdraw`;

@@ -3447,16 +3447,20 @@ export class PerpsController extends BaseController<
     }
 
     const directProviderId = this.#getDirectProviderId(provider);
-    if (
-      directProviderId === undefined &&
-      !isPerpsProviderType(provider.protocolId)
-    ) {
+    if (directProviderId !== undefined) {
+      return {
+        status: 'resolved',
+        providerId: directProviderId,
+      };
+    }
+
+    if (!isPerpsProviderType(provider.protocolId)) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
     return {
       status: 'resolved',
-      providerId: directProviderId ?? provider.protocolId,
+      providerId: provider.protocolId,
     };
   }
 
