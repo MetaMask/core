@@ -569,7 +569,9 @@ export class SnapAccountService {
           ({ keyringV2 }) =>
             keyringV2 &&
             isSnapKeyring(keyringV2) &&
-            keyringV2.snapId === snapId,
+            // `@metamask/eth-snap-keyring` still depends on its own copy of
+            // `@metamask/snaps-sdk`, so its `SnapId` is a different branded type.
+            String(keyringV2.snapId) === snapId,
         );
 
         if (!hasKeyring) {
@@ -606,7 +608,7 @@ export class SnapAccountService {
       action,
       {
         filter: (keyring): keyring is SnapKeyring =>
-          isSnapKeyring(keyring) && keyring.snapId === snapId,
+          isSnapKeyring(keyring) && String(keyring.snapId) === snapId,
       },
       async ({ keyring }) => operation(keyring as SnapKeyring),
     ) as Result;
