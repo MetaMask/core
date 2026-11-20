@@ -72,7 +72,6 @@
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/snaps-controllers": "^23.0.1",
-    "@metamask/snaps-sdk": "^13.0.0",
     "@metamask/transaction-controller": "^74.3.0",
     "@metamask/utils": "^12.0.2",
     "bignumber.js": "^9.1.2",
