@@ -1,12 +1,16 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  PayStrategyResumeRequest,
   TransactionPayQuote,
 } from '../../types.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getFiatQuotes } from './fiat-quotes.js';
+import { resumeFiatDirectMusd } from './fiat-resume.js';
 import { submitFiatQuotes } from './fiat-submit.js';
 import type { FiatQuote } from './types.js';
 
@@ -31,6 +35,27 @@ export class FiatStrategy implements PayStrategy<FiatQuote> {
 
       if (result.transactionHash === undefined) {
         throw new Error('Missing transaction hash');
+      }
+
+      return result;
+    } catch (error) {
+      throw prefixError(error, ERROR_PREFIX);
+    }
+  }
+
+  canResume(transaction: TransactionMeta): boolean {
+    const { fiat } = transaction.metamaskPay ?? {};
+    return Boolean(fiat?.orderId && fiat.provider);
+  }
+
+  async resume(
+    request: PayStrategyResumeRequest,
+  ): ReturnType<NonNullable<PayStrategy<FiatQuote>['resume']>> {
+    try {
+      const result = await resumeFiatDirectMusd(request);
+
+      if (result.transactionHash === undefined) {
+        throw new Error('Missing transaction hash after fiat resume');
       }
 
       return result;
