@@ -9,6 +9,8 @@ import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
+  CHAIN_ID_MAINNET,
+  MAINNET_USDC_ADDRESS,
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
@@ -1483,6 +1485,81 @@ describe('server-quotes', () => {
         expect.not.objectContaining({ calls: expect.anything() }),
         undefined,
       );
+    });
+  });
+
+  describe('Lighter payment override', () => {
+    const APPROVE_CALL = {
+      data: '0x095ea7b3' as Hex,
+      to: MAINNET_USDC_ADDRESS,
+      value: '0x0' as Hex,
+    };
+    const DEPOSIT_CALL = {
+      data: '0x8a857083' as Hex,
+      to: '0x3B4D794a66304F130a4Db8F2551B0070dfCf5ca7' as Hex,
+      value: '0x0' as Hex,
+    };
+
+    it('quotes mainnet USDC and embeds the deposit calls', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            paymentOverride: PaymentOverride.PerpsLighter,
+            targetChainId: CHAIN_ID_MAINNET,
+            targetTokenAddress: MAINNET_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [APPROVE_CALL, DEPOSIT_CALL],
+        },
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [APPROVE_CALL, DEPOSIT_CALL],
+          targetAsset: buildCaipAssetType(
+            CHAIN_ID_MAINNET,
+            MAINNET_USDC_ADDRESS,
+          ),
+        }),
+        undefined,
+      );
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+      expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+    });
+
+    it('adds no calls when the Lighter deposit has no calldata and keeps the client target', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            paymentOverride: PaymentOverride.PerpsLighter,
+            targetChainId: CHAIN_ID_MAINNET,
+            targetTokenAddress: MAINNET_USDC_ADDRESS,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          targetAsset: buildCaipAssetType(
+            CHAIN_ID_MAINNET,
+            MAINNET_USDC_ADDRESS,
+          ),
+        }),
+        undefined,
+      );
+      expect(fetchServerQuoteMock.mock.calls[0][1]).not.toHaveProperty('calls');
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
     });
   });
 
