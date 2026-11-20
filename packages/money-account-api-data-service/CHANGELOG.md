@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
+- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
+- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
+
 ### Added
 
 - Add `fetchVaults`, which reads `GET /v1/vaults` for the environment's vault catalog including `current_apy`, and is exposed as the `MoneyAccountApiDataService:fetchVaults` action. Export `VaultsResponse`, `VaultSummary`, and `MoneyAccountApiDataServiceFetchVaultsAction` ([#11633](https://github.com/MetaMask/core/pull/11633))
