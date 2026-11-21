@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@noble/curves` from `^1.9.7` to `^2.4.0` ([#10593](https://github.com/MetaMask/core/pull/10593))
 
 ## [12.1.0]
 
