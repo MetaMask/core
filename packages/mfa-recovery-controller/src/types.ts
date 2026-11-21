@@ -328,6 +328,32 @@ export type RecoveryLockProvider = {
 };
 
 /**
+ * A passkey a user device created, so Auth cannot add or swap one. Fields are
+ * hex.
+ */
+export type TrustedIdentifier = {
+  type: 'passkey';
+  rpIdHash: string;
+  credentialId: string;
+  publicKey: string;
+};
+
+/**
+ * Proof the device created a passkey: its base64url `attestationObject`.
+ */
+export type IdentifierWitness = { type: 'passkey'; attestationObject: string };
+
+/**
+ * Stores {@link TrustedIdentifier}s where only the user can write them.
+ * Adding one already stored has no effect.
+ */
+export type RecoveryTrustedIdentifierStore = {
+  get: () => Promise<TrustedIdentifier[]>;
+  add: (entry: TrustedIdentifier) => Promise<void>;
+  remove: (entry: TrustedIdentifier) => Promise<void>;
+};
+
+/**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
 export type RecoveryIdentifierAuthProvider = {
