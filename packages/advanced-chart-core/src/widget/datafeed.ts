@@ -203,16 +203,14 @@ export const customDatafeed: TVDatafeed = {
     try {
       const fromMs = periodParams.from * 1000;
       const toMs = periodParams.to * 1000;
-      const { countBack, firstDataRequest } = periodParams;
-
-      const bars = filterBarsForRange(fromMs, toMs, countBack);
+      const bars = filterBarsForRange(fromMs, toMs, periodParams.countBack);
       if (bars.length > 0) {
         onResult(bars, { noData: false });
         return;
       }
 
       const all = getOhlcvData();
-      if (firstDataRequest || all.length === 0) {
+      if (periodParams.firstDataRequest || all.length === 0) {
         onResult([], { noData: true });
         return;
       }

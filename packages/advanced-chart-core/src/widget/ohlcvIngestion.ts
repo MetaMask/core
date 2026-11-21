@@ -240,7 +240,8 @@ function applyVisibleRange(
       return;
     }
     try {
-      chart.setVisibleRange(computeVisibleRangeSec(fromMs, { clampToOldest }), {
+      const range = computeVisibleRangeSec(fromMs, { clampToOldest });
+      chart.setVisibleRange(range, {
         percentRightMargin: 0,
       });
     } catch (error) {
@@ -300,6 +301,36 @@ function resetDatafeedCacheBeforeHotReload(
 }
 
 /**
+ * Applies the clamped per-interval visible range synchronously, for the opt-in
+ * in-place resolution switch only.
+ *
+ * Unlike {@link applyVisibleRange} (which subscribes to `onDataLoaded`), this is
+ * called from the `setResolution` callback where TradingView has already
+ * finished loading the new resolution's data — so there is no further
+ * `onDataLoaded` to wait for. The range is clamped to the oldest loaded bar
+ * (`atomicIntervalWindow` is on whenever this runs), keeping the pin inside bars
+ * already in memory so it cannot re-trigger backward pagination.
+ *
+ * Callers must gate on `getAtomicIntervalWindow() && !getSlbMode() &&
+ * getVisibleFromMs() !== null`, so this never runs for existing (SLB /
+ * non-opt-in) branches.
+ *
+ * @param chart - The active TradingView chart.
+ */
+function applyVisibleRangeImmediate(chart: TVActiveChart): void {
+  const fromMs = getVisibleFromMs();
+  if (fromMs === null) {
+    return;
+  }
+  try {
+    const range = computeVisibleRangeSec(fromMs, { clampToOldest: true });
+    chart.setVisibleRange(range, { percentRightMargin: 0 });
+  } catch (error) {
+    reportErrorToRN(error);
+  }
+}
+
+/**
  * Switches the live widget to a new resolution in place, without tearing it
  * down and rebuilding it.
  *
@@ -339,7 +370,24 @@ function switchResolutionInPlace(
       try {
         resetMainPriceScaleAutoScale(chart);
         notifyDataLifecycle('ohlcvReset');
-        applyVisibleRange(chart, { dataAlreadyLoaded: true });
+        // Opt-in only (Token Details / Perps): the new resolution's data is
+        // already loaded by the time this callback fires, so the shared
+        // `applyVisibleRange` — which waits on `onDataLoaded` — would never
+        // re-fire and the per-interval window would not land. Apply it
+        // synchronously instead (mirroring how SLB uses `immediate`). The range
+        // is clamped to the oldest loaded bar, so it stays within bars already
+        // in memory and cannot re-trigger pagination. Existing branches (SLB,
+        // non-opt-in consumers) are untouched: they keep the `applyVisibleRange`
+        // path below.
+        if (
+          getAtomicIntervalWindow() &&
+          !getSlbMode() &&
+          getVisibleFromMs() !== null
+        ) {
+          applyVisibleRangeImmediate(chart);
+        } else {
+          applyVisibleRange(chart, { dataAlreadyLoaded: true });
+        }
         emitLayoutSettled();
       } catch (error) {
         reportErrorToRN(error);
