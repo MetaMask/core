@@ -1,5 +1,6 @@
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import type { PerpsErrorCode } from './perpsErrorCodes.js';
+import type { Order, PerpsProviderType } from './types/index.js';
 
 /**
  * Details for a local price movement rejection.
@@ -15,7 +16,21 @@ export type PriceMovedErrorDetails = {
   currentPrice: number;
 };
 
-export type PerpsErrorDetails = PriceMovedErrorDetails;
+/**
+ * Provider context for a normalized Hyperliquid failure.
+ *
+ * Raw venue messages are deliberately excluded because result details cross
+ * the client boundary. The original failure is retained as the error cause for
+ * telemetry instead.
+ */
+export type HyperLiquidErrorDetails = {
+  code: Exclude<PerpsErrorCode, typeof PERPS_ERROR_CODES.PRICE_MOVED>;
+  provider: 'hyperliquid';
+};
+
+export type PerpsErrorDetails =
+  | PriceMovedErrorDetails
+  | HyperLiquidErrorDetails;
 
 export type PerpsErrorResultFields = {
   errorCode?: PerpsErrorCode;
@@ -35,8 +50,9 @@ export class PerpsControllerError extends Error {
     errorCode: PerpsErrorCode,
     message: string,
     errorDetails?: PerpsErrorDetails,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'PerpsControllerError';
     this.errorCode = errorCode;
     this.errorDetails = errorDetails;
@@ -97,4 +113,25 @@ export function createTpslLegReplaceUnsupportedError(): PerpsControllerError {
     PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
     PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
   );
+}
+
+/** A strict open-order read was incomplete; discovered orders remain usable. */
+export class OrderDiscoveryError extends Error {
+  readonly orders: Order[];
+
+  readonly failures: { providerId: PerpsProviderType; error: string }[];
+
+  constructor(options: {
+    orders: Order[];
+    failures: { providerId: PerpsProviderType; error: string }[];
+  }) {
+    super(
+      options.failures
+        .map(({ providerId, error }) => `${providerId}: ${error}`)
+        .join('; '),
+    );
+    this.name = 'OrderDiscoveryError';
+    this.orders = options.orders;
+    this.failures = options.failures;
+  }
 }

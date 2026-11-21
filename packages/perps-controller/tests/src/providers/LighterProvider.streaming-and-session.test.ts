@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { LIGHTER_SOCKET_IDLE_CLOSE_MS } from '../../../src/constants/lighterConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import type { Order, OrderFill } from '../../../src/types/index.js';
 import type {
@@ -1505,7 +1506,9 @@ describe('LighterProvider', () => {
       getUserAddressMock.mockImplementation(() => {
         throw new Error('no selected wallet account');
       });
-      await provider.getAccountState();
+      await expect(provider.getAccountState()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
       expect(resetListenerCount()).toBe(0);
 
       getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
@@ -1574,7 +1577,9 @@ describe('LighterProvider', () => {
         l1Address: accountA.l1Address,
         subAccounts: [accountA],
       });
-      await readUnderA;
+      await expect(readUnderA).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
 
       const accountReads = clientInstance.getAccountByIndex.mock.calls.map(
         (call: unknown[]) => call[0],
@@ -1631,12 +1636,11 @@ describe('LighterProvider', () => {
       ordersCallback.mockClear();
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState();
-      expect(accountCallback).toHaveBeenCalledWith(
-        expect.objectContaining({
-          totalBalance: '0',
-          spendableBalance: '0',
-          providerId: 'lighter',
-        }),
+      // Account B's balance is not known yet: subscribers get no data, never
+      // a zero balance that would read as confirmed.
+      expect(accountCallback).toHaveBeenCalledWith(null);
+      expect(accountCallback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '0' }),
       );
       expect(positionsCallback).toHaveBeenCalledWith([]);
       expect(ordersCallback).toHaveBeenCalledWith([]);
@@ -1662,6 +1666,34 @@ describe('LighterProvider', () => {
       unsubscribeAccount();
       unsubscribePositions();
       unsubscribeOrders();
+    });
+
+    it('emits no account data, not a zero balance, when the wallet account is deselected', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      StreamFakeWebSocket.instances = [];
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      StreamFakeWebSocket.instances[0]?.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      accountCallback.mockClear();
+      getUserAddressMock.mockImplementation(() => {
+        throw new Error('No account selected');
+      });
+      await provider.getAccountState().catch(() => undefined);
+
+      expect(accountCallback).toHaveBeenCalledWith(null);
+      expect(accountCallback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '0' }),
+      );
+      unsubscribeAccount();
+      await provider.disconnect();
     });
 
     it('cancels a queued write when the wallet switches accounts first', async () => {
@@ -1916,7 +1948,7 @@ describe('LighterProvider', () => {
       releasePositions({ code: 200, accounts: [ACCOUNT] });
       const result = await closeUnderA;
       expect(result.success).toBe(false);
-      expect(result.error).toContain('switched accounts');
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       expect(
         calls.filter((call) => call.function === '_signCreateOrder'),
       ).toHaveLength(0);

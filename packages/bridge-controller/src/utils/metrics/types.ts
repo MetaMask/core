@@ -19,6 +19,7 @@ import type {
   PollingStatus,
   FailurePhase,
   SwapBridgeErrorCode,
+  MoneyAccountAction,
 } from './constants.js';
 
 /**
@@ -93,6 +94,10 @@ export type HashPresenceData = {
 export type FailureTelemetryData = HashPresenceData & {
   failure_phase?: FailurePhase;
   error_code?: SwapBridgeErrorCode;
+};
+
+export type MoneyAccountActionData = {
+  money_account_action?: MoneyAccountAction;
 };
 
 /**
@@ -214,7 +219,7 @@ type RequiredEventContextFromClientBase = {
     token_address_destination?: RequestParams['token_address_destination'];
     token_security_type_destination?: RequestParams['token_security_type_destination'];
     swap_type?: RequestMetadata['swap_type'];
-  };
+  } & MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
@@ -223,7 +228,8 @@ type RequiredEventContextFromClientBase = {
     token_security_type_destination: RequestParams['token_security_type_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
-  } & Pick<RequestMetadata, 'security_warnings'>;
+  } & Pick<RequestMetadata, 'security_warnings'> &
+    MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.QuotesRequested]: Pick<
     RequestMetadata,
     'stx_enabled' | 'usd_amount_source'
@@ -232,7 +238,8 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_security_type_destination: RequestParams['token_security_type_destination'];
     custom_slippage?: RequestMetadata['custom_slippage'];
-  } & InputPrimaryDenominationData;
+  } & InputPrimaryDenominationData &
+    MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> &
     InputPrimaryDenominationData & {
@@ -245,7 +252,7 @@ type RequiredEventContextFromClientBase = {
       usd_amount_source: number;
       custom_slippage?: RequestMetadata['custom_slippage'];
       slippage_limit?: RequestMetadata['slippage_limit'];
-    };
+    } & MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
     'stx_enabled'
@@ -253,7 +260,8 @@ type RequiredEventContextFromClientBase = {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
   } & Pick<RequestMetadata, 'security_warnings'> &
-    Pick<FailureTelemetryData, 'failure_phase' | 'error_code'>;
+    Pick<FailureTelemetryData, 'failure_phase' | 'error_code'> &
+    MoneyAccountActionData;
   // Emitted by BridgeStatusController
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -271,7 +279,8 @@ type RequiredEventContextFromClientBase = {
       action_type: MetricsActionType;
       batch_id?: string;
     } & InputPrimaryDenominationData &
-    HashPresenceData;
+    HashPresenceData &
+    MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -286,7 +295,8 @@ type RequiredEventContextFromClientBase = {
       batch_id?: string;
       transaction_internal_id?: string;
     } & InputPrimaryDenominationData &
-    HashPresenceData;
+    HashPresenceData &
+    MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
       (Pick<
@@ -315,11 +325,12 @@ type RequiredEventContextFromClientBase = {
     Pick<QuoteFetchData, 'price_impact'> & {
       error_message: string;
       batch_id?: string;
-    } & FailureTelemetryProperties;
+    } & MoneyAccountActionData &
+    FailureTelemetryProperties;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
     polling_status: PollingStatus;
     retry_attempts: number;
-  };
+  } & MoneyAccountActionData;
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
     refresh_count: number;
@@ -382,12 +393,12 @@ type RequiredEventContextFromClientBase = {
  */
 export type RequiredEventContextFromClient = {
   [
-    K in keyof RequiredEventContextFromClientBase
-  ]: K extends BatchSellMetricsEventName
-    ? RequiredEventContextFromClientBase[K]
-    : RequiredEventContextFromClientBase[K] &
+    EventNameType in keyof RequiredEventContextFromClientBase
+  ]: EventNameType extends BatchSellMetricsEventName
+    ? RequiredEventContextFromClientBase[EventNameType]
+    : RequiredEventContextFromClientBase[EventNameType] &
         OptionalLocationContextFromClient<
-          RequiredEventContextFromClientBase[K]
+          RequiredEventContextFromClientBase[EventNameType]
         > &
         SharedEventContextFromClient;
 };
@@ -473,7 +484,7 @@ export type EventPropertiesFromControllerState = {
 };
 
 type SharedCrossChainSwapsEventProperties<
-  T extends BridgeControllerMetricsEventName,
+  EventNameType extends BridgeControllerMetricsEventName,
 > =
   | {
       feature_id: FeatureId;
@@ -482,8 +493,8 @@ type SharedCrossChainSwapsEventProperties<
       ab_tests?: Record<string, string>;
       active_ab_tests?: { key: string; value: string }[];
     }
-  | Pick<EventPropertiesFromControllerState, T>[T]
-  | Pick<RequiredEventContextFromClient, T>[T];
+  | Pick<EventPropertiesFromControllerState, EventNameType>[EventNameType]
+  | Pick<RequiredEventContextFromClient, EventNameType>[EventNameType];
 
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
@@ -493,7 +504,7 @@ type SharedCrossChainSwapsEventProperties<
  * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
-  T extends BridgeControllerMetricsEventName,
-> = T extends BatchSellMetricsEventName
-  ? Pick<EventPropertiesFromControllerState, T>[T]
-  : SharedCrossChainSwapsEventProperties<T>;
+  EventNameType extends BridgeControllerMetricsEventName,
+> = EventNameType extends BatchSellMetricsEventName
+  ? Pick<EventPropertiesFromControllerState, EventNameType>[EventNameType]
+  : SharedCrossChainSwapsEventProperties<EventNameType>;

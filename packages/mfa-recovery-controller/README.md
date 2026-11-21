@@ -1,6 +1,6 @@
 # `@metamask/mfa-recovery-controller`
 
-Coordinates MFA recovery through injected auth and escrow providers.
+Coordinates MFA recovery through `AuthenticationController` and injected identifier and escrow providers.
 
 Pending mutations are encrypted in controller state. `resume()` completes them;
 `abort()` is allowed before writing, or once the write approval expired more
@@ -48,13 +48,16 @@ this operation's approvals are dead.
 
 ## Auth API Integration
 
-Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
-`AuthenticationController:refreshCanonicalProfileId` and
-`AuthenticationController:requestMfaApproval`. It resolves the current canonical
-profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
+The controller's messenger must delegate `AuthenticationController:refreshCanonicalProfileId` and `AuthenticationController:requestMfaApproval`. It resolves the current canonical profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
 request-bound AAL2 approval; updates and reads also require an identifier proof.
 Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.
+
+Before signing any Auth API passkey challenge (MFA verification), call
+`isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` or
+throws. Otherwise a compromised Auth API can send an escrow passkey challenge
+and replay the signature at the escrow. Escrow passkey logins use
+`getEscrowPasskeyChallenge(request)` as their challenge.
 
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
 escrow as `approvedIdentifiers`; the escrow rejects non-SIWE payload

@@ -1964,12 +1964,13 @@ async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
     const position = accounts.accounts?.[0]?.positions?.find(
       (entry) => entry.marketId === meta.marketId,
     );
-    return position
-      ? {
-          imf: position.initialMarginFraction,
-          size: parseFloat(position.position),
-        }
-      : null;
+    if (position?.initialMarginFraction === undefined) {
+      return null;
+    }
+    return {
+      imf: position.initialMarginFraction,
+      size: parseFloat(position.position),
+    };
   };
   await poll(
     'position readable with isolated 10x margin fraction',

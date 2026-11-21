@@ -10,15 +10,20 @@ import type {
   TransactionPayQuote,
 } from '../types.js';
 import { accountRequiresMfa } from './account.js';
-import { isAtomicMaxEnabled } from './feature-flags.js';
+import {
+  getMaxBalanceRefreshInterval,
+  isAtomicMaxEnabled,
+} from './feature-flags.js';
 import { getMaxGasStationQuote } from './max-gas-station.js';
 import {
+  getMaxAmountRefreshInterval,
   getMaxQuotes,
   isAtomicMaxQuote,
   isAtomicMaxSupported,
 } from './max-quote.js';
 import type { MaxQuoteDetails, MaxQuotesRequest } from './max-quote.js';
 import { getTokenInfo } from './token.js';
+import { getTransaction } from './transaction.js';
 import { QuoteError } from './validation.js';
 
 vi.mock(import('./account.js'));
@@ -27,6 +32,7 @@ vi.mock(import('./max-gas-station.js'));
 vi.mock(import('./token.js'), async (importOriginal) =>
   mockModuleExcept(await importOriginal(), ['getEvmQuoteSource']),
 );
+vi.mock(import('./transaction.js'));
 
 type OriginalQuoteMock = {
   id: string;
@@ -597,6 +603,50 @@ describe('max-quote', () => {
           request: { ...REQUEST_MOCK, atomic: true, isMaxAmount: false },
         }),
       ).toBe(false);
+    });
+  });
+
+  describe('getMaxAmountRefreshInterval', () => {
+    const getMaxBalanceRefreshIntervalMock = vi.mocked(
+      getMaxBalanceRefreshInterval,
+    );
+    const getTransactionMock = vi.mocked(getTransaction);
+
+    const refreshRequest = {
+      chainId: 'eip155:1' as const,
+      messenger,
+      transactionId: 'tx-1',
+    };
+
+    beforeEach(() => {
+      getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
+      messengerCallMock.mockReturnValue({
+        transactionData: { 'tx-1': { isMaxAmount: true } },
+      });
+    });
+
+    it('returns undefined when not max amount', () => {
+      messengerCallMock.mockReturnValue({ transactionData: {} });
+
+      expect(getMaxAmountRefreshInterval(refreshRequest)).toBeUndefined();
+      expect(getTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('returns max balance refresh interval for max amount', () => {
+      getMaxBalanceRefreshIntervalMock.mockReturnValue(5000);
+
+      expect(getMaxAmountRefreshInterval(refreshRequest)).toBe(5000);
+      expect(getTransactionMock).toHaveBeenCalledWith('tx-1', messenger);
+      expect(getMaxBalanceRefreshIntervalMock).toHaveBeenCalledWith(
+        messenger,
+        TRANSACTION_MOCK,
+      );
+    });
+
+    it('returns undefined when no interval is configured', () => {
+      getMaxBalanceRefreshIntervalMock.mockReturnValue(undefined);
+
+      expect(getMaxAmountRefreshInterval(refreshRequest)).toBeUndefined();
     });
   });
 });

@@ -868,6 +868,105 @@ describe('AssetsController', () => {
       }
     });
 
+    describe('bypassServerCache', () => {
+      const setupV6QueryApiClient = (): {
+        queryApiClient: ApiPlatformClient;
+        fetchV2SupportedNetworks: ReturnType<typeof vi.fn>;
+        fetchV6MultiAccountBalances: ReturnType<typeof vi.fn>;
+      } => {
+        const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+          fullSupport: [1],
+          partialSupport: [],
+        });
+        const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
+          accounts: [],
+          unprocessedNetworks: [],
+          unprocessedIncludeAssetIds: [],
+        });
+        const queryApiClient = {
+          ...createMockQueryApiClient(),
+          accounts: {
+            fetchV2SupportedNetworks,
+            fetchV6MultiAccountBalances,
+            fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
+              balances: [],
+              unprocessedNetworks: [],
+            }),
+          },
+        } as unknown as ApiPlatformClient;
+        return {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        };
+      };
+
+      it('bypasses the Accounts API server cache when bypassServerCache is true', async () => {
+        const {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        } = setupV6QueryApiClient();
+
+        await withController(
+          {
+            queryApiClient,
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
+          },
+          async ({ controller }) => {
+            await waitUntilStable(() => [
+              fetchV2SupportedNetworks.mock.calls.length,
+            ]);
+            fetchV6MultiAccountBalances.mockClear();
+
+            await controller.addCustomAsset(
+              MOCK_ACCOUNT_ID,
+              MOCK_ASSET_ID,
+              undefined,
+              true,
+            );
+          },
+        );
+
+        expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            includeAssetIds: expect.arrayContaining([MOCK_ASSET_ID]),
+          }),
+          expect.objectContaining({ bypassServerCache: true }),
+        );
+      });
+
+      it('does not bypass the Accounts API server cache when bypassServerCache is omitted', async () => {
+        const {
+          queryApiClient,
+          fetchV2SupportedNetworks,
+          fetchV6MultiAccountBalances,
+        } = setupV6QueryApiClient();
+
+        await withController(
+          {
+            queryApiClient,
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
+          },
+          async ({ controller }) => {
+            await waitUntilStable(() => [
+              fetchV2SupportedNetworks.mock.calls.length,
+            ]);
+            fetchV6MultiAccountBalances.mockClear();
+
+            await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+          },
+        );
+
+        expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+        for (const [, , fetchOptions] of fetchV6MultiAccountBalances.mock
+          .calls) {
+          expect(fetchOptions).not.toHaveProperty('bypassServerCache');
+        }
+      });
+    });
+
     it('does not overwrite an existing balance when re-adding a custom asset', async () => {
       await withController(
         {

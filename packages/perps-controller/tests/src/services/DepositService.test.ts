@@ -113,8 +113,31 @@ describe('DepositService', () => {
         },
         assetChainId: '0xa4b1',
         currentDepositId: mockDepositId,
+        providerId: 'hyperliquid',
       });
     });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'attributes an untagged route to the executing %s provider',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBe(protocolId);
+      },
+    );
+
+    it.each(['aggregated', 'unknown'])(
+      'does not attribute an untagged route to a non-venue provider (%s)',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBeUndefined();
+      },
+    );
 
     it('generates unique deposit ID for tracking', async () => {
       await service.prepareTransaction({
@@ -130,6 +153,82 @@ describe('DepositService', () => {
       });
 
       expect(mockProvider.getDepositRoutes).toHaveBeenCalledWith();
+    });
+
+    it('uses the routing default when routes name their venues', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+        {
+          assetId: mockAssetId,
+          contractAddress: mockBridgeAddress,
+          chainId: 'eip155:42161',
+          providerId: 'lighter',
+        },
+      ]);
+
+      const result = await service.prepareTransaction({
+        provider: mockProvider,
+      });
+
+      expect(generateERC20TransferData).toHaveBeenCalledWith(
+        mockBridgeAddress,
+        '0x0',
+      );
+      expect(result.providerId).toBe('lighter');
+    });
+
+    it('uses an explicit venue instead of the routing default', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+        {
+          assetId: mockAssetId,
+          contractAddress: mockBridgeAddress,
+          chainId: 'eip155:42161',
+          providerId: 'lighter',
+        },
+      ]);
+
+      const result = await service.prepareTransaction({
+        provider: mockProvider,
+        providerId: 'hyperliquid',
+      });
+
+      expect(generateERC20TransferData).toHaveBeenCalledWith(
+        '0xHyperLiquidBridge',
+        '0x0',
+      );
+      expect(result.providerId).toBe('hyperliquid');
+    });
+
+    it('fails closed when the selected venue has no deposit route', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+      ]);
+
+      await expect(
+        service.prepareTransaction({ provider: mockProvider }),
+      ).rejects.toThrow(
+        'The lighter perps provider has no deposit route on this network',
+      );
+      expect(generateERC20TransferData).not.toHaveBeenCalled();
     });
 
     it('uses first deposit route from provider', async () => {

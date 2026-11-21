@@ -1,69 +1,15 @@
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { TransactionType } from '@metamask/transaction-controller';
+import { SentinelCancellationReason } from '@metamask/sentinel-api-service';
+import type {
+  SentinelMeta,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
+} from '@metamask/sentinel-api-service';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
 import type { SmartTransactionsNetworkConfig } from './featureFlags/index.js';
 
-export type SentinelMeta = {
-  txType?: TransactionType;
-  feature?: Feature;
-  kind?: Kind;
-  client?: string;
-  clientVersion?: string;
-  wallet?: string;
-  origin?: string;
-  // Hardware wallet manufacturer. Omitted when the signer is not a hardware wallet.
-  accountHardwareType?: string;
-};
-
-// This list does not belong here, but as these are reported to tx-sentinel, it is ok to have it here for now.
-export enum Feature {
-  Swap = 'Swap',
-  Staking = 'Staking',
-  Ramp = 'Ramp',
-  Prediction = 'Prediction',
-  Perp = 'Perp',
-  Earn = 'Earn',
-  Card = 'Card',
-  Bridge = 'Bridge',
-  dAppTransaction = 'dAppTransaction',
-}
-
-export enum Kind {
-  Regular = 'Regular',
-  STX = 'STX',
-  GaslessSendBundle = 'GaslessSendBundle',
-  GaslessEIP7702 = 'GaslessEIP7702',
-}
-
-/** API */
-export enum APIType {
-  GET_FEES = 0,
-  ESTIMATE_GAS = 1,
-  SUBMIT_TRANSACTIONS = 2,
-  CANCEL = 3,
-  BATCH_STATUS = 4,
-  LIVENESS = 5,
-}
-
 /** SmartTransactions */
-export enum SmartTransactionMinedTx {
-  NOT_MINED = 'not_mined',
-  SUCCESS = 'success',
-  CANCELLED = 'cancelled',
-  REVERTED = 'reverted',
-  UNKNOWN = 'unknown',
-}
-
-export enum SmartTransactionCancellationReason {
-  WOULD_REVERT = 'would_revert',
-  TOO_CHEAP = 'too_cheap',
-  DEADLINE_MISSED = 'deadline_missed',
-  INVALID_NONCE = 'invalid_nonce',
-  USER_CANCELLED = 'user_cancelled',
-  NOT_CANCELLED = 'not_cancelled',
-}
-
 export enum SmartTransactionStatuses {
   PENDING = 'pending',
   SUCCESS = 'success',
@@ -79,50 +25,24 @@ export enum ClientId {
   Extension = 'extension',
 }
 
-export enum OriginalTransactionStatus {
-  PENDING = 'PENDING',
-  PENDING_CANCELLED = 'PENDING_CANCELLED',
-
-  VALIDATED = 'VALIDATED',
-  REVERTED = 'REVERTED',
-  NONCE_TOO_LOW = 'NONCE_TOO_LOW',
-  CANCELLED = 'CANCELLED',
-
-  FAILED = 'FAILED',
-  FAILED_WOULD_REVERT = 'FAILED_WOULD_REVERT',
-  FAILED_INSUFFICIENT_FUNDS = 'FAILED_INSUFFICIENT_FUNDS',
-  FAILED_UNKNOWN = 'FAILED_UNKNOWN',
-  FAILED_TIMEOUT = 'FAILED_TIMEOUT',
-  FAILED_GAS_TOO_LOW = 'FAILED_GAS_TOO_LOW',
-  FAILED_NONCE_TOO_HIGH = 'FAILED_NONCE_TOO_HIGH',
-
-  LEAKED_VALIDATED = 'LEAKED_VALIDATED',
-  LEAKED_REVERTED = 'LEAKED_REVERTED',
-  CANCELLED_LEAKED_VALIDATED = 'CANCELLED_LEAKED_VALIDATED',
-  CANCELLED_LEAKED_REVERTED = 'CANCELLED_LEAKED_REVERTED',
-}
-
 export const cancellationReasonToStatusMap = {
-  [SmartTransactionCancellationReason.WOULD_REVERT]:
+  [SentinelCancellationReason.WouldRevert]: SmartTransactionStatuses.CANCELLED,
+  [SentinelCancellationReason.TooCheap]: SmartTransactionStatuses.CANCELLED,
+  [SentinelCancellationReason.DeadlineMissed]:
     SmartTransactionStatuses.CANCELLED,
-  [SmartTransactionCancellationReason.TOO_CHEAP]:
-    SmartTransactionStatuses.CANCELLED,
-  [SmartTransactionCancellationReason.DEADLINE_MISSED]:
-    SmartTransactionStatuses.CANCELLED,
-  [SmartTransactionCancellationReason.INVALID_NONCE]:
-    SmartTransactionStatuses.CANCELLED,
-  [SmartTransactionCancellationReason.USER_CANCELLED]:
+  [SentinelCancellationReason.InvalidNonce]: SmartTransactionStatuses.CANCELLED,
+  [SentinelCancellationReason.UserCancelled]:
     SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
 };
 
 export type SmartTransactionsStatus = {
   error?: string;
   cancellationFeeWei: number;
-  cancellationReason?: SmartTransactionCancellationReason;
-  originalTransactionStatus?: OriginalTransactionStatus;
+  cancellationReason?: SentinelCancellationReason;
+  originalTransactionStatus?: SentinelOriginalTransactionStatus;
   deadlineRatio: number;
   minedHash: string;
-  minedTx: SmartTransactionMinedTx;
+  minedTx: SentinelMinedTxStatus;
   isSettled: boolean;
   duplicated?: boolean;
   timedOut?: boolean;
@@ -183,8 +103,10 @@ export type UnsignedTransaction = any;
 // TODO
 export type SignedTransaction = any;
 
+export type { SentinelMeta };
+
 export type SignedTransactionWithMetadata = {
-  tx: string;
+  tx: Hex;
   metadata?: SentinelMeta;
 };
 

@@ -5,12 +5,9 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import {
-  getMaxBalanceRefreshInterval,
-  getPayStrategiesConfig,
-} from '../../utils/feature-flags.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
-import { getTransaction } from '../../utils/transaction.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
@@ -35,17 +32,7 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
   async getRefreshInterval(
     request: PayStrategyGetRefreshIntervalRequest,
   ): Promise<number | undefined> {
-    const { messenger, transactionId } = request;
-    const transactionData = messenger.call('TransactionPayController:getState')
-      .transactionData[transactionId];
-
-    if (!transactionData?.isMaxAmount) {
-      return undefined;
-    }
-
-    const transaction = getTransaction(transactionId, messenger);
-
-    return getMaxBalanceRefreshInterval(messenger, transaction);
+    return getMaxAmountRefreshInterval(request);
   }
 
   async execute(

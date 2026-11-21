@@ -24,6 +24,7 @@ import {
   VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS,
   VAULT_SHARE_VALUATIONS_MAX_TX_HASHES,
   VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
+  VAULTS_STALE_TIME_MS,
 } from './constants.js';
 import {
   MoneyAccountApiHttpError,
@@ -38,6 +39,7 @@ import type {
   RateHistoryResponse,
   VaultRateResponse,
   VaultShareValuationsResponse,
+  VaultsResponse,
   VbaSiweChallengeResponse,
   VbaTransfersResponse,
 } from './response.types.js';
@@ -53,6 +55,7 @@ import {
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
   VaultShareValuationsResponseStruct,
+  VaultsResponseStruct,
   VbaSiweChallengeResponseStruct,
   VbaSiweSessionResponseStruct,
   VbaTransfersResponseStruct,
@@ -91,6 +94,7 @@ export const TRACES = {
   HISTORY_API: 'Money Account API Fetch History',
   RATE_HISTORY_API: 'Money Account API Fetch Rate History',
   VAULT_RATE_API: 'Money Account API Fetch Vault Rate',
+  VAULTS_API: 'Money Account API Fetch Vaults',
   VAULT_SHARE_VALUATIONS_API: 'Money Account API Fetch Vault Share Valuations',
 } as const;
 
@@ -118,6 +122,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchHistory',
   'fetchRateHistory',
   'fetchVaultRate',
+  'fetchVaults',
   'fetchVaultShareValuations',
   'fetchVbaTransfers',
 ] as const;
@@ -304,15 +309,17 @@ export class MoneyAccountApiDataService extends BaseDataService<
    * @param url - The request URL.
    * @param responseStruct - The struct that defines the expected body.
    * @param endpointLabel - Endpoint name used in error messages.
+   * @param headers - Extra request headers, applied after the auth headers.
    * @returns The validated response body.
    */
   async #fetchValidated<Response>(
     url: URL,
     responseStruct: Struct<Response>,
     endpointLabel: string,
+    headers: Record<string, string> = {},
   ): Promise<Response> {
     const response = await fetch(url, {
-      headers: await this.#getRequestHeaders(),
+      headers: { ...(await this.#getRequestHeaders()), ...headers },
     });
 
     if (!response.ok) {
@@ -403,32 +410,13 @@ export class MoneyAccountApiDataService extends BaseDataService<
           ...(fresh ? { fresh: true } : {}),
         },
       },
-      async () => {
-        const headers = {
-          ...(await this.#getRequestHeaders()),
-          ...(fresh ? { 'Cache-Control': 'no-cache' } : {}),
-        };
-
-        const response = await fetch(url, { headers });
-
-        if (!response.ok) {
-          throw await MoneyAccountApiHttpError.fromResponse(
-            response,
-            `Money Account API positions request failed with status '${response.status}'`,
-          );
-        }
-
-        const json: unknown = await response.json();
-
-        const [error, validated] = validate(json, PositionResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from positions endpoint: ${error.message}`,
-          );
-        }
-
-        return validated;
-      },
+      async () =>
+        this.#fetchValidated(
+          url,
+          PositionResponseStruct,
+          'positions',
+          fresh ? { 'Cache-Control': 'no-cache' } : {},
+        ),
     );
   }
 
@@ -633,6 +621,30 @@ export class MoneyAccountApiDataService extends BaseDataService<
           },
           async () =>
             this.#fetchValidated(url, VaultRateResponseStruct, 'vault rate'),
+        );
+      },
+    });
+  }
+
+  /**
+   * Fetches the environment's vault catalog, including each vault's current
+   * APY.
+   *
+   * @returns The vault catalog response.
+   */
+  async fetchVaults(): Promise<VaultsResponse> {
+    const url = new URL('/v1/vaults', this.#baseUrl);
+
+    return this.fetchQuery({
+      queryKey: [`${this.name}:fetchVaults`],
+      staleTime: VAULTS_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULTS_API,
+            data: { operation: 'fetchVaults' },
+          },
+          async () => this.#fetchValidated(url, VaultsResponseStruct, 'vaults'),
         );
       },
     });

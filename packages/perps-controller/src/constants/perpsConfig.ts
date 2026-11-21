@@ -142,6 +142,33 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
+  /** How often a live chase list re-reads the provider's chase snapshots. */
+  RefreshIntervalMs: 1000,
+  /** Most ended chases a live chase list keeps in history, newest first. */
+  HistoryLimit: 50,
+  /**
+   * Reads a live chase list keeps a running chase that a read omits. An
+   * aggregated read drops a provider whose read failed, so one omission is not
+   * proof the chase is gone.
+   */
+  OmissionGraceReads: 1,
+} as const;
+
+/** Refresh cadence of a live TWAP list. */
+export const TWAP_ORDER_CONFIG = {
+  /**
+   * How often a live TWAP list re-reads while a schedule runs. The stream
+   * carries no slice fills, so only reads raise the execution totals.
+   */
+  RefreshIntervalMs: 5000,
+  /** Delay before re-reading when the stream lists a schedule no read has. */
+  StreamCatchUpIntervalMs: 1000,
+} as const;
+
+/** Thresholds for the price warnings shown on a resting order draft. */
+export const ORDER_PRICE_WARNING_CONFIG = {
+  /** Distance from the touch, as a fraction, past which a price is far from market. */
+  FarFromMarketRatio: 0.05,
 } as const;
 
 /** Public lifecycle states reported for an emulated Chase order. */
@@ -319,6 +346,8 @@ export const HYPERLIQUID_TWAP_LIMITS = {
   MinDurationMinutes: 5,
   MaxDurationMinutes: 1440,
   MinNotionalUsd: 100,
+  /** The venue sends one TWAP suborder every 30 seconds. */
+  SliceIntervalSeconds: 30,
 } as const;
 
 /**
