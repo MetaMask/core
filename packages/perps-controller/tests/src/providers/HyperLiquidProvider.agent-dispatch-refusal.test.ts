@@ -69,23 +69,35 @@ function observeSignatureRegistry(): {
     key: object,
     value: unknown,
   ) => WeakMap<object, unknown>;
-  const observer = vi
-    .spyOn(WeakMap.prototype, 'set')
-    .mockImplementation(function (
-      this: WeakMap<object, unknown>,
-      key: object,
-      value: unknown,
-    ) {
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        'unansweredSignatures' in value &&
-        value.unansweredSignatures instanceof Map
-      ) {
-        registry = value.unansweredSignatures as Map<string, unknown>;
-      }
-      return originalSet.call(this, key, value);
+  // Patched by hand rather than with `vi.spyOn`: vitest's own mocks call
+  // `WeakMap.prototype.set` internally, so a spy on it recurses.
+  const patch = (set: typeof originalSet): void => {
+    Reflect.defineProperty(WeakMap.prototype, 'set', {
+      configurable: true,
+      writable: true,
+      value: set,
     });
+  };
+  patch(
+    new Proxy(originalSet, {
+      apply: (
+        target,
+        thisArg: WeakMap<object, unknown>,
+        args: [object, unknown],
+      ): WeakMap<object, unknown> => {
+        const [, value] = args;
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          'unansweredSignatures' in value &&
+          value.unansweredSignatures instanceof Map
+        ) {
+          registry = value.unansweredSignatures as Map<string, unknown>;
+        }
+        return Reflect.apply(target, thisArg, args);
+      },
+    }),
+  );
   return {
     registry: () => {
       if (!registry) {
@@ -93,7 +105,9 @@ function observeSignatureRegistry(): {
       }
       return registry;
     },
-    restore: () => observer.mockRestore(),
+    restore: () => {
+      patch(originalSet);
+    },
   };
 }
 
@@ -128,9 +142,13 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
       info: { extraAgents: vi.fn().mockResolvedValue([]) },
     });
     getAgentSigner.mockResolvedValue(built.agentSigner);
-    await built.accountSignerProvider.prepareTradingWallet();
-    const registry = observer.registry();
-    observer.restore();
+    let registry: Map<string, unknown>;
+    try {
+      await built.accountSignerProvider.prepareTradingWallet();
+      registry = observer.registry();
+    } finally {
+      observer.restore();
+    }
     let signatureNumber = 0;
     built.agentSigner.signTypedData.mockImplementation(
       async (): Promise<Hex> => {
