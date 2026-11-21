@@ -1512,7 +1512,7 @@ async function phaseParityHistory(result: PhaseResult): Promise<void> {
   const [withdrawalRoute] = provider.getWithdrawalRoutes();
   const live = convertKeysToCamelCase(
     await (
-      await fetch('https://testnet.zklighter.elliot.ai/api/v1/layer1BasicInfo')
+      await fetch('https://api.testnet.lighter.xyz/api/v1/layer1BasicInfo')
     ).json(),
   ) as {
     contractAddresses: { name: string; address: string }[];
