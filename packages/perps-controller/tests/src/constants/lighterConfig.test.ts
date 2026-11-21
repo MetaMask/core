@@ -176,7 +176,9 @@ describe('lighterConfig', () => {
     it.each([
       [{ ...market, minBaseAmount: '0.0002oops' }, 100],
       [{ ...market, minQuoteAmount: 'missing' }, 100],
+      [{ ...market, minBaseAmount: '1e999' }, 100],
       [{ ...market, supportedSizeDecimals: Number.NaN }, 100],
+      [{ ...market, supportedSizeDecimals: 101 }, 100],
       [market, Number.NaN],
       [market, 0],
     ])('fails closed for malformed minimum-size input', (input, price) => {

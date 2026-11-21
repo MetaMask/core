@@ -5,6 +5,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+} from '@metamask/profile-sync-controller/auth';
 import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
@@ -70,7 +74,6 @@ import type {
   PendingUpdateIdentifiersPayload,
   PendingUpdateRecoverySecretPayload,
   RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
@@ -142,7 +145,9 @@ export type MfaRecoveryControllerActions =
   | MfaRecoveryControllerGetStateAction
   | MfaRecoveryControllerMethodActions;
 
-type AllowedActions = never;
+type AllowedActions =
+  | AuthenticationControllerRefreshCanonicalProfileIdAction
+  | AuthenticationControllerRequestMfaApprovalAction;
 
 export type MfaRecoveryControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -172,11 +177,6 @@ export type MfaRecoveryControllerOptions = {
    * properties will be filled in with defaults.
    */
   state?: Partial<MfaRecoveryControllerState>;
-
-  /**
-   * Authenticates the MetaMask profile and issues request-bound attestations.
-   */
-  authProvider: RecoveryAuthProvider;
 
   /**
    * Holds the per-profile recovery lease.
@@ -234,8 +234,6 @@ export class MfaRecoveryController extends BaseController<
   MfaRecoveryControllerState,
   MfaRecoveryControllerMessenger
 > {
-  readonly #authProvider: RecoveryAuthProvider;
-
   readonly #lockProvider: RecoveryLockProvider;
 
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
@@ -251,7 +249,6 @@ export class MfaRecoveryController extends BaseController<
   constructor({
     messenger,
     state,
-    authProvider,
     lockProvider,
     identifierAuthProvider,
     escrows,
@@ -279,7 +276,6 @@ export class MfaRecoveryController extends BaseController<
       },
     });
 
-    this.#authProvider = authProvider;
     this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
@@ -429,6 +425,7 @@ export class MfaRecoveryController extends BaseController<
     const { seedlessAuthData, ...credential } = await requestIdentifierLogin({
       identifier,
       requestHash,
+      now: this.#now(),
       identifierAuthProvider: this.#identifierAuthProvider,
     });
     return {
@@ -480,7 +477,7 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+      const { approval } = await this.#authorizeRecoveryRequest({
         requestHash,
         audiences: available.map((escrow) => escrow.authAudience),
         requireTwoFactor: true,
@@ -656,7 +653,9 @@ export class MfaRecoveryController extends BaseController<
       assertSameVersion(escrowIdentifiers);
       assertEnrolledInEvery(escrowIdentifiers, identifier);
 
-      const profileId = await this.#authProvider.getAuthenticatedProfileId();
+      const profileId = await this.messenger.call(
+        'AuthenticationController:refreshCanonicalProfileId',
+      );
       const audiences = escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
       const payloadHash = await hash(payload);
@@ -695,14 +694,13 @@ export class MfaRecoveryController extends BaseController<
     // The lease outlives the approval, so no write lands after another
     // operation can take the lease.
     await this.#acquireLease();
-    const { approval, identifiers } =
-      await this.#authProvider.authorizeRecoveryRequest({
-        requestHash: mutation.requestHash,
-        audiences: this.#getTargetEscrows(mutation).map(
-          (escrow) => escrow.authAudience,
-        ),
-        requireTwoFactor: true,
-      });
+    const { approval, identifiers } = await this.#authorizeRecoveryRequest({
+      requestHash: mutation.requestHash,
+      audiences: this.#getTargetEscrows(mutation).map(
+        (escrow) => escrow.authAudience,
+      ),
+      requireTwoFactor: true,
+    });
     const isRenewal = pending.phase === 'writing';
     const writing: WritingPendingOperation = {
       ...pending,
@@ -713,6 +711,28 @@ export class MfaRecoveryController extends BaseController<
     };
     await this.#assertPending(writing);
     return writing;
+  }
+
+  async #authorizeRecoveryRequest({
+    requestHash,
+    audiences,
+    requireTwoFactor,
+  }: {
+    requestHash: string;
+    audiences: string[];
+    requireTwoFactor?: boolean;
+  }): Promise<RecoveryApproval> {
+    const { approval, identifiers } = await this.messenger.call(
+      'AuthenticationController:requestMfaApproval',
+      {
+        requestHash,
+        audiences,
+        requireVerification: requireTwoFactor === true,
+        includeIdentifiers: true,
+        reason: { operation: 'mfa_recovery' },
+      },
+    );
+    return { approval, identifiers: identifiers ?? [] };
   }
 
   async #finishPendingMutation(pending: PendingOperation): Promise<void> {
@@ -921,7 +941,7 @@ export class MfaRecoveryController extends BaseController<
   async #authorizeRead(
     escrows: RecoveryEscrowProvider[],
   ): Promise<RecoveryApproval> {
-    return await this.#authProvider.authorizeRecoveryRequest({
+    return await this.#authorizeRecoveryRequest({
       requestHash: await hash({ operation: 'getIdentifiers' }),
       audiences: escrows.map((escrow) => escrow.authAudience),
     });
@@ -1053,6 +1073,7 @@ export class MfaRecoveryController extends BaseController<
       const { token, proofPrivateKey } = await requestIdentifierLogin({
         identifier,
         requestHash: writing.mutation.requestHash,
+        now: this.#now(),
         identifierAuthProvider: this.#identifierAuthProvider,
       });
       credentials.push({ token, proofPrivateKey });

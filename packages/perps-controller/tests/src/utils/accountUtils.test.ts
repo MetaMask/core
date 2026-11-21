@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { describe, expect, it } from 'vitest';
 
-import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { AccountState } from '../../../src/types/index.js';
 import type { CalculateAccountSummaryParams } from '../../../src/utils/accountUtils.js';
 import {
@@ -10,23 +10,38 @@ import {
   calculateAccountSummary,
   calculateWeightedReturnOnEquity,
   getCrossCollateral,
+  getCaipAccountAddress,
   getCrossMarginSpotCollateral,
   getSpotBalance,
   sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
 
-describe('aggregateAccountStates', () => {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
+describe('getCaipAccountAddress', () => {
+  it('returns the lowercased address of a CAIP-10 account id', () => {
+    expect(
+      getCaipAccountAddress(
+        'eip155:1:0xAbCdEf0123456789aBcDeF0123456789AbCdEf01',
+      ),
+    ).toBe('0xabcdef0123456789abcdef0123456789abcdef01');
+  });
 
-  it('returns fallback when given an empty array', () => {
-    expect(aggregateAccountStates([])).toEqual(fallback);
+  it.each([
+    '0xabcdef0123456789abcdef0123456789abcdef01',
+    'eip155:1',
+    'eip155:1:0xabc:extra',
+    '',
+  ])('returns undefined for a malformed account id: %j', (accountId) => {
+    expect(
+      getCaipAccountAddress(accountId as `${string}:${string}:${string}`),
+    ).toBeUndefined();
+  });
+});
+
+describe('aggregateAccountStates', () => {
+  it('throws ACCOUNT_STATE_FAILED instead of returning placeholders when given an empty array', () => {
+    expect(() => aggregateAccountStates([])).toThrow(
+      PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+    );
   });
 
   it('canonicalizes balances when given one state', () => {
@@ -194,6 +209,32 @@ describe('aggregateAccountStates', () => {
     expect(parseFloat(result.totalBalance)).toBeCloseTo(351, 0);
     expect(parseFloat(result.marginUsed)).toBeCloseTo(81, 0);
     expect(parseFloat(result.unrealizedPnl)).toBeCloseTo(17, 0);
+  });
+
+  it('uses exact decimals for margin, PnL and the combined RoE', () => {
+    const state: AccountState = {
+      totalBalance: '1',
+      spendableBalance: '1',
+      withdrawableBalance: '1',
+      marginUsed: '0.1',
+      unrealizedPnl: '0.01',
+      returnOnEquity: '10',
+    };
+    expect(
+      aggregateAccountStates([
+        state,
+        {
+          ...state,
+          marginUsed: '0.2',
+          unrealizedPnl: '0.08',
+          returnOnEquity: '40',
+        },
+      ]),
+    ).toMatchObject({
+      marginUsed: '0.3',
+      unrealizedPnl: '0.09',
+      returnOnEquity: '30',
+    });
   });
 
   it('preserves the exact subtotal when aggregating DEX states', () => {
@@ -875,6 +916,34 @@ describe('calculateWeightedReturnOnEquity', () => {
       { unrealizedPnl: '10', returnOnEquity: '20' },
     ]);
     expect(parseFloat(result)).toBeCloseTo(20, 5);
+  });
+
+  it('weighs an account with an RoE of 0 by its margin used', () => {
+    const result = calculateWeightedReturnOnEquity([
+      { unrealizedPnl: '10', returnOnEquity: '10', marginUsed: '100' },
+      { unrealizedPnl: 0, returnOnEquity: 0, marginUsed: 300 },
+    ]);
+    expect(parseFloat(result)).toBeCloseTo(2.5, 10);
+  });
+
+  it.each([Infinity, 'Infinity', '500usd'])(
+    'skips an invalid explicit margin weight %s',
+    (marginUsed) => {
+      expect(
+        calculateWeightedReturnOnEquity([
+          { unrealizedPnl: 10, returnOnEquity: 10, marginUsed: '100' },
+          { unrealizedPnl: 10, returnOnEquity: 90, marginUsed },
+        ]),
+      ).toBe('10');
+    },
+  );
+
+  it('still skips an RoE of 0 when margin used is not given', () => {
+    const result = calculateWeightedReturnOnEquity([
+      { unrealizedPnl: '10', returnOnEquity: '10' },
+      { unrealizedPnl: '0', returnOnEquity: '0' },
+    ]);
+    expect(parseFloat(result)).toBeCloseTo(10, 10);
   });
 });
 

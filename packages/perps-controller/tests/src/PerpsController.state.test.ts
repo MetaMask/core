@@ -42,6 +42,7 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
+import type { SubscribeAccountParams } from '../../src/types/index.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
 
@@ -2117,9 +2118,9 @@ describe('PerpsController', () => {
       );
     });
 
-    it('updates accountState when subscribeToAccount callback receives non-null account', () => {
+    it('updates accountState with live snapshots and invalidation', () => {
       const originalCallback = vi.fn();
-      let wrappedCallback = () => {
+      let wrappedCallback: SubscribeAccountParams['callback'] = () => {
         /* assigned by mock */
       };
       mockProvider.subscribeToAccount.mockImplementation((p) => {
@@ -2142,8 +2143,13 @@ describe('PerpsController', () => {
       };
       wrappedCallback(accountState);
 
-      expect(controller.state.accountState).toMatchObject(accountState);
+      const getAccountState = () => controller.state.accountState;
+      expect(getAccountState()).toMatchObject(accountState);
       expect(originalCallback).toHaveBeenCalledWith(accountState);
+
+      wrappedCallback(null);
+      expect(getAccountState()).toBeNull();
+      expect(originalCallback).toHaveBeenLastCalledWith(null);
     });
 
     it('returns no-op unsub and does not throw when subscribeToAccount called before init', () => {

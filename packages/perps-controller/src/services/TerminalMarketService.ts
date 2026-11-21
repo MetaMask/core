@@ -15,7 +15,11 @@ import {
 } from '@metamask/superstruct';
 import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 
-import { canonicalizeHyperLiquidDexes } from '../constants/hyperLiquidConfig.js';
+import {
+  canonicalizeHyperLiquidDexes,
+  HYPERLIQUID_VENUE_MARGIN_MODES,
+  isUnrestrictedMarginMode,
+} from '../constants/hyperLiquidConfig.js';
 import {
   PERPS_CONSTANTS,
   TERMINAL_API_CONFIG,
@@ -77,9 +81,7 @@ const GlobalSnapshotMarketStruct = type({
   listedAt: nullable(number()),
   trend: array(tuple([number(), string()])),
   onlyIsolated: optional(nullable(boolean())),
-  marginMode: optional(
-    nullable(enums(['normal', 'strictIsolated', 'noCross'])),
-  ),
+  marginMode: optional(nullable(enums(HYPERLIQUID_VENUE_MARGIN_MODES))),
   marketKey: optional(nullable(string())),
   priceScale: optional(nullable(number())),
   venueMarketId: optional(nullable(string())),
@@ -756,8 +758,9 @@ export class TerminalMarketService {
         ...identity,
         ...(market.onlyIsolated === true && { onlyIsolated: true as const }),
         // `normal` is no restriction, so it stays out of `marginMode`.
-        ...(market.marginMode &&
-          market.marginMode !== 'normal' && { marginMode: market.marginMode }),
+        ...(!isUnrestrictedMarginMode(market.marginMode) && {
+          marginMode: market.marginMode,
+        }),
       },
     };
   }

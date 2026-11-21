@@ -2247,6 +2247,14 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /**
+   * Timestamp (ms since epoch) set by the pay controller when it first starts
+   * resuming this transaction after a restart. Later restarts keep resuming
+   * until the pay controller's resume timeout has passed since this time.
+   * TC does not read this field.
+   */
+  resumeAttemptedAt?: number;
+
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
 

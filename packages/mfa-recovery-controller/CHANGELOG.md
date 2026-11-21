@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `getKeyBoundIdentifierLogin` receives a `notAfter` 5 minutes ahead, copies it into the token, and signs `hash([proofPublicKey, requestHash, notAfter])` as the passkey challenge or OIDC / SIWE nonce, so escrows reject identifier logins replayed later. The key-bound token must also match the requested `notAfter` ([#11571](https://github.com/MetaMask/core/pull/11571))
+- **BREAKING:** Passkey providers must use `getEscrowPasskeyChallenge(request)`, which prefixes that hash with `MetaMask escrow login:`. Before signing an Auth API passkey challenge, clients must check `isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` ([#11576](https://github.com/MetaMask/core/pull/11576))
+- **BREAKING:** `MfaRecoveryController` no longer takes an `authProvider` option; it requests approvals through `AuthenticationController:requestMfaApproval` and resolves the canonical profile id through `AuthenticationController:refreshCanonicalProfileId` on its messenger ([#11643](https://github.com/MetaMask/core/pull/11643))
+  - Delegate both actions to the controller's messenger and remove the `authProvider` option.
+
+### Removed
+
+- **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
+
 ## [0.1.0]
 
 ### Added
