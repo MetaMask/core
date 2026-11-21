@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `semver` from `^7.8.5` to `^7.8.6` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethereumjs/tx` from `^5.4.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
 
 ## [12.0.2]
 
