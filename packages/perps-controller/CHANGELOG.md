@@ -13,21 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
-- Lighter reads its own Terminal global snapshot. With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the snapshot's `name`, `description`, `iconUrl`, `marketType`, `categories`, `keywords`, `tags`, `listedAt`, `volume`, `openInterest` and `marketKey` to each Lighter market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with `LighterProvider`
+- Lighter reads its own Terminal global snapshot. With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the snapshot's `name`, `description`, `iconUrl`, `marketType`, `categories`, `keywords`, `tags`, `listedAt`, `volume`, `openInterest` and `marketKey` to each Lighter market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with `LighterProvider` ([#11698](https://github.com/MetaMask/core/pull/11698))
   - `TerminalMarketService.fetchGlobalSnapshot` accepts `provider: 'lighter'` with `enabledDexes: ['main']`, and `PerpsGlobalSnapshotRequest.provider` is now `'hyperliquid' | 'lighter'`
   - A Lighter row's `category` sets its `marketType`. Lighter lists stocks, FX and commodities on its one DEX, so `main` does not mean crypto there as it does for HyperLiquid
   - A missing or invalid Lighter snapshot leaves the Lighter rows as the provider returned them
   - Lighter v4 daily changes use the venue's last trade price as their reference
-- Add optional `marketKey` and `priceScale` to `PerpsMarketData` and `MarketInfo`, and `iconUrl` to `PerpsMarketData`, mapped from either provider's global snapshot. Rows served directly from a v4 snapshot also carry its validated `providerId`
-- Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1`. Each row has a stable `rowId` and carries its original venue data, default venue first. Rows with absent keys or absent or different scales remain separate
-- Watchlist and recently viewed actions accept an optional market key. `resolveSavedPerpsMarkets` opens legacy symbols only on their original venue and resolves explicit keys among unit-scale rows. Grouped watchlist actions accept the venue rows and can remove a legacy favorite when the group contains the matching unit-scale HyperLiquid row
-- Accept optional `marketKey`, `priceScale` and `venueMarketId` on global snapshot markets. A malformed value rejects that provider's snapshot, so that provider falls back
-- Export type `GlobalSnapshotContext`
+- Add optional `marketKey` and `priceScale` to `PerpsMarketData` and `MarketInfo`, and `iconUrl` to `PerpsMarketData`, mapped from either provider's global snapshot. Rows served directly from a v4 snapshot also carry its validated `providerId` ([#11698](https://github.com/MetaMask/core/pull/11698))
+- Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1`. Each row has a stable `rowId` and carries its original venue data, default venue first. Rows with absent keys or absent or different scales remain separate ([#11698](https://github.com/MetaMask/core/pull/11698))
+- Watchlist and recently viewed actions accept an optional market key. `resolveSavedPerpsMarkets` opens legacy symbols only on their original venue and resolves explicit keys among unit-scale rows. Grouped watchlist actions accept the venue rows and can remove a legacy favorite when the group contains the matching unit-scale HyperLiquid row ([#11698](https://github.com/MetaMask/core/pull/11698))
+- Accept optional `marketKey`, `priceScale` and `venueMarketId` on global snapshot markets. A malformed value rejects that provider's snapshot, so that provider falls back ([#11698](https://github.com/MetaMask/core/pull/11698))
+- Export type `GlobalSnapshotContext` ([#11698](https://github.com/MetaMask/core/pull/11698))
 
 ### Changed
 
-- Deprecate `ServiceContext.globalSnapshot` in favor of `globalSnapshots`, with one `GlobalSnapshotContext` per provider
-- In aggregated mode each venue reads its own global snapshot: HyperLiquid rows come from the HyperLiquid snapshot and Lighter rows take the Lighter snapshot's metadata. Each venue falls back to its provider alone when its snapshot is missing or invalid
+- Deprecate `ServiceContext.globalSnapshot` in favor of `globalSnapshots`, with one `GlobalSnapshotContext` per provider ([#11698](https://github.com/MetaMask/core/pull/11698))
+- In aggregated mode each venue reads its own global snapshot: HyperLiquid rows come from the HyperLiquid snapshot and Lighter rows take the Lighter snapshot's metadata. Each venue falls back to its provider alone when its snapshot is missing or invalid ([#11698](https://github.com/MetaMask/core/pull/11698))
   - `AggregatedPerpsProvider.getMarketDataWithPrices` takes an optional per-venue reader
   - Each venue uses its provider data if its snapshot expires during an aggregate read. An expired snapshot slice also invalidates the aggregated preload so clients refresh the market list
 
