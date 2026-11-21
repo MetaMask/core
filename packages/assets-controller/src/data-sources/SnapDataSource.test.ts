@@ -664,8 +664,6 @@ describe('SnapDataSource', () => {
               lastSelected: Date.now(),
               snap: {
                 id: STELLAR_SNAP_ID,
-                name: 'Stellar Snap',
-                enabled: true,
               },
             },
           }),
@@ -886,8 +884,6 @@ describe('SnapDataSource', () => {
               lastSelected: Date.now(),
               snap: {
                 id: STELLAR_SNAP_ID,
-                name: 'Stellar Snap',
-                enabled: true,
               },
             },
           }),

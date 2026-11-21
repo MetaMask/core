@@ -482,7 +482,7 @@
       "count": 3
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
+      "count": 7
     },
     "vitest/no-conditional-in-test": {
       "count": 14
@@ -505,11 +505,6 @@
     },
     "typescript/no-unsafe-return": {
       "count": 4
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 2
     }
   },
   "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
@@ -536,11 +531,6 @@
     },
     "vitest/no-conditional-in-test": {
       "count": 7
-    }
-  },
-  "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 5
     }
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
@@ -1951,9 +1941,6 @@
     },
     "node/callback-return": {
       "count": 1
-    },
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 2
     }
   },
   "packages/core-backend/src/ws/launchpad/LaunchpadTokenDetailsService.test.ts": {
@@ -1980,7 +1967,7 @@
       "count": 3
     },
     "vitest/no-conditional-in-test": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/delegation-controller/src/DelegationController.test.ts": {
@@ -4981,7 +4968,7 @@
   },
   "packages/social-controllers/src/SocialRealtimeService.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 54
+      "count": 50
     }
   },
   "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {

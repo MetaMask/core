@@ -29,6 +29,7 @@ import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
+  MarketStatsServiceActions,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
@@ -312,15 +313,9 @@ export type AssetsControllerBalanceChangedEvent = {
   ];
 };
 
-export type AssetsControllerPriceChangedEvent = {
-  type: `${typeof CONTROLLER_NAME}:priceChanged`;
-  payload: [{ prices: Record<Caip19AssetId, AssetPrice> }];
-};
-
 export type AssetsControllerEvents =
   | AssetsControllerStateChangeEvent
-  | AssetsControllerBalanceChangedEvent
-  | AssetsControllerPriceChangedEvent;
+  | AssetsControllerBalanceChangedEvent;
 
 type AllowedActions =
   // AssetsController
@@ -348,7 +343,9 @@ type AllowedActions =
   | AuthenticatedUserStorageServiceGetUserAssetsAction
   | AuthenticatedUserStorageServiceSetUserAssetsAction
   | AuthenticatedUserStorageServiceImportTokensAction
-  | AuthenticatedUserStorageServiceHideTokensAction;
+  | AuthenticatedUserStorageServiceHideTokensAction
+  // PriceDataSource market-stats stream. Absent at runtime, prices stay on the poll.
+  | MarketStatsServiceActions;
 
 type AllowedEvents =
   // AssetsController — account tree lifecycle and group switches
@@ -988,6 +985,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      messenger: this.messenger,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
@@ -1851,8 +1849,8 @@ export class AssetsController extends BaseController<
    * `fiatValue`) for an account directly from controller state.
    *
    * Reuses the same state-composition and filtering logic as `getAssets`
-   * (balance and metadata are required, a missing price falls back to
-   * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+   * (balance and metadata are required, a missing price falls back to a
+   * fungible price of `0` with `fiatValue: 0`, and hidden or
    * otherwise filtered assets are excluded) so the returned shape never
    * drifts from `getAssets`. Reads from current state only and does not
    * trigger a data-source refresh.
@@ -2327,15 +2325,21 @@ export class AssetsController extends BaseController<
     }
 
     // Currency changed — old cached prices are in the wrong currency.
+    // Open the new channels after those prices are stored, so a live tick is
+    // not applied against fiat still in the previous currency.
     this.#priceDataSource.invalidatePriceCache();
-
-    this.syncAssetsPrices(
-      Object.values(this.state.assetsBalance).flatMap(
-        (balances) => Object.keys(balances) as Caip19AssetId[],
-      ),
-    ).catch((error) => {
-      log('Failed to fetch asset prices after current currency change', error);
-    });
+    const assetIds = Object.values(this.state.assetsBalance).flatMap(
+      (balances) => Object.keys(balances) as Caip19AssetId[],
+    );
+    this.syncAssetsPrices(assetIds)
+      .then(async () => {
+        if (this.state.selectedCurrency === selectedCurrency) {
+          await this.#priceDataSource.resubscribeForCurrencyChange();
+        }
+      })
+      .catch((error) => {
+        log('Failed to refresh prices after current currency change', error);
+      });
   }
 
   // ============================================================================
@@ -2732,6 +2736,7 @@ export class AssetsController extends BaseController<
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+    let wroteBalances = false;
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -2937,23 +2942,21 @@ export class AssetsController extends BaseController<
         });
       }
 
-      // Publish price changed event with full price data
-      if (changedPriceAssets.length > 0 && normalizedResponse.assetsPrice) {
-        // Build prices object with only changed prices
-        const changedPrices: Record<Caip19AssetId, AssetPrice> = {};
-        for (const assetId of changedPriceAssets) {
-          const price =
-            normalizedResponse.assetsPrice[assetId as Caip19AssetId];
-          if (price) {
-            changedPrices[assetId as Caip19AssetId] = price;
-          }
-        }
-        this.messenger.publish('AssetsController:priceChanged', {
-          prices: changedPrices,
-        });
-      }
+      wroteBalances = Boolean(normalizedResponse.assetsBalance);
     } finally {
       releaseLock();
+    }
+
+    // Balances and any prices fetched for them are in state now. The price
+    // poll reconciles itself; a price-only write does not reach here.
+    if (wroteBalances) {
+      await this.#priceDataSource
+        .reconcileMarketStreams()
+        .catch((error: unknown) => {
+          log('Failed to reconcile market stats after balance update', {
+            error,
+          });
+        });
     }
   }
 
@@ -3054,7 +3057,9 @@ export class AssetsController extends BaseController<
 
     const priceRaw = this.state.assetsPrice[assetId];
     const price: AssetPrice = priceRaw ?? {
+      assetPriceType: 'fungible',
       price: 0,
+      usdPrice: 0,
       lastUpdated: 0,
     };
 

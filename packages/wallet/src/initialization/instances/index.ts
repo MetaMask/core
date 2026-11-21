@@ -13,6 +13,7 @@ export { geolocationApiService } from './geolocation-api-service/geolocation-api
 export { geolocationController } from './geolocation-controller/geolocation-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { loggingController } from './logging-controller/logging-controller.js';
+export { marketStatsService } from './market-stats-service/market-stats-service.js';
 export { networkController } from './network-controller/network-controller.js';
 export { networkEnablementController } from './network-enablement-controller/network-enablement-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';

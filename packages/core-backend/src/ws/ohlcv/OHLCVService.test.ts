@@ -53,7 +53,7 @@ const getMessenger = (): {
     connect: Mock;
     subscribe: Mock;
     channelHasSubscription: Mock;
-    getSubscriptionsByChannel: Mock;
+    unsubscribeChannels: Mock;
     findSubscriptionsByChannelPrefix: Mock;
     forceReconnection: Mock;
     addChannelCallback: Mock;
@@ -78,8 +78,8 @@ const getMessenger = (): {
       'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
       'BackendWebSocketService:getConnectionInfo',
+      'BackendWebSocketService:unsubscribeChannels',
       'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:getSubscriptionsByChannel',
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
@@ -92,7 +92,7 @@ const getMessenger = (): {
   const mockForceReconnection = vi.fn().mockResolvedValue(undefined);
   const mockSubscribe = vi.fn();
   const mockChannelHasSubscription = vi.fn().mockReturnValue(false);
-  const mockGetSubscriptionsByChannel = vi.fn().mockReturnValue([]);
+  const mockUnsubscribeChannels = vi.fn().mockResolvedValue(undefined);
   const mockFindSubscriptionsByChannelPrefix = vi.fn().mockReturnValue([]);
   const mockAddChannelCallback = vi.fn();
   const mockRemoveChannelCallback = vi.fn();
@@ -115,8 +115,8 @@ const getMessenger = (): {
     mockChannelHasSubscription,
   );
   rootMessenger.registerActionHandler(
-    'BackendWebSocketService:getSubscriptionsByChannel',
-    mockGetSubscriptionsByChannel,
+    'BackendWebSocketService:unsubscribeChannels',
+    mockUnsubscribeChannels,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:findSubscriptionsByChannelPrefix',
@@ -142,7 +142,7 @@ const getMessenger = (): {
       connect: mockConnect,
       subscribe: mockSubscribe,
       channelHasSubscription: mockChannelHasSubscription,
-      getSubscriptionsByChannel: mockGetSubscriptionsByChannel,
+      unsubscribeChannels: mockUnsubscribeChannels,
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       forceReconnection: mockForceReconnection,
       addChannelCallback: mockAddChannelCallback,
@@ -399,7 +399,7 @@ describe('OHLCVService', () => {
       await withService(async ({ service, mocks }) => {
         await service.unsubscribe(SUB_OPTS);
 
-        expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
       });
     });
 
@@ -413,30 +413,24 @@ describe('OHLCVService', () => {
         // No timer should have been started, no WS unsubscribe
         vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
-        expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
       });
     });
 
     it('should start a grace-period timer and unsubscribe after expiry', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
         // Before grace period expires — still subscribed
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
 
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([
           EXPECTED_CHANNEL,
-        );
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        ]);
       });
     });
   });
@@ -448,11 +442,6 @@ describe('OHLCVService', () => {
   describe('grace period', () => {
     it('should cancel grace-period timer if re-subscribed before expiry', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
@@ -472,7 +461,7 @@ describe('OHLCVService', () => {
         // Advance past original grace period — should NOT unsubscribe
         vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
       });
     });
 
@@ -485,18 +474,11 @@ describe('OHLCVService', () => {
         'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub1m = vi.fn().mockResolvedValue(undefined);
-        const mockUnsub1h = vi.fn().mockResolvedValue(undefined);
-
-        mocks.getSubscriptionsByChannel.mockImplementation(
-          (channel: string) => {
-            if (channel === EXPECTED_CHANNEL) {
+        mocks.unsubscribeChannels.mockImplementation(
+          async (channels: readonly string[]) => {
+            if (channels.includes(EXPECTED_CHANNEL)) {
               throw new Error('flush unsub failed');
             }
-            if (channel === channel1h) {
-              return [{ unsubscribe: mockUnsub1h }];
-            }
-            return [{ unsubscribe: mockUnsub1m }];
           },
         );
 
@@ -505,18 +487,17 @@ describe('OHLCVService', () => {
         await service.subscribe(opts1h);
         await service.unsubscribe(opts1h);
 
-        mocks.getSubscriptionsByChannel.mockClear();
-        mockUnsub1h.mockClear();
+        mocks.unsubscribeChannels.mockClear();
         mocks.channelHasSubscription.mockReturnValue(true);
         mocks.connect.mockClear();
         mocks.subscribe.mockClear();
 
         await service.subscribe(opts1h);
 
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([
           EXPECTED_CHANNEL,
-        );
-        expect(mockUnsub1h).not.toHaveBeenCalled();
+        ]);
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalledWith([channel1h]);
         expect(mocks.connect).not.toHaveBeenCalled();
         expect(mocks.subscribe).not.toHaveBeenCalled();
       });
@@ -532,19 +513,14 @@ describe('OHLCVService', () => {
         'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn().mockResolvedValue(undefined);
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(opts1m);
         await service.unsubscribe(opts1m);
         await service.subscribe(opts1h);
 
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([
           EXPECTED_CHANNEL,
-        );
+        ]);
         expect(mocks.subscribe).toHaveBeenCalledWith(
           expect.objectContaining({
             channels: [channel1h],
@@ -554,7 +530,7 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
       });
     });
     it('should schedule unsubscribe retry when flush fails during channel switch', async () => {
@@ -567,12 +543,11 @@ describe('OHLCVService', () => {
         const errorListener = vi.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
-        mocks.getSubscriptionsByChannel.mockImplementation(
-          (channel: string) => {
-            if (channel === EXPECTED_CHANNEL) {
+        mocks.unsubscribeChannels.mockImplementation(
+          async (channels: readonly string[]) => {
+            if (channels.includes(EXPECTED_CHANNEL)) {
               throw new Error('flush unsub failed');
             }
-            return [{ unsubscribe: vi.fn().mockResolvedValue(undefined) }];
           },
         );
 
@@ -589,20 +564,13 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(
-          mocks.getSubscriptionsByChannel.mock.calls.length,
-        ).toBeGreaterThan(1);
+        expect(mocks.unsubscribeChannels.mock.calls.length).toBeGreaterThan(1);
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
 
     it('should skip grace-period unsubscribe when a new subscriber arrives first', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn().mockResolvedValue(undefined);
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
@@ -625,7 +593,7 @@ describe('OHLCVService', () => {
         await subscribePromise;
         await completeAsyncOperations();
 
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
       });
     });
   });
@@ -637,14 +605,9 @@ describe('OHLCVService', () => {
   describe('unsubscribe retry', () => {
     it('should succeed on a later retry without forcing reconnection', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi
-          .fn()
+        mocks.unsubscribeChannels
           .mockRejectedValueOnce(new Error('transient'))
           .mockResolvedValue(undefined);
-
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
@@ -655,7 +618,7 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(mockUnsub).toHaveBeenCalledTimes(2);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(2);
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
@@ -663,14 +626,12 @@ describe('OHLCVService', () => {
     it('should not retry after destroy aborts in-flight unsubscribe', async () => {
       await withService(async ({ service, mocks }) => {
         let releaseUnsub!: (error?: Error) => void;
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          {
-            unsubscribe: (): Promise<void> =>
-              new Promise((_resolve, reject) => {
-                releaseUnsub = reject;
-              }),
-          },
-        ]);
+        mocks.unsubscribeChannels.mockImplementation(
+          () =>
+            new Promise<void>((_resolve, reject) => {
+              releaseUnsub = reject;
+            }),
+        );
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
@@ -685,14 +646,14 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
 
     it('should force reconnection when unsubscribe retries are exhausted', async () => {
       await withService(async ({ service, mocks }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
         mocks.forceReconnection.mockRejectedValue(
@@ -717,7 +678,7 @@ describe('OHLCVService', () => {
 
     it('should abort in-flight unsubscribe retry when destroy is called during backoff', async () => {
       await withService(async ({ service, mocks }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -738,7 +699,7 @@ describe('OHLCVService', () => {
 
     it('should not resurrect a channel or force reconnection when destroy races the grace-period unsubscribe', async () => {
       await withService(async ({ service, mocks }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -789,17 +750,12 @@ describe('OHLCVService', () => {
         await completeAsyncOperations();
 
         // Still has one consumer — no WS unsubscribe
-        expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
       });
     });
 
     it('should unsubscribe from WS when all consumers leave and grace expires', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.subscribe(SUB_OPTS);
 
@@ -809,7 +765,10 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([
+          EXPECTED_CHANNEL,
+        ]);
       });
     });
   });
@@ -843,22 +802,17 @@ describe('OHLCVService', () => {
 
         expect(mocks.subscribe).toHaveBeenCalledTimes(1);
 
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         // refCount must be 2 — first unsubscribe drops it to 1, no grace timer
         await service.unsubscribe(SUB_OPTS);
         vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
 
         // Second unsubscribe drops refCount to 0 → grace timer → WS unsubscribe
         await service.unsubscribe(SUB_OPTS);
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -883,30 +837,22 @@ describe('OHLCVService', () => {
 
         // After subscribe then unsubscribe, refCount is 0 → grace timer starts
         // Advance past grace period
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should create a fresh WS subscription when subscribe races with grace-period unsubscribe', async () => {
       await withService(async ({ service, mocks }) => {
         let unsubResolve!: () => void;
-        const mockUnsub = vi.fn(
+        mocks.unsubscribeChannels.mockImplementation(
           () =>
             new Promise<void>((resolve) => {
               unsubResolve = resolve;
             }),
         );
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
@@ -1280,7 +1226,7 @@ describe('OHLCVService', () => {
   describe('error paths', () => {
     it('should publish subscriptionError and retry when unsubscribe fails', async () => {
       await withService(async ({ service, mocks, messenger }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -1302,22 +1248,22 @@ describe('OHLCVService', () => {
 
         vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(2);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(2);
 
         vi.advanceTimersByTime(2000);
         await completeAsyncOperations();
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(3);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(3);
 
         vi.advanceTimersByTime(4000);
         await completeAsyncOperations();
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(4);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(4);
         expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should cancel unsubscribe retry when the same channel is subscribed again', async () => {
       await withService(async ({ service, mocks }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
         mocks.channelHasSubscription.mockReturnValue(true);
@@ -1350,9 +1296,7 @@ describe('OHLCVService', () => {
         'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub1h = vi.fn().mockResolvedValue(undefined);
-
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -1362,28 +1306,25 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        mocks.getSubscriptionsByChannel.mockImplementation(
-          (channel: string) => {
-            if (channel === channel1h) {
-              return [{ unsubscribe: mockUnsub1h }];
+        mocks.unsubscribeChannels.mockImplementation(
+          async (channels: readonly string[]) => {
+            if (!channels.includes(channel1h)) {
+              throw new Error('ws gone');
             }
-            throw new Error('ws gone');
           },
         );
 
         await service.subscribe(opts1h);
         await service.unsubscribe(opts1h);
 
-        mocks.getSubscriptionsByChannel.mockClear();
-        mockUnsub1h.mockClear();
+        mocks.unsubscribeChannels.mockClear();
         mocks.channelHasSubscription.mockReturnValue(true);
         mocks.connect.mockClear();
         mocks.subscribe.mockClear();
 
         await service.subscribe(SUB_OPTS);
 
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(channel1h);
-        expect(mockUnsub1h).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([channel1h]);
         expect(mocks.connect).not.toHaveBeenCalled();
         expect(mocks.subscribe).not.toHaveBeenCalled();
       });
@@ -1391,7 +1332,7 @@ describe('OHLCVService', () => {
 
     it('should recreate WS subscription when retry is cancelled but server subscription is gone', async () => {
       await withService(async ({ service, mocks }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -1402,9 +1343,7 @@ describe('OHLCVService', () => {
         await completeAsyncOperations();
 
         mocks.channelHasSubscription.mockReturnValue(false);
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: vi.fn().mockResolvedValue(undefined) },
-        ]);
+        mocks.unsubscribeChannels.mockResolvedValue(undefined);
         mocks.subscribe.mockClear();
         mocks.connect.mockClear();
 
@@ -1417,7 +1356,7 @@ describe('OHLCVService', () => {
 
     it('should delete failed-cleanup channels on reconnect', async () => {
       await withService(async ({ service, mocks, rootMessenger }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        mocks.unsubscribeChannels.mockImplementation(() => {
           throw new Error('ws gone');
         });
 
@@ -1558,16 +1497,11 @@ describe('OHLCVService', () => {
 
         // refCount was 1 at reconnect time; after resubscribe completes
         // the queued unsubscribe drops it to 0 and starts the grace timer.
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         // The grace-period unsubscribe fires cleanly — no orphaned subscription.
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -1579,11 +1513,6 @@ describe('OHLCVService', () => {
   describe('destroy', () => {
     it('should clear grace-period and retry timers and remove channel callback', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
@@ -1592,7 +1521,7 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(10000);
         await completeAsyncOperations();
 
-        expect(mockUnsub).not.toHaveBeenCalled();
+        expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
 
         expect(mocks.removeChannelCallback).toHaveBeenCalledWith(

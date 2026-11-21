@@ -41,6 +41,7 @@ export {
   PriceDataSource,
   type PriceDataSourceConfig,
   type PriceDataSourceOptions,
+  type MarketStatsPriceStreamMessenger,
 } from './PriceDataSource.js';
 
 // Unified Snap Data Source (dynamically discovers keyring snaps via PermissionController)
