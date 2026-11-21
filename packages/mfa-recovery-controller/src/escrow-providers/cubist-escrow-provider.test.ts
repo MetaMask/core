@@ -105,7 +105,7 @@ describe('CubistEscrowProvider', () => {
         stdout: { ok: true },
       });
       expect(await provider.isAvailable()).toBe(true);
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: { cmd: 'ping' },
       });
     });
@@ -116,7 +116,7 @@ describe('CubistEscrowProvider', () => {
         stdout: { ok: true },
       });
       expect(await provider.isAvailable()).toBe(true);
-      expect(invoke).toHaveBeenCalledWith('NamedPolicy#escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('NamedPolicy#escrow', 'v11', {
         request: { cmd: 'ping' },
       });
     });
@@ -177,7 +177,7 @@ describe('CubistEscrowProvider', () => {
         stdout: CHALLENGE,
       });
       expect(await provider.generateChallenge(TOKEN)).toStrictEqual(CHALLENGE);
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: { cmd: 'generateChallenge', authControllerToken: TOKEN },
       });
     });
@@ -215,7 +215,7 @@ describe('CubistEscrowProvider', () => {
       expect(
         await provider.applyMutation(MUTATION, TOKEN, [], PAYLOAD, APPROVED),
       ).toStrictEqual(receipt);
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: {
           cmd: 'applyMutation',
           mutation: MUTATION,
@@ -311,7 +311,7 @@ describe('CubistEscrowProvider', () => {
         ...secretResponse,
         recoverySecret: { ciphertext: new Uint8Array([0xcc]) },
       });
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: {
           cmd: 'getSecret',
           authControllerToken: TOKEN,
@@ -360,7 +360,7 @@ describe('CubistEscrowProvider', () => {
     it('invokes getIdentifiers and returns the enrolled identifiers', async () => {
       const { provider, invoke } = createProvider({ stdout: response });
       expect(await provider.getIdentifiers(TOKEN)).toStrictEqual(response);
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: { cmd: 'getIdentifiers', authControllerToken: TOKEN },
       });
     });
@@ -412,7 +412,7 @@ describe('CubistEscrowProvider', () => {
         receipt,
         version: MUTATION.newVersion,
       });
-      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v11', {
         request: {
           cmd: 'getMutationReceipt',
           authControllerToken: TOKEN,

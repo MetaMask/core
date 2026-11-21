@@ -281,7 +281,7 @@ authenticated `CubeSignerClient` and the pinned wrap and receipt public keys
 before `register`.
 
 `CubistEscrowProvider` sends every command with `policyInvoke` on the C2F
-(default `cubist_secret_escrow`, version `latest`) as `{ cmd, ...fields }`:
+(default `cubist_secret_escrow`, version `v11`) as `{ cmd, ...fields }`:
 `ping` (`isAvailable`), `generateChallenge`, `getIdentifiers`,
 `getMutationReceipt`, `getSecret`, and `applyMutation`. `generateChallenge`,
 `getIdentifiers`, and `getMutationReceipt` take the operation's
