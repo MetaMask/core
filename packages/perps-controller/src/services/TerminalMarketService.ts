@@ -589,18 +589,35 @@ export class TerminalMarketService {
     }
     const price = Number(market.markPrice);
     const change24h = Number(market.change24h);
-    const previousPrice = price - change24h;
-    if (price <= 0 || previousPrice <= 0 || !Number.isFinite(previousPrice)) {
-      throw invalid('mark/change coherence');
+    const { changePercent24h } = market;
+    if (price <= 0) {
+      throw invalid('markPrice');
     }
-    const derivedPercent = (change24h / previousPrice) * 100;
-    if (
-      !Number.isFinite(derivedPercent) ||
-      !Number.isFinite(market.changePercent24h) ||
-      Math.abs(market.changePercent24h - derivedPercent) >
-        GLOBAL_SNAPSHOT_PERCENT_TOLERANCE
-    ) {
-      throw invalid('changePercent24h coherence');
+    if (identity.provider === 'lighter') {
+      // Lighter measures daily change from its last trade. The snapshot has
+      // the mark price but omits the last trade price and rounds the delta.
+      if (
+        !Number.isFinite(changePercent24h) ||
+        changePercent24h <= -100 ||
+        (change24h !== 0 &&
+          Math.sign(change24h) !== Math.sign(changePercent24h))
+      ) {
+        throw invalid('changePercent24h coherence');
+      }
+    } else {
+      const previousPrice = price - change24h;
+      if (previousPrice <= 0 || !Number.isFinite(previousPrice)) {
+        throw invalid('mark/change coherence');
+      }
+      const derivedPercent = (change24h / previousPrice) * 100;
+      if (
+        !Number.isFinite(derivedPercent) ||
+        !Number.isFinite(changePercent24h) ||
+        Math.abs(changePercent24h - derivedPercent) >
+          GLOBAL_SNAPSHOT_PERCENT_TOLERANCE
+      ) {
+        throw invalid('changePercent24h coherence');
+      }
     }
     this.#validateRollingPair(
       market.change5m,

@@ -1610,6 +1610,52 @@ describe('TerminalMarketService', () => {
         });
       });
 
+      it('accepts live Lighter daily changes based on the last trade price', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([
+              createLighterMarket({
+                id: 'eth-lighter-testnet',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                markPrice: '1693.52',
+                price: '1693.52',
+                midPrice: null,
+                oraclePrice: '1693.52',
+                change24h: '45.13',
+                changePercent24h: 2.7217571707717174,
+              }),
+            ]),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot(lighterRequest);
+
+        expect(result.markets[0]).toMatchObject({
+          symbol: 'ETH',
+          providerId: 'lighter',
+          price: '$1693.52',
+          change24h: '+$45.13',
+          change24hPercent: '2.72%',
+        });
+      });
+
+      it.each([
+        { change24h: '1', changePercent24h: -0.25 },
+        { change24h: '-1', changePercent24h: -100 },
+        { change24h: '1', changePercent24h: 0 },
+      ])('rejects impossible Lighter daily changes %j', async (overrides) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([createLighterMarket(overrides)]),
+          ),
+        );
+
+        await expect(
+          service.fetchGlobalSnapshot(lighterRequest),
+        ).rejects.toThrow('changePercent24h coherence');
+      });
+
       it('leaves a Lighter market without a known category untyped', async () => {
         vi.spyOn(globalThis, 'fetch').mockResolvedValue(
           okJsonResponse(
