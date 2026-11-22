@@ -16,6 +16,9 @@ import {
   getFillAggregationKey,
   getOrderFillKey,
   getPositionDirection,
+  getPriceDeviationBand,
+  HYPERLIQUID_ORDER_LIMITS,
+  isPriceOutsideDeviationBand,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
@@ -127,5 +130,14 @@ describe('shared Perps helpers public API', () => {
       Danger: 0.75,
     });
     expect(getCrossMarginRatioTone(0.6)).toBe('warning');
+  });
+
+  it('exports the oracle price deviation limit and band check', () => {
+    expect(HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation).toBe(0.95);
+    expect(getPriceDeviationBand(100, 0.5)).toStrictEqual({
+      min: 50,
+      max: 200,
+    });
+    expect(isPriceOutsideDeviationBand(10, 100, 0.5)).toBe(true);
   });
 });

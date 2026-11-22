@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chase: property `FILL_PCT_AT_TERMINATE` and interactions `CHASE_CONCURRENCY_LIMIT_HIT`, `CHASE_MAX_DISTANCE_HIT`, `CHASE_REPRICE`
   - Close-all, chart and order-book interactions: `CLOSE_ALL_TAPPED`, `CLOSE_ALL_CONFIRMED`, `CLOSE_ALL_CANCELLED`, `CHART_OPENED`, `CHART_CLOSED`, `ORDER_BOOK_OPENED`, `ORDER_BOOK_CLOSED`
   - Related markets: properties `SOURCE_MARKET`, `MARKET`, `CATEGORY`, `POSITION`, source `RELATED_MARKETS` and interactions `RELATED_MARKET_CLICKED`, `RELATED_MARKETS_HEADER_TAPPED`
+- Add the oracle price deviation limit as a venue-reported order limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - New optional `PerpsOrderLimits.maxOraclePriceDeviation`; Hyperliquid reports `0.95` (also `HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation`) and Lighter omits it, so clients stop applying Hyperliquid's limit to other venues
+  - `getPriceDeviationBand(referencePrice, maxDeviation)` and `isPriceOutsideDeviationBand(price, referencePrice, maxDeviation)` match Mobile's limit-price check; a missing price never reads as outside the band
 
 ### Fixed
 

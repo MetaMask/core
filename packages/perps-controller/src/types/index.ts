@@ -2741,6 +2741,13 @@ export type PerpsOrderLimits = Readonly<{
     /** Minimum total TWAP value in USD. */
     minNotionalUsd: number;
   }>;
+  /**
+   * Furthest a limit price may sit from the oracle price, as a fraction
+   * (0.95 = 95%): a price is rejected when the lower of it and the oracle
+   * price is below `1 - maxOraclePriceDeviation` times the higher. Check it
+   * with `isPriceOutsideDeviationBand`.
+   */
+  maxOraclePriceDeviation?: number;
 }>;
 
 /**

@@ -129,6 +129,7 @@ const hyperLiquidMarketLimits = (
       maxDurationMinutes: 1440,
       minNotionalUsd: 100,
     },
+    maxOraclePriceDeviation: 0.95,
   },
 });
 
@@ -214,6 +215,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             maxDurationMinutes: 1440,
             minNotionalUsd: 100,
           },
+          maxOraclePriceDeviation: 0.95,
         },
       });
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');

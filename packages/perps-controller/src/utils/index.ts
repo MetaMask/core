@@ -88,6 +88,10 @@ export {
 export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
 export { getPositionDirection } from './positionCalculations.js';
+export {
+  getPriceDeviationBand,
+  isPriceOutsideDeviationBand,
+} from './priceDeviation.js';
 export { roundPerpsPrice } from './pricePrecision.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';
