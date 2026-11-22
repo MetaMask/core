@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getOrderFillKey(fill)`: the key to deduplicate REST and live fills on; the venue's `fillId` when reported, otherwise the `orderId-timestamp-size-price` content key Mobile and Extension use
   - `getFillAggregationKey(fill)`: the key that seeds which fills show as one trade, matching Mobile; closes, sells and auto-deleveraging group by market, direction and second, other fills by market, direction and order id
   - Both keys are prefixed with `providerId:` when the fill carries one, so two venues trading the same symbol never merge
+- Add `getPositionDirection(size)`, which reads `long` or `short` from a signed position size and returns `undefined` for a zero or unreadable size rather than defaulting to a side ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 
 ### Fixed
 

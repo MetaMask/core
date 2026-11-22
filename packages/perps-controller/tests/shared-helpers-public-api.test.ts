@@ -13,6 +13,7 @@ import {
   estimateOrderBookSlippage,
   getFillAggregationKey,
   getOrderFillKey,
+  getPositionDirection,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
@@ -112,5 +113,9 @@ describe('shared Perps helpers public API', () => {
 
     expect(getOrderFillKey(fill)).toBe('1-1000-1-2');
     expect(getFillAggregationKey(fill)).toBe('BTC-Open Long-order-1');
+  });
+
+  it('exports getPositionDirection', () => {
+    expect(getPositionDirection('-1')).toBe('short');
   });
 });
