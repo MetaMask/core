@@ -18,7 +18,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
  * it is false.
  */
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
@@ -324,14 +324,17 @@ function runNetSize(fills: Json[], coin: string): number {
 
 /**
  * Remove whatever an attempt the venue should have refused left behind. The
- * phase starts flat (`assertFlat`), so it cancels the run's own resting orders
- * and closes only the size its own fills opened, in the opposite direction.
+ * phase starts flat (`assertFlat`). Every order the venue acknowledged is
+ * followed to a final status within the fill deadline, open ones are
+ * cancelled, and only the size the run's own fills opened is closed, in the
+ * opposite direction.
  *
  * @param controller - The controller.
  * @param user - Wallet address.
  * @param coin - Venue coin name.
  * @param since - Phase start in ms.
- * @returns What was found and removed; `clean` is false if anything was left.
+ * @returns What was found and removed; `clean` is false if anything was left
+ * or an acknowledged order never reached a final status.
  */
 async function settleAttempt(
   controller: PerpsController,
@@ -339,15 +342,21 @@ async function settleAttempt(
   coin: string,
   since: number,
 ): Promise<Json> {
-  collectRunIds();
   const cancels: Json[] = [];
-  for (const orderId of await venueOrderIds(user, coin)) {
-    if (runOrderIds.has(orderId)) {
+  const cancelled = new Set<string>();
+  const { fills, orders, mismatched } = await reconcileOrders(
+    user,
+    since,
+    coin,
+    async (orderId) => {
+      if (cancelled.has(orderId)) {
+        return;
+      }
+      cancelled.add(orderId);
       const result = await controller.cancelOrder({ orderId, symbol: coin });
       cancels.push({ orderId, success: result.success, error: result.error });
-    }
-  }
-  const { fills } = await fillsFor(user, since, coin, filledOrderIds);
+    },
+  );
   const runNet = runNetSize(fills, coin);
   const size = await venueSize(user, coin);
   // Close only exposure the run's fills explain, never more and never against
@@ -362,18 +371,32 @@ async function settleAttempt(
         size: String(Math.abs(runNet)),
       })
     : undefined;
-  await sleep(3_000);
+  let leftSize = await venueSize(user, coin);
+  const deadline = Date.now() + 15_000;
+  if (close?.success === true) {
+    while (leftSize !== 0 && Date.now() < deadline) {
+      await sleep(3_000);
+      leftSize = await venueSize(user, coin);
+    }
+  }
+  collectRunIds();
   const leftOrders = (await venueOrderIds(user, coin)).filter((orderId) =>
     runOrderIds.has(orderId),
   );
-  const leftSize = await venueSize(user, coin);
   return {
-    executed: cancels.length > 0 || runNet !== 0 || size !== 0,
+    executed:
+      cancels.length > 0 ||
+      orders.some((order) => Number(order.executedSz) > 0) ||
+      runNet !== 0 ||
+      size !== 0,
     clean:
       cancels.every((cancel) => cancel.success === true) &&
+      mismatched.length === 0 &&
       close?.success !== false &&
       leftOrders.length === 0 &&
       leftSize === 0,
+    orders,
+    unresolved: mismatched,
     cancels,
     runNet,
     size,
@@ -381,6 +404,28 @@ async function settleAttempt(
     leftOrders,
     leftSize,
   };
+}
+
+/**
+ * Hold a per-wallet lock file for a signed phase, so two runs on this host
+ * never trade the same fixture wallet at once.
+ *
+ * @param user - Wallet address.
+ * @returns A release function.
+ */
+async function lockWallet(user: string): Promise<() => Promise<void>> {
+  const lockPath = resolve(
+    `temp/recipe/locks/hip3-permissioned-dex-${user.toLowerCase()}.lock`,
+  );
+  await mkdir(dirname(lockPath), { recursive: true });
+  const handle = await open(lockPath, 'wx').catch(() => {
+    throw new Error(
+      `${lockPath} exists: another signed run holds this wallet. Remove it only when no run is active.`,
+    );
+  });
+  await handle.writeFile(`${process.pid}\n`);
+  await handle.close();
+  return async () => unlink(lockPath);
 }
 
 /**
@@ -663,81 +708,74 @@ async function openPhase(
 }
 
 /**
- * Wait until the venue reports a fill for every expected order id.
- *
- * @param user - Wallet address.
- * @param since - Start time in ms.
- * @param coin - Venue coin name.
- * @param expected - Order ids the venue replied as filled.
- * @returns Fills on the market since `since` and the expected ids still missing.
- */
-async function fillsFor(
-  user: string,
-  since: number,
-  coin: string,
-  expected: Set<string>,
-): Promise<{ fills: Json[]; missing: string[] }> {
-  const deadline = Date.now() + FILL_WAIT_MS;
-  for (;;) {
-    const fills = (
-      await info<Json[]>({ type: 'userFillsByTime', user, startTime: since })
-    ).filter((fill) => fill.coin === coin);
-    const seen = new Set(fills.map((fill) => String(fill.oid)));
-    const missing = [...expected].filter((orderId) => !seen.has(orderId));
-    if (missing.length === 0 || Date.now() > deadline) {
-      return { fills, missing };
-    }
-    await sleep(3_000);
-  }
-}
-
-/**
- * Reconcile every run-owned order's filled quantity with the fill history.
- * The venue's order status gives `origSz - sz` as the executed size, which
- * covers orders that rested first and filled later.
+ * Reconcile every run-owned order on a market with the fill history. Each poll
+ * refreshes the status of orders not yet final, so a late status index does
+ * not cause a false timeout. The venue's `origSz - sz` is the executed size,
+ * which covers orders that rested first and filled later.
  *
  * @param user - Wallet address.
  * @param since - Phase start in ms.
+ * @param coin - Venue coin name.
+ * @param onOpen - Called for each run order still open on a poll.
  * @returns Market fills and one row per run order; `mismatched` lists rows
- * whose fills do not add up to the executed size or that are still open.
+ * whose fills do not add up to the executed size or that are not final.
  */
-async function reconcileFills(
+async function reconcileOrders(
   user: string,
   since: number,
+  coin: string,
+  onOpen?: (orderId: string) => Promise<void>,
 ): Promise<{ fills: Json[]; orders: Json[]; mismatched: Json[] }> {
-  collectRunIds();
-  const orders: { oid: string; status: string; executedSz: number }[] = [];
-  for (const oid of runOrderIds) {
-    const reply = await info<{
-      status: string;
-      order?: { status: string; order: Json };
-    }>({ type: 'orderStatus', user, oid: Number(oid) });
-    const order = reply.order?.order ?? {};
-    orders.push({
-      oid,
-      status: reply.order?.status ?? reply.status,
-      executedSz: Number((Number(order.origSz) - Number(order.sz)).toFixed(8)),
-    });
-  }
+  const pending = ['open', 'triggered', 'unknownOid'];
+  const rows = new Map<
+    string,
+    { oid: string; coin: unknown; status: string; executedSz: number }
+  >();
   const deadline = Date.now() + FILL_WAIT_MS;
   for (;;) {
+    collectRunIds();
+    for (const oid of runOrderIds) {
+      const known = rows.get(oid);
+      if (known && !pending.includes(known.status)) {
+        continue;
+      }
+      const reply = await info<{
+        status: string;
+        order?: { status: string; order: Json };
+      }>({ type: 'orderStatus', user, oid: Number(oid) });
+      const order = reply.order?.order ?? {};
+      const row = {
+        oid,
+        coin: order.coin,
+        status: reply.order?.status ?? reply.status,
+        executedSz: Number(
+          (Number(order.origSz) - Number(order.sz)).toFixed(8),
+        ),
+      };
+      rows.set(oid, row);
+      if (row.status === 'open' && row.coin === coin) {
+        await onOpen?.(oid);
+      }
+    }
     const fills = (
       await info<Json[]>({ type: 'userFillsByTime', user, startTime: since })
-    ).filter((fill) => fill.coin === symbol);
-    const rows = orders.map((order) => {
-      const filledSz = fills
-        .filter((fill) => String(fill.oid) === order.oid)
-        .reduce((sum, fill) => sum + Number(fill.sz), 0);
-      return { ...order, filledSz: Number(filledSz.toFixed(8)) };
-    });
-    const mismatched = rows.filter(
+    ).filter((fill) => fill.coin === coin);
+    const orders = [...rows.values()]
+      .filter((row) => row.coin === coin || row.coin === undefined)
+      .map((row) => {
+        const filledSz = fills
+          .filter((fill) => String(fill.oid) === row.oid)
+          .reduce((sum, fill) => sum + Number(fill.sz), 0);
+        return { ...row, filledSz: Number(filledSz.toFixed(8)) };
+      });
+    const mismatched = orders.filter(
       (row) =>
         !Number.isFinite(row.executedSz) ||
         row.filledSz !== row.executedSz ||
-        ['open', 'triggered', 'unknownOid'].includes(String(row.status)),
+        pending.includes(row.status),
     );
     if (mismatched.length === 0 || Date.now() > deadline) {
-      return { fills, orders: rows, mismatched };
+      return { fills, orders, mismatched };
     }
     await sleep(3_000);
   }
@@ -745,19 +783,22 @@ async function reconcileFills(
 
 /**
  * Register the TP/SL children of the run's last order placement. Their venue
- * reply is `waitingForTrigger` without an id, so each accepted child is matched
- * to a new trigger order at exactly the trigger price the run sent.
+ * reply is `waitingForTrigger` without an id, so they are taken from the book.
+ * That is only safe while the run has the market to itself: the phase started
+ * with no orders on it (`assertFlat`, under the wallet lock), and children are
+ * adopted only when the market's trigger orders are exactly the accepted
+ * children at the trigger prices the run sent. Anything else adopts nothing
+ * and is reported as `foreign`.
  *
  * @param user - Wallet address.
  * @param exchangeFrom - Exchange log index before the placement.
- * @param since - Placement start in ms.
- * @returns Accepted children and the order ids matched to them.
+ * @returns Accepted children, the order ids adopted for them, and any trigger
+ * orders that did not fit.
  */
 async function adoptTriggers(
   user: string,
   exchangeFrom: number,
-  since: number,
-): Promise<{ accepted: string[]; matched: Json[] }> {
+): Promise<{ accepted: string[]; matched: Json[]; foreign: Json[] }> {
   const placement = exchangeLog
     .slice(exchangeFrom)
     .find(({ action }) => action.type === 'order');
@@ -779,40 +820,45 @@ async function adoptTriggers(
         child.triggerPx !== undefined && child.status === 'waitingForTrigger',
     )
     .map((child) => child.triggerPx);
-  const matched: Json[] = [];
+  const wanted = accepted.map(Number).sort((a, b) => a - b);
+  let triggers: Json[] = [];
   const deadline = Date.now() + 15_000;
-  while (matched.length < accepted.length && Date.now() < deadline) {
-    const open = await info<Json[]>({
-      type: 'frontendOpenOrders',
-      user,
-      dex,
-    });
-    for (const triggerPx of accepted) {
-      if (matched.some((item) => item.sentTriggerPx === triggerPx)) {
-        continue;
+  for (;;) {
+    triggers = (
+      await info<Json[]>({ type: 'frontendOpenOrders', user, dex })
+    ).filter((item) => item.coin === symbol && item.isTrigger === true);
+    const prices = triggers
+      .map((item) => Number(item.triggerPx))
+      .sort((a, b) => a - b);
+    const exact =
+      prices.length === wanted.length &&
+      prices.every((price, index) => price === wanted[index]);
+    if (exact && wanted.length > 0) {
+      for (const item of triggers) {
+        runOrderIds.add(String(item.oid));
       }
-      const order = open.find(
-        (item) =>
-          item.coin === symbol &&
-          item.isTrigger === true &&
-          Number(item.timestamp) >= since &&
-          Number(item.triggerPx) === Number(triggerPx) &&
-          !runOrderIds.has(String(item.oid)),
-      );
-      if (order) {
-        runOrderIds.add(String(order.oid));
-        matched.push({
-          sentTriggerPx: triggerPx,
-          oid: order.oid,
-          orderType: order.orderType,
-        });
-      }
+      return {
+        accepted,
+        matched: triggers.map((item) => ({
+          oid: item.oid,
+          triggerPx: item.triggerPx,
+          orderType: item.orderType,
+        })),
+        foreign: [],
+      };
     }
-    if (matched.length < accepted.length) {
-      await sleep(2_000);
+    if (prices.length > wanted.length || Date.now() > deadline) {
+      return {
+        accepted,
+        matched: [],
+        foreign: triggers.map((item) => ({
+          oid: item.oid,
+          triggerPx: item.triggerPx,
+        })),
+      };
     }
+    await sleep(2_000);
   }
-  return { accepted, matched };
 }
 
 /**
@@ -936,7 +982,6 @@ async function tradePhase(
   await step(steps, 'open-with-tpsl', async () => {
     const mid = await midPrice(symbol);
     const exchangeFrom = exchangeLog.length;
-    const placedAt = Date.now();
     const result = await controller.placeOrder(
       await orderParams(symbol, true, {
         takeProfitPrice: String(Math.round(mid * 1.5)),
@@ -945,7 +990,7 @@ async function tradePhase(
     );
     // Register accepted children before any check can fail, so cleanup owns
     // them whatever happens next.
-    const triggers = await adoptTriggers(user, exchangeFrom, placedAt);
+    const triggers = await adoptTriggers(user, exchangeFrom);
     succeeded(result);
     assert(
       triggers.accepted.length === 2 &&
@@ -1083,7 +1128,7 @@ async function tradePhase(
     fills: marketFills,
     orders: runOrders,
     mismatched: mismatchedOrders,
-  } = await reconcileFills(user, start);
+  } = await reconcileOrders(user, start, symbol);
   const seenOrderIds = new Set(marketFills.map((fill) => String(fill.oid)));
   const missingFills = [...filledOrderIds].filter(
     (orderId) => !seenOrderIds.has(orderId),
@@ -1227,6 +1272,7 @@ async function isolationPhase(user: string): Promise<Json> {
 const outPath = resolve(String(values.out));
 let report: Json;
 let controller: PerpsController | undefined;
+let release: (() => Promise<void>) | undefined;
 try {
   const phase = String(values.phase);
   if (phase === 'reads') {
@@ -1240,6 +1286,9 @@ try {
     controller = live;
     await live.init();
     const user = signer.address;
+    if (['open', 'trade', 'global-order'].includes(phase)) {
+      release = await lockWallet(user);
+    }
     const run = {
       markets: async (): Promise<Json> => marketsPhase(live),
       open: async (): Promise<Json> => openPhase(live, user),
@@ -1257,6 +1306,7 @@ try {
   };
 } finally {
   await controller?.disconnect();
+  await release?.();
   globalThis.fetch = realFetch;
 }
 report = {
