@@ -603,7 +603,7 @@ describe('TerminalMarketService', () => {
       );
     });
 
-    it('keeps main first when canonicalizing requested DEXes', async () => {
+    it('sorts requested DEXes as the backend canonicalizes them', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: false,
         status: 503,
@@ -619,10 +619,88 @@ describe('TerminalMarketService', () => {
       ).rejects.toThrow('Terminal global snapshot returned 503');
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.test-api.cx.metamask.io/v4/perpetuals?provider=hyperliquid&network=mainnet&dexes=main%2Cflx',
+        'https://terminal.test-api.cx.metamask.io/v4/perpetuals?provider=hyperliquid&network=mainnet&dexes=flx%2Cmain',
         expect.objectContaining({ method: 'GET' }),
       );
     });
+
+    it('accepts a DEX set without main', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            network: 'testnet',
+            enabledDexes: ['ignp'],
+            fingerprint:
+              'sha256:1fea1ee60ef653237f7484bbeabf2e03fba90ad7f4acb7e62c34d804d25a4e5b',
+            markets: [
+              createSnapshotMarket({
+                id: 'ignp:aapl-hyperliquid-testnet',
+                symbol: 'ignp:AAPL',
+                network: 'testnet',
+                dex: 'ignp',
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'testnet',
+        enabledDexes: ['ignp'],
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('network=testnet&dexes=ignp'),
+        expect.anything(),
+      );
+      expect(result.markets.map((market) => market.symbol)).toStrictEqual([
+        'ignp:AAPL',
+      ]);
+    });
+
+    it.each([[['ignp', 'main']], [['main', 'ignp']]])(
+      'accepts the %j DEX set in the backend order',
+      async (enabledDexes) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createGlobalSnapshot({
+              network: 'testnet',
+              enabledDexes: ['ignp', 'main'],
+              fingerprint:
+                'sha256:3ef43ef0f131b9371dd7573a789a59d693e75a2e7e8a249709727ba8d3672b2f',
+              markets: [
+                createSnapshotMarket({
+                  id: 'ignp:aapl-hyperliquid-testnet',
+                  symbol: 'ignp:AAPL',
+                  network: 'testnet',
+                  dex: 'ignp',
+                }),
+                createSnapshotMarket({
+                  id: 'btc-hyperliquid-testnet',
+                  network: 'testnet',
+                }),
+              ],
+            }),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'testnet',
+          enabledDexes,
+        });
+
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('dexes=ignp%2Cmain'),
+          expect.anything(),
+        );
+        expect(result.markets.map((market) => market.symbol)).toStrictEqual([
+          'ignp:AAPL',
+          'BTC',
+        ]);
+      },
+    );
 
     it('maps a snapshot with unknown envelope and market fields', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(

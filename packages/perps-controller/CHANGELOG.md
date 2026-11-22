@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
+- Add `perpsAccess` controller state: venue access for the selected wallet, resolved from the backend access policy (`GET /v1/perps/access-policy`) while the `perpsAccessEnabled` remote flag is on, and `null` while it is off ([#11700](https://github.com/MetaMask/core/pull/11700))
+  - The policy is fetched on start and network switch, cached on disk per network and refreshed at most hourly. Without a policy younger than its `ttlSeconds`, the controller falls back to `GeolocationController` and the blocked-region list: an allowed region keeps today's venues, a blocked or unknown region gets every venue as `view`
+  - Program enrollment comes from the venue provider's `getEnrollment`: approved wallets get the program's venues, reduce-only wallets get them as `view`, and wallets holding positions on a program venue without an approved state get those venues as `view`
+  - Only providers with a venue are created; a provider without `setAccess` is created only when all its venues are listed and tradable, and providers are rebuilt when the set changes. `switchProvider` to an excluded provider fails with `not permitted by perps access`
+  - Markets from venues that are not listed are dropped from `getMarkets`, `getMarketDataWithPrices` and cached market data, and the global snapshot is requested with the listed HyperLiquid venues as `dexes`
+  - `isEligible` is derived from `perpsAccess` (any `trade` venue) while the flag is on
+- Add types `PerpsAccess`, `PerpsAccessPolicy`, `PerpsProgram`, `PerpsVenueAccess`, `PerpsVenueAccessLevel` and `PerpsEnrollment`, and optional `setAccess` and `getEnrollment` members on `PerpsProvider` ([#11700](https://github.com/MetaMask/core/pull/11700))
+- Add optional `terminalApi.accessPolicyUrl` to `PerpsPlatformDependencies` ([#11700](https://github.com/MetaMask/core/pull/11700))
 
 ### Fixed
 
