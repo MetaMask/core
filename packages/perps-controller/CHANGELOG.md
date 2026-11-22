@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both keys are prefixed with `providerId:` when the fill carries one, so two venues trading the same symbol never merge
 - Add `getPositionDirection(size)`, which reads `long` or `short` from a signed position size and returns `undefined` for a zero or unreadable size rather than defaulting to a side ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Add `CROSS_MARGIN_RATIO_THRESHOLDS` (`Warning: 0.5`, `Danger: 0.75`) and `getCrossMarginRatioTone(ratio)`, which rates `PerpsAccountSummary.accountRatio` as `safe`, `warning` or `danger` (type `CrossMarginRatioTone`) the way Mobile does, or `undefined` for a missing ratio ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add the analytics keys Mobile, Extension and Terminal defined locally to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE`, with the same strings; existing keys are unchanged ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Search funnel properties: `QUERY_COUNT`, `TIME_IN_SEARCH_MS`, `TIME_TO_TAP_MS`, `QUERY_TEXT`, `QUERY_LENGTH`, `HAS_RESULTS`, `ACTIVE_CHIPS`
+  - Chase: property `FILL_PCT_AT_TERMINATE` and interactions `CHASE_CONCURRENCY_LIMIT_HIT`, `CHASE_MAX_DISTANCE_HIT`, `CHASE_REPRICE`
+  - Close-all, chart and order-book interactions: `CLOSE_ALL_TAPPED`, `CLOSE_ALL_CONFIRMED`, `CLOSE_ALL_CANCELLED`, `CHART_OPENED`, `CHART_CLOSED`, `ORDER_BOOK_OPENED`, `ORDER_BOOK_CLOSED`
+  - Related markets: properties `SOURCE_MARKET`, `MARKET`, `CATEGORY`, `POSITION`, source `RELATED_MARKETS` and interactions `RELATED_MARKET_CLICKED`, `RELATED_MARKETS_HEADER_TAPPED`
 
 ### Fixed
 
