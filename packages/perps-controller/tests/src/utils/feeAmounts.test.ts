@@ -51,6 +51,14 @@ describe('calculateFeeNotionalUsd', () => {
     expect(
       calculateFeeNotionalUsd({ size: 2, price: ['', ''] }),
     ).toBeUndefined();
+    // A lone decimal point is an unset draft; '1.2.3' is malformed.
+    expect(calculateFeeNotionalUsd({ size: 2, price: ['.', 1500] })).toBe(3000);
+    expect(
+      calculateFeeNotionalUsd({ size: 2, price: ['.', ''] }),
+    ).toBeUndefined();
+    expect(
+      calculateFeeNotionalUsd({ size: 2, price: ['1.2.3', 1500] }),
+    ).toBeUndefined();
   });
 
   it.each([

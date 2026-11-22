@@ -48,17 +48,17 @@ For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `sup
 
 ## Order, fee and position helpers
 
-| Helper                                                                                | Use it for                                                                                                            |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `calculateCloseSize`                                                                  | Size to close for a percent or USD amount, on the venue's size grid; a full close returns the exact position size     |
-| `calculateFeeNotionalUsd`, `getUndiscountedFeeRate`, `calculateUndiscountedFeeAmount` | Fee notional (a TP/SL pair uses its higher trigger price) and the fee before a MetaMask discount                      |
-| `isTriggerPriceOnValidSide`                                                           | Whether a stop or take-profit price sits on the side its order fires from                                             |
-| `getOrderFillKey`, `getFillAggregationKey`                                            | Deduplicating REST and live fills, and grouping fills into one trade                                                  |
-| `getPositionDirection`                                                                | `long` / `short` from a signed size; `undefined` for zero                                                             |
-| `normalizeHyperLiquidScalePriceLadder`, `sizeHyperLiquidScaleLadder`                  | A Hyperliquid scale ladder: grid prices, and rung sizes that meet a USD target (Mobile's rule) or split an exact size |
-| `recomputePositionAtPrice`                                                            | PnL, value and return on equity at a live price between account updates                                               |
-| `CROSS_MARGIN_RATIO_THRESHOLDS`, `getCrossMarginRatioTone`                            | Warning and danger levels for `accountRatio`                                                                          |
-| `buildProviderCacheKey`                                                               | The `provider:network` key the controller caches per-venue data under                                                 |
+| Helper                                                                                | Use it for                                                                                                                    |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `calculateCloseSize`                                                                  | Size to close for a percent or USD amount, on the venue's size grid; a full close returns the exact position size             |
+| `calculateFeeNotionalUsd`, `getUndiscountedFeeRate`, `calculateUndiscountedFeeAmount` | Fee notional (a TP/SL pair uses its higher trigger price) and the fee before a MetaMask discount                              |
+| `isTriggerPriceOnValidSide`                                                           | Whether a stop or take-profit price sits on the side its order fires from                                                     |
+| `getOrderFillKey`, `getFillAggregationKey`                                            | Deduplicating REST and live fills, and grouping fills into one trade                                                          |
+| `getPositionDirection`                                                                | `long` / `short` from a signed size; `undefined` for zero                                                                     |
+| `normalizeHyperLiquidScalePriceLadder`, `sizeHyperLiquidScaleLadder`                  | A Hyperliquid scale ladder: grid prices, and rung sizes that meet a USD target (Mobile's rule) or split an exact on-grid size |
+| `recomputePositionAtPrice`                                                            | PnL, value and return on equity at a live price between account updates                                                       |
+| `CROSS_MARGIN_RATIO_THRESHOLDS`, `getCrossMarginRatioTone`                            | Warning and danger levels for `accountRatio`                                                                                  |
+| `buildProviderCacheKey`                                                               | The `provider:network` key the controller caches per-venue data under                                                         |
 
 A missing or unreadable number gives `undefined` rather than 0: the whole result for the scalar helpers, the affected fields for `estimateOrderBookSlippage`, and the position unchanged for `recomputePositionAtPrice`. `isPriceOutsideDeviationBand` fails open instead: it returns `false` for unusable input so an unknown price never blocks an order.
 

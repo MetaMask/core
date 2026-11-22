@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Keeps the venue's `returnOnEquity` while leverage is unreported instead of assuming 1x; returns the position unchanged for an unusable price, entry price or size
 - Add `normalizeHyperLiquidScalePriceLadder` and `sizeHyperLiquidScaleLadder`, the Hyperliquid scale ladder Mobile's Pro order form builds locally ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - `normalizeHyperLiquidScalePriceLadder({ minPrice, maxPrice, count, szDecimals })` returns the rung prices on Hyperliquid's grid, the same prices `getScalePriceLadder` and Hyperliquid placement use
-  - `sizeHyperLiquidScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` matches Mobile's sizing: an exact size is split as given; a USD amount is a target the ladder meets, starting from the amount over the skew-weighted average price rounded up and searching upward when the rungs fall short. Unlike `sizeScaleLadder`, the result can exceed the USD amount slightly
+  - `sizeHyperLiquidScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` matches Mobile's sizing. An exact size must be on the size grid (otherwise `ORDER_SCALE_SIZE_CONSERVATION_FAILED`) and is split as given. A USD amount is a target the ladder meets, starting from the amount over the skew-weighted average price rounded up and searching upward when the rungs fall short. When that first guess starves a skewed rung, the smallest smaller total that splits and reaches the target is used, where Mobile fails. Unlike `sizeScaleLadder`, the result can exceed the USD amount slightly; `totalSize` is always the sum of the rungs
 
 ### Fixed
 

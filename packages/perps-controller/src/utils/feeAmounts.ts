@@ -12,7 +12,7 @@ export type FeeNotionalParams = (
       /**
        * Price the size is valued at. For a take-profit and stop-loss pair,
        * pass both trigger prices: the higher one sets the notional, and a
-       * blank (`''`) leg counts as unset.
+       * blank (`''`) or lone `.` leg counts as unset.
        */
       price: number | string | readonly [number | string, number | string];
     }
@@ -39,8 +39,20 @@ function toNumber(value: number | string): number {
 }
 
 /**
- * Higher price of a TP/SL pair. A blank leg (`''`) is an unset trigger and is
- * skipped, as Extension's edit dialog sends it; a malformed leg is not.
+ * Whether an edited price field is still unset: empty, or a lone decimal
+ * point while the user types, as Extension's edit dialog sends them.
+ *
+ * @param price - The field value.
+ * @returns True for an unset field.
+ */
+function isUnsetDraft(price: string): boolean {
+  const normalized = price.replace(/[$,]/gu, '').trim();
+  return normalized === '' || normalized === '.';
+}
+
+/**
+ * Higher price of a TP/SL pair. An unset leg (`''` or a lone `.`) is skipped,
+ * as Extension's edit dialog sends it; a malformed leg is not.
  *
  * @param prices - Take-profit and stop-loss trigger prices.
  * @returns The higher set price, or NaN when no leg is set or one is malformed.
@@ -49,7 +61,7 @@ function higherTriggerPrice(
   prices: readonly [number | string, number | string],
 ): number {
   const set = prices.filter(
-    (price) => typeof price === 'number' || price.trim() !== '',
+    (price) => typeof price === 'number' || !isUnsetDraft(price),
   );
   return set.length === 0 ? Number.NaN : Math.max(...set.map(toNumber));
 }

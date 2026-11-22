@@ -78,6 +78,34 @@ describe('sizeHyperLiquidScaleLadder', () => {
     });
   });
 
+  it('rejects an exact size off the size grid', () => {
+    // Splitting 3.6 at 0 decimals would place 4 units while reporting 3.6.
+    expect(() =>
+      sizeHyperLiquidScaleLadder({
+        prices: ['100', '200', '300'],
+        sizeDecimals: 0,
+        size: '3.6',
+      }),
+    ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
+  });
+
+  it('finds the smallest splittable total when the first guess starves a rung', () => {
+    // The first guess, 5 units, splits 3 / 2 / 0. Four units split 2 / 1 / 1
+    // and reach the target; three cannot be split.
+    expect(
+      sizeHyperLiquidScaleLadder({
+        prices: ['100', '200', '300'],
+        sizeDecimals: 0,
+        skew: 0.2,
+        usdAmount: '650',
+      }),
+    ).toStrictEqual({
+      sizes: ['2', '1', '1'],
+      totalSize: '4',
+      totalNotional: '700',
+    });
+  });
+
   it('rejects a target too small to give every rung a size step', () => {
     expect(() =>
       sizeHyperLiquidScaleLadder({
