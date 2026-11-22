@@ -616,6 +616,7 @@ export {
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
   PERPS_DISPLAY_PRECISION,
+  buildProviderCacheKey,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
 

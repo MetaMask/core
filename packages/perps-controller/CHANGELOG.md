@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
+- Export `buildProviderCacheKey(providerId, isTestnet)`, the `provider:network` key the controller caches per-venue data under, so clients key their caches the same way ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 
 ### Fixed
 
