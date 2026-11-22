@@ -247,6 +247,7 @@ import {
   previewHyperLiquidIsolatedPositionModify,
   resolveHyperLiquidMarginTiers,
 } from '../utils/hyperLiquidPositionPreview.js';
+import { normalizeHyperLiquidScalePriceLadder } from '../utils/hyperLiquidScaleOrders.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -271,7 +272,6 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   computeChaseQuotePrice,
-  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
   getPriceTick,
@@ -1568,22 +1568,6 @@ const adaptTwapOrderFill = (
   timestamp: entry.fill.time,
   transactionHash: entry.fill.hash,
 });
-
-const normalizeHyperLiquidScalePriceLadder = (params: {
-  minPrice: number;
-  maxPrice: number;
-  count: number;
-  szDecimals: number;
-}): string[] => {
-  const { szDecimals, ...ladderParams } = params;
-  const prices = computeScalePriceLadder(ladderParams).map((price) =>
-    formatHyperLiquidPrice({ price, szDecimals }),
-  );
-  if (new Set(prices).size !== prices.length) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-  }
-  return prices;
-};
 
 /**
  * Build a normalized readiness failure without exposing venue text.

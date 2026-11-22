@@ -78,6 +78,10 @@ export type {
   OrderBookSlippageParams,
 } from './orderBookSlippage.js';
 export * from './orderCalculations.js';
+export {
+  normalizeHyperLiquidScalePriceLadder,
+  sizeHyperLiquidScaleLadder,
+} from './hyperLiquidScaleOrders.js';
 export { getFillAggregationKey, getOrderFillKey } from './orderFills.js';
 export * from './orderTypes.js';
 export {

@@ -930,6 +930,8 @@ export {
   checkChasePlacement,
   mergeChaseOrderHistory,
   sizeScaleLadder,
+  normalizeHyperLiquidScalePriceLadder,
+  sizeHyperLiquidScaleLadder,
   validateScaleOrder,
   classifyScalePriceWarnings,
   createLiveTwapOrderList,

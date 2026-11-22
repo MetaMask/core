@@ -22,9 +22,11 @@ import {
   recomputePositionAtPrice,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
+  normalizeHyperLiquidScalePriceLadder,
   ORDER_BOOK_GROUPING_CONFIG,
   roundPerpsPrice,
   selectDefaultOrderBookGrouping,
+  sizeHyperLiquidScaleLadder,
 } from '../src/index.js';
 
 describe('shared Perps helpers public API', () => {
@@ -163,5 +165,20 @@ describe('shared Perps helpers public API', () => {
       positionValue: '110',
       returnOnEquity: '0.2',
     });
+  });
+
+  it('exports the Hyperliquid scale ladder helpers', () => {
+    const prices = normalizeHyperLiquidScalePriceLadder({
+      minPrice: 95,
+      maxPrice: 105,
+      count: 3,
+      szDecimals: 2,
+    });
+
+    expect(prices).toStrictEqual(['95', '100', '105']);
+    expect(
+      sizeHyperLiquidScaleLadder({ prices, sizeDecimals: 2, usdAmount: '100' })
+        .totalSize,
+    ).toBe('1.01');
   });
 });
