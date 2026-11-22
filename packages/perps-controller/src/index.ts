@@ -710,6 +710,7 @@ export {
   isLimitExecutionOrderType,
   getTriggerExecution,
   getTriggerDirection,
+  isTriggerPriceOnValidSide,
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
   computeScalePriceLadder,

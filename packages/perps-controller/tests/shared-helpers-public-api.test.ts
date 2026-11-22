@@ -11,6 +11,7 @@ import {
   calculateOrderBookSpread,
   calculateUndiscountedFeeAmount,
   getUndiscountedFeeRate,
+  isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
   roundPerpsPrice,
   selectDefaultOrderBookGrouping,
@@ -73,5 +74,16 @@ describe('shared Perps helpers public API', () => {
     expect(calculateUndiscountedFeeAmount({ notionalUsd, feeResult })).toBe(
       1.45,
     );
+  });
+
+  it('exports isTriggerPriceOnValidSide', () => {
+    expect(
+      isTriggerPriceOnValidSide({
+        orderType: 'take_profit_market',
+        isBuy: false,
+        triggerPrice: 110,
+        referencePrice: 100,
+      }),
+    ).toBe(true);
   });
 });

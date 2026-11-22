@@ -6,6 +6,7 @@ import type {
   TriggerDirection,
   TriggerOrderType,
 } from '../types/perps-types.js';
+import { isAboveReference } from './tpslCalculations.js';
 
 /**
  * All trigger placement types, in a stable order suitable for iteration
@@ -137,6 +138,45 @@ export function getTriggerDirection(
   return orderType === 'stop_market' || orderType === 'stop_limit'
     ? 'stop'
     : 'take_profit';
+}
+
+/**
+ * Whether a trigger price sits on the side its order fires from. A buy stop
+ * and a sell take profit fire as the price rises, so they trigger above the
+ * reference price; a buy take profit and a sell stop trigger below it. A
+ * trigger at the reference price is on neither side.
+ *
+ * @param params - Trigger parameters.
+ * @param params.orderType - Trigger order type.
+ * @param params.isBuy - Side of the trigger order itself (a buy closes a short).
+ * @param params.triggerPrice - Price at which the order activates.
+ * @param params.referencePrice - Current price, or the parent's price for an
+ * attached trigger.
+ * @returns Whether the trigger is on its side, or undefined when either price
+ * is missing or not a positive number.
+ */
+export function isTriggerPriceOnValidSide(params: {
+  orderType: TriggerOrderType;
+  isBuy: boolean;
+  triggerPrice: number | string | undefined;
+  referencePrice: number | string | undefined;
+}): boolean | undefined {
+  const trigger = Number.parseFloat(String(params.triggerPrice));
+  const reference = Number.parseFloat(String(params.referencePrice));
+  if (
+    !Number.isFinite(trigger) ||
+    !Number.isFinite(reference) ||
+    trigger <= 0 ||
+    reference <= 0
+  ) {
+    return undefined;
+  }
+  // A buy trigger closes a short, a sell trigger closes a long.
+  const firesAbove = isAboveReference(
+    params.isBuy ? 'short' : 'long',
+    getTriggerDirection(params.orderType) === 'take_profit',
+  );
+  return firesAbove ? trigger > reference : trigger < reference;
 }
 
 /**
