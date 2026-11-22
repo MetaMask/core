@@ -214,8 +214,8 @@ export type TradeAction =
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
 export type TrackingData = {
   // Common to all operations
-  totalFee: number; // Total fee for the operation (parsed by hooks)
-  marketPrice: number; // Market price at operation time (parsed by hooks)
+  totalFee?: number; // Total fee for the operation (parsed by hooks); omit when unknown
+  marketPrice?: number; // Market price at operation time (parsed by hooks); omit when unknown
   metamaskFee?: number; // MetaMask fee amount (parsed by hooks)
   metamaskFeeRate?: number; // MetaMask fee rate (parsed by hooks)
   feeDiscountPercentage?: number; // Fee discount percentage (parsed by hooks)

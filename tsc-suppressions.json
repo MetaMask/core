@@ -823,9 +823,6 @@
   "packages/perps-controller/tests/src/services/TradingService.test.ts": {
     "TS2339": {
       "count": 3
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidOrderBookProcessor.test.ts": {

@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `normalizeHyperLiquidScalePriceLadder({ minPrice, maxPrice, count, szDecimals })` returns the rung prices on Hyperliquid's grid, the same prices `getScalePriceLadder` and Hyperliquid placement use
   - `sizeHyperLiquidScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` matches Mobile's sizing. An exact size must be on the size grid and its rungs must add up to it exactly, otherwise `ORDER_SCALE_SIZE_CONSERVATION_FAILED` (a very large size can lose a step in the float split). A USD amount is a target the ladder meets, starting from the amount over the skew-weighted average price rounded up and searching upward when the rungs fall short. When that first guess starves a skewed rung, the smallest smaller total (within 10,000 size steps) that splits and reaches the target is used, where Mobile fails; a first guess past the safe-integer range fails at once. Unlike `sizeScaleLadder`, the result can exceed the USD amount slightly; `totalSize` is always the sum of the rungs
 
+### Changed
+
+- Make `TrackingData.totalFee` and `TrackingData.marketPrice` optional, so clients can send tracking data when the fee or price is unknown instead of dropping the whole object; events omit the fee and asset price properties when they are missing ([#11699](https://github.com/MetaMask/core/pull/11699))
+
 ### Fixed
 
 - Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins ([#11676](https://github.com/MetaMask/core/pull/11676))
