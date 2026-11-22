@@ -70,6 +70,19 @@ describe('roundPerpsPrice', () => {
     ).toBeUndefined();
   });
 
+  it('reads a fixed_decimals price from its string on both sides of a half tick', () => {
+    const pricePrecision = {
+      type: 'fixed_decimals',
+      decimals: 2,
+      tickSize: '0.01',
+    } as const;
+    // As a float, 1.004999999999999999 is 1.005 and would round up.
+    expect(
+      roundPerpsPrice({ price: '1.004999999999999999', pricePrecision }),
+    ).toBe('1');
+    expect(roundPerpsPrice({ price: '1.005', pricePrecision })).toBe('1.01');
+  });
+
   it('rounds to a tick that is not a power of ten', () => {
     expect(
       roundPerpsPrice({

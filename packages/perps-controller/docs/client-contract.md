@@ -29,7 +29,7 @@ Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighte
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 
-Check a limit price against `maxOraclePriceDeviation` with `isPriceOutsideDeviationBand(price, oraclePrice, maxOraclePriceDeviation)`, or show the accepted range from `getPriceDeviationBand`. Skip the check when the venue omits the limit. Round a price onto the reported grid with `roundPerpsPrice({ price, pricePrecision })`: a HyperLiquid grid gives the same string as `formatHyperLiquidPrice`, and a Lighter grid rounds half up to `tickSize`.
+Check a limit price against `maxOraclePriceDeviation` with `isPriceOutsideDeviationBand(price, oraclePrice, maxOraclePriceDeviation)`, or show the accepted range from `getPriceDeviationBand`. Skip the check when the venue omits the limit. Round a price onto the reported grid with `roundPerpsPrice({ price, pricePrecision })`: a HyperLiquid grid gives the same string as `formatHyperLiquidPrice` except that a price rounding to zero returns `undefined` rather than `'0'`, and a Lighter grid rounds the supplied decimal string half up to `tickSize`.
 
 `attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) is the most take-profit and stop-loss legs one order can attach. HyperLiquid and Lighter both report one of each.
 
@@ -51,7 +51,7 @@ For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `sup
 | Helper                                                                                | Use it for                                                                                                        |
 | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `calculateCloseSize`                                                                  | Size to close for a percent or USD amount, on the venue's size grid; a full close returns the exact position size |
-| `calculateFeeNotionalUsd`, `getUndiscountedFeeRate`, `calculateUndiscountedFeeAmount` | Fee notional and the fee before a MetaMask discount                                                               |
+| `calculateFeeNotionalUsd`, `getUndiscountedFeeRate`, `calculateUndiscountedFeeAmount` | Fee notional (a TP/SL pair uses its higher trigger price) and the fee before a MetaMask discount                  |
 | `isTriggerPriceOnValidSide`                                                           | Whether a stop or take-profit price sits on the side its order fires from                                         |
 | `getOrderFillKey`, `getFillAggregationKey`                                            | Deduplicating REST and live fills, and grouping fills into one trade                                              |
 | `getPositionDirection`                                                                | `long` / `short` from a signed size; `undefined` for zero                                                         |
@@ -59,7 +59,7 @@ For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `sup
 | `CROSS_MARGIN_RATIO_THRESHOLDS`, `getCrossMarginRatioTone`                            | Warning and danger levels for `accountRatio`                                                                      |
 | `buildProviderCacheKey`                                                               | The `provider:network` key the controller caches per-venue data under                                             |
 
-Each returns `undefined` for a missing or unreadable number rather than 0.
+A missing or unreadable number gives `undefined` rather than 0: the whole result for the scalar helpers, the affected fields for `estimateOrderBookSlippage`, and the position unchanged for `recomputePositionAtPrice`.
 
 ## Cross-margin liquidation
 

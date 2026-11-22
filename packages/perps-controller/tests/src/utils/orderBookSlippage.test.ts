@@ -100,6 +100,40 @@ describe('estimateOrderBookSlippage', () => {
     ).toBeCloseTo(50, 9);
   });
 
+  it('fills an order that exactly matches the book depth', () => {
+    // 0.3 + 0.6 is just short of 0.9 in binary floats.
+    const asks = [level('100', '0.3'), level('101', '0.6')];
+    const exact = estimateOrderBookSlippage({
+      orderBook: { midPrice: '100', bids: [], asks },
+      isBuy: true,
+      size: '0.9',
+    });
+    expect(exact.canFill).toBe(true);
+    expect(exact.worstSlippageBps).toBeCloseTo(100, 9);
+
+    // A worse level behind exact depth is never reached.
+    const withWorse = estimateOrderBookSlippage({
+      orderBook: {
+        midPrice: '100',
+        bids: [],
+        asks: [...asks, level('110', '5')],
+      },
+      isBuy: true,
+      size: '0.9',
+    });
+    expect(withWorse.canFill).toBe(true);
+    expect(withWorse.worstSlippageBps).toBeCloseTo(100, 9);
+  });
+
+  it('returns a fresh result for each unusable input', () => {
+    const first = estimateOrderBookSlippage({ orderBook, isBuy: true });
+    first.canFill = true;
+
+    expect(
+      estimateOrderBookSlippage({ orderBook, isBuy: true }).canFill,
+    ).toBeUndefined();
+  });
+
   it('reports a size the book cannot hold', () => {
     expect(
       estimateOrderBookSlippage({ orderBook, isBuy: true, sizeUsd: 100000 }),

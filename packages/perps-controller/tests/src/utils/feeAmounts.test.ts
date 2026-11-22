@@ -31,9 +31,23 @@ describe('calculateFeeNotionalUsd', () => {
     );
   });
 
+  it('values a TP/SL pair at its higher trigger price', () => {
+    expect(calculateFeeNotionalUsd({ size: 2, price: ['1,200', 1500] })).toBe(
+      3000,
+    );
+    expect(calculateFeeNotionalUsd({ size: 2, price: [1800, '$1,500'] })).toBe(
+      3600,
+    );
+    expect(
+      calculateFeeNotionalUsd({ size: 2, price: [1500, 'abc'] }),
+    ).toBeUndefined();
+  });
+
   it.each([
     { usdAmount: '' },
     { usdAmount: 'abc' },
+    { usdAmount: '12oops' },
+    { size: 1, price: '100x' },
     { size: 'x', price: 100 },
     { size: 1, price: '' },
     { usdAmount: 100, closePercent: Number.NaN },

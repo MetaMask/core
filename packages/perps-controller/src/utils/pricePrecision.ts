@@ -36,7 +36,13 @@ export function roundPerpsPrice(params: {
     if (!tick.isFinite() || tick.lte(0)) {
       return undefined;
     }
-    rounded = new BigNumber(priceNum)
+    // Read the caller's decimal string, not its float: 1.004999999999999999
+    // would otherwise become 1.005 and round up.
+    const exact = new BigNumber(String(price).trim());
+    if (!exact.isFinite() || exact.lte(0)) {
+      return undefined;
+    }
+    rounded = exact
       .dividedBy(tick)
       .integerValue(BigNumber.ROUND_HALF_UP)
       .multipliedBy(tick)

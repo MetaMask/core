@@ -1,5 +1,4 @@
 import type { FeeCalculationResult } from '../types/index.js';
-import { parseFormattedPrice } from './stringParseUtils.js';
 
 /** Inputs to {@link calculateFeeNotionalUsd}. */
 export type FeeNotionalParams = (
@@ -10,8 +9,11 @@ export type FeeNotionalParams = (
   | {
       /** Size in base units; the sign is ignored. */
       size: number | string;
-      /** Price the size is valued at. */
-      price: number | string;
+      /**
+       * Price the size is valued at. For a take-profit and stop-loss pair,
+       * pass both trigger prices: the higher one sets the notional.
+       */
+      price: number | string | readonly [number | string, number | string];
     }
 ) & {
   /** Percent of the notional the order covers, such as a partial close. Defaults to 100. */
@@ -20,16 +22,29 @@ export type FeeNotionalParams = (
   multiplier?: number;
 };
 
+/**
+ * Read an amount, allowing `$`, `,` and surrounding spaces. A string that is
+ * not wholly a number, such as `12oops`, reads as NaN.
+ *
+ * @param value - The amount.
+ * @returns The number, or NaN when it is empty or malformed.
+ */
 function toNumber(value: number | string): number {
-  return typeof value === 'number' ? value : parseFormattedPrice(value);
+  if (typeof value === 'number') {
+    return value;
+  }
+  const normalized = value.replace(/[$,]/gu, '').trim();
+  return normalized === '' ? Number.NaN : Number(normalized);
 }
 
 /**
  * USD notional a fee is charged on: the absolute order value, or size times
- * price, scaled by `closePercent` and `multiplier`.
+ * price (the higher trigger price of a TP/SL pair), scaled by `closePercent`
+ * and `multiplier`.
  *
  * @param params - See {@link FeeNotionalParams}. Strings may carry `$` or `,`.
- * @returns The notional, or undefined when an input is missing or not a number.
+ * @returns The notional, or undefined when an input is empty, malformed or
+ * not finite.
  */
 export function calculateFeeNotionalUsd(
   params: FeeNotionalParams,
@@ -38,7 +53,10 @@ export function calculateFeeNotionalUsd(
   const notional =
     'usdAmount' in params
       ? Math.abs(toNumber(params.usdAmount))
-      : Math.abs(toNumber(params.size)) * toNumber(params.price);
+      : Math.abs(toNumber(params.size)) *
+        (typeof params.price === 'object'
+          ? Math.max(...params.price.map(toNumber))
+          : toNumber(params.price));
   const scaled = notional * (closePercent / 100) * multiplier;
   return Number.isFinite(scaled) ? scaled : undefined;
 }

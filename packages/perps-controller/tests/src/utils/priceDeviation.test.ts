@@ -35,6 +35,19 @@ describe('isPriceOutsideDeviationBand', () => {
     expect(isPriceOutsideDeviationBand(price, 2000, 0.95)).toBe(expected);
   });
 
+  it('keeps both exact bounds inside the band', () => {
+    // 1 - 0.95 is just above 0.05 in binary floats.
+    expect(isPriceOutsideDeviationBand(100, 2000, 0.95)).toBe(false);
+    expect(isPriceOutsideDeviationBand(40000, 2000, 0.95)).toBe(false);
+    expect(isPriceOutsideDeviationBand(99.99, 2000, 0.95)).toBe(true);
+    expect(isPriceOutsideDeviationBand(40000.01, 2000, 0.95)).toBe(true);
+  });
+
+  it('never blocks on an unusable limit', () => {
+    expect(isPriceOutsideDeviationBand(1, 2000, 1)).toBe(false);
+    expect(isPriceOutsideDeviationBand(1, 2000, Number.NaN)).toBe(false);
+  });
+
   it.each([
     [Number.NaN, 2000],
     [0, 2000],

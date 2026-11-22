@@ -1,3 +1,5 @@
+import { BigNumber } from 'bignumber.js';
+
 import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import type { OrderBookData } from '../types/index.js';
 
@@ -28,11 +30,13 @@ export type OrderBookSlippageEstimate = {
   canFill: boolean | undefined;
 };
 
-const UNKNOWN: OrderBookSlippageEstimate = {
-  estimatedSlippageBps: undefined,
-  worstSlippageBps: undefined,
-  canFill: undefined,
-};
+function unknownEstimate(): OrderBookSlippageEstimate {
+  return {
+    estimatedSlippageBps: undefined,
+    worstSlippageBps: undefined,
+    canFill: undefined,
+  };
+}
 
 /**
  * Slippage a market order would take by sweeping the visible book: the
@@ -49,44 +53,40 @@ export function estimateOrderBookSlippage(
   params: OrderBookSlippageParams,
 ): OrderBookSlippageEstimate {
   const { orderBook, isBuy } = params;
-  const reference = Number(params.referencePrice ?? orderBook.midPrice);
-  if (!Number.isFinite(reference) || reference <= 0) {
-    return UNKNOWN;
+  const reference = new BigNumber(params.referencePrice ?? orderBook.midPrice);
+  if (!reference.isFinite() || reference.lte(0)) {
+    return unknownEstimate();
   }
   const target =
     params.size === undefined
-      ? (params.sizeUsd ?? Number.NaN) / reference
-      : Math.abs(Number(params.size));
-  if (!Number.isFinite(target) || target <= 0) {
-    return UNKNOWN;
+      ? new BigNumber(params.sizeUsd ?? Number.NaN).dividedBy(reference)
+      : new BigNumber(params.size).abs();
+  if (!target.isFinite() || target.lte(0)) {
+    return unknownEstimate();
   }
 
-  let filled = 0;
-  let weightedPriceSum = 0;
-  let worstPrice: number | undefined;
+  // Exact decimals: binary floats leave 0.3 + 0.6 just short of 0.9.
+  let filled = new BigNumber(0);
+  let weightedPriceSum = new BigNumber(0);
+  let worstPrice: BigNumber | undefined;
   for (const level of isBuy ? orderBook.asks : orderBook.bids) {
-    const price = Number(level.price);
-    const size = Number(level.size);
-    if (
-      !Number.isFinite(price) ||
-      !Number.isFinite(size) ||
-      price <= 0 ||
-      size <= 0
-    ) {
+    const price = new BigNumber(level.price);
+    const size = new BigNumber(level.size);
+    if (!price.isFinite() || !size.isFinite() || price.lte(0) || size.lte(0)) {
       continue;
     }
     worstPrice = price;
-    const remaining = target - filled;
-    if (remaining <= size) {
-      weightedPriceSum += remaining * price;
-      filled += remaining;
+    const remaining = target.minus(filled);
+    if (remaining.lte(size)) {
+      weightedPriceSum = weightedPriceSum.plus(remaining.multipliedBy(price));
+      filled = target;
       break;
     }
-    weightedPriceSum += size * price;
-    filled += size;
+    weightedPriceSum = weightedPriceSum.plus(size.multipliedBy(price));
+    filled = filled.plus(size);
   }
 
-  if (worstPrice === undefined || filled < target) {
+  if (worstPrice === undefined || filled.lt(target)) {
     return {
       estimatedSlippageBps: undefined,
       worstSlippageBps: undefined,
@@ -95,13 +95,17 @@ export function estimateOrderBookSlippage(
   }
 
   const sign = isBuy ? 1 : -1;
-  const toBps = (price: number): number =>
+  const toBps = (price: BigNumber): number =>
     Math.max(
       0,
-      ((price - reference) / reference) * BASIS_POINTS_DIVISOR * sign,
+      price
+        .minus(reference)
+        .dividedBy(reference)
+        .multipliedBy(BASIS_POINTS_DIVISOR * sign)
+        .toNumber(),
     );
   return {
-    estimatedSlippageBps: toBps(weightedPriceSum / filled),
+    estimatedSlippageBps: toBps(weightedPriceSum.dividedBy(filled)),
     worstSlippageBps: toBps(worstPrice),
     canFill: true,
   };

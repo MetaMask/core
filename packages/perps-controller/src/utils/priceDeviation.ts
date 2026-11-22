@@ -1,3 +1,33 @@
+import { BigNumber } from 'bignumber.js';
+
+/**
+ * Band bounds in exact decimals, so `1 - 0.95` is exactly 0.05.
+ *
+ * @param referencePrice - Reference price.
+ * @param maxDeviation - Deviation limit as a fraction.
+ * @returns The bounds, or undefined when either input is unusable.
+ */
+function deviationBounds(
+  referencePrice: number,
+  maxDeviation: number,
+): { min: BigNumber; max: BigNumber } | undefined {
+  if (
+    !Number.isFinite(referencePrice) ||
+    referencePrice <= 0 ||
+    !Number.isFinite(maxDeviation) ||
+    maxDeviation <= 0 ||
+    maxDeviation >= 1
+  ) {
+    return undefined;
+  }
+  const reference = new BigNumber(referencePrice);
+  const ratio = new BigNumber(1).minus(maxDeviation);
+  return {
+    min: reference.multipliedBy(ratio),
+    max: reference.dividedBy(ratio),
+  };
+}
+
 /**
  * Prices a venue accepts around a reference price under a deviation limit
  * such as `PerpsOrderLimits.maxOraclePriceDeviation`: from `1 - maxDeviation`
@@ -11,45 +41,30 @@ export function getPriceDeviationBand(
   referencePrice: number,
   maxDeviation: number,
 ): { min: number; max: number } | undefined {
-  if (
-    !Number.isFinite(referencePrice) ||
-    referencePrice <= 0 ||
-    !Number.isFinite(maxDeviation) ||
-    maxDeviation <= 0 ||
-    maxDeviation >= 1
-  ) {
-    return undefined;
-  }
-  const ratio = 1 - maxDeviation;
-  return { min: ratio * referencePrice, max: referencePrice / ratio };
+  const bounds = deviationBounds(referencePrice, maxDeviation);
+  return bounds && { min: bounds.min.toNumber(), max: bounds.max.toNumber() };
 }
 
 /**
- * Whether a price is further from the reference price than a deviation limit
- * allows: the lower of the two is below `1 - maxDeviation` times the higher.
+ * Whether a price is outside the inclusive band {@link getPriceDeviationBand}
+ * returns: below `1 - maxDeviation` times the reference, or above the
+ * reference divided by it.
  *
  * @param price - Order price.
  * @param referencePrice - Oracle price, or the mark price when the oracle is unknown.
  * @param maxDeviation - Deviation limit as a fraction, such as
  * `PerpsOrderLimits.maxOraclePriceDeviation`.
- * @returns True when the price is outside the band; false when it is inside
- * or a price is missing, so unknown input never blocks an order.
+ * @returns True when the price is outside the band; false when it is inside,
+ * on a bound, or an input is missing, so unknown input never blocks an order.
  */
 export function isPriceOutsideDeviationBand(
   price: number,
   referencePrice: number,
   maxDeviation: number,
 ): boolean {
-  if (
-    !Number.isFinite(price) ||
-    !Number.isFinite(referencePrice) ||
-    price <= 0 ||
-    referencePrice <= 0
-  ) {
+  const bounds = deviationBounds(referencePrice, maxDeviation);
+  if (bounds === undefined || !Number.isFinite(price) || price <= 0) {
     return false;
   }
-  return (
-    Math.min(price, referencePrice) <
-    (1 - maxDeviation) * Math.max(price, referencePrice)
-  );
+  return bounds.min.gt(price) || bounds.max.lt(price);
 }

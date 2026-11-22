@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `calculateOrderBookAggregationParams(grouping, price)`: the `nSigFigs`/`mantissa` to subscribe a book at for a grouping width, typed `OrderBookAggregationParams`
   - `calculateOrderBookSpread({ bestBid, bestAsk })`: spread, mid price and spread percent in exact decimals, typed `OrderBookSpread`, or `undefined` when a side is missing
 - Add fee display helpers matching Extension's order, close and flip fees ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-  - `calculateFeeNotionalUsd`: the USD notional a fee is charged on, from a USD amount or size and price, scaled by an optional close percent and multiplier, typed `FeeNotionalParams`; `undefined` for a non-numeric input
+  - `calculateFeeNotionalUsd`: the USD notional a fee is charged on, from a USD amount or size and price, scaled by an optional close percent and multiplier, typed `FeeNotionalParams`. A take-profit and stop-loss pair passes both trigger prices and the higher one sets the notional, as in Extension. Strings may carry `$` or `,`; an empty or malformed string such as `12oops` gives `undefined`
   - `getUndiscountedFeeRate(feeResult)`: protocol rate plus `undiscountedMetamaskFeeRate` when a discount applied, otherwise `feeRate`
   - `calculateUndiscountedFeeAmount({ notionalUsd, feeResult })`: the fee before the MetaMask discount
 - Add `isTriggerPriceOnValidSide({ orderType, isBuy, triggerPrice, referencePrice })`, the side check for a stop or take-profit price: a buy stop and a sell take profit must sit above the reference price, a buy take profit and a sell stop below it ([#TBD](https://github.com/MetaMask/core/pull/TBD))
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Related markets: properties `SOURCE_MARKET`, `MARKET`, `CATEGORY`, `POSITION`, source `RELATED_MARKETS` and interactions `RELATED_MARKET_CLICKED`, `RELATED_MARKETS_HEADER_TAPPED`
 - Add the oracle price deviation limit as a venue-reported order limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - New optional `PerpsOrderLimits.maxOraclePriceDeviation`; Hyperliquid reports `0.95` (also `HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation`) and Lighter omits it, so clients stop applying Hyperliquid's limit to other venues
-  - `getPriceDeviationBand(referencePrice, maxDeviation)` and `isPriceOutsideDeviationBand(price, referencePrice, maxDeviation)` match Mobile's limit-price check; a missing price never reads as outside the band
+  - `getPriceDeviationBand(referencePrice, maxDeviation)` and `isPriceOutsideDeviationBand(price, referencePrice, maxDeviation)` match Mobile's limit-price check, computed in exact decimals so both bounds are inside the band; a missing price never reads as outside the band
 - Add optional `attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) to ready `PerpsOrderCapabilities`: the most take-profit and stop-loss legs one order can attach. Hyperliquid and Lighter both report one of each; clients should read it instead of hard-coding a limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Add `recomputePositionAtPrice(position, price)`, which revalues a position's `unrealizedPnl`, `positionValue` and `returnOnEquity` at a live price between account updates, matching Mobile's live PnL ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - Keeps the venue's `returnOnEquity` while leverage is unreported instead of assuming 1x; returns the position unchanged for an unusable price, entry price or size

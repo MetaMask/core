@@ -6,7 +6,6 @@ import type {
   TriggerDirection,
   TriggerOrderType,
 } from '../types/perps-types.js';
-import { isAboveReference } from './tpslCalculations.js';
 
 /**
  * All trigger placement types, in a stable order suitable for iteration
@@ -171,11 +170,11 @@ export function isTriggerPriceOnValidSide(params: {
   ) {
     return undefined;
   }
-  // A buy trigger closes a short, a sell trigger closes a long.
-  const firesAbove = isAboveReference(
-    params.isBuy ? 'short' : 'long',
-    getTriggerDirection(params.orderType) === 'take_profit',
-  );
+  // Same side rule as the TP/SL calculations: a buy trigger closes a short,
+  // whose stop sits above the price; a sell trigger closes a long, whose take
+  // profit sits above it.
+  const firesAbove =
+    (getTriggerDirection(params.orderType) === 'stop') === params.isBuy;
   return firesAbove ? trigger > reference : trigger < reference;
 }
 

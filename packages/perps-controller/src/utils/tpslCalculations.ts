@@ -54,7 +54,7 @@ const MAX_STOP_LOSS_PERCENTAGE = 999;
  * @param isProfit - True for a take profit, false for a stop loss.
  * @returns True when the trigger sits above the reference price.
  */
-export function isAboveReference(
+function isAboveReference(
   direction: OrderDirection | undefined,
   isProfit: boolean,
 ): boolean {
