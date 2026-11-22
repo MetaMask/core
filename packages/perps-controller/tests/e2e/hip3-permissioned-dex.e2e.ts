@@ -5,8 +5,9 @@ import type { MockAnyNamespace } from '@metamask/messenger';
  *
  * Drives PerpsController through its public API the way a client does: real
  * messenger, HIP-3 enabled through `clientConfig`, signing with a recipe
- * wallet-fixture account. Only the testnet API is reachable; every request to
- * `/exchange` and its raw response is recorded as evidence.
+ * wallet-fixture account. Only the testnet API is reachable. Each `/exchange`
+ * call is summarised in the reports: action type, asset ids, builder field and
+ * the venue's parsed reply.
  *
  * Usage (from the Core checkout root):
  *   npx tsx packages/perps-controller/tests/e2e/hip3-permissioned-dex.e2e.ts \
@@ -221,7 +222,7 @@ function buildController(signer: LocalAccount): PerpsController {
   });
 }
 
-// Every /exchange request the controller sends, with the venue's raw reply.
+// Every /exchange action the controller sends, with the venue's parsed reply.
 const exchangeLog: { action: Json; response: unknown }[] = [];
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (input, init): Promise<Response> => {
@@ -244,6 +245,99 @@ globalThis.fetch = async (input, init): Promise<Response> => {
   return response;
 };
 
+// Ids the venue assigned to this run's orders and TWAPs. Trigger orders come
+// back as `waitingForTrigger` without an id, so the trade phase adds those.
+const runOrderIds = new Set<string>();
+const runTwapIds = new Set<string>();
+const filledOrderIds = new Set<string>();
+
+/**
+ * Collect order, fill and TWAP ids from the venue replies logged so far.
+ */
+function collectRunIds(): void {
+  for (const { response } of exchangeLog) {
+    const data = (
+      (response as Json).response as
+        | { data?: { statuses?: unknown[]; status?: unknown } }
+        | undefined
+    )?.data;
+    for (const status of data?.statuses ?? []) {
+      if (typeof status === 'object' && status !== null) {
+        const placed = status as {
+          resting?: { oid?: number };
+          filled?: { oid?: number };
+        };
+        const oid = placed.resting?.oid ?? placed.filled?.oid;
+        if (oid !== undefined) {
+          runOrderIds.add(String(oid));
+        }
+        if (placed.filled?.oid !== undefined) {
+          filledOrderIds.add(String(placed.filled.oid));
+        }
+      }
+    }
+    const twapId = (data?.status as { running?: { twapId?: number } })?.running
+      ?.twapId;
+    if (twapId !== undefined) {
+      runTwapIds.add(String(twapId));
+    }
+  }
+}
+
+/**
+ * Remove whatever an attempt the venue should have refused left behind: the
+ * run's own resting orders and the position delta since `startSize`.
+ *
+ * @param controller - The controller.
+ * @param user - Wallet address.
+ * @param coin - Venue coin name.
+ * @param startSize - Position size before the attempt.
+ * @returns What was found and removed; `clean` is false if anything was left.
+ */
+async function settleAttempt(
+  controller: PerpsController,
+  user: string,
+  coin: string,
+  startSize: number,
+): Promise<Json> {
+  collectRunIds();
+  const cancels: Json[] = [];
+  for (const orderId of await venueOrderIds(user, coin)) {
+    if (runOrderIds.has(orderId)) {
+      const result = await controller.cancelOrder({ orderId, symbol: coin });
+      cancels.push({ orderId, success: result.success, error: result.error });
+    }
+  }
+  const delta = Number(((await venueSize(user, coin)) - startSize).toFixed(8));
+  const close =
+    delta === 0
+      ? undefined
+      : await controller.closePosition({
+          symbol: coin,
+          size: String(Math.abs(delta)),
+        });
+  await sleep(3_000);
+  const leftOrders = (await venueOrderIds(user, coin)).filter((orderId) =>
+    runOrderIds.has(orderId),
+  );
+  const leftDelta = Number(
+    ((await venueSize(user, coin)) - startSize).toFixed(8),
+  );
+  return {
+    executed: cancels.length > 0 || delta !== 0,
+    clean:
+      cancels.every((cancel) => cancel.success === true) &&
+      close?.success !== false &&
+      leftOrders.length === 0 &&
+      leftDelta === 0,
+    cancels,
+    delta,
+    close,
+    leftOrders,
+    leftDelta,
+  };
+}
+
 /**
  * Current mid price for a market from the venue.
  *
@@ -259,6 +353,65 @@ async function midPrice(coin: string): Promise<number> {
   const mid = Number(mids[coin]);
   assert(Number.isFinite(mid) && mid > 0, `No mid price for ${coin}`);
   return mid;
+}
+
+/**
+ * Venue position size on one market.
+ *
+ * @param user - Wallet address.
+ * @param coin - Venue coin name.
+ * @returns Signed size, 0 when flat.
+ */
+async function venueSize(user: string, coin: string): Promise<number> {
+  const state = await info<{ assetPositions: { position: Json }[] }>({
+    type: 'clearinghouseState',
+    user,
+    dex: coin.includes(':') ? coin.split(':')[0] : '',
+  });
+  const entry = state.assetPositions.find(
+    (item) => item.position.coin === coin,
+  );
+  return entry ? Number(entry.position.szi) : 0;
+}
+
+/**
+ * Venue resting order ids on one market, trigger orders included.
+ *
+ * @param user - Wallet address.
+ * @param coin - Venue coin name.
+ * @returns Order ids.
+ */
+async function venueOrderIds(user: string, coin: string): Promise<string[]> {
+  const orders = await info<Json[]>({
+    type: 'frontendOpenOrders',
+    user,
+    dex: coin.includes(':') ? coin.split(':')[0] : '',
+  });
+  return orders
+    .filter((order) => order.coin === coin)
+    .map((order) => String(order.oid));
+}
+
+/**
+ * TWAP ids still running on one market.
+ *
+ * @param user - Wallet address.
+ * @param coin - Venue coin name.
+ * @returns TWAP ids whose latest status is `activated`.
+ */
+async function runningTwapIds(user: string, coin: string): Promise<string[]> {
+  const history = await info<
+    { time: number; twapId: number; state: Json; status: { status: string } }[]
+  >({ type: 'twapHistory', user });
+  const latest = new Map<string, string>();
+  for (const entry of [...history].sort((a, b) => a.time - b.time)) {
+    if (entry.state.coin === coin) {
+      latest.set(String(entry.twapId), entry.status.status);
+    }
+  }
+  return [...latest]
+    .filter(([, status]) => status === 'activated')
+    .map(([twapId]) => twapId);
 }
 
 /**
@@ -413,13 +566,20 @@ function wireOrders(): Json[] {
 }
 
 /**
- * Open attempt; the report carries the venue's raw reply.
+ * Open attempt; the report carries the venue's parsed reply.
  *
  * @param controller - The controller.
+ * @param user - Wallet address.
  * @returns Phase report.
  */
-async function openPhase(controller: PerpsController): Promise<Json> {
+async function openPhase(
+  controller: PerpsController,
+  user: string,
+): Promise<Json> {
+  const startSize = await venueSize(user, symbol);
   const result = await controller.placeOrder(await orderParams(symbol, true));
+  // An open the venue should refuse must leave nothing behind.
+  const settlement = await settleAttempt(controller, user, symbol, startSize);
   // The venue refuses either the whole action (`status: 'err'`) or one order
   // inside an `ok` batch (`statuses[i].error`).
   const venueErrors = exchangeLog.flatMap(({ response }) => {
@@ -443,34 +603,41 @@ async function openPhase(controller: PerpsController): Promise<Json> {
       .filter((error): error is string => typeof error === 'string');
   });
   return {
-    ok: result.success !== true && venueErrors.length > 0,
+    ok:
+      result.success !== true &&
+      venueErrors.length > 0 &&
+      settlement.executed === false &&
+      settlement.clean === true,
     symbol,
     controllerResult: result,
     venueErrors,
+    settlement,
     exchange: wireOrders(),
   };
 }
 
 /**
- * Wait until the venue reports fills for this wallet after a time.
+ * Wait until the venue reports a fill for every expected order id.
  *
  * @param user - Wallet address.
  * @param since - Start time in ms.
- * @param minimum - Fills to wait for.
- * @returns The fills.
+ * @param expected - Order ids the venue replied as filled.
+ * @returns Fills on the market since `since` and the expected ids still missing.
  */
-async function fillsSince(
+async function fillsFor(
   user: string,
   since: number,
-  minimum = 1,
-): Promise<Json[]> {
+  expected: Set<string>,
+): Promise<{ fills: Json[]; missing: string[] }> {
   const deadline = Date.now() + FILL_WAIT_MS;
   for (;;) {
     const fills = (
       await info<Json[]>({ type: 'userFillsByTime', user, startTime: since })
     ).filter((fill) => fill.coin === symbol);
-    if (fills.length >= minimum || Date.now() > deadline) {
-      return fills;
+    const seen = new Set(fills.map((fill) => String(fill.oid)));
+    const missing = [...expected].filter((orderId) => !seen.has(orderId));
+    if (missing.length === 0 || Date.now() > deadline) {
+      return { fills, missing };
     }
     await sleep(3_000);
   }
@@ -514,25 +681,66 @@ function succeeded(result: OrderResult): OrderResult {
 }
 
 /**
- * Close this phase's position and cancel its orders on the market.
+ * Cancel this run's orders and TWAPs on the market, close the position, then
+ * confirm from venue reads that none of it is left. The trade phase starts flat
+ * with no orders on the market, so the whole position is the run's.
  *
  * @param controller - The controller.
- * @returns What was cleaned up.
+ * @param user - Wallet address.
+ * @returns What was cancelled and closed. Throws when anything is left.
  */
-async function cleanup(controller: PerpsController): Promise<Json> {
-  const open = (await controller.getOpenOrders()).filter(
-    (order) => order.symbol === symbol,
-  );
-  for (const order of open) {
-    await controller.cancelOrder({ orderId: order.orderId, symbol });
+async function cleanup(
+  controller: PerpsController,
+  user: string,
+): Promise<Json> {
+  collectRunIds();
+  const cancels: Json[] = [];
+  for (const twapId of await runningTwapIds(user, symbol)) {
+    if (runTwapIds.has(twapId)) {
+      const result = await controller.cancelOrder({
+        orderId: twapId,
+        symbol,
+        orderType: 'twap',
+      });
+      cancels.push({ twapId, success: result.success, error: result.error });
+    }
   }
-  const position = (await controller.getPositions()).find(
-    (item) => item.symbol === symbol,
+  for (const orderId of await venueOrderIds(user, symbol)) {
+    if (runOrderIds.has(orderId)) {
+      const result = await controller.cancelOrder({ orderId, symbol });
+      cancels.push({ orderId, success: result.success, error: result.error });
+    }
+  }
+  const size = await venueSize(user, symbol);
+  const close =
+    size === 0 ? undefined : await controller.closePosition({ symbol });
+  collectRunIds();
+  // Venue reads catch up with the replies shortly after.
+  await sleep(3_000);
+  const report = {
+    cancels,
+    close: close && {
+      success: close.success,
+      orderId: close.orderId,
+      filledSize: close.filledSize,
+      error: close.error,
+    },
+    // Any order on the market now is new since the phase started.
+    leftOrders: await venueOrderIds(user, symbol),
+    leftTwaps: (await runningTwapIds(user, symbol)).filter((twapId) =>
+      runTwapIds.has(twapId),
+    ),
+    leftSize: await venueSize(user, symbol),
+  };
+  assert(
+    cancels.every((cancel) => cancel.success === true) &&
+      close?.success !== false &&
+      report.leftOrders.length === 0 &&
+      report.leftTwaps.length === 0 &&
+      report.leftSize === 0,
+    `cleanup left orders or exposure: ${JSON.stringify(report)}`,
   );
-  const close = position
-    ? await controller.closePosition({ symbol })
-    : undefined;
-  return { cancelled: open.map((order) => order.orderId), close };
+  return report;
 }
 
 /**
@@ -548,12 +756,19 @@ async function tradePhase(
 ): Promise<Json> {
   const start = Date.now();
   const before = await walletState(user);
-  // Cleanup closes the whole position on the market, so never start on one
-  // the wallet already holds.
-  const existing = (await controller.getPositions()).find(
-    (item) => item.symbol === symbol,
+  // Cleanup closes the whole position on the market, so start only where the
+  // wallet holds nothing: no position, no resting order, no running TWAP.
+  const existing = {
+    size: await venueSize(user, symbol),
+    orders: await venueOrderIds(user, symbol),
+    twaps: await runningTwapIds(user, symbol),
+  };
+  assert(
+    existing.size === 0 &&
+      existing.orders.length === 0 &&
+      existing.twaps.length === 0,
+    `${user} already has ${JSON.stringify(existing)} on ${symbol}; pick another --market`,
   );
-  assert(!existing, `${user} already holds ${symbol}; pick another --market`);
   const steps: Json[] = [];
 
   await step(steps, 'open-with-tpsl', async () => {
@@ -570,6 +785,10 @@ async function tradePhase(
       (order) => order.symbol === symbol && order.isTrigger,
     );
     assert(triggers.length >= 2, `expected TP and SL, got ${triggers.length}`);
+    // The market had no orders at the start, so these are the run's.
+    for (const order of triggers) {
+      runOrderIds.add(order.orderId);
+    }
     return {
       orderId: result.orderId,
       filledSize: result.filledSize,
@@ -585,7 +804,9 @@ async function tradePhase(
     const result = succeeded(await controller.closePosition({ symbol }));
     return { orderId: result.orderId, filledSize: result.filledSize };
   });
-  await step(steps, 'cancel-leftover-tpsl', async () => cleanup(controller));
+  await step(steps, 'cancel-leftover-tpsl', async () =>
+    cleanup(controller, user),
+  );
 
   await step(steps, 'scale', async () => {
     const mid = await midPrice(symbol);
@@ -606,6 +827,7 @@ async function tradePhase(
       symbol,
       orderType: 'scale',
     });
+    assert(cancel.success, `scale cancel failed: ${cancel.error}`);
     return {
       handle: result.orderId,
       childOrderIds: result.childOrderIds,
@@ -652,6 +874,7 @@ async function tradePhase(
       symbol,
       orderType: 'twap',
     });
+    assert(cancel.success, `TWAP cancel failed: ${cancel.error}`);
     assert(sliceFills.length > 0, 'no TWAP slice filled in time');
     return {
       twapId: result.orderId,
@@ -667,7 +890,9 @@ async function tradePhase(
       cancel,
     };
   });
-  await step(steps, 'close-twap-position', async () => cleanup(controller));
+  await step(steps, 'close-twap-position', async () =>
+    cleanup(controller, user),
+  );
 
   await step(steps, 'chase', async () => {
     const result = succeeded(
@@ -688,20 +913,20 @@ async function tradePhase(
       symbol,
       orderType: 'chase',
     });
+    assert(cancel.success, `chase cancel failed: ${cancel.error}`);
     return { handle: result.orderId, chase, cancel };
   });
-  await step(steps, 'final-cleanup', async () => cleanup(controller));
+  await step(steps, 'final-cleanup', async () => cleanup(controller, user));
 
-  const venueFills = exchangeLog.flatMap(({ response }) =>
-    (
-      ((response as Json).response as { data?: { statuses?: Json[] } })?.data
-        ?.statuses ?? []
-    ).filter((status) => typeof status === 'object' && 'filled' in status),
+  // Every order the venue replied as filled must show up in the fill history,
+  // and only fills of this run's orders count as proof.
+  collectRunIds();
+  const { fills: marketFills, missing: missingFills } = await fillsFor(
+    user,
+    start,
+    filledOrderIds,
   );
-  await fillsSince(user, start, venueFills.length);
-  // Fills index shortly after the reply; one more read picks up stragglers.
-  await sleep(5_000);
-  const fills = (await fillsSince(user, start)).map((fill) => ({
+  const summary = (fill: Json): Json => ({
     tid: fill.tid,
     oid: fill.oid,
     hash: fill.hash,
@@ -712,7 +937,19 @@ async function tradePhase(
     fee: fill.fee,
     builderFee: fill.builderFee,
     time: fill.time,
-  }));
+  });
+  const fills = marketFills
+    .filter((fill) => runOrderIds.has(String(fill.oid)))
+    .map(summary);
+  const otherFills = marketFills
+    .filter((fill) => !runOrderIds.has(String(fill.oid)))
+    .map(summary);
+  const fillsWithoutBuilderFee = fills.filter(
+    (fill) => !(Number(fill.builderFee) > 0),
+  );
+  const ordersWithoutBuilder = exchangeLog
+    .filter(({ action }) => action.type === 'order' && !action.builder)
+    .map(({ response }) => response);
   const builders = [
     ...new Set(
       exchangeLog
@@ -727,8 +964,15 @@ async function tradePhase(
   return {
     ok:
       steps.every((item) => item.ok === true) &&
+      filledOrderIds.size > 0 &&
+      missingFills.length === 0 &&
       fills.length > 0 &&
-      fills.every((fill) => fill.builderFee !== undefined),
+      fillsWithoutBuilderFee.length === 0 &&
+      ordersWithoutBuilder.length === 0,
+    filledOrderIds: [...filledOrderIds],
+    missingFills,
+    fillsWithoutBuilderFee,
+    ordersWithoutBuilder,
     twapSliceFills,
     twapSlicesWithBuilderFee: twapSliceFills.filter(
       (fill) => fill.builderFee !== undefined,
@@ -737,6 +981,7 @@ async function tradePhase(
     user,
     steps,
     fills,
+    otherFills,
     builders,
     before,
     after: await walletState(user),
@@ -747,10 +992,15 @@ async function tradePhase(
  * After trading the HIP-3 dex, try a resting order on the global book.
  *
  * @param controller - The controller.
+ * @param user - Wallet address.
  * @returns Phase report.
  */
-async function globalOrderPhase(controller: PerpsController): Promise<Json> {
+async function globalOrderPhase(
+  controller: PerpsController,
+  user: string,
+): Promise<Json> {
   const coin = String(values.market);
+  const startSize = await venueSize(user, coin);
   const mid = await midPrice(coin);
   const result = await controller.placeOrder({
     ...(await orderParams(coin, true)),
@@ -759,17 +1009,14 @@ async function globalOrderPhase(controller: PerpsController): Promise<Json> {
     timeInForce: 'GTC',
     maxSlippageBps: undefined,
   });
-  // A resting order means the venue accepted it; remove it again.
-  const cancel =
-    result.success && result.orderId
-      ? await controller.cancelOrder({ orderId: result.orderId, symbol: coin })
-      : undefined;
+  // An accepted order rests or fills; remove whatever it left.
+  const settlement = await settleAttempt(controller, user, coin, startSize);
   return {
-    ok: true,
-    rejected: result.success !== true,
+    ok: settlement.clean === true,
+    rejected: result.success !== true && settlement.executed === false,
     symbol: coin,
     controllerResult: result,
-    cancel,
+    settlement,
     exchange: wireOrders(),
   };
 }
@@ -788,11 +1035,25 @@ async function isolationPhase(user: string): Promise<Json> {
   );
   const hip3Margin = (state[dex] as { marginSummary: Json }).marginSummary
     .totalMarginUsed;
+  const globalMargin = (state.mainDex as { marginSummary: Json }).marginSummary
+    .totalMarginUsed;
+  // Venue amounts are decimal strings; anything else is not an observation.
+  const amount = (value: unknown): number =>
+    typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+  const hold = amount(usdc?.hold);
+  const margin = amount(hip3Margin);
+  const globalBook = amount(globalMargin);
+  const spotHoldMatchesHip3Margin =
+    Number.isFinite(margin) && margin > 0 && hold === margin;
   return {
-    ok: true,
+    ok:
+      state.userAbstraction === 'unifiedAccount' &&
+      spotHoldMatchesHip3Margin &&
+      globalBook === 0,
     spotUsdcHold: usdc?.hold,
     hip3MarginUsed: hip3Margin,
-    spotHoldMatchesHip3Margin: Number(usdc?.hold) === Number(hip3Margin),
+    globalMarginUsed: globalMargin,
+    spotHoldMatchesHip3Margin,
     ...state,
   };
 }
@@ -815,9 +1076,9 @@ try {
     const user = signer.address;
     const run = {
       markets: async (): Promise<Json> => marketsPhase(live),
-      open: async (): Promise<Json> => openPhase(live),
+      open: async (): Promise<Json> => openPhase(live, user),
       trade: async (): Promise<Json> => tradePhase(live, user),
-      'global-order': async (): Promise<Json> => globalOrderPhase(live),
+      'global-order': async (): Promise<Json> => globalOrderPhase(live, user),
       isolation: async (): Promise<Json> => isolationPhase(user),
     }[phase];
     assert(run, `Unknown --phase ${phase}`);
