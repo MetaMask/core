@@ -5,9 +5,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProviderCacheKey,
   calculateCloseSize,
+  calculateFeeNotionalUsd,
   calculateOrderBookAggregationParams,
   calculateOrderBookGroupingOptions,
   calculateOrderBookSpread,
+  calculateUndiscountedFeeAmount,
+  getUndiscountedFeeRate,
   ORDER_BOOK_GROUPING_CONFIG,
   roundPerpsPrice,
   selectDefaultOrderBookGrouping,
@@ -59,5 +62,16 @@ describe('shared Perps helpers public API', () => {
     expect(
       calculateOrderBookSpread({ bestBid: 99.9, bestAsk: 100.1 })?.spread,
     ).toBe(0.2);
+  });
+
+  it('exports the fee helpers', () => {
+    const feeResult = { feeRate: 0.00145 };
+    const notionalUsd = calculateFeeNotionalUsd({ size: 2, price: 500 });
+
+    expect(notionalUsd).toBe(1000);
+    expect(getUndiscountedFeeRate(feeResult)).toBe(0.00145);
+    expect(calculateUndiscountedFeeAmount({ notionalUsd, feeResult })).toBe(
+      1.45,
+    );
   });
 });

@@ -676,6 +676,12 @@ export type {
   NetClosedPnlParams,
 } from './utils/index.js';
 export { ensureError, isAbortError } from './utils/index.js';
+export {
+  calculateFeeNotionalUsd,
+  calculateUndiscountedFeeAmount,
+  getUndiscountedFeeRate,
+} from './utils/index.js';
+export type { FeeNotionalParams } from './utils/index.js';
 export type {
   OrderBookCacheEntry,
   ProcessL2BookDataParams,

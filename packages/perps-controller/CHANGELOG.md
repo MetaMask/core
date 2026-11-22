@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `calculateOrderBookGroupingOptions(midPrice)` and `selectDefaultOrderBookGrouping(options)`: the grouping ladder and its default, from the new `ORDER_BOOK_GROUPING_CONFIG`; options are rounded to six decimals and deduplicated, as Extension does
   - `calculateOrderBookAggregationParams(grouping, price)`: the `nSigFigs`/`mantissa` to subscribe a book at for a grouping width, typed `OrderBookAggregationParams`
   - `calculateOrderBookSpread({ bestBid, bestAsk })`: spread, mid price and spread percent in exact decimals, typed `OrderBookSpread`, or `undefined` when a side is missing
+- Add fee display helpers matching Extension's order, close and flip fees ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `calculateFeeNotionalUsd`: the USD notional a fee is charged on, from a USD amount or size and price, scaled by an optional close percent and multiplier, typed `FeeNotionalParams`; `undefined` for a non-numeric input
+  - `getUndiscountedFeeRate(feeResult)`: protocol rate plus `undiscountedMetamaskFeeRate` when a discount applied, otherwise `feeRate`
+  - `calculateUndiscountedFeeAmount({ notionalUsd, feeResult })`: the fee before the MetaMask discount
 
 ### Fixed
 

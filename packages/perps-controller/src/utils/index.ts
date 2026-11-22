@@ -21,6 +21,12 @@ export type {
   NetClosedPnlParams,
 } from './closeCalculations.js';
 export * from './errorUtils.js';
+export {
+  calculateFeeNotionalUsd,
+  calculateUndiscountedFeeAmount,
+  getUndiscountedFeeRate,
+} from './feeAmounts.js';
+export type { FeeNotionalParams } from './feeAmounts.js';
 // hyperLiquidAdapter: selective export to avoid calculatePositionSize clash with orderCalculations
 export {
   adaptOrderToSDK,
