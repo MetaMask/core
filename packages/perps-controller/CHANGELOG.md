@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
 
+### Changed
+
+- Add the partner's permissioned `ignp` HIP-3 dex to `TESTNET_HIP3_CONFIG.EnabledDexs`, so testnet loads and trades `ignp:*` markets alongside `xyz`
+
 ### Fixed
 
 - Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins ([#11676](https://github.com/MetaMask/core/pull/11676))
