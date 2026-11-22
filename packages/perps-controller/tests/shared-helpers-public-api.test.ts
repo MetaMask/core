@@ -10,7 +10,9 @@ import {
   calculateOrderBookGroupingOptions,
   calculateOrderBookSpread,
   calculateUndiscountedFeeAmount,
+  CROSS_MARGIN_RATIO_THRESHOLDS,
   estimateOrderBookSlippage,
+  getCrossMarginRatioTone,
   getFillAggregationKey,
   getOrderFillKey,
   getPositionDirection,
@@ -117,5 +119,13 @@ describe('shared Perps helpers public API', () => {
 
   it('exports getPositionDirection', () => {
     expect(getPositionDirection('-1')).toBe('short');
+  });
+
+  it('exports the cross-margin ratio thresholds', () => {
+    expect(CROSS_MARGIN_RATIO_THRESHOLDS).toStrictEqual({
+      Warning: 0.5,
+      Danger: 0.75,
+    });
+    expect(getCrossMarginRatioTone(0.6)).toBe('warning');
   });
 });

@@ -371,6 +371,16 @@ export const HYPERLIQUID_ORDER_LIMITS = {
 } as const;
 
 /**
+ * Cross-margin ratio levels (`PerpsAccountSummary.accountRatio`, maintenance
+ * margin over cross collateral; liquidation at 1) where clients warn: a
+ * warning from `Warning` up, danger above `Danger`.
+ */
+export const CROSS_MARGIN_RATIO_THRESHOLDS = {
+  Warning: 0.5,
+  Danger: 0.75,
+} as const;
+
+/**
  * Order-book price grouping ladder shared by Mobile, Extension and Terminal.
  * Options are `10^(floor(log10(mid)) - DecadeOffset)` times each multiplier.
  */

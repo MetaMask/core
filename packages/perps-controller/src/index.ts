@@ -617,6 +617,7 @@ export {
   FUNDING_RATE_CONFIG,
   PERPS_DISPLAY_PRECISION,
   ORDER_BOOK_GROUPING_CONFIG,
+  CROSS_MARGIN_RATIO_THRESHOLDS,
   buildProviderCacheKey,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
@@ -631,8 +632,10 @@ export {
   getCrossCollateral,
   getCrossMarginSpotCollateral,
   calculateAccountSummary,
+  getCrossMarginRatioTone,
 } from './utils/index.js';
 export type {
+  CrossMarginRatioTone,
   ReturnOnEquityInput,
   CrossMarginSummaryInput,
   PerpsAccountSummary,
