@@ -55,9 +55,17 @@ export * from './marketSearch.js';
 export * from './marketUtils.js';
 export {
   aggregateOrderBookLevels,
+  calculateOrderBookAggregationParams,
+  calculateOrderBookGroupingOptions,
+  calculateOrderBookSpread,
   groupOrderBook,
+  selectDefaultOrderBookGrouping,
 } from './orderBookGrouping.js';
-export type { GroupedOrderBook } from './orderBookGrouping.js';
+export type {
+  GroupedOrderBook,
+  OrderBookAggregationParams,
+  OrderBookSpread,
+} from './orderBookGrouping.js';
 export * from './orderCalculations.js';
 export * from './orderTypes.js';
 export {

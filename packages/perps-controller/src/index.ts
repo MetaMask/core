@@ -616,6 +616,7 @@ export {
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
   PERPS_DISPLAY_PRECISION,
+  ORDER_BOOK_GROUPING_CONFIG,
   buildProviderCacheKey,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
@@ -831,7 +832,11 @@ export type {
 } from './utils/index.js';
 export {
   aggregateOrderBookLevels,
+  calculateOrderBookAggregationParams,
+  calculateOrderBookGroupingOptions,
+  calculateOrderBookSpread,
   groupOrderBook,
+  selectDefaultOrderBookGrouping,
   getBatchOperationStatus,
   PERPS_ERROR_COPY,
   getPerpsErrorCopy,
@@ -839,6 +844,8 @@ export {
 } from './utils/index.js';
 export type {
   GroupedOrderBook,
+  OrderBookAggregationParams,
+  OrderBookSpread,
   PerpsErrorCopy,
   PerpsOrderTypeLabel,
 } from './utils/index.js';

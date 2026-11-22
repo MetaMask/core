@@ -1,7 +1,15 @@
 import { BigNumber } from 'bignumber.js';
 
-import { CLOSE_POSITION_CONFIG } from '../constants/perpsConfig.js';
-import type { OrderBookData, OrderBookLevel } from '../types/index.js';
+import {
+  CLOSE_POSITION_CONFIG,
+  DECIMAL_PRECISION_CONFIG,
+  ORDER_BOOK_GROUPING_CONFIG,
+} from '../constants/perpsConfig.js';
+import type {
+  OrderBookData,
+  OrderBookLevel,
+  SubscribeOrderBookParams,
+} from '../types/index.js';
 
 /**
  * Group order-book levels into price buckets of `grouping` width. Bids round
@@ -135,4 +143,141 @@ export function groupOrderBook(
   }
 
   return { bids, asks, maxTotal, maxSize };
+}
+
+/**
+ * Grouping widths offered for a book at `midPrice`: a decade four below the
+ * price's own, times 1, 2, 5, 10, 100 and 1000. Each width is rounded to
+ * `DECIMAL_PRECISION_CONFIG.MaxPriceDecimals` decimals and duplicates are
+ * dropped, so float noise never shows as a separate option and no width is
+ * finer than the smallest price step a market can quote.
+ *
+ * @param midPrice - Mid price of the book.
+ * @returns Grouping widths, ascending; `ORDER_BOOK_GROUPING_CONFIG.FallbackOptions`
+ * when the mid price is not a positive number.
+ */
+export function calculateOrderBookGroupingOptions(midPrice: number): number[] {
+  if (!Number.isFinite(midPrice) || midPrice <= 0) {
+    return [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
+  }
+  const base =
+    10 **
+    (Math.floor(Math.log10(midPrice)) -
+      ORDER_BOOK_GROUPING_CONFIG.DecadeOffset);
+  const options = ORDER_BOOK_GROUPING_CONFIG.Multipliers.map((multiplier) =>
+    Number(
+      (base * multiplier).toFixed(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals),
+    ),
+  ).filter((option) => option > 0);
+  const unique = Array.from(new Set(options));
+  return unique.length > 0
+    ? unique
+    : [10 ** -DECIMAL_PRECISION_CONFIG.MaxPriceDecimals];
+}
+
+/**
+ * The grouping width a book opens at.
+ *
+ * @param options - Widths from {@link calculateOrderBookGroupingOptions}.
+ * @returns The option at `ORDER_BOOK_GROUPING_CONFIG.DefaultOptionIndex`, else
+ * the middle option, or undefined for an empty list.
+ */
+export function selectDefaultOrderBookGrouping(
+  options: readonly number[],
+): number | undefined {
+  return (
+    options[ORDER_BOOK_GROUPING_CONFIG.DefaultOptionIndex] ??
+    options[Math.floor(options.length / 2)]
+  );
+}
+
+/** Book-stream aggregation for a grouping width (`SubscribeOrderBookParams`). */
+export type OrderBookAggregationParams = {
+  nSigFigs: NonNullable<SubscribeOrderBookParams['nSigFigs']>;
+  mantissa?: SubscribeOrderBookParams['mantissa'];
+};
+
+/**
+ * The `nSigFigs` and `mantissa` to subscribe a book at so the venue already
+ * aggregates it at `grouping`. Widths finer than five significant figures of
+ * the price use five, with a mantissa of 2 or 5 for widths starting with those
+ * digits. These are Hyperliquid's book-stream parameters; on a venue that
+ * streams raw levels, group client-side with {@link groupOrderBook} instead.
+ *
+ * @param grouping - Grouping width in quote units.
+ * @param price - Reference price, usually the mid.
+ * @returns The aggregation; five significant figures when either input is not
+ * a positive number.
+ */
+export function calculateOrderBookAggregationParams(
+  grouping: number,
+  price: number,
+): OrderBookAggregationParams {
+  const { MinSignificantFigures, MaxSignificantFigures } =
+    ORDER_BOOK_GROUPING_CONFIG;
+  if (
+    !Number.isFinite(price) ||
+    !Number.isFinite(grouping) ||
+    price <= 0 ||
+    grouping <= 0
+  ) {
+    return { nSigFigs: MaxSignificantFigures };
+  }
+  const groupingMagnitude = Math.floor(Math.log10(grouping));
+  const significantFigures =
+    Math.floor(Math.log10(price)) - groupingMagnitude + 1;
+  if (significantFigures >= MaxSignificantFigures) {
+    const firstDigit = Math.floor(grouping / 10 ** groupingMagnitude);
+    if (firstDigit <= 1) {
+      return { nSigFigs: MaxSignificantFigures };
+    }
+    return {
+      nSigFigs: MaxSignificantFigures,
+      mantissa: firstDigit <= 2 ? 2 : 5,
+    };
+  }
+  return {
+    nSigFigs: Math.max(
+      MinSignificantFigures,
+      significantFigures,
+    ) as OrderBookAggregationParams['nSigFigs'],
+  };
+}
+
+/** Top-of-book spread from {@link calculateOrderBookSpread}. */
+export type OrderBookSpread = {
+  /** Best ask minus best bid, in quote units. */
+  spread: number;
+  /** Midpoint of the best bid and ask. */
+  midPrice: number;
+  /** Spread as a percent of the mid price (0.2 = 0.2%). */
+  spreadPercentage: number;
+};
+
+/**
+ * Spread, mid price and spread percent from the best bid and ask, in exact
+ * decimal arithmetic.
+ *
+ * @param params - Top of book.
+ * @param params.bestBid - Best bid price.
+ * @param params.bestAsk - Best ask price.
+ * @returns The spread, or undefined when either side is missing or not a
+ * positive number.
+ */
+export function calculateOrderBookSpread(params: {
+  bestBid: number | string | undefined;
+  bestAsk: number | string | undefined;
+}): OrderBookSpread | undefined {
+  const bid = new BigNumber(params.bestBid ?? Number.NaN);
+  const ask = new BigNumber(params.bestAsk ?? Number.NaN);
+  if (!bid.isFinite() || !ask.isFinite() || bid.lte(0) || ask.lte(0)) {
+    return undefined;
+  }
+  const spread = ask.minus(bid);
+  const midPrice = ask.plus(bid).dividedBy(2);
+  return {
+    spread: spread.toNumber(),
+    midPrice: midPrice.toNumber(),
+    spreadPercentage: spread.dividedBy(midPrice).multipliedBy(100).toNumber(),
+  };
 }

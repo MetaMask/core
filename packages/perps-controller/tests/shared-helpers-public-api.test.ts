@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProviderCacheKey,
   calculateCloseSize,
+  calculateOrderBookAggregationParams,
+  calculateOrderBookGroupingOptions,
+  calculateOrderBookSpread,
+  ORDER_BOOK_GROUPING_CONFIG,
   roundPerpsPrice,
+  selectDefaultOrderBookGrouping,
 } from '../src/index.js';
 
 describe('shared Perps helpers public API', () => {
@@ -40,5 +45,19 @@ describe('shared Perps helpers public API', () => {
         percent: 25,
       }),
     ).toStrictEqual({ size: 0.5, usdValue: 50 });
+  });
+
+  it('exports the order-book grouping helpers', () => {
+    const options = calculateOrderBookGroupingOptions(2450);
+
+    expect(ORDER_BOOK_GROUPING_CONFIG.DefaultOptionIndex).toBe(3);
+    expect(selectDefaultOrderBookGrouping(options)).toBe(1);
+    expect(calculateOrderBookAggregationParams(0.5, 2450)).toStrictEqual({
+      nSigFigs: 5,
+      mantissa: 5,
+    });
+    expect(
+      calculateOrderBookSpread({ bestBid: 99.9, bestAsk: 100.1 })?.spread,
+    ).toBe(0.2);
   });
 });

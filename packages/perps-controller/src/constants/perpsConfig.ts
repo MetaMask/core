@@ -371,6 +371,22 @@ export const HYPERLIQUID_ORDER_LIMITS = {
 } as const;
 
 /**
+ * Order-book price grouping ladder shared by Mobile, Extension and Terminal.
+ * Options are `10^(floor(log10(mid)) - DecadeOffset)` times each multiplier.
+ */
+export const ORDER_BOOK_GROUPING_CONFIG = {
+  DecadeOffset: 4,
+  Multipliers: [1, 2, 5, 10, 100, 1000],
+  /** Index of the default option; the middle option when the ladder is shorter. */
+  DefaultOptionIndex: 3,
+  /** Options when the mid price is unknown. */
+  FallbackOptions: [0.01, 0.1, 1],
+  /** Significant-figure range a venue aggregates a book stream at. */
+  MinSignificantFigures: 2,
+  MaxSignificantFigures: 5,
+} as const;
+
+/**
  * Close position configuration
  * Controls behavior and constants specific to position closing
  */
