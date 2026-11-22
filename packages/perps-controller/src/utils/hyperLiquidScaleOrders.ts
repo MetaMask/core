@@ -15,6 +15,13 @@ import {
 const SIZE_SEARCH_MAX_STEPS = Math.ceil(Math.log2(Number.MAX_SAFE_INTEGER));
 
 /**
+ * Most totals the starved-rung fallback tries, counting down from the first
+ * guess. A rung only starves while the total is small, so a feasible total is
+ * normally a few steps away; the cap keeps a synchronous preview bounded.
+ */
+const SPLIT_FALLBACK_MAX_CANDIDATES = 10_000;
+
+/**
  * Scale ladder prices on Hyperliquid's price grid: the evenly spaced ladder
  * from `computeScalePriceLadder`, each rung rounded with
  * `formatHyperLiquidPrice`.
@@ -47,8 +54,9 @@ export function normalizeHyperLiquidScalePriceLadder(params: {
 /**
  * Size a Hyperliquid scale ladder.
  *
- * An exact `size` must sit on the size grid; it is split across the rungs and
- * the returned total is the sum of the rungs, equal to `size`.
+ * An exact `size` must sit on the size grid. It is split across the rungs,
+ * and the sizing fails unless the rungs add up to exactly `size`: the split
+ * runs on a float, which cannot hold every step of a very large size.
  *
  * A `usdAmount` is a target the ladder meets, as Mobile's Pro order form sizes
  * it. The first guess is the amount over the skew-weighted average price,
@@ -60,9 +68,11 @@ export function normalizeHyperLiquidScalePriceLadder(params: {
  *
  * When the first guess cannot be split (a skewed rung rounds to zero), the
  * result is the smallest smaller total that splits and reaches the target,
- * scanning up from the least total that could reach it. Larger totals are not
- * tried, so the ladder never grows past the first guess; with no such total
- * the sizing fails, as Mobile's does.
+ * scanning up from the least total that could reach it, within the 10,000
+ * size steps below the first guess. Larger totals are not tried, so the
+ * ladder never grows past the first guess; with no such total the sizing
+ * fails, as Mobile's does. A first guess beyond the safe-integer range of size
+ * steps fails at once.
  *
  * The notional can exceed `usdAmount`, unlike `sizeScaleLadder`, which keeps
  * a budget as a ceiling. Rung minimums are not checked here; compare each
@@ -77,7 +87,7 @@ export function normalizeHyperLiquidScalePriceLadder(params: {
  * @param params.usdAmount - Target order value in USD.
  * @returns The rung sizes, total size and total notional.
  * @throws `ORDER_SCALE_SIZE_CONSERVATION_FAILED` for an exact size off the
- * size grid; `ORDER_SCALE_SIZE_TOO_SMALL` when no total under these rules
+ * size grid or one the split cannot preserve; `ORDER_SCALE_SIZE_TOO_SMALL` when no total under these rules
  * reaches the target;
  * and the `splitScaleSizes` errors for an exact size that cannot be split.
  */
@@ -135,7 +145,13 @@ export function sizeHyperLiquidScaleLadder(
     if (!total.times(unit).isInteger()) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
     }
-    return result(split(params.size));
+    // The split works on a float, which can drop a grid step from a large
+    // size: the rungs must still add up to exactly what was asked for.
+    const sizes = split(params.size);
+    if (!BigNumber.sum(...sizes).eq(total)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
+    }
+    return result(sizes);
   }
 
   const target = new BigNumber(params.usdAmount);
@@ -156,21 +172,29 @@ export function sizeHyperLiquidScaleLadder(
     .dividedBy(weightedAveragePrice)
     .decimalPlaces(sizeDecimals, BigNumber.ROUND_CEIL)
     .toFixed(sizeDecimals);
+  const initialUnits = new BigNumber(initialSize)
+    .times(unit)
+    .integerValue(BigNumber.ROUND_HALF_UP);
+  // No total at or past the safe-integer range can be split.
+  if (initialUnits.gt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+  }
   const initialSizes = trySplit(initialSize);
 
   if (initialSizes === undefined) {
     // Below this many units even every rung at the top price falls short.
     const highestPrice = BigNumber.max(...prices);
-    const firstGuessUnits = new BigNumber(initialSize).times(unit);
+    const leastUnits = BigNumber.max(
+      count,
+      target
+        .dividedBy(highestPrice)
+        .times(unit)
+        .integerValue(BigNumber.ROUND_CEIL),
+      initialUnits.minus(SPLIT_FALLBACK_MAX_CANDIDATES),
+    );
     for (
-      let units = BigNumber.max(
-        count,
-        target
-          .dividedBy(highestPrice)
-          .times(unit)
-          .integerValue(BigNumber.ROUND_CEIL),
-      );
-      units.lt(firstGuessUnits);
+      let units = leastUnits;
+      units.lt(initialUnits);
       units = units.plus(1)
     ) {
       const sizes = trySplit(toSize(units));
@@ -184,9 +208,6 @@ export function sizeHyperLiquidScaleLadder(
     return result(initialSizes);
   }
 
-  const initialUnits = new BigNumber(initialSize)
-    .times(unit)
-    .integerValue(BigNumber.ROUND_HALF_UP);
   let lowerUnits = initialUnits;
   let upper: { units: BigNumber; sizes: string[] } | undefined;
 

@@ -89,6 +89,34 @@ describe('sizeHyperLiquidScaleLadder', () => {
     ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
   });
 
+  it('rejects an exact size that loses a grid step in number conversion', () => {
+    // At one decimal, 600000000000000.3 converts to the same number as .2.
+    expect(() =>
+      sizeHyperLiquidScaleLadder({
+        prices: ['100', '200', '300'],
+        sizeDecimals: 1,
+        size: '600000000000000.3',
+      }),
+    ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
+    expect(
+      sizeHyperLiquidScaleLadder({
+        prices: ['100', '200', '300'],
+        sizeDecimals: 1,
+        size: '600000000000000.2',
+      }).totalSize,
+    ).toBe('600000000000000.2');
+  });
+
+  it('rejects a USD target beyond the safe size range without scanning it', () => {
+    expect(() =>
+      sizeHyperLiquidScaleLadder({
+        prices: ['100', '200', '300'],
+        sizeDecimals: 0,
+        usdAmount: '100000000000000000000',
+      }),
+    ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+  });
+
   it('finds the smallest splittable total when the first guess starves a rung', () => {
     // The first guess, 5 units, splits 3 / 2 / 0. Four units split 2 / 1 / 1
     // and reach the target; three cannot be split.
