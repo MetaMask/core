@@ -64,6 +64,7 @@ export {
 } from './perpsClientCopy.js';
 export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
+export { roundPerpsPrice } from './pricePrecision.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';
 export * from './sortMarkets.js';

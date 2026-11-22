@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
 - Export `buildProviderCacheKey(providerId, isTestnet)`, the `provider:network` key the controller caches per-venue data under, so clients key their caches the same way ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `roundPerpsPrice({ price, pricePrecision })`, which rounds a price onto the grid in `PerpsOrderCapabilities.pricePrecision` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - A Hyperliquid `significant_figures` grid gives the same string as `formatHyperLiquidPrice`; a Lighter `fixed_decimals` grid rounds half up to its tick, so Lighter prices no longer go through Hyperliquid's grid
+  - Returns `undefined` for a missing, non-positive or zero-rounding price
 
 ### Fixed
 
