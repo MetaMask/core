@@ -842,6 +842,7 @@ export {
   calculateOrderBookAggregationParams,
   calculateOrderBookGroupingOptions,
   calculateOrderBookSpread,
+  estimateOrderBookSlippage,
   groupOrderBook,
   selectDefaultOrderBookGrouping,
   getBatchOperationStatus,
@@ -852,6 +853,8 @@ export {
 export type {
   GroupedOrderBook,
   OrderBookAggregationParams,
+  OrderBookSlippageEstimate,
+  OrderBookSlippageParams,
   OrderBookSpread,
   PerpsErrorCopy,
   PerpsOrderTypeLabel,

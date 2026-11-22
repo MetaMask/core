@@ -72,6 +72,11 @@ export type {
   OrderBookAggregationParams,
   OrderBookSpread,
 } from './orderBookGrouping.js';
+export { estimateOrderBookSlippage } from './orderBookSlippage.js';
+export type {
+  OrderBookSlippageEstimate,
+  OrderBookSlippageParams,
+} from './orderBookSlippage.js';
 export * from './orderCalculations.js';
 export * from './orderTypes.js';
 export {

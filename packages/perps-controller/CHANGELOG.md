@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `calculateUndiscountedFeeAmount({ notionalUsd, feeResult })`: the fee before the MetaMask discount
 - Add `isTriggerPriceOnValidSide({ orderType, isBuy, triggerPrice, referencePrice })`, the side check for a stop or take-profit price: a buy stop and a sell take profit must sit above the reference price, a buy take profit and a sell stop below it ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - Returns `undefined` when either price is missing or not positive
+- Add `estimateOrderBookSlippage`, the slippage a market order takes sweeping the visible book, with types `OrderBookSlippageParams` and `OrderBookSlippageEstimate` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Returns the volume-weighted and worst-level slippage in basis points from the mid (or a given reference) price, floored at zero, matching Extension's estimate and Mobile's worst-level figure
+  - `canFill` is `false` when the visible book cannot hold the order; fields are `undefined` when the size or price is unknown
 
 ### Fixed
 

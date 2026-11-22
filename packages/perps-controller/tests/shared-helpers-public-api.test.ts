@@ -10,6 +10,7 @@ import {
   calculateOrderBookGroupingOptions,
   calculateOrderBookSpread,
   calculateUndiscountedFeeAmount,
+  estimateOrderBookSlippage,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
@@ -85,5 +86,15 @@ describe('shared Perps helpers public API', () => {
         referencePrice: 100,
       }),
     ).toBe(true);
+  });
+
+  it('exports estimateOrderBookSlippage', () => {
+    expect(
+      estimateOrderBookSlippage({
+        orderBook: { midPrice: '100', bids: [], asks: [] },
+        isBuy: true,
+        sizeUsd: 10,
+      }).canFill,
+    ).toBe(false);
   });
 });
