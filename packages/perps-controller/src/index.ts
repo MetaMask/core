@@ -843,6 +843,8 @@ export {
   calculateOrderBookGroupingOptions,
   calculateOrderBookSpread,
   estimateOrderBookSlippage,
+  getFillAggregationKey,
+  getOrderFillKey,
   groupOrderBook,
   selectDefaultOrderBookGrouping,
   getBatchOperationStatus,

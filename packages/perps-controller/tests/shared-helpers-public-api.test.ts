@@ -11,6 +11,8 @@ import {
   calculateOrderBookSpread,
   calculateUndiscountedFeeAmount,
   estimateOrderBookSlippage,
+  getFillAggregationKey,
+  getOrderFillKey,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
@@ -96,5 +98,19 @@ describe('shared Perps helpers public API', () => {
         sizeUsd: 10,
       }).canFill,
     ).toBe(false);
+  });
+
+  it('exports the fill identity helpers', () => {
+    const fill = {
+      orderId: '1',
+      symbol: 'BTC',
+      direction: 'Open Long',
+      timestamp: 1000,
+      size: '1',
+      price: '2',
+    };
+
+    expect(getOrderFillKey(fill)).toBe('1-1000-1-2');
+    expect(getFillAggregationKey(fill)).toBe('BTC-Open Long-order-1');
   });
 });

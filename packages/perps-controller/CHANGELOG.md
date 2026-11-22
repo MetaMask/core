@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `estimateOrderBookSlippage`, the slippage a market order takes sweeping the visible book, with types `OrderBookSlippageParams` and `OrderBookSlippageEstimate` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - Returns the volume-weighted and worst-level slippage in basis points from the mid (or a given reference) price, floored at zero, matching Extension's estimate and Mobile's worst-level figure
   - `canFill` is `false` when the visible book cannot hold the order; fields are `undefined` when the size or price is unknown
+- Add fill identity helpers ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `getOrderFillKey(fill)`: the key to deduplicate REST and live fills on; the venue's `fillId` when reported, otherwise the `orderId-timestamp-size-price` content key Mobile and Extension use
+  - `getFillAggregationKey(fill)`: the key that seeds which fills show as one trade, matching Mobile; closes, sells and auto-deleveraging group by market, direction and second, other fills by market, direction and order id
+  - Both keys are prefixed with `providerId:` when the fill carries one, so two venues trading the same symbol never merge
 
 ### Fixed
 
