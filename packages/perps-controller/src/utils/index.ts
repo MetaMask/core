@@ -87,7 +87,10 @@ export {
 } from './perpsClientCopy.js';
 export type { PerpsErrorCopy, PerpsOrderTypeLabel } from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
-export { getPositionDirection } from './positionCalculations.js';
+export {
+  getPositionDirection,
+  recomputePositionAtPrice,
+} from './positionCalculations.js';
 export {
   getPriceDeviationBand,
   isPriceOutsideDeviationBand,

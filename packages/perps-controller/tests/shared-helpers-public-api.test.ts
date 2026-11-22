@@ -19,6 +19,7 @@ import {
   getPriceDeviationBand,
   HYPERLIQUID_ORDER_LIMITS,
   isPriceOutsideDeviationBand,
+  recomputePositionAtPrice,
   getUndiscountedFeeRate,
   isTriggerPriceOnValidSide,
   ORDER_BOOK_GROUPING_CONFIG,
@@ -139,5 +140,28 @@ describe('shared Perps helpers public API', () => {
       max: 200,
     });
     expect(isPriceOutsideDeviationBand(10, 100, 0.5)).toBe(true);
+  });
+
+  it('exports recomputePositionAtPrice', () => {
+    expect(
+      recomputePositionAtPrice(
+        {
+          size: '1',
+          entryPrice: '100',
+          leverage: { type: 'cross', value: 2 },
+          unrealizedPnl: '0',
+          positionValue: '100',
+          returnOnEquity: '0',
+        },
+        110,
+      ),
+    ).toStrictEqual({
+      size: '1',
+      entryPrice: '100',
+      leverage: { type: 'cross', value: 2 },
+      unrealizedPnl: '10',
+      positionValue: '110',
+      returnOnEquity: '0.2',
+    });
   });
 });

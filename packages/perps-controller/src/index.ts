@@ -801,7 +801,10 @@ export {
   isPriceOutsideDeviationBand,
   roundPerpsPrice,
 } from './utils/index.js';
-export { getPositionDirection } from './utils/index.js';
+export {
+  getPositionDirection,
+  recomputePositionAtPrice,
+} from './utils/index.js';
 export type { SortMarketsParams } from './utils/index.js';
 export { parseVolume, sortMarkets } from './utils/index.js';
 export type {

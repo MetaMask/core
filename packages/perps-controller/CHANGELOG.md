@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New optional `PerpsOrderLimits.maxOraclePriceDeviation`; Hyperliquid reports `0.95` (also `HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation`) and Lighter omits it, so clients stop applying Hyperliquid's limit to other venues
   - `getPriceDeviationBand(referencePrice, maxDeviation)` and `isPriceOutsideDeviationBand(price, referencePrice, maxDeviation)` match Mobile's limit-price check; a missing price never reads as outside the band
 - Add optional `attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) to ready `PerpsOrderCapabilities`: the most take-profit and stop-loss legs one order can attach. Hyperliquid and Lighter both report one of each; clients should read it instead of hard-coding a limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `recomputePositionAtPrice(position, price)`, which revalues a position's `unrealizedPnl`, `positionValue` and `returnOnEquity` at a live price between account updates, matching Mobile's live PnL ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Keeps the venue's `returnOnEquity` while leverage is unreported instead of assuming 1x; returns the position unchanged for an unusable price, entry price or size
 
 ### Fixed
 
