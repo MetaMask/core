@@ -43,6 +43,16 @@ describe('calculateFeeNotionalUsd', () => {
     ).toBeUndefined();
   });
 
+  it('skips a blank TP/SL leg as Extension does', () => {
+    expect(calculateFeeNotionalUsd({ size: 2, price: [1500, ''] })).toBe(3000);
+    expect(calculateFeeNotionalUsd({ size: 2, price: [' ', '$1,200'] })).toBe(
+      2400,
+    );
+    expect(
+      calculateFeeNotionalUsd({ size: 2, price: ['', ''] }),
+    ).toBeUndefined();
+  });
+
   it.each([
     { usdAmount: '' },
     { usdAmount: 'abc' },

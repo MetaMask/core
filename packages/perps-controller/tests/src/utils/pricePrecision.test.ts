@@ -81,6 +81,10 @@ describe('roundPerpsPrice', () => {
       roundPerpsPrice({ price: '1.004999999999999999', pricePrecision }),
     ).toBe('1');
     expect(roundPerpsPrice({ price: '1.005', pricePrecision })).toBe('1.01');
+    // Beyond BigNumber's 20-decimal division: still just under a half tick.
+    expect(
+      roundPerpsPrice({ price: '1.004999999999999999999999', pricePrecision }),
+    ).toBe('1');
   });
 
   it('rounds to a tick that is not a power of ten', () => {

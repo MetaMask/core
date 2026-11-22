@@ -62,9 +62,11 @@ export function isPriceOutsideDeviationBand(
   referencePrice: number,
   maxDeviation: number,
 ): boolean {
-  const bounds = deviationBounds(referencePrice, maxDeviation);
-  if (bounds === undefined || !Number.isFinite(price) || price <= 0) {
+  // Compare with the numbers getPriceDeviationBand returns, so a price on a
+  // bound it reports is always inside.
+  const band = getPriceDeviationBand(referencePrice, maxDeviation);
+  if (band === undefined || !Number.isFinite(price) || price <= 0) {
     return false;
   }
-  return bounds.min.gt(price) || bounds.max.lt(price);
+  return price < band.min || price > band.max;
 }

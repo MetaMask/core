@@ -42,11 +42,13 @@ export function roundPerpsPrice(params: {
     if (!exact.isFinite() || exact.lte(0)) {
       return undefined;
     }
-    rounded = exact
-      .dividedBy(tick)
-      .integerValue(BigNumber.ROUND_HALF_UP)
-      .multipliedBy(tick)
-      .toFixed();
+    // Exact remainder, not a quotient: division rounds to 20 decimals and
+    // could turn a value just under a half tick into exactly half.
+    const remainder = exact.modulo(tick);
+    const down = exact.minus(remainder);
+    rounded = (
+      remainder.multipliedBy(2).gte(tick) ? down.plus(tick) : down
+    ).toFixed();
   } else if (Number.isInteger(priceNum)) {
     rounded = priceNum.toString();
   } else {

@@ -15,9 +15,9 @@ import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
-  isTriggerPriceOnValidSide,
   resolvePositionTriggerSummaryPrice,
 } from '../../../src/utils/orderTypes.js';
+import { isTriggerPriceOnValidSide } from '../../../src/utils/tpslCalculations.js';
 
 const createOrder = (overrides: Partial<Order> = {}): Order => ({
   orderId: '111',

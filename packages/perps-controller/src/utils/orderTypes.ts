@@ -140,45 +140,6 @@ export function getTriggerDirection(
 }
 
 /**
- * Whether a trigger price sits on the side its order fires from. A buy stop
- * and a sell take profit fire as the price rises, so they trigger above the
- * reference price; a buy take profit and a sell stop trigger below it. A
- * trigger at the reference price is on neither side.
- *
- * @param params - Trigger parameters.
- * @param params.orderType - Trigger order type.
- * @param params.isBuy - Side of the trigger order itself (a buy closes a short).
- * @param params.triggerPrice - Price at which the order activates.
- * @param params.referencePrice - Current price, or the parent's price for an
- * attached trigger.
- * @returns Whether the trigger is on its side, or undefined when either price
- * is missing or not a positive number.
- */
-export function isTriggerPriceOnValidSide(params: {
-  orderType: TriggerOrderType;
-  isBuy: boolean;
-  triggerPrice: number | string | undefined;
-  referencePrice: number | string | undefined;
-}): boolean | undefined {
-  const trigger = Number.parseFloat(String(params.triggerPrice));
-  const reference = Number.parseFloat(String(params.referencePrice));
-  if (
-    !Number.isFinite(trigger) ||
-    !Number.isFinite(reference) ||
-    trigger <= 0 ||
-    reference <= 0
-  ) {
-    return undefined;
-  }
-  // Same side rule as the TP/SL calculations: a buy trigger closes a short,
-  // whose stop sits above the price; a sell trigger closes a long, whose take
-  // profit sits above it.
-  const firesAbove =
-    (getTriggerDirection(params.orderType) === 'stop') === params.isBuy;
-  return firesAbove ? trigger > reference : trigger < reference;
-}
-
-/**
  * Recover which way a trigger fires from its price relative to the entry.
  *
  * Used when the exchange reports a trigger without naming its placement type:

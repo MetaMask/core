@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 
 import {
   getPriceDeviationBand,
@@ -42,6 +42,26 @@ describe('isPriceOutsideDeviationBand', () => {
     expect(isPriceOutsideDeviationBand(99.99, 2000, 0.95)).toBe(true);
     expect(isPriceOutsideDeviationBand(40000.01, 2000, 0.95)).toBe(true);
   });
+
+  // 1 / 0.3 rounds up to 3.3333333333333335 as a number.
+  it.each([
+    [1, 0.7],
+    [2000, 0.95],
+    [3, 0.9],
+  ])(
+    'keeps the bounds getPriceDeviationBand returns inside the band (%d, %d)',
+    (reference, limit) => {
+      const band = getPriceDeviationBand(reference, limit);
+      assert(band);
+
+      expect(isPriceOutsideDeviationBand(band.min, reference, limit)).toBe(
+        false,
+      );
+      expect(isPriceOutsideDeviationBand(band.max, reference, limit)).toBe(
+        false,
+      );
+    },
+  );
 
   it('never blocks on an unusable limit', () => {
     expect(isPriceOutsideDeviationBand(1, 2000, 1)).toBe(false);

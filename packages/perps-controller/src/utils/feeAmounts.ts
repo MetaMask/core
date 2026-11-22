@@ -11,7 +11,8 @@ export type FeeNotionalParams = (
       size: number | string;
       /**
        * Price the size is valued at. For a take-profit and stop-loss pair,
-       * pass both trigger prices: the higher one sets the notional.
+       * pass both trigger prices: the higher one sets the notional, and a
+       * blank (`''`) leg counts as unset.
        */
       price: number | string | readonly [number | string, number | string];
     }
@@ -38,6 +39,22 @@ function toNumber(value: number | string): number {
 }
 
 /**
+ * Higher price of a TP/SL pair. A blank leg (`''`) is an unset trigger and is
+ * skipped, as Extension's edit dialog sends it; a malformed leg is not.
+ *
+ * @param prices - Take-profit and stop-loss trigger prices.
+ * @returns The higher set price, or NaN when no leg is set or one is malformed.
+ */
+function higherTriggerPrice(
+  prices: readonly [number | string, number | string],
+): number {
+  const set = prices.filter(
+    (price) => typeof price === 'number' || price.trim() !== '',
+  );
+  return set.length === 0 ? Number.NaN : Math.max(...set.map(toNumber));
+}
+
+/**
  * USD notional a fee is charged on: the absolute order value, or size times
  * price (the higher trigger price of a TP/SL pair), scaled by `closePercent`
  * and `multiplier`.
@@ -55,7 +72,7 @@ export function calculateFeeNotionalUsd(
       ? Math.abs(toNumber(params.usdAmount))
       : Math.abs(toNumber(params.size)) *
         (typeof params.price === 'object'
-          ? Math.max(...params.price.map(toNumber))
+          ? higherTriggerPrice(params.price)
           : toNumber(params.price));
   const scaled = notional * (closePercent / 100) * multiplier;
   return Number.isFinite(scaled) ? scaled : undefined;

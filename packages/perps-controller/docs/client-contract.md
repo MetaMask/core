@@ -59,7 +59,7 @@ For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `sup
 | `CROSS_MARGIN_RATIO_THRESHOLDS`, `getCrossMarginRatioTone`                            | Warning and danger levels for `accountRatio`                                                                      |
 | `buildProviderCacheKey`                                                               | The `provider:network` key the controller caches per-venue data under                                             |
 
-A missing or unreadable number gives `undefined` rather than 0: the whole result for the scalar helpers, the affected fields for `estimateOrderBookSlippage`, and the position unchanged for `recomputePositionAtPrice`.
+A missing or unreadable number gives `undefined` rather than 0: the whole result for the scalar helpers, the affected fields for `estimateOrderBookSlippage`, and the position unchanged for `recomputePositionAtPrice`. `isPriceOutsideDeviationBand` fails open instead: it returns `false` for unusable input so an unknown price never blocks an order.
 
 ## Cross-margin liquidation
 
