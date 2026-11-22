@@ -19,7 +19,8 @@ import type { MockAnyNamespace } from '@metamask/messenger';
  */
 import assert from 'node:assert/strict';
 import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import type { LocalAccount } from 'viem';
@@ -358,19 +359,27 @@ async function settleAttempt(
     },
   );
   const runNet = runNetSize(fills, coin);
-  const size = await venueSize(user, coin);
   // Close only exposure the run's fills explain, never more and never against
-  // the position's direction.
-  const closable =
-    runNet !== 0 &&
-    Math.sign(size) === Math.sign(runNet) &&
-    Math.abs(size) >= Math.abs(runNet);
-  const close = closable
-    ? await controller.closePosition({
-        symbol: coin,
-        size: String(Math.abs(runNet)),
-      })
-    : undefined;
+  // the position's direction. Position reads can lag the fills, so wait for
+  // that exposure to appear before closing.
+  const explains = (signed: number): boolean =>
+    Math.sign(signed) === Math.sign(runNet) &&
+    Math.abs(signed) >= Math.abs(runNet);
+  let size = await venueSize(user, coin);
+  const sizeDeadline = Date.now() + 15_000;
+  if (runNet !== 0) {
+    while (!explains(size) && Date.now() < sizeDeadline) {
+      await sleep(3_000);
+      size = await venueSize(user, coin);
+    }
+  }
+  const close =
+    runNet !== 0 && explains(size)
+      ? await controller.closePosition({
+          symbol: coin,
+          size: String(Math.abs(runNet)),
+        })
+      : undefined;
   let leftSize = await venueSize(user, coin);
   const deadline = Date.now() + 15_000;
   if (close?.success === true) {
@@ -392,7 +401,7 @@ async function settleAttempt(
     clean:
       cancels.every((cancel) => cancel.success === true) &&
       mismatched.length === 0 &&
-      close?.success !== false &&
+      (runNet === 0 || close?.success === true) &&
       leftOrders.length === 0 &&
       leftSize === 0,
     orders,
@@ -407,15 +416,20 @@ async function settleAttempt(
 }
 
 /**
- * Hold a per-wallet lock file for a signed phase, so two runs on this host
- * never trade the same fixture wallet at once.
+ * Hold a per-wallet lock file for a signed phase. The file lives in the OS
+ * user's home directory, not the checkout or `TMPDIR`, so every checkout run
+ * by that user on this host contends for the same lock. Runs from other hosts
+ * or OS users are not covered.
  *
  * @param user - Wallet address.
  * @returns A release function.
  */
 async function lockWallet(user: string): Promise<() => Promise<void>> {
-  const lockPath = resolve(
-    `temp/recipe/locks/hip3-permissioned-dex-${user.toLowerCase()}.lock`,
+  const lockPath = join(
+    homedir(),
+    '.cache',
+    'metamask-recipe-locks',
+    `hip3-permissioned-dex-${user.toLowerCase()}.lock`,
   );
   await mkdir(dirname(lockPath), { recursive: true });
   const handle = await open(lockPath, 'wx').catch(() => {
@@ -423,8 +437,14 @@ async function lockWallet(user: string): Promise<() => Promise<void>> {
       `${lockPath} exists: another signed run holds this wallet. Remove it only when no run is active.`,
     );
   });
-  await handle.writeFile(`${process.pid}\n`);
-  await handle.close();
+  try {
+    await handle.writeFile(`${process.pid}\n`);
+  } catch (error) {
+    await handle.close().catch(() => undefined);
+    await unlink(lockPath);
+    throw error;
+  }
+  await handle.close().catch(() => undefined);
   return async () => unlink(lockPath);
 }
 
@@ -1305,9 +1325,12 @@ try {
     error: error instanceof Error ? error.message : String(error),
   };
 } finally {
-  await controller?.disconnect();
-  await release?.();
-  globalThis.fetch = realFetch;
+  try {
+    await controller?.disconnect();
+  } finally {
+    await release?.();
+    globalThis.fetch = realFetch;
+  }
 }
 report = {
   phase: values.phase,
