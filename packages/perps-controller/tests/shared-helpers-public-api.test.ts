@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 // Shared helpers clients used to copy, checked through the package entrypoint
 // so a dropped or renamed export fails here.
-import { buildProviderCacheKey, roundPerpsPrice } from '../src/index.js';
+import {
+  buildProviderCacheKey,
+  calculateCloseSize,
+  roundPerpsPrice,
+} from '../src/index.js';
 
 describe('shared Perps helpers public API', () => {
   it('exports buildProviderCacheKey', () => {
@@ -25,5 +29,16 @@ describe('shared Perps helpers public API', () => {
         },
       }),
     ).toBe('2.35');
+  });
+
+  it('exports calculateCloseSize', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: 2,
+        price: 100,
+        sizeDecimals: 2,
+        percent: 25,
+      }),
+    ).toStrictEqual({ size: 0.5, usdValue: 50 });
   });
 });

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `roundPerpsPrice({ price, pricePrecision })`, which rounds a price onto the grid in `PerpsOrderCapabilities.pricePrecision` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - A Hyperliquid `significant_figures` grid gives the same string as `formatHyperLiquidPrice`; a Lighter `fixed_decimals` grid rounds half up to its tick, so Lighter prices no longer go through Hyperliquid's grid
   - Returns `undefined` for a missing, non-positive or zero-rounding price
+- Add `calculateCloseSize`, which converts a percent or USD amount of a position into the size to close, with types `CloseSizeParams` and `CloseSize` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Rounds half up to `sizeDecimals` and adds one size step when rounding leaves the size below the request, as Mobile's close form does, but in exact decimal arithmetic: a request already on the size grid gets no extra step (Mobile's float math turns 7% of 10 into 0.8). The size never exceeds the position, and a USD amount above the position's value closes all of it
+  - Returns `undefined` instead of zero for a missing, out-of-range or non-numeric input or an empty position
 
 ### Fixed
 

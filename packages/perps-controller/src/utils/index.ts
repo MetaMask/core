@@ -11,8 +11,11 @@ export { getBatchOperationStatus } from './batchOperationStatus.js';
 export {
   estimateCloseReceive,
   calculateNetClosedPnl,
+  calculateCloseSize,
 } from './closeCalculations.js';
 export type {
+  CloseSize,
+  CloseSizeParams,
   CloseReceiveEstimateParams,
   CloseReceiveEstimate,
   NetClosedPnlParams,

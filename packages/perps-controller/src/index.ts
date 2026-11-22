@@ -662,8 +662,14 @@ export type {
   MaxRemovableMarginParams,
   LiquidationPriceAfterMarginChangeParams,
 } from './utils/index.js';
-export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
+export {
+  estimateCloseReceive,
+  calculateNetClosedPnl,
+  calculateCloseSize,
+} from './utils/index.js';
 export type {
+  CloseSize,
+  CloseSizeParams,
   CloseReceiveEstimateParams,
   CloseReceiveEstimate,
   NetClosedPnlParams,
