@@ -2833,6 +2833,15 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   supportedMarginModes?: readonly MarginMode[];
   /** Why a market that reports margin modes prohibits Cross. */
   crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
+  /**
+   * Most take-profit and most stop-loss legs one order can attach
+   * (`OrderParams.takeProfitPrice` / `stopLossPrice`). Omitted means not
+   * reported; clients must not assume another venue's limit.
+   */
+  attachedTpslGroupLimit?: Readonly<{
+    takeProfit: number;
+    stopLoss: number;
+  }>;
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';

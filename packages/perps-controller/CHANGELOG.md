@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the oracle price deviation limit as a venue-reported order limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - New optional `PerpsOrderLimits.maxOraclePriceDeviation`; Hyperliquid reports `0.95` (also `HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation`) and Lighter omits it, so clients stop applying Hyperliquid's limit to other venues
   - `getPriceDeviationBand(referencePrice, maxDeviation)` and `isPriceOutsideDeviationBand(price, referencePrice, maxDeviation)` match Mobile's limit-price check; a missing price never reads as outside the band
+- Add optional `attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) to ready `PerpsOrderCapabilities`: the most take-profit and stop-loss legs one order can attach. Hyperliquid and Lighter both report one of each; clients should read it instead of hard-coding a limit ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 
 ### Fixed
 

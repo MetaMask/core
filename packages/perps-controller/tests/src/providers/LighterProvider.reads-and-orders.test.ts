@@ -1818,6 +1818,7 @@ describe('LighterProvider', () => {
           minimumAppliesTo: 'resting_limit_orders',
           scaleOrderCount: { min: 2, max: 20 },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         attachedTpsl: {
           submission: 'native-oto-otoco',
           childCoverage: 'venue-native-zero-size',

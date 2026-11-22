@@ -8540,6 +8540,8 @@ export class LighterProvider implements PerpsProvider {
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       ...this.#getMarketPrecisionAndLimits(market),
+      // An OTOCO group carries one take profit and one stop loss.
+      attachedTpslGroupLimit: Object.freeze({ takeProfit: 1, stopLoss: 1 }),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
