@@ -6950,10 +6950,10 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
             );
 
-            // Mock recoverEncKey
-            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+            // Mock recoverEncKey for a newer global password so recoverPwEncKey walks the chain
+            mockRecoverEncKey(toprfClient, NEW_MOCK_PASSWORD);
             // second call after refresh token
-            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+            mockRecoverEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
             // Mock recoverPassword
             vi.spyOn(toprfClient, 'recoverPwEncKey')
@@ -6977,7 +6977,7 @@ describe('SeedlessOnboardingController', () => {
             await baseMessenger.call(
               'SeedlessOnboardingController:submitGlobalPassword',
               {
-                globalPassword: MOCK_PASSWORD,
+                globalPassword: NEW_MOCK_PASSWORD,
               },
             );
 

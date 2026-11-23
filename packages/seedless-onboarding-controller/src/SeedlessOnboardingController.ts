@@ -1371,16 +1371,17 @@ export class SeedlessOnboardingController<
         : { pwEncKey: globalPwEncKey, authKeyPair: globalAuthKeyPair };
 
       // Recover vault encryption key.
-      const { pwEncKey } =
-        vaultKeySet &&
-        pubKeysEqual(vaultKeySet.authKeyPair.pk, targetAuthPubKey)
-          ? { pwEncKey: vaultKeySet.localWrapKey }
-          : await this.toprfClient.recoverPwEncKey({
-              targetAuthPubKey,
-              curPwEncKey: chainStart.pwEncKey,
-              curAuthKeyPair: chainStart.authKeyPair,
-              maxPwChainLength: maxKeyChainLength,
-            });
+      const { pwEncKey } = pubKeysEqual(
+        chainStart.authKeyPair.pk,
+        targetAuthPubKey,
+      )
+        ? { pwEncKey: chainStart.pwEncKey }
+        : await this.toprfClient.recoverPwEncKey({
+            targetAuthPubKey,
+            curPwEncKey: chainStart.pwEncKey,
+            curAuthKeyPair: chainStart.authKeyPair,
+            maxPwChainLength: maxKeyChainLength,
+          });
       const vaultKey = await this.#loadSeedlessEncryptionKey(
         pwEncKey as Uint8Array<ArrayBuffer>,
       );

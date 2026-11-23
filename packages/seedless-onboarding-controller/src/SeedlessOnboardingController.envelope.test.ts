@@ -3411,6 +3411,35 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('unlocks directly without walking the key chain on a freshly migrated vault before any envelope password change', async () => {
+        const store: MetadataStore = new Map();
+        await withUnlockedController(async (args) => {
+          await migrate(args, mockNetwork(args.toprfClient, { store }));
+        });
+
+        await withUnlockedController(
+          async ({ controller, toprfClient, baseMessenger }) => {
+            mockNetwork(toprfClient, { store, globalPassword: MOCK_PASSWORD });
+            const recoverPwEncKeySpy = vi
+              .spyOn(toprfClient, 'recoverPwEncKey')
+              .mockRejectedValue(new Error('unexpected recoverPwEncKey'));
+            await baseMessenger.call('SeedlessOnboardingController:setLocked');
+
+            await controller.submitGlobalPassword({
+              globalPassword: MOCK_PASSWORD,
+            });
+
+            expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
+            expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+              true,
+            );
+            expect(
+              await controller.verifyVaultPassword(MOCK_PASSWORD),
+            ).toBeUndefined();
+          },
+        );
+      });
+
       it('walks the password key chain from the vault keys when the device lags behind', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
