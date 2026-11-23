@@ -21,8 +21,10 @@ import {
   bumpOhlcvGeneration,
   clearOhlcvPagination,
   doesLegendOwnLayoutSettle,
+  getActiveStudies,
   getAtomicIntervalWindow,
   getCurrentResolution,
+  getMaStudies,
   getOhlcvData,
   getOhlcvGeneration,
   getSlbMode,
@@ -31,6 +33,7 @@ import {
   isChartReady,
   setAtomicIntervalWindow,
   setCurrentResolution,
+  setLegendOwnsLayoutSettle,
   setOhlcvData,
   setOhlcvPagination,
   setRnBackedPagination,
@@ -57,6 +60,17 @@ type FirstDataCallback = () => void;
 
 let firstDataCallback: FirstDataCallback | null = null;
 let firstDataDelivered = false;
+
+/**
+ * When active indicators exist, defers the CHART_LAYOUT_SETTLED signal to the
+ * legend module so it fires after the first successful legend render — not on
+ * the premature 2-rAF timer in emitLayoutSettled.
+ */
+function claimLegendSettleOwnership(): void {
+  if (getActiveStudies().size > 0 || getMaStudies().size > 0) {
+    setLegendOwnsLayoutSettle(true);
+  }
+}
 
 /**
  * Registers the callback invoked the first time SET_OHLCV_DATA arrives.
@@ -364,6 +378,11 @@ function switchResolutionInPlace(
   } catch (error) {
     reportErrorToRN(error);
   }
+
+  // With active studies, the legend owns CHART_LAYOUT_SETTLED so the host is
+  // only told the layout settled once the legend has rendered values for the
+  // new resolution (emitLayoutSettled below then no-ops).
+  claimLegendSettleOwnership();
 
   try {
     chart.setResolution(newResolution, () => {

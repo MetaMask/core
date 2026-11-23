@@ -3,6 +3,8 @@ import type { Mock } from 'vitest';
 
 import {
   _resetStateForTests,
+  doesLegendOwnLayoutSettle,
+  getActiveStudies,
   getCurrentResolution,
   getOhlcvData,
   getOhlcvGeneration,
@@ -725,6 +727,93 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     expect(settledCalls).toHaveLength(0);
 
     (window.requestAnimationFrame as Mock).mockRestore();
+  });
+
+  describe('on resolution switch', () => {
+    const setUpResolutionSwitch = (): {
+      postMessage: Mock;
+      runSetResolutionCallback: () => void;
+      flushRaf: () => void;
+    } => {
+      const postMessage = vi.fn();
+      window.ReactNativeWebView = { postMessage };
+
+      const rafCallbacks: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+        (frameCallback: FrameRequestCallback) => {
+          rafCallbacks.push(frameCallback);
+          return rafCallbacks.length;
+        },
+      );
+
+      let setResCb: () => void = () => undefined;
+      const chart = {
+        resetData: vi.fn(),
+        setResolution: vi.fn().mockImplementation((_res, callback) => {
+          setResCb = callback;
+        }),
+        onDataLoaded: vi
+          .fn()
+          .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+        getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+        getPanes: vi.fn().mockReturnValue([]),
+      } as unknown as TVActiveChart;
+
+      // Prime resolution "1", then switch to "5".
+      handleSetOHLCVData({ data: oneMinuteApart(3) });
+      setWidget({
+        activeChart: () => chart,
+      } as unknown as TVChartingLibraryWidget);
+      setChartReady(true);
+
+      return {
+        postMessage,
+        runSetResolutionCallback: () => {
+          handleSetOHLCVData({
+            data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
+          });
+          setResCb();
+        },
+        flushRaf: () => {
+          // Drain nested rAFs (emitLayoutSettled uses 2×rAF).
+          while (rafCallbacks.length > 0) {
+            rafCallbacks.shift()?.(0);
+          }
+        },
+      };
+    };
+
+    const settledCount = (postMessage: Mock): number =>
+      postMessage.mock.calls.filter(
+        (call: string[]) => JSON.parse(call[0]).type === 'CHART_LAYOUT_SETTLED',
+      ).length;
+
+    it('defers CHART_LAYOUT_SETTLED to the legend when studies are active', () => {
+      const { postMessage, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+      getActiveStudies().set('RSI', 'study-1');
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(true);
+      expect(settledCount(postMessage)).toBe(0);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
+
+    it('posts CHART_LAYOUT_SETTLED from ingestion when no studies are active', () => {
+      const { postMessage, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(false);
+      expect(settledCount(postMessage)).toBe(1);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
   });
 });
 
