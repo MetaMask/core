@@ -668,9 +668,9 @@ describe('Wallet', () => {
         ).toBe(true),
       );
 
-      messenger.call('ApprovalController:acceptRequest', requestId, {});
+      await messenger.call('ApprovalController:acceptRequest', requestId, {});
 
-      expect(await signaturePromise).toStrictEqual(
+      expect(await signaturePromise).toBe(
         '0x04a77377da6d0c98fe09d8293dc2d8eb712049799bdd4244007af6016f17b2641e053dc911dec1d920fc2a4e9dba45deaacaad97374bb049e07438d479833c2d1c',
       );
     });
