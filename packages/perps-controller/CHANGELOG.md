@@ -95,7 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `sizeHyperLiquidScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` matches Mobile's sizing. An exact size must be on the size grid and its rungs must add up to it exactly, otherwise `ORDER_SCALE_SIZE_CONSERVATION_FAILED` (a very large size can lose a step in the float split). A USD amount is a target the ladder meets, starting from the amount over the skew-weighted average price rounded up and searching upward when the rungs fall short. When that first guess starves a skewed rung, the smallest smaller total (within 10,000 size steps) that splits and reaches the target is used, where Mobile fails; a first guess past the safe-integer range fails at once. Unlike `sizeScaleLadder`, the result can exceed the USD amount slightly; `totalSize` is always the sum of the rungs
 - Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#11690](https://github.com/MetaMask/core/pull/11690))
   - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
+  - The account index comes from the provider that executed the order, read when the order succeeds
   - New optional `PerpsProvider.getEnrollmentAccountIndex` method, implemented by the Lighter provider and the aggregated provider
+- Add `LighterAccountsPath`, `MaxRetries` and `RetryDelayMs` to `DATA_LAKE_API_CONFIG` ([#11690](https://github.com/MetaMask/core/pull/11690))
 
 ### Changed
 

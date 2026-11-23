@@ -87,9 +87,6 @@ export class DataLakeService {
       return { success: true, error: 'Skipped for testnet' };
     }
 
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 1000;
-
     // Generate trace ID once on first call
     const traceId = _traceId ?? uuidv4();
 
@@ -113,7 +110,7 @@ export class DataLakeService {
       action,
       symbol,
       attempt: retryCount + 1,
-      maxAttempts: MAX_RETRIES + 1,
+      maxAttempts: DATA_LAKE_API_CONFIG.MaxRetries + 1,
       hasStopLoss: Boolean(slPrice),
       hasTakeProfit: Boolean(tpPrice),
       timestamp: new Date().toISOString(),
@@ -206,15 +203,16 @@ export class DataLakeService {
               action,
               symbol,
               retryCount,
-              willRetry: retryCount < MAX_RETRIES,
+              willRetry: retryCount < DATA_LAKE_API_CONFIG.MaxRetries,
             },
           },
         },
       );
 
       // Retry logic
-      if (retryCount < MAX_RETRIES) {
-        const retryDelay = RETRY_DELAY_MS * Math.pow(2, retryCount);
+      if (retryCount < DATA_LAKE_API_CONFIG.MaxRetries) {
+        const retryDelay =
+          DATA_LAKE_API_CONFIG.RetryDelayMs * Math.pow(2, retryCount);
         this.#deps.debugLogger.log('DataLake API: Scheduling retry', {
           retryIn: `${retryDelay}ms`,
           nextAttempt: retryCount + 2,

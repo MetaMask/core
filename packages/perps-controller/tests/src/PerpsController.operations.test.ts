@@ -373,9 +373,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -3020,7 +3024,10 @@ describe('PerpsController', () => {
         tpPrice: 55000,
       };
 
-      const result = await controller.testReportOrderToDataLake(orderParams);
+      const result = await controller.testReportOrderToDataLake(
+        orderParams,
+        mockProvider,
+      );
 
       expect(result).toEqual(mockReportResult);
       expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledWith({
@@ -3060,13 +3067,13 @@ describe('PerpsController', () => {
         mockLighterEnrollmentServiceInstance.enroll.mockResolvedValue({
           success: true,
         });
-        controller.testSetProviders(
-          new Map([['lighter', mockLighterProvider]]),
-        );
       });
 
       it('enrolls the account instead of reporting to the orders endpoint', async () => {
-        const result = await controller.testReportOrderToDataLake(lighterOrder);
+        const result = await controller.testReportOrderToDataLake(
+          lighterOrder,
+          mockLighterProvider,
+        );
 
         expect(result).toEqual({ success: true });
         expect(mockDataLakeServiceInstance.reportOrder).not.toHaveBeenCalled();
@@ -3076,15 +3083,32 @@ describe('PerpsController', () => {
         await expect(getAccountIndex()).resolves.toBe(9828);
       });
 
+      it('enrolls the account of the provider that executed the order, not the active one', async () => {
+        const activeProvider = {
+          getEnrollmentAccountIndex: vi.fn().mockResolvedValue(1),
+        } as unknown as PerpsProvider;
+        controller.testSetProviders(new Map([['lighter', activeProvider]]));
+
+        await controller.testReportOrderToDataLake(
+          lighterOrder,
+          mockLighterProvider,
+        );
+
+        const { getAccountIndex } =
+          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+        await expect(getAccountIndex()).resolves.toBe(9828);
+        expect(activeProvider.getEnrollmentAccountIndex).not.toHaveBeenCalled();
+      });
+
       it('keeps reporting hyperliquid orders to the orders endpoint', async () => {
         mockDataLakeServiceInstance.reportOrder.mockResolvedValue({
           success: true,
         });
 
-        await controller.testReportOrderToDataLake({
-          ...lighterOrder,
-          providerId: 'hyperliquid',
-        });
+        await controller.testReportOrderToDataLake(
+          { ...lighterOrder, providerId: 'hyperliquid' },
+          mockProvider,
+        );
 
         expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
           1,
@@ -3099,10 +3123,10 @@ describe('PerpsController', () => {
           success: true,
         });
 
-        await controller.testReportOrderToDataLake({
-          action: 'open',
-          symbol: 'BTC',
-        });
+        await controller.testReportOrderToDataLake(
+          { action: 'open', symbol: 'BTC' },
+          mockProvider,
+        );
 
         expect(mockDataLakeServiceInstance.reportOrder).toHaveBeenCalledTimes(
           1,
@@ -3112,10 +3136,8 @@ describe('PerpsController', () => {
         ).not.toHaveBeenCalled();
       });
 
-      it('fails the account index lookup when the provider cannot enroll', async () => {
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-        await controller.testReportOrderToDataLake(lighterOrder);
+      it('fails the account index lookup when the executing provider cannot enroll', async () => {
+        await controller.testReportOrderToDataLake(lighterOrder, mockProvider);
 
         const { getAccountIndex } =
           mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];

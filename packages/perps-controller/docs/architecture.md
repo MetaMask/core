@@ -92,7 +92,7 @@ Code: `src/PerpsController.ts` `#createProviders`, `registerLighterProvider`, `h
 
 ## Services
 
-The controller creates `TradingService`, `MarketDataService`, `AccountService`, `EligibilityService`, `DataLakeService`, `DepositService`, `FeatureFlagConfigurationService` and `RewardsIntegrationService` with the platform dependencies (some also get the messenger). Venue services are created by their provider.
+The controller creates `TradingService`, `MarketDataService`, `AccountService`, `EligibilityService`, `DataLakeService`, `LighterEnrollmentService`, `DepositService`, `FeatureFlagConfigurationService` and `RewardsIntegrationService` with the platform dependencies (some also get the messenger). Venue services are created by their provider.
 
 | File                              | Job                                                                                                                                                                                                                |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -113,6 +113,7 @@ The controller creates `TradingService`, `MarketDataService`, `AccountService`, 
 | `LighterChaseService`             | Bounded Chase order ownership and serial cancel/replace                                                                                                                                                            |
 | `LighterClientService`            | zkLighter REST client on the platform `fetch`, no SDK; decodes every response                                                                                                                                      |
 | `lighterDispatchIdentity.ts`      | Checks the signed Lighter tx hash and expiry; refuses submission without them                                                                                                                                      |
+| `LighterEnrollmentService`        | Enrolls the account index that placed a Lighter order with notify-perps, with exponential backoff; skipped on testnet and without a base URL or token                                                              |
 | `LighterTwapService`              | Durable native Lighter TWAP schedules                                                                                                                                                                              |
 | `LighterWalletService`            | Routes the L1 signatures Lighter needs; the venue key stays in the client signer bridge                                                                                                                            |
 | `MarketDataService`               | Read-only fetches (markets, positions, orders, account state and more); writes state through `stateManager` when given; tries the Terminal API before the provider                                                 |
@@ -154,6 +155,7 @@ With snapshots configured, a missing or expired slice of a registered venue inva
 | `terminalApiUrl`        | no       | Deprecated; use `terminalApi.marketDataUrl`                                                            |
 | `terminalMarketService` | no       | Custom Terminal market service; the controller builds `TerminalMarketService` when only URLs are given |
 | `rewards`               | yes      | `getPerpsDiscountForAccount`, optional `getPerpsTradingFeeGrant`                                       |
+| `notifyPerpsApi`        | no       | `baseUrl` of notify-perps; Lighter account enrollment is skipped without it                            |
 | `subscription`          | no       | `getPerpsBenefits`, optional `registerTradingAddress`                                                  |
 | `accountSigner`         | no       | Main-account signer for clients without a `KeyringController`                                          |
 

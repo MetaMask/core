@@ -472,6 +472,11 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
 export const DATA_LAKE_API_CONFIG = {
   // Order reporting endpoint - only used for mainnet perps trading
   OrdersEndpoint: 'https://perps.api.cx.metamask.io/api/v1/orders',
+  // Lighter account enrollment path, appended to `notifyPerpsApi.baseUrl`
+  LighterAccountsPath: '/api/v1/lighter/accounts',
+  // Retries after the first attempt, with exponential backoff from RetryDelayMs
+  MaxRetries: 3,
+  RetryDelayMs: 1000,
 } as const;
 
 /**

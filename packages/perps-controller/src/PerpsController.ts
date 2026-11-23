@@ -4051,7 +4051,7 @@ export class PerpsController extends BaseController<
         ) => this.saveTradeConfiguration(symbol, leverage, providerId),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
 
     if (result.success) {
@@ -4461,7 +4461,7 @@ export class PerpsController extends BaseController<
         getPositions: () => this.getPositions(),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
   }
 
@@ -10472,22 +10472,25 @@ export class PerpsController extends BaseController<
    * @param params.tpPrice - The take profit price.
    * @param params.retryCount - Internal retry counter.
    * @param params._traceId - Internal trace ID.
+   * @param provider - The provider that executed the order.
    * @returns Whether the report was sent successfully, with an optional error message.
    */
-  protected async reportOrderToDataLake(params: {
-    action: 'open' | 'close';
-    symbol: string;
-    providerId?: PerpsProviderType;
-    slPrice?: number;
-    tpPrice?: number;
-    retryCount?: number;
-    _traceId?: string;
-  }): Promise<{ success: boolean; error?: string }> {
+  protected async reportOrderToDataLake(
+    params: {
+      action: 'open' | 'close';
+      symbol: string;
+      providerId?: PerpsProviderType;
+      slPrice?: number;
+      tpPrice?: number;
+      retryCount?: number;
+      _traceId?: string;
+    },
+    provider: PerpsProvider,
+  ): Promise<{ success: boolean; error?: string }> {
     if (params.providerId === 'lighter') {
       return this.#lighterEnrollmentService.enroll({
         isTestnet: isProviderOnTestnet('lighter', this.state.isTestnet),
         getAccountIndex: async () => {
-          const provider = await this.#getActiveProviderWhenReady();
           if (!provider.getEnrollmentAccountIndex) {
             throw new Error('Provider does not support enrollment');
           }

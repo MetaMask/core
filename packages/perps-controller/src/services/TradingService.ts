@@ -560,18 +560,6 @@ export class TradingService {
   }
 
   /**
-   * The venue an order executed on, so the report goes to the right endpoint.
-   * Anything that is not a direct venue (for example `aggregated`) is
-   * unresolved, which keeps the default report.
-   *
-   * @param candidate - Venue named by the result, the request or the provider.
-   * @returns The venue, or undefined when it is not a direct venue.
-   */
-  #resolveReportedVenue(candidate: string): PerpsProviderType | undefined {
-    return isPerpsProviderType(candidate) ? candidate : undefined;
-  }
-
-  /**
    * Handle successful order placement (state updates, analytics, data lake reporting)
    *
    * @param options - The configuration options.
@@ -925,11 +913,13 @@ export class TradingService {
 
       if (result.success) {
         // Handle success: state updates, data lake reporting
+        const executedVenue =
+          result.providerId ?? params.providerId ?? provider.protocolId;
         await this.#handleOrderSuccess({
           params,
-          providerId: this.#resolveReportedVenue(
-            result.providerId ?? params.providerId ?? provider.protocolId,
-          ),
+          providerId: isPerpsProviderType(executedVenue)
+            ? executedVenue
+            : undefined,
           context,
           reportOrderToDataLake,
         });
@@ -2572,13 +2562,13 @@ export class TradingService {
         }
 
         // Report to data lake (fire-and-forget)
+        const executedVenue =
+          result.providerId ?? params.providerId ?? provider.protocolId;
         this.#handleDataLakeReporting(
           reportOrderToDataLake,
           params.symbol,
           context,
-          this.#resolveReportedVenue(
-            result.providerId ?? params.providerId ?? provider.protocolId,
-          ),
+          isPerpsProviderType(executedVenue) ? executedVenue : undefined,
         );
 
         traceData = { success: true, filledSize: result.filledSize ?? '' };

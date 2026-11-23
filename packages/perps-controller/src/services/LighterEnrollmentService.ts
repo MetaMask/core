@@ -1,11 +1,11 @@
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import {
+  DATA_LAKE_API_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { getOptionalBearerToken } from './getOptionalBearerToken.js';
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
 
 const delay = async (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,7 +45,8 @@ export class LighterEnrollmentService {
    *
    * @param options - Configuration object
    * @param options.isTestnet - Whether Lighter runs on testnet (skips the call)
-   * @param options.getAccountIndex - Resolves the Lighter account index
+   * @param options.getAccountIndex - Resolves the Lighter account index. Called
+   * before the first await so it reads the account that placed the order.
    * @returns Result object with success flag and optional error message
    */
   async enroll(options: {
@@ -54,7 +55,6 @@ export class LighterEnrollmentService {
   }): Promise<{ success: boolean; error?: string }> {
     const { isTestnet, getAccountIndex } = options;
 
-    // Testnet accounts must never enroll.
     if (isTestnet) {
       this.#deps.debugLogger.log('Lighter enrollment: Skipping for testnet');
       return { success: true, error: 'Skipped for testnet' };
@@ -69,17 +69,20 @@ export class LighterEnrollmentService {
     let attempt = 0;
     let lastError = 'Unknown error';
     try {
-      const token = await getOptionalBearerToken(this.#messenger);
+      const [token, accountIndex] = await Promise.all([
+        getOptionalBearerToken(this.#messenger),
+        getAccountIndex(),
+      ]);
       if (!token) {
         this.#deps.debugLogger.log('Lighter enrollment: No token available');
         return { success: false, error: 'No token available' };
       }
-      const body = JSON.stringify({ account_index: await getAccountIndex() });
-      const url = `${baseUrl.replace(/\/$/u, '')}/api/v1/lighter/accounts`;
+      const body = JSON.stringify({ account_index: accountIndex });
+      const url = `${baseUrl.replace(/\/$/u, '')}${DATA_LAKE_API_CONFIG.LighterAccountsPath}`;
 
-      for (; attempt <= MAX_RETRIES; attempt++) {
+      for (; attempt <= DATA_LAKE_API_CONFIG.MaxRetries; attempt++) {
         if (attempt > 0) {
-          await delay(RETRY_DELAY_MS * 2 ** (attempt - 1));
+          await delay(DATA_LAKE_API_CONFIG.RetryDelayMs * 2 ** (attempt - 1));
         }
         try {
           const response = await fetch(url, {
@@ -99,7 +102,11 @@ export class LighterEnrollmentService {
             error,
             'LighterEnrollmentService.enroll',
           ).message;
-          this.#logError(error, attempt, attempt < MAX_RETRIES);
+          this.#logError(
+            error,
+            attempt,
+            attempt < DATA_LAKE_API_CONFIG.MaxRetries,
+          );
         }
       }
     } catch (error) {

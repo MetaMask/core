@@ -88,12 +88,19 @@ describe('LighterEnrollmentService', () => {
     );
   });
 
-  it('is harmless to call again', async () => {
-    const service = createService();
+  it('resolves the account index before waiting for the bearer token', async () => {
+    let resolveToken: (token: string) => void = () => undefined;
+    (mockMessenger.call as Mock).mockReturnValue(
+      new Promise<string>((resolve) => {
+        resolveToken = resolve;
+      }),
+    );
 
-    await expect(enroll(service)).resolves.toEqual({ success: true });
-    await expect(enroll(service)).resolves.toEqual({ success: true });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const promise = enroll(createService());
+
+    expect(getAccountIndex).toHaveBeenCalledTimes(1);
+    resolveToken(mockToken);
+    await expect(promise).resolves.toEqual({ success: true });
   });
 
   describe('skips', () => {
