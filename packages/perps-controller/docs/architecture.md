@@ -120,11 +120,19 @@ The controller creates `TradingService`, `MarketDataService`, `AccountService`, 
 | `providerNetwork.ts`              | Whether a provider runs on testnet                                                                                                                                                                                 |
 | `RewardsIntegrationService`       | Unified fee resolver; lowest of `default`, `rewards`, `grant` and `subscription`                                                                                                                                   |
 | `ServiceContext.ts`               | Per-call context type (tracing, error context, state callbacks)                                                                                                                                                    |
-| `TerminalMarketService`           | Market metadata from the MetaMask Terminal API, cached for `TERMINAL_API_CONFIG.CacheTtlMs`, and the schema-v4 global snapshot, cached until `receivedAt` plus the smaller of its `maxAgeMs` and 30 s              |
+| `TerminalMarketService`           | Market metadata from the MetaMask Terminal API, cached for `TERMINAL_API_CONFIG.CacheTtlMs`, and one schema-v4 global snapshot per provider, cached until `receivedAt` plus the smaller of its `maxAgeMs` and 30 s |
 | `TradingReadinessCache.ts`        | Global signing cache (unified account, builder fee, referral) that survives provider recreation so hardware wallets are not prompted again                                                                         |
 | `TradingService`                  | Orders, cancels and positions with fee discounts; signals `cacheInvalidator` after changes                                                                                                                         |
 
 Code: `src/services/`; `src/PerpsController.ts` constructor.
+
+## Market lists and saved markets
+
+Aggregated reads return the original venue rows. A market served directly from a v4 snapshot carries the provider ID that Core validated. Clients can call `groupMarketsByMarketKey(rows, defaultProvider)` for display. Rows group when they share a backend key and each explicitly has `priceScale: 1`. Each group puts the default venue first when present. Use `rowId` as the display row identity and the selected venue's `providerId` and `symbol` for charts and trading. Rows with missing keys or with missing or non-unit scales remain separate and use a HyperLiquid symbol or `lighter:<SYMBOL>` as their fallback `marketKey`.
+
+`toggleWatchlistMarket`, `isWatchlistMarket` and `recordMarketViewed` take an optional backend key from a unit-scale row. Pass the original group's `venues` as the third argument to `toggleWatchlistMarket` and `isWatchlistMarket`. These actions match a legacy HyperLiquid favorite only if that group contains a HyperLiquid row with the same backend key and `priceScale: 1`. When opening a saved item, pass the saved strings and ungrouped venue rows to `resolveSavedPerpsMarkets`. A legacy symbol requires an exact match on its original venue and stays unresolved while that row is unavailable. The resolver defaults legacy ownership to HyperLiquid and accepts the prior venue for entries saved on Lighter. New keyed entries look for unit-scale rows and prefer the configured default venue.
+
+With snapshots configured, a missing or expired venue slice invalidates the aggregated preload. The client can fetch a fresh list from Core.
 
 ## Platform dependencies
 

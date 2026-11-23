@@ -11,6 +11,7 @@ import {
   calculateWeightedReturnOnEquity,
   getCrossCollateral,
   getCaipAccountAddress,
+  getCrossMarginRatioTone,
   getCrossMarginSpotCollateral,
   getSpotBalance,
   sumCrossMarginSummaries,
@@ -1187,4 +1188,24 @@ describe('getCrossCollateral', () => {
       ),
     ).toBeUndefined();
   });
+});
+
+describe('getCrossMarginRatioTone', () => {
+  it.each([
+    [0, 'safe'],
+    [0.49, 'safe'],
+    [0.5, 'warning'],
+    [0.75, 'warning'],
+    [0.7501, 'danger'],
+    [1.2, 'danger'],
+  ])('rates %d as %s', (ratio, expected) => {
+    expect(getCrossMarginRatioTone(ratio)).toBe(expected);
+  });
+
+  it.each([undefined, Number.NaN, Number.POSITIVE_INFINITY])(
+    'returns undefined for %s',
+    (ratio) => {
+      expect(getCrossMarginRatioTone(ratio)).toBeUndefined();
+    },
+  );
 });

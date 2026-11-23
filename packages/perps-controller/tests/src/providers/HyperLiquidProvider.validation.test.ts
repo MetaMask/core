@@ -432,6 +432,7 @@ describe('HyperLiquidProvider', () => {
     } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
+      getFreshCrossMarginContext: vi.fn().mockReturnValue(null),
       subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
       subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
       subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
@@ -996,6 +997,45 @@ describe('HyperLiquidProvider', () => {
       positions.mockRestore();
       vi.mocked(provider.getCurrentAccountId).mockRestore();
     });
+
+    it.each([false, true])(
+      'uses the live Cross context without account reads (existing position: %s)',
+      async (hasPosition) => {
+        const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+        vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(accountId);
+        const positions = vi.spyOn(provider, 'getPositions');
+        const info = mockClientService.getInfoClient();
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '400',
+            maintenanceMargin: '50',
+            marginUsed: '100',
+            notional: '2000',
+          },
+          spotCollateral: '100',
+          hasPosition,
+        });
+        const price = provider.calculateLiquidationPrice({
+          asset: 'BTC',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        });
+        if (hasPosition) {
+          await expect(price).rejects.toMatchObject({
+            errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE',
+          });
+        } else {
+          expect(Number(await price)).toBeCloseTo(46666.66667, 4);
+        }
+        expect(positions).not.toHaveBeenCalled();
+        expect(info.userAbstraction).not.toHaveBeenCalled();
+        expect(info.clearinghouseState).not.toHaveBeenCalled();
+        expect(info.spotClearinghouseState).not.toHaveBeenCalled();
+      },
+    );
 
     it('quotes Standard mode using only the main DEX cross pool', async () => {
       const info = mockClientService.getInfoClient();

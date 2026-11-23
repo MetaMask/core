@@ -359,6 +359,16 @@ const NOOP_UNSUBSCRIBE = (): void => undefined;
 
 const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
 
+/**
+ * Take-profit and stop-loss legs one Lighter order can attach: an OTOCO group
+ * carries one of each. Lighter's own limit; equal to Hyperliquid's today only
+ * by coincidence.
+ */
+const LIGHTER_ATTACHED_TPSL_GROUP_LIMIT = Object.freeze({
+  takeProfit: 1,
+  stopLoss: 1,
+});
+
 /** Default Lighter execution protection, in basis points (5%). */
 const LIGHTER_DEFAULT_SLIPPAGE_BPS = 500;
 
@@ -8540,6 +8550,7 @@ export class LighterProvider implements PerpsProvider {
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       ...this.#getMarketPrecisionAndLimits(market),
+      attachedTpslGroupLimit: LIGHTER_ATTACHED_TPSL_GROUP_LIMIT,
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',

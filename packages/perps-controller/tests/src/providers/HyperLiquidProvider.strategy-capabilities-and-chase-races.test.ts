@@ -129,6 +129,7 @@ const hyperLiquidMarketLimits = (
       maxDurationMinutes: 1440,
       minNotionalUsd: 100,
     },
+    maxOraclePriceDeviation: 0.95,
   },
 });
 
@@ -176,6 +177,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -214,6 +216,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             maxDurationMinutes: 1440,
             minNotionalUsd: 100,
           },
+          maxOraclePriceDeviation: 0.95,
         },
       });
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
@@ -261,6 +264,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -295,6 +299,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -387,6 +392,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -518,6 +524,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -649,6 +656,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -686,6 +694,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -779,6 +788,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -814,6 +824,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -872,6 +883,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -899,6 +911,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -1010,6 +1023,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1150,6 +1164,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1227,6 +1242,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1278,6 +1294,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1336,6 +1353,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1583,6 +1601,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',

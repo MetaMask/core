@@ -214,8 +214,8 @@ export type TradeAction =
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
 export type TrackingData = {
   // Common to all operations
-  totalFee: number; // Total fee for the operation (parsed by hooks)
-  marketPrice: number; // Market price at operation time (parsed by hooks)
+  totalFee?: number; // Total fee for the operation (parsed by hooks); omit when unknown
+  marketPrice?: number; // Market price at operation time (parsed by hooks); omit when unknown
   metamaskFee?: number; // MetaMask fee amount (parsed by hooks)
   metamaskFeeRate?: number; // MetaMask fee rate (parsed by hooks)
   feeDiscountPercentage?: number; // Fee discount percentage (parsed by hooks)
@@ -1035,6 +1035,8 @@ export type CrossMarginSummary = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
+  /** Venue account mode when confirmed by the current account stream. */
+  accountMode?: string;
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
    * HL: marginSummary.accountValue + spot(USDC) − spot.hold
@@ -1353,6 +1355,10 @@ export type MarketInfo = {
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)
   providerId?: PerpsProviderType; // Multi-provider: which provider this market comes from (injected by aggregator)
+  /** Cross-venue identity from the Terminal snapshot. */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
 };
 
 /**
@@ -1498,6 +1504,23 @@ export type PerpsMarketData = {
    * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
    */
   listedAt?: number;
+  /** Asset icon URL from the Terminal global snapshot. */
+  iconUrl?: string;
+  /**
+   * Cross-venue market identity from the Terminal global snapshot. Rows from
+   * different providers with the same `marketKey` are the same market.
+   */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
+};
+
+/** One display row with its original venue rows, preferred venue first. */
+export type GroupedPerpsMarket = PerpsMarketData & {
+  marketKey: string;
+  /** Stable display identity, distinct for a backend group and a venue row. */
+  rowId: string;
+  venues: PerpsMarketData[];
 };
 
 export type ToggleTestnetResult = {
@@ -2175,7 +2198,10 @@ export type SubscribePricesParams = {
 };
 
 export type SubscribePositionsParams = {
-  callback: (positions: Position[]) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Future: include historical data
 };
@@ -2203,7 +2229,14 @@ export type SubscribeOrdersParams = {
    * setup failures through this optional callback.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
-  callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (
+    orders: Order[],
+    sourceProviderId?: PerpsProviderType,
+    completeSnapshot?: boolean,
+  ) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish orders for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
@@ -2741,6 +2774,13 @@ export type PerpsOrderLimits = Readonly<{
     /** Minimum total TWAP value in USD. */
     minNotionalUsd: number;
   }>;
+  /**
+   * Furthest a limit price may sit from the oracle price, as a fraction
+   * (0.95 = 95%): a price is rejected when the lower of it and the oracle
+   * price is below `1 - maxOraclePriceDeviation` times the higher. Check it
+   * with `isPriceOutsideDeviationBand`.
+   */
+  maxOraclePriceDeviation?: number;
 }>;
 
 /**
@@ -2826,6 +2866,15 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   supportedMarginModes?: readonly MarginMode[];
   /** Why a market that reports margin modes prohibits Cross. */
   crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
+  /**
+   * Most take-profit and most stop-loss legs one order can attach
+   * (`OrderParams.takeProfitPrice` / `stopLossPrice`). Omitted means not
+   * reported; clients must not assume another venue's limit.
+   */
+  attachedTpslGroupLimit?: Readonly<{
+    takeProfit: number;
+    stopLoss: number;
+  }>;
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';
@@ -4210,9 +4259,12 @@ export type PerpsTerminalMarketService = {
   ): Promise<PerpsGlobalSnapshotResult>;
 };
 
-/** Exact identity a client expects from an atomic global Perps snapshot. */
+/**
+ * Exact identity a client expects from an atomic global Perps snapshot.
+ * Lighter has a single DEX, so its `enabledDexes` is `['main']`.
+ */
 export type PerpsGlobalSnapshotRequest = {
-  provider: 'hyperliquid';
+  provider: 'hyperliquid' | 'lighter';
   network: 'mainnet' | 'testnet';
   enabledDexes: string[];
 };

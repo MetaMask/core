@@ -40,6 +40,7 @@ import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
   DECIMAL_PRECISION_CONFIG,
+  HYPERLIQUID_ORDER_LIMITS,
   HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
@@ -246,6 +247,7 @@ import {
   previewHyperLiquidIsolatedPositionModify,
   resolveHyperLiquidMarginTiers,
 } from '../utils/hyperLiquidPositionPreview.js';
+import { normalizeHyperLiquidScalePriceLadder } from '../utils/hyperLiquidScaleOrders.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -270,7 +272,6 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   computeChaseQuotePrice,
-  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
   getPriceTick,
@@ -1568,22 +1569,6 @@ const adaptTwapOrderFill = (
   transactionHash: entry.fill.hash,
 });
 
-const normalizeHyperLiquidScalePriceLadder = (params: {
-  minPrice: number;
-  maxPrice: number;
-  count: number;
-  szDecimals: number;
-}): string[] => {
-  const { szDecimals, ...ladderParams } = params;
-  const prices = computeScalePriceLadder(ladderParams).map((price) =>
-    formatHyperLiquidPrice({ price, szDecimals }),
-  );
-  if (new Set(prices).size !== prices.length) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-  }
-  return prices;
-};
-
 /**
  * Build a normalized readiness failure without exposing venue text.
  *
@@ -2093,6 +2078,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           maxDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes,
           minNotionalUsd: HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd,
         }),
+        maxOraclePriceDeviation:
+          HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation,
       }),
     });
   }
@@ -17911,18 +17898,93 @@ export class HyperLiquidProvider implements PerpsProvider {
       return null;
     }
 
-    const infoClient = this.#clientService.getInfoClient();
-    const [mode, meta] = await Promise.all([
-      infoClient.userAbstraction({ user: userAddress }),
-      this.#getCachedMeta({ dexName: dex }),
-    ]);
+    const meta = await this.#getCachedMeta({ dexName: dex });
+    const currentAccount = await this.getCurrentAccountId();
     const market = meta.universe.find((item) => item.name === asset);
-    if (!market || !this.#isCrossMarginSupported(market)) {
+    if (
+      currentAccount !== accountId ||
+      generation !== this.#lifecycleGeneration ||
+      !market ||
+      !this.#isCrossMarginSupported(market)
+    ) {
       return null;
     }
 
     // An add, close or flip needs the existing position's change in
     // maintenance. This preview only models an opening in a flat market.
+    const streamed = this.#subscriptionService.getFreshCrossMarginContext(
+      userAddress,
+      asset,
+    );
+    if (streamed?.hasPosition) {
+      return null;
+    }
+    const context =
+      streamed ??
+      (await this.#readCrossMarginContext(
+        asset,
+        accountId,
+        userAddress,
+        generation,
+      ));
+    if (!context) {
+      return null;
+    }
+    const { summary, spotCollateral } = context;
+    const accountValue = getCrossCollateral(summary, spotCollateral);
+    if (
+      accountValue === undefined ||
+      summary === undefined ||
+      summary.maintenanceMargin.trim() === ''
+    ) {
+      return null;
+    }
+    const priorMaintenance = Number(summary.maintenanceMargin);
+    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
+      return null;
+    }
+    const marginTiers = resolveHyperLiquidMarginTiers({
+      marginTableId: market.marginTableId,
+      maxLeverage: market.maxLeverage,
+      marginTables: meta.marginTables,
+    });
+    const addedMaintenance = estimateCrossMaintenanceMargin([
+      { notional: entryPrice * positionSize, marginTiers },
+    ]);
+    if (addedMaintenance === null) {
+      return null;
+    }
+    return estimateCrossLiquidationPrice({
+      isLong,
+      markPrice: entryPrice,
+      positionSize,
+      accountValue,
+      maintenanceMargin: priorMaintenance + addedMaintenance,
+      marginTiers,
+    });
+  }
+
+  /**
+   * Read Cross inputs when live account coverage is incomplete.
+   *
+   * @param asset - The proposed position's market.
+   * @param accountId - Selected account when the quote began.
+   * @param userAddress - Venue address for the selected account.
+   * @param generation - Provider lifecycle when the quote began.
+   * @returns Confirmed margin inputs for a flat market, or null.
+   */
+  async #readCrossMarginContext(
+    asset: string,
+    accountId: CaipAccountId,
+    userAddress: Hex,
+    generation: number,
+  ): Promise<{
+    summary: CrossMarginSummary | undefined;
+    spotCollateral: string | undefined;
+  } | null> {
+    const { dex } = parseAssetName(asset);
+    const infoClient = this.#clientService.getInfoClient();
+    const mode = await infoClient.userAbstraction({ user: userAddress });
     let summary: CrossMarginSummary | undefined;
     let spotCollateral: string | undefined;
     if (mode === HL_UNIFIED_ACCOUNT_MODE) {
@@ -17971,37 +18033,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return null;
     }
-    const accountValue = getCrossCollateral(summary, spotCollateral);
-    if (
-      accountValue === undefined ||
-      summary === undefined ||
-      summary.maintenanceMargin.trim() === ''
-    ) {
-      return null;
-    }
-    const priorMaintenance = Number(summary.maintenanceMargin);
-    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
-      return null;
-    }
-    const marginTiers = resolveHyperLiquidMarginTiers({
-      marginTableId: market.marginTableId,
-      maxLeverage: market.maxLeverage,
-      marginTables: meta.marginTables,
-    });
-    const addedMaintenance = estimateCrossMaintenanceMargin([
-      { notional: entryPrice * positionSize, marginTiers },
-    ]);
-    if (addedMaintenance === null) {
-      return null;
-    }
-    return estimateCrossLiquidationPrice({
-      isLong,
-      markPrice: entryPrice,
-      positionSize,
-      accountValue,
-      maintenanceMargin: priorMaintenance + addedMaintenance,
-      marginTiers,
-    });
+    return { summary, spotCollateral };
   }
 
   /**

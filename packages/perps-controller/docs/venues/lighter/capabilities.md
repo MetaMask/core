@@ -18,6 +18,7 @@ What `LighterProvider` declares and implements. Lighter is a POC provider; how i
 | `strategyRules`                | `scale`: `minOrders` 2, `maxOrders` 20 (`SCALE_ORDER_COUNT`). With chase advertised, also `chase`: `defaultIntervalMs` 15,000, `minIntervalMs` 1,000, and no `maxActiveSessions`, since Lighter does not cap concurrent chases |
 | `supportedMarginModes`         | `cross`, `isolated`                                                                                                                                                                                                            |
 | `supportedTriggerOrderTypes`   | `stop_market`, `stop_limit`, `take_profit_market`, `take_profit_limit`                                                                                                                                                         |
+| `attachedTpslGroupLimit`       | `takeProfit: 1`, `stopLoss: 1`                                                                                                                                                                                                 |
 | `attachedTpsl`                 | `submission: 'native-oto-otoco'`, `childCoverage: 'venue-native-zero-size'`, `partialSizes: false`, `lifecycleVerification: 'pending'`, `cancellation: 'explicit-exact-owned-orders'`                                          |
 | `positionTpsl`                 | `supportsExpectedPosition: true`, `childOrderIds: 'request-correlated'`, TP `take_profit_market`, SL `stop_market`, `defaultCoverage: 'position-snapshot'`                                                                     |
 | `positionTpsl.partialCoverage` | `single: true`, `pair: 'equal-quantity-oco'`, `supportedPairs` `equal-quantity-oco` and `independent`, `replacement: 'cancel-before-create'`, `recovery: 'explicit-current-position-intent'`                                   |
@@ -66,6 +67,10 @@ Code: `src/providers/LighterProvider.ts` constructor, `#placeChaseProbe`, `#plac
 | Live data               | WebSocket market, account, position, order, fill, order-book and candle streams; REST price polling every 5 s (`LIGHTER_PRICE_POLLING_INTERVAL_MS`) when no WebSocket exists               |
 
 Code: `src/providers/LighterProvider.ts` `#assertStandardAccount`, `closePosition`, `editOrder`, `updateMargin`, `previewPositionModify`, `getDepositRoutes`, `getWithdrawalRoutes`; `src/utils/lighterNativeEdit.ts`.
+
+With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the Lighter snapshot's name, description, icon, category, keywords, tags, listing time, volume, open interest and `marketKey` to each market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with the venue. A missing or invalid Lighter snapshot leaves the venue rows unchanged.
+
+Code: `src/services/MarketDataService.ts` `getMarketDataWithPrices`.
 
 ## Fees
 

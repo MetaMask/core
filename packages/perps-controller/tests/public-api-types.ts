@@ -86,6 +86,7 @@ import type {
   CancelOrdersParams,
   SubscribeAccountParams,
   PerpsProviderType,
+  TrackingData,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -1101,4 +1102,6 @@ export type AggregatedAccountConsumerContracts = [
   AssertTrue<
     IsExact<ClosePositionsParams['targets'], ClosePositionsTarget[] | undefined>
   >,
+  AssertTrue<IsExact<TrackingData['totalFee'], number | undefined>>,
+  AssertTrue<IsExact<TrackingData['marketPrice'], number | undefined>>,
 ];

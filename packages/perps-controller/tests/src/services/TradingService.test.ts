@@ -929,6 +929,52 @@ describe('TradingService', () => {
       }
     });
 
+    it('tracks trackingData without a fee or market price', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 10,
+        trackingData: { source: 'trending' },
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+        filledSize: '0.1',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executedCall = (
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
+        >
+      ).mock.calls.find(
+        (call) =>
+          call[0] === PerpsAnalyticsEvent.TradeTransaction &&
+          call[1][PERPS_EVENT_PROPERTY.STATUS] ===
+            PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      );
+      expect(executedCall?.[1]).toStrictEqual(
+        expect.objectContaining({
+          [PERPS_EVENT_PROPERTY.SOURCE]: 'trending',
+        }),
+      );
+      expect(executedCall?.[1]).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEES);
+      expect(executedCall?.[1]).not.toHaveProperty(
+        PERPS_EVENT_PROPERTY.ASSET_PRICE,
+      );
+    });
+
     it('tracks accepted Scale size and weighted limit price separately from execution price', async () => {
       const orderParams: OrderParams = {
         symbol: 'ETH',

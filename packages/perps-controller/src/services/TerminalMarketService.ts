@@ -35,7 +35,10 @@ import type {
 import { MarketCategory } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { formatChange } from '../utils/marketDataTransform.js';
-import { clonePerpsMarketData } from '../utils/marketUtils.js';
+import {
+  clonePerpsMarketData,
+  getSnapshotMarketIdentity,
+} from '../utils/marketUtils.js';
 
 const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
 const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 4;
@@ -79,6 +82,9 @@ const GlobalSnapshotMarketStruct = type({
   trend: array(tuple([number(), string()])),
   onlyIsolated: optional(nullable(boolean())),
   marginMode: optional(nullable(enums(HYPERLIQUID_VENUE_MARGIN_MODES))),
+  marketKey: optional(nullable(string())),
+  priceScale: optional(nullable(number())),
+  venueMarketId: optional(nullable(string())),
 });
 
 const GlobalSnapshotStruct = type({
@@ -358,7 +364,10 @@ export class TerminalMarketService {
       throw new Error('Terminal global snapshot identity mismatch');
     }
 
-    const responseDexes = this.#normalizeDexes(snapshot.enabledDexes);
+    const responseDexes = this.#normalizeDexes(
+      snapshot.enabledDexes,
+      identity.provider,
+    );
     if (
       responseDexes.length !== identity.enabledDexes.length ||
       responseDexes.some((dex, index) => dex !== identity.enabledDexes[index])
@@ -413,7 +422,9 @@ export class TerminalMarketService {
         representedDexes.add(market.dex);
         return market;
       })
-      .map((market) => this.#mapSnapshotMarket(market, expiresAt));
+      .map((market) =>
+        this.#mapSnapshotMarket(market, identity.provider, expiresAt),
+      );
     const markets = mapped.map((market) => market.marketData);
     const marketInfos = mapped.map((market) => market.marketInfo);
     if (identity.enabledDexes.some((dex) => !representedDexes.has(dex))) {
@@ -429,7 +440,7 @@ export class TerminalMarketService {
   #validateRequestedIdentity(
     request: PerpsGlobalSnapshotRequest,
   ): PerpsGlobalSnapshotRequest {
-    if (request.provider !== 'hyperliquid') {
+    if (request.provider !== 'hyperliquid' && request.provider !== 'lighter') {
       throw new Error('Terminal global snapshot provider is unsupported');
     }
     if (request.network !== 'mainnet' && request.network !== 'testnet') {
@@ -438,7 +449,10 @@ export class TerminalMarketService {
     return {
       provider: request.provider,
       network: request.network,
-      enabledDexes: this.#normalizeDexes(request.enabledDexes),
+      enabledDexes: this.#normalizeDexes(
+        request.enabledDexes,
+        request.provider,
+      ),
     };
   }
 
@@ -454,7 +468,10 @@ export class TerminalMarketService {
     return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query.toString()}`;
   }
 
-  #normalizeDexes(dexes: string[]): string[] {
+  #normalizeDexes(
+    dexes: string[],
+    provider: PerpsGlobalSnapshotRequest['provider'],
+  ): string[] {
     if (!Array.isArray(dexes) || dexes.length === 0) {
       throw new Error('Terminal global snapshot requires at least one DEX');
     }
@@ -469,6 +486,13 @@ export class TerminalMarketService {
     }
     if (!normalized.includes('main')) {
       throw new Error('Terminal global snapshot requires the main DEX');
+    }
+    if (provider === 'lighter') {
+      // Lighter has one order-book venue and no HIP-3 style DEXes.
+      if (normalized.length !== 1) {
+        throw new Error('Terminal global snapshot Lighter DEX must be main');
+      }
+      return normalized;
     }
     return canonicalizeHyperLiquidDexes(normalized);
   }
@@ -504,9 +528,9 @@ export class TerminalMarketService {
     if (!identity.enabledDexes.includes(market.dex)) {
       throw invalid('dex');
     }
-    // `provider` is the venue (Hyperliquid), including HIP-3 markets whose
-    // DEX lives in `dex`. Terminal v3 emits `provider: "hyperliquid"` for
-    // both `main` and `xyz` rows; HIP-3 identity is `dex`, not `provider`.
+    // `provider` is the venue, including HyperLiquid HIP-3 markets whose
+    // DEX lives in `dex`: HyperLiquid rows are `provider: "hyperliquid"` for
+    // both `main` and `xyz`; HIP-3 identity is `dex`, not `provider`.
     if (market.provider !== identity.provider) {
       throw invalid('provider');
     }
@@ -567,18 +591,35 @@ export class TerminalMarketService {
     }
     const price = Number(market.markPrice);
     const change24h = Number(market.change24h);
-    const previousPrice = price - change24h;
-    if (price <= 0 || previousPrice <= 0 || !Number.isFinite(previousPrice)) {
-      throw invalid('mark/change coherence');
+    const { changePercent24h } = market;
+    if (price <= 0) {
+      throw invalid('markPrice');
     }
-    const derivedPercent = (change24h / previousPrice) * 100;
-    if (
-      !Number.isFinite(derivedPercent) ||
-      !Number.isFinite(market.changePercent24h) ||
-      Math.abs(market.changePercent24h - derivedPercent) >
-        GLOBAL_SNAPSHOT_PERCENT_TOLERANCE
-    ) {
-      throw invalid('changePercent24h coherence');
+    if (identity.provider === 'lighter') {
+      // Lighter measures daily change from its last trade. The snapshot has
+      // the mark price but omits the last trade price and rounds the delta.
+      if (
+        !Number.isFinite(changePercent24h) ||
+        changePercent24h <= -100 ||
+        (change24h !== 0 &&
+          Math.sign(change24h) !== Math.sign(changePercent24h))
+      ) {
+        throw invalid('changePercent24h coherence');
+      }
+    } else {
+      const previousPrice = price - change24h;
+      if (previousPrice <= 0 || !Number.isFinite(previousPrice)) {
+        throw invalid('mark/change coherence');
+      }
+      const derivedPercent = (change24h / previousPrice) * 100;
+      if (
+        !Number.isFinite(derivedPercent) ||
+        !Number.isFinite(changePercent24h) ||
+        Math.abs(changePercent24h - derivedPercent) >
+          GLOBAL_SNAPSHOT_PERCENT_TOLERANCE
+      ) {
+        throw invalid('changePercent24h coherence');
+      }
     }
     this.#validateRollingPair(
       market.change5m,
@@ -609,10 +650,21 @@ export class TerminalMarketService {
       ['description', market.description],
       ['iconUrl', market.iconUrl],
       ['category', market.category],
+      ['marketKey', market.marketKey],
     ] as const) {
       if (value?.length === 0) {
         throw invalid(field);
       }
+    }
+    if (
+      market.priceScale !== undefined &&
+      market.priceScale !== null &&
+      (!Number.isFinite(market.priceScale) || market.priceScale <= 0)
+    ) {
+      throw invalid('priceScale');
+    }
+    if (market.venueMarketId === '') {
+      throw invalid('venueMarketId');
     }
     let previousTrendTimestamp = -1;
     for (const [timestamp, trendPrice] of market.trend) {
@@ -633,6 +685,7 @@ export class TerminalMarketService {
 
   #mapSnapshotMarket(
     market: GlobalSnapshotMarket,
+    provider: PerpsGlobalSnapshotRequest['provider'],
     sourceExpiresAt: number,
   ): { marketData: PerpsMarketData; marketInfo: MarketInfo } {
     const formatters = this.#deps.marketDataFormatters;
@@ -642,8 +695,13 @@ export class TerminalMarketService {
     const change24h = Number(market.change24h);
     const volume = Number(market.volume24h);
     const openInterest = Number(market.openInterest);
+    const identity = getSnapshotMarketIdentity(market);
     const isHip3 = market.dex !== 'main';
-    const marketType = this.#marketTypeFor(market.dex, market.category);
+    const marketType = this.#marketTypeFor(
+      provider,
+      market.dex,
+      market.category,
+    );
     const change5m = this.#mapRollingWindow(
       market.change5m,
       market.changePercent5m,
@@ -658,6 +716,7 @@ export class TerminalMarketService {
     return {
       marketData: {
         id: market.id,
+        providerId: provider,
         symbol: market.symbol,
         name: market.name ?? market.symbol,
         ...(market.description !== null && {
@@ -684,6 +743,8 @@ export class TerminalMarketService {
         ...(market.tags && { tags: market.tags }),
         ...(market.category && { categories: [market.category] }),
         ...(market.listedAt !== null && { listedAt: market.listedAt }),
+        ...(market.iconUrl !== null && { iconUrl: market.iconUrl }),
+        ...identity,
         trend: market.trend,
         dataSource: 'terminal-global-snapshot-mark',
         sourceExpiresAt,
@@ -694,6 +755,7 @@ export class TerminalMarketService {
         szDecimals: market.szDecimals,
         maxLeverage: market.maxLeverage,
         marginTableId: 0,
+        ...identity,
         ...(market.onlyIsolated === true && { onlyIsolated: true as const }),
         // `normal` is no restriction, so it stays out of `marginMode`.
         ...(!isUnrestrictedMarginMode(market.marginMode) && {
@@ -735,10 +797,13 @@ export class TerminalMarketService {
   }
 
   #marketTypeFor(
+    provider: PerpsGlobalSnapshotRequest['provider'],
     dex: string,
     category: string | null,
   ): TerminalAssetMetadata['marketType'] | undefined {
-    if (dex === 'main') {
+    // Only HyperLiquid's main DEX is crypto-only. Lighter lists stocks, FX
+    // and commodities on its single DEX, so its category decides.
+    if (provider === 'hyperliquid' && dex === 'main') {
       return MarketCategory.CryptoCurrency;
     }
     if (category === 'stocks') {

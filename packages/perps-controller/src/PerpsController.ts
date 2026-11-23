@@ -238,7 +238,9 @@ import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
+  getPerpsWatchlistReferences,
   shouldIncludeMarket,
+  toSavedPerpsMarketReference,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
 import { isStrategyOrderType } from './utils/orderTypes.js';
@@ -1391,11 +1393,10 @@ export class PerpsController extends BaseController<
   >();
 
   /**
-   * Latest toggle number per `network:symbol` whose write is still pending,
-   * so a failed write is undone only when no later toggle of the same market
-   * has superseded it.
+   * Latest toggle per network and saved reference whose write is pending.
+   * Grouped and symbol-only calls can overlap on a legacy reference.
    */
-  readonly #pendingWatchlistToggles = new Map<string, number>();
+  readonly #pendingWatchlistToggles = new Map<string, symbol>();
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
@@ -1694,25 +1695,8 @@ export class PerpsController extends BaseController<
     const cache = this.state.cachedMarketDataByProvider;
 
     if (activeProvider === 'aggregated') {
-      // Assemble from all registered provider entries
-      const assembled: PerpsMarketData[] = [];
-      for (const providerId of this.#getAggregatedCacheProviderIds(
-        Object.keys(cache),
-      )) {
-        const key = buildProviderCacheKey(providerId, this.state.isTestnet);
-        const entry = cache[key];
-        if (!entry || entry.data.length === 0) {
-          continue;
-        }
-        if (!this.#isMarketCacheEntryCurrent(providerId, entry, options)) {
-          continue;
-        }
-        assembled.push(...clonePerpsMarketData(entry.data));
-      }
-      if (assembled.length === 0) {
-        return null;
-      }
-      return assembled;
+      const rows = this.#getCachedAggregateMarketRows(options);
+      return rows ? clonePerpsMarketData(rows) : null;
     }
 
     // Single provider mode
@@ -1725,6 +1709,36 @@ export class PerpsController extends BaseController<
       return null;
     }
     return clonePerpsMarketData(entry.data);
+  }
+
+  #getCachedAggregateMarketRows(options?: {
+    skipTTL?: boolean;
+  }): PerpsMarketData[] | null {
+    const { cachedMarketDataByProvider: cache, isTestnet } = this.state;
+    const snapshotConfigured = this.#isGlobalSnapshotConfigured();
+    const providerIds = new Set(
+      this.#getAggregatedCacheProviderIds(Object.keys(cache)),
+    );
+    if (snapshotConfigured) {
+      providerIds.add('hyperliquid');
+      if (this.#isLighterProviderEnabled()) {
+        providerIds.add('lighter');
+      }
+    }
+    const assembled: PerpsMarketData[] = [];
+    for (const providerId of providerIds) {
+      const entry = cache[buildProviderCacheKey(providerId, isTestnet)];
+      if (
+        entry?.data.length &&
+        this.#isMarketCacheEntryCurrent(providerId, entry, options)
+      ) {
+        assembled.push(...entry.data);
+      } else if (snapshotConfigured || entry?.sourceExpiresAt !== undefined) {
+        // Clients treat a nonempty aggregate preload as fresh for every venue.
+        return null;
+      }
+    }
+    return assembled.length > 0 ? assembled : null;
   }
 
   #isMarketCacheEntryCurrent(
@@ -5700,9 +5714,9 @@ export class PerpsController extends BaseController<
    * @returns Service context for `MarketDataService.getMarkets`.
    */
   #createGetMarketsContext(): ServiceContext {
-    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const globalSnapshots = this.#buildGlobalSnapshotContexts();
     return this.#createServiceContext('getMarkets', {
-      ...(globalSnapshot && { globalSnapshot }),
+      ...(globalSnapshots && { globalSnapshots }),
     });
   }
 
@@ -5724,9 +5738,9 @@ export class PerpsController extends BaseController<
   async getMarketDataWithPrices(
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
-    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const globalSnapshots = this.#buildGlobalSnapshotContexts();
     const context = this.#createServiceContext('getMarketDataWithPrices', {
-      ...(globalSnapshot && { globalSnapshot }),
+      ...(globalSnapshots && { globalSnapshots }),
     });
     if (params?.standalone) {
       const provider =
@@ -5750,38 +5764,68 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Capture the exact static identity required to adopt an atomic snapshot.
-   * Dynamic DEX discovery and non-Hyperliquid provider modes deliberately opt
-   * out so they retain the provider path.
+   * Capture the exact static identity each active provider needs to adopt its
+   * atomic snapshot: the direct provider, or every registered venue in
+   * aggregated mode. HyperLiquid with dynamic DEX discovery opts out and
+   * keeps the provider path.
    *
-   * @returns Snapshot identity plus a race guard, or undefined when unsafe.
+   * @returns One snapshot identity with its race guard per provider, or
+   * undefined when none applies.
    */
-  #buildGlobalSnapshotContext(): ServiceContext['globalSnapshot'] {
-    const snapshotConfigured =
-      Boolean(this.#options.infrastructure.terminalApi?.globalSnapshotUrl) ||
-      typeof this.#options.infrastructure.terminalMarketService
-        ?.fetchGlobalSnapshot === 'function';
-    if (!snapshotConfigured || this.state.activeProvider !== 'hyperliquid') {
+  #buildGlobalSnapshotContexts(): ServiceContext['globalSnapshots'] {
+    if (!this.#isGlobalSnapshotConfigured()) {
       return undefined;
     }
 
-    const enabledDexes = this.#getStaticSnapshotDexes();
-    if (!enabledDexes) {
-      return undefined;
+    const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const isActive = (providerId: PerpsProviderType): boolean =>
+      activeProvider === providerId ||
+      (activeProvider === 'aggregated' && this.providers.has(providerId));
+    const contexts: NonNullable<ServiceContext['globalSnapshots']> = {};
+
+    const hyperLiquidDexes = isActive('hyperliquid')
+      ? this.#getStaticSnapshotDexes()
+      : undefined;
+    if (hyperLiquidDexes) {
+      contexts.hyperliquid = {
+        request: {
+          provider: 'hyperliquid',
+          network: isTestnet ? 'testnet' : 'mainnet',
+          enabledDexes: hyperLiquidDexes,
+        },
+        isCurrent: (): boolean =>
+          this.state.activeProvider === activeProvider &&
+          this.state.isTestnet === isTestnet &&
+          this.state.hip3ConfigVersion === hip3ConfigVersion,
+        isMarketAllowed: this.#buildMarketAllowedFilter(),
+      };
     }
-    const { isTestnet, hip3ConfigVersion } = this.state;
-    return {
-      request: {
-        provider: 'hyperliquid',
-        network: isTestnet ? 'testnet' : 'mainnet',
-        enabledDexes,
-      },
-      isCurrent: () =>
-        this.state.activeProvider === 'hyperliquid' &&
-        this.state.isTestnet === isTestnet &&
-        this.state.hip3ConfigVersion === hip3ConfigVersion,
-      isMarketAllowed: this.#buildMarketAllowedFilter(),
-    };
+    if (isActive('lighter')) {
+      contexts.lighter = {
+        request: {
+          provider: 'lighter',
+          network: isProviderOnTestnet('lighter', isTestnet)
+            ? 'testnet'
+            : 'mainnet',
+          enabledDexes: ['main'],
+        },
+        isCurrent: (): boolean =>
+          this.state.activeProvider === activeProvider &&
+          this.state.isTestnet === isTestnet,
+        // Lighter keeps its provider's market list; the snapshot only adds
+        // metadata to it, so there is no snapshot row to filter.
+        isMarketAllowed: (): boolean => true,
+      };
+    }
+    return contexts.hyperliquid || contexts.lighter ? contexts : undefined;
+  }
+
+  #isGlobalSnapshotConfigured(): boolean {
+    const { terminalApi, terminalMarketService } = this.#options.infrastructure;
+    return (
+      Boolean(terminalApi?.globalSnapshotUrl) ||
+      typeof terminalMarketService?.fetchGlobalSnapshot === 'function'
+    );
   }
 
   #getStaticSnapshotDexes(): string[] | undefined {
@@ -6146,7 +6190,9 @@ export class PerpsController extends BaseController<
     if (
       existingEntry &&
       this.#isMarketCacheEntryCurrent(actualProviderId, existingEntry) &&
-      now - existingEntry.timestamp < PerpsController.#preloadGuardMs
+      now - existingEntry.timestamp < PerpsController.#preloadGuardMs &&
+      (actualProviderId !== 'aggregated' ||
+        this.#getCachedAggregateMarketRows() !== null)
     ) {
       return;
     }
@@ -6190,24 +6236,32 @@ export class PerpsController extends BaseController<
 
       // Store under per-provider key(s)
       const ts = Date.now();
-      const sourceExpiries = data.flatMap((market) =>
-        market.dataSource === 'terminal-global-snapshot-mark' &&
-        typeof market.sourceExpiresAt === 'number'
-          ? [market.sourceExpiresAt]
-          : [],
-      );
-      const sourceExpiresAt =
-        data.length > 0 && sourceExpiries.length === data.length
-          ? Math.min(...sourceExpiries)
-          : undefined;
-      const snapshotCacheIdentity =
-        sourceExpiresAt !== undefined && staticSnapshotDexes
-          ? {
-              sourceExpiresAt,
-              hip3ConfigVersion: preloadContext.hip3ConfigVersion,
-              dexes: staticSnapshotDexes,
-            }
-          : {};
+      // A slice made only of snapshot rows expires with its snapshot.
+      const snapshotCacheIdentity = (
+        rows: PerpsMarketData[],
+      ): Pick<
+        PerpsControllerState['cachedMarketDataByProvider'][string],
+        'sourceExpiresAt' | 'hip3ConfigVersion' | 'dexes'
+      > => {
+        const sourceExpiries = rows.flatMap((market) =>
+          market.dataSource === 'terminal-global-snapshot-mark' &&
+          typeof market.sourceExpiresAt === 'number'
+            ? [market.sourceExpiresAt]
+            : [],
+        );
+        if (
+          rows.length === 0 ||
+          sourceExpiries.length !== rows.length ||
+          !staticSnapshotDexes
+        ) {
+          return {};
+        }
+        return {
+          sourceExpiresAt: Math.min(...sourceExpiries),
+          hip3ConfigVersion: preloadContext.hip3ConfigVersion,
+          dexes: staticSnapshotDexes,
+        };
+      };
       const marketDiskEntries: {
         providerNetworkKey: string;
         data: PerpsMarketData[];
@@ -6247,6 +6301,7 @@ export class PerpsController extends BaseController<
             state.cachedMarketDataByProvider[key] = {
               data: slice,
               timestamp: ts,
+              ...snapshotCacheIdentity(slice),
             };
           }
           // Write aggregated sentinel so the staleness guard sees it
@@ -6265,7 +6320,7 @@ export class PerpsController extends BaseController<
           state.cachedMarketDataByProvider[cacheKey] = {
             data,
             timestamp: ts,
-            ...snapshotCacheIdentity,
+            ...snapshotCacheIdentity(data),
           };
         });
       }
@@ -9668,11 +9723,21 @@ export class PerpsController extends BaseController<
    * Watchlist markets are stored per network (testnet/mainnet).
    *
    * @param symbol - The trading pair symbol.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
    */
-  async toggleWatchlistMarket(symbol: string): Promise<void> {
+  async toggleWatchlistMarket(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+  ): Promise<void> {
+    const references = getPerpsWatchlistReferences(symbol, marketKey, venues);
+    const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
-    const isWatchlisted = currentWatchlist.includes(symbol);
+    const isWatchlisted = references.some((entry) =>
+      currentWatchlist.includes(entry),
+    );
 
     this.#debugLog('PerpsController: Toggling watchlist market', {
       timestamp: new Date().toISOString(),
@@ -9685,21 +9750,31 @@ export class PerpsController extends BaseController<
     this.update((state) => {
       if (isWatchlisted) {
         state.watchlistMarkets[currentNetwork] = currentWatchlist.filter(
-          (marketSymbol) => marketSymbol !== symbol,
+          (marketSymbol) => !references.includes(marketSymbol),
         );
       } else {
-        state.watchlistMarkets[currentNetwork] = [...currentWatchlist, symbol];
+        state.watchlistMarkets[currentNetwork] = [
+          ...currentWatchlist,
+          reference,
+        ];
       }
     });
     for (const edits of this.#watchlistEditsDuringHydration) {
-      edits.push({ network: currentNetwork, symbol, add: !isWatchlisted });
+      for (const entry of references) {
+        edits.push({
+          network: currentNetwork,
+          symbol: entry,
+          add: !isWatchlisted && entry === reference,
+        });
+      }
     }
-    const toggleKey = `${currentNetwork}:${symbol}`;
-    const toggleNumber =
-      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
-    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
-    const isLatestToggle = (): boolean =>
-      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
+    const toggle = Symbol(reference);
+    const toggleKey = (entry: string): string => `${currentNetwork}:${entry}`;
+    for (const entry of references) {
+      this.#pendingWatchlistToggles.set(toggleKey(entry), toggle);
+    }
+    const isLatestToggle = (entry: string): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey(entry)) === toggle;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -9733,34 +9808,32 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
-      // A later toggle of the same market decides its state; its own write
-      // persists it.
-      if (!isLatestToggle()) {
-        return;
-      }
       // Undo only this toggle. The list may have changed since it was made
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
       this.update((state) => {
         const watchlist = state.watchlistMarkets[currentNetwork];
         if (isWatchlisted) {
-          if (!watchlist.includes(symbol)) {
-            // Back where it was, as far as the current list allows.
-            const index = Math.min(
-              currentWatchlist.indexOf(symbol),
-              watchlist.length,
-            );
-            watchlist.splice(index, 0, symbol);
+          for (const [index, entry] of currentWatchlist.entries()) {
+            if (
+              references.includes(entry) &&
+              isLatestToggle(entry) &&
+              !watchlist.includes(entry)
+            ) {
+              watchlist.splice(Math.min(index, watchlist.length), 0, entry);
+            }
           }
-        } else {
+        } else if (isLatestToggle(reference)) {
           state.watchlistMarkets[currentNetwork] = watchlist.filter(
-            (marketSymbol) => marketSymbol !== symbol,
+            (marketSymbol) => marketSymbol !== reference,
           );
         }
       });
     } finally {
-      if (isLatestToggle()) {
-        this.#pendingWatchlistToggles.delete(toggleKey);
+      for (const entry of references) {
+        if (isLatestToggle(entry)) {
+          this.#pendingWatchlistToggles.delete(toggleKey(entry));
+        }
       }
     }
   }
@@ -9769,17 +9842,26 @@ export class PerpsController extends BaseController<
    * Check if a market is in the watchlist on the current network
    *
    * @param symbol - The trading pair symbol.
-   * @returns True if the condition is met.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
+   * @returns Whether the reference is saved.
    */
-  isWatchlistMarket(symbol: string): boolean {
+  isWatchlistMarket(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+  ): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return this.state.watchlistMarkets[currentNetwork].includes(symbol);
+    return getPerpsWatchlistReferences(symbol, marketKey, venues).some(
+      (reference) =>
+        this.state.watchlistMarkets[currentNetwork].includes(reference),
+    );
   }
 
   /**
    * Get all watchlist markets for the current network
    *
-   * @returns The resulting string value.
+   * @returns Saved market references for the current network.
    */
   getWatchlistMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -9789,22 +9871,24 @@ export class PerpsController extends BaseController<
   /**
    * Record that the user viewed a market.
    *
-   * The symbol is prepended to the per-network recently-viewed list (newest-first).
-   * Any existing entry for the same symbol is removed first so there are no
+   * The market reference is prepended to the per-network recently-viewed list (newest-first).
+   * Any existing entry for the same reference is removed first so there are no
    * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
    *
    * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+   * @param marketKey - Optional cross-venue key for a grouped market.
    */
-  recordMarketViewed(symbol: string): void {
+  recordMarketViewed(symbol: string, marketKey?: string): void {
+    const reference = toSavedPerpsMarketReference(symbol, marketKey);
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const now = Date.now();
 
     this.update((state) => {
       const current = state.recentlyViewedMarkets[currentNetwork].filter(
-        (entry) => entry.symbol !== symbol,
+        (entry) => entry.symbol !== reference,
       );
       state.recentlyViewedMarkets[currentNetwork] = [
-        { symbol, viewedAt: now },
+        { symbol: reference, viewedAt: now },
         ...current,
       ].slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
     });
@@ -9813,12 +9897,12 @@ export class PerpsController extends BaseController<
   /**
    * Get recently viewed markets for the current network.
    *
-   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit references, ordered
    * newest-first, filtered to entries within the last
    * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
    * array when no qualifying entries exist.
    *
-   * @returns Ordered array of market symbols.
+   * @returns Ordered array of saved market references.
    */
   getRecentlyViewedMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
