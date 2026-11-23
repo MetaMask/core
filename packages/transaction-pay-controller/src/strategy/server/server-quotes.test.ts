@@ -44,6 +44,7 @@ import {
   SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
   SERVER_LIGHTER_PERPS_USDC_ASSET,
 } from './constants.js';
+import { getLighterAccountIndex } from './lighter.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -56,6 +57,7 @@ vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   isEIP7702Chain: vi.fn(),
   isServerGaslessEnabled: vi.fn(),
 }));
+vi.mock(import('./lighter.js'));
 vi.mock(import('./server-api.js'));
 vi.mock(import('./server-validation.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
@@ -336,7 +338,9 @@ describe('server-quotes', () => {
     );
   });
 
-  it('requests the Lighter perps asset when the payment override is PerpsLighter', async () => {
+  it('requests the Lighter perps asset with the account index as recipient when the payment override is PerpsLighter', async () => {
+    vi.mocked(getLighterAccountIndex).mockResolvedValue('770167');
+
     await getServerQuotes({
       accountSupports7702: true,
       from: FROM_MOCK,
@@ -355,9 +359,12 @@ describe('server-quotes', () => {
       expect.objectContaining({
         sourceAsset: SOURCE_ASSET_MOCK,
         targetAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
-        recipient: FROM_MOCK,
+        recipient: '770167',
       }),
       undefined,
+    );
+    expect(getLighterAccountIndex).toHaveBeenCalledWith(
+      TRANSACTION_META_MOCK.txParams.from,
     );
   });
 

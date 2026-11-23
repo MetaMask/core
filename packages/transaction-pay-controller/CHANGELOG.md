@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Quote building is unchanged. The first mainnet USDC deposit does not set this override.
 - `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentOverride` is `perpsLighter` ([#11705](https://github.com/MetaMask/core/pull/11705))
   - The transaction does not need calldata.
+  - The recipient is the index of the Lighter account owned by the transaction sender, looked up from the Lighter API.
 
 ### Changed
 

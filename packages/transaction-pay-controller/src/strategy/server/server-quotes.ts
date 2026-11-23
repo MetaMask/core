@@ -5,7 +5,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -60,6 +60,7 @@ import {
   SERVER_LIGHTER_PERPS_USDC_ASSET,
 } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
+import { getLighterAccountIndex } from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -251,7 +252,10 @@ async function fetchQuotes(
         {
           ...quoteRequest,
           hyperliquidActivationFeeUsd,
-          recipient: body.recipient,
+          // The Lighter account index is not an address, so keep the original.
+          recipient: isStrictHexString(body.recipient)
+            ? body.recipient
+            : quoteRequest.recipient,
         },
         messenger,
         body,
@@ -312,14 +316,18 @@ async function buildServerQuoteRequest(
     request: normalizedRequest,
     transaction,
   });
-  const recipient = await resolveQuoteRecipient({
-    messenger,
-    request: {
-      ...normalizedRequest,
-      recipient: override?.recipient ?? tokenTransferRecipient,
-    },
-    transaction,
-  });
+  // Lighter takes the account index as the recipient, not an address.
+  const recipient =
+    normalizedRequest.paymentOverride === PaymentOverride.PerpsLighter
+      ? await getLighterAccountIndex(executionAccount)
+      : await resolveQuoteRecipient({
+          messenger,
+          request: {
+            ...normalizedRequest,
+            recipient: override?.recipient ?? tokenTransferRecipient,
+          },
+          transaction,
+        });
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
 
