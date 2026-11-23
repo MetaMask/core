@@ -1,6 +1,6 @@
 # Core Monorepo
 
-This monorepo holds business logic, utilities, and tools which facilitate development across multiple MetaMask clients (e.g. [`metamask-extension`](https://github.com/MetaMask/metamask-extension/) and [`metamask-mobile`](https://github.com/MetaMask/metamask-mobile/)).
+This monorepo is a collection of packages used across multiple MetaMask clients (e.g. [`metamask-extension`](https://github.com/MetaMask/metamask-extension/), [`metamask-mobile`](https://github.com/MetaMask/metamask-mobile/)).
 
 ## Contributing
 
