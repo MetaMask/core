@@ -24,7 +24,7 @@ const NODE_AUTH_TOKENS: NodeAuthTokens = [
 function createRawJwt(payload: unknown): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = Buffer.from(JSON.stringify(payload));
-  return `${header.toString('base64')}.${body.toString('base64')}.signature`;
+  return `${header.toString('base64url')}.${body.toString('base64url')}.signature`;
 }
 
 /**
@@ -55,6 +55,21 @@ describe('recovery-session', () => {
       expect(decodeAal2Token(token, NOW_SECONDS)).toStrictEqual({
         exp: NOW_SECONDS + 60,
         sub: 'profile-id',
+      });
+    });
+
+    it('decodes base64url payloads containing - and _ characters', () => {
+      const token = createRawJwt({
+        exp: NOW_SECONDS + 60,
+        sub: 'profile>>>???',
+      });
+      const payload = token.split('.')[1];
+      expect(payload).toContain('-');
+      expect(payload).toContain('_');
+
+      expect(decodeAal2Token(token, NOW_SECONDS)).toStrictEqual({
+        exp: NOW_SECONDS + 60,
+        sub: 'profile>>>???',
       });
     });
 

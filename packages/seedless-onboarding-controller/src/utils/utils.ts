@@ -58,8 +58,8 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
     throw new Error('Invalid JWT token format');
   }
 
-  // Decode the payload (second part)
-  const payload = parts[1];
+  // Decode the payload (second part), normalizing base64url to standard base64
+  const payload = parts[1].replace(/-/gu, '+').replace(/_/gu, '/');
   // Add padding if needed for base64 decoding
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
   return JSON.parse(

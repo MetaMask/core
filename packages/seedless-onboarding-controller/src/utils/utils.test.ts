@@ -171,6 +171,24 @@ describe('utils', () => {
       expect(result.iss).toBe('https://issuer.example.com');
       expect(result.sub).toBe('user-123@example.com');
     });
+
+    it('should decode base64url JWT payloads containing - and _ characters', () => {
+      const mockPayload = {
+        exp: 1234567890,
+        iat: 1234567800,
+        aud: 'test>>>???',
+        iss: 'https://issuer.example.com',
+        sub: 'user>>>???',
+      };
+      const mockToken = createMockJWTToken(mockPayload);
+      const payload = mockToken.split('.')[1];
+      expect(payload).toContain('-');
+      expect(payload).toContain('_');
+
+      const result = decodeJWTToken(mockToken);
+
+      expect(result).toStrictEqual(mockPayload);
+    });
   });
 
   describe('compareAndGetLatestToken', () => {
