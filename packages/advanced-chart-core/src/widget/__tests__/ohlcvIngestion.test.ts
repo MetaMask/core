@@ -731,12 +731,12 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
 
   describe('on resolution switch', () => {
     const setUpResolutionSwitch = (): {
-      postMessage: Mock;
+      postMessageMock: Mock;
       runSetResolutionCallback: () => void;
       flushRaf: () => void;
     } => {
-      const postMessage = vi.fn();
-      window.ReactNativeWebView = { postMessage };
+      const postMessageMock = vi.fn();
+      window.ReactNativeWebView = { postMessage: postMessageMock };
 
       const rafCallbacks: FrameRequestCallback[] = [];
       vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
@@ -767,7 +767,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
       setChartReady(true);
 
       return {
-        postMessage,
+        postMessageMock,
         runSetResolutionCallback: () => {
           handleSetOHLCVData({
             data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
@@ -783,13 +783,14 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
       };
     };
 
-    const settledCount = (postMessage: Mock): number =>
-      postMessage.mock.calls.filter(
-        (call: string[]) => JSON.parse(call[0]).type === 'CHART_LAYOUT_SETTLED',
-      ).length;
+    const settledCount = (postMessageMock: Mock): number =>
+      postMessageMock.mock.calls.filter((call: string[]) => {
+        const parsed = JSON.parse(call[0]) as { type: string };
+        return parsed.type === 'CHART_LAYOUT_SETTLED';
+      }).length;
 
     it('defers CHART_LAYOUT_SETTLED to the legend when studies are active', () => {
-      const { postMessage, runSetResolutionCallback, flushRaf } =
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
         setUpResolutionSwitch();
       getActiveStudies().set('RSI', 'study-1');
 
@@ -797,20 +798,20 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
       flushRaf();
 
       expect(doesLegendOwnLayoutSettle()).toBe(true);
-      expect(settledCount(postMessage)).toBe(0);
+      expect(settledCount(postMessageMock)).toBe(0);
 
       (window.requestAnimationFrame as Mock).mockRestore();
     });
 
     it('posts CHART_LAYOUT_SETTLED from ingestion when no studies are active', () => {
-      const { postMessage, runSetResolutionCallback, flushRaf } =
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
         setUpResolutionSwitch();
 
       runSetResolutionCallback();
       flushRaf();
 
       expect(doesLegendOwnLayoutSettle()).toBe(false);
-      expect(settledCount(postMessage)).toBe(1);
+      expect(settledCount(postMessageMock)).toBe(1);
 
       (window.requestAnimationFrame as Mock).mockRestore();
     });
