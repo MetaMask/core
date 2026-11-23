@@ -973,10 +973,11 @@ export class SeedlessOnboardingController<
   /**
    * Change the password of an envelope-managed vault: seal `K_v` under the
    * new password's envelope keys, then under the vault's metadata lock fetch
-   * the latest control records, write the next control record, and swap the
-   * password OPRF key. The swap is signed with the auth key of the live
-   * control record, so the old password is not needed. Then re-encrypt the
-   * local vault under the new password. The backend vault data is not touched.
+   * the latest control records, write and verify the next control record, and
+   * swap the password OPRF key. The swap is signed with the auth key of the
+   * live control record, so the old password is not needed. Then re-encrypt
+   * the local vault under the new password. The backend vault data is not
+   * touched.
    *
    * @param params - The function parameters.
    * @param params.vaultKeySet - The vault key set `K_v`.
@@ -984,7 +985,7 @@ export class SeedlessOnboardingController<
    * @param params.latestKeyIndex - The live password OPRF key index.
    * @param params.newPassword - The new password.
    * @throws `EnvelopeControlRecordNotFound` if no control record matches the
-   * live password OPRF key.
+   * live password OPRF key, or if the new control record does not read back.
    */
   async #changePasswordEnveloped({
     vaultKeySet,
@@ -1033,6 +1034,13 @@ export class SeedlessOnboardingController<
         nextControlRecord,
         lockId,
       );
+      const updatedRecords =
+        await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+      if (!selectControlRecord(updatedRecords, authKeyPair.pk)) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+        );
+      }
 
       this.#assertIsAuthenticatedUser(this.state);
       const { nodeAuthTokens, authConnectionId, groupedAuthConnectionId } =

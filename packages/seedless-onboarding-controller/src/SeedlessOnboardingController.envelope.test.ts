@@ -3153,6 +3153,43 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('does not swap the key when the new control record does not read back', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          network.spies.batchAddSecretDataItems.mockResolvedValueOnce(
+            undefined,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            expect.objectContaining({
+              message:
+                SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+              cause: expect.objectContaining({
+                message:
+                  SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+              }),
+            }),
+          );
+
+          expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledTimes(1);
+          expect(controller.state.envelope?.passwordAuthPubKey).toBe(
+            authPubKeyOf(MOCK_PASSWORD),
+          );
+          expect(
+            await controller.verifyVaultPassword(MOCK_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
       it('adopts a vault another device migrated', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
@@ -5438,6 +5475,36 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
           );
           expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+          expect(
+            await controller.verifyVaultPassword(RECOVERED_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
+      it('throws EnvelopeControlRecordNotFound without swapping the key when the new control record does not read back', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+            droppedDataTypes: [EncAccountDataType.EnvelopeControl],
+          });
+          await recover(args);
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:resetPasswordWithVaultKeys',
+              { newPassword: 'reset-password' },
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+          );
+
+          expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledTimes(1);
           expect(
             await controller.verifyVaultPassword(RECOVERED_PASSWORD),
           ).toBeUndefined();
