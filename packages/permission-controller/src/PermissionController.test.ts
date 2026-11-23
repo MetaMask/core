@@ -553,7 +553,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.endowmentRpcMethods]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentRpcMethods,
-        rpcGetter: (_options: EndowmentGetterParams): string[] => [
+        rpcMethodsGetter: (_options: EndowmentGetterParams): string[] => [
           'eth_sendTransaction',
         ],
         allowedCaveats: [CaveatTypes.endowmentCaveat],
@@ -5503,7 +5503,7 @@ describe('PermissionController', () => {
       });
 
       expect(
-        await controller.getEndowmentRpc(
+        await controller.getEndowmentRpcMethods(
           origin,
           PermissionNames.endowmentRpcMethods,
         ),
@@ -5522,7 +5522,7 @@ describe('PermissionController', () => {
       });
 
       await expect(
-        controller.getEndowmentRpc(
+        controller.getEndowmentRpcMethods(
           origin,
           // @ts-expect-error Intentional destructive testing
           PermissionNames.wallet_getSecretArray,
@@ -5540,7 +5540,10 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       await expect(
-        controller.getEndowmentRpc(origin, PermissionNames.endowmentAnySubject),
+        controller.getEndowmentRpcMethods(
+          origin,
+          PermissionNames.endowmentAnySubject,
+        ),
       ).rejects.toThrow(
         errors.unauthorized({
           data: { origin, targetName: PermissionNames.endowmentAnySubject },

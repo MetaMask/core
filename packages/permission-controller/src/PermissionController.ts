@@ -2718,7 +2718,7 @@ export class PermissionController<
    * valid permission target name.
    * @param requestData - Additional data associated with the request, if any.
    * Forwarded to the endowment getter function for the permission.
-   * @returns The endowments, if any.
+   * @returns The endowments, otherwise null.
    */
   async getEndowments(
     origin: string,
@@ -2732,26 +2732,28 @@ export class PermissionController<
       throw unauthorized({ data: { origin, targetName } });
     }
 
-    return this.#getTypedPermissionSpecification(
-      PermissionType.Endowment,
-      targetName,
-      origin,
-    ).endowmentGetter?.({ origin, requestData }) ?? null;
+    return (
+      this.#getTypedPermissionSpecification(
+        PermissionType.Endowment,
+        targetName,
+        origin,
+      ).endowmentGetter?.({ origin, requestData }) ?? null
+    );
   }
 
   /**
-   * Gets the subject's endowments per the specified endowment permission.
+   * Gets the RPC methods tied to the specified endowment permission for a subject.
    * Throws if the subject does not have the required permission or if the
    * permission is not an endowment permission.
    *
-   * @param origin - The origin of the subject whose endowments to retrieve.
+   * @param origin - The origin of the subject whose RPC methods to retrieve.
    * @param targetName - The name of the endowment permission. This must be a
    * valid permission target name.
    * @param requestData - Additional data associated with the request, if any.
    * Forwarded to the endowment getter function for the permission.
-   * @returns The endowments, if any.
+   * @returns The RPC method names, if any.
    */
-  async getEndowmentRpc(
+  async getEndowmentRpcMethods(
     origin: string,
     targetName: ExtractEndowmentPermission<
       ControllerPermissionSpecification,
@@ -2763,11 +2765,13 @@ export class PermissionController<
       throw unauthorized({ data: { origin, targetName } });
     }
 
-    return this.#getTypedPermissionSpecification(
-      PermissionType.Endowment,
-      targetName,
-      origin,
-    ).rpcGetter?.({ origin, requestData }) ?? [];
+    return (
+      this.#getTypedPermissionSpecification(
+        PermissionType.Endowment,
+        targetName,
+        origin,
+      ).rpcMethodsGetter?.({ origin, requestData }) ?? []
+    );
   }
 
   /**
