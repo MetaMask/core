@@ -99,7 +99,7 @@
     "@types/semver": "^7.8.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "contentful": "^11.12.10",
-    "jsdom": "^27.0.0",
+    "jsdom": "^31.0.1",
     "nock": "15.0.5",
     "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
