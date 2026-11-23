@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `passwordAuthPubKey` is the password OPRF auth public key the local password is synced with.
 - Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared once the global password is set again ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which report whether the vault is envelope-managed and whether the password is local ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, and `PasswordResetRequiresRecovery` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
 
 ### Changed
 

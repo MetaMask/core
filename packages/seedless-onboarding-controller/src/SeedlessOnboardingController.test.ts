@@ -1675,6 +1675,34 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    it.each([
+      ['KeyEnvelope', EncAccountDataType.KeyEnvelope],
+      ['EnvelopeControl', EncAccountDataType.EnvelopeControl],
+      ['an unknown value', 99 as EncAccountDataType],
+    ])(
+      'should throw InvalidSecretDataType when %s is passed',
+      async (_label, dataType) => {
+        await withController(async ({ controller, toprfClient }) => {
+          const fetchAuthPubKeySpy = vi.spyOn(toprfClient, 'fetchAuthPubKey');
+          const addSecretDataItemSpy = vi.spyOn(
+            toprfClient,
+            'addSecretDataItem',
+          );
+
+          await expect(
+            controller.addNewSecretData(NEW_KEY_RING_1.seedPhrase, dataType, {
+              keyringId: NEW_KEY_RING_1.id,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidSecretDataType,
+          );
+
+          expect(fetchAuthPubKeySpy).not.toHaveBeenCalled();
+          expect(addSecretDataItemSpy).not.toHaveBeenCalled();
+        });
+      },
+    );
+
     it('should be able to add a new seed phrase backup', async () => {
       await withController(
         {

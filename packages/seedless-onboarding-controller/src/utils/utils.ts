@@ -227,6 +227,18 @@ export function isTokenNearExpiry(
 }
 
 /**
+ * Unwrap a `TOPRFError`, including one carried on `SomeError.predicate` (e.g.
+ * from `fetchAuthPubKey`, which surfaces `Some` errors directly).
+ *
+ * @param error - The error to inspect.
+ * @returns The underlying `TOPRFError`, or `undefined` if none.
+ */
+function unwrapToprfError(error: unknown): TOPRFError | undefined {
+  const candidate = error instanceof SomeError ? error.predicate : error;
+  return candidate instanceof TOPRFError ? candidate : undefined;
+}
+
+/**
  * Check whether an error indicates that a TOPRF auth token is invalid or
  * expired.
  *
@@ -234,14 +246,11 @@ export function isTokenNearExpiry(
  * @returns Whether the error is an auth token error.
  */
 export function isAuthTokenError(error: unknown): boolean {
-  if (error instanceof TOPRFError) {
-    return (
-      error.code === TOPRFErrorCode.AuthTokenExpired ||
-      error.code === TOPRFErrorCode.InvalidAuthToken
-    );
-  }
-
-  return false;
+  const toprfError = unwrapToprfError(error);
+  return (
+    toprfError?.code === TOPRFErrorCode.AuthTokenExpired ||
+    toprfError?.code === TOPRFErrorCode.InvalidAuthToken
+  );
 }
 
 /**
@@ -283,19 +292,26 @@ export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
 export function isCouldNotDeriveThresholdAuthPubKeyError(
   error: unknown,
 ): boolean {
+  if (isAuthTokenError(error)) {
+    return false;
+  }
+
   if (
-    error instanceof TOPRFError &&
-    error.code === TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
+    unwrapToprfError(error)?.code ===
+    TOPRFErrorCode.CouldNotDeriveThresholdAuthPubKey
   ) {
     return true;
   }
 
   // Nodes without a key for the verifier ID answer with a JSON-RPC error whose
   // data is `NO_PUB_KEY_NODE_ERROR_MESSAGE`. The `Some` helper wraps those
-  // responses in a `SomeError` instead of a `TOPRFError`.
+  // responses in a `SomeError` instead of a `TOPRFError`. Require every node
+  // response to report `NO_PUB_KEY_NODE_ERROR_MESSAGE` so a single node error
+  // mixed with transient failures is not mistaken for "no key registered".
   return (
     error instanceof SomeError &&
-    error.errors.some(
+    error.errors.length > 0 &&
+    error.errors.every(
       (innerError) => innerError?.message === NO_PUB_KEY_NODE_ERROR_MESSAGE,
     )
   );

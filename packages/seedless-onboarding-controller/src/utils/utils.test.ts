@@ -365,6 +365,42 @@ describe('utils', () => {
       ).toBe(true);
       expect(
         isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.authTokenExpired(),
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.invalidAuthToken(),
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [],
+            responses: [],
+            predicate: TOPRFError.insufficientValidResponses('insufficient'),
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        isAuthTokenError(
+          new SomeError({
+            errors: [new Error('network')],
+            responses: [],
+            predicate: undefined,
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        isAuthTokenError(
           new TOPRFError(
             TOPRFErrorCode.MaxKeyChainLengthExceeded,
             'max key chain length',
@@ -469,6 +505,53 @@ describe('utils', () => {
         errors: [new Error('Some other failure')],
         responses: [],
         predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);
+    });
+
+    it('returns true for a SomeError whose predicate is CouldNotDeriveThresholdAuthPubKey', () => {
+      const error = new SomeError({
+        errors: [],
+        responses: [],
+        predicate: TOPRFError.couldNotDeriveThresholdAuthPubKey(),
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(true);
+    });
+
+    it('returns false when only some nodes report "Error getting pub key" alongside transient failures', () => {
+      const mixedError = new SomeError({
+        errors: [
+          new Error('Error getting pub key'),
+          new Error('Promise timed out'),
+        ],
+        responses: [],
+        predicate: undefined,
+      });
+      const partialUndefinedError = new SomeError({
+        errors: [new Error('Error getting pub key'), undefined],
+        responses: [],
+        predicate: undefined,
+      });
+      const emptyErrors = new SomeError({
+        errors: [],
+        responses: [],
+        predicate: undefined,
+      });
+
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(mixedError)).toBe(false);
+      expect(
+        isCouldNotDeriveThresholdAuthPubKeyError(partialUndefinedError),
+      ).toBe(false);
+      expect(isCouldNotDeriveThresholdAuthPubKeyError(emptyErrors)).toBe(false);
+    });
+
+    it('returns false when a SomeError has an auth token predicate error', () => {
+      const error = new SomeError({
+        errors: [new Error('Error getting pub key')],
+        responses: [],
+        predicate: TOPRFError.authTokenExpired(),
       });
 
       expect(isCouldNotDeriveThresholdAuthPubKeyError(error)).toBe(false);

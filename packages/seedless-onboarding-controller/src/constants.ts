@@ -74,6 +74,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
+  InvalidSecretDataType = `${controllerName} - Invalid secret data type`,
   Aal2Required = `${controllerName} - aal2 node auth tokens are missing or expired`,
   RecoveryKeyShareConflict = `${controllerName} - The recovery secret key share belongs to a different key`,
   InvalidEnvelope = `${controllerName} - Invalid key envelope`,

@@ -577,6 +577,15 @@ export class SeedlessOnboardingController<
       );
     }
 
+    if (
+      dataType !== EncAccountDataType.ImportedSrp &&
+      dataType !== EncAccountDataType.ImportedPrivateKey
+    ) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.InvalidSecretDataType,
+      );
+    }
+
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 

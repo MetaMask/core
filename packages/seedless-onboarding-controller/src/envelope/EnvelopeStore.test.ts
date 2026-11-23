@@ -11,10 +11,12 @@ import { bigIntToHex, stringToBytes } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
-import { deriveTestEnvelopeKeys } from '../../tests/mocks/envelopeKeys.js';
-import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import {
   deriveKeyPair,
+  deriveTestEnvelopeKeys,
+} from '../../tests/mocks/envelopeKeys.js';
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import {
   sealEnvelope,
   serializeControlRecord,
   serializeEnvelope,

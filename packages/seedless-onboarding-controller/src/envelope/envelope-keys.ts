@@ -24,7 +24,6 @@ import {
   stringToBytes,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { bytesToNumberBE } from '@noble/curves/utils';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
@@ -135,18 +134,6 @@ export function pubKeysEqual(
   b: SEC1EncodedPublicKey,
 ): boolean {
   return secp256k1.Point.fromHex(a).equals(secp256k1.Point.fromHex(b));
-}
-
-/**
- * Derive a secp256k1 key pair from 32 bytes, the way the TOPRF SDK derives
- * its authentication key pair.
- *
- * @param bytes - The 32 input bytes.
- * @returns The key pair.
- */
-export function deriveKeyPair(bytes: Uint8Array): KeyPair {
-  const sk = bytesToNumberBE(bytes) % secp256k1.Point.Fn.ORDER;
-  return { sk, pk: derivePubKey(sk) };
 }
 
 /**
