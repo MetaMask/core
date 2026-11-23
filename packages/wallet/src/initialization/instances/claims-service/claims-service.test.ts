@@ -1,5 +1,4 @@
 import { ClaimsService } from '@metamask/claims-controller';
-import { Env } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -53,7 +52,7 @@ describe('claimsService', () => {
     const instance = claimsService.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { baseUrl: 'https://claims.test' },
     });
 
     expect(instance).toBeInstanceOf(ClaimsService);
@@ -75,6 +74,7 @@ describe('claimsService', () => {
       state: undefined,
       messenger,
       options: {
+        baseUrl: 'https://claims.test',
         fetchFunction: mockFetch,
         policyOptions: { maxRetries: 0 },
       },
@@ -102,28 +102,7 @@ describe('claimsService', () => {
     });
   });
 
-  it('defaults to the production claims API URL', () => {
-    const rootMessenger = getRootMessenger();
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getBearerToken',
-      vi.fn().mockResolvedValue('test-token'),
-    );
-
-    const messenger = claimsService.getMessenger(rootMessenger);
-    claimsService.init({
-      state: undefined,
-      messenger,
-      options: {},
-    });
-
-    expect(rootMessenger.call('ClaimsService:getClaimsApiUrl')).toBe(
-      'https://claims.api.cx.metamask.io',
-    );
-  });
-
-  it('uses the provided env for the claims API URL', () => {
+  it('uses the provided base URL for the claims API', () => {
     const rootMessenger = getRootMessenger();
     registerActionHandler(
       rootMessenger,
@@ -137,12 +116,12 @@ describe('claimsService', () => {
       state: undefined,
       messenger,
       options: {
-        env: Env.DEV,
+        baseUrl: 'https://claims.test',
       },
     });
 
     expect(rootMessenger.call('ClaimsService:getClaimsApiUrl')).toBe(
-      'https://claims.dev-api.cx.metamask.io',
+      'https://claims.test',
     );
   });
 });

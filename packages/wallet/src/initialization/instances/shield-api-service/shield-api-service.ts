@@ -1,6 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import type { ShieldApiServiceMessenger } from '@metamask/shield-controller';
-import { Env, ShieldApiService } from '@metamask/shield-controller';
+import { ShieldApiService } from '@metamask/shield-controller';
 
 import type { InitializationConfiguration } from '../../types.js';
 
@@ -14,7 +14,7 @@ export const shieldApiService: InitializationConfiguration<
   init: ({ messenger, options }) =>
     new ShieldApiService({
       messenger,
-      env: options.env ?? Env.PRD,
+      baseUrl: options.baseUrl,
       fetch: options.fetchFunction,
       captureException: options.captureException,
       getCoverageResultTimeout: options.getCoverageResultTimeout,

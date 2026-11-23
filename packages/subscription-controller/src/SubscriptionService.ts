@@ -13,8 +13,6 @@ import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import {
-  Env,
-  getEnvUrls,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
 } from './constants.js';
@@ -61,9 +59,6 @@ import type {
 } from './types.js';
 
 export const serviceName = 'SubscriptionService';
-
-export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
-  `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
 
 const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
@@ -119,7 +114,7 @@ export type SubscriptionServiceOptions = {
    * The `fetch` function to use for requests. Defaults to the global `fetch`.
    */
   fetchFunction?: typeof fetch;
-  env?: Env;
+  baseUrl: string;
   captureException?: (error: Error) => void;
   queryClientConfig?: QueryClientConfig;
   policyOptions?: CreateServicePolicyOptions;
@@ -153,7 +148,7 @@ export class SubscriptionService extends BaseDataService<
   typeof serviceName,
   SubscriptionServiceMessenger
 > {
-  readonly #env: Env;
+  readonly #baseUrl: string;
 
   readonly #fetch: typeof fetch;
 
@@ -162,7 +157,7 @@ export class SubscriptionService extends BaseDataService<
   constructor({
     messenger,
     fetchFunction = globalThis.fetch,
-    env = Env.PRD,
+    baseUrl,
     captureException,
     queryClientConfig = {},
     policyOptions = {},
@@ -174,7 +169,7 @@ export class SubscriptionService extends BaseDataService<
       policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
     });
 
-    this.#env = env;
+    this.#baseUrl = baseUrl;
     this.#fetch = fetchFunction;
     this.#captureException = captureException;
 
@@ -721,7 +716,7 @@ export class SubscriptionService extends BaseDataService<
 
   #getSubscriptionApiUrl(path: string): URL {
     try {
-      return new URL(SUBSCRIPTION_URL(this.#env, path));
+      return new URL(`${this.#baseUrl}/v1/${path}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error

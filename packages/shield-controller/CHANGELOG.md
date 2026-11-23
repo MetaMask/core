@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `ShieldApiService` now requires `baseUrl` instead of `env`. The `Env`, `SHIELD_API_URL_MAP`, and `getShieldApiBaseUrl` exports have been removed.
+  - Pass the API base URL without a trailing slash, for example `https://ruleset-engine.api.cx.metamask.io` for production.
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/signature-controller` from `^40.1.0` to `^40.1.1` ([#11474](https://github.com/MetaMask/core/pull/11474))

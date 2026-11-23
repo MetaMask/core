@@ -38,7 +38,7 @@ export type WalletOptions = {
 export type InstanceSpecificOptions = {
   analyticsController: AnalyticsControllerInstanceOptions;
   approvalController?: ApprovalControllerInstanceOptions;
-  claimsService?: ClaimsServiceInstanceOptions;
+  claimsService: ClaimsServiceInstanceOptions;
   configRegistryApiService: ConfigRegistryApiServiceInstanceOptions;
   configRegistryController?: ConfigRegistryControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
@@ -48,13 +48,13 @@ export type InstanceSpecificOptions = {
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
-  subscriptionService?: SubscriptionServiceInstanceOptions;
+  subscriptionService: SubscriptionServiceInstanceOptions;
   subscriptionController?: SubscriptionControllerInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
   passkeyController?: PasskeyControllerInstanceOptions;
   permissionController?: PermissionControllerInstanceOptions;
   seedlessOnboardingController?: SeedlessOnboardingControllerInstanceOptions;
   selectedNetworkController: SelectedNetworkControllerInstanceOptions;
-  shieldApiService?: ShieldApiServiceInstanceOptions;
+  shieldApiService: ShieldApiServiceInstanceOptions;
   shieldController?: ShieldControllerInstanceOptions;
 };

@@ -1,4 +1,4 @@
-import type { Env, ShieldApiService } from '@metamask/shield-controller';
+import type { ShieldApiService } from '@metamask/shield-controller';
 
 type ShieldApiServiceOptions = ConstructorParameters<
   typeof ShieldApiService
@@ -6,6 +6,7 @@ type ShieldApiServiceOptions = ConstructorParameters<
 
 type ShieldApiServiceCommonOptions = Pick<
   ShieldApiServiceOptions,
+  | 'baseUrl'
   | 'captureException'
   | 'getCoverageResultTimeout'
   | 'getCoverageResultPollInterval'
@@ -18,5 +19,4 @@ type ShieldApiServiceCommonOptions = Pick<
  */
 export type ShieldApiServiceInstanceOptions = ShieldApiServiceCommonOptions & {
   fetchFunction?: ShieldApiServiceOptions['fetch'];
-  env?: Env;
 };

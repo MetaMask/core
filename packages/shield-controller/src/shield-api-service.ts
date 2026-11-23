@@ -22,7 +22,7 @@ import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
-import { Env, getShieldApiBaseUrl, SignTypedDataVersion } from './constants.js';
+import { SignTypedDataVersion } from './constants.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
 import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
 import type {
@@ -168,7 +168,7 @@ export class ShieldApiService extends BaseDataService<
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
-   * @param args.env - The environment used to resolve the Shield API URL.
+   * @param args.baseUrl - The Shield API base URL.
    * @param args.fetch - The fetch implementation. Defaults to `globalThis.fetch`.
    * @param args.captureException - Optional error reporter.
    * @param args.getCoverageResultTimeout - Timeout for coverage result polling.
@@ -179,7 +179,7 @@ export class ShieldApiService extends BaseDataService<
    */
   constructor({
     messenger,
-    env,
+    baseUrl,
     fetch: fetchFn = globalThis.fetch,
     captureException: captureExceptionFn,
     getCoverageResultTimeout = 5000,
@@ -188,7 +188,7 @@ export class ShieldApiService extends BaseDataService<
     policyOptions = {},
   }: {
     messenger: ShieldApiServiceMessenger;
-    env: Env;
+    baseUrl: string;
     /**
      * The `fetch` function to use for requests. Defaults to the global `fetch`.
      */
@@ -206,7 +206,7 @@ export class ShieldApiService extends BaseDataService<
       policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
     });
 
-    this.#baseUrl = getShieldApiBaseUrl(env);
+    this.#baseUrl = baseUrl;
     this.#fetch = fetchFn;
 
     const { backoff, maxRetries } = computePollingIntervalAndRetryCount(

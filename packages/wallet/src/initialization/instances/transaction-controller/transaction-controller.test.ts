@@ -166,6 +166,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    claimsService: { baseUrl: 'https://claims.test' },
+    shieldApiService: { baseUrl: 'https://shield.test' },
+    subscriptionService: { baseUrl: 'https://subscription.test' },
     subscriptionController: {},
   };
 }

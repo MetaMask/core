@@ -18,12 +18,7 @@ import {
   ClaimsConfigurationsResponseStruct,
   GenerateSignatureMessageResponseStruct,
 } from './ClaimsService-structs.js';
-import {
-  CLAIMS_API_URL_MAP,
-  ClaimsServiceErrorMessages,
-  SERVICE_NAME,
-} from './constants.js';
-import type { Env } from './constants.js';
+import { ClaimsServiceErrorMessages, SERVICE_NAME } from './constants.js';
 import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   Claim,
@@ -101,7 +96,7 @@ export type ClaimsServiceMessenger = Messenger<
 >;
 
 export type ClaimsServiceConfig = {
-  env: Env;
+  baseUrl: string;
   messenger: ClaimsServiceMessenger;
   /**
    * The `fetch` function to use for requests. Defaults to the global `fetch`.
@@ -126,14 +121,14 @@ export class ClaimsService extends BaseDataService<
   typeof SERVICE_NAME,
   ClaimsServiceMessenger
 > {
-  readonly #env: Env;
+  readonly #baseUrl: string;
 
   readonly #fetch: typeof fetch;
 
   readonly #captureException?: (error: Error) => void;
 
   constructor({
-    env,
+    baseUrl,
     messenger,
     fetchFunction = globalThis.fetch,
     captureException: captureExceptionFn,
@@ -147,7 +142,7 @@ export class ClaimsService extends BaseDataService<
       policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
     });
 
-    this.#env = env;
+    this.#baseUrl = baseUrl;
     this.#fetch = fetchFunction;
     this.#captureException = (error: Error): void => {
       try {
@@ -367,12 +362,12 @@ export class ClaimsService extends BaseDataService<
   }
 
   /**
-   * Get the URL for the claims API for the current environment.
+   * Get the configured base URL for the claims API.
    *
-   * @returns The URL for the claims API for the current environment.
+   * @returns The configured base URL.
    */
   getClaimsApiUrl(): string {
-    return `${CLAIMS_API_URL_MAP[this.#env]}`;
+    return this.#baseUrl;
   }
 
   #validateResponse<TValidated>(

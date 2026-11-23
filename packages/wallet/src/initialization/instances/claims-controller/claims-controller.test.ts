@@ -2,7 +2,6 @@ import {
   ClaimsController,
   getDefaultClaimsControllerState,
 } from '@metamask/claims-controller';
-import { Env } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +16,7 @@ import type { ClaimsServiceInstanceOptions } from '../claims-service/types.js';
 import { claimsController } from './claims-controller.js';
 
 const CLAIMS_SERVICE_OPTIONS: ClaimsServiceInstanceOptions = {
-  env: Env.DEV,
+  baseUrl: 'https://claims.test',
 };
 
 type ActionHandler = (...args: unknown[]) => unknown;
@@ -165,7 +164,7 @@ describe('claimsController', () => {
       },
       headers: { Authorization: 'Bearer test-token' },
       method: 'POST',
-      url: 'https://claims.dev-api.cx.metamask.io/claims',
+      url: 'https://claims.test/claims',
     });
   });
 });

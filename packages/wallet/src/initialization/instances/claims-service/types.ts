@@ -1,10 +1,10 @@
-import type { Env, ClaimsService } from '@metamask/claims-controller';
+import type { ClaimsService } from '@metamask/claims-controller';
 
 type ClaimsServiceOptions = ConstructorParameters<typeof ClaimsService>[0];
 
 type ClaimsServiceCommonOptions = Pick<
   ClaimsServiceOptions,
-  'captureException' | 'queryClientConfig' | 'policyOptions'
+  'baseUrl' | 'captureException' | 'queryClientConfig' | 'policyOptions'
 >;
 
 /**
@@ -12,5 +12,4 @@ type ClaimsServiceCommonOptions = Pick<
  */
 export type ClaimsServiceInstanceOptions = ClaimsServiceCommonOptions & {
   fetchFunction?: ClaimsServiceOptions['fetchFunction'];
-  env?: Env;
 };
