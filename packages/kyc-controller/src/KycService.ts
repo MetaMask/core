@@ -14,6 +14,7 @@ import {
   array,
   assert,
   boolean,
+  nullable,
   optional,
   string,
   StructError,
@@ -190,6 +191,7 @@ const StepResponseStruct = type({
   vendor: string(),
   step: string(),
   status: string(),
+  sessionId: optional(nullable(string())),
 });
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
@@ -1140,7 +1142,8 @@ export class KycService extends BaseDataService<
    * @param vendor - The vendor to get the step for.
    * @param client - What only this device knows, sent so kyc-api can use it
    * for this answer. kyc-api stores none of it.
-   * @returns The step, and how verification is going.
+   * @returns The step, how verification is going, and the vendor's relay
+   * session id (`null` when there is none).
    */
   async getStep(
     vendor: OnboardingVendor,
@@ -1156,12 +1159,16 @@ export class KycService extends BaseDataService<
       url.searchParams.set('vendorTermsAcceptedLocally', 'true');
     }
     const data = await this.#requestJson(url, { method: 'GET' });
-    const { step, status } = this.#validateResponse(
+    const { step, status, sessionId } = this.#validateResponse(
       data,
       StepResponseStruct,
       'vendor step',
     );
-    return { step: toKycStep(step), status: toKycStepStatus(status) };
+    return {
+      step: toKycStep(step),
+      status: toKycStepStatus(status),
+      sessionId: sessionId ?? null,
+    };
   }
 
   /**
