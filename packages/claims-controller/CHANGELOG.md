@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `ClaimsService` now requires `baseUrl` instead of `env`. The `Env` and `CLAIMS_API_URL_MAP` exports have been removed.
+- **BREAKING:** `ClaimsService` now requires `baseUrl` instead of `env`. The `Env` and `CLAIMS_API_URL_MAP` exports have been removed. ([#11703](https://github.com/MetaMask/core/pull/11703))
   - Pass the API base URL without a trailing slash, for example `https://claims.api.cx.metamask.io` for production.
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
