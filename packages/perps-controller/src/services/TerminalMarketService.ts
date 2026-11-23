@@ -24,6 +24,7 @@ import {
   PERPS_CONSTANTS,
   TERMINAL_API_CONFIG,
 } from '../constants/perpsConfig.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import type {
   MarketInfo,
   PerpsGlobalSnapshotRequest,
@@ -734,6 +735,12 @@ export class TerminalMarketService {
         changePercent1h: change1h.percent,
         volume: formatters.formatVolume(volume),
         openInterest: formatters.formatVolume(openInterest),
+        numericValues: buildMarketNumericValues({
+          price,
+          change24hPercent: market.changePercent24h,
+          volume,
+          openInterest,
+        }),
         fundingRate: Number(market.funding),
         marketSource: isHip3 ? market.dex : undefined,
         marketType,

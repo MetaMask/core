@@ -36,6 +36,7 @@ import {
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
+import { calculateMaxRemovableMargin } from '../../../src/utils/marginAdjustment.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
@@ -442,6 +443,9 @@ describe('HyperLiquidProvider', () => {
       // Per-DEX position slices. Default to "nothing published", so these tests
       // keep the aggregate behaviour they were written against.
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
       getCachedPositions: vi.fn().mockReturnValue([]),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
@@ -550,7 +554,8 @@ describe('HyperLiquidProvider', () => {
       const accountState = await provider.getAccountState();
 
       expect(accountState).toBeDefined();
-      expect(accountState.totalBalance).toBe('19500'); // 10500 (perps) + 10000 (spot.total) - 1000 (spot.hold, double-counted in accountValue)
+      // Unified: the spot USDC total already holds the perps account value.
+      expect(accountState.totalBalance).toBe('10000');
       expect(accountState.spotCollateral).toBe('9000');
       expect(
         mockClientService.getInfoClient().clearinghouseState,
@@ -654,7 +659,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState.spendableBalance).toBe('90');
       expect(accountState.withdrawableBalance).toBe('90');
-      expect(accountState.totalBalance).toBe('90');
+      expect(accountState.totalBalance).toBe('100');
       expect(accountState.spotCollateral).toBe('90');
     });
 
@@ -703,15 +708,319 @@ describe('HyperLiquidProvider', () => {
 
       const accountState = await hip3Provider.getAccountState();
 
-      expect(accountState.spendableBalance).toBe('1.775183');
-      expect(accountState.withdrawableBalance).toBe('1.775183');
-      expect(accountState.totalBalance).toBe('1.775183');
+      // Unified: the spot ledger already holds both DEXs' account values.
+      expect(accountState.spendableBalance).toBe('1.475183');
+      expect(accountState.withdrawableBalance).toBe('1.475183');
+      expect(accountState.totalBalance).toBe('4.000004');
       expect(accountState.spotCollateral).toBe('1.475183');
       expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
       expect(clearinghouseState).toHaveBeenCalledWith({
         user: '0x123',
         dex: 'xyz',
       });
+    });
+
+    describe('getMarginAdjustmentLimits', () => {
+      // dev1 testnet (Unified), 23 Nov: BTC Cross + ETH Isolated, plus an
+      // isolated HIP-3 position whose margin only shows in the spot hold.
+      const venuePosition = (
+        coin: string,
+        type: 'cross' | 'isolated',
+        values: { szi: string; positionValue: string; marginUsed: string },
+      ): Record<string, unknown> => ({
+        position: {
+          coin,
+          ...values,
+          entryPx: '1723.34',
+          unrealizedPnl: '0.03357',
+          returnOnEquity: '0.011',
+          liquidationPx: type === 'isolated' ? '1377.08' : null,
+          leverage: { type, value: 5 },
+          maxLeverage: 25,
+          cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        },
+        type: 'oneWay',
+      });
+      const mainState = {
+        marginSummary: { accountValue: '13.37', totalMarginUsed: '13.35623' },
+        crossMarginSummary: {
+          accountValue: '10.08',
+          totalMarginUsed: '10.070584',
+        },
+        withdrawable: '0.019288',
+        assetPositions: [
+          venuePosition('BTC', 'cross', {
+            szi: '0.00082',
+            positionValue: '50.35292',
+            marginUsed: '10.070584',
+          }),
+          venuePosition('ETH', 'isolated', {
+            szi: '0.0087',
+            positionValue: '15.02664',
+            marginUsed: '3.285646',
+          }),
+        ],
+      };
+      // Truncated to micro-USDC, the unit margin moves in.
+      const ethMaxRemove = (
+        Math.floor(
+          calculateMaxRemovableMargin({
+            currentMargin: 3.285646,
+            positionLeverage: 5,
+            notionalValue: 15.02664,
+          }) * 1e6,
+        ) / 1e6
+      ).toString();
+      const useVenue = (
+        overrides: Record<string, Mock> = {},
+      ): Record<string, Mock> => {
+        const infoClient = createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue(mainState),
+          spotClearinghouseState: vi.fn().mockResolvedValue({
+            balances: [
+              { coin: 'USDC', hold: '51.653539', total: '323.080997' },
+            ],
+          }),
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+              { name: 'ETH', szDecimals: 4, maxLeverage: 25 },
+            ],
+            marginTables: [],
+          }),
+          ...overrides,
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+        return infoClient;
+      };
+
+      it('on Unified, allows adding the free spot USDC (Cross margin reserved) and removing the calculated margin', async () => {
+        useVenue();
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({
+          status: 'available',
+          // 323.080997 total − 51.653539 hold (Cross, Isolated and HIP-3).
+          maxAdd: '271.427458',
+          maxRemove: ethMaxRemove,
+        });
+      });
+
+      it.each(['default', 'disabled'] as const)(
+        'in %s (Standard) mode, allows adding the perps withdrawable of the position DEX',
+        async (mode) => {
+          const infoClient = useVenue({
+            userAbstraction: vi.fn().mockResolvedValue(mode),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({
+            status: 'available',
+            maxAdd: '0.019288',
+            maxRemove: ethMaxRemove,
+          });
+          expect(infoClient.spotClearinghouseState).not.toHaveBeenCalled();
+        },
+      );
+
+      it('reports no_isolated_position for a Cross position or a flat market', async () => {
+        useVenue();
+
+        for (const symbol of ['BTC', 'SOL']) {
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol }),
+          ).toStrictEqual({
+            status: 'unavailable',
+            reason: 'no_isolated_position',
+          });
+        }
+      });
+
+      it('allows no removal on a strict isolated market', async () => {
+        useVenue({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 25,
+                marginMode: 'strictIsolated',
+              },
+            ],
+            marginTables: [],
+          }),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toMatchObject({ status: 'available', maxRemove: '0' });
+      });
+
+      it.each([
+        ['an unknown margin mode', { marginMode: 'futureMode' }],
+        ['onlyIsolated without a margin mode', { onlyIsolated: true }],
+      ])(
+        'reports account_unknown on %s instead of a zero maxRemove',
+        async (_label, ethFields) => {
+          useVenue({
+            meta: vi.fn().mockResolvedValue({
+              universe: [
+                { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+                { name: 'ETH', szDecimals: 4, maxLeverage: 25, ...ethFields },
+              ],
+              marginTables: [],
+            }),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        },
+      );
+
+      it('reports account_unknown when the market is missing from meta', async () => {
+        useVenue({
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 5, maxLeverage: 40 }],
+            marginTables: [],
+          }),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+
+      it.each([
+        ['a missing leverage value', { leverage: { type: 'isolated' } }],
+        ['a non-finite marginUsed', { marginUsed: 'NaN' }],
+        ['a non-finite positionValue', { positionValue: 'abc' }],
+      ])(
+        'reports account_unknown on %s instead of a zero maxRemove',
+        async (_label, positionFields) => {
+          const [btc, eth] = mainState.assetPositions;
+          useVenue({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              ...mainState,
+              assetPositions: [
+                btc,
+                {
+                  ...eth,
+                  position: {
+                    ...(eth.position as Record<string, unknown>),
+                    ...positionFields,
+                  },
+                },
+              ],
+            }),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        },
+      );
+
+      it('reports account_unknown when the account mode changes during the read', async () => {
+        useVenue({
+          userAbstraction: vi
+            .fn()
+            .mockResolvedValueOnce('unifiedAccount')
+            .mockResolvedValue('disabled'),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+
+      it('rejects a strict Unified read with a malformed USDC ledger and keeps the lenient perps figures', async () => {
+        useVenue({
+          spotClearinghouseState: vi.fn().mockResolvedValue({
+            balances: [{ coin: 'USDC', total: '323.080997' }],
+          }),
+        });
+
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        // Lenient: perps-only figures.
+        expect((await provider.getAccountState()).totalBalance).toBe('13.37');
+      });
+
+      it('reports provider for an unsupported account mode', async () => {
+        useVenue({
+          userAbstraction: vi.fn().mockResolvedValue('dexAbstraction'),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      });
+
+      it('reports account_unknown, to retry, when a venue read fails', async () => {
+        useVenue({
+          userAbstraction: vi.fn().mockRejectedValue(new Error('offline')),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+
+        useVenue({
+          clearinghouseState: vi.fn().mockRejectedValue(new Error('offline')),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+    });
+
+    it('serves the market lists behind getMarketMeta from one meta request', async () => {
+      const meta = {
+        universe: [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 40, marginTableId: 56 },
+          { name: 'OLD', szDecimals: 0, maxLeverage: 3, isDelisted: true },
+        ],
+        marginTables: [
+          [
+            56,
+            {
+              description: 'tiered 40x',
+              marginTiers: [
+                { lowerBound: '0.0', maxLeverage: 40 },
+                { lowerBound: '10000.0', maxLeverage: 25 },
+              ],
+            },
+          ],
+        ],
+      };
+      const infoClient = createMockInfoClient({
+        meta: vi.fn().mockResolvedValue(meta),
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([meta, []]),
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+      const freshProvider = createTestProvider();
+
+      const [btc] = await freshProvider.getMarkets({ symbols: ['BTC'] });
+      const all = await freshProvider.getMarkets();
+
+      expect(btc.marginTiers).toStrictEqual([
+        { lowerBound: 0, maxLeverage: 40 },
+        { lowerBound: 10000, maxLeverage: 25 },
+      ]);
+      expect(all.find((market) => market.name === 'OLD')?.isDelisted).toBe(
+        true,
+      );
+      // The session cache is filled once, from either meta read.
+      expect(
+        infoClient.meta.mock.calls.length +
+          infoClient.metaAndAssetCtxs.mock.calls.length,
+      ).toBe(1);
     });
 
     it.each(['default', 'disabled'] as const)(
@@ -754,6 +1063,7 @@ describe('HyperLiquidProvider', () => {
         expect(accountState.withdrawableBalance).toBe('0');
         expect(accountState.totalBalance).toBe('90');
         expect(accountState.spotCollateral).toBe('0');
+        expect(accountState.accountMode).toBe(abstractionMode);
       },
     );
 

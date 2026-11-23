@@ -222,6 +222,39 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
     });
 
+    it('reports the market margin tiers from the venue meta', async () => {
+      const { infoClient } = useStrategyClients();
+      infoClient.meta.mockResolvedValue({
+        universe: [
+          { name: 'ETH', szDecimals: 4, maxLeverage: 25, marginTableId: 55 },
+        ],
+        marginTables: [
+          [
+            55,
+            {
+              description: 'tiered 25x',
+              marginTiers: [
+                { lowerBound: '0.0', maxLeverage: 25 },
+                { lowerBound: '100000000.0', maxLeverage: 15 },
+              ],
+            },
+          ],
+        ],
+      });
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        marginTiers: [
+          { lowerBound: 0, maxLeverage: 25 },
+          { lowerBound: 100000000, maxLeverage: 15 },
+        ],
+      });
+    });
+
     it('reports the configured oracle price deviation limit', async () => {
       useStrategyClients();
       const configured = createTestProvider({ priceDeviationLimit: 0.5 });

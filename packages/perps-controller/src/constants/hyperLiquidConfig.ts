@@ -737,6 +737,24 @@ export function isUnrestrictedMarginMode(
 }
 
 /**
+ * Whether the venue accepts Cross margin for a market, main DEX or HIP-3.
+ * An absent `marginMode` or `normal` allows Cross; strictIsolated, noCross
+ * and any future restriction value prohibit it, as does the deprecated
+ * `onlyIsolated` flag.
+ *
+ * @param market - Venue margin metadata for the market.
+ * @param market.onlyIsolated - Whether the market only allows isolated margin.
+ * @param market.marginMode - Venue margin-mode restriction, if any.
+ * @returns True when Cross margin orders are accepted.
+ */
+export function isCrossMarginSupported(market: {
+  onlyIsolated?: boolean;
+  marginMode?: string | null;
+}): boolean {
+  return !market.onlyIsolated && isUnrestrictedMarginMode(market.marginMode);
+}
+
+/**
  * HIP-3 margin management configuration
  * Controls margin buffers and auto-rebalance behavior for manual HIP-3 collateral transfers
  *

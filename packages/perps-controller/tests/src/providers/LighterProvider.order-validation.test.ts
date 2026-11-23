@@ -3619,6 +3619,15 @@ describe('LighterProvider', () => {
       ).rejects.toMatchObject({
         errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
       });
+      expect(
+        await provider.estimateCrossLiquidation({
+          symbol: 'BTC',
+          direction: 'long',
+          size: '1',
+          entryPrice: '100',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

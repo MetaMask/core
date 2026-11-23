@@ -589,6 +589,12 @@ describe('TerminalMarketService', () => {
             ],
             dataSource: 'terminal-global-snapshot-mark',
             sourceExpiresAt: SNAPSHOT_NOW + 28_000,
+            numericValues: {
+              price: 50000,
+              change24hPercent: 0.25,
+              volume: 1000000,
+              openInterest: 1000000,
+            },
           },
         ],
         marketInfos: [

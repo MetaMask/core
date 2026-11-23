@@ -32,6 +32,7 @@ import type {
   UserHistoryItem,
 } from '../types/index.js';
 import type { TpslLinkage, TriggerOrderType } from '../types/perps-types.js';
+import { resolveHyperLiquidMarginTiers } from './hyperLiquidPositionPreview.js';
 import {
   buildTriggerOrderType,
   classifyTriggerDirection,
@@ -530,12 +531,27 @@ export function adaptPositionTriggerOrderFromSDK(params: {
   };
 }
 
+/**
+ * Map one `meta.universe` entry to {@link MarketInfo}.
+ *
+ * @param sdkMarket - The venue market.
+ * @param marginTables - `meta.marginTables` from the same response. Needed to
+ * resolve tiered tables (ids of 50 and above); single-tier ids resolve
+ * without it.
+ * @returns The market, with `marginTiers` when the table resolves.
+ */
 export function adaptMarketFromSDK(
   sdkMarket: MetaResponse['universe'][number],
+  marginTables?: MetaResponse['marginTables'],
 ): MarketInfo {
   // The venue also sends `normal` (no restriction), which the SDK type omits.
   // `MarketInfo.marginMode` carries restrictions only, so drop it.
   const venueMarginMode: string | undefined = sdkMarket.marginMode;
+  const marginTiers = resolveHyperLiquidMarginTiers({
+    marginTableId: sdkMarket.marginTableId,
+    maxLeverage: sdkMarket.maxLeverage,
+    marginTables,
+  });
   return {
     name: sdkMarket.name,
     szDecimals: sdkMarket.szDecimals,
@@ -546,6 +562,7 @@ export function adaptMarketFromSDK(
       marginMode: sdkMarket.marginMode,
     }),
     isDelisted: sdkMarket.isDelisted,
+    ...(marginTiers && { marginTiers }),
   };
 }
 

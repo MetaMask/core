@@ -391,11 +391,15 @@ export const CROSS_MARGIN_RATIO_THRESHOLDS = {
 
 /**
  * Order-book price grouping ladder shared by Mobile, Extension and Terminal.
- * Options are `10^(floor(log10(mid)) - DecadeOffset)` times each multiplier.
+ * The `decade` ladder is `10^(floor(log10(mid)) - DecadeOffset)` times each
+ * of `Multipliers`; the `tick` ladder is the market tick times each of
+ * `TickMultipliers`.
  */
 export const ORDER_BOOK_GROUPING_CONFIG = {
   DecadeOffset: 4,
   Multipliers: [1, 2, 5, 10, 100, 1000],
+  /** Multipliers of the market tick for the `tick` ladder. */
+  TickMultipliers: [1, 2, 5, 10, 20, 50],
   /** Index of the default option; the middle option when the ladder is shorter. */
   DefaultOptionIndex: 3,
   /** Options when the mid price is unknown. */
@@ -827,6 +831,8 @@ export const PERPS_DISPLAY_PRECISION = {
   FeeBps: 2,
   // Distance from the liquidation price as a percentage: "30.00%"
   LiquidationDistancePercent: 2,
+  // Most decimals of a leverage multiplier, trailing zeros dropped: "0.2x", "1.21x"
+  Leverage: 2,
   // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
   TwapProgressPercent: 2,
   // Most decimals of a typed USD amount: "12.34"
