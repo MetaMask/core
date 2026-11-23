@@ -463,7 +463,14 @@ export type EndowmentSpecificationConstraint =
      * permission is invoked, after which the host can apply the endowments to
      * the requesting subject in the intended manner.
      */
-    endowmentGetter: EndowmentGetter<Json>;
+    endowmentGetter?: EndowmentGetter<Json>;
+    /**
+     * The {@link EndowmentGetter} function for the permission. This function
+     * will be called by the {@link PermissionController} whenever the
+     * permission is invoked, after which the host can apply the endowments to
+     * the requesting subject in the intended manner.
+     */
+    rpcGetter?: EndowmentGetter<string[]>;
   };
 
 /**

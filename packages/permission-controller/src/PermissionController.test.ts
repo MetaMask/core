@@ -228,6 +228,7 @@ const PermissionKeys = {
   snap_foo: 'snap_foo',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
+  endowmentRpcMethods: 'endowmentRpcMethods',
 } as const;
 
 type NoopWithRequiredCaveat = ValidPermission<
@@ -261,6 +262,7 @@ const PermissionNames = {
   snap_foo: PermissionKeys.snap_foo,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
+  endowmentRpcMethods: PermissionKeys.endowmentRpcMethods,
 } as const;
 
 // Default side-effect implementations.
@@ -547,6 +549,14 @@ function getDefaultPermissionSpecificationsAndMocks() {
         ],
         allowedCaveats: [CaveatTypes.endowmentCaveat],
         subjectTypes: [SubjectType.Snap],
+      },
+      [PermissionKeys.endowmentRpcMethods]: {
+        permissionType: PermissionType.Endowment,
+        targetName: PermissionKeys.endowmentRpcMethods,
+        rpcGetter: (_options: EndowmentGetterParams): string[] => [
+          'eth_sendTransaction',
+        ],
+        allowedCaveats: [CaveatTypes.endowmentCaveat],
       },
     },
     sideEffectMocks,
@@ -5472,6 +5482,65 @@ describe('PermissionController', () => {
 
       await expect(
         controller.getEndowments(origin, PermissionNames.endowmentAnySubject),
+      ).rejects.toThrow(
+        errors.unauthorized({
+          data: { origin, targetName: PermissionNames.endowmentAnySubject },
+        }),
+      );
+    });
+  });
+
+  describe('getEndowmentRpc', () => {
+    it('gets the RPC methods', async () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.endowmentRpcMethods]: {},
+        },
+      });
+
+      expect(
+        await controller.getEndowmentRpc(
+          origin,
+          PermissionNames.endowmentRpcMethods,
+        ),
+      ).toStrictEqual(['eth_sendTransaction']);
+    });
+
+    it('throws if the requested permission target is not an endowment', async () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
+
+      await expect(
+        controller.getEndowmentRpc(
+          origin,
+          // @ts-expect-error Intentional destructive testing
+          PermissionNames.wallet_getSecretArray,
+        ),
+      ).rejects.toThrow(
+        new errors.EndowmentPermissionDoesNotExistError(
+          PermissionNames.wallet_getSecretArray,
+          origin,
+        ),
+      );
+    });
+
+    it('throws if the subject does not have the requisite permission', async () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      await expect(
+        controller.getEndowmentRpc(origin, PermissionNames.endowmentAnySubject),
       ).rejects.toThrow(
         errors.unauthorized({
           data: { origin, targetName: PermissionNames.endowmentAnySubject },

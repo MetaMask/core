@@ -2736,7 +2736,38 @@ export class PermissionController<
       PermissionType.Endowment,
       targetName,
       origin,
-    ).endowmentGetter({ origin, requestData });
+    ).endowmentGetter?.({ origin, requestData }) ?? null;
+  }
+
+  /**
+   * Gets the subject's endowments per the specified endowment permission.
+   * Throws if the subject does not have the required permission or if the
+   * permission is not an endowment permission.
+   *
+   * @param origin - The origin of the subject whose endowments to retrieve.
+   * @param targetName - The name of the endowment permission. This must be a
+   * valid permission target name.
+   * @param requestData - Additional data associated with the request, if any.
+   * Forwarded to the endowment getter function for the permission.
+   * @returns The endowments, if any.
+   */
+  async getEndowmentRpc(
+    origin: string,
+    targetName: ExtractEndowmentPermission<
+      ControllerPermissionSpecification,
+      ControllerCaveatSpecification
+    >['parentCapability'],
+    requestData?: unknown,
+  ): Promise<string[]> {
+    if (!this.hasPermission(origin, targetName)) {
+      throw unauthorized({ data: { origin, targetName } });
+    }
+
+    return this.#getTypedPermissionSpecification(
+      PermissionType.Endowment,
+      targetName,
+      origin,
+    ).rpcGetter?.({ origin, requestData }) ?? [];
   }
 
   /**
