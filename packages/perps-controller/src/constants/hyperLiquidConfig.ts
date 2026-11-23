@@ -259,6 +259,8 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
       recovery: 'provider-default',
     }),
   }),
+  // A normalTpsl group carries one take profit and one stop loss.
+  attachedTpslGroupLimit: Object.freeze({ takeProfit: 1, stopLoss: 1 }),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration

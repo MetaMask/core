@@ -327,6 +327,15 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
+ * Quick-pick RoE percentages for take profit (positive) and stop loss
+ * (negative) in TP/SL forms, as Mobile and Extension show them.
+ */
+export const TP_SL_ROE_PRESETS = {
+  TakeProfit: [10, 25, 50, 100],
+  StopLoss: [-5, -10, -25, -50],
+} as const;
+
+/**
  * Bounds applied to a HyperLiquid TWAP placement.
  *
  * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
@@ -368,6 +377,32 @@ export const HYPERLIQUID_ORDER_LIMITS = {
   },
   // Limit orders are 10x market order limits
   LimitOrderMultiplier: 10,
+} as const;
+
+/**
+ * Cross-margin ratio levels (`PerpsAccountSummary.accountRatio`, maintenance
+ * margin over cross collateral; liquidation at 1) where clients warn: a
+ * warning from `Warning` up, danger above `Danger`.
+ */
+export const CROSS_MARGIN_RATIO_THRESHOLDS = {
+  Warning: 0.5,
+  Danger: 0.75,
+} as const;
+
+/**
+ * Order-book price grouping ladder shared by Mobile, Extension and Terminal.
+ * Options are `10^(floor(log10(mid)) - DecadeOffset)` times each multiplier.
+ */
+export const ORDER_BOOK_GROUPING_CONFIG = {
+  DecadeOffset: 4,
+  Multipliers: [1, 2, 5, 10, 100, 1000],
+  /** Index of the default option; the middle option when the ladder is shorter. */
+  DefaultOptionIndex: 3,
+  /** Options when the mid price is unknown. */
+  FallbackOptions: [0.01, 0.1, 1],
+  /** Significant-figure range a venue aggregates a book stream at. */
+  MinSignificantFigures: 2,
+  MaxSignificantFigures: 5,
 } as const;
 
 /**

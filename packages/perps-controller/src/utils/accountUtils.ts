@@ -7,6 +7,7 @@ import { isCaipAccountId, parseCaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
+import { CROSS_MARGIN_RATIO_THRESHOLDS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import type {
@@ -689,4 +690,26 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
   }
 
   return aggregated;
+}
+
+/** Severity of a cross-margin ratio. */
+export type CrossMarginRatioTone = 'safe' | 'warning' | 'danger';
+
+/**
+ * Severity of a cross-margin ratio against `CROSS_MARGIN_RATIO_THRESHOLDS`.
+ *
+ * @param ratio - `PerpsAccountSummary.accountRatio` (0.5 = 50%).
+ * @returns `safe` below the warning level, `warning` up to and including the
+ * danger level, `danger` above it, or undefined for a missing ratio.
+ */
+export function getCrossMarginRatioTone(
+  ratio: number | undefined,
+): CrossMarginRatioTone | undefined {
+  if (ratio === undefined || !Number.isFinite(ratio)) {
+    return undefined;
+  }
+  if (ratio < CROSS_MARGIN_RATIO_THRESHOLDS.Warning) {
+    return 'safe';
+  }
+  return ratio <= CROSS_MARGIN_RATIO_THRESHOLDS.Danger ? 'warning' : 'danger';
 }

@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 import type { OrderBookLevel } from '../../../src/types/index.js';
 import {
   aggregateOrderBookLevels,
+  calculateOrderBookAggregationParams,
+  calculateOrderBookGroupingOptions,
+  calculateOrderBookSpread,
   groupOrderBook,
+  selectDefaultOrderBookGrouping,
 } from '../../../src/utils/orderBookGrouping.js';
 
 const level = (price: string, size: string): OrderBookLevel => ({
@@ -178,5 +182,111 @@ describe('groupOrderBook', () => {
     expect(grouped.asks).toStrictEqual([book.asks[0]]);
     expect(grouped.maxTotal).toBe(0);
     expect(grouped.maxSize).toBe(2);
+  });
+});
+
+describe('calculateOrderBookGroupingOptions', () => {
+  it.each([
+    [2450, [0.1, 0.2, 0.5, 1, 10, 100]],
+    [98765, [1, 2, 5, 10, 100, 1000]],
+    [3.21, [0.0001, 0.0002, 0.0005, 0.001, 0.01, 0.1]],
+    [87.6, [0.001, 0.002, 0.005, 0.01, 0.1, 1]],
+  ])('builds the ladder for a mid of %d', (mid, expected) => {
+    expect(calculateOrderBookGroupingOptions(mid)).toStrictEqual(expected);
+  });
+
+  it('drops widths that round below six decimals', () => {
+    // Base 1e-8: only 100 and 1000 times it survive the rounding.
+    expect(calculateOrderBookGroupingOptions(0.00012345)).toStrictEqual([
+      0.000001, 0.00001,
+    ]);
+  });
+
+  it('falls back to the smallest price step when every width rounds away', () => {
+    expect(calculateOrderBookGroupingOptions(0.0000001)).toStrictEqual([
+      0.000001,
+    ]);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'returns the fallback ladder for mid %d',
+    (mid) => {
+      expect(calculateOrderBookGroupingOptions(mid)).toStrictEqual([
+        0.01, 0.1, 1,
+      ]);
+    },
+  );
+});
+
+describe('selectDefaultOrderBookGrouping', () => {
+  it('picks the fourth option', () => {
+    expect(selectDefaultOrderBookGrouping([0.1, 0.2, 0.5, 1, 10, 100])).toBe(1);
+  });
+
+  it('picks the middle option of a shorter ladder', () => {
+    expect(selectDefaultOrderBookGrouping([0.01, 0.1, 1])).toBe(0.1);
+  });
+
+  it('returns undefined for no options', () => {
+    expect(selectDefaultOrderBookGrouping([])).toBeUndefined();
+  });
+});
+
+describe('calculateOrderBookAggregationParams', () => {
+  it.each([
+    [0.1, 2450, { nSigFigs: 5 }],
+    [0.2, 2450, { nSigFigs: 5, mantissa: 2 }],
+    [0.5, 2450, { nSigFigs: 5, mantissa: 5 }],
+    [1, 2450, { nSigFigs: 4 }],
+    [10, 2450, { nSigFigs: 3 }],
+    [100, 2450, { nSigFigs: 2 }],
+    [1000, 2450, { nSigFigs: 2 }],
+  ])('maps grouping %d at %d', (grouping, price, expected) => {
+    expect(calculateOrderBookAggregationParams(grouping, price)).toStrictEqual(
+      expected,
+    );
+  });
+
+  it.each([
+    [0, 100],
+    [1, 0],
+    [Number.NaN, 100],
+    [1, Number.NaN],
+    [-1, 100],
+  ])(
+    'uses five significant figures for unusable input (%d, %d)',
+    (grouping, price) => {
+      expect(
+        calculateOrderBookAggregationParams(grouping, price),
+      ).toStrictEqual({
+        nSigFigs: 5,
+      });
+    },
+  );
+});
+
+describe('calculateOrderBookSpread', () => {
+  it('computes spread, mid and percent without float noise', () => {
+    expect(
+      calculateOrderBookSpread({ bestBid: '99.9', bestAsk: '100.1' }),
+    ).toStrictEqual({ spread: 0.2, midPrice: 100, spreadPercentage: 0.2 });
+  });
+
+  it('accepts numbers', () => {
+    expect(calculateOrderBookSpread({ bestBid: 1, bestAsk: 3 })).toStrictEqual({
+      spread: 2,
+      midPrice: 2,
+      spreadPercentage: 100,
+    });
+  });
+
+  it.each([
+    [undefined, '100'],
+    ['100', undefined],
+    ['0', '100'],
+    ['abc', '100'],
+    ['100', '-1'],
+  ])('returns undefined for bid %s and ask %s', (bestBid, bestAsk) => {
+    expect(calculateOrderBookSpread({ bestBid, bestAsk })).toBeUndefined();
   });
 });

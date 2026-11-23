@@ -15,18 +15,23 @@ Shared answers clients used to keep their own copies of. Each one is exported fr
 
 `orderLimits`:
 
-| Field                 | HyperLiquid               | Lighter                   |
-| --------------------- | ------------------------- | ------------------------- |
-| `sizeDecimals`        | market `szDecimals`       | `supported_size_decimals` |
-| `minOrderNotionalUsd` | per-order minimum ($10)   | `min_quote_amount`        |
-| `minOrderSize`        | not reported              | `min_base_amount`         |
-| `minimumAppliesTo`    | `all_orders`              | `resting_limit_orders`    |
-| `scaleOrderCount`     | `SCALE_ORDER_COUNT`       | `SCALE_ORDER_COUNT`       |
-| `twap`                | `HYPERLIQUID_TWAP_LIMITS` | not reported (no TWAP)    |
+| Field                     | HyperLiquid                                             | Lighter                   |
+| ------------------------- | ------------------------------------------------------- | ------------------------- |
+| `sizeDecimals`            | market `szDecimals`                                     | `supported_size_decimals` |
+| `minOrderNotionalUsd`     | per-order minimum ($10)                                 | `min_quote_amount`        |
+| `minOrderSize`            | not reported                                            | `min_base_amount`         |
+| `minimumAppliesTo`        | `all_orders`                                            | `resting_limit_orders`    |
+| `scaleOrderCount`         | `SCALE_ORDER_COUNT`                                     | `SCALE_ORDER_COUNT`       |
+| `twap`                    | `HYPERLIQUID_TWAP_LIMITS`                               | not reported (no TWAP)    |
+| `maxOraclePriceDeviation` | `0.95` (`HYPERLIQUID_CONFIG.OraclePriceDeviationLimit`) | not reported              |
 
 Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighter, market and IOC orders can go down to one size step. Lighter reports `resting_limit_orders` even when maker minimums are unavailable. It omits both minimums if either is missing or invalid, if either grid is unavailable, or if the maker bounds cannot be met within the venue's wire limits. The largest base size is `(2^48 − 1) × 10^(-sizeDecimals)`, and the largest quote notional is that size times the largest wire price expressed in quote units. A valid grid remains available independently.
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
+
+Check a limit price against `maxOraclePriceDeviation` with `isPriceOutsideDeviationBand(price, oraclePrice, maxOraclePriceDeviation)`, or show the accepted range from `getPriceDeviationBand`. Both use `|price - oracle| / oracle <= maxOraclePriceDeviation`, the same rule as `isMarketTradable` and `PriceUpdate.isTradable`, and Hyperliquid reports the limit the provider was configured with (`fallbackPriceDeviationLimit`, default `0.95`). Skip the check when the venue omits the limit. Round a price onto the reported grid with `roundPerpsPrice({ price, pricePrecision })`: a HyperLiquid grid gives the same string as `formatHyperLiquidPrice` except that a price rounding to zero returns `undefined` rather than `'0'`, and a Lighter grid rounds the supplied decimal string half up to `tickSize`.
+
+`attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) is the most take-profit and stop-loss legs one order can attach. HyperLiquid and Lighter both report one of each.
 
 For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `supportedMarginModes: ['isolated']` and `crossMarginUnavailableReason`. The reason is `noCross`, `strictIsolated` or `isolatedOnly` for a legacy or unrecognized restriction. Show the disabled Cross option with the corresponding explanation. A cross-capable market omits the reason.
 
@@ -38,6 +43,24 @@ For HyperLiquid markets that prohibit Cross, `getOrderCapabilities` reports `sup
 - Bucketing is exact decimal arithmetic: 100.1 at a grouping of 0.1 stays in the 100.1 bucket (a float `Math.floor(100.1 / 0.1)` puts it in 100.0).
 - Sizes and notionals are summed per bucket (a level without a readable notional counts `price * size`); `total` and `totalNotional` are rebuilt from the best price outward.
 - A `null` grouping only trims, for a stream the venue already aggregated.
+
+`calculateOrderBookGroupingOptions(midPrice)` builds the grouping ladder (`ORDER_BOOK_GROUPING_CONFIG`) and `selectDefaultOrderBookGrouping(options)` picks the one a book opens at. On HyperLiquid, `calculateOrderBookAggregationParams(grouping, price)` gives the `nSigFigs`/`mantissa` to subscribe at so the venue aggregates the stream. `calculateOrderBookSpread({ bestBid, bestAsk })` returns the spread, mid and spread percent as numbers. `estimateOrderBookSlippage` sweeps the visible book for a market order's average and worst-level slippage in basis points; compare `worstSlippageBps` with the max-slippage setting for a cap check.
+
+## Order, fee and position helpers
+
+| Helper                                                                                | Use it for                                                                                                                    |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `calculateCloseSize`                                                                  | Size to close for a percent or USD amount, on the venue's size grid; a full close returns the exact position size             |
+| `calculateFeeNotionalUsd`, `getUndiscountedFeeRate`, `calculateUndiscountedFeeAmount` | Fee notional (a TP/SL pair uses its higher trigger price) and the fee before a MetaMask discount                              |
+| `isTriggerPriceOnValidSide`                                                           | Whether a stop or take-profit price sits on the side its order fires from                                                     |
+| `getOrderFillKey`, `getFillAggregationKey`                                            | Deduplicating REST and live fills, and grouping fills into one trade                                                          |
+| `getPositionDirection`                                                                | `long` / `short` from a signed size; `undefined` for zero                                                                     |
+| `normalizeHyperLiquidScalePriceLadder`, `sizeHyperLiquidScaleLadder`                  | A Hyperliquid scale ladder: grid prices, and rung sizes that meet a USD target (Mobile's rule) or split an exact on-grid size |
+| `recomputePositionAtPrice`                                                            | PnL, value and return on equity at a live price between account updates                                                       |
+| `CROSS_MARGIN_RATIO_THRESHOLDS`, `getCrossMarginRatioTone`                            | Warning and danger levels for `accountRatio`                                                                                  |
+| `buildProviderCacheKey`                                                               | The `provider:network` key the controller caches per-venue data under                                                         |
+
+A missing or unreadable number gives `undefined` rather than 0: the whole result for the scalar helpers, the affected fields for `estimateOrderBookSlippage`, and the position unchanged for `recomputePositionAtPrice`. `isPriceOutsideDeviationBand` fails open instead: it returns `false` for unusable input so an unknown price never blocks an order.
 
 ## Cross-margin liquidation
 
@@ -51,6 +74,10 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 - `accountValue` is the cross collateral: `getCrossCollateral(crossMarginSummary, spotCollateral)`, which counts spot collateral on a unified account.
 - For an existing position, `maintenanceMargin` is `crossMarginSummary.maintenanceMargin` (it already includes the position) or `estimateCrossMaintenanceMargin` over every cross position.
 - For an opening order preview, require a current position snapshot confirming there is no existing position in the target market. Keep Mobile's guard for an existing position and for Scale orders. Pass the order price as `markPrice` and the order size as `positionSize`, and add the new position's maintenance at that price to the account's existing maintenance. Show the preview as unavailable when the snapshot is missing or the order adds to, reduces, or flips an existing position.
+
+### Open position liquidation price
+
+`Position.liquidationPrice` is the venue's figure. `null` on a Cross position means no price reachable at the current account value liquidates it: the cross collateral covers the position's maintenance margin at every positive price. Render it as no liquidation risk (for example "None" or an em dash), never as 0 and never as a loading or error state. It can become a price again when account value falls or the position grows.
 
 ### Controller liquidation previews
 

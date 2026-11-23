@@ -2,7 +2,10 @@
 
 Coordinates MFA recovery through `AuthenticationController` and injected identifier and escrow providers.
 
-Pending mutations are encrypted in controller state. `resume()` completes them;
+Pending mutations are persisted in controller state without their recovery
+secret, which is held only in memory. `resume()` completes them; after a
+restart it reads the secret back from an escrow that applied the mutation
+(pass an enrolled identifier to `resume(identifier)` for a pending `register`).
 `abort()` is allowed before writing, or once the write approval expired more
 than 5 minutes ago and no escrow applied the mutation. If the identifier an update started with can no
 longer authenticate, pass another enrolled one to `resume(identifier)`. See
@@ -15,21 +18,6 @@ at different versions, for example after an interrupted write whose pending
 state was lost. Call `resume(identifier)` under the recovery lock: with no
 pending mutation, it copies the highest record to escrows one version behind
 it. Then retry the mutation.
-
-## Recovery Lock
-
-Configure `RecoveryRegistrationLockProvider` with the registration service URL,
-`fetch`, and a messenger that can call
-`AuthenticationController:getBearerToken` and
-`AuthenticationController:refreshCanonicalProfileId`.
-
-Call `acquireLock()` before reading identifiers, hold it while changing Auth
-identifiers and mutating, then call `releaseLock()`. Call `acquireLock()` again
-after long user interaction to extend the lease.
-
-The controller acquires the 6-minute lease before every 5-minute approval, and
-escrows reject expired approvals. So once another operation can take the lease,
-this operation's approvals are dead.
 
 ## Recovery Lock
 

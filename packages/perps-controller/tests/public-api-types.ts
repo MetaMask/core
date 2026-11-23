@@ -86,6 +86,23 @@ import type {
   CancelOrdersParams,
   SubscribeAccountParams,
   PerpsProviderType,
+  TrackingData,
+  CrossMarginRatioTone,
+  CloseSize,
+  CloseSizeParams,
+  FeeNotionalParams,
+  OrderBookAggregationParams,
+  OrderBookSlippageEstimate,
+  OrderBookSlippageParams,
+  OrderBookSpread,
+  GlobalSnapshotContext,
+  PerpsGlobalSnapshotRequest,
+  getCrossMarginRatioTone,
+  calculateCloseSize,
+  calculateFeeNotionalUsd,
+  calculateOrderBookAggregationParams,
+  estimateOrderBookSlippage,
+  calculateOrderBookSpread,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -1101,4 +1118,80 @@ export type AggregatedAccountConsumerContracts = [
   AssertTrue<
     IsExact<ClosePositionsParams['targets'], ClosePositionsTarget[] | undefined>
   >,
+  AssertTrue<IsExact<TrackingData['totalFee'], number | undefined>>,
+  AssertTrue<IsExact<TrackingData['marketPrice'], number | undefined>>,
+];
+
+// Shared client helpers: their parameter and result types are importable
+// from the package entry and are the ones the helpers use.
+export type SharedHelperConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof getCrossMarginRatioTone>,
+      CrossMarginRatioTone | undefined
+    >
+  >,
+  AssertTrue<IsExact<CrossMarginRatioTone, 'safe' | 'warning' | 'danger'>>,
+  AssertTrue<
+    IsExact<Parameters<typeof calculateCloseSize>, [params: CloseSizeParams]>
+  >,
+  AssertTrue<
+    IsExact<ReturnType<typeof calculateCloseSize>, CloseSize | undefined>
+  >,
+  AssertTrue<IsExact<CloseSize, { size: number; usdValue: number }>>,
+  AssertCompatible<
+    CloseSizeParams,
+    { positionSize: '2'; price: 100; sizeDecimals: 3; percent: 50 }
+  >,
+  AssertCompatible<
+    CloseSizeParams,
+    { positionSize: 2; price: '100'; sizeDecimals: 3; usdAmount: '50' }
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof calculateFeeNotionalUsd>,
+      [params: FeeNotionalParams]
+    >
+  >,
+  AssertCompatible<
+    FeeNotionalParams,
+    { size: '1'; price: readonly ['100', '']; closePercent: 50 }
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof calculateOrderBookAggregationParams>,
+      OrderBookAggregationParams
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<typeof estimateOrderBookSlippage>,
+      [params: OrderBookSlippageParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof estimateOrderBookSlippage>,
+      OrderBookSlippageEstimate
+    >
+  >,
+  AssertTrue<
+    IsExact<OrderBookSlippageEstimate['canFill'], boolean | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof calculateOrderBookSpread>,
+      OrderBookSpread | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      OrderBookSpread,
+      { spread: number; midPrice: number; spreadPercentage: number }
+    >
+  >,
+  AssertTrue<
+    IsExact<GlobalSnapshotContext['request'], PerpsGlobalSnapshotRequest>
+  >,
+  AssertTrue<IsExact<ReturnType<GlobalSnapshotContext['isCurrent']>, boolean>>,
 ];

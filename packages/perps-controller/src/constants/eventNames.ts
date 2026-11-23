@@ -247,6 +247,29 @@ export const PERPS_EVENT_PROPERTY = {
 
   // Time-on-screen for abandon tracking
   TIME_ON_SCREEN_MS: 'time_on_screen_ms',
+
+  // Search funnel properties. The query text itself is `SEARCH_QUERY`.
+  /** Queries sent in the search session, reported when it is abandoned. */
+  QUERY_COUNT: 'query_count',
+  TIME_IN_SEARCH_MS: 'time_in_search_ms',
+  TIME_TO_TAP_MS: 'time_to_tap_ms',
+  QUERY_LENGTH: 'query_length',
+  HAS_RESULTS: 'has_results',
+  /** Filter chips active when this query event was sent. */
+  ACTIVE_CHIPS: 'active_chips',
+
+  // Chase termination properties
+  FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
+
+  // Related-markets interaction properties. The tapped market is `ASSET` and
+  // its one-based slot in the list is `RESULT_RANK`.
+  /** Market whose page listed the related market. */
+  SOURCE_MARKET: 'source_market',
+  /**
+   * Collection the related markets were drawn from. Not `MARKET_CATEGORY`
+   * (the tapped market's own category) or `FILTER_CATEGORY` (a list filter).
+   */
+  CATEGORY: 'category',
 } as const;
 
 /**
@@ -366,6 +389,7 @@ export const PERPS_EVENT_VALUE = {
     // Geo-block sources for bulk actions
     CLOSE_ALL_POSITIONS_BUTTON: 'close_all_positions_button',
     CANCEL_ALL_ORDERS_BUTTON: 'cancel_all_orders_button',
+    RELATED_MARKETS: 'related_markets',
   },
   WARNING_TYPE: {
     MINIMUM_DEPOSIT: 'minimum_deposit',
@@ -492,6 +516,21 @@ export const PERPS_EVENT_VALUE = {
     // Chase interactions
     CHASE_BACKGROUNDED_CONVERTED: 'chase_backgrounded_converted',
     CHASE_TERMINATED: 'chase_terminated',
+    CHASE_CONCURRENCY_LIMIT_HIT: 'chase_concurrency_limit_hit',
+    CHASE_MAX_DISTANCE_HIT: 'chase_max_distance_hit',
+    CHASE_REPRICE: 'chase_reprice',
+    // Close-all interactions
+    CLOSE_ALL_TAPPED: 'close_all_tapped',
+    CLOSE_ALL_CONFIRMED: 'close_all_confirmed',
+    CLOSE_ALL_CANCELLED: 'close_all_cancelled',
+    // Chart and order-book panel interactions
+    CHART_OPENED: 'chart_opened',
+    CHART_CLOSED: 'chart_closed',
+    ORDER_BOOK_OPENED: 'order_book_opened',
+    ORDER_BOOK_CLOSED: 'order_book_closed',
+    // Related-markets interactions
+    RELATED_MARKET_CLICKED: 'related_market_clicked',
+    RELATED_MARKETS_HEADER_TAPPED: 'related_markets_header_tapped',
     // Search interactions
     SEARCH_RESULT_TAPPED: 'search_result_tapped',
     SEARCH_CHIP_TAPPED: 'search_chip_tapped',
