@@ -1187,6 +1187,49 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      it('does not allow migrateToEnvelope to use a previous user cached vault after clearState', async () => {
+        await withUnlockedController(
+          async ({ controller, toprfClient, baseMessenger }) => {
+            const network = mockNetwork(toprfClient);
+            const socialLogin = socialLoginOf(controller.state);
+
+            baseMessenger.call('SeedlessOnboardingController:clearState');
+
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await baseMessenger.call(
+              'SeedlessOnboardingController:authenticate',
+              {
+                idTokens: ['user-b-id-token'],
+                accessToken: 'user-b-access-token',
+                metadataAccessToken: 'user-b-metadata-access-token',
+                ...socialLogin,
+                userId: 'user-b@example.com',
+                refreshToken: 'user-b-refresh-token',
+              },
+            );
+            await authenticateAal2(
+              { toprfClient, baseMessenger },
+              { hasRecoveryShare: false },
+            );
+
+            await expect(
+              controller.migrateToEnvelope({
+                recoverySecret: RECOVERY_SECRET,
+              }),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+            );
+            expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+            expect(
+              network.spies.batchAddSecretDataItems,
+            ).not.toHaveBeenCalled();
+          },
+        );
+      });
     });
 
     describe('migrateToEnvelope', () => {

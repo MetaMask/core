@@ -4470,6 +4470,123 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('locks the controller and clears cached decrypted vault data', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const password = 'mock-password';
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            password,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          await controller.storeKeyringEncryptionKey('keyring-key');
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            'keyring-key',
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+            },
+          );
+
+          await expect(controller.fetchAllSecretData()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
+          await expect(controller.loadKeyringEncryptionKey()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultError,
+          );
+        },
+      );
+    });
+
+    it('clears any in-flight refreshAuthTokens promise', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ mockRefreshJWTToken, toprfClient, baseMessenger }) => {
+          let resolveFirstRefresh!: () => void;
+          const firstRefreshGate = new Promise<void>((resolve) => {
+            resolveFirstRefresh = resolve;
+          });
+
+          mockRefreshJWTToken
+            .mockImplementationOnce(async () => {
+              await firstRefreshGate;
+              return {
+                idTokens: ['first-id-token'],
+                accessToken: 'first-access-token',
+                metadataAccessToken: 'first-metadata-token',
+              };
+            })
+            .mockResolvedValueOnce({
+              idTokens: ['second-id-token'],
+              accessToken: 'second-access-token',
+              metadataAccessToken: 'second-metadata-token',
+            });
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          const firstCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+            },
+          );
+
+          const secondCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+
+          resolveFirstRefresh();
+          await Promise.all([firstCall, secondCall]);
+
+          expect(mockRefreshJWTToken).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
   });
 
   describe('vault', () => {

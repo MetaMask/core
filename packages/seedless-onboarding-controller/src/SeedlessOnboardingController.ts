@@ -1572,6 +1572,9 @@ export class SeedlessOnboardingController<
    * Clears the current state of the SeedlessOnboardingController.
    */
   clearState(): void {
+    this.#cachedDecryptedVaultData = undefined;
+    this.#isUnlocked = false;
+    this.#pendingRefreshPromise = undefined;
     const defaultState =
       getInitialSeedlessOnboardingControllerStateWithDefaults();
     this.update(() => {
