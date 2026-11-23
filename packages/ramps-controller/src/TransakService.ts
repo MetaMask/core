@@ -138,6 +138,7 @@ export type TransakAdditionalRequirement = {
     expiresAt?: string;
     kycUrl?: string;
     workFlowRunId?: string;
+    sourceOfFundsTypeOptions?: TransakAdditionalRequirementOption[];
     employmentStatusOptions?: TransakAdditionalRequirementOption[];
     countryOfCitizenshipOptions?: TransakAdditionalRequirementOption[];
   };
