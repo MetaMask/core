@@ -509,7 +509,7 @@ ${renderFileList(filePaths, maxFilesPerList)}
 `;
   });
 
-  return `## 🛑 Files requiring codeowner review
+  return `### 🛑 Files requiring codeowner review
 
 ${instructions}
 ${groups.join('')}`;
@@ -540,15 +540,15 @@ function renderApprovalOptionalSection({
 }): string {
   const approvalNotRequiredNote = isApprovalRequiredOwner
     ? ''
-    : '\n\n> [!NOTE]\n> It is not required to get approval from this team to merge this PR.';
+    : '\n\n**You do not need to get approval from this team to merge this PR.**';
 
   return `
-<h3>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code></h3>
+### ℹ️ Files co-owned by \`${maintenanceOwnershipGroup.owner}\`
 
 For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns the following files and thus may approve changes to them.${approvalNotRequiredNote}
 
 <details>
-<summary>Show files</summary>
+<summary><em>(Expand to view list of files)</em></summary>
 ${renderFileList(maintenanceOwnershipGroup.filePaths, maxFilesPerList)}
 </details>
 `;

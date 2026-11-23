@@ -48,7 +48,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
 
@@ -72,30 +72,28 @@ describe('generateCodeownershipSummary', () => {
       </ul>
       </details>
 
-      <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+      ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
       For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
 
-      > [!NOTE]
-      > It is not required to get approval from this team to merge this PR.
+      **You do not need to get approval from this team to merge this PR.**
 
       <details>
-      <summary>Show files</summary>
+      <summary><em>(Expand to view list of files)</em></summary>
       <ul>
       <li><code>packages/example-controller/CHANGELOG.md</code></li>
       <li><code>packages/shared-controller/package.json</code></li>
       </ul>
       </details>
 
-      <h3>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code></h3>
+      ### ℹ️ Files co-owned by \`@MetaMask/technical-writers\`
 
       For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns the following files and thus may approve changes to them.
 
-      > [!NOTE]
-      > It is not required to get approval from this team to merge this PR.
+      **You do not need to get approval from this team to merge this PR.**
 
       <details>
-      <summary>Show files</summary>
+      <summary><em>(Expand to view list of files)</em></summary>
       <ul>
       <li><code>packages/shared-controller/README.md</code></li>
       </ul>
@@ -117,7 +115,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -149,7 +147,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -188,9 +186,11 @@ describe('generateCodeownershipSummary', () => {
     );
     expect(summary).not.toContain('> [!NOTE]');
     expect(summary).toContain(
-      '<h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>',
+      '### ℹ️ Files co-owned by `@MetaMask/core-platform`',
     );
-    expect(summary).toContain('<details>\n<summary>Show files</summary>');
+    expect(summary).toContain(
+      '<details>\n<summary><em>(Expand to view list of files)</em></summary>',
+    );
   });
 
   it('requires approval from maintenance owners when they are the only owners of a file', async () => {
@@ -207,7 +207,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -236,7 +236,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -269,7 +269,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -301,7 +301,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -333,7 +333,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owner groups.
 
@@ -364,7 +364,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toBe(outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -420,7 +420,7 @@ describe('generateCodeownershipSummary', () => {
       changedFilePaths: ['a/1.ts', 'a/2.ts'],
     });
     const expectedSummary = outdent`
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -464,7 +464,7 @@ describe('generateCodeownershipSummary', () => {
       > [!WARNING]
       > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
 
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
@@ -484,15 +484,14 @@ describe('generateCodeownershipSummary', () => {
       </ul>
       </details>
 
-      <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+      ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
       For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
 
-      > [!NOTE]
-      > It is not required to get approval from this team to merge this PR.
+      **You do not need to get approval from this team to merge this PR.**
 
       <details>
-      <summary>Show files</summary>
+      <summary><em>(Expand to view list of files)</em></summary>
       <ul>
       <li>... <em>(30 more files)</em> ...</li>
       </ul>
@@ -523,7 +522,7 @@ describe('generateCodeownershipSummary', () => {
       > [!WARNING]
       > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
 
-      ## 🛑 Files requiring codeowner review
+      ### 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 

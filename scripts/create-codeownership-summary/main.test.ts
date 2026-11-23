@@ -73,7 +73,7 @@ describe('main', () => {
       });
 
       expect(output.stdout.trimEnd()).toBe(outdent`
-        ## 🛑 Files requiring codeowner review
+        ### 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
@@ -94,12 +94,12 @@ describe('main', () => {
         </ul>
         </details>
 
-        <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+        ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
         For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
 
         <details>
-        <summary>Show files</summary>
+        <summary><em>(Expand to view list of files)</em></summary>
         <ul>
         <li><code>packages/accounts-controller/CHANGELOG.md</code></li>
         </ul>
@@ -132,7 +132,7 @@ describe('main', () => {
       });
 
       expect(output.stdout.trimEnd()).toBe(outdent`
-        ## 🛑 Files requiring codeowner review
+        ### 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
@@ -179,7 +179,7 @@ describe('main', () => {
       });
 
       expect(output.stdout.trimEnd()).toBe(outdent`
-        ## 🛑 Files requiring codeowner review
+        ### 🛑 Files requiring codeowner review
 
         To merge this PR, you'll need to get approvals from the following owners.
 
