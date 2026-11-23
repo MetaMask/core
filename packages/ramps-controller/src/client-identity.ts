@@ -1,7 +1,7 @@
 /**
  * Build channel of the MetaMask client. The on-ramp API reads it to evaluate
  * release-candidate builds against release-candidate flag configuration, so
- * flags turned on for RC testing never reach generally available builds of the
+ * flags turned on for RC testing don't reach generally available builds of the
  * same version.
  */
 export enum RampsClientBuild {

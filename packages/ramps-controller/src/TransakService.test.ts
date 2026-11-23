@@ -2191,12 +2191,76 @@ describe('TransakService', () => {
 
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
-        .query((query) => query.clientBuild === 'ga')
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientBuild: 'ga',
+        })
         .reply(200, MOCK_DEPOSIT_ORDER);
 
       const { service } = getService({
         options: {
           clientBuild: RampsClientBuild.GeneralAvailability,
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('omits the clientBuild query param on order fetches when the value is invalid', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+          clientBuild: 'RC' as unknown as RampsClientBuild,
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
+    it('omits the clientBuild query param on order fetches when the option is omitted', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query({
+          wallet: '0x1234',
+          action: 'deposit',
+          context: MOCK_CONTEXT,
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
         },
       });
 
