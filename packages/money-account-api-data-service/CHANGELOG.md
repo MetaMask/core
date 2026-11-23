@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0]
+
 ### Added
 
 - Add `fetchVaults`, which reads `GET /v1/vaults` for the environment's vault catalog including `current_apy`, and is exposed as the `MoneyAccountApiDataService:fetchVaults` action. Export `VaultsResponse`, `VaultSummary`, and `MoneyAccountApiDataServiceFetchVaultsAction` ([#11633](https://github.com/MetaMask/core/pull/11633))
@@ -129,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.5.0...HEAD
+[2.5.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.4.0...@metamask/money-account-api-data-service@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.1...@metamask/money-account-api-data-service@2.4.0
 [2.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...@metamask/money-account-api-data-service@2.3.1
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...@metamask/money-account-api-data-service@2.3.0
