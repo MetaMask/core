@@ -222,7 +222,7 @@ describe('groupMarketsByMarketKey', () => {
     ).toStrictEqual(['market-key:NVDA-USD', 'NVDA']);
     expect(
       getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
-    ).toStrictEqual(['market-key:NVDA-USD']);
+    ).toStrictEqual(['market-key:NVDA-USD', 'venue:lighter:NVDA']);
     expect(
       resolveSavedPerpsMarkets(
         ['NVDA'],

@@ -101,17 +101,30 @@ export function toSavedPerpsMarketReference(
   return marketKey ? `${SAVED_MARKET_KEY_PREFIX}${marketKey}` : symbol;
 }
 
+function getVenueReference(
+  symbol: string,
+  provider: PerpsProviderType | undefined,
+  legacyProvider: PerpsProviderType,
+): string {
+  return provider && provider !== legacyProvider
+    ? `${SAVED_VENUE_PREFIX}${provider}:${symbol}`
+    : symbol;
+}
+
 /**
- * Match an explicit key and any legacy favorite for its confirmed venue row on
- * the legacy venue. Uses the same legacy-provider default as
- * `resolveSavedPerpsMarkets`. Without a key, a row from another venue is saved
- * as `venue:<provider>:<symbol>` so it never collides with a legacy symbol.
+ * Match an explicit key and the saved venue entries of its confirmed rows.
+ * Without a key, a row on the legacy venue is saved by its symbol and a row
+ * from another venue as `venue:<provider>:<symbol>`, so it never collides with
+ * a legacy symbol. With a key, those venue entries of each tagged group row
+ * with the same unit-scale key are aliases, so an entry saved before the row
+ * grouped still matches. Uses the same legacy-provider default as
+ * `resolveSavedPerpsMarkets`.
  *
  * @param symbol - The displayed venue's symbol.
  * @param marketKey - Explicit backend key from a unit-scale row.
  * @param venues - The group's original venue rows.
  * @param legacyProvider - Venue that owned the saved symbols before grouping.
- * @returns The new reference and its legacy alias, when available.
+ * @returns The new reference and its venue aliases, when available.
  */
 export function getPerpsWatchlistReferences(
   symbol: string,
@@ -123,19 +136,18 @@ export function getPerpsWatchlistReferences(
     const provider = venues?.find(
       (venue) => venue.symbol === symbol,
     )?.providerId;
-    return [
-      provider && provider !== legacyProvider
-        ? `${SAVED_VENUE_PREFIX}${provider}:${symbol}`
-        : symbol,
-    ];
+    return [getVenueReference(symbol, provider, legacyProvider)];
   }
-  const reference = toSavedPerpsMarketReference(symbol, marketKey);
-  const legacy = venues?.find(
-    (venue) =>
-      venue.providerId === legacyProvider &&
-      getUnscaledMarketKey(venue) === marketKey,
-  );
-  return legacy ? [reference, legacy.symbol] : [reference];
+  const aliases = (venues ?? [])
+    .filter(
+      (venue) =>
+        venue.providerId !== undefined &&
+        getUnscaledMarketKey(venue) === marketKey,
+    )
+    .map((venue) =>
+      getVenueReference(venue.symbol, venue.providerId, legacyProvider),
+    );
+  return [toSavedPerpsMarketReference(symbol, marketKey), ...aliases];
 }
 
 /**

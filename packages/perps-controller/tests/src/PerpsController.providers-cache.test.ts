@@ -4915,6 +4915,48 @@ describe('PerpsController', () => {
       ).toBe(false);
     });
 
+    it('matches a venue favorite and recent saved before its row grouped', async () => {
+      const lighterBtc = {
+        ...market,
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        providerId: 'lighter' as const,
+      };
+      const [ungrouped] = groupMarketsByMarketKey([lighterBtc], 'hyperliquid');
+      const ungroupedArgs = [
+        ungrouped.symbol,
+        ungrouped.marketKey,
+        ungrouped.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+      await controller.toggleWatchlistMarket(...ungroupedArgs);
+      controller.recordMarketViewed(...ungroupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:BTC',
+      ]);
+
+      const [grouped] = groupMarketsByMarketKey(
+        [{ ...lighterBtc, marketKey: 'BTC-USD', priceScale: 1 }],
+        'hyperliquid',
+      );
+      const groupedArgs = [
+        grouped.symbol,
+        grouped.marketKey,
+        grouped.venues,
+      ] as const;
+
+      expect(controller.isWatchlistMarket(...groupedArgs)).toBe(true);
+      controller.recordMarketViewed(...groupedArgs);
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+      ]);
+      await controller.toggleWatchlistMarket(...groupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+    });
+
     it('replaces a legacy recent with the keyed entry for the same group', () => {
       const [group] = groupMarketsByMarketKey(
         [
