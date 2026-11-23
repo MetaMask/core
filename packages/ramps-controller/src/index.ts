@@ -321,6 +321,7 @@ export {
   buildMusdAutorampRequest,
   buildBrazilMusdAutorampRequest,
   getMusdAutorampDepositRailReadiness,
+  isTokenUnavailableInJurisdictionError,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
 export type {
