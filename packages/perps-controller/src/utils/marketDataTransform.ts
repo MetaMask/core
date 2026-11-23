@@ -11,6 +11,7 @@ import {
   getHyperLiquidAssetName,
 } from '../constants/hyperLiquidConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import type {
   AllMidsResponse,
   PerpsUniverse,
@@ -335,6 +336,12 @@ export function transformMarketData(
       marketType,
       isHip3,
       isNewMarket,
+      numericValues: buildMarketNumericValues({
+        price: currentPrice,
+        change24hPercent: hasCurrentPrice ? change24hPercent : undefined,
+        volume,
+        openInterest,
+      }),
     };
   });
 }

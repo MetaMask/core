@@ -304,6 +304,16 @@ export function hydrateFromDiskSync(
                 }
                 delete structuralMarket.dataSource;
                 delete structuralMarket.sourceExpiresAt;
+                if (structuralMarket.numericValues) {
+                  // Price and change are shown as placeholders below, so
+                  // their stale sort values go too. Volume and OI stay.
+                  const structuralValues = {
+                    ...structuralMarket.numericValues,
+                  };
+                  delete structuralValues.price;
+                  delete structuralValues.change24hPercent;
+                  structuralMarket.numericValues = structuralValues;
+                }
                 return {
                   ...structuralMarket,
                   price: PERPS_CONSTANTS.FallbackPriceDisplay,

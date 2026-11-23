@@ -480,6 +480,9 @@ describe('HyperLiquidProvider', () => {
       // Per-DEX position slices. Default to "nothing published", so a test that
       // does not opt in keeps the aggregate behaviour it was written against.
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: vi.fn(),

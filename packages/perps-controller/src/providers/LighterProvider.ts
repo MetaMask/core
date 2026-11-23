@@ -204,6 +204,8 @@ import type {
   Position,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   RawLedgerUpdate,
   ReadyToTradeResult,
   SubscribeAccountParams,
@@ -18534,6 +18536,12 @@ export class LighterProvider implements PerpsProvider {
     _params: PositionModifyPreviewParams,
   ): Promise<PositionModifyPreviewResult> {
     return { status: 'unsupported', reason: 'provider' };
+  }
+
+  async estimateCrossLiquidation(
+    _params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    return { status: 'unavailable', reason: 'provider' };
   }
 
   // ============================================================================

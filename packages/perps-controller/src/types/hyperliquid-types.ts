@@ -79,6 +79,19 @@ export function hyperLiquidModeFoldsSpot(
   return mode === 'unifiedAccount' || mode === 'portfolioMargin';
 }
 
+/**
+ * True for a Standard HL account (`disabled`, or `default` while unset):
+ * spot and perps are separate ledgers. Unknown or other modes are false.
+ *
+ * @param mode - Abstraction mode, or `AccountState.accountMode`.
+ * @returns Whether the account keeps separate spot and perps ledgers.
+ */
+export function isHyperLiquidStandardMode(
+  mode?: string | null,
+): mode is 'disabled' | 'default' {
+  return mode === 'disabled' || mode === 'default';
+}
+
 // Clearinghouse (Account) Types
 export type AssetPosition =
   ClearinghouseStateResponse['assetPositions'][number];

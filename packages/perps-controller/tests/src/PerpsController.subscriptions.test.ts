@@ -120,6 +120,7 @@ const mockMarketDataServiceInstance = {
   getMaxLeverage: vi.fn(),
   calculateFees: vi.fn().mockResolvedValue({ totalFee: 0 }),
   previewPositionModify: vi.fn(),
+  estimateCrossLiquidation: vi.fn(),
   getAvailableDexs: vi.fn().mockResolvedValue([]),
   getBlockExplorerUrl: vi.fn(),
   getOrderFills: vi.fn(),
@@ -2096,6 +2097,47 @@ describe('PerpsController', () => {
         params,
         context: expect.any(Object),
       });
+    });
+  });
+
+  describe('estimateCrossLiquidation', () => {
+    const params = {
+      symbol: 'BTC',
+      direction: 'long' as const,
+      size: '0.1',
+      entryPrice: '50000',
+      leverage: 10,
+    };
+
+    it('delegates to MarketDataService', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'estimateCrossLiquidation',
+      ).mockResolvedValue({ status: 'none', reason: 'covered_by_account' });
+
+      expect(await controller.estimateCrossLiquidation(params)).toStrictEqual({
+        status: 'none',
+        reason: 'covered_by_account',
+      });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        params,
+        context: expect.any(Object),
+      });
+    });
+
+    it('is unavailable from the provider before initialization', async () => {
+      expect(await controller.estimateCrossLiquidation(params)).toStrictEqual({
+        status: 'unavailable',
+        reason: 'provider',
+      });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).not.toHaveBeenCalled();
     });
   });
 

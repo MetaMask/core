@@ -458,7 +458,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     // Mock client service
     mockSpotClearinghouseState = vi.fn().mockResolvedValue({
-      balances: [{ coin: 'USDC', total: '100.76531791' }],
+      balances: [{ coin: 'USDC', total: '100.76531791', hold: '0' }],
     });
 
     mockClientService = {
@@ -774,12 +774,12 @@ describe('HyperLiquidSubscriptionService', () => {
       );
       const reopenedAccount = reopened.mock.lastCall?.[0];
       expect(reopenedAccount).toEqual(
-        expect.objectContaining({ spendableBalance: '1100.765317' }),
+        expect.objectContaining({ spendableBalance: '100.765317' }),
       );
 
       oldSpotFrame({
         user: '0x123',
-        spotState: { balances: [{ coin: 'USDC', total: '500' }] },
+        spotState: { balances: [{ coin: 'USDC', total: '500', hold: '0' }] },
       });
       expect(reopened).toHaveBeenLastCalledWith(reopenedAccount);
       stopReopened();
@@ -843,6 +843,45 @@ describe('HyperLiquidSubscriptionService', () => {
           displayMarginUsed: '12.5',
         }),
       ]);
+      unsubscribe();
+    });
+
+    it("reads a DEX's live open orders only for the bound wallet on the current connection", async () => {
+      const orderFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          orderFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const unsubscribe = service.subscribeToOrders({ callback: vi.fn() });
+      const onOrders = await orderFrames.promise;
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toBeNull();
+
+      const order = {
+        oid: 7,
+        coin: 'ETH',
+        side: 'B',
+        orderType: 'Limit',
+        isTrigger: false,
+        isPositionTpsl: false,
+        reduceOnly: false,
+        sz: '1',
+        origSz: '1',
+        limitPx: '1000',
+        triggerPx: '0',
+      };
+      onOrders({ dex: '', orders: [order] });
+
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toStrictEqual([
+        order,
+      ]);
+      expect(service.getCachedOpenOrdersForDex('', '0x456')).toBeNull();
+      expect(service.getCachedOpenOrdersForDex('xyz', '0x123')).toBeNull();
+      mockClientService.getConnectionEpoch.mockReturnValue(2);
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toBeNull();
       unsubscribe();
     });
 
@@ -3162,14 +3201,14 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(accountCallback).toHaveBeenCalled();
       const recoveredCall = accountCallback.mock.calls.at(-1)?.[0];
-      // unifiedAccount → fold=true → spot USDC ($123.45) folds into
-      // spendable/withdrawable (default $1000 perps + $123.45 spot ≈ $1123.45).
+      // unifiedAccount → fold=true → spendable/withdrawable are the free
+      // spot USDC ($123.45), which already holds the perps account value.
       expect(parseFloat(recoveredCall?.spendableBalance)).toBeCloseTo(
-        1123.45,
+        123.45,
         2,
       );
       expect(parseFloat(recoveredCall?.withdrawableBalance)).toBeCloseTo(
-        1123.45,
+        123.45,
         2,
       );
       expect(recoveredCall?.spotCollateral).toBe('123.45');
@@ -3836,14 +3875,11 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.webData2).not.toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalled();
       const firstUpdate = mockCallback.mock.calls.at(-1)?.[0];
-      // Unified-mode default: freeSpot ($100.77) folds into spendable and
-      // withdrawable on top of perps-side values, and into total.
-      //   total       = perps.accountValue (200) + spot (100.77) = 300.77
-      //   spendable   = perps.withdrawable (50)  + spot (100.77) = 150.77
-      //   withdrawable = perps.withdrawable (50) + spot (100.77) = 150.77
-      expect(firstUpdate.totalBalance).toBe('300.765317');
-      expect(firstUpdate.spendableBalance).toBe('150.765317');
-      expect(firstUpdate.withdrawableBalance).toBe('150.765317');
+      // Unified-mode default: the spot USDC ledger ($100.77, no hold)
+      // already holds the perps account value, so it is all three balances.
+      expect(firstUpdate.totalBalance).toBe('100.765317');
+      expect(firstUpdate.spendableBalance).toBe('100.765317');
+      expect(firstUpdate.withdrawableBalance).toBe('100.765317');
 
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
@@ -3856,7 +3892,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       if (mockCallback.mock.calls.length > 0) {
         const secondUpdate = mockCallback.mock.calls.at(-1)?.[0];
-        expect(secondUpdate.totalBalance).toBe('300.765317');
+        expect(secondUpdate.totalBalance).toBe('100.765317');
       }
 
       unsubscribe();

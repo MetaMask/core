@@ -33,6 +33,7 @@ import type {
 import {
   HL_UNIFIED_ACCOUNT_MODE,
   hyperLiquidModeFoldsSpot,
+  isHyperLiquidStandardMode,
 } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -102,6 +103,14 @@ import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
  * adapters it (re)initializes the SDK clients with.
  */
 type UserDataBinding = { address: Hex; discoveringDexs: boolean };
+
+// A market's leverage setting from the last activeAssetData frame.
+type ActiveAssetLeverageFrame = {
+  user: string;
+  coin: string;
+  leverage: ActiveAssetDataWsEvent['leverage'];
+  epoch: number;
+};
 
 type SubscriptionWallet = Pick<
   HyperLiquidWalletService,
@@ -264,6 +273,8 @@ export class HyperLiquidSubscriptionService {
   readonly #activeAssetDataStreams = new Set<{
     reopen: () => void;
     retire: () => void;
+    // Last frame's leverage, for margin-mode lock reads on this connection.
+    getLatest: () => ActiveAssetLeverageFrame | undefined;
   }>();
 
   // Track in-progress activeAssetCtx subscription promises to prevent leaks
@@ -318,6 +329,13 @@ export class HyperLiquidSubscriptionService {
   // Merged TWAP state per account. The venue sends a snapshot then deltas, so
   // the full set the public callback promises is accumulated here.
   readonly #cachedTwapOrders = new Map<string, Map<string, TwapOrder>>();
+
+  // Wallet and connection epoch of the snapshot each TWAP cache entry was
+  // built from, so a read can tell whether the cache is the live set.
+  readonly #cachedTwapOrderSources = new Map<
+    string,
+    { userAddress: string; epoch: number }
+  >();
 
   // Bumped per account by teardown and reconnect so an in-flight open for
   // that account discards its subscription instead of rehydrating a cleared
@@ -516,7 +534,10 @@ export class HyperLiquidSubscriptionService {
       funding?: number;
       openInterest?: number;
       volume24h?: number;
-      oraclePrice?: number;
+      // Venue oracle (`oraclePx`) and mark (`markPx`) prices, kept as the
+      // venue's decimal strings.
+      oraclePrice?: string;
+      markPrice?: string;
       lastUpdated: number;
       // Fast-stream price from activeAssetCtx (midPx preferred, markPx fallback).
       // Populated only for symbols with includeMarketData: true subscriptions.
@@ -3885,6 +3906,7 @@ export class HyperLiquidSubscriptionService {
         this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
         this.#twapOrderAdapters.delete(normalizedAccountId);
         this.#cachedTwapOrders.delete(normalizedAccountId);
+        this.#cachedTwapOrderSources.delete(normalizedAccountId);
       }
     };
   }
@@ -3998,6 +4020,12 @@ export class HyperLiquidSubscriptionService {
         const previous =
           this.#cachedTwapOrders.get(normalizedAccountId) ??
           new Map<string, TwapOrder>();
+        if (data.isSnapshot) {
+          this.#cachedTwapOrderSources.set(normalizedAccountId, {
+            userAddress,
+            epoch: this.#clientService.getConnectionEpoch(),
+          });
+        }
         const merged = data.isSnapshot
           ? new Map<string, TwapOrder>()
           : previous;
@@ -4287,7 +4315,7 @@ export class HyperLiquidSubscriptionService {
       const account = this.#aggregateAccountStates();
       summary = account?.crossMarginSummary;
       spotCollateral = account?.spotCollateral;
-    } else if ((mode === 'disabled' || mode === 'default') && dex === null) {
+    } else if (isHyperLiquidStandardMode(mode) && dex === null) {
       summary = this.#dexAccountCache.get('')?.crossMarginSummary;
       spotCollateral = '0';
     }
@@ -4426,6 +4454,81 @@ export class HyperLiquidSubscriptionService {
    */
   public getCachedOrders(): Order[] | null {
     return this.#cachedOrders;
+  }
+
+  /**
+   * Get a DEX's live open orders as the venue sent them, or null when that
+   * DEX has not published orders for this wallet on the current connection.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @param userAddress - Wallet the orders must belong to.
+   * @returns The venue's open orders for that DEX, or null.
+   */
+  public getCachedOpenOrdersForDex(
+    dexName: string,
+    userAddress: string,
+  ): FrontendOpenOrdersResponse | null {
+    if (
+      !this.#hasUserDataWallet(userAddress) ||
+      this.#dexOrdersEpoch.get(dexName) !==
+        this.#clientService.getConnectionEpoch()
+    ) {
+      return null;
+    }
+    return this.#dexRawOrdersCache.get(dexName) ?? null;
+  }
+
+  /**
+   * Get the wallet's active TWAP schedules from the live `userTwapHistory`
+   * stream, or null when no stream for that wallet has delivered its
+   * snapshot on the current connection.
+   *
+   * @param userAddress - Wallet the schedules must belong to.
+   * @returns Active schedules (possibly empty), or null.
+   */
+  public getCachedActiveTwapOrders(userAddress: string): TwapOrder[] | null {
+    const epoch = this.#clientService.getConnectionEpoch();
+    for (const [accountKey, orders] of this.#cachedTwapOrders) {
+      const source = this.#cachedTwapOrderSources.get(accountKey);
+      if (
+        source?.epoch === epoch &&
+        source.userAddress.toLowerCase() === userAddress.toLowerCase()
+      ) {
+        return [...orders.values()].filter(
+          (order) => order.status === 'active',
+        );
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get a market's leverage setting (type and value) from a live
+   * `activeAssetData` stream for that wallet, such as an order form's
+   * available-to-trade subscription, or null when no such stream has
+   * delivered a frame on the current connection.
+   *
+   * @param symbol - Market symbol, including any DEX prefix.
+   * @param userAddress - Wallet the frame must belong to.
+   * @returns The venue's leverage setting for the market, or null.
+   */
+  public getCachedActiveAssetLeverage(
+    symbol: string,
+    userAddress: string,
+  ): ActiveAssetDataWsEvent['leverage'] | null {
+    const epoch = this.#clientService.getConnectionEpoch();
+    const user = userAddress.toLowerCase();
+    for (const stream of this.#activeAssetDataStreams) {
+      const latest = stream.getLatest();
+      if (
+        latest?.coin === symbol &&
+        latest.user === user &&
+        latest.epoch === epoch
+      ) {
+        return latest.leverage;
+      }
+    }
+    return null;
   }
 
   #hasUserDataWallet(userAddress: string): boolean {
@@ -4591,10 +4694,10 @@ export class HyperLiquidSubscriptionService {
       price,
       timestamp: Date.now(),
       percentChange24h,
-      // Add mark price from activeAssetCtx
-      markPrice: marketData?.oraclePrice
-        ? marketData.oraclePrice.toString()
-        : undefined,
+      // Venue mark price (markPx) and oracle price (oraclePx) from the
+      // asset contexts. They differ: mark blends oracle and book prices.
+      markPrice: marketData?.markPrice,
+      oraclePrice: marketData?.oraclePrice,
       // Add order book data if available
       bestBid: orderBookData?.bestBid,
       bestAsk: orderBookData?.bestAsk,
@@ -4612,7 +4715,10 @@ export class HyperLiquidSubscriptionService {
       // when the oracle price isn't yet cached.
       isTradable: isMarketTradable({
         midPrice: currentPrice,
-        oraclePrice: marketData?.oraclePrice,
+        oraclePrice:
+          marketData?.oraclePrice === undefined
+            ? undefined
+            : parseFloat(marketData.oraclePrice),
         deviationLimit: this.#priceDeviationLimit,
       }),
     };
@@ -5010,8 +5116,9 @@ export class HyperLiquidSubscriptionService {
                 ? parseFloat(ctx.dayNtlVlm.toString())
                 : undefined,
               oraclePrice: isPerpsContext(data)
-                ? parseFloat(data.ctx.oraclePx.toString())
+                ? data.ctx.oraclePx.toString()
                 : undefined,
+              markPrice: ctx.markPx ? ctx.markPx.toString() : undefined,
               lastUpdated: now,
               // Store fast-stream price for per-subscriber projection in
               // #notifyAllPriceSubscribers. Used only for focused subscribers.
@@ -5346,7 +5453,8 @@ export class HyperLiquidSubscriptionService {
               volume24h: ctx.dayNtlVlm
                 ? parseFloat(ctx.dayNtlVlm.toString())
                 : undefined,
-              oraclePrice: parseFloat(ctx.oraclePx.toString()),
+              oraclePrice: ctx.oraclePx.toString(),
+              markPrice: ctx.markPx ? ctx.markPx.toString() : undefined,
               lastUpdated: Date.now(),
               activeAssetCtxPrice: existingMarketData?.activeAssetCtxPrice,
               priceLastUpdated: existingMarketData?.priceLastUpdated,
@@ -5767,6 +5875,8 @@ export class HyperLiquidSubscriptionService {
     // Bumped on every open, failure and retirement: a subscription, frame or
     // error that an older attempt delivers afterwards is dropped.
     let generation = 0;
+    // Leverage from the last frame on the current open.
+    let latest: ActiveAssetLeverageFrame | undefined;
     // Consecutive failures, at open or after it, since the last frame. One
     // budget for both paths, so a venue that accepts the subscribe and then
     // fails it cannot retry forever.
@@ -5800,6 +5910,7 @@ export class HyperLiquidSubscriptionService {
     const open = (): void => {
       release();
       generation += 1;
+      latest = undefined;
       const thisGeneration = generation;
       const isCurrent = (): boolean =>
         !retired && thisGeneration === generation;
@@ -5874,6 +5985,12 @@ export class HyperLiquidSubscriptionService {
               return;
             }
             failures = 0;
+            latest = {
+              user: user.toLowerCase(),
+              coin: symbol,
+              leverage: data.leverage,
+              epoch: this.#clientService.getConnectionEpoch(),
+            };
             callback(data);
           },
           {
@@ -5892,6 +6009,7 @@ export class HyperLiquidSubscriptionService {
     };
 
     const stream = {
+      getLatest: (): ActiveAssetLeverageFrame | undefined => latest,
       reopen: (): void => {
         // A replacement transport starts a fresh retry budget.
         failures = 0;
@@ -6143,6 +6261,7 @@ export class HyperLiquidSubscriptionService {
       this.#pendingTwapOrderSubscriptions.clear();
       // Drop merged state: the fresh socket opens with a new snapshot.
       this.#cachedTwapOrders.clear();
+      this.#cachedTwapOrderSources.clear();
 
       // Pair each account with its retained adapter first, so the restore map
       // has no absent-adapter case to represent.
@@ -6390,6 +6509,7 @@ export class HyperLiquidSubscriptionService {
     // Clear TWAP subscriptions; generations were bumped above, before the
     // subscriber keys naming those accounts were cleared.
     this.#cachedTwapOrders.clear();
+    this.#cachedTwapOrderSources.clear();
     this.#twapOrderSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {
         // Ignore errors during cleanup

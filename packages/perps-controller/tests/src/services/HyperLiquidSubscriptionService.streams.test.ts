@@ -1001,6 +1001,32 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(callback).toHaveBeenCalledWith(frame);
     });
 
+    it("serves the market's streamed leverage only for that wallet, market and connection", async () => {
+      const { emit } = captureListener();
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
+
+      emit(frame);
+
+      expect(
+        service.getCachedActiveAssetLeverage('BTC', '0x123'),
+      ).toStrictEqual(frame.leverage);
+      expect(service.getCachedActiveAssetLeverage('ETH', '0x123')).toBeNull();
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x456')).toBeNull();
+
+      mockClientService.getConnectionEpoch.mockReturnValue(2);
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
+      mockClientService.getConnectionEpoch.mockReturnValue(1);
+
+      cleanup();
+      expect(service.getCachedActiveAssetLeverage('BTC', '0x123')).toBeNull();
+    });
+
     it('stops streaming and unsubscribes on cleanup', async () => {
       const { emit, subscription } = captureListener();
       const callback = vi.fn();
@@ -2828,9 +2854,14 @@ describe('HyperLiquidSubscriptionService', () => {
           userState: { user: '0x123', abstraction },
           perpDexStates: [],
         });
+        // The first frame folded with the REST mode (Unified). Standard adds
+        // the ledgers instead, so only the Unified total matches it.
         expect(accountCallback).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            totalBalance: previousAccount.totalBalance,
+            totalBalance:
+              abstraction === 'unifiedAccount'
+                ? previousAccount.totalBalance
+                : expect.any(String),
             accountMode: abstraction,
           }),
         );
@@ -3219,6 +3250,77 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Assert
       expect(callback).toHaveBeenCalledTimes(deliveredWhileSubscribed);
+    });
+
+    describe('getCachedActiveTwapOrders', () => {
+      it('returns the active schedules once the snapshot arrived on this connection', async () => {
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: statusAwareAdapt,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x123')).toStrictEqual([
+          expect.objectContaining({ orderId: '77', symbol: 'BTC' }),
+        ]);
+        unsubscribe();
+      });
+
+      it('leaves out terminal schedules', async () => {
+        mockSubscriptionClient.userTwapHistory.mockImplementation(
+          (
+            params: { user: `0x${string}` },
+            listener: (event: UserTwapHistoryWsEvent) => void,
+          ) => {
+            setTimeout(() => {
+              listener({
+                user: params.user,
+                history: [
+                  {
+                    ...buildHistoryEntry(77, 'BTC'),
+                    state: {
+                      ...buildHistoryEntry(77, 'BTC').state,
+                      stopPx: null,
+                      trigger: null,
+                    },
+                    status: { status: 'finished' },
+                  },
+                ],
+                isSnapshot: true,
+              });
+            }, 0);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: statusAwareAdapt,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x123')).toStrictEqual([]);
+        unsubscribe();
+      });
+
+      it('returns null for another wallet, before the snapshot, after a reconnect and after unsubscribing', async () => {
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+        const unsubscribe = service.subscribeToTwapOrders({
+          callback: vi.fn(),
+          adapt: statusAwareAdapt,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(service.getCachedActiveTwapOrders('0x456')).toBeNull();
+        mockClientService.getConnectionEpoch.mockReturnValue(2);
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+        mockClientService.getConnectionEpoch.mockReturnValue(1);
+        expect(service.getCachedActiveTwapOrders('0x123')).not.toBeNull();
+
+        unsubscribe();
+        expect(service.getCachedActiveTwapOrders('0x123')).toBeNull();
+      });
     });
   });
 });

@@ -9,6 +9,8 @@ import type {
 import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
 
+export { getPerpsDisplaySymbol } from '../internal/perpsDisplaySymbol.js';
+
 const SAVED_MARKET_KEY_PREFIX = 'market-key:';
 const SAVED_VENUE_PREFIX = 'venue:';
 
@@ -228,6 +230,7 @@ export function clonePerpsMarketData(
     ...(market.keywords && { keywords: [...market.keywords] }),
     ...(market.tags && { tags: [...market.tags] }),
     ...(market.categories && { categories: [...market.categories] }),
+    ...(market.numericValues && { numericValues: { ...market.numericValues } }),
     ...(market.trend && {
       trend: market.trend.map(([timestamp, price]): [number, string] => [
         timestamp,
@@ -281,14 +284,12 @@ export function matchesCategory(
     case 'crypto':
       return getMarketTypeFilter(market) === 'crypto';
     case 'memecoin':
-      // Derived category: a crypto market that carries the 'memecoin' tag.
-      // Aligned with the 'crypto' case above so tagged main-DEX markets
-      // still match when their marketType is unset (the common
-      // provider-sourced shape prior to Terminal enrichment). Overlaps
-      // with 'crypto' by design — memecoins appear under both pills.
+      // Derived category, as Mobile's isMemecoinMarket: a main-DEX market
+      // that carries the 'memecoin' tag, whatever its marketType. A HIP-3
+      // market never matches. Overlaps with 'crypto' by design: memecoins
+      // appear under both pills.
       return (
-        getMarketTypeFilter(market) === 'crypto' &&
-        (market.tags?.includes('memecoin') ?? false)
+        !isHip3Market(market) && (market.tags?.includes('memecoin') ?? false)
       );
     default:
       // Every other filter is a 1:1 data-model category match.
@@ -467,19 +468,6 @@ export const shouldIncludeMarket = (
   );
 
   return !blacklisted;
-};
-
-export const getPerpsDisplaySymbol = (symbol: string): string => {
-  if (!symbol || typeof symbol !== 'string') {
-    return symbol;
-  }
-
-  const colonIndex = symbol.indexOf(':');
-  if (colonIndex > 0 && colonIndex < symbol.length - 1) {
-    return symbol.substring(colonIndex + 1);
-  }
-
-  return symbol;
 };
 
 export const getPerpsDexFromSymbol = (symbol: string): string | null => {

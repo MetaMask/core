@@ -5,6 +5,8 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export { calculateAccountReturnOnEquity } from './accountAggregation.js';
+export type { AccountReturnOnEquityParams } from './accountAggregation.js';
 export * from './advancedOrderLists.js';
 export * from './advancedOrders.js';
 export { getBatchOperationStatus } from './batchOperationStatus.js';
@@ -16,6 +18,7 @@ export {
 export type {
   CloseSize,
   CloseSizeParams,
+  CloseSizeRounding,
   CloseReceiveEstimateParams,
   CloseReceiveEstimate,
   NetClosedPnlParams,
@@ -70,6 +73,8 @@ export {
 export type {
   GroupedOrderBook,
   OrderBookAggregationParams,
+  OrderBookGroupingLadder,
+  OrderBookGroupingOptionsParams,
   OrderBookSpread,
 } from './orderBookGrouping.js';
 export { estimateOrderBookSlippage } from './orderBookSlippage.js';
