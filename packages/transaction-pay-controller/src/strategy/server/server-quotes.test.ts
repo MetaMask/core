@@ -340,6 +340,7 @@ describe('server-quotes', () => {
   it('requests the Lighter perps asset when the payment provider is Lighter', async () => {
     await getServerQuotes({
       accountSupports7702: true,
+      from: FROM_MOCK,
       messenger,
       requests: [
         { ...QUOTE_REQUEST_MOCK, paymentProvider: PaymentProvider.Lighter },
