@@ -2322,7 +2322,7 @@ describe('SeedlessOnboardingController', () => {
           });
         });
 
-        it('adopts the live password key when another device migrated the vault and changed the password', async () => {
+        it('throws OutdatedPassword without setting envelope state when another device migrated the vault and changed the password', async () => {
           const store = await createMigratedAccount();
 
           await withUnlockedController(async (args) => {
@@ -2334,12 +2334,92 @@ describe('SeedlessOnboardingController', () => {
             });
             await authenticateAal2(args, { hasRecoveryShare: true });
 
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            );
+
+            expectNoMigrationWrites(network);
+            expect(controller.state.envelope).toBeUndefined();
+            expect(
+              await controller.checkIsPasswordOutdated({ skipCache: true }),
+            ).toBe(true);
+          });
+        });
+
+        it('throws OutdatedPassword without updating envelope.passwordAuthPubKey when already migrated and another device changed the password', async () => {
+          const store = await createMigratedAccount();
+
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            updateState(controller, (state) => {
+              state.envelope = expectedEnvelopeState();
+            });
+            await authenticateAal2(args, { hasRecoveryShare: true });
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            );
+
+            expectNoMigrationWrites(network);
+            expect(controller.state.envelope).toStrictEqual(
+              expectedEnvelopeState(),
+            );
+            expect(
+              await controller.checkIsPasswordOutdated({ skipCache: true }),
+            ).toBe(true);
+          });
+        });
+
+        it('succeeds without writes once synced to the new global password on a vault migrated elsewhere', async () => {
+          const store = await createMigratedAccount();
+
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: true });
+
             await migrateToEnvelope(args);
 
             expectNoMigrationWrites(network);
             expect(controller.state.envelope).toStrictEqual(
               expectedEnvelopeState({ password: NEW_PASSWORD }),
             );
+          });
+        });
+
+        it('throws OutdatedPassword when control records are missing after an envelope password change', async () => {
+          const store = await createMigratedAccount();
+
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            });
+            deleteControlRecords(network.store);
+            await authenticateAal2(args, { hasRecoveryShare: true });
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            );
+
+            expectNoMigrationWrites(network);
           });
         });
 

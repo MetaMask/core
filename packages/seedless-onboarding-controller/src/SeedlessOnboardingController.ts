@@ -2998,15 +2998,16 @@ export class SeedlessOnboardingController<
 
   /**
    * Fetch the live password OPRF key and the vault's control records, and
-   * check that the key is in sync for the migration: without control
-   * records, the vault keys must still derive from the password; with them,
-   * one must match the key, as the vault is already envelope-managed by this
-   * or another device.
+   * check that both this device's local password and the vault are in sync
+   * with the live key: without control records, the vault keys must still
+   * derive from the password; with them, one must match the key, as the vault
+   * is already envelope-managed by this or another device.
    *
    * @param vaultKeySet - The vault key set `K_v`.
    * @returns The live password OPRF key, its key index, and the control
    * records.
-   * @throws `OutdatedPassword` if the live key is not in sync.
+   * @throws `OutdatedPassword` if this device or the vault is not in sync
+   * with the live key.
    */
   async #fetchEnvelopeMigrationPasswordKey(vaultKeySet: VaultKeySet): Promise<{
     authPubKey: SEC1EncodedPublicKey;
@@ -3016,10 +3017,14 @@ export class SeedlessOnboardingController<
     const { authPubKey, keyIndex } = await this.#fetchGlobalAuthPubKey();
     const controlRecords =
       await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+    const localPasswordAuthPubKey = this.state.envelope
+      ? base64ToBytes(this.state.envelope.passwordAuthPubKey)
+      : vaultKeySet.authKeyPair.pk;
     const isInSync =
-      controlRecords.length === 0
+      pubKeysEqual(authPubKey, localPasswordAuthPubKey) &&
+      (controlRecords.length === 0
         ? pubKeysEqual(authPubKey, vaultKeySet.authKeyPair.pk)
-        : selectControlRecord(controlRecords, authPubKey) !== undefined;
+        : selectControlRecord(controlRecords, authPubKey) !== undefined);
     if (!isInSync) {
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
