@@ -503,6 +503,9 @@ export class SubscriptionDelegationService {
           ),
         );
     }
+    // Triggers queued during the charge, including its own refresh, saw
+    // pre-charge state and would send the charge again.
+    this.#isChargeRetryPending = false;
   }
 
   /**

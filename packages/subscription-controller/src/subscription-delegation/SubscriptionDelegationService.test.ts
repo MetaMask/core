@@ -2519,6 +2519,22 @@ describe('SubscriptionDelegationService charge retry', () => {
 
       expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
     });
+
+    it('does not charge again for triggers that arrive while a charge is sent', async () => {
+      const stuck = buildStuckSubscription();
+      const { rootMessenger, mocks } = setup({ cachedSubscriptions: [stuck] });
+      mocks.updatePaymentMethod.mockImplementationOnce(async () => {
+        // The controller refreshes subscriptions before the backend shows the
+        // charge, so the cached subscription still looks retryable.
+        publishSubscriptionState(rootMessenger, [{ ...stuck }]);
+        return [];
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('destroy', () => {
