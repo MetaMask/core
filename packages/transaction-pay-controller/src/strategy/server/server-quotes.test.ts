@@ -29,7 +29,10 @@ import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
 import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
 import type { MaxQuotesRequest } from '../../utils/max-quote.js';
-import { estimateSourceGas } from '../../utils/quote-gas.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
 import {
   buildCaipAssetType,
   getNativeToken,
@@ -1056,6 +1059,56 @@ describe('server-quotes', () => {
         );
       },
     );
+
+    it('passes every source transaction to the gas station', async () => {
+      const SECOND_STEP_MOCK = {
+        ...DEPOSIT_STEP_MOCK,
+        data: '0x1234' as Hex,
+        to: '0x0000000000000000000000000000000000000003' as Hex,
+      };
+      const SOURCE_TRANSACTIONS_MOCK = [
+        { data: '0xabcd', to: '0x0000000000000000000000000000000000000004' },
+      ] as never;
+
+      vi.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(getSourceTransactions).mockReturnValue(
+        SOURCE_TRANSACTIONS_MOCK,
+      );
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote,
+              steps: [DEPOSIT_STEP_MOCK, SECOND_STEP_MOCK],
+            },
+          },
+        ],
+      });
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getSourceTransactions).toHaveBeenCalledWith({
+        request: expect.objectContaining(QUOTE_REQUEST_MOCK),
+        transaction: TRANSACTION_META_MOCK,
+        transactions: [DEPOSIT_STEP_MOCK, SECOND_STEP_MOCK].map((step) => ({
+          chainId: '0x1',
+          data: step.data,
+          from: FROM_MOCK,
+          to: step.to,
+          value: step.value,
+        })),
+      });
+      expect(resolveGasStationCost).toHaveBeenCalledWith(
+        expect.objectContaining({ transactions: SOURCE_TRANSACTIONS_MOCK }),
+      );
+    });
 
     it('zeroes source network fees when steps array is empty', async () => {
       fetchServerQuoteMock.mockResolvedValue({
@@ -2237,9 +2290,19 @@ describe('server-quotes', () => {
       expect(resolveGasStationCost).toHaveBeenCalledWith(
         expect.objectContaining({
           feeTokenAccount: SAFE_MOCK,
-          totalItemCount: 2,
+          totalGasEstimate: 130000,
+          transactions: [
+            {
+              chainId: '0x1',
+              data: DEPOSIT_STEP_MOCK.data,
+              from: FROM_MOCK,
+              to: DEPOSIT_STEP_MOCK.to,
+              value: DEPOSIT_STEP_MOCK.value,
+            },
+          ],
         }),
       );
+      expect(getSourceTransactions).not.toHaveBeenCalled();
     });
   });
 
@@ -2401,14 +2464,13 @@ describe('server-quotes', () => {
 
       expect(await getMaxQuoteDetails()).toStrictEqual({
         gasLimits: [25000],
-        gasStationTransactions: {
-          firstStepData: {
+        gasStationTransactions: [
+          {
             data: DEPOSIT_STEP_MOCK.data,
             to: DEPOSIT_STEP_MOCK.to,
             value: DEPOSIT_STEP_MOCK.value,
           },
-          totalItemCount: 1,
-        },
+        ],
         isGasless: false,
         isSubsidized: NON_GASLESS_DEPOSIT_RESULT_MOCK.quote.fees.subsidized,
         targetAmountRaw: NON_GASLESS_DEPOSIT_RESULT_MOCK.quote.output.raw,
