@@ -4538,7 +4538,12 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ mockRefreshJWTToken, toprfClient, baseMessenger }) => {
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          toprfClient,
+          baseMessenger,
+        }) => {
           let resolveFirstRefresh!: () => void;
           const firstRefreshGate = new Promise<void>((resolve) => {
             resolveFirstRefresh = resolve;
@@ -4589,9 +4594,170 @@ describe('SeedlessOnboardingController', () => {
           );
 
           resolveFirstRefresh();
-          await Promise.all([firstCall, secondCall]);
+          await expect(firstCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+          await secondCall;
 
           expect(mockRefreshJWTToken).toHaveBeenCalledTimes(2);
+          expect(toprfClient.authenticate).not.toHaveBeenCalledWith(
+            expect.objectContaining({ idTokens: ['first-id-token'] }),
+          );
+          expect(controller.state.accessToken).toBe('second-access-token');
+          expect(controller.state.metadataAccessToken).toBe(
+            'second-metadata-token',
+          );
+        },
+      );
+    });
+
+    it('does not apply tokens from a refresh whose re-authentication straddles clearState', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          toprfClient,
+          baseMessenger,
+        }) => {
+          mockRefreshJWTToken.mockResolvedValueOnce({
+            idTokens: ['user-a-refreshed-id-token'],
+            accessToken: 'user-a-refreshed-access-token',
+            metadataAccessToken: 'user-a-refreshed-metadata-token',
+          });
+
+          let resolveReAuthenticate!: () => void;
+          const reAuthenticateGate = new Promise<void>((resolve) => {
+            resolveReAuthenticate = resolve;
+          });
+          const userANodeAuthTokens = [
+            ...MOCK_NODE_AUTH_TOKENS.map((token) => ({
+              ...token,
+              authToken: 'user-a-node-auth-token',
+            })),
+          ];
+          vi.spyOn(toprfClient, 'authenticate')
+            .mockImplementationOnce(async () => {
+              await reAuthenticateGate;
+              return { nodeAuthTokens: userANodeAuthTokens, isNewUser: false };
+            })
+            .mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+          const refreshCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+          await vi.waitFor(() =>
+            expect(toprfClient.authenticate).toHaveBeenCalledTimes(1),
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+            },
+          );
+
+          resolveReAuthenticate();
+          await expect(refreshCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+
+          expect(controller.state.userId).toBe('user-b@example.com');
+          expect(controller.state.accessToken).toBe('user-b-access-token');
+          expect(controller.state.metadataAccessToken).toBe(
+            'user-b-metadata-token',
+          );
+          expect(controller.state.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
+        },
+      );
+    });
+
+    it('does not persist a stale access token into a vault unlocked after clearState', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          toprfClient,
+          encryptor,
+          baseMessenger,
+        }) => {
+          let resolveFirstRefresh!: () => void;
+          const firstRefreshGate = new Promise<void>((resolve) => {
+            resolveFirstRefresh = resolve;
+          });
+          mockRefreshJWTToken.mockImplementationOnce(async () => {
+            await firstRefreshGate;
+            return {
+              idTokens: ['user-a-refreshed-id-token'],
+              accessToken: 'user-a-refreshed-access-token',
+              metadataAccessToken: 'user-a-refreshed-metadata-token',
+            };
+          });
+
+          const refreshCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+              revokeToken: 'user-b-revoke-token',
+            },
+          );
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            'user-b-password',
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          const userBVault = controller.state.vault;
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+
+          resolveFirstRefresh();
+          await expect(refreshCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+
+          expect(encryptWithKeySpy).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(userBVault);
+          expect(controller.state.accessToken).toBe('user-b-access-token');
         },
       );
     });

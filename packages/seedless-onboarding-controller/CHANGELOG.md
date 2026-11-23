@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on envelope-managed vaults ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 
+### Fixed
+
+- `refreshAuthTokens` now rejects with `AuthenticationError` instead of applying its tokens when `clearState` runs while the refresh is in flight, so a refresh from a previous session can no longer overwrite the current session's tokens or vault ([#11346](https://github.com/MetaMask/core/pull/11346))
+
 ### Security
 
 - Exclude `envelope` from state logs, since its public keys can fingerprint an account across logs ([#11220](https://github.com/MetaMask/core/pull/11220))

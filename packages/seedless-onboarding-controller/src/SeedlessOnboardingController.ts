@@ -260,6 +260,13 @@ export class SeedlessOnboardingController<
    */
   #pendingRefreshPromise: Promise<void> | undefined;
 
+  /**
+   * Incremented by `clearState` so that a token refresh started in a previous
+   * session can detect it has been abandoned and must not touch state or the
+   * vault of the current session.
+   */
+  #sessionGeneration = 0;
+
   readonly toprfClient: ToprfSecureBackup;
 
   readonly #envelopeStore: EnvelopeStore;
@@ -1562,6 +1569,7 @@ export class SeedlessOnboardingController<
     this.#cachedDecryptedVaultData = undefined;
     this.#isUnlocked = false;
     this.#pendingRefreshPromise = undefined;
+    this.#sessionGeneration += 1;
     const defaultState =
       getInitialSeedlessOnboardingControllerStateWithDefaults();
     this.update(() => {
@@ -2506,6 +2514,7 @@ export class SeedlessOnboardingController<
   async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
     const { refreshToken } = this.state;
+    const sessionGeneration = this.#sessionGeneration;
 
     const res = await this.#refreshJWTToken({
       connection: this.state.authConnection,
@@ -2531,6 +2540,7 @@ export class SeedlessOnboardingController<
     });
 
     try {
+      this.#assertSessionGeneration(sessionGeneration);
       const { idTokens, accessToken, metadataAccessToken } = res;
       // Re-authenticate with the refreshed id tokens to update node auth
       // tokens, accessToken, and metadataAccessToken in state.
@@ -2538,7 +2548,9 @@ export class SeedlessOnboardingController<
         idTokens,
         accessToken,
         metadataAccessToken,
+        sessionGeneration,
       });
+      this.#assertSessionGeneration(sessionGeneration);
 
       // update the vault with new access token if wallet is unlocked
       if (this.#isUnlocked && this.#cachedDecryptedVaultData) {
@@ -2594,14 +2606,18 @@ export class SeedlessOnboardingController<
    * @param params.idTokens - New node id tokens.
    * @param params.accessToken - New access token.
    * @param params.metadataAccessToken - New metadata access token.
+   * @param params.sessionGeneration - The session generation the refresh was
+   * started in; the result is discarded if `clearState` ran since then.
    * @returns A promise that resolves to the authentication result.
    */
   async #reAuthenticate(params: {
     idTokens: string[];
     accessToken: string;
     metadataAccessToken: string;
+    sessionGeneration: number;
   }): Promise<AuthenticateResult> {
-    const { idTokens, accessToken, metadataAccessToken } = params;
+    const { idTokens, accessToken, metadataAccessToken, sessionGeneration } =
+      params;
     const {
       authConnection,
       authConnectionId,
@@ -2619,6 +2635,7 @@ export class SeedlessOnboardingController<
         idTokens,
         groupedAuthConnectionId,
       });
+      this.#assertSessionGeneration(sessionGeneration);
 
       this.update((state) => {
         state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
@@ -2642,6 +2659,18 @@ export class SeedlessOnboardingController<
           cause: error,
         },
       );
+    }
+  }
+
+  /**
+   * Assert that `clearState` has not run since the given session generation
+   * was captured.
+   *
+   * @param sessionGeneration - The session generation captured earlier.
+   */
+  #assertSessionGeneration(sessionGeneration: number): void {
+    if (sessionGeneration !== this.#sessionGeneration) {
+      throw new Error('Session was cleared during token refresh');
     }
   }
 
