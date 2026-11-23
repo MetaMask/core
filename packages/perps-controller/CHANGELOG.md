@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Added
 
 - Expose the confirmed Hyperliquid `AccountState.accountMode` and optional `includeSnapshotStatus` on direct Hyperliquid position and order subscriptions. Opted-in callbacks wait for complete wallet and connection coverage of their own channel. ([TAT-4746](https://consensyssoftware.atlassian.net/browse/TAT-4746)) ([#11695](https://github.com/MetaMask/core/pull/11695))
@@ -1905,7 +1907,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@25.0.0...@metamask/perps-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...@metamask/perps-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...@metamask/perps-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.1.0...@metamask/perps-controller@24.0.0
