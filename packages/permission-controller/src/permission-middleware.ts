@@ -7,10 +7,13 @@ import type { JsonRpcMiddleware as JsonRpcMiddlewareV2 } from '@metamask/json-rp
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
+import { unauthorized } from './errors.js';
 import type { RestrictedMethodParameters } from './Permission.js';
 import type {
   PermissionControllerExecuteRestrictedMethodAction,
+  PermissionControllerGetEndowmentsRpcMethodsAction,
   PermissionControllerHasUnrestrictedMethodAction,
+  PermissionControllerIsEndowmentRpcMethodAction,
 } from './PermissionController-method-action-types.js';
 
 /**
@@ -18,7 +21,9 @@ import type {
  */
 export type PermissionMiddlewareActions =
   | PermissionControllerExecuteRestrictedMethodAction
-  | PermissionControllerHasUnrestrictedMethodAction;
+  | PermissionControllerHasUnrestrictedMethodAction
+  | PermissionControllerGetEndowmentsRpcMethodsAction
+  | PermissionControllerIsEndowmentRpcMethodAction;
 
 export type CreatePermissionMiddlewareOptions = {
   messenger: Messenger<string, PermissionMiddlewareActions>;
@@ -56,6 +61,24 @@ export function createPermissionMiddleware({
 
     if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
       return next();
+    }
+
+    const isEndowmentRpcMethod = messenger.call(
+      'PermissionController:isEndowmentRpcMethod',
+      method,
+    );
+
+    if (isEndowmentRpcMethod) {
+      const endowmentRpcMethods = messenger.call(
+        'PermissionController:getEndowmentsRpcMethods',
+        origin,
+      );
+
+      if (endowmentRpcMethods.includes(method)) {
+        return next();
+      }
+
+      throw unauthorized({ data: { origin, method } });
     }
 
     response.result = await messenger.call(
@@ -97,6 +120,24 @@ export function createPermissionMiddlewareV2({
 
     if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
       return next();
+    }
+
+    const isEndowmentRpcMethod = messenger.call(
+      'PermissionController:isEndowmentRpcMethod',
+      method,
+    );
+
+    if (isEndowmentRpcMethod) {
+      const endowmentRpcMethods = messenger.call(
+        'PermissionController:getEndowmentsRpcMethods',
+        origin,
+      );
+
+      if (endowmentRpcMethods.includes(method)) {
+        return next();
+      }
+
+      throw unauthorized({ data: { origin, method } });
     }
 
     return messenger.call(

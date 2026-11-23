@@ -553,9 +553,7 @@ function getDefaultPermissionSpecificationsAndMocks() {
       [PermissionKeys.endowmentRpcMethods]: {
         permissionType: PermissionType.Endowment,
         targetName: PermissionKeys.endowmentRpcMethods,
-        rpcMethodsGetter: (_options: EndowmentGetterParams): string[] => [
-          'eth_sendTransaction',
-        ],
+        rpcMethods: ['eth_sendTransaction'],
         allowedCaveats: [CaveatTypes.endowmentCaveat],
       },
     },
@@ -670,6 +668,8 @@ function getPermissionMiddlewareMessenger(
     actions: [
       'PermissionController:executeRestrictedMethod',
       'PermissionController:hasUnrestrictedMethod',
+      'PermissionController:getEndowmentsRpcMethods',
+      'PermissionController:isEndowmentRpcMethod',
     ],
     messenger,
   });
@@ -5509,7 +5509,7 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('getEndowmentRpcMethods', () => {
+  describe('getEndowmentsRpcMethods', () => {
     it('gets the RPC methods', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
@@ -5518,18 +5518,17 @@ describe('PermissionController', () => {
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentRpcMethods]: {},
+          [PermissionNames.endowmentAnySubject]: {},
+          [PermissionNames.wallet_doubleNumber]: {},
         },
       });
 
-      expect(
-        await controller.getEndowmentRpcMethods(
-          origin,
-          PermissionNames.endowmentRpcMethods,
-        ),
-      ).toStrictEqual(['eth_sendTransaction']);
+      expect(controller.getEndowmentsRpcMethods(origin)).toStrictEqual([
+        'eth_sendTransaction',
+      ]);
     });
 
-    it('returns an empty array if the endowment has no RPC methods getter', async () => {
+    it('returns an empty array if no endowments with RPC methods are permitted', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
@@ -5537,55 +5536,26 @@ describe('PermissionController', () => {
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentAnySubject]: {},
+          [PermissionNames.wallet_doubleNumber]: {},
         },
       });
 
-      expect(
-        await controller.getEndowmentRpcMethods(
-          origin,
-          PermissionNames.endowmentAnySubject,
-        ),
-      ).toStrictEqual([]);
+      expect(controller.getEndowmentsRpcMethods(origin)).toStrictEqual([]);
+    });
+  });
+
+  describe('isEndowmentRpcMethod', () => {
+    it('returns true if an RPC method is gated by an endowment', async () => {
+      const controller = getDefaultPermissionController();
+
+      expect(controller.isEndowmentRpcMethod('eth_sendTransaction')).toBe(true);
     });
 
-    it('throws if the requested permission target is not an endowment', async () => {
+    it('returns false if an RPC method is not gated by an endowment', async () => {
       const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
 
-      controller.grantPermissions({
-        subject: { origin },
-        approvedPermissions: {
-          [PermissionNames.wallet_getSecretArray]: {},
-        },
-      });
-
-      await expect(
-        controller.getEndowmentRpcMethods(
-          origin,
-          // @ts-expect-error Intentional destructive testing
-          PermissionNames.wallet_getSecretArray,
-        ),
-      ).rejects.toThrow(
-        new errors.EndowmentPermissionDoesNotExistError(
-          PermissionNames.wallet_getSecretArray,
-          origin,
-        ),
-      );
-    });
-
-    it('throws if the subject does not have the requisite permission', async () => {
-      const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
-
-      await expect(
-        controller.getEndowmentRpcMethods(
-          origin,
-          PermissionNames.endowmentAnySubject,
-        ),
-      ).rejects.toThrow(
-        errors.unauthorized({
-          data: { origin, targetName: PermissionNames.endowmentAnySubject },
-        }),
+      expect(controller.isEndowmentRpcMethod('eth_signTransaction')).toBe(
+        false,
       );
     });
   });
@@ -6652,6 +6622,68 @@ describe('PermissionController', () => {
       expect(error.code).toBe(-32603);
     });
 
+    it('passes through an endowment-gated RPC method if the subject has the endowment', async () => {
+      const { controller, middlewareMessenger } = setup();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.endowmentRpcMethods]: {},
+        },
+      });
+
+      const engine = new JsonRpcEngine();
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
+      engine.push((_request, response, _next, end) => {
+        response.result = 'success';
+        end();
+      });
+
+      const response = await engine.handle({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_sendTransaction',
+      });
+      assertIsJsonRpcSuccess(response);
+
+      expect(response.result).toBe('success');
+    });
+
+    it('returns an unauthorized error for an endowment-gated RPC method if the subject lacks the endowment', async () => {
+      const { middlewareMessenger } = setup();
+      const origin = 'metamask.io';
+
+      const engine = new JsonRpcEngine();
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
+      engine.push((_request, response, _next, end) => {
+        response.result = 'success';
+        end();
+      });
+
+      const response = await engine.handle({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_sendTransaction',
+      });
+      assertIsJsonRpcFailure(response);
+
+      expect(response.error.code).toBe(4100);
+      expect(response.error.message).toBe(
+        'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
+      );
+    });
+
     describe('v2', () => {
       it('executes a restricted method', async () => {
         const { controller, middlewareMessenger } = setup();
@@ -6703,6 +6735,61 @@ describe('PermissionController', () => {
         });
 
         expect(result).toBe('success');
+      });
+
+      it('passes through an endowment-gated RPC method if the subject has the endowment', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.endowmentRpcMethods]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+            (): string => 'success',
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_sendTransaction',
+        });
+
+        expect(result).toBe('success');
+      });
+
+      it('throws for an endowment-gated RPC method if the subject lacks the endowment', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+            (): string => 'success',
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'eth_sendTransaction',
+          }),
+        ).rejects.toThrow(
+          'Unauthorized to perform action. Try requesting the required permission(s) first.',
+        );
       });
 
       it('throws if the subject does not have the requisite permission', async () => {

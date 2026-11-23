@@ -177,6 +177,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'executeRestrictedMethod',
   'getEndowments',
+  'getEndowmentsRpcMethods',
+  'isEndowmentRpcMethod',
   'getSubjectNames',
   'getPermissions',
   'hasPermission',
@@ -2742,36 +2744,40 @@ export class PermissionController<
   }
 
   /**
-   * Gets the RPC methods tied to the specified endowment permission for a subject.
-   * Throws if the subject does not have the required permission or if the
-   * permission is not an endowment permission.
+   * Gets the RPC methods tied to the endowment permissions for a subject.
    *
    * @param origin - The origin of the subject whose RPC methods to retrieve.
-   * @param targetName - The name of the endowment permission. This must be a
-   * valid permission target name.
-   * @param requestData - Additional data associated with the request, if any.
-   * Forwarded to the endowment getter function for the permission.
    * @returns The RPC method names, if any.
    */
-  async getEndowmentRpcMethods(
-    origin: string,
-    targetName: ExtractEndowmentPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >['parentCapability'],
-    requestData?: unknown,
-  ): Promise<string[]> {
-    if (!this.hasPermission(origin, targetName)) {
-      throw unauthorized({ data: { origin, targetName } });
-    }
+  getEndowmentsRpcMethods(origin: string): string[] {
+    const permissions = Object.values(this.getPermissions(origin) ?? {});
 
-    return (
-      this.#getTypedPermissionSpecification(
-        PermissionType.Endowment,
-        targetName,
-        origin,
-      ).rpcMethodsGetter?.({ origin, requestData }) ?? []
-    );
+    return permissions.reduce((rpcMethods, permission) => {
+      const specification = this.#getPermissionSpecification(
+        permission.parentCapability,
+      );
+      if (hasSpecificationType(specification, PermissionType.Endowment)) {
+        return rpcMethods.concat(specification.rpcMethods ?? []);
+      }
+      return rpcMethods;
+    }, []);
+  }
+
+  /**
+   * Checks whether an RPC method is tied to an endowment.
+   *
+   * @param method - The name of the RPC method.
+   * @returns True if the RPC method is tied to an endowment, otherwise false.
+   */
+  isEndowmentRpcMethod(method: string): boolean {
+    const specifications = Object.values(this.#permissionSpecifications);
+
+    return specifications.some((specification) => {
+      return (
+        hasSpecificationType(specification, PermissionType.Endowment) &&
+        specification.rpcMethods?.includes(method)
+      );
+    });
   }
 
   /**

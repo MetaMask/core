@@ -469,12 +469,9 @@ export type EndowmentSpecificationConstraint =
      */
     endowmentGetter?: EndowmentGetter<Json>;
     /**
-     * The {@link EndowmentGetter} function that returns a list of RPC method
-     * names this endowment gates access to. This function will be called by
-     * the {@link PermissionController} when determining whether a subject may
-     * call those methods.
+     * A list of of RPC method names this endowment gates access to.
      */
-    rpcMethodsGetter?: EndowmentGetter<string[]>;
+    rpcMethods?: string[];
   };
 
 /**
