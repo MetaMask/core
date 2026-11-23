@@ -1,4 +1,4 @@
-import { keccak256AndHexify } from '@metamask/auth-network-utils';
+import { keccak256AndHexify, SomeError } from '@metamask/auth-network-utils';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   EncryptionKey,
@@ -6173,6 +6173,46 @@ describe('SeedlessOnboardingController', () => {
 
           // Verify that fetchAuthPubKey was only called once (no retry)
           expect(toprfClient.fetchAuthPubKey).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should refresh tokens and retry when fetchAuthPubKey throws an auth token error in checkIsPasswordOutdated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ toprfClient, baseMessenger, mockRefreshJWTToken }) => {
+          vi.spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockRejectedValueOnce(
+              new SomeError({
+                errors: [],
+                responses: [],
+                predicate: new TOPRFError(
+                  TOPRFErrorCode.AuthTokenExpired,
+                  'Auth token expired',
+                ),
+              }),
+            )
+            .mockResolvedValueOnce({
+              authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
+              keyIndex: 1,
+            });
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          const isOutdated = await baseMessenger.call(
+            'SeedlessOnboardingController:checkIsPasswordOutdated',
+          );
+
+          expect(isOutdated).toBe(false);
+          expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+          expect(toprfClient.fetchAuthPubKey).toHaveBeenCalledTimes(2);
         },
       );
     });

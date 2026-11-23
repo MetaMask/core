@@ -1456,12 +1456,6 @@ export class SeedlessOnboardingController<
       }
 
       this.#assertIsAuthenticatedUser(this.state);
-      const {
-        nodeAuthTokens,
-        authConnectionId,
-        groupedAuthConnectionId,
-        userId,
-      } = this.state;
 
       // an envelope-managed vault keeps its key set, so the password OPRF
       // key it last synced with is tracked separately
@@ -1472,22 +1466,7 @@ export class SeedlessOnboardingController<
 
       let globalAuthPubKey = options?.globalAuthPubKey;
       if (!globalAuthPubKey) {
-        const { authPubKey } = await this.toprfClient
-          .fetchAuthPubKey({
-            nodeAuthTokens,
-            authConnectionId,
-            groupedAuthConnectionId,
-            userId,
-          })
-          .catch((error) => {
-            log('Error fetching auth pub key', error);
-            throw new SeedlessOnboardingError(
-              SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
-              {
-                cause: error,
-              },
-            );
-          });
+        const { authPubKey } = await this.#fetchGlobalAuthPubKey();
         globalAuthPubKey = authPubKey;
       }
 
@@ -2470,6 +2449,9 @@ export class SeedlessOnboardingController<
         userId,
       })
       .catch((error) => {
+        if (isAuthTokenError(error)) {
+          throw error;
+        }
         log('Error fetching auth pub key', error);
         throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,

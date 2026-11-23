@@ -1,4 +1,5 @@
 import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
+import { SomeError } from '@metamask/auth-network-utils';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   EnvelopeKeys,
@@ -2634,6 +2635,39 @@ describe('SeedlessOnboardingController', () => {
             expectNoMigrationWrites(network);
             expect(controller.state.recoverySession).toBeDefined();
             expect(controller.state.envelope).toBeUndefined();
+          });
+        });
+
+        it('refreshes tokens and retries when fetching the global auth public key throws an auth token error', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient, mockRefreshJWTToken } = args;
+            const network = mockNetwork(toprfClient);
+            failOnce(
+              network.spies.fetchAuthPubKey,
+              ({ authConnectionId }) => !isRecovery(authConnectionId),
+              new SomeError({
+                errors: [],
+                responses: [],
+                predicate: new TOPRFError(
+                  TOPRFErrorCode.InvalidAuthToken,
+                  'Invalid auth token',
+                ),
+              }),
+            );
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await migrateToEnvelope(args);
+
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+            expect(controller.state.envelope).toStrictEqual({
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            });
           });
         });
       });
