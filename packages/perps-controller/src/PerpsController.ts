@@ -239,6 +239,7 @@ import {
   clonePerpsMarketData,
   compileMarketPattern,
   getPerpsWatchlistReferences,
+  isSharedPerpsMarketReference,
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
@@ -9747,7 +9748,7 @@ export class PerpsController extends BaseController<
     venues?: readonly PerpsMarketData[],
     legacyProvider?: PerpsProviderType,
   ): Promise<void> {
-    const references = getPerpsWatchlistReferences(
+    const references = this.#getWatchlistReferences(
       symbol,
       marketKey,
       venues,
@@ -9886,6 +9887,44 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * The reference a watchlist toggle saves, followed by the aliases it matches.
+   * A watchlist synced to AUS is shared with clients that match by symbol, so
+   * there the venue symbol is saved and the market key is only an alias.
+   *
+   * @param symbol - The trading pair symbol.
+   * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
+   * @returns The saved reference and its aliases.
+   */
+  #getWatchlistReferences(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): string[] {
+    const references = getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
+    if (!marketKey || !resolveWatchlistExchangeKey(this.state.activeProvider)) {
+      return references;
+    }
+    const [venueReference] = getPerpsWatchlistReferences(
+      symbol,
+      undefined,
+      venues,
+      legacyProvider,
+    );
+    return [
+      venueReference,
+      ...references.filter((entry) => entry !== venueReference),
+    ];
+  }
+
+  /**
    * Check if a market is in the watchlist on the current network
    *
    * @param symbol - The trading pair symbol.
@@ -9901,7 +9940,7 @@ export class PerpsController extends BaseController<
     legacyProvider?: PerpsProviderType,
   ): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return getPerpsWatchlistReferences(
+    return this.#getWatchlistReferences(
       symbol,
       marketKey,
       venues,
@@ -10051,7 +10090,9 @@ export class PerpsController extends BaseController<
       ...existingWatchlist,
       [exchangeKey]: {
         ...existingWatchlist[exchangeKey],
-        [network]: this.state.watchlistMarkets[network],
+        [network]: this.state.watchlistMarkets[network].filter(
+          isSharedPerpsMarketReference,
+        ),
       },
     };
 
@@ -10175,7 +10216,10 @@ export class PerpsController extends BaseController<
           };
           const nextWatchlistMarkets: PerpsWatchlistMarkets = {
             ...existingWatchlist,
-            [exchangeKey]: { testnet, mainnet },
+            [exchangeKey]: {
+              testnet: testnet.filter(isSharedPerpsMarketReference),
+              mainnet: mainnet.filter(isSharedPerpsMarketReference),
+            },
           };
           const nextPrefs: NotificationPreferences = {
             ...prefs,

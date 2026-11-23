@@ -75,6 +75,10 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 - For an existing position, `maintenanceMargin` is `crossMarginSummary.maintenanceMargin` (it already includes the position) or `estimateCrossMaintenanceMargin` over every cross position.
 - For an opening order preview, require a current position snapshot confirming there is no existing position in the target market. Keep Mobile's guard for an existing position and for Scale orders. Pass the order price as `markPrice` and the order size as `positionSize`, and add the new position's maintenance at that price to the account's existing maintenance. Show the preview as unavailable when the snapshot is missing or the order adds to, reduces, or flips an existing position.
 
+### Open position liquidation price
+
+`Position.liquidationPrice` is the venue's figure. `null` on a Cross position means no price reachable at the current account value liquidates it: the cross collateral covers the position's maintenance margin at every positive price. Render it as no liquidation risk (for example "None" or an em dash), never as 0 and never as a loading or error state. It can become a price again when account value falls or the position grows.
+
 ### Controller liquidation previews
 
 `PerpsController.calculateLiquidationPrice` and `PerpsController:calculateLiquidationPrice` return `Promise<string>`. For a HyperLiquid cross opening, pass `marginType: 'cross'`, `asset`, `entryPrice`, `direction`, `leverage` and a positive `positionSize` in base units. In aggregated mode include `providerId: 'hyperliquid'`. The provider reads the selected wallet's current positions and market tiers. Unified uses shared cross equity and spot USDC. Standard uses only the main DEX's cross pool. Standard HIP-3 openings and other account modes are unavailable in this preview.

@@ -101,6 +101,21 @@ export function toSavedPerpsMarketReference(
   return marketKey ? `${SAVED_MARKET_KEY_PREFIX}${marketKey}` : symbol;
 }
 
+/**
+ * Whether every client can read a saved reference. Mobile and Extension match
+ * saved entries by venue symbol, so `market-key:` and `venue:` references stay
+ * in local state and are never written to shared storage.
+ *
+ * @param reference - A saved watchlist entry.
+ * @returns True for a bare venue symbol.
+ */
+export function isSharedPerpsMarketReference(reference: string): boolean {
+  return (
+    !reference.startsWith(SAVED_MARKET_KEY_PREFIX) &&
+    !reference.startsWith(SAVED_VENUE_PREFIX)
+  );
+}
+
 function getVenueReference(
   symbol: string,
   provider: PerpsProviderType | undefined,

@@ -27,6 +27,7 @@ import {
   roundPerpsPrice,
   selectDefaultOrderBookGrouping,
   sizeHyperLiquidScaleLadder,
+  TP_SL_ROE_PRESETS,
 } from '../src/index.js';
 
 describe('shared Perps helpers public API', () => {
@@ -125,6 +126,13 @@ describe('shared Perps helpers public API', () => {
 
   it('exports getPositionDirection', () => {
     expect(getPositionDirection('-1')).toBe('short');
+  });
+
+  it('exports the TP/SL RoE presets', () => {
+    expect(TP_SL_ROE_PRESETS).toStrictEqual({
+      TakeProfit: [10, 25, 50, 100],
+      StopLoss: [-5, -10, -25, -50],
+    });
   });
 
   it('exports the cross-margin ratio thresholds', () => {

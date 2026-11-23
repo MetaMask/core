@@ -1210,6 +1210,81 @@ describe('PerpsController', () => {
       );
     });
 
+    it('saves a grouped row by its symbol and writes no market keys to AUS', async () => {
+      const call = vi.fn().mockImplementation((action: string) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.resolve({
+            ...MOCK_PREFS_BASE,
+            perps: {
+              ...MOCK_PREFS_BASE.perps,
+              watchlistMarkets: {
+                hyperliquid: { testnet: [], mainnet: [] },
+              },
+            },
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+      const state = getDefaultPerpsControllerState();
+      state.isTestnet = false;
+      state.activeProvider = 'hyperliquid';
+      state.watchlistMarkets.mainnet = [
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+      ];
+      const controller = new PerpsController({
+        messenger: createMockMessenger({ call }),
+        state,
+        infrastructure: createMockInfrastructure(),
+      });
+      const venues = [
+        {
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '1',
+          maxLeverage: '40x',
+          change24h: '0',
+          change24hPercent: '0%',
+          volume: '10',
+          marketKey: 'BTC-USD',
+          priceScale: 1,
+        },
+      ];
+
+      await controller.toggleWatchlistMarket('BTC', 'BTC-USD', venues);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+        'BTC',
+      ]);
+      expect(controller.isWatchlistMarket('BTC')).toBe(true);
+      expect(controller.isWatchlistMarket('BTC', 'BTC-USD', venues)).toBe(true);
+      expect(call).toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        expect.objectContaining({
+          perps: expect.objectContaining({
+            watchlistMarkets: {
+              hyperliquid: { testnet: [], mainnet: ['BTC'] },
+            },
+          }),
+        }),
+      );
+
+      await controller.toggleWatchlistMarket('BTC', 'BTC-USD', venues);
+
+      expect(controller.isWatchlistMarket('BTC', 'BTC-USD', venues)).toBe(
+        false,
+      );
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:ETH-USD',
+        'venue:lighter:SOL',
+      ]);
+    });
+
     it('reverts local state when AUS PUT fails', async () => {
       const existingPrefs = {
         ...MOCK_PREFS_BASE,
@@ -1454,8 +1529,12 @@ describe('PerpsController', () => {
 
         // Local state has some markets saved before AUS was introduced.
         const initialState = getDefaultPerpsControllerState();
-        initialState.watchlistMarkets.testnet = ['BTC'];
-        initialState.watchlistMarkets.mainnet = ['ETH', 'SOL'];
+        initialState.watchlistMarkets.testnet = ['BTC', 'venue:lighter:BTC'];
+        initialState.watchlistMarkets.mainnet = [
+          'ETH',
+          'market-key:BTC-USD',
+          'SOL',
+        ];
         initialState.activeProvider = 'hyperliquid';
 
         const migrationController = new TestablePerpsController({

@@ -41,14 +41,11 @@ import {
   isTriggerOrderType,
   toSDKTimeInForce,
 } from './orderTypes.js';
+import { roundToSignificantFiguresGrid } from './pricePrecision.js';
 import {
   buildPublicTrade,
   sortPublicTradesNewestFirst,
 } from './publicTrades.js';
-import {
-  countSignificantFigures,
-  roundToSignificantFigures,
-} from './significantFigures.js';
 import { parseFiniteDecimal } from './stringParseUtils.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
@@ -659,25 +656,11 @@ export function formatHyperLiquidPrice(params: {
   szDecimals: number;
 }): string {
   const { price, szDecimals } = params;
-  const priceNum = typeof price === 'string' ? parseFloat(price) : price;
-
-  if (Number.isInteger(priceNum)) {
-    return priceNum.toString();
-  }
-
-  const maxDecimalPlaces =
-    DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals;
-
-  let formattedPrice = priceNum.toFixed(maxDecimalPlaces);
-  formattedPrice = parseFloat(formattedPrice).toString();
-
-  const significantDigits = countSignificantFigures(formattedPrice);
-
-  if (significantDigits > DECIMAL_PRECISION_CONFIG.MaxSignificantFigures) {
-    formattedPrice = roundToSignificantFigures(formattedPrice);
-  }
-
-  return formattedPrice;
+  return roundToSignificantFiguresGrid(
+    price,
+    DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals,
+    DECIMAL_PRECISION_CONFIG.MaxSignificantFigures,
+  );
 }
 
 export function formatHyperLiquidSize(params: {

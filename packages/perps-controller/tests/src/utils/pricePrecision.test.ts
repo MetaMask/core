@@ -34,6 +34,22 @@ describe('roundPerpsPrice', () => {
     },
   );
 
+  it.each([
+    [69.9425, 1, '69.943'],
+    ['69.9425', 1, '69.943'],
+    ['1.00005', 0, '1.0001'],
+    ['12345.5', 0, '12346'],
+    ['0.1234565', 0, '0.12346'],
+  ])(
+    'rounds half up on a significant_figures grid (%s, szDecimals %d)',
+    (price, szDecimals, expected) => {
+      expect(
+        roundPerpsPrice({ price, pricePrecision: hyperliquidGrid(szDecimals) }),
+      ).toBe(expected);
+      expect(formatHyperLiquidPrice({ price, szDecimals })).toBe(expected);
+    },
+  );
+
   it('rounds half up to the tick on a fixed_decimals grid', () => {
     expect(
       roundPerpsPrice({ price: '43251.675', pricePrecision: lighterGrid }),

@@ -327,6 +327,15 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
+ * Quick-pick RoE percentages for take profit (positive) and stop loss
+ * (negative) in TP/SL forms, as Mobile and Extension show them.
+ */
+export const TP_SL_ROE_PRESETS = {
+  TakeProfit: [10, 25, 50, 100],
+  StopLoss: [-5, -10, -25, -50],
+} as const;
+
+/**
  * Bounds applied to a HyperLiquid TWAP placement.
  *
  * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe

@@ -9,6 +9,7 @@ import {
   getMarketTypeFilter,
   getPerpsWatchlistReferences,
   isHip3Market,
+  isSharedPerpsMarketReference,
   matchesCategory,
 } from '../../../src/utils/marketUtils.js';
 
@@ -483,5 +484,14 @@ describe('marketUtils category classification', () => {
     ])('is consistent with matchesCategory for %o', (sample) => {
       expect(matchesCategory(sample, getMarketTypeFilter(sample))).toBe(true);
     });
+  });
+});
+
+describe('isSharedPerpsMarketReference', () => {
+  it('accepts only bare venue symbols', () => {
+    expect(isSharedPerpsMarketReference('BTC')).toBe(true);
+    expect(isSharedPerpsMarketReference('xyz:TSLA')).toBe(true);
+    expect(isSharedPerpsMarketReference('market-key:BTC-USD')).toBe(false);
+    expect(isSharedPerpsMarketReference('venue:lighter:BTC')).toBe(false);
   });
 });

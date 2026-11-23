@@ -1,16 +1,51 @@
 import { BigNumber } from 'bignumber.js';
 
 import type { PerpsPricePrecision } from '../types/index.js';
-import {
-  countSignificantFigures,
-  roundToSignificantFigures,
-} from './significantFigures.js';
+import { countSignificantFigures } from './significantFigures.js';
+
+/**
+ * Round a price onto a significant-figures grid (Hyperliquid). Integers are
+ * kept as they are. Otherwise the decimals are capped, then the significant
+ * figures, both rounding half up on the price's decimal form, so 69.9425
+ * becomes 69.943 as on hyperliquid.xyz rather than 69.942 from its binary
+ * float.
+ *
+ * @param price - Price in quote units.
+ * @param maxDecimals - Maximum decimal places.
+ * @param maxSignificantFigures - Maximum significant figures for a fractional price.
+ * @returns The rounded price string.
+ */
+export function roundToSignificantFiguresGrid(
+  price: number | string,
+  maxDecimals: number,
+  maxSignificantFigures: number,
+): string {
+  const priceNum = Number.parseFloat(String(price));
+  if (Number.isInteger(priceNum)) {
+    return priceNum.toString();
+  }
+  let rounded = new BigNumber(String(priceNum)).decimalPlaces(
+    maxDecimals,
+    BigNumber.ROUND_HALF_UP,
+  );
+  if (countSignificantFigures(rounded.toFixed()) > maxSignificantFigures) {
+    const integerDigits = rounded
+      .integerValue(BigNumber.ROUND_DOWN)
+      .abs()
+      .toFixed()
+      .replace(/^0$/u, '').length;
+    rounded = rounded.decimalPlaces(
+      Math.max(maxSignificantFigures - integerDigits, 0),
+      BigNumber.ROUND_HALF_UP,
+    );
+  }
+  return rounded.toFixed();
+}
 
 /**
  * Round a price onto the grid a market accepts, as reported in
  * `PerpsOrderCapabilities.pricePrecision`. A `significant_figures` grid
- * (Hyperliquid) keeps integers as they are, otherwise caps the decimals and
- * then the significant figures, giving the same string as
+ * (Hyperliquid) uses `roundToSignificantFiguresGrid`, the same rounding as
  * `formatHyperLiquidPrice`. A `fixed_decimals` grid (Lighter) rounds half up
  * to the nearest multiple of its tick.
  *
@@ -49,20 +84,12 @@ export function roundPerpsPrice(params: {
     rounded = (
       remainder.multipliedBy(2).gte(tick) ? down.plus(tick) : down
     ).toFixed();
-  } else if (Number.isInteger(priceNum)) {
-    rounded = priceNum.toString();
   } else {
-    rounded = Number.parseFloat(
-      priceNum.toFixed(pricePrecision.maxDecimals),
-    ).toString();
-    if (
-      countSignificantFigures(rounded) > pricePrecision.maxSignificantFigures
-    ) {
-      rounded = roundToSignificantFigures(
-        rounded,
-        pricePrecision.maxSignificantFigures,
-      );
-    }
+    rounded = roundToSignificantFiguresGrid(
+      priceNum,
+      pricePrecision.maxDecimals,
+      pricePrecision.maxSignificantFigures,
+    );
   }
 
   return Number.parseFloat(rounded) > 0 ? rounded : undefined;
