@@ -27,6 +27,7 @@ import {
   PollingStatus,
   formatChainIdToHex,
   getAccountByAddress,
+  isNativeAddress,
 } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
@@ -36,8 +37,8 @@ import {
   generateBatchId,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { numberToHex } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import { numberToHex, parseCaipAssetType } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent.js';
 import {
@@ -70,6 +71,7 @@ import type {
   BridgeStatusControllerMessenger,
 } from './types.js';
 import { BridgeClientId, Operation } from './types.js';
+import { addCustomAsset, refreshAssets } from './utils/assets.js';
 import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
@@ -105,6 +107,9 @@ import {
   getBroadcastFailureProperties,
   getFailurePropertiesFromHistory,
   promoteFailurePhase,
+  getSubmitErrorCode,
+  getMoneyAccountActionData,
+  getFailurePropertiesForNextAction,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
 import { normalizeQuoteResponses } from './utils/quotes.js';
@@ -585,6 +590,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       UnifiedSwapBridgeEventName.Completed,
       historyKey,
     );
+
+    // Intent swaps are status-polled, so the polling completion imports them.
+    if (isSwap && !isIntent) {
+      this.#importDestinationAssets(this.state.txHistory[historyKey]);
+    }
   };
 
   /**
@@ -1261,6 +1271,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
           );
+          this.#importDestinationAssets(newBridgeHistoryItem);
         }
         if (status.status === StatusTypes.FAILED) {
           this.#trackUnifiedSwapBridgeEvent(
@@ -1289,6 +1300,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #nextTx = async (historyKey: string): Promise<void> => {
+    let eventProperties:
+      | Omit<
+          RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed],
+          'error_message' | 'error_code'
+        >
+      | undefined;
+
     try {
       const { batchId, next, quoteResponse, operation } =
         this.#lockHistoryItem(historyKey);
@@ -1312,6 +1330,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem,
         quoteResponse,
         operation,
+      );
+
+      eventProperties = getFailurePropertiesForNextAction(
+        historyItem,
+        validQuotes,
+        operation,
+        batchId,
       );
 
       const selectedAccount = getAccountByAddress(
@@ -1383,7 +1408,78 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       this.#onTransactionFailed({
         historyKey,
+        ...(eventProperties && {
+          eventProperties: {
+            ...eventProperties,
+            error_message: (error as Error)?.message,
+            error_code: getSubmitErrorCode(error),
+          },
+        }),
       });
+    }
+  };
+
+  /**
+   * Imports the destination assets for the account that received them and
+   * refetches their balances, bypassing the Accounts API server cache so the
+   * post-trade balance is not served from a pre-trade snapshot. A native
+   * destination asset is not imported; its chain is refetched instead. A 7702
+   * batch sell imports the destination asset of every quote in its `quoteIds`.
+   * Failures are logged and never affect the history item.
+   *
+   * @param historyItem - The completed history item
+   */
+  readonly #importDestinationAssets = (
+    historyItem: BridgeHistoryItem,
+  ): void => {
+    const { quote } = historyItem;
+    const destAssets = new Map([[quote.destAsset.assetId, quote.destAsset]]);
+    for (const quoteId of historyItem.quoteIds ?? []) {
+      const quoteDestAsset = this.state.txHistory[quoteId]?.quote.destAsset;
+      if (quoteDestAsset) {
+        destAssets.set(quoteDestAsset.assetId, quoteDestAsset);
+      }
+    }
+
+    const logFailure = (error: unknown): void => {
+      console.warn('Failed to import destination asset', error);
+    };
+
+    try {
+      // The source account cannot hold assets of a chain that uses another
+      // account type (e.g. an EVM account bridging to Solana).
+      const isSameAccountType =
+        parseCaipAssetType(quote.srcAsset.assetId).chain.namespace ===
+        parseCaipAssetType(quote.destAsset.assetId).chain.namespace;
+      const recipientAddress =
+        quote.destWalletAddress ??
+        (isSameAccountType ? historyItem.account : undefined);
+      const account =
+        recipientAddress &&
+        getAccountByAddress(this.messenger, recipientAddress);
+      if (!account) {
+        return;
+      }
+
+      // AssetsController always tracks natives, sometimes under a different
+      // asset ID than the bridge's (e.g. MegaETH), so pinning one can
+      // duplicate it.
+      const nativeChainIds = new Set<CaipChainId>();
+      for (const { address, assetId } of destAssets.values()) {
+        if (isNativeAddress(address)) {
+          nativeChainIds.add(parseCaipAssetType(assetId).chainId);
+          continue;
+        }
+        addCustomAsset(this.messenger, account.id, assetId).catch(logFailure);
+      }
+
+      if (nativeChainIds.size > 0) {
+        refreshAssets(this.messenger, account, [...nativeChainIds]).catch(
+          logFailure,
+        );
+      }
+    } catch (error) {
+      logFailure(error);
     }
   };
 
@@ -1724,6 +1820,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       batchSellTrades,
       batchId,
       quotesReceivedContext,
+      operation,
     );
 
     let historyKey: string | undefined;
@@ -2085,10 +2182,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.status.destChain?.txHash,
     );
 
-    const failurePropertiesFromHistory = getFailurePropertiesFromHistory(
-      historyItem.status.srcChain.txHash,
-      historyItem.status.destChain?.txHash,
-    );
+    const failurePropertiesFromHistory =
+      getFailurePropertiesFromHistory(historyItem);
     const failedHashPresence = {
       source_hash_present:
         historyHashPresence.source_hash_present ||
@@ -2124,6 +2219,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+        ...getMoneyAccountActionData(historyItem),
       }),
       ...(eventName === UnifiedSwapBridgeEventName.Failed && {
         ...failurePropertiesFromHistory,

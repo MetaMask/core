@@ -339,9 +339,6 @@
       "path": "./packages/type-utils"
     },
     {
-      "path": "./packages/user-operation-controller"
-    },
-    {
       "path": "./packages/utils"
     },
     {

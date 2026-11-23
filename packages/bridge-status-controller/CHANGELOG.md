@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [79.0.0]
+
 ### Added
 
+- **BREAKING:** Import the destination asset and refetch its balance when a bridge or swap completes ([#11668](https://github.com/MetaMask/core/pull/11668))
+  - `BridgeStatusController` now calls `AssetsController:addCustomAsset` with `bypassServerCache: true`, so the post-trade balance is not served from the Accounts API's cached snapshot.
+  - A native destination asset is not imported, since its bridge asset ID can differ from the one `AssetsController` tracks (e.g. on MegaETH). Instead, `BridgeStatusController` refetches the destination chain by calling `AssetsController:getAssets` with `forceUpdate: true` and `bypassServerCache: true`.
+  - The asset is imported for the account that owns the quote's `destWalletAddress`. Without one, it falls back to the history item's account when the source and destination chains use the same account type, and is skipped otherwise.
+  - This runs when a status-polled bridge or swap reaches `StatusTypes.COMPLETE`, and when a same-chain EVM swap transaction is confirmed. A 7702 batch sell imports the destination asset of every quote in the batch.
+  - Clients must delegate the `AssetsController:addCustomAsset` and `AssetsController:getAssets` actions to the `BridgeStatusController` messenger. Failures are logged and do not affect the history item.
+  - Adds `@metamask/assets-controller` `^21.0.0` as a dependency.
 - **BREAKING:** Require `BridgeController:fetchQuotes` on `BridgeStatusControllerMessenger` ([#11181](https://github.com/MetaMask/core/pull/11181))
 - Submit a background pre-swap money-account withdraw via `submitTx({ operation: 'withdraw' })` ([#11181](https://github.com/MetaMask/core/pull/11181))
   - Queues a follow-up swap unless dest is already the vault underlying token
@@ -30,14 +39,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/transaction-pay-controller` at `^32.0.0`
   - `@metamask/eth-json-rpc-provider` at `^7.0.0` (dev)
   - `@metamask/keyring-internal-api` at `^12.1.2` (dev)
+- Populate the `money_account_action` and `failure_phase` event properties for withdraw and deposit transactions ([#11677](https://github.com/MetaMask/core/pull/11677))
+- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 
 ### Changed
 
 - **BREAKING:** Require `ApprovalController:rejectRequest` on `BridgeStatusControllerMessenger`. Clients must allow this action so MM Pay quote timeouts can unblock deposit batch approval.
 - Time out the MM Pay quotes waiter, the unapproved-tx waiter, and `addTransactionBatchFn` together after 30s. On timeout, reject the pending approval.
-- Add `orderId` to `BridgeHistoryItem` for intent order status lookups ([#11147](https://github.com/MetaMask/core/pull/11147))
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/bridge-controller` from `^83.3.0` to `^84.0.0` ([#11696](https://github.com/MetaMask/core/pull/11696))
 
 ## [78.1.0]
 
@@ -1784,7 +1795,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@79.0.0...HEAD
+[79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.1.0...@metamask/bridge-status-controller@79.0.0
 [78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...@metamask/bridge-status-controller@78.1.0
 [78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.2...@metamask/bridge-status-controller@78.0.3
 [78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.1...@metamask/bridge-status-controller@78.0.2
