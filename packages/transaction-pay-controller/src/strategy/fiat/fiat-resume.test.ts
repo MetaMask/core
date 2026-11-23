@@ -11,6 +11,7 @@ import type { Mock } from 'vitest';
 
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../../constants.js';
 import type { TransactionPayControllerMessenger } from '../../types.js';
+import { waitForKeyringUnlock } from '../../utils/keyring.js';
 import { waitForTransactionConfirmed } from '../../utils/transaction.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import { submitDirectMusdAfterFiatCompletion } from './fiat-direct-musd.js';
@@ -21,6 +22,7 @@ vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   waitForTransactionConfirmed: vi.fn(),
 }));
+vi.mock(import('../../utils/keyring.js'));
 vi.mock(import('./fiat-direct-musd.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   submitDirectMusdAfterFiatCompletion: vi.fn(),
@@ -89,6 +91,10 @@ function getMessengerMock(transactions: TransactionMeta[]): {
       return { transactions };
     }
 
+    if (action === 'TransactionController:failTransaction') {
+      return;
+    }
+
     throw new Error(`Unexpected action: ${action}`);
   });
 
@@ -111,6 +117,7 @@ describe('resumeFiatDirectMusd', () => {
   const waitForTransactionConfirmedMock = vi.mocked(
     waitForTransactionConfirmed,
   );
+  const waitForKeyringUnlockMock = vi.mocked(waitForKeyringUnlock);
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -120,6 +127,7 @@ describe('resumeFiatDirectMusd', () => {
     });
     waitForOrderCompletionMock.mockResolvedValue(COMPLETED_ORDER_MOCK);
     waitForTransactionConfirmedMock.mockResolvedValue();
+    waitForKeyringUnlockMock.mockResolvedValue();
   });
 
   it('rejects when fiat order metadata is missing', async () => {
@@ -173,6 +181,96 @@ describe('resumeFiatDirectMusd', () => {
     );
     expect(waitForOrderCompletionMock).not.toHaveBeenCalled();
     expect(submitDirectMusdAfterFiatCompletionMock).not.toHaveBeenCalled();
+  });
+
+  it.each([TransactionStatus.approved, TransactionStatus.signed])(
+    'fails an unpublished %s Monad child and resubmits the second leg',
+    async (status) => {
+      const transaction = getTransactionMock({
+        requiredTransactionIds: [CHILD_ID_MOCK],
+      });
+      const child = getChildTransactionMock({ hash: undefined, status });
+      const { call, messenger } = getMessengerMock([transaction, child]);
+
+      expect(
+        await resumeFiatDirectMusd({ messenger, transaction }),
+      ).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+
+      expect(call).toHaveBeenCalledWith(
+        'TransactionController:failTransaction',
+        CHILD_ID_MOCK,
+        new Error('Second leg not published before restart'),
+      );
+      expect(waitForTransactionConfirmedMock).not.toHaveBeenCalled();
+      expect(waitForOrderCompletionMock).toHaveBeenCalled();
+      expect(submitDirectMusdAfterFiatCompletionMock).toHaveBeenCalled();
+    },
+  );
+
+  it.each([TransactionStatus.failed, TransactionStatus.dropped])(
+    'ignores a %s Monad child and resubmits the second leg',
+    async (status) => {
+      const transaction = getTransactionMock({
+        requiredTransactionIds: [CHILD_ID_MOCK],
+      });
+      const child = getChildTransactionMock({ hash: undefined, status });
+      const { call, messenger } = getMessengerMock([transaction, child]);
+
+      expect(
+        await resumeFiatDirectMusd({ messenger, transaction }),
+      ).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+
+      expect(
+        call.mock.calls.filter(
+          ([action]) => action === 'TransactionController:failTransaction',
+        ),
+      ).toHaveLength(0);
+      expect(waitForTransactionConfirmedMock).not.toHaveBeenCalled();
+      expect(submitDirectMusdAfterFiatCompletionMock).toHaveBeenCalled();
+    },
+  );
+
+  it('uses the most recent Monad child when an earlier one failed', async () => {
+    const transaction = getTransactionMock({
+      requiredTransactionIds: ['old-child', CHILD_ID_MOCK],
+    });
+    const oldChild = getChildTransactionMock({
+      hash: undefined,
+      id: 'old-child',
+      status: TransactionStatus.failed,
+    });
+    const child = getChildTransactionMock();
+    const { messenger } = getMessengerMock([transaction, oldChild, child]);
+
+    expect(
+      await resumeFiatDirectMusd({ messenger, transaction }),
+    ).toStrictEqual({ transactionHash: CHILD_HASH_MOCK });
+
+    expect(waitForOrderCompletionMock).not.toHaveBeenCalled();
+    expect(submitDirectMusdAfterFiatCompletionMock).not.toHaveBeenCalled();
+  });
+
+  it('waits for keyring unlock after the order completes and before submitting', async () => {
+    const transaction = getTransactionMock();
+    const { messenger } = getMessengerMock([transaction]);
+    const order: string[] = [];
+
+    waitForOrderCompletionMock.mockImplementation(async () => {
+      order.push('poll');
+      return COMPLETED_ORDER_MOCK;
+    });
+    waitForKeyringUnlockMock.mockImplementation(async () => {
+      order.push('unlock');
+    });
+    submitDirectMusdAfterFiatCompletionMock.mockImplementation(async () => {
+      order.push('submit');
+      return { transactionHash: SECOND_LEG_HASH_MOCK };
+    });
+
+    await resumeFiatDirectMusd({ messenger, transaction });
+
+    expect(order).toStrictEqual(['poll', 'unlock', 'submit']);
+    expect(waitForKeyringUnlockMock).toHaveBeenCalledWith(messenger);
   });
 
   it('ignores non-Monad required transactions and resumes by polling the fiat order', async () => {
