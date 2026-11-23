@@ -57,6 +57,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
@@ -75,6 +76,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   MarginResult,
   MarketInfo,
   Order,
@@ -85,6 +88,7 @@ import type {
   PerpsMarketData,
   PerpsAccountSupport,
   PerpsOrderCapabilities,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
@@ -674,6 +678,38 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve margin adjustment limits with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits reported by the selected provider.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.getMarginAdjustmentLimits) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    try {
+      return await provider.getMarginAdjustmentLimits({
+        ...params,
+        providerId,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin adjustment limits unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return { status: 'unavailable', reason: 'provider' };
+    }
+  }
+
+  /**
    * Normalize a Scale price ladder through the selected provider route.
    *
    * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -835,6 +871,28 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
 
     return account;
+  }
+
+  /**
+   * Read one venue's markets, stamped with its id. Unlike `getMarkets`, a
+   * failed venue read rejects instead of leaving a short list.
+   *
+   * @param providerId - Registered venue to read.
+   * @param params - Market filter passed to the venue.
+   * @returns The venue's markets.
+   * @throws `PROVIDER_NOT_FOUND` when the venue is not registered, or the
+   * venue's own error.
+   */
+  async getProviderMarkets(
+    providerId: PerpsProviderType,
+    params?: GetMarketsParams,
+  ): Promise<MarketInfo[]> {
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const markets = await provider.getMarkets(params);
+    return markets.map((market) => ({ ...market, providerId }));
   }
 
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
@@ -2073,6 +2131,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId ?? params.position.providerId,
     );
     return provider.previewPositionModify(params);
+  }
+
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    let provider: PerpsProvider;
+    try {
+      [, provider] = this.#getProviderOrDefault(params.providerId);
+    } catch {
+      // An unregistered route has no estimate; this method never rejects.
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    return provider.estimateCrossLiquidation
+      ? provider.estimateCrossLiquidation(params)
+      : { status: 'unavailable', reason: 'provider' };
   }
 
   // ============================================================================

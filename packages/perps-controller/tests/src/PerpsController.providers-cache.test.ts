@@ -2396,6 +2396,12 @@ describe('PerpsController', () => {
             changePercent1h: '-0.50%',
             maxLeverage: '50x',
             volume: '$1B',
+            numericValues: {
+              price: 50000,
+              change24hPercent: 0.2,
+              volume: 1e9,
+              openInterest: 2e8,
+            },
           },
         ],
         timestamp: Date.now(),
@@ -2423,6 +2429,11 @@ describe('PerpsController', () => {
       expect(cached?.data[0].symbol).toBe('BTC');
       // Prices are stripped to placeholder values
       expect(cached?.data[0].price).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      // Stale price sort values go with them; volume and OI stay displayed.
+      expect(cached?.data[0].numericValues).toStrictEqual({
+        volume: 1e9,
+        openInterest: 2e8,
+      });
       expect(cached?.data[0].change24h).toBe(
         PERPS_CONSTANTS.FallbackDataDisplay,
       );

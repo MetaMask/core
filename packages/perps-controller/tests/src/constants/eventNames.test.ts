@@ -7,6 +7,97 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  it('exports the chart interaction keys Terminal sends', () => {
+    expect({
+      chartInteraction: PERPS_EVENT_PROPERTY.CHART_INTERACTION,
+      chartType: PERPS_EVENT_PROPERTY.CHART_TYPE,
+      provider: PERPS_EVENT_PROPERTY.PROVIDER,
+      orderId: PERPS_EVENT_PROPERTY.ORDER_ID,
+      priceDistancePct: PERPS_EVENT_PROPERTY.PRICE_DISTANCE_PCT,
+      oldPrice: PERPS_EVENT_PROPERTY.OLD_PRICE,
+      newPrice: PERPS_EVENT_PROPERTY.NEW_PRICE,
+      tpSlType: PERPS_EVENT_PROPERTY.TP_SL_TYPE,
+      indicatorName: PERPS_EVENT_PROPERTY.INDICATOR_NAME,
+      indicatorCount: PERPS_EVENT_PROPERTY.INDICATOR_COUNT,
+      drawingName: PERPS_EVENT_PROPERTY.DRAWING_NAME,
+      drawingCount: PERPS_EVENT_PROPERTY.DRAWING_COUNT,
+      previousCandlePeriod: PERPS_EVENT_PROPERTY.PREVIOUS_CANDLE_PERIOD,
+      previousChartType: PERPS_EVENT_PROPERTY.PREVIOUS_CHART_TYPE,
+      interactionType: PERPS_EVENT_VALUE.INTERACTION_TYPE.CHART_INTERACTED,
+      source: PERPS_EVENT_VALUE.SOURCE.CHART,
+      tpSlTypes: [PERPS_EVENT_VALUE.ACTION.TP, PERPS_EVENT_VALUE.ACTION.SL],
+      chartInteractions: PERPS_EVENT_VALUE.CHART_INTERACTION,
+    }).toStrictEqual({
+      chartInteraction: 'chart_interaction',
+      chartType: 'chart_type',
+      provider: 'provider',
+      orderId: 'order_id',
+      priceDistancePct: 'price_distance_pct',
+      oldPrice: 'old_price',
+      newPrice: 'new_price',
+      tpSlType: 'tp_sl_type',
+      indicatorName: 'indicator_name',
+      indicatorCount: 'indicator_count',
+      drawingName: 'drawing_name',
+      drawingCount: 'drawing_count',
+      previousCandlePeriod: 'previous_candle_period',
+      previousChartType: 'previous_chart_type',
+      interactionType: 'chart_interacted',
+      source: 'chart',
+      tpSlTypes: ['tp', 'sl'],
+      chartInteractions: {
+        PLACE_ORDER: 'place_order',
+        EDIT_ORDER: 'edit_order',
+        CANCEL_ORDER: 'cancel_order',
+        CLOSE_POSITION: 'close_position',
+        TP_SL: 'tp_sl',
+        INDICATOR: 'indicator',
+        DRAWING: 'drawing',
+        TIMEFRAME_CHANGED: 'timeframe_changed',
+        CHART_TYPE_CHANGED: 'chart_type_changed',
+        FULLSCREEN_ENTERED: 'fullscreen_entered',
+        FULLSCREEN_EXITED: 'fullscreen_exited',
+        CHART_VIEWED: 'chart_viewed',
+      },
+    });
+  });
+
+  it('defines every property string once', () => {
+    const values = Object.values(PERPS_EVENT_PROPERTY);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  it('records only the previous value of a changed chart setting', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('FROM');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('TO');
+  });
+
+  it('exports the chart status and action values Terminal sends', () => {
+    expect(PERPS_EVENT_VALUE.STATUS).toMatchObject({
+      CRAFTED: 'crafted',
+      DRAGGED: 'dragged',
+      DROPPED: 'dropped',
+      CANCELLED: 'cancelled',
+      MODIFIED: 'modified',
+      TAPPED: 'tapped',
+    });
+    expect(PERPS_EVENT_VALUE.ACTION).toMatchObject({
+      ADD: 'add',
+      REMOVE: 'remove',
+      EDIT: 'edit',
+      FAVORITE: 'favorite',
+      UNFAVORITE: 'unfavorite',
+    });
+  });
+
+  it.each(['STATUS', 'ACTION'] as const)(
+    'defines every %s value string once',
+    (group) => {
+      const values = Object.values(PERPS_EVENT_VALUE[group]);
+      expect(new Set(values).size).toBe(values.length);
+    },
+  );
+
   describe('PREVIOUS_LEVERAGE', () => {
     it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
       expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');

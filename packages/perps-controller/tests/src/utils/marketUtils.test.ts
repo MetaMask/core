@@ -6,6 +6,8 @@ import {
 } from '../../../src/index.js';
 import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
+  applyMarketFilters,
+  clonePerpsMarketData,
   getMarketTypeFilter,
   getPerpsWatchlistReferences,
   isHip3Market,
@@ -392,6 +394,29 @@ describe('marketUtils category classification', () => {
         ).toBe(false);
       });
 
+      it('matches a main-DEX non-crypto market with the memecoin tag, as Mobile', () => {
+        expect(
+          matchesCategory(
+            market({ isHip3: false, marketType: 'stock', tags: ['memecoin'] }),
+            'memecoin',
+          ),
+        ).toBe(true);
+      });
+
+      it('does not match a HIP-3 crypto market with the memecoin tag, as Mobile', () => {
+        expect(
+          matchesCategory(
+            market({
+              isHip3: true,
+              marketSource: 'xyz',
+              marketType: 'crypto',
+              tags: ['memecoin'],
+            }),
+            'memecoin',
+          ),
+        ).toBe(false);
+      });
+
       it('does not match a marketSource-only HIP-3 market with the memecoin tag', () => {
         // isHip3Market also treats markets with only a marketSource DEX id
         // as HIP-3, so those shouldn't leak into the memecoin filter
@@ -493,5 +518,37 @@ describe('isSharedPerpsMarketReference', () => {
     expect(isSharedPerpsMarketReference('xyz:TSLA')).toBe(true);
     expect(isSharedPerpsMarketReference('market-key:BTC-USD')).toBe(false);
     expect(isSharedPerpsMarketReference('venue:lighter:BTC')).toBe(false);
+  });
+});
+
+describe('clonePerpsMarketData', () => {
+  it('copies numericValues instead of sharing the object', () => {
+    const source = market({ numericValues: { volume: 1 } });
+
+    const [copy] = clonePerpsMarketData([source]);
+
+    expect(copy?.numericValues).toStrictEqual({ volume: 1 });
+    expect(copy?.numericValues).not.toBe(source.numericValues);
+  });
+});
+
+describe('applyMarketFilters', () => {
+  it('sorts by any MarketSortField, such as name and price', () => {
+    const markets = [
+      market({ symbol: 'ETH', numericValues: { price: 3000 } }),
+      market({ symbol: 'BTC', numericValues: { price: 90000 } }),
+      market({ symbol: 'SOL', numericValues: { price: 150 } }),
+    ];
+
+    expect(
+      applyMarketFilters(markets, { sortBy: 'name' }).map(
+        ({ symbol }) => symbol,
+      ),
+    ).toStrictEqual(['BTC', 'ETH', 'SOL']);
+    expect(
+      applyMarketFilters(markets, { sortBy: 'price', limit: 2 }).map(
+        ({ symbol }) => symbol,
+      ),
+    ).toStrictEqual(['BTC', 'ETH']);
   });
 });

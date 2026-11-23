@@ -812,6 +812,57 @@ describe('MarketDataService', () => {
     });
   });
 
+  describe('estimateCrossLiquidation', () => {
+    const params = {
+      symbol: 'BTC',
+      direction: 'long' as const,
+      size: '0.1',
+      entryPrice: '50000',
+      leverage: 10,
+    };
+
+    it('delegates to the provider', async () => {
+      mockProvider.estimateCrossLiquidation = vi
+        .fn()
+        .mockResolvedValue({ status: 'price', price: '45000' });
+
+      expect(
+        await marketDataService.estimateCrossLiquidation({
+          provider: mockProvider,
+          params,
+        }),
+      ).toStrictEqual({ status: 'price', price: '45000' });
+      expect(mockProvider.estimateCrossLiquidation).toHaveBeenCalledWith(
+        params,
+      );
+    });
+
+    it('is unavailable for a provider without the estimate', async () => {
+      delete mockProvider.estimateCrossLiquidation;
+
+      expect(
+        await marketDataService.estimateCrossLiquidation({
+          provider: mockProvider,
+          params,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+    });
+
+    it('logs and resolves unavailable when the provider rejects', async () => {
+      mockProvider.estimateCrossLiquidation = vi
+        .fn()
+        .mockRejectedValue(new Error('venue down'));
+
+      expect(
+        await marketDataService.estimateCrossLiquidation({
+          provider: mockProvider,
+          params,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+  });
+
   describe('calculateMaintenanceMargin', () => {
     it('calculates maintenance margin successfully', async () => {
       const params = {
@@ -2406,6 +2457,12 @@ describe('MarketDataService', () => {
             change24hPercent: '+0.02%',
             volume: '$1000',
             openInterest: '$2000',
+            numericValues: {
+              price: 50010,
+              change24hPercent: 0.02,
+              volume: 1000,
+              openInterest: 2000,
+            },
           },
           {
             symbol: 'NVDA',
@@ -2429,6 +2486,12 @@ describe('MarketDataService', () => {
           change24hPercent: '+50.00%',
           volume: '$777',
           openInterest: '$888',
+          numericValues: {
+            price: 1,
+            change24hPercent: 50,
+            volume: 777,
+            openInterest: 888,
+          },
           fundingRate: 0.5,
           marketType: 'crypto',
           categories: ['crypto'],
@@ -2484,6 +2547,14 @@ describe('MarketDataService', () => {
           iconUrl: 'https://icons.test/BTC.svg',
           volume: '$777',
           openInterest: '$888',
+          // Sort values follow the displayed snapshot volume and open
+          // interest; price and change stay with the venue.
+          numericValues: {
+            price: 50010,
+            change24hPercent: 0.02,
+            volume: 777,
+            openInterest: 888,
+          },
           marketType: 'crypto',
           categories: ['crypto'],
           keywords: ['btc'],
@@ -2548,6 +2619,32 @@ describe('MarketDataService', () => {
           expect(fetchGlobalSnapshot).toHaveBeenCalledWith(
             lighterContext().request,
           );
+        });
+
+        it('keeps the venue open interest when the snapshot row has none', async () => {
+          const { openInterest: _openInterest, ...snapshotWithoutOi } =
+            lighterSnapshotBtc;
+          fetchGlobalSnapshot.mockResolvedValue(
+            snapshotResult([
+              { ...snapshotWithoutOi, numericValues: { volume: 777 } },
+            ]),
+          );
+
+          const [btc] = await serviceWithTerminal.getMarketDataWithPrices({
+            provider: lighterProvider,
+            context: {
+              ...mockContext,
+              globalSnapshots: { lighter: lighterContext() },
+            },
+          });
+
+          expect(btc?.openInterest).toBe('$2000');
+          expect(btc?.numericValues).toStrictEqual({
+            price: 50010,
+            change24hPercent: 0.02,
+            volume: 777,
+            openInterest: 2000,
+          });
         });
 
         it('tags untagged direct Lighter rows so saved references keep their venue', async () => {

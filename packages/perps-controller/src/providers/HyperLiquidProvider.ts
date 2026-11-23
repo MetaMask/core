@@ -29,7 +29,7 @@ import {
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
-  isUnrestrictedMarginMode,
+  isCrossMarginSupported,
   REFERRAL_CONFIG,
   TRADING_DEFAULTS,
   USDC_DECIMALS,
@@ -51,6 +51,7 @@ import {
 } from '../constants/perpsConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
 import { OrderDiscoveryError, PerpsControllerError } from '../errors.js';
+import { calculateHip3RebalanceAmount } from '../internal/hyperLiquidHip3Rebalance.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import {
@@ -85,6 +86,7 @@ import {
   HL_ABSTRACTION_WIRE,
   HL_UNIFIED_ACCOUNT_MODE,
   hyperLiquidModeFoldsSpot,
+  isHyperLiquidStandardMode,
 } from '../types/hyperliquid-types.js';
 import { PerpsAnalyticsEvent } from '../types/index.js';
 import type {
@@ -101,10 +103,12 @@ import type {
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  CrossLiquidationEstimate,
   CrossMarginSummary,
   DepositParams,
   DisconnectResult,
   EditOrderParams,
+  EstimateCrossLiquidationParams,
   FeeCalculationParams,
   FeeCalculationResult,
   Funding,
@@ -115,6 +119,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
@@ -137,6 +142,7 @@ import type {
   LiveDataConfig,
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
+  PositionModifyPreviewSource,
   PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
@@ -182,6 +188,7 @@ import type {
   PerpsFeeResolution,
   MarginMode,
   MarginModeLockReason,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
@@ -241,10 +248,15 @@ import {
   readScaleGroupId,
 } from '../utils/hyperLiquidAdapter.js';
 import {
-  estimateCrossLiquidationPrice,
-  estimateCrossMaintenanceMargin,
+  isMarginRemovalAllowed,
+  previewHyperLiquidCrossPositionModify,
   previewHyperLiquidIsolatedPositionModify,
+  projectHyperLiquidCrossPositionModify,
   resolveHyperLiquidMarginTiers,
+} from '../utils/hyperLiquidPositionPreview.js';
+import type {
+  HyperLiquidCrossAccount,
+  HyperLiquidMarginTier,
 } from '../utils/hyperLiquidPositionPreview.js';
 import { normalizeHyperLiquidScalePriceLadder } from '../utils/hyperLiquidScaleOrders.js';
 import {
@@ -260,6 +272,7 @@ import {
 } from '../utils/hyperLiquidValidation.js';
 import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
 import { generatePerpsId } from '../utils/idUtils.js';
+import { calculateMaxRemovableMargin } from '../utils/marginAdjustment.js';
 import { transformMarketData } from '../utils/marketDataTransform.js';
 import {
   compileMarketPattern,
@@ -976,6 +989,27 @@ type Hip3TransferInfo = {
   sourceDex: string;
 };
 
+/** Why a Cross estimate is unavailable. */
+type CrossLiquidationUnavailable = Extract<
+  CrossLiquidationEstimate,
+  { status: 'unavailable' }
+>;
+
+const crossLiquidationUnavailable = (
+  reason: CrossLiquidationUnavailable['reason'],
+): CrossLiquidationUnavailable => ({ status: 'unavailable', reason });
+
+/** Cross inputs for an order, from the live streams or a venue read. */
+type CrossMarginContext = {
+  status: 'ok';
+  summary: CrossMarginSummary | undefined;
+  spotCollateral: string | undefined;
+  /** The account's open position in the market, if any. */
+  position: Position | undefined;
+  /** Standard HIP-3 DEX only: the DEX's withdrawable balance. */
+  withdrawable?: number;
+};
+
 type Hip3TransferContext = {
   accountContext: AccountSupportContext;
   dexName: string;
@@ -1551,6 +1585,73 @@ const resolveTwapOrderStatus = (
   }
 };
 
+/**
+ * Whether a venue TWAP history entry can be read as a schedule: a safe,
+ * non-negative `twapId` and finite sizes, notional and times. The stream
+ * cache (`#adaptTwapOrder`) and the REST lock read both drop the rest, so
+ * they agree on which schedules exist.
+ *
+ * @param entry - One venue TWAP history entry.
+ * @returns True when the entry identifies a readable schedule.
+ */
+const isReadableTwapHistoryEntry = (
+  entry: HyperLiquidTwapHistoryEntry,
+): entry is HyperLiquidTwapHistoryEntry & { twapId: number } => {
+  const { state, twapId } = entry;
+  return (
+    twapId !== undefined &&
+    Number.isSafeInteger(twapId) &&
+    twapId >= 0 &&
+    new BigNumber(state.sz).isFinite() &&
+    new BigNumber(state.executedSz).isFinite() &&
+    new BigNumber(state.executedNtl).isFinite() &&
+    Number.isFinite(state.timestamp) &&
+    Number.isFinite(entry.time) &&
+    Number.isFinite(state.minutes)
+  );
+};
+
+/**
+ * Whether a raw `twapHistory` read shows a live schedule on a market. The
+ * latest entry per schedule decides; waiting and unknown venue states count
+ * as live. Native TWAP schedules are absent from frontendOpenOrders before a
+ * slice rests or fills, so the history is the only REST source for them.
+ *
+ * @param history - The venue's TWAP history for one wallet.
+ * @param symbol - Market symbol, including its DEX route when applicable.
+ * @returns True when a schedule on that market has not terminated.
+ */
+const hasActiveTwapInHistory = (
+  history: HyperLiquidTwapHistoryEntry[],
+  symbol: string,
+): boolean => {
+  const latestTwaps = new Map<
+    HyperLiquidTwapHistoryEntry['twapId'],
+    HyperLiquidTwapHistoryEntry
+  >();
+  for (const entry of history) {
+    if (entry.state.coin !== symbol || !isReadableTwapHistoryEntry(entry)) {
+      continue;
+    }
+    const previous = latestTwaps.get(entry.twapId);
+    if (
+      !previous ||
+      normalizeTwapHistoryTimestamp(entry.time) >=
+        normalizeTwapHistoryTimestamp(previous.time)
+    ) {
+      latestTwaps.set(entry.twapId, entry);
+    }
+  }
+  return [...latestTwaps.values()].some(
+    (entry) =>
+      resolveTwapOrderStatus(
+        entry,
+        new BigNumber(entry.state.executedSz),
+        new BigNumber(entry.state.sz),
+      ) === PerpsTwapLifecycleStatus.Active,
+  );
+};
+
 const adaptTwapOrderFill = (
   entry: HyperLiquidTwapSliceFillEntry,
 ): TwapOrderFill => ({
@@ -2036,7 +2137,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (result.status === 'unavailable') {
       return result;
     }
-    const crossSupported = this.#isCrossMarginSupported(result.market);
+    const crossSupported = isCrossMarginSupported(result.market);
     const supportedMarginModes: readonly MarginMode[] = Object.freeze(
       crossSupported ? ['isolated', 'cross'] : ['isolated'],
     );
@@ -2048,6 +2149,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const marginModes = crossSupported
       ? { supportedMarginModes }
       : { supportedMarginModes, crossMarginUnavailableReason };
+    // Copied: the market list is cached, and the estimates take a mutable
+    // tier array.
+    const marginTiers = result.market.marginTiers?.map((tier) => ({ ...tier }));
+    const venueMarket = { ...marginModes, ...(marginTiers && { marginTiers }) };
     const { szDecimals } = result.market;
     if (
       !Number.isInteger(szDecimals) ||
@@ -2056,12 +2161,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       return Object.freeze({
         ...HYPERLIQUID_ORDER_CAPABILITIES,
-        ...marginModes,
+        ...venueMarket,
       });
     }
     return Object.freeze({
       ...HYPERLIQUID_ORDER_CAPABILITIES,
-      ...marginModes,
+      ...venueMarket,
       pricePrecision: Object.freeze({
         type: 'significant_figures',
         maxSignificantFigures: DECIMAL_PRECISION_CONFIG.MaxSignificantFigures,
@@ -2080,24 +2185,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         maxOraclePriceDeviation: this.#priceDeviationLimit,
       }),
     });
-  }
-
-  /**
-   * Whether the venue accepts Cross margin for a market, main DEX or HIP-3.
-   * An absent `marginMode` or `normal` allows Cross; strictIsolated, noCross
-   * and any future restriction value prohibit it, as does the deprecated
-   * `onlyIsolated` flag.
-   *
-   * @param asset - Venue margin metadata for the market.
-   * @param asset.onlyIsolated - Whether the market only allows isolated margin.
-   * @param asset.marginMode - Venue margin-mode restriction, if any.
-   * @returns True when Cross margin orders are accepted.
-   */
-  #isCrossMarginSupported(asset: {
-    onlyIsolated?: boolean;
-    marginMode?: string;
-  }): boolean {
-    return !asset.onlyIsolated && isUnrestrictedMarginMode(asset.marginMode);
   }
 
   /**
@@ -2134,6 +2221,149 @@ export class HyperLiquidProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
+  }
+
+  /**
+   * Report how much margin an isolated position can take in and release.
+   * `maxAdd` is what `updateIsolatedMargin` accepts: on Unified and Portfolio
+   * Margin accounts the free spot USDC (`spendableBalance`, spot total less
+   * every margin in use, Cross included); on Standard accounts the perps
+   * `withdrawable` of the position's DEX. `maxRemove` is
+   * `calculateMaxRemovableMargin`, or 0 on a market that prohibits removal.
+   * An unknown market, margin mode or position figure, or a failed read, is
+   * `account_unknown`; an account mode without isolated margin limits is
+   * `provider`.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits, or a typed unavailable result.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+      const limits = await this.#readMarginAdjustmentLimits(params.symbol);
+      if (lifecycleGeneration !== this.#lifecycleGeneration) {
+        return { status: 'unavailable', reason: 'account_unknown' };
+      }
+      return limits;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Margin adjustment limits unavailable',
+        {
+          symbol: params.symbol,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.getMarginAdjustmentLimits',
+          ).message,
+        },
+      );
+      // A failed read is retryable; `provider` is for unsupported modes.
+      return { status: 'unavailable', reason: 'account_unknown' };
+    }
+  }
+
+  async #readMarginAdjustmentLimits(
+    symbol: string,
+  ): Promise<MarginAdjustmentLimits> {
+    const { dex } = parseAssetName(symbol);
+    const accountId = await this.getCurrentAccountId();
+    const userAddress = this.#walletService.getUserAddress(accountId);
+    const infoClient = this.#clientService.getInfoClient();
+    const mode = await infoClient.userAbstraction({ user: userAddress });
+    let maxAdd: string;
+    let position: Position | undefined;
+    if (hyperLiquidModeFoldsSpot(mode)) {
+      // The account read refuses a snapshot taken after a mode change.
+      const reads = await Promise.all([
+        this.#readAccountState({ accountId, throwOnUnavailable: true }, mode),
+        this.getPositions({
+          accountId,
+          throwOnUnavailable: true,
+          skipCache: true,
+          includeProtection: false,
+        }),
+      ]).catch(async (error: unknown) => {
+        if (
+          (await infoClient.userAbstraction({ user: userAddress })) !== mode
+        ) {
+          return null;
+        }
+        throw error;
+      });
+      if (!reads) {
+        return { status: 'unavailable', reason: 'account_unknown' };
+      }
+      const [account, positions] = reads;
+      maxAdd = account.spendableBalance;
+      position = positions.find((item) => item.symbol === symbol);
+    } else if (isHyperLiquidStandardMode(mode)) {
+      const state = await infoClient.clearinghouseState(
+        dex === null ? { user: userAddress } : { user: userAddress, dex },
+      );
+      const assetPosition = state.assetPositions.find(
+        (item) =>
+          item.position.coin === symbol && Number(item.position.szi) !== 0,
+      );
+      maxAdd = state.withdrawable;
+      position =
+        assetPosition &&
+        adaptPositionFromSDK(assetPosition, state.crossMarginSummary);
+    } else {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+
+    // The account can switch, or migrate collateral mode, while the reads
+    // are in flight; a snapshot from another account or mode is not a limit.
+    const [currentMode, currentAccount] = await Promise.all([
+      infoClient.userAbstraction({ user: userAddress }),
+      this.getCurrentAccountId(),
+    ]);
+    if (currentMode !== mode || currentAccount !== accountId) {
+      return { status: 'unavailable', reason: 'account_unknown' };
+    }
+    if (position?.leverage.type !== 'isolated') {
+      return { status: 'unavailable', reason: 'no_isolated_position' };
+    }
+
+    const addable = Number.parseFloat(maxAdd);
+    if (!Number.isFinite(addable)) {
+      return { status: 'unavailable', reason: 'account_unknown' };
+    }
+    const market = (await this.#fetchMarketsForDex({ dex })).find(
+      (item) => item.name === symbol,
+    );
+    // Only a confirmed strict-isolated market removes nothing; an unknown
+    // market, margin mode or position figure is not a limit.
+    const removalAllowed = isMarginRemovalAllowed(market);
+    const positionLeverage = position.leverage.value;
+    const currentMargin = Number.parseFloat(position.marginUsed);
+    const notionalValue = Number.parseFloat(position.positionValue);
+    if (
+      removalAllowed === undefined ||
+      positionLeverage === undefined ||
+      !Number.isFinite(positionLeverage) ||
+      !Number.isFinite(currentMargin) ||
+      !Number.isFinite(notionalValue)
+    ) {
+      return { status: 'unavailable', reason: 'account_unknown' };
+    }
+    const maxRemove = removalAllowed
+      ? calculateMaxRemovableMargin({
+          currentMargin,
+          positionLeverage,
+          notionalValue,
+        })
+      : 0;
+    // Margin moves in micro-USDC; truncate so the amount never exceeds it.
+    const usdcUnits = 10 ** USDC_DECIMALS;
+    return {
+      status: 'available',
+      maxAdd: addable > 0 ? maxAdd : '0',
+      maxRemove: (Math.floor(maxRemove * usdcUnits) / usdcUnits).toString(),
+    };
   }
 
   /**
@@ -5084,7 +5314,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Transform to MarketInfo format
-    const markets = meta.universe.map((asset) => adaptMarketFromSDK(asset));
+    const markets = meta.universe.map((asset) =>
+      adaptMarketFromSDK(asset, meta.marginTables),
+    );
 
     // Apply HIP-3 filtering on-demand (cheap array operation)
     // Skip filtering for main DEX (null) or if explicitly requested
@@ -6528,10 +6760,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Auto-rebalance: Reclaim excess funds back to main DEX
       const desiredBuffer = HIP3_MARGIN_CONFIG.RebalanceDesiredBuffer;
-      const excessAmount = postOrderBalance - desiredBuffer;
-      const minimumTransferThreshold = HIP3_MARGIN_CONFIG.RebalanceMinThreshold;
+      const excessAmount = calculateHip3RebalanceAmount({ postOrderBalance });
 
-      if (excessAmount > minimumTransferThreshold) {
+      if (excessAmount > 0) {
         try {
           this.#deps.debugLogger.log(
             '🔄 HyperLiquidProvider: Auto-rebalancing excess margin back to main DEX',
@@ -6601,8 +6832,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log(
           'ℹ️ HyperLiquidProvider: No auto-rebalance needed',
           {
-            excessAmount: excessAmount.toFixed(2),
-            threshold: minimumTransferThreshold.toFixed(2),
+            spendableBalance: postOrderBalance.toFixed(2),
+            desiredBuffer: desiredBuffer.toFixed(2),
+            threshold: HIP3_MARGIN_CONFIG.RebalanceMinThreshold.toFixed(2),
             note: 'Excess below minimum transfer threshold',
           },
         );
@@ -6785,10 +7017,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
       throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
-    if (
-      params.marginMode === 'cross' &&
-      !this.#isCrossMarginSupported(assetInfo)
-    ) {
+    if (params.marginMode === 'cross' && !isCrossMarginSupported(assetInfo)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
     }
     const lock = await this.#readMarginModeLock(params.symbol);
@@ -6805,6 +7034,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Read the margin mode the venue currently binds to an asset. An open
    * position fixes it first; otherwise a resting order or active TWAP fixes
    * the mode reported by the asset's leverage data.
+   *
+   * Positions, orders and TWAP schedules come from the live streams when the
+   * target DEX has published them for this wallet on the current connection,
+   * and from the venue otherwise. The leverage of a market locked by an order
+   * comes from a live `activeAssetData` stream for the market (an order
+   * form's available-to-trade subscription) when one is open, and from the
+   * venue otherwise.
    *
    * @param symbol - Market symbol, including its DEX route when applicable.
    * @returns The locked mode and its cause, or null when nothing locks it.
@@ -6825,54 +7061,51 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
     };
-    const { answered, positions } = await this.#queryDexPositions(dexName);
-    if (!answered) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    // Order and TWAP streams are only trusted alongside a live position
+    // stream for the same DEX and wallet.
+    const streamedPositions =
+      this.#subscriptionService.getCachedPositionsForDex(dexName ?? '', user);
+    let positions: Position[];
+    if (streamedPositions) {
+      positions = streamedPositions;
+    } else {
+      const venuePositions = await this.#queryDexPositions(dexName);
+      if (!venuePositions.answered) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      await assertSameAccount();
+      positions = venuePositions.positions;
     }
-    await assertSameAccount();
     const position = positions.find((item) => item.symbol === symbol);
     if (position) {
       return { marginMode: position.leverage.type, reason: 'position' };
     }
+    const streamedOrders = streamedPositions
+      ? this.#subscriptionService.getCachedOpenOrdersForDex(dexName ?? '', user)
+      : null;
+    const streamedTwaps = streamedPositions
+      ? this.#subscriptionService.getCachedActiveTwapOrders(user)
+      : null;
     const infoClient = this.#clientService.getInfoClient();
-    const [orders, twapHistory] = await Promise.all([
-      this.#fetchOpenOrders({ dexName }),
-      infoClient.twapHistory({ user }),
+    const [orders, hasActiveTwap] = await Promise.all([
+      streamedOrders ?? this.#fetchOpenOrders({ dexName }),
+      streamedTwaps
+        ? streamedTwaps.some((order) => order.symbol === symbol)
+        : infoClient
+            .twapHistory({ user })
+            .then((history) => hasActiveTwapInHistory(history, symbol)),
     ]);
-    await assertSameAccount();
-    // Native TWAP schedules are absent from frontendOpenOrders before a slice
-    // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
-    // collateral, which must not run as part of pre-sign validation.
-    const latestTwaps = new Map<
-      HyperLiquidTwapHistoryEntry['twapId'],
-      HyperLiquidTwapHistoryEntry
-    >();
-    for (const entry of twapHistory) {
-      if (entry.state.coin !== symbol) {
-        continue;
-      }
-      const previous = latestTwaps.get(entry.twapId);
-      if (
-        !previous ||
-        normalizeTwapHistoryTimestamp(entry.time) >=
-          normalizeTwapHistoryTimestamp(previous.time)
-      ) {
-        latestTwaps.set(entry.twapId, entry);
-      }
+    if (!streamedOrders || !streamedTwaps) {
+      await assertSameAccount();
     }
-    const hasActiveTwap = [...latestTwaps.values()].some((entry) => {
-      switch (entry.status.status) {
-        case HyperLiquidTwapLifecycleStatus.Finished:
-        case HyperLiquidTwapLifecycleStatus.Stopped:
-        case HyperLiquidTwapLifecycleStatus.Terminated:
-        case HyperLiquidTwapLifecycleStatus.Failed:
-          return false;
-        default:
-          // Waiting and future venue states are not proof of termination.
-          return true;
-      }
-    });
     if (orders.some((order) => order.coin === symbol) || hasActiveTwap) {
+      // The market's leverage setting, from a live activeAssetData stream
+      // (an order form's available-to-trade) when one is open.
+      const streamedLeverage =
+        this.#subscriptionService.getCachedActiveAssetLeverage(symbol, user);
+      if (streamedLeverage) {
+        return { marginMode: streamedLeverage.type, reason: 'open_order' };
+      }
       const asset = await infoClient.activeAssetData({
         user,
         coin: symbol,
@@ -9688,24 +9921,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   #adaptTwapOrder(params: AdaptTwapOrderParams): TwapOrder | null {
     const { historyEntry, now } = params;
-    const { state, twapId } = historyEntry;
-    if (twapId === undefined || !Number.isSafeInteger(twapId) || twapId < 0) {
+    if (!isReadableTwapHistoryEntry(historyEntry)) {
       return null;
     }
+    const { state, twapId } = historyEntry;
 
     const totalSize = new BigNumber(state.sz);
     const executedSize = new BigNumber(state.executedSz);
     const executedNotional = new BigNumber(state.executedNtl);
-    if (
-      !totalSize.isFinite() ||
-      !executedSize.isFinite() ||
-      !executedNotional.isFinite() ||
-      !Number.isFinite(state.timestamp) ||
-      !Number.isFinite(historyEntry.time) ||
-      !Number.isFinite(state.minutes)
-    ) {
-      return null;
-    }
     const {
       executedSize: boundedExecutedSize,
       remainingSize,
@@ -15366,8 +15589,13 @@ export class HyperLiquidProvider implements PerpsProvider {
               standaloneAbstractionResult,
             ),
             abstractionMode: standaloneAbstractionResult,
+            rejectMalformedLedger: strictAccountRead,
           },
         );
+        // The read mode, so clients can pass it to calculateAccountSummary.
+        if (standaloneAbstractionResult) {
+          aggregatedAccountState.accountMode = standaloneAbstractionResult;
+        }
         if (standalonePerpsResults.failedDexs.length > 0) {
           aggregatedAccountState.unavailableSubAccounts =
             standalonePerpsResults.failedDexs.map(({ dex }) => dex ?? '');
@@ -15524,6 +15752,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         {
           foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode),
           abstractionMode,
+          rejectMalformedLedger: strictAccountRead,
         },
       );
 
@@ -15550,6 +15779,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Add sub-account breakdown to result
       aggregatedAccountState.subAccountBreakdown = subAccountBreakdown;
+      // The read mode, so clients can pass it to calculateAccountSummary.
+      if (abstractionMode !== null) {
+        aggregatedAccountState.accountMode = abstractionMode;
+      }
       // The totals exclude DEXs that did not answer; say which.
       if (failedPerpsDexs.length > 0) {
         aggregatedAccountState.unavailableSubAccounts = failedPerpsDexs.map(
@@ -15613,7 +15846,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
 
         // Transform to MarketInfo format
-        const markets = meta.universe.map((asset) => adaptMarketFromSDK(asset));
+        const markets = meta.universe.map((asset) =>
+          adaptMarketFromSDK(asset, meta.marginTables),
+        );
 
         // Filter by symbols if provided
         if (params?.symbols?.length) {
@@ -17713,11 +17948,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Project the isolated position that would remain after a proposed order.
+   * Project the position that would remain after a proposed order.
    *
    * Fetches the asset's margin table from cached meta so liquidation uses the
-   * maintenance tier at the resulting liquidation notional. Cross-margin
-   * positions return unsupported without a table lookup.
+   * maintenance tier at the resulting liquidation notional. A Cross position
+   * is projected from the position the selected account holds and priced
+   * against its Cross collateral and maintenance, as `#readCrossOrderAccount`
+   * reads them; without them, or when the account holds no Cross position in
+   * the market, only the margin is projected.
    *
    * @param params - Live position plus the proposed order.
    * @returns Discriminated preview; margin and liquidation are independently available.
@@ -17725,10 +17963,6 @@ export class HyperLiquidProvider implements PerpsProvider {
   async previewPositionModify(
     params: PositionModifyPreviewParams,
   ): Promise<PositionModifyPreviewResult> {
-    if (params.position.leverage.type === 'cross') {
-      return { status: 'unsupported', reason: 'cross_margin' };
-    }
-
     const { dex: dexName } = parseAssetName(params.position.symbol);
     let marginTiers = null;
 
@@ -17752,6 +17986,37 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
+    if (params.position.leverage.type === 'cross') {
+      let crossAccount: HyperLiquidCrossAccount | null = null;
+      let { position } = params;
+      try {
+        const context = await this.#readCrossOrderAccount({
+          asset: params.position.symbol,
+          positionSize: Number.parseFloat(params.size),
+          orderPrice: Number.parseFloat(params.price),
+          leverage: params.leverage,
+          isBuy: params.direction === 'long',
+        });
+        // The account's maintenance must already hold the modified position,
+        // projected as the account reads it.
+        if (context.status === 'ok' && context.hasPosition) {
+          crossAccount = context.crossAccount;
+          position = context.position;
+        }
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: cross account unavailable for position preview',
+          { symbol: params.position.symbol, error },
+        );
+      }
+      return previewHyperLiquidCrossPositionModify({
+        ...params,
+        position,
+        marginTiers,
+        crossAccount,
+      });
+    }
+
     return previewHyperLiquidIsolatedPositionModify({
       ...params,
       marginTiers,
@@ -17762,6 +18027,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Calculate liquidation price using HyperLiquid's formula
    * Formula: liq_price = price - side * margin_available / position_size / (1 - maintenanceMarginRatio * side)
    * where maintenanceMarginRatio = 1 / MAINTENANCE_LEVERAGE = 1 / (2 * max_leverage)
+   *
+   * Cross (`marginType: 'cross'`) delegates to `estimateCrossLiquidation`.
+   * Like the isolated estimate it resolves `'0'` when no positive price
+   * liquidates the resulting position (`none`), and rejects
+   * `LIQUIDATION_PRICE_UNAVAILABLE` when the estimate is `unavailable`.
    *
    * @param params - The operation parameters.
    * @returns A promise that resolves to the string result.
@@ -17792,23 +18062,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       ) {
         throw new PerpsControllerError(unavailable, unavailable);
       }
-      let estimate: number | null;
-      try {
-        estimate = await this.#estimateOpeningCrossLiquidationPrice({
-          asset,
-          entryPrice,
-          positionSize,
-          isLong: direction === 'long',
-        });
-      } catch (error) {
-        throw new PerpsControllerError(unavailable, unavailable, undefined, {
-          cause: error,
-        });
-      }
-      if (estimate === null) {
+      const estimate = await this.estimateCrossLiquidation({
+        symbol: asset,
+        direction,
+        size: String(positionSize),
+        entryPrice: String(entryPrice),
+        leverage,
+      });
+      if (estimate.status === 'unavailable') {
         throw new PerpsControllerError(unavailable, unavailable);
       }
-      return String(estimate);
+      return estimate.status === 'price' ? estimate.price : '0';
     }
 
     // Get asset's max leverage to calculate maintenance margin
@@ -17861,26 +18125,113 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Estimate a new cross position using the selected wallet and venue tiers.
+   * Liquidation price of the Cross position an order would leave: an opening,
+   * or an add, reduce or flip of the market's position, priced against the
+   * selected account's Cross collateral (`projectHyperLiquidCrossPositionModify`).
+   * The fee is not included. Never rejects.
    *
-   * @param params - Sized order and its preview price.
-   * @param params.asset - Venue market symbol.
-   * @param params.entryPrice - Expected price at entry.
-   * @param params.positionSize - Absolute size in base units.
-   * @param params.isLong - Whether the new position is long.
-   * @returns The estimated price, or null if the preview is unavailable.
+   * @param params - The proposed Cross order.
+   * @returns `price`, `none` when no positive price liquidates the resulting
+   * position, or `unavailable` with the reason.
    */
-  async #estimateOpeningCrossLiquidationPrice({
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    const { symbol, direction, leverage } = params;
+    const positionSize = Number.parseFloat(params.size);
+    const entryPrice = Number.parseFloat(params.entryPrice);
+    if (
+      !symbol ||
+      (direction !== 'long' && direction !== 'short') ||
+      !(positionSize > 0 && Number.isFinite(positionSize)) ||
+      !(entryPrice > 0 && Number.isFinite(entryPrice)) ||
+      !(leverage > 0 && Number.isFinite(leverage))
+    ) {
+      return crossLiquidationUnavailable('missing_inputs');
+    }
+
+    try {
+      const context = await this.#readCrossOrderAccount({
+        asset: symbol,
+        positionSize,
+        orderPrice: entryPrice,
+        leverage,
+        isBuy: direction === 'long',
+      });
+      if (context.status === 'unavailable') {
+        return context;
+      }
+      const projection = projectHyperLiquidCrossPositionModify({
+        position: context.position,
+        direction,
+        size: params.size,
+        price: params.entryPrice,
+        leverage,
+        feeAmountUsd: 0,
+        marginTiers: context.marginTiers,
+        crossAccount: context.crossAccount,
+      });
+      if (projection.status !== 'open') {
+        return crossLiquidationUnavailable('missing_inputs');
+      }
+      const { liquidation } = projection;
+      if (liquidation.status === 'price') {
+        return { status: 'price', price: String(liquidation.price) };
+      }
+      return liquidation.status === 'covered_by_account'
+        ? { status: 'none', reason: 'covered_by_account' }
+        : crossLiquidationUnavailable('missing_inputs');
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: Cross account unavailable for liquidation estimate',
+        { symbol, error },
+      );
+      return crossLiquidationUnavailable('account_unknown');
+    }
+  }
+
+  /**
+   * Read the selected account's Cross figures for an order on `asset`: its
+   * Cross collateral and maintenance, the market's tiers and the live
+   * position, flat when the account holds none.
+   *
+   * Standard accounts keep a separate clearinghouse per DEX. On a HIP-3 DEX
+   * with `useUnifiedAccount` off, placement moves margin in from another DEX
+   * when the DEX's withdrawable balance is below the order's required margin,
+   * and returns the excess afterwards (`#handleHip3PreOrder`, `#handleHip3PostOrderRebalance`).
+   * `hip3Funding` carries that balance and the required margin placement
+   * computes, so the estimate prices the DEX as placement leaves it.
+   *
+   * @param params - The proposed order.
+   * @param params.asset - Venue market symbol.
+   * @param params.positionSize - Order size in base units.
+   * @param params.orderPrice - Expected fill or limit price.
+   * @param params.leverage - Leverage placement sets on the asset.
+   * @param params.isBuy - Whether the order buys.
+   * @returns The Cross inputs, or why they are unavailable.
+   */
+  async #readCrossOrderAccount({
     asset,
-    entryPrice,
     positionSize,
-    isLong,
+    orderPrice,
+    leverage,
+    isBuy,
   }: {
     asset: string;
-    entryPrice: number;
     positionSize: number;
-    isLong: boolean;
-  }): Promise<number | null> {
+    orderPrice: number;
+    leverage: number;
+    isBuy: boolean;
+  }): Promise<
+    | {
+        status: 'ok';
+        crossAccount: HyperLiquidCrossAccount;
+        marginTiers: HyperLiquidMarginTier[] | null;
+        position: PositionModifyPreviewSource;
+        hasPosition: boolean;
+      }
+    | CrossLiquidationUnavailable
+  > {
     const generation = this.#lifecycleGeneration;
     const accountId = await this.getCurrentAccountId();
     const userAddress = this.#walletService.getUserAddress(accountId);
@@ -17893,7 +18244,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           (market) => market.name === asset,
         ))
     ) {
-      return null;
+      return crossLiquidationUnavailable('missing_inputs');
     }
 
     const meta = await this.#getCachedMeta({ dexName: dex });
@@ -17901,90 +18252,137 @@ export class HyperLiquidProvider implements PerpsProvider {
     const market = meta.universe.find((item) => item.name === asset);
     if (
       currentAccount !== accountId ||
-      generation !== this.#lifecycleGeneration ||
-      !market ||
-      !this.#isCrossMarginSupported(market)
+      generation !== this.#lifecycleGeneration
     ) {
-      return null;
+      return crossLiquidationUnavailable('account_unknown');
+    }
+    if (!market || !isCrossMarginSupported(market)) {
+      return crossLiquidationUnavailable('missing_inputs');
     }
 
-    // An add, close or flip needs the existing position's change in
-    // maintenance. This preview only models an opening in a flat market.
     const streamed = this.#subscriptionService.getFreshCrossMarginContext(
       userAddress,
       asset,
     );
-    if (streamed?.hasPosition) {
-      return null;
-    }
-    const context =
-      streamed ??
-      (await this.#readCrossMarginContext(
+    let context: CrossMarginContext | CrossLiquidationUnavailable;
+    if (streamed) {
+      const position = streamed.hasPosition
+        ? this.#subscriptionService
+            .getCachedPositionsForDex(dex ?? '', userAddress)
+            ?.find((item) => item.symbol === asset)
+        : undefined;
+      context =
+        streamed.hasPosition && !position
+          ? crossLiquidationUnavailable('account_unknown')
+          : {
+              status: 'ok',
+              summary: streamed.summary,
+              spotCollateral: streamed.spotCollateral,
+              position,
+            };
+    } else {
+      context = await this.#readCrossMarginContext(
         asset,
         accountId,
         userAddress,
         generation,
-      ));
-    if (!context) {
-      return null;
+      );
     }
-    const { summary, spotCollateral } = context;
+    if (context.status === 'unavailable') {
+      return context;
+    }
+    const { summary, spotCollateral, position, withdrawable } = context;
+    // An isolated position in the market holds no Cross maintenance.
+    if (position !== undefined && position.leverage.type !== 'cross') {
+      return crossLiquidationUnavailable('missing_inputs');
+    }
     const accountValue = getCrossCollateral(summary, spotCollateral);
     if (
       accountValue === undefined ||
       summary === undefined ||
       summary.maintenanceMargin.trim() === ''
     ) {
-      return null;
+      return crossLiquidationUnavailable('missing_inputs');
     }
-    const priorMaintenance = Number(summary.maintenanceMargin);
-    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
-      return null;
+    const maintenanceMargin = Number(summary.maintenanceMargin);
+    if (!Number.isFinite(maintenanceMargin) || maintenanceMargin < 0) {
+      return crossLiquidationUnavailable('missing_inputs');
     }
-    const marginTiers = resolveHyperLiquidMarginTiers({
-      marginTableId: market.marginTableId,
-      maxLeverage: market.maxLeverage,
-      marginTables: meta.marginTables,
-    });
-    const addedMaintenance = estimateCrossMaintenanceMargin([
-      { notional: entryPrice * positionSize, marginTiers },
-    ]);
-    if (addedMaintenance === null) {
-      return null;
-    }
-    return estimateCrossLiquidationPrice({
-      isLong,
-      markPrice: entryPrice,
-      positionSize,
+    const crossAccount: HyperLiquidCrossAccount = {
       accountValue,
-      maintenanceMargin: priorMaintenance + addedMaintenance,
-      marginTiers,
-    });
+      maintenanceMargin,
+    };
+    // Placement moves funds to the DEX only without Unified Account.
+    if (
+      dex !== null &&
+      withdrawable !== undefined &&
+      !this.#useUnifiedAccount
+    ) {
+      crossAccount.hip3Funding = {
+        withdrawable,
+        requiredMargin: await this.#calculateHip3RequiredMargin({
+          symbol: asset,
+          dexName: dex,
+          positionSize,
+          orderPrice,
+          leverage,
+          isBuy,
+        }),
+      };
+      if (
+        (await this.getCurrentAccountId()) !== accountId ||
+        generation !== this.#lifecycleGeneration
+      ) {
+        return crossLiquidationUnavailable('account_unknown');
+      }
+    }
+    return {
+      status: 'ok',
+      crossAccount,
+      marginTiers: resolveHyperLiquidMarginTiers({
+        marginTableId: market.marginTableId,
+        maxLeverage: market.maxLeverage,
+        marginTables: meta.marginTables,
+      }),
+      position: position ?? {
+        symbol: asset,
+        size: '0',
+        entryPrice: '0',
+        positionValue: '0',
+        marginUsed: '0',
+        leverage: { type: 'cross', value: leverage },
+        liquidationPrice: null,
+        maxLeverage: market.maxLeverage,
+      },
+      hasPosition: position !== undefined,
+    };
   }
 
   /**
    * Read Cross inputs when live account coverage is incomplete.
    *
+   * Unified accounts share Cross collateral across DEXs. Standard accounts
+   * keep one clearinghouse per DEX, so a HIP-3 market reads its own DEX and
+   * also returns its withdrawable balance for `#readCrossOrderAccount`.
+   *
    * @param asset - The proposed position's market.
    * @param accountId - Selected account when the quote began.
    * @param userAddress - Venue address for the selected account.
    * @param generation - Provider lifecycle when the quote began.
-   * @returns Confirmed margin inputs for a flat market, or null.
+   * @returns Confirmed margin inputs and any open position: `provider` for
+   * an account mode without a Cross estimate, `account_unknown` when the
+   * reads do not describe the selected account.
    */
   async #readCrossMarginContext(
     asset: string,
     accountId: CaipAccountId,
     userAddress: Hex,
     generation: number,
-  ): Promise<{
-    summary: CrossMarginSummary | undefined;
-    spotCollateral: string | undefined;
-  } | null> {
+  ): Promise<CrossMarginContext | CrossLiquidationUnavailable> {
     const { dex } = parseAssetName(asset);
     const infoClient = this.#clientService.getInfoClient();
     const mode = await infoClient.userAbstraction({ user: userAddress });
-    let summary: CrossMarginSummary | undefined;
-    let spotCollateral: string | undefined;
+    let context: CrossMarginContext;
     if (mode === HL_UNIFIED_ACCOUNT_MODE) {
       const [account, positions] = await Promise.all([
         this.#readAccountState({ accountId, throwOnUnavailable: true }, mode),
@@ -17995,27 +18393,36 @@ export class HyperLiquidProvider implements PerpsProvider {
           includeProtection: false,
         }),
       ]);
-      if (positions.some((position) => position.symbol === asset)) {
-        return null;
+      context = {
+        status: 'ok',
+        summary: account.crossMarginSummary,
+        spotCollateral: account.spotCollateral,
+        position: positions.find((position) => position.symbol === asset),
+      };
+    } else if (isHyperLiquidStandardMode(mode)) {
+      const state = await infoClient.clearinghouseState(
+        dex === null ? { user: userAddress } : { user: userAddress, dex },
+      );
+      const assetPosition = state.assetPositions.find(
+        ({ position }) => position.coin === asset && Number(position.szi) !== 0,
+      );
+      context = {
+        status: 'ok',
+        summary: adaptAccountStateFromSDK(state).crossMarginSummary,
+        spotCollateral: '0',
+        position:
+          assetPosition &&
+          adaptPositionFromSDK(assetPosition, state.crossMarginSummary),
+      };
+      if (dex !== null) {
+        const withdrawable = Number.parseFloat(state.withdrawable);
+        if (!Number.isFinite(withdrawable)) {
+          return crossLiquidationUnavailable('account_unknown');
+        }
+        context.withdrawable = withdrawable;
       }
-      summary = account.crossMarginSummary;
-      spotCollateral = account.spotCollateral;
-    } else if ((mode === 'disabled' || mode === 'default') && dex === null) {
-      // Standard mode keeps separate DEX margin pools. A HIP-3 addition may
-      // first move collateral into its DEX, which this preview cannot model.
-      const state = await infoClient.clearinghouseState({ user: userAddress });
-      if (
-        state.assetPositions.some(
-          ({ position }) =>
-            position.coin === asset && Number(position.szi) !== 0,
-        )
-      ) {
-        return null;
-      }
-      summary = adaptAccountStateFromSDK(state).crossMarginSummary;
-      spotCollateral = '0';
     } else {
-      return null;
+      return crossLiquidationUnavailable('provider');
     }
 
     // Account setup can migrate the same wallet while the exchange reads are
@@ -18029,9 +18436,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       currentAccount !== accountId ||
       generation !== this.#lifecycleGeneration
     ) {
-      return null;
+      return crossLiquidationUnavailable('account_unknown');
     }
-    return { summary, spotCollateral };
+    return context;
   }
 
   /**

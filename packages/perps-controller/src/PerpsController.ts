@@ -26,6 +26,7 @@ import {
 } from './constants/eventNames.js';
 import {
   canonicalizeHyperLiquidDexes,
+  isCrossMarginSupported,
   MAINNET_HIP3_CONFIG,
   TESTNET_HIP3_CONFIG,
   USDC_SYMBOL,
@@ -107,7 +108,9 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
+  GetMarketMetaParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetPublicTradesParams,
@@ -119,6 +122,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   MarginMode,
   MarginResult,
   MarketInfo,
@@ -132,7 +137,9 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
+  PerpsMarketMeta,
   PerpsScalePriceLadder,
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
@@ -1130,6 +1137,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderBookPreferences',
   'getOrderCapabilities',
   'getMarginModeLock',
+  'getMarginAdjustmentLimits',
+  'getMarketMeta',
   'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
@@ -1165,6 +1174,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'placeOrder',
   'prepareTradingWallet',
   'previewPositionModify',
+  'estimateCrossLiquidation',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -3671,6 +3681,100 @@ export class PerpsController extends BaseController<
         resolvedProviderId,
       );
     }
+  }
+
+  /**
+   * Get how much margin an isolated position can take in (`maxAdd`, what the
+   * venue's isolated margin update accepts) and release (`maxRemove`),
+   * through the active provider route used by order placement. Never throws;
+   * failures report an unavailable status.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits, or a typed unavailable result.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    try {
+      const activeProvider = await this.#getActiveProviderWhenReady();
+      if (
+        this.#hasConflictingProviderRoute(params.providerId, activeProvider) ||
+        !activeProvider.getMarginAdjustmentLimits
+      ) {
+        return { status: 'unavailable', reason: 'provider' };
+      }
+      return await activeProvider.getMarginAdjustmentLimits(params);
+    } catch (error) {
+      this.#debugLog('PerpsController: Margin adjustment limits unavailable', {
+        error: ensureError(error, 'PerpsController.getMarginAdjustmentLimits')
+          .message,
+      });
+      return { status: 'unavailable', reason: 'provider' };
+    }
+  }
+
+  /**
+   * Get venue metadata (margin tiers, delisted, max leverage, isolated-only)
+   * for one market, or for every market when `symbol` is omitted. Reads the
+   * provider's own market list, which Hyperliquid builds from its session
+   * `meta` cache, never a Terminal snapshot. In aggregated mode it reads one
+   * venue: `providerId`, else the default provider.
+   *
+   * @param params - Optional market and provider route.
+   * @returns One market's metadata when `symbol` is set, otherwise a list.
+   * @throws `MARKET_NOT_FOUND` when no market has that symbol,
+   * `PROVIDER_NOT_FOUND` when the route conflicts with the active provider or
+   * names an unregistered venue, or the venue's error when its read fails.
+   */
+  getMarketMeta(
+    params: GetMarketMetaParams & { symbol: string },
+  ): Promise<PerpsMarketMeta>;
+
+  getMarketMeta(
+    params?: GetMarketMetaParams & { symbol?: undefined },
+  ): Promise<PerpsMarketMeta[]>;
+
+  getMarketMeta(
+    params?: GetMarketMetaParams,
+  ): Promise<PerpsMarketMeta | PerpsMarketMeta[]>;
+
+  async getMarketMeta(
+    params?: GetMarketMetaParams,
+  ): Promise<PerpsMarketMeta | PerpsMarketMeta[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    const providerId = params?.providerId;
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const symbol = params?.symbol;
+    const marketsParams =
+      symbol === undefined ? undefined : { symbols: [symbol] };
+    // The aggregated list drops a failed venue; read the routed venue alone
+    // so a failure rejects instead of reading as a missing market.
+    const markets =
+      provider instanceof AggregatedPerpsProvider
+        ? await provider.getProviderMarkets(
+            provider.getWriteProviderId(providerId),
+            marketsParams,
+          )
+        : await provider.getMarkets(marketsParams);
+    const metas = markets.map((market): PerpsMarketMeta => ({
+      symbol: market.name,
+      marginTiers: market.marginTiers ?? null,
+      isDelisted: market.isDelisted === true,
+      maxLeverage: market.maxLeverage,
+      onlyIsolated: !isCrossMarginSupported(market),
+    }));
+    if (symbol === undefined) {
+      return metas;
+    }
+    const meta = metas.find(
+      (item) => item.symbol.toLowerCase() === symbol.toLowerCase(),
+    );
+    if (!meta) {
+      throw new Error(PERPS_ERROR_CODES.MARKET_NOT_FOUND);
+    }
+    return meta;
   }
 
   #getUnavailableMarginModeLock(
@@ -6788,9 +6892,10 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Project the isolated position that would remain after a proposed order.
+   * Project the position that would remain after a proposed order.
    * Margin and liquidation availability are independent: a missing liquidation
-   * does not hide a valid margin projection. Cross-margin returns unsupported.
+   * does not hide a valid margin projection. Hyperliquid projects Cross
+   * positions against the account's Cross collateral.
    *
    * @param params - Live position plus the proposed order.
    * @returns Discriminated preview of the resulting position.
@@ -6804,6 +6909,33 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context,
+    });
+  }
+
+  /**
+   * Estimate the liquidation price of the Cross position an order would
+   * leave: an opening, or an add, reduce or flip of the market's position.
+   * Never rejects: `price`, `none` when no price liquidates it at the
+   * account's collateral, or `unavailable` with a typed reason.
+   *
+   * @param params - The proposed Cross order.
+   * @returns The typed estimate.
+   */
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    // Not initialized or reinitializing: no provider to ask. A direct-mode
+    // route that names another venue would answer for the wrong venue.
+    const provider = this.getActiveProviderOrNull();
+    if (
+      !provider ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    return this.#marketDataService.estimateCrossLiquidation({
+      provider,
+      params,
     });
   }
 

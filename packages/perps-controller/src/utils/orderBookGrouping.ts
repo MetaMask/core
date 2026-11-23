@@ -145,34 +145,131 @@ export function groupOrderBook(
   return { bids, asks, maxTotal, maxSize };
 }
 
+/** Grouping ladder `calculateOrderBookGroupingOptions` builds. */
+export type OrderBookGroupingLadder = 'decade' | 'tick';
+
+/** Inputs to {@link calculateOrderBookGroupingOptions}. */
+export type OrderBookGroupingOptionsParams = {
+  /** Mid price of the book. */
+  midPrice: number;
+  /**
+   * The market's price tick as a number; required for the `tick` ladder.
+   * Pass `getPriceTick`'s result rather than parsing
+   * `PerpsPricePrecision.tickSize`.
+   */
+  tickSize?: number;
+  /**
+   * `decade` (Mobile's ladder) or `tick`. Defaults to `tick` when `tickSize`
+   * is a positive number, otherwise `decade`.
+   */
+  ladder?: OrderBookGroupingLadder;
+};
+
+const isUsableTick = (tickSize: number | undefined): tickSize is number =>
+  tickSize !== undefined && Number.isFinite(tickSize) && tickSize > 0;
+
+const roundGroupingWidth = (width: number): number =>
+  Number(width.toFixed(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals));
+
 /**
- * Grouping widths offered for a book at `midPrice`: a decade four below the
- * price's own, times 1, 2, 5, 10, 100 and 1000. Each width is rounded to
+ * Grouping widths offered for a book.
+ *
+ * The `decade` ladder (Mobile's) is a decade four below the mid price's own,
+ * times 1, 2, 5, 10, 100 and 1000; each width is rounded to
  * `DECIMAL_PRECISION_CONFIG.MaxPriceDecimals` decimals and duplicates are
  * dropped, so float noise never shows as a separate option and no width is
  * finer than the smallest price step a market can quote.
  *
- * @param midPrice - Mid price of the book.
+ * The `tick` ladder is the market's tick times 1, 2, 5, 10, 20 and 50. A width
+ * is kept only when it is a whole number of the buckets the venue streams for
+ * it (`calculateOrderBookAggregationParams`), so grouping that stream with
+ * `groupOrderBook` gives exactly that width. That filter is Hyperliquid's
+ * `nSigFigs`/`mantissa` grid, so the `tick` ladder is for Hyperliquid books.
+ * Lighter streams raw levels: use the `decade` ladder there, or pass the raw
+ * tick widths you group client-side with `groupOrderBook`.
+ *
+ * @param params - See {@link OrderBookGroupingOptionsParams}; a number is the
+ * mid price with the `decade` ladder.
  * @returns Grouping widths, ascending; `ORDER_BOOK_GROUPING_CONFIG.FallbackOptions`
- * when the mid price is not a positive number.
+ * when the mid price, or the tick for the `tick` ladder, is not a positive
+ * number.
  */
-export function calculateOrderBookGroupingOptions(midPrice: number): number[] {
+export function calculateOrderBookGroupingOptions(
+  params: number | OrderBookGroupingOptionsParams,
+): number[] {
+  const {
+    midPrice,
+    tickSize,
+    ladder = isUsableTick(tickSize) ? 'tick' : 'decade',
+  } = typeof params === 'number' ? { midPrice: params } : params;
   if (!Number.isFinite(midPrice) || midPrice <= 0) {
     return [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
+  }
+  if (ladder === 'tick') {
+    return calculateTickGroupingOptions(midPrice, tickSize);
   }
   const base =
     10 **
     (Math.floor(Math.log10(midPrice)) -
       ORDER_BOOK_GROUPING_CONFIG.DecadeOffset);
   const options = ORDER_BOOK_GROUPING_CONFIG.Multipliers.map((multiplier) =>
-    Number(
-      (base * multiplier).toFixed(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals),
-    ),
+    roundGroupingWidth(base * multiplier),
   ).filter((option) => option > 0);
   const unique = Array.from(new Set(options));
   return unique.length > 0
     ? unique
     : [10 ** -DECIMAL_PRECISION_CONFIG.MaxPriceDecimals];
+}
+
+/**
+ * The `tick` ladder of {@link calculateOrderBookGroupingOptions}.
+ *
+ * @param midPrice - Positive mid price.
+ * @param tickSize - The market's price tick.
+ * @returns Widths a venue bucket divides, ascending, or the fallback ladder.
+ */
+function calculateTickGroupingOptions(
+  midPrice: number,
+  tickSize: number | undefined,
+): number[] {
+  if (!isUsableTick(tickSize)) {
+    return [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
+  }
+  const options = ORDER_BOOK_GROUPING_CONFIG.TickMultipliers.map((multiplier) =>
+    roundGroupingWidth(tickSize * multiplier),
+  ).filter((option) => {
+    if (option <= 0) {
+      return false;
+    }
+    const bucket = getOrderBookBucketWidth(
+      calculateOrderBookAggregationParams(option, midPrice),
+      midPrice,
+    );
+    const buckets = new BigNumber(option).dividedBy(bucket);
+    return buckets.isInteger() && buckets.isGreaterThanOrEqualTo(1);
+  });
+  const unique = Array.from(new Set(options));
+  return unique.length > 0
+    ? unique
+    : [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
+}
+
+/**
+ * Width of the price buckets a venue streams a book in at `price` for the
+ * given aggregation: one unit of the last significant figure, times the
+ * mantissa.
+ *
+ * @param aggregation - Significant figures and optional mantissa.
+ * @param price - Reference price.
+ * @returns The bucket width in quote units.
+ */
+function getOrderBookBucketWidth(
+  aggregation: OrderBookAggregationParams,
+  price: number,
+): BigNumber {
+  return new BigNumber(10)
+    .exponentiatedBy(Math.floor(Math.log10(price)) - aggregation.nSigFigs + 1)
+    .multipliedBy(aggregation.mantissa ?? 1);
 }
 
 /**

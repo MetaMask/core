@@ -149,6 +149,38 @@ export type PerpsControllerGetMarginModeLockAction = {
 };
 
 /**
+ * Get how much margin an isolated position can take in (`maxAdd`, what the
+ * venue's isolated margin update accepts) and release (`maxRemove`),
+ * through the active provider route used by order placement. Never throws;
+ * failures report an unavailable status.
+ *
+ * @param params - Market and optional provider route.
+ * @returns The limits, or a typed unavailable result.
+ */
+export type PerpsControllerGetMarginAdjustmentLimitsAction = {
+  type: `PerpsController:getMarginAdjustmentLimits`;
+  handler: PerpsController['getMarginAdjustmentLimits'];
+};
+
+/**
+ * Get venue metadata (margin tiers, delisted, max leverage, isolated-only)
+ * for one market, or for every market when `symbol` is omitted. Reads the
+ * provider's own market list, which Hyperliquid builds from its session
+ * `meta` cache, never a Terminal snapshot. In aggregated mode it reads one
+ * venue: `providerId`, else the default provider.
+ *
+ * @param params - Optional market and provider route.
+ * @returns One market's metadata when `symbol` is set, otherwise a list.
+ * @throws `MARKET_NOT_FOUND` when no market has that symbol,
+ * `PROVIDER_NOT_FOUND` when the route conflicts with the active provider or
+ * names an unregistered venue, or the venue's error when its read fails.
+ */
+export type PerpsControllerGetMarketMetaAction = {
+  type: `PerpsController:getMarketMeta`;
+  handler: PerpsController['getMarketMeta'];
+};
+
+/**
  * Build a Scale price ladder using the active provider's venue rules.
  *
  * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -787,9 +819,10 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
- * Project the isolated position that would remain after a proposed order.
+ * Project the position that would remain after a proposed order.
  * Margin and liquidation availability are independent: a missing liquidation
- * does not hide a valid margin projection. Cross-margin returns unsupported.
+ * does not hide a valid margin projection. Hyperliquid projects Cross
+ * positions against the account's Cross collateral.
  *
  * @param params - Live position plus the proposed order.
  * @returns Discriminated preview of the resulting position.
@@ -797,6 +830,20 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 export type PerpsControllerPreviewPositionModifyAction = {
   type: `PerpsController:previewPositionModify`;
   handler: PerpsController['previewPositionModify'];
+};
+
+/**
+ * Estimate the liquidation price of the Cross position an order would
+ * leave: an opening, or an add, reduce or flip of the market's position.
+ * Never rejects: `price`, `none` when no price liquidates it at the
+ * account's collateral, or `unavailable` with a typed reason.
+ *
+ * @param params - The proposed Cross order.
+ * @returns The typed estimate.
+ */
+export type PerpsControllerEstimateCrossLiquidationAction = {
+  type: `PerpsController:estimateCrossLiquidation`;
+  handler: PerpsController['estimateCrossLiquidation'];
 };
 
 /**
@@ -1835,6 +1882,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerGetMarginModeLockAction
+  | PerpsControllerGetMarginAdjustmentLimitsAction
+  | PerpsControllerGetMarketMetaAction
   | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
@@ -1885,6 +1934,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
   | PerpsControllerPreviewPositionModifyAction
+  | PerpsControllerEstimateCrossLiquidationAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction

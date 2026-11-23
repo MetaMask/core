@@ -19,6 +19,9 @@ import {
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   parseLighterStrictDecimal,
 } from '../constants/lighterConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { accountReturnOnEquity } from '../internal/accountReturnOnEquity.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import type {
   AccountState,
   CrossMarginSummary,
@@ -43,6 +46,7 @@ import type {
   LighterWsMarketStat,
   LighterWsUserStats,
 } from '../types/lighter-types.js';
+import { calculateOpenInterestUSD } from './marketDataTransform.js';
 import {
   buildPublicTrade,
   sortPublicTradesNewestFirst,
@@ -122,6 +126,26 @@ export function adaptMarketFromLighter(
 }
 
 /**
+ * Lighter reports open interest in base units; convert it to USD with
+ * `calculateOpenInterestUSD`, as Hyperliquid does.
+ *
+ * @param baseAmount - Open interest in base units.
+ * @param price - Price to convert at.
+ * @returns Open interest in USD, or undefined without a positive price or a
+ * finite amount.
+ */
+function toUsdOpenInterest(
+  baseAmount: number | undefined,
+  price: number,
+): number | undefined {
+  if (!(price > 0)) {
+    return undefined;
+  }
+  const usd = calculateOpenInterestUSD(baseAmount, price);
+  return Number.isFinite(usd) ? usd : undefined;
+}
+
+/**
  * Transform a Lighter order book detail into UI-ready PerpsMarketData.
  *
  * @param detail - Market stats from `GET /api/v1/orderBookDetails`.
@@ -154,6 +178,8 @@ export function adaptMarketDataFromLighter(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid authoritative leverage for ${detail.symbol}`,
     );
   }
+  // The detail has no mark price, so convert at the last trade price.
+  const openInterestUsd = toUsdOpenInterest(detail.openInterest, price);
   return {
     symbol: detail.symbol,
     name: detail.symbol,
@@ -164,7 +190,16 @@ export function adaptMarketDataFromLighter(
     change24h: formatChange(changeAbs, formatters),
     change24hPercent: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
     volume: formatters.formatVolume(detail.dailyQuoteTokenVolume ?? 0),
-    openInterest: formatters.formatVolume(detail.openInterest ?? 0),
+    openInterest:
+      openInterestUsd === undefined
+        ? PERPS_CONSTANTS.FallbackPriceDisplay
+        : formatters.formatVolume(openInterestUsd),
+    numericValues: buildMarketNumericValues({
+      price: detail.lastTradePrice,
+      change24hPercent: detail.dailyPriceChange,
+      volume: detail.dailyQuoteTokenVolume,
+      openInterest: openInterestUsd,
+    }),
   };
 }
 
@@ -180,13 +215,18 @@ export function adaptPriceUpdateFromLighter(
   detail: LighterOrderBookDetail,
   timestamp: number,
 ): PriceUpdate {
+  // The detail has no mark price, so convert at the last trade price.
+  const openInterest = toUsdOpenInterest(
+    detail.openInterest,
+    detail.lastTradePrice,
+  );
   return {
     symbol: detail.symbol,
     price: String(detail.lastTradePrice ?? 0),
     timestamp,
     percentChange24h: String(detail.dailyPriceChange ?? 0),
     volume24h: detail.dailyQuoteTokenVolume ?? 0,
-    openInterest: detail.openInterest ?? 0,
+    ...(openInterest !== undefined && { openInterest }),
     isTradable: detail.status === 'active',
   };
 }
@@ -209,6 +249,11 @@ export function adaptPriceUpdateFromLighterWsStat(
     Number.isFinite(bestBid) && Number.isFinite(bestAsk)
       ? String(bestAsk - bestBid)
       : undefined;
+  const markPrice = parseFloat(stat.markPrice);
+  const openInterest = toUsdOpenInterest(
+    parseFloat(stat.openInterest),
+    markPrice > 0 ? markPrice : parseFloat(stat.lastTradePrice),
+  );
   return {
     symbol: stat.symbol,
     price: stat.midPrice,
@@ -218,8 +263,9 @@ export function adaptPriceUpdateFromLighterWsStat(
     bestAsk: stat.bestAskPrice,
     spread,
     markPrice: stat.markPrice,
+    oraclePrice: stat.indexPrice,
     funding: parseFloat(stat.currentFundingRate ?? stat.fundingRate ?? '0'),
-    openInterest: parseFloat(stat.openInterest ?? '0'),
+    ...(openInterest !== undefined && { openInterest }),
     volume24h: stat.dailyQuoteTokenVolume ?? 0,
     isTradable: true,
   };
@@ -246,6 +292,8 @@ export function adaptAccountStateFromLighterUserStats(
     stats.portfolioValue,
     'WebSocket portfolio value',
   );
+  const marginUsed = Math.max(collateral - available, 0);
+  const unrealizedPnl = portfolioValue - collateral;
   return {
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
@@ -254,12 +302,12 @@ export function adaptAccountStateFromLighterUserStats(
     // spot USDC to add, and this read is a known account, so the amount is 0
     // rather than unknown.
     spotCollateral: '0',
-    marginUsed: String(Math.max(collateral - available, 0)),
-    unrealizedPnl: String(portfolioValue - collateral),
-    returnOnEquity:
-      collateral > 0
-        ? String(((portfolioValue - collateral) / collateral) * 100)
-        : '0',
+    marginUsed: String(marginUsed),
+    unrealizedPnl: String(unrealizedPnl),
+    // Same rate as the REST account state: '0' only when no margin is used.
+    returnOnEquity: String(
+      accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber() ?? 0,
+    ),
   };
 }
 
@@ -715,8 +763,10 @@ export function adaptAccountStateFromLighter(
     spotCollateral: '0',
     marginUsed: String(marginUsed),
     unrealizedPnl: String(unrealizedPnl),
-    returnOnEquity:
-      marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
+    // '0' only when no margin is used, as before.
+    returnOnEquity: String(
+      accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber() ?? 0,
+    ),
     providerId: 'lighter',
   };
 }

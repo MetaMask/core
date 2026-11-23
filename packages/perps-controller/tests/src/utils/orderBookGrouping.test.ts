@@ -192,28 +192,107 @@ describe('calculateOrderBookGroupingOptions', () => {
     [3.21, [0.0001, 0.0002, 0.0005, 0.001, 0.01, 0.1]],
     [87.6, [0.001, 0.002, 0.005, 0.01, 0.1, 1]],
   ])('builds the ladder for a mid of %d', (mid, expected) => {
-    expect(calculateOrderBookGroupingOptions(mid)).toStrictEqual(expected);
+    expect(calculateOrderBookGroupingOptions({ midPrice: mid })).toStrictEqual(
+      expected,
+    );
   });
 
   it('drops widths that round below six decimals', () => {
     // Base 1e-8: only 100 and 1000 times it survive the rounding.
-    expect(calculateOrderBookGroupingOptions(0.00012345)).toStrictEqual([
-      0.000001, 0.00001,
-    ]);
+    expect(
+      calculateOrderBookGroupingOptions({ midPrice: 0.00012345 }),
+    ).toStrictEqual([0.000001, 0.00001]);
   });
 
   it('falls back to the smallest price step when every width rounds away', () => {
-    expect(calculateOrderBookGroupingOptions(0.0000001)).toStrictEqual([
-      0.000001,
-    ]);
+    expect(
+      calculateOrderBookGroupingOptions({ midPrice: 0.0000001 }),
+    ).toStrictEqual([0.000001]);
   });
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
     'returns the fallback ladder for mid %d',
     (mid) => {
-      expect(calculateOrderBookGroupingOptions(mid)).toStrictEqual([
-        0.01, 0.1, 1,
-      ]);
+      expect(
+        calculateOrderBookGroupingOptions({ midPrice: mid }),
+      ).toStrictEqual([0.01, 0.1, 1]);
+    },
+  );
+});
+
+describe('calculateOrderBookGroupingOptions tick ladder', () => {
+  it.each([
+    ['BTC', 87000, 1, [1, 2, 5, 10, 20, 50]],
+    ['ETH', 2450, 0.1, [0.1, 0.2, 0.5, 1, 2, 5]],
+  ])(
+    'builds the %s ladder from its tick',
+    (_market, midPrice, tickSize, expected) => {
+      expect(
+        calculateOrderBookGroupingOptions({ midPrice, tickSize }),
+      ).toStrictEqual(expected);
+      expect(
+        calculateOrderBookGroupingOptions({
+          midPrice,
+          tickSize,
+          ladder: 'tick',
+        }),
+      ).toStrictEqual(expected);
+    },
+  );
+
+  it('keeps only widths a venue bucket divides into', () => {
+    // At 87000, a width of 0.2 streams at five significant figures: 1-wide
+    // buckets, so 0.1 to 0.5 cannot be built and only 1 and up remain.
+    const options = calculateOrderBookGroupingOptions({
+      midPrice: 87000,
+      tickSize: 0.1,
+    });
+
+    expect(options).toStrictEqual([1, 2, 5]);
+    // Each streams in buckets of exactly its own width at 87000.
+    expect(
+      options.map((option) =>
+        calculateOrderBookAggregationParams(option, 87000),
+      ),
+    ).toStrictEqual([
+      { nSigFigs: 5 },
+      { nSigFigs: 5, mantissa: 2 },
+      { nSigFigs: 5, mantissa: 5 },
+    ]);
+  });
+
+  it('keeps the decade ladder for a number or ladder: decade', () => {
+    expect(calculateOrderBookGroupingOptions(2450)).toStrictEqual([
+      0.1, 0.2, 0.5, 1, 10, 100,
+    ]);
+    expect(
+      calculateOrderBookGroupingOptions({
+        midPrice: 2450,
+        tickSize: 0.1,
+        ladder: 'decade',
+      }),
+    ).toStrictEqual([0.1, 0.2, 0.5, 1, 10, 100]);
+  });
+
+  it.each([undefined, 0, -1, Number.NaN])(
+    'falls back for the tick ladder without a usable tick (%s)',
+    (tickSize) => {
+      expect(
+        calculateOrderBookGroupingOptions({
+          midPrice: 100,
+          tickSize,
+          ladder: 'tick',
+        }),
+      ).toStrictEqual([0.01, 0.1, 1]);
+    },
+  );
+
+  it.each([0, -1, Number.NaN])(
+    'defaults to the decade ladder without a usable tick (%s)',
+    (tickSize) => {
+      expect(
+        calculateOrderBookGroupingOptions({ midPrice: 2450, tickSize }),
+      ).toStrictEqual(calculateOrderBookGroupingOptions(2450));
     },
   );
 });

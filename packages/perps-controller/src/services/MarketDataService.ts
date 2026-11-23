@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CandlePeriod } from '../constants/chartConfig.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
 import type { VenueMarketData } from '../providers/AggregatedPerpsProvider.js';
@@ -30,6 +31,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   FeeCalculationParams,
   FeeCalculationResult,
   OrderParams,
@@ -930,7 +933,9 @@ export class MarketDataService {
   /**
    * Add a snapshot's display and discovery fields to venue rows of the same
    * symbol. Price, change, funding and leverage stay with the venue; a row
-   * the snapshot does not list is returned unchanged.
+   * the snapshot does not list is returned unchanged. The volume and open
+   * interest sort values (`numericValues`) come from the snapshot with the
+   * strings they are displayed as.
    *
    * @param markets - Rows from the venue's provider.
    * @param snapshotMarkets - Rows from the venue's snapshot.
@@ -960,10 +965,23 @@ export class MarketDataService {
         volume,
         openInterest,
       } = snapshot;
+      const venueValues = market.numericValues;
+      const numericValues =
+        venueValues &&
+        buildMarketNumericValues({
+          price: venueValues.price,
+          change24hPercent: venueValues.change24hPercent,
+          volume: snapshot.numericValues?.volume,
+          openInterest:
+            openInterest === undefined
+              ? venueValues.openInterest
+              : snapshot.numericValues?.openInterest,
+        });
       return {
         ...market,
         name,
         volume,
+        ...(numericValues && { numericValues }),
         ...(openInterest !== undefined && { openInterest }),
         ...(description !== undefined && { description }),
         ...(iconUrl !== undefined && { iconUrl }),
@@ -1578,6 +1596,40 @@ export class MarketDataService {
         },
       );
       throw error;
+    }
+  }
+
+  /**
+   * Estimate the liquidation price of the Cross position an order would
+   * leave. Never rejects: a provider without the estimate, or one that
+   * throws, gives `{ status: 'unavailable', reason: 'provider' }`.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The proposed Cross order.
+   * @returns The typed estimate.
+   */
+  async estimateCrossLiquidation(options: {
+    provider: PerpsProvider;
+    params: EstimateCrossLiquidationParams;
+  }): Promise<CrossLiquidationEstimate> {
+    const { provider, params } = options;
+    if (!provider.estimateCrossLiquidation) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    try {
+      return await provider.estimateCrossLiquidation(params);
+    } catch (error) {
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.estimateCrossLiquidation'),
+        {
+          context: {
+            name: 'MarketDataService.estimateCrossLiquidation',
+            data: { params },
+          },
+        },
+      );
+      return { status: 'unavailable', reason: 'provider' };
     }
   }
 

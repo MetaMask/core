@@ -129,6 +129,7 @@ describe('LighterProvider', () => {
           symbol: 'BTC',
           price: '63000.5',
           markPrice: '63000.5',
+          oraclePrice: '63000.5',
           timestamp: 123,
         }),
       ]);

@@ -65,7 +65,7 @@ describe('shared Perps helpers public API', () => {
   });
 
   it('exports the order-book grouping helpers', () => {
-    const options = calculateOrderBookGroupingOptions(2450);
+    const options = calculateOrderBookGroupingOptions({ midPrice: 2450 });
 
     expect(ORDER_BOOK_GROUPING_CONFIG.DefaultOptionIndex).toBe(3);
     expect(selectDefaultOrderBookGrouping(options)).toBe(1);

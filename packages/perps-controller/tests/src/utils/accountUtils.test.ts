@@ -1,7 +1,10 @@
 /* eslint-disable */
+import { BigNumber } from 'bignumber.js';
 import { describe, expect, it } from 'vitest';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import type { HyperLiquidAbstractionMode } from '../../../src/types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../../../src/types/hyperliquid-types.js';
 import type { AccountState } from '../../../src/types/index.js';
 import type { CalculateAccountSummaryParams } from '../../../src/utils/accountUtils.js';
 import {
@@ -302,12 +305,12 @@ describe('spot balance helpers', () => {
       {
         spendableBalance: '1.475183',
         withdrawableBalance: '1.475183',
-        totalBalance: '1.475183',
+        totalBalance: '8.000006',
       },
       {
         spendableBalance: '1.475183',
         withdrawableBalance: '1.475183',
-        totalBalance: '1.475183',
+        totalBalance: '4.000004',
       },
     ]);
   });
@@ -349,15 +352,13 @@ describe('spot balance helpers', () => {
       {
         balances: [{ coin: 'USDC', total: '0.0000009', hold: '0' }],
       } as never,
-      { foldIntoCollateral: true },
+      { foldIntoCollateral: false },
     );
 
-    expect(result.spendableBalance).toBe('10.000001');
-    expect(result.withdrawableBalance).toBe('10.000001');
     expect(result.totalBalance).toBe('10.000001');
   });
 
-  it('bumps totalBalance, spendableBalance, and withdrawableBalance by spot USDC without mutating the input', () => {
+  it('takes the Unified balances from the spot USDC ledger without mutating the input', () => {
     const accountState: AccountState = {
       spendableBalance: '0',
       withdrawableBalance: '0',
@@ -371,7 +372,7 @@ describe('spot balance helpers', () => {
       accountState,
       {
         balances: [
-          { coin: 'USDC', total: '25.5' },
+          { coin: 'USDC', total: '25.5', hold: '0' },
           { coin: 'HYPE', total: '0.5' },
         ],
       } as never,
@@ -380,7 +381,7 @@ describe('spot balance helpers', () => {
 
     // Only USDC contributes — non-stablecoin spot assets are not convertible
     // to perps collateral and must not inflate balances.
-    expect(result.totalBalance).toBe('125.5');
+    expect(result.totalBalance).toBe('25.5');
     expect(result.spendableBalance).toBe('25.5');
     expect(result.withdrawableBalance).toBe('25.5');
     expect(accountState.totalBalance).toBe('100');
@@ -440,7 +441,7 @@ describe('spot balance helpers', () => {
       accountState,
       {
         balances: [
-          { coin: 'USDC', total: '20' },
+          { coin: 'USDC', total: '20', hold: '0' },
           { coin: 'DAI', total: '30' },
           { coin: 'HYPE', total: '9999' },
         ],
@@ -448,7 +449,7 @@ describe('spot balance helpers', () => {
       { foldIntoCollateral: true },
     );
 
-    expect(result.totalBalance).toBe('30');
+    expect(result.totalBalance).toBe('20');
     expect(result.spendableBalance).toBe('20');
     expect(result.withdrawableBalance).toBe('20');
   });
@@ -503,7 +504,56 @@ describe('spot balance helpers', () => {
     expect(result.totalBalance).toBe('2500');
   });
 
-  it('subtracts spot hold from total and only folds free spot into spendable/withdrawable', () => {
+  it('matches the Unified testnet account with a Cross and an Isolated position', () => {
+    // dev1 testnet, Unified: Cross BTC + Isolated ETH. The perps side
+    // (both positions) reports accountValue 13.28261 and withdrawable
+    // 0.007216; spot USDC total 325.23439 already contains that account
+    // value, and hold 13.275394 is both positions' margin. hyperliquid.xyz
+    // shows the spot total as the account value, and accepts at most
+    // total - hold as margin added to the isolated position.
+    const accountState: AccountState = {
+      spendableBalance: '0.007216',
+      withdrawableBalance: '0.007216',
+      totalBalance: '13.28261',
+      marginUsed: '13.275394',
+      unrealizedPnl: '-0.02201',
+      returnOnEquity: '0',
+    };
+
+    const result = addSpotBalanceToAccountState(
+      accountState,
+      {
+        balances: [{ coin: 'USDC', total: '325.23439', hold: '13.275394' }],
+      } as never,
+      { foldIntoCollateral: true, abstractionMode: 'unifiedAccount' },
+    );
+
+    expect(result.totalBalance).toBe('325.23439');
+    expect(result.spendableBalance).toBe('311.958996');
+    expect(result.withdrawableBalance).toBe('311.958996');
+    expect(result.spotCollateral).toBe('311.958996');
+  });
+
+  it('keeps the perps balances when a Unified spot read lists no USDC', () => {
+    const accountState: AccountState = {
+      spendableBalance: '10',
+      withdrawableBalance: '10',
+      totalBalance: '100',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    const result = addSpotBalanceToAccountState(
+      accountState,
+      { balances: [{ coin: 'HYPE', total: '5', hold: '0' }] } as never,
+      { foldIntoCollateral: true },
+    );
+
+    expect(result).toBe(accountState);
+  });
+
+  it('adds the separate spot ledger, net of hold, to total for Standard', () => {
     const accountState: AccountState = {
       spendableBalance: '10',
       withdrawableBalance: '10',
@@ -518,14 +568,12 @@ describe('spot balance helpers', () => {
       {
         balances: [{ coin: 'USDC', total: '40', hold: '15' }],
       } as never,
-      { foldIntoCollateral: true },
+      { foldIntoCollateral: false },
     );
 
-    // totalBalance += spotTotal - spotHold = 100 + 40 - 15 = 125
-    expect(parseFloat(result.totalBalance)).toBe(125);
-    // spendable/withdrawable += freeSpot = 10 + (40 - 15) = 35
-    expect(parseFloat(result.spendableBalance)).toBe(35);
-    expect(parseFloat(result.withdrawableBalance)).toBe(35);
+    expect(result.totalBalance).toBe('125');
+    expect(result.spendableBalance).toBe('10');
+    expect(result.withdrawableBalance).toBe('10');
   });
 
   it('returns the input untouched when no collateral spot balance is present', () => {
@@ -570,6 +618,156 @@ describe('spot balance helpers', () => {
     expect(result.withdrawableBalance).toBe('5');
   });
 
+  describe('account value on the venue (R15)', () => {
+    const perpsState = (accountValue: string): AccountState => ({
+      spendableBalance: '0',
+      withdrawableBalance: '0',
+      totalBalance: accountValue,
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    });
+    const fold = (
+      perps: AccountState[],
+      usdc: { total: string; hold: string },
+      mode: HyperLiquidAbstractionMode,
+    ): AccountState =>
+      addSpotBalanceToAccountState(
+        aggregateAccountStates(perps),
+        { balances: [{ coin: 'USDC', ...usdc }] } as never,
+        {
+          foldIntoCollateral: hyperLiquidModeFoldsSpot(mode),
+          abstractionMode: mode,
+        },
+      );
+
+    // dev1 testnet, one simultaneous read: main and xyz perps account values,
+    // and the spot USDC ledger. hyperliquid.xyz showed $322.78.
+    it.each(['unifiedAccount', 'portfolioMargin'] as const)(
+      'reports the spot USDC total as the %s account value',
+      (mode) => {
+        expect(
+          fold(
+            [perpsState('44.6274'), perpsState('3.6044')],
+            { total: '322.7786', hold: '48.2802' },
+            mode,
+          ).totalBalance,
+        ).toBe('322.7786');
+      },
+    );
+
+    it('adds spot to the perps account value on a Standard account', () => {
+      expect(
+        fold([perpsState('100')], { total: '20', hold: '0' }, 'disabled')
+          .totalBalance,
+      ).toBe('120');
+    });
+
+    it('moves the Unified account value by exactly the isolated PnL change', () => {
+      // An isolated position's PnL moves both its perps account value and the
+      // spot total; its margin (in hold) does not move.
+      const before = fold(
+        [perpsState('44.6274')],
+        { total: '322.7786', hold: '48.2802' },
+        'unifiedAccount',
+      );
+      const after = fold(
+        [perpsState('44.4274')],
+        { total: '322.5786', hold: '48.2802' },
+        'unifiedAccount',
+      );
+
+      expect(
+        new BigNumber(after.totalBalance).minus(before.totalBalance).toFixed(),
+      ).toBe('-0.2');
+    });
+  });
+
+  it.each([
+    ['a missing total', { hold: '2' }],
+    ['a missing hold', { total: '30' }],
+    ['an invalid total', { total: 'abc', hold: '2' }],
+    ['an invalid hold', { total: '30', hold: '' }],
+  ])(
+    'keeps the perps figures on a Unified fold when USDC has %s',
+    (_label, usdc) => {
+      const accountState: AccountState = {
+        spendableBalance: '5',
+        withdrawableBalance: '4',
+        totalBalance: '12',
+        marginUsed: '7',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      };
+
+      const result = addSpotBalanceToAccountState(
+        accountState,
+        { balances: [{ coin: 'USDC', ...usdc }] } as never,
+        { foldIntoCollateral: true },
+      );
+
+      expect(result).toStrictEqual(accountState);
+    },
+  );
+
+  it.each([
+    ['a missing total', { hold: '2' }],
+    ['an invalid hold', { total: '30', hold: '' }],
+  ])(
+    'rejects a Unified fold when USDC has %s and the read is strict',
+    (_label, usdc) => {
+      expect(() =>
+        addSpotBalanceToAccountState(
+          {
+            spendableBalance: '5',
+            withdrawableBalance: '4',
+            totalBalance: '12',
+            marginUsed: '7',
+            unrealizedPnl: '0',
+            returnOnEquity: '0',
+          },
+          { balances: [{ coin: 'USDC', ...usdc }] } as never,
+          { foldIntoCollateral: true, rejectMalformedLedger: true },
+        ),
+      ).toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+    },
+  );
+
+  it('keeps a strict Unified fold of an account with no USDC entry', () => {
+    const accountState: AccountState = {
+      spendableBalance: '0',
+      withdrawableBalance: '0',
+      totalBalance: '0',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    expect(
+      addSpotBalanceToAccountState(accountState, { balances: [] } as never, {
+        foldIntoCollateral: true,
+        rejectMalformedLedger: true,
+      }),
+    ).toStrictEqual(accountState);
+  });
+
+  it('ignores rejectMalformedLedger on a Standard account', () => {
+    expect(
+      addSpotBalanceToAccountState(
+        {
+          spendableBalance: '5',
+          withdrawableBalance: '5',
+          totalBalance: '12',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        },
+        { balances: [{ coin: 'USDC', total: '30' }] } as never,
+        { foldIntoCollateral: false, rejectMalformedLedger: true },
+      ).totalBalance,
+    ).toBe('42');
+  });
+
   it('folds spot into spendable/withdrawable when foldIntoCollateral is explicitly true', () => {
     const accountState: AccountState = {
       spendableBalance: '5',
@@ -582,13 +780,13 @@ describe('spot balance helpers', () => {
 
     const result = addSpotBalanceToAccountState(
       accountState,
-      { balances: [{ coin: 'USDC', total: '30' }] } as never,
+      { balances: [{ coin: 'USDC', total: '30', hold: '0' }] } as never,
       { foldIntoCollateral: true },
     );
 
-    expect(parseFloat(result.totalBalance)).toBe(35);
-    expect(parseFloat(result.spendableBalance)).toBe(35);
-    expect(parseFloat(result.withdrawableBalance)).toBe(35);
+    expect(parseFloat(result.totalBalance)).toBe(30);
+    expect(parseFloat(result.spendableBalance)).toBe(30);
+    expect(parseFloat(result.withdrawableBalance)).toBe(30);
   });
 
   it('publishes spotCollateral from the abstraction mode without treating an unknown mode as zero', () => {
@@ -609,7 +807,7 @@ describe('spot balance helpers', () => {
       abstractionMode: 'unifiedAccount',
     });
     expect(unified.spotCollateral).toBe('900');
-    expect(unified.spendableBalance).toBe('1000');
+    expect(unified.spendableBalance).toBe('900');
 
     const standard = addSpotBalanceToAccountState(accountState, spot, {
       foldIntoCollateral: false,
@@ -1140,6 +1338,85 @@ describe('calculateAccountSummary', () => {
       accountRatio: undefined,
       accountLeverage: 0,
       crossMarginUsage: undefined,
+    });
+  });
+
+  describe('account leverage by account mode (R17)', () => {
+    // dev5 testnet, Manual (Standard): SOL Cross 3x + AVAX Isolated 10x.
+    // hyperliquid.xyz "Cross Account Leverage" 0.31x.
+    const standardRow = {
+      totalEquity: '59.03',
+      crossMarginSummary: {
+        accountValue: '48.88',
+        maintenanceMargin: '0.76',
+        notional: '15.13',
+        marginUsed: '5.04',
+      },
+      spotCollateral: '0',
+    };
+    // dev1 testnet, Unified: SOL and BTC Cross, ETH and AVAX Isolated.
+    // hyperliquid.xyz "Unified Account Leverage" 0.20x.
+    const unifiedRow = {
+      totalEquity: '323.080997',
+      crossMarginSummary: {
+        accountValue: '15.146392',
+        maintenanceMargin: '1.387889',
+        notional: '65.52248',
+        marginUsed: '15.127104',
+      },
+      spotCollateral: '271.427458',
+    };
+
+    it.each(['disabled', 'default'] as const)(
+      'divides cross notional by the cross account value in %s (Standard) mode',
+      (accountMode) => {
+        const leverage = calculateAccountSummary({
+          ...standardRow,
+          accountMode,
+        }).accountLeverage;
+
+        expect(leverage).toBeCloseTo(15.13 / 48.88, 10);
+        expect(leverage?.toFixed(2)).toBe('0.31');
+      },
+    );
+
+    it.each(['unifiedAccount', 'portfolioMargin', undefined] as const)(
+      'divides cross notional by total equity in %s mode',
+      (accountMode) => {
+        const leverage = calculateAccountSummary({
+          ...unifiedRow,
+          accountMode,
+        }).accountLeverage;
+
+        expect(leverage).toBeCloseTo(65.52248 / 323.080997, 10);
+        expect(leverage?.toFixed(2)).toBe('0.20');
+      },
+    );
+
+    it.each(['0', '-1', '--'])(
+      'leaves Standard leverage unknown with %s cross account value',
+      (accountValue) => {
+        expect(
+          calculateAccountSummary({
+            ...standardRow,
+            crossMarginSummary: {
+              ...standardRow.crossMarginSummary,
+              accountValue,
+            },
+            accountMode: 'disabled',
+          }).accountLeverage,
+        ).toBeUndefined();
+      },
+    );
+
+    it('leaves Standard leverage unknown until the cross margin is read', () => {
+      expect(
+        calculateAccountSummary({
+          ...standardRow,
+          crossMarginSummary: undefined,
+          accountMode: 'disabled',
+        }).accountLeverage,
+      ).toBeUndefined();
     });
   });
 
