@@ -413,7 +413,7 @@ function renderSummary({
           maxFilesPerList,
         }),
       ),
-    ].join('');
+    ].join('\n---\n');
   }
 
   // First try rendering the summary without any file list limits.

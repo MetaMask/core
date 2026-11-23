@@ -94,6 +94,8 @@ describe('main', () => {
         </ul>
         </details>
 
+        ---
+
         ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
         For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.

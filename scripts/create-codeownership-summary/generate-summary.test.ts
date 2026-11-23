@@ -72,6 +72,8 @@ describe('generateCodeownershipSummary', () => {
       </ul>
       </details>
 
+      ---
+
       ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
       For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
@@ -86,6 +88,8 @@ describe('generateCodeownershipSummary', () => {
       <li><code>packages/shared-controller/package.json</code></li>
       </ul>
       </details>
+
+      ---
 
       ### ℹ️ Files co-owned by \`@MetaMask/technical-writers\`
 
@@ -485,6 +489,8 @@ describe('generateCodeownershipSummary', () => {
       <li>... <em>(1 more file)</em> ...</li>
       </ul>
       </details>
+
+      ---
 
       ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
