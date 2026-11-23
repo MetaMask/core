@@ -1517,7 +1517,6 @@ export type PerpsMarketData = {
 
 /** One display row with its original venue rows, preferred venue first. */
 export type GroupedPerpsMarket = PerpsMarketData & {
-  marketKey: string;
   /** Stable display identity, distinct for a backend group and a venue row. */
   rowId: string;
   venues: PerpsMarketData[];

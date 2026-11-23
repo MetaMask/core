@@ -1747,6 +1747,7 @@ export type PerpsControllerSaveMarginModeAction = {
  * @param symbol - The trading pair symbol.
  * @param marketKey - Optional cross-venue key for a grouped market.
  * @param venues - Original rows from the group, used to match a legacy favorite.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  */
 export type PerpsControllerToggleWatchlistMarketAction = {
   type: `PerpsController:toggleWatchlistMarket`;
@@ -1759,6 +1760,7 @@ export type PerpsControllerToggleWatchlistMarketAction = {
  * @param symbol - The trading pair symbol.
  * @param marketKey - Optional cross-venue key for a grouped market.
  * @param venues - Original rows from the group, used to match a legacy favorite.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  * @returns Whether the reference is saved.
  */
 export type PerpsControllerIsWatchlistMarketAction = {
@@ -1780,11 +1782,14 @@ export type PerpsControllerGetWatchlistMarketsAction = {
  * Record that the user viewed a market.
  *
  * The market reference is prepended to the per-network recently-viewed list (newest-first).
- * Any existing entry for the same reference is removed first so there are no
- * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ * Any existing entry for the same reference, or for its legacy alias, is
+ * removed first so there are no duplicates. The list is then capped at
+ * PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
  *
  * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
  * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy entry.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  */
 export type PerpsControllerRecordMarketViewedAction = {
   type: `PerpsController:recordMarketViewed`;

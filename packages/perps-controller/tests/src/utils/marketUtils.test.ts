@@ -59,6 +59,7 @@ describe('groupMarketsByMarketKey', () => {
       priceScale: 1000,
     });
     const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
+    const { marketKey: _scaledKey, ...scaledDisplay } = scaled;
     expect(
       groupMarketsByMarketKey(
         [unmapped, scaled, lighter, lighterFallback],
@@ -67,24 +68,45 @@ describe('groupMarketsByMarketKey', () => {
     ).toStrictEqual([
       {
         ...unmapped,
-        marketKey: 'xyz:TSLA',
         rowId: 'venue:hyperliquid:xyz:TSLA',
         venues: [unmapped],
       },
       {
-        ...scaled,
-        marketKey: '1000TSLA',
+        ...scaledDisplay,
         rowId: 'venue:hyperliquid:1000TSLA',
         venues: [scaled],
       },
       { ...lighter, rowId: 'market:xyz:TSLA', venues: [lighter] },
       {
         ...lighterFallback,
-        marketKey: 'lighter:TSLA',
         rowId: 'venue:lighter:TSLA',
         venues: [lighterFallback],
       },
     ]);
+  });
+
+  it('never saves an ungrouped row as a backend key', () => {
+    const scaled = market({
+      ...hyperliquid,
+      symbol: '1000TSLA',
+      priceScale: 1000,
+    });
+    const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
+    const references = groupMarketsByMarketKey(
+      [scaled, lighterFallback],
+      'lighter',
+    ).map((group) =>
+      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    );
+
+    expect(references).toStrictEqual([['1000TSLA'], ['TSLA']]);
+    expect(
+      resolveSavedPerpsMarkets(
+        references.flat(),
+        [scaled, lighterFallback],
+        'lighter',
+      ),
+    ).toStrictEqual([scaled]);
   });
 
   it('resolves legacy symbols to their original venue and new keys to the preferred venue', () => {
@@ -113,14 +135,14 @@ describe('groupMarketsByMarketKey', () => {
 
   it('keeps a keyed row with unknown scale out of both grouping and key resolution', () => {
     const unknown = market({ ...lighter, priceScale: undefined });
+    const { marketKey: _unknownKey, ...unknownDisplay } = unknown;
 
     expect(
       groupMarketsByMarketKey([hyperliquid, unknown], 'lighter'),
     ).toStrictEqual([
       { ...hyperliquid, rowId: 'market:xyz:TSLA', venues: [hyperliquid] },
       {
-        ...unknown,
-        marketKey: 'lighter:TSLA',
+        ...unknownDisplay,
         rowId: 'venue:lighter:TSLA',
         venues: [unknown],
       },
@@ -162,6 +184,36 @@ describe('groupMarketsByMarketKey', () => {
     expect(
       getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
     ).toStrictEqual(['market-key:xyz:TSLA']);
+  });
+
+  it('matches a legacy favorite on the stated legacy venue for check and resolve', () => {
+    const lighterNvda = market({
+      symbol: 'NVDA',
+      providerId: 'lighter',
+      marketKey: 'NVDA-USD',
+      priceScale: 1,
+    });
+    const [group] = groupMarketsByMarketKey([lighterNvda], 'hyperliquid');
+
+    expect(
+      getPerpsWatchlistReferences(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'lighter',
+      ),
+    ).toStrictEqual(['market-key:NVDA-USD', 'NVDA']);
+    expect(
+      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    ).toStrictEqual(['market-key:NVDA-USD']);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['NVDA'],
+        [lighterNvda],
+        'hyperliquid',
+        'lighter',
+      ),
+    ).toStrictEqual([lighterNvda]);
   });
 
   it('does not interpret a legacy symbol as an unrelated backend key', () => {

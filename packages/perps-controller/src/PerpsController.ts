@@ -240,7 +240,6 @@ import {
   compileMarketPattern,
   getPerpsWatchlistReferences,
   shouldIncludeMarket,
-  toSavedPerpsMarketReference,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
 import { isStrategyOrderType } from './utils/orderTypes.js';
@@ -9725,13 +9724,20 @@ export class PerpsController extends BaseController<
    * @param symbol - The trading pair symbol.
    * @param marketKey - Optional cross-venue key for a grouped market.
    * @param venues - Original rows from the group, used to match a legacy favorite.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
    */
   async toggleWatchlistMarket(
     symbol: string,
     marketKey?: string,
     venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
   ): Promise<void> {
-    const references = getPerpsWatchlistReferences(symbol, marketKey, venues);
+    const references = getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
     const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
@@ -9844,17 +9850,23 @@ export class PerpsController extends BaseController<
    * @param symbol - The trading pair symbol.
    * @param marketKey - Optional cross-venue key for a grouped market.
    * @param venues - Original rows from the group, used to match a legacy favorite.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
    * @returns Whether the reference is saved.
    */
   isWatchlistMarket(
     symbol: string,
     marketKey?: string,
     venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
   ): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return getPerpsWatchlistReferences(symbol, marketKey, venues).some(
-      (reference) =>
-        this.state.watchlistMarkets[currentNetwork].includes(reference),
+    return getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    ).some((reference) =>
+      this.state.watchlistMarkets[currentNetwork].includes(reference),
     );
   }
 
@@ -9872,20 +9884,34 @@ export class PerpsController extends BaseController<
    * Record that the user viewed a market.
    *
    * The market reference is prepended to the per-network recently-viewed list (newest-first).
-   * Any existing entry for the same reference is removed first so there are no
-   * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+   * Any existing entry for the same reference, or for its legacy alias, is
+   * removed first so there are no duplicates. The list is then capped at
+   * PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
    *
    * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
    * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy entry.
+   * @param legacyProvider - Venue that owned saved symbols before grouping.
    */
-  recordMarketViewed(symbol: string, marketKey?: string): void {
-    const reference = toSavedPerpsMarketReference(symbol, marketKey);
+  recordMarketViewed(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+    legacyProvider?: PerpsProviderType,
+  ): void {
+    const references = getPerpsWatchlistReferences(
+      symbol,
+      marketKey,
+      venues,
+      legacyProvider,
+    );
+    const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const now = Date.now();
 
     this.update((state) => {
       const current = state.recentlyViewedMarkets[currentNetwork].filter(
-        (entry) => entry.symbol !== reference,
+        (entry) => !references.includes(entry.symbol),
       );
       state.recentlyViewedMarkets[currentNetwork] = [
         { symbol: reference, viewedAt: now },

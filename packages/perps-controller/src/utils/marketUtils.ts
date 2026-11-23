@@ -10,7 +10,6 @@ import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
 
 const SAVED_MARKET_KEY_PREFIX = 'market-key:';
-const LIGHTER_MARKET_KEY_PREFIX = 'lighter:';
 
 type MarketIdentity = Pick<MarketInfo, 'marketKey' | 'priceScale'>;
 
@@ -36,21 +35,14 @@ function getUnscaledMarketKey(market: MarketIdentity): string | undefined {
   return marketKey && priceScale === 1 ? marketKey : undefined;
 }
 
-function getVenueMarketKey(
-  market: PerpsMarketData,
-  defaultProvider: PerpsProviderType,
-): string {
-  return (market.providerId ?? defaultProvider) === 'lighter'
-    ? `${LIGHTER_MARKET_KEY_PREFIX}${market.symbol}`
-    : market.symbol;
-}
-
 /**
  * Group rows that share a backend market key and explicitly have unit scale.
  * The first venue supplies the display data and retains its execution symbol.
+ * Only a grouped row carries `marketKey`; an ungrouped row omits it, so it is
+ * saved by its venue symbol and never as a backend key.
  *
  * @param markets - Venue market rows whose source provider IDs are preserved.
- * @param defaultProvider - Preferred venue for ordering and fallback display keys.
+ * @param defaultProvider - Preferred venue for ordering and untagged rows.
  * @returns Display rows in first-seen market order, with the original venue rows.
  */
 export function groupMarketsByMarketKey(
@@ -68,7 +60,7 @@ export function groupMarketsByMarketKey(
     } else {
       const firstVenue = [market];
       groups.push({
-        marketKey: marketKey ?? getVenueMarketKey(market, defaultProvider),
+        marketKey,
         rowId: marketKey
           ? `market:${marketKey}`
           : `venue:${market.providerId ?? defaultProvider}:${market.symbol}`,
@@ -88,7 +80,8 @@ export function groupMarketsByMarketKey(
       const [primary] = venues.splice(preferred, 1);
       venues.unshift(primary);
     }
-    return { ...venues[0], marketKey, rowId, venues };
+    const { marketKey: _venueKey, ...display } = venues[0];
+    return { ...display, ...(marketKey && { marketKey }), rowId, venues };
   });
 }
 
@@ -108,24 +101,27 @@ export function toSavedPerpsMarketReference(
 }
 
 /**
- * Match an explicit key and any legacy favorite for its confirmed HyperLiquid
- * venue row. A fallback display key can also match an unrelated venue symbol.
+ * Match an explicit key and any legacy favorite for its confirmed venue row on
+ * the legacy venue. Uses the same legacy-provider default as
+ * `resolveSavedPerpsMarkets`.
  *
  * @param symbol - The displayed venue's symbol.
  * @param marketKey - Explicit backend key from a unit-scale row.
  * @param venues - The group's original venue rows.
+ * @param legacyProvider - Venue that owned the saved symbols before grouping.
  * @returns The new reference and its legacy alias, when available.
  */
 export function getPerpsWatchlistReferences(
   symbol: string,
   marketKey?: string,
   venues?: readonly PerpsMarketData[],
+  legacyProvider: PerpsProviderType = 'hyperliquid',
 ): [reference: string, ...legacyAliases: string[]] {
   const reference = toSavedPerpsMarketReference(symbol, marketKey);
   const legacy = marketKey
     ? venues?.find(
         (venue) =>
-          venue.providerId === 'hyperliquid' &&
+          venue.providerId === legacyProvider &&
           getUnscaledMarketKey(venue) === marketKey,
       )
     : undefined;

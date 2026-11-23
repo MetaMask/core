@@ -4845,6 +4845,66 @@ describe('PerpsController', () => {
       await controller.toggleWatchlistMarket(...args);
       expect(controller.getWatchlistMarkets()).toStrictEqual(['xyz:TSLA']);
     });
+
+    it('removes a legacy Lighter favorite when Lighter is the stated legacy venue', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'NVDA',
+            name: 'Nvidia',
+            providerId: 'lighter',
+            marketKey: 'NVDA-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const args = [
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'lighter',
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['NVDA'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+    });
+
+    it('replaces a legacy recent with the keyed entry for the same group', () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      controller.recordMarketViewed('BTC');
+      controller.recordMarketViewed('ETH');
+
+      controller.recordMarketViewed(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+      );
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'ETH',
+      ]);
+    });
   });
 
   describe('getCachedUserDataForActiveProvider', () => {
