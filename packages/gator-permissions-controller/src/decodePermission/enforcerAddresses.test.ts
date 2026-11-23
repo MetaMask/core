@@ -152,5 +152,14 @@ describe('toEnforcerAddressesByName', () => {
         getChecksumAddress(contracts.RedeemerEnforcer),
       );
     });
+
+    it('resolves robinhood chain deployment addresses', () => {
+      const robinhoodChainId = 4663;
+      const contracts = delegationContractsByChainId[robinhoodChainId];
+      expect(contracts).toBeDefined();
+      const result = toEnforcerAddressesByName(contracts);
+
+      expectValidEnforcerAddresses(contracts, result);
+    });
   });
 });
