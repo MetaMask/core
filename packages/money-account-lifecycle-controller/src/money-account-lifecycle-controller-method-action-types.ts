@@ -138,8 +138,9 @@ export type MoneyAccountLifecycleControllerStartMigrationAction = {
 };
 
 /**
- * Clears all recorded lifecycles and address registrations, for example
- * when the wallet is reset. Also discards the derived identities and any
+ * Clears all recorded lifecycles, address registrations and diagnostics,
+ * for example when the wallet is reset, then records in the diagnostics
+ * history that the state was cleared. Also discards the derived identities and any
  * identity or registration status request in flight, so nothing from the
  * previous wallet is recorded afterwards, and the next sync fetches
  * identities again. An upgrade in flight stops without refetching

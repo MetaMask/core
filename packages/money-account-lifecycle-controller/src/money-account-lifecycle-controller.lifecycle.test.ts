@@ -275,22 +275,18 @@ describe('MoneyAccountLifecycleController', () => {
         }) => {
           await init();
 
-          expect(controller.state).toStrictEqual({
-            moneyAccounts: {},
-            addressRegistrations: {},
-          });
+          expect(controller.state.moneyAccounts).toStrictEqual({});
+          expect(controller.state.addressRegistrations).toStrictEqual({});
 
           gates.moneyAccountAddress = MONEY_ACCOUNT_ADDRESS;
           await triggerMoneyAccountChange();
 
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-          expect(controller.state).toStrictEqual({
-            moneyAccounts: {
-              [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
-            },
-            addressRegistrations: {
-              [MONEY_ACCOUNT_KEY]: { isRegistered: true },
-            },
+          expect(controller.state.moneyAccounts).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
+          });
+          expect(controller.state.addressRegistrations).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
           });
         },
       );

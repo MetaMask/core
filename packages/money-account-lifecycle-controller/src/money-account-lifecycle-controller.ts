@@ -55,6 +55,18 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
+import { DiagnosticsRecorder } from './diagnostics-recorder.js';
+import type { UpgradeDiagnostics } from './diagnostics-recorder.js';
+import { getDefaultMoneyAccountLifecycleDiagnostics } from './diagnostics.js';
+import type {
+  MoneyAccountLifecycleDiagnostics,
+  MoneyAccountLifecycleLogEntry,
+  MoneyAccountRegistrationRole,
+} from './diagnostics.js';
+import {
+  MoneyAccountLifecycleError,
+  MoneyAccountLifecycleErrorCode,
+} from './errors.js';
 import {
   getMoneyAccountLifecycle,
   isMigrating,
@@ -88,6 +100,7 @@ export type MoneyAccountLifecycleControllerState = {
   addressRegistrations: {
     [address: string]: AddressRegistration;
   };
+  diagnostics: MoneyAccountLifecycleDiagnostics;
 };
 
 const moneyAccountLifecycleControllerMetadata = {
@@ -103,12 +116,19 @@ const moneyAccountLifecycleControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
+  diagnostics: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<MoneyAccountLifecycleControllerState>;
 
 export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLifecycleControllerState {
   return {
     moneyAccounts: {},
     addressRegistrations: {},
+    diagnostics: getDefaultMoneyAccountLifecycleDiagnostics(),
   };
 }
 
@@ -176,6 +196,12 @@ export type MoneyAccountLifecycleControllerMessenger = Messenger<
 
 export type MoneyAccountLifecycleControllerHooks = {
   isEnabled: (remoteFeatureFlags: FeatureFlags) => boolean;
+  /**
+   * Receives every log entry, including those kept out of the diagnostics
+   * history, for example to forward them to error monitoring. Entries never
+   * contain addresses.
+   */
+  log?: (entry: MoneyAccountLifecycleLogEntry) => void;
 };
 
 export class MoneyAccountLifecycleController extends BaseController<
@@ -184,6 +210,8 @@ export class MoneyAccountLifecycleController extends BaseController<
   MoneyAccountLifecycleControllerMessenger
 > {
   readonly #isEnabled: MoneyAccountLifecycleControllerHooks['isEnabled'];
+
+  readonly #diagnostics: DiagnosticsRecorder;
 
   #initialized = false;
 
@@ -233,6 +261,16 @@ export class MoneyAccountLifecycleController extends BaseController<
     });
 
     this.#isEnabled = hooks.isEnabled;
+    this.#diagnostics = new DiagnosticsRecorder({
+      getDiagnostics: (): MoneyAccountLifecycleDiagnostics =>
+        this.state.diagnostics,
+      updateDiagnostics: (recipe): void => {
+        this.update((draft) => recipe(draft.diagnostics));
+      },
+      getGeneration: (): number => this.#generation,
+      logHook: hooks.log,
+      reportError: (error): void => this.#reportError(error),
+    });
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -356,7 +394,20 @@ export class MoneyAccountLifecycleController extends BaseController<
    * identities before upgrading or from the upgrade, unchanged.
    */
   async upgradeMoneyAccount(): Promise<void> {
-    if (this.#isMigrationInFlight || !this.#isReady()) {
+    const { remoteFeatureFlags } = this.messenger.call(
+      'RemoteFeatureFlagController:getState',
+    );
+    if (!this.#isEnabled(remoteFeatureFlags)) {
+      return;
+    }
+
+    const diagnostics = this.#diagnostics.trackUpgrade();
+    if (this.#isMigrationInFlight) {
+      diagnostics.skipped('migrationInFlight');
+      return;
+    }
+    if (!isWalletReady(this.messenger.call('KeyringController:getState'))) {
+      diagnostics.skipped('walletNotReady');
       return;
     }
 
@@ -365,7 +416,12 @@ export class MoneyAccountLifecycleController extends BaseController<
       { type: 'mnemonic' },
     );
     if (!moneyAccount) {
-      throw new Error('No Money Account to upgrade');
+      const error = new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.NoMoneyAccount,
+        'No Money Account to upgrade',
+      );
+      diagnostics.failed(error);
+      throw error;
     }
 
     const moneyAccountKey = moneyAccount.address.toLowerCase();
@@ -376,6 +432,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     const upgrade = this.#upgradeMoneyAccount(
       moneyAccount.address as Hex,
+      diagnostics,
     ).finally(() => {
       if (this.#upgradesInFlight.get(moneyAccountKey) === upgrade) {
         this.#upgradesInFlight.delete(moneyAccountKey);
@@ -385,23 +442,41 @@ export class MoneyAccountLifecycleController extends BaseController<
     return upgrade;
   }
 
-  async #upgradeMoneyAccount(moneyAccountAddress: Hex): Promise<void> {
+  async #upgradeMoneyAccount(
+    moneyAccountAddress: Hex,
+    diagnostics: UpgradeDiagnostics,
+  ): Promise<void> {
     const generation = this.#generation;
-    await this.#waitForLatestDerivedIdentities();
+    try {
+      await this.#waitForLatestDerivedIdentities();
+    } catch (error) {
+      diagnostics.failed(error);
+      throw error;
+    }
     if (!this.#isCurrent(generation)) {
+      diagnostics.skipped('unavailableAfterIdentitiesFetch');
       return;
     }
 
     const lifecycle =
       this.state.moneyAccounts[moneyAccountAddress.toLowerCase()];
     if (lifecycle?.type !== 'sfa' && lifecycle?.type !== 'notInIdentity') {
+      diagnostics.skipped('notUpgradable');
       return;
     }
 
-    await this.messenger.call(
-      'MoneyAccountUpgradeController:upgradeAccount',
-      moneyAccountAddress,
-    );
+    diagnostics.started(lifecycle.type);
+    try {
+      await this.messenger.call(
+        'MoneyAccountUpgradeController:upgradeAccount',
+        moneyAccountAddress,
+      );
+    } catch (error) {
+      diagnostics.failed(error);
+      throw error;
+    }
+
+    diagnostics.succeeded();
     if (!this.#isCurrent(generation)) {
       return;
     }
@@ -499,30 +574,44 @@ export class MoneyAccountLifecycleController extends BaseController<
    */
   async startMigration(): Promise<void> {
     if (this.#isMigrationInFlight) {
-      throw new Error('A Money Account migration is already in progress');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.MigrationInProgress,
+        'A Money Account migration is already in progress',
+      );
     }
 
     if (this.#upgradesInFlight.size > 0) {
-      throw new Error('A Money Account upgrade is in progress');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.UpgradeInProgress,
+        'A Money Account upgrade is in progress',
+      );
     }
 
     this.#isMigrationInFlight = true;
+    this.#diagnostics.migrationStarted();
     try {
       await this.#startMigration();
+      this.#diagnostics.migrationSucceeded();
+    } catch (error) {
+      this.#diagnostics.migrationFailed(error);
+      throw error;
     } finally {
       this.#isMigrationInFlight = false;
     }
   }
 
   /**
-   * Clears all recorded lifecycles and address registrations, for example
-   * when the wallet is reset. Also discards the derived identities and any
+   * Clears all recorded lifecycles, address registrations and diagnostics,
+   * for example when the wallet is reset, then records in the diagnostics
+   * history that the state was cleared. Also discards the derived identities and any
    * identity or registration status request in flight, so nothing from the
    * previous wallet is recorded afterwards, and the next sync fetches
    * identities again. An upgrade in flight stops without refetching
    * identities, and a migration in flight throws before its next step.
    */
   clearState(): void {
+    const upgradeWasInFlight = this.#upgradesInFlight.size > 0;
+    const migrationWasInFlight = this.#isMigrationInFlight;
     this.#generation += 1;
     this.#upgradesInFlight.clear();
     this.#syncedRemoteFeatureFlags = undefined;
@@ -532,10 +621,15 @@ export class MoneyAccountLifecycleController extends BaseController<
     this.#registrationStatusRequests.clear();
 
     this.update(() => getDefaultMoneyAccountLifecycleControllerState());
+    this.#diagnostics.stateCleared({
+      upgradeWasInFlight,
+      migrationWasInFlight,
+    });
   }
 
   async #startMigration(): Promise<void> {
     this.#migrationGeneration = this.#generation;
+    this.#diagnostics.migrationStageStarted('checkIdentities');
     this.#assertReadyToMigrate();
 
     const moneyAccount = this.messenger.call(
@@ -543,34 +637,41 @@ export class MoneyAccountLifecycleController extends BaseController<
       { type: 'mnemonic' },
     );
     if (!moneyAccount) {
-      throw new Error('There is no Money Account to migrate');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.NoMoneyAccount,
+        'There is no Money Account to migrate',
+      );
     }
     const moneyAccountAddress = moneyAccount.address as Hex;
 
     const { migration } =
       await this.#fetchMigratableIdentities(moneyAccountAddress);
     const successorAddress = migration
-      ? await this.#getResumableSuccessor(moneyAccountAddress, migration)
+      ? await this.#getResumableSuccessor(migration)
       : await this.#createSuccessor(moneyAccountAddress);
 
     try {
+      this.#diagnostics.migrationStageStarted('linkSuccessor');
       await this.messenger.call(
         'MoneyAccountUpgradeController:upgradeSuccessorAccount',
         successorAddress,
         moneyAccountAddress,
       );
       this.#assertReadyToMigrate();
+      this.#diagnostics.migrationStageStarted('moveSubscription');
       await this.#moveSubscriptionToSuccessor(
         moneyAccountAddress,
         successorAddress,
       );
       this.#assertReadyToMigrate();
+      this.#diagnostics.migrationStageStarted('registerIntents');
       await this.messenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         moneyAccountAddress,
         successorAddress,
       );
       this.#assertReadyToMigrate();
+      this.#diagnostics.migrationStageStarted('startFundsTransfer');
       await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
       if (this.#isCurrent(this.#migrationGeneration)) {
@@ -593,6 +694,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       ) {
         throw error;
       }
+      this.#diagnostics.fundsTransferRetried(error);
       await new Promise((resolve) =>
         setTimeout(resolve, FUNDS_TRANSFER_RETRY_DELAY_MS),
       );
@@ -606,12 +708,16 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #assertReadyToMigrate(): void {
     if (this.#migrationGeneration !== this.#generation) {
-      throw new Error(
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.StateCleared,
         'Money Account migration was interrupted because the state was cleared',
       );
     }
     if (!this.#isReady()) {
-      throw new Error('Money Account migration is not available');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.MigrationNotAvailable,
+        'Money Account migration is not available',
+      );
     }
   }
 
@@ -673,8 +779,9 @@ export class MoneyAccountLifecycleController extends BaseController<
       return;
     }
 
-    throw new Error(
-      `The premium migration of Money Account ${moneyAccountAddress} needs an active Money Account Plus subscription paid in crypto by it or by ${successorAddress}`,
+    throw new MoneyAccountLifecycleError(
+      MoneyAccountLifecycleErrorCode.SubscriptionMissing,
+      'The premium migration of the Money Account needs an active Money Account Plus subscription paid in crypto by it or by its successor',
     );
   }
 
@@ -719,7 +826,10 @@ export class MoneyAccountLifecycleController extends BaseController<
       .find((product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS)
       ?.prices.find((entry) => entry.interval === recurringInterval);
     if (!price) {
-      throw new Error(`Money Account Plus has no '${recurringInterval}' price`);
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.SubscriptionPriceMissing,
+        `Money Account Plus has no '${recurringInterval}' price`,
+      );
     }
     return price.minBillingCycles;
   }
@@ -732,12 +842,16 @@ export class MoneyAccountLifecycleController extends BaseController<
     await this.#waitForLatestDerivedIdentities();
     const identities = this.#derivedIdentities;
     if (!this.#isReady() || !identities) {
-      throw new Error('Money Account migration is not available');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.MigrationNotAvailable,
+        'Money Account migration is not available',
+      );
     }
 
     if (countIdentityAddresses(moneyAccountAddress, identities) > 1) {
-      throw new Error(
-        `Money Account ${moneyAccountAddress} belongs to more than one identity`,
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.MultipleIdentities,
+        'The Money Account belongs to more than one identity',
       );
     }
 
@@ -746,20 +860,25 @@ export class MoneyAccountLifecycleController extends BaseController<
     if (lifecycle.type === 'migrating' && migratingCount === 1) {
       const { migration } = lifecycle.identity;
       if (migration?.from.toLowerCase() !== moneyAccountAddress.toLowerCase()) {
-        throw new Error(
-          `The migration of Money Account ${moneyAccountAddress} cannot be resumed`,
+        throw new MoneyAccountLifecycleError(
+          MoneyAccountLifecycleErrorCode.MigrationNotResumable,
+          'The migration of the Money Account cannot be resumed',
         );
       }
       return { identities, migration };
     }
 
     if (migratingCount > 0) {
-      throw new Error('A Money Account identity is already migrating');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.IdentityAlreadyMigrating,
+        'A Money Account identity is already migrating',
+      );
     }
 
     if (lifecycle.type !== 'sfa') {
-      throw new Error(
-        `Money Account ${moneyAccountAddress} cannot be migrated while it is '${lifecycle.type}'`,
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.NotMigratable,
+        `The Money Account cannot be migrated while it is '${lifecycle.type}'`,
       );
     }
 
@@ -767,23 +886,25 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   async #getResumableSuccessor(
-    moneyAccountAddress: Hex,
     migration: DerivedIdentityMigration,
   ): Promise<Hex> {
+    this.#diagnostics.migrationStageStarted('restoreSuccessor');
     const mpcMoneyAccount = await this.messenger.call(
       'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
     );
     this.#assertReadyToMigrate();
     if (mpcMoneyAccount.address.toLowerCase() !== migration.to.toLowerCase()) {
-      throw new Error(
-        `Money Account ${moneyAccountAddress} is migrating to ${migration.to}, which is not the MPC Money Account of this wallet`,
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.SuccessorMismatch,
+        'The Money Account is migrating to an address that is not the MPC Money Account of this wallet',
       );
     }
     return mpcMoneyAccount.address as Hex;
   }
 
   async #createSuccessor(moneyAccountAddress: Hex): Promise<Hex> {
+    this.#diagnostics.migrationStageStarted('createSuccessor');
     const mpcMoneyAccount = await this.messenger.call(
       'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
@@ -792,7 +913,10 @@ export class MoneyAccountLifecycleController extends BaseController<
     const { identities, migration } =
       await this.#fetchMigratableIdentities(moneyAccountAddress);
     if (migration) {
-      throw new Error('A Money Account identity is already migrating');
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.IdentityAlreadyMigrating,
+        'A Money Account identity is already migrating',
+      );
     }
     this.#assertFreshForChomp(mfaAddress, identities);
     this.#assertReadyToMigrate();
@@ -801,8 +925,9 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #assertFreshForChomp(mfaAddress: Hex, identities: DerivedIdentity[]): void {
     if (countIdentityAddresses(mfaAddress, identities) > 0) {
-      throw new Error(
-        `MFA account ${mfaAddress} is already part of a Money Account identity`,
+      throw new MoneyAccountLifecycleError(
+        MoneyAccountLifecycleErrorCode.SuccessorAlreadyInIdentity,
+        'The MPC Money Account is already part of a Money Account identity',
       );
     }
   }
@@ -831,7 +956,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       this.#syncedRemoteFeatureFlags = remoteFeatureFlags;
       this.#fetchDerivedIdentities();
     } catch (error) {
-      this.#reportError(error);
+      this.#reportUnexpectedError('sync', error);
     }
   }
 
@@ -845,6 +970,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         if (this.#derivedIdentitiesRequest === request) {
           this.#isFetchingDerivedIdentities = false;
           this.#derivedIdentities = identities;
+          this.#diagnostics.identitiesFetchSucceeded(identities);
           this.#updateMoneyAccountLifecycle({ isRehydrating: true });
         }
       })
@@ -854,6 +980,7 @@ export class MoneyAccountLifecycleController extends BaseController<
           this.#derivedIdentitiesRequest = undefined;
           this.#isFetchingDerivedIdentities = false;
           this.#derivedIdentities = undefined;
+          this.#diagnostics.identitiesFetchFailed(error);
         }
         this.#reportError(error);
       });
@@ -882,14 +1009,13 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.#derivedIdentities,
       );
       const moneyAccountKey = moneyAccount.address.toLowerCase();
-      const hasChanged = !deepEqual(
-        this.state.moneyAccounts[moneyAccountKey],
-        lifecycle,
-      );
+      const previousLifecycle = this.state.moneyAccounts[moneyAccountKey];
+      const hasChanged = !deepEqual(previousLifecycle, lifecycle);
       if (hasChanged) {
         this.update((state) => {
           state.moneyAccounts[moneyAccountKey] = lifecycle;
         });
+        this.#diagnostics.lifecycleChanged(previousLifecycle, lifecycle);
       }
 
       if (lifecycle.type === 'mfa') {
@@ -900,16 +1026,18 @@ export class MoneyAccountLifecycleController extends BaseController<
         return;
       }
 
-      this.#fetchRegistrationStatus(moneyAccount.address as Hex).catch(
-        (error: unknown) => this.#reportError(error),
+      this.#fetchRegistrationStatus(
+        moneyAccount.address as Hex,
+        'moneyAccount',
       );
       if (lifecycle.type === 'mfa') {
-        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress).catch(
-          (error: unknown) => this.#reportError(error),
+        this.#fetchRegistrationStatus(
+          lifecycle.identity.currentAddress,
+          'mfaAccount',
         );
       }
     } catch (error) {
-      this.#reportError(error);
+      this.#reportUnexpectedError('lifecycleUpdate', error);
     }
   }
 
@@ -930,9 +1058,13 @@ export class MoneyAccountLifecycleController extends BaseController<
       'MoneyAccountController:setDefaultMoneyAccount',
       mpcMoneyAccount.id,
     );
+    this.#diagnostics.mpcMoneyAccountSetAsDefault();
   }
 
-  async #fetchRegistrationStatus(address: Hex): Promise<void> {
+  #fetchRegistrationStatus(
+    address: Hex,
+    role: MoneyAccountRegistrationRole,
+  ): void {
     const addressKey = address.toLowerCase();
     const request = this.messenger.call(
       'MoneyAccountUpgradeController:getRegistrationStatus',
@@ -940,18 +1072,42 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
     this.#registrationStatusRequests.set(addressKey, request);
 
-    try {
-      const { isRegistered } = await request;
-      if (this.#registrationStatusRequests.get(addressKey) === request) {
+    request
+      .then(({ isRegistered }) => {
+        if (this.#registrationStatusRequests.get(addressKey) !== request) {
+          return;
+        }
+        this.#diagnostics.registrationStatusFetched(role);
+        if (
+          this.state.addressRegistrations[addressKey]?.isRegistered ===
+          isRegistered
+        ) {
+          return;
+        }
         this.update((state) => {
           state.addressRegistrations[addressKey] = { isRegistered };
         });
-      }
-    } finally {
-      if (this.#registrationStatusRequests.get(addressKey) === request) {
-        this.#registrationStatusRequests.delete(addressKey);
-      }
-    }
+        this.#diagnostics.registrationStatusChanged(role, isRegistered);
+      })
+      .catch((error: unknown) => {
+        if (this.#registrationStatusRequests.get(addressKey) === request) {
+          this.#diagnostics.registrationStatusFetchFailed(role, error);
+        }
+        this.#reportError(error);
+      })
+      .finally(() => {
+        if (this.#registrationStatusRequests.get(addressKey) === request) {
+          this.#registrationStatusRequests.delete(addressKey);
+        }
+      });
+  }
+
+  #reportUnexpectedError(
+    operation: 'sync' | 'lifecycleUpdate',
+    error: unknown,
+  ): void {
+    this.#diagnostics.unexpectedError(operation, error);
+    this.#reportError(error);
   }
 
   #reportError(error: unknown): void {
