@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
   - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub`, `user_id`, or `email` claim throws `IdentityMismatch` instead of being sent to the nodes
 
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+
 ### Fixed
 
 - Decode JWT idToken payloads that use base64url (`-` and `_`), so a spec-compliant OAuth idToken is checked locally and can still be sent to the nodes ([#11531](https://github.com/MetaMask/core/pull/11531))
@@ -29,9 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
   - `rotateRefreshToken` throws `IdentityMismatch` and does not renew the vault revoke token when the idToken `sub` does not match `state.userId`
   - A refresh-token rotation that observes an identity change does not persist the new revoke token to the vault
-### Changed
-
-- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 
 ## [12.1.0]
 
