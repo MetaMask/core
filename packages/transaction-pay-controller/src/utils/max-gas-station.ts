@@ -25,16 +25,11 @@ export type MaxGasStationQuoteDetails = {
   gasLimits: number[];
 
   /**
-   * Origin-chain transactions the gas station simulates to price gas in the
-   * source token, or `undefined` when the quote has none.
+   * Origin-chain transactions in submission order, simulated by the gas
+   * station to price gas in the source token, or `undefined` when the quote
+   * has none.
    */
-  gasStationTransactions?: {
-    /** First origin-chain call. */
-    firstStepData: GasStationStepData;
-
-    /** Number of origin-chain calls in the quote. */
-    totalItemCount: number;
-  };
+  gasStationTransactions?: GasStationStepData[];
 
   /** Whether origin gas is paid by someone other than the user. */
   isGasless: boolean;
@@ -291,7 +286,6 @@ async function getProbeGasCost<OriginalQuote>(
   // Native balance and chain eligibility were already checked before the probe
   // flow started, so only the source-token pricing is needed here.
   const gasStationCost = await resolveGasStationCost({
-    firstStepData: gasStationTransactions.firstStepData,
     messenger,
     request: {
       from: request.from,
@@ -299,7 +293,7 @@ async function getProbeGasCost<OriginalQuote>(
       sourceTokenAddress,
     },
     totalGasEstimate: sum(gasLimits),
-    totalItemCount: gasStationTransactions.totalItemCount,
+    transactions: gasStationTransactions,
   });
 
   if (!gasStationCost.amount) {
