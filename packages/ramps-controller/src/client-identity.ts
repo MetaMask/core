@@ -1,9 +1,22 @@
+/**
+ * Build channel of the MetaMask client. The on-ramp API reads it to evaluate
+ * release-candidate builds against release-candidate flag configuration, so
+ * flags turned on for RC testing never reach generally available builds of the
+ * same version.
+ */
+export enum RampsClientBuild {
+  ReleaseCandidate = 'rc',
+  GeneralAvailability = 'ga',
+}
+
 /** Host-supplied MetaMask client identity. All fields optional. */
 export type RampsClientIdentity = {
   /** Product id, e.g. `metamask-mobile` or `metamask-extension`. */
   clientProduct?: string;
   /** App SemVer, e.g. `8.9.0` (not the ramps-controller package version). */
   clientVersion?: string;
+  /** Build channel, `rc` or `ga`. Any other value is not sent. */
+  clientBuild?: RampsClientBuild;
 };
 
 /**
@@ -14,13 +27,30 @@ export type RampsClientIdentity = {
  */
 export const RAMPS_CLIENT_PRODUCT_PARAM = 'clientProduct';
 export const RAMPS_CLIENT_VERSION_PARAM = 'clientVersion';
+export const RAMPS_CLIENT_BUILD_PARAM = 'clientBuild';
+
+const RAMPS_CLIENT_BUILDS: readonly string[] = Object.values(RampsClientBuild);
+
+/**
+ * Checks whether a value is a known {@link RampsClientBuild}.
+ *
+ * @param value - Value to check.
+ * @returns Whether the value is `rc` or `ga`.
+ */
+export function isRampsClientBuild(value: unknown): value is RampsClientBuild {
+  return typeof value === 'string' && RAMPS_CLIENT_BUILDS.includes(value);
+}
 
 /**
  * Appends the identity as query params (CDN cache-key friendly), omitting
  * empty values. See {@link RAMPS_CLIENT_PRODUCT_PARAM}.
  *
+ * `clientBuild` is sent only when it is a known {@link RampsClientBuild}. A
+ * missing or unknown build is left out, so the API evaluates the request as a
+ * production build, which is how clients without this param already behave.
+ *
  * @param url - URL to mutate.
- * @param identity - Optional product and version.
+ * @param identity - Optional product, version and build.
  */
 export function addRampsClientIdentityParams(
   url: URL,
@@ -31,5 +61,8 @@ export function addRampsClientIdentityParams(
   }
   if (identity.clientVersion) {
     url.searchParams.set(RAMPS_CLIENT_VERSION_PARAM, identity.clientVersion);
+  }
+  if (isRampsClientBuild(identity.clientBuild)) {
+    url.searchParams.set(RAMPS_CLIENT_BUILD_PARAM, identity.clientBuild);
   }
 }

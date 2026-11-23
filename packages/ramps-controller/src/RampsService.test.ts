@@ -10,6 +10,7 @@ import type { Mock } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import packageJson from '../package.json';
+import { RampsClientBuild } from './client-identity.js';
 import type { RampsServiceMessenger } from './RampsService.js';
 import {
   getDefaultRedirectCallbackUrl,
@@ -76,6 +77,35 @@ describe('RampsService', () => {
         options: {
           clientProduct: 'metamask-mobile',
           clientVersion: '8.9.0',
+        },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await settle();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
+    it('sends the clientBuild query param when the constructor option is set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+          clientBuild: 'rc',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+          clientBuild: RampsClientBuild.ReleaseCandidate,
         },
       });
 

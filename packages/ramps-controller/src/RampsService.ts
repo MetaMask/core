@@ -21,7 +21,10 @@ import {
 } from '@metamask/superstruct';
 
 import packageJson from '../package.json';
-import type { RampsClientIdentity } from './client-identity.js';
+import type {
+  RampsClientBuild,
+  RampsClientIdentity,
+} from './client-identity.js';
 import { addRampsClientIdentityParams } from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
@@ -1025,6 +1028,7 @@ export class RampsService extends BaseDataService<
    * @param args.baseUrlOverride - Optional base URL override for local development.
    * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
    * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
+   * @param args.clientBuild - Optional build channel (`rc` or `ga`).
    */
   constructor({
     messenger,
@@ -1035,6 +1039,7 @@ export class RampsService extends BaseDataService<
     baseUrlOverride,
     clientProduct,
     clientVersion,
+    clientBuild,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -1044,6 +1049,7 @@ export class RampsService extends BaseDataService<
     baseUrlOverride?: string;
     clientProduct?: string;
     clientVersion?: string;
+    clientBuild?: RampsClientBuild;
   }) {
     super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
@@ -1053,6 +1059,7 @@ export class RampsService extends BaseDataService<
     this.#clientIdentity = {
       clientProduct,
       clientVersion,
+      clientBuild,
     };
 
     this.messenger.registerMethodActionHandlers(

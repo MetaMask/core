@@ -23,7 +23,10 @@ import type { Struct } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 
 import packageJson from '../package.json';
-import type { RampsClientIdentity } from './client-identity.js';
+import type {
+  RampsClientBuild,
+  RampsClientIdentity,
+} from './client-identity.js';
 import { addRampsClientIdentityParams } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
@@ -769,6 +772,7 @@ export class TransakService extends BaseDataService<
     referrerDomain = TRANSAK_REFERRER_DOMAIN,
     clientProduct,
     clientVersion,
+    clientBuild,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -781,6 +785,7 @@ export class TransakService extends BaseDataService<
     referrerDomain?: string;
     clientProduct?: string;
     clientVersion?: string;
+    clientBuild?: RampsClientBuild;
   }) {
     super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
@@ -793,6 +798,7 @@ export class TransakService extends BaseDataService<
     this.#clientIdentity = {
       clientProduct,
       clientVersion,
+      clientBuild,
     };
 
     this.messenger.registerMethodActionHandlers(
