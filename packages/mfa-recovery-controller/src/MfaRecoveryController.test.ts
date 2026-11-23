@@ -455,6 +455,19 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('rejects an empty recovery secret before requesting approval', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        const auth = vi.spyOn(authProvider, 'requestMfaApproval');
+
+        await expect(
+          controller.register(new Uint8Array(0), IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'invalid_recovery_secret' });
+
+        expect(auth).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
     it.each([
       ['an AAL1 approval', { requireVerification: false }, {}],
       ['identifiers the approval does not bind', {}, { identifiers: [SOCIAL] }],
@@ -1559,6 +1572,24 @@ describe('MfaRecoveryController', () => {
         );
         const recovered = await recover(controller, PASSKEY);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
+      });
+    });
+
+    it('rejects an empty recovery secret before requesting approval', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const auth = vi.spyOn(authProvider, 'requestMfaApproval');
+
+        await expect(
+          controller.updateRecoverySecret(
+            PASSKEY,
+            new Uint8Array(0),
+            REGISTERED_EPOCH,
+          ),
+        ).rejects.toMatchObject({ code: 'invalid_recovery_secret' });
+
+        expect(auth).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('idle');
       });
     });
 
@@ -3839,6 +3870,87 @@ describe('MfaRecoveryController', () => {
           });
 
           expect(applyA).not.toHaveBeenCalled();
+          expect(await restarted.getPhase()).toBe('writing');
+        },
+      );
+    });
+
+    it('refuses a read-back recovery secret from another version', async () => {
+      await withController(
+        async ({ controller, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowB.patchRecord('profile-1', { version: REGISTERED_EPOCH + 2 });
+          const restarted = restart(controller, options);
+          const applyA = vi.spyOn(escrowA, 'applyMutation');
+
+          await expect(restarted.resume()).rejects.toMatchObject({
+            code: 'read_failed',
+          });
+
+          expect(applyA).not.toHaveBeenCalled();
+          expect(await restarted.getPhase()).toBe('writing');
+        },
+      );
+    });
+
+    it('refuses to read back the recovery secret for another profile', async () => {
+      await withController(
+        async ({ controller, authProvider, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          const restarted = restart(controller, options);
+          authProvider.profileId = 'profile-2';
+          const readB = vi.spyOn(escrowB, 'getSecret');
+
+          await expect(restarted.resume()).rejects.toMatchObject({
+            code: 'invalid_pending_operation',
+          });
+
+          expect(readB).not.toHaveBeenCalled();
+          expect(await restarted.getPhase()).toBe('writing');
+        },
+      );
+    });
+
+    it('checks an escrow that applied the mutation is available before logging in', async () => {
+      await withController(
+        async ({ controller, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          const restarted = restart(controller, options);
+          escrowB.available = false;
+          const login = vi.spyOn(
+            options.identifierAuthProvider,
+            'getKeyBoundIdentifierLogin',
+          );
+
+          await expect(restarted.resume()).rejects.toMatchObject({
+            code: 'no_available_escrow',
+          });
+
+          expect(login).not.toHaveBeenCalled();
           expect(await restarted.getPhase()).toBe('writing');
         },
       );

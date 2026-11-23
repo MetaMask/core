@@ -521,7 +521,11 @@ export class MfaRecoveryController extends BaseController<
     session: IdentifierSession,
   ): Promise<RecoveredSecret> {
     return await this.#withLock(
-      async () => await this.#readRecoverySecret(session, this.#escrows),
+      async () =>
+        await this.#readRecoverySecret(
+          session,
+          await this.#getReadableEscrows(this.#escrows),
+        ),
     );
   }
 
@@ -649,6 +653,12 @@ export class MfaRecoveryController extends BaseController<
 
   async #mutate(params: MutateParams, escrows = this.#escrows): Promise<void> {
     const { operation, payload, identifier, epoch } = params;
+    if (params.recoverySecret?.length === 0) {
+      throw new MfaRecoveryError(
+        'The recovery secret must not be empty',
+        'invalid_recovery_secret',
+      );
+    }
     const recoverySecret =
       params.recoverySecret === undefined
         ? undefined
@@ -1023,10 +1033,18 @@ export class MfaRecoveryController extends BaseController<
         'identifier_required',
       );
     }
+    const available = await this.#getReadableEscrows(appliedEscrows);
     const secret = await this.#readRecoverySecret(
       await this.authenticateIdentifier(identifier),
-      appliedEscrows,
+      available,
+      mutation.profileId,
     );
+    if (secret.epoch !== mutation.newVersion) {
+      throw new MfaRecoveryError(
+        'Could not read the recovery secret the mutation wrote',
+        'read_failed',
+      );
+    }
     const recoverySecret = bytesToHex(secret.recoverySecret);
     await assertPayloadHash(mutation, writing.payload, recoverySecret);
     this.#keptRecoverySecret = { mutationId: mutation.id, recoverySecret };
@@ -1040,9 +1058,11 @@ export class MfaRecoveryController extends BaseController<
     return kept?.mutationId === mutation.id ? kept.recoverySecret : undefined;
   }
 
+  // `profileId` binds a read-back to the pending mutation's profile.
   async #readRecoverySecret(
     session: IdentifierSession,
-    escrows: RecoveryEscrowProvider[],
+    available: RecoveryEscrowProvider[],
+    profileId?: string,
   ): Promise<RecoveredSecret> {
     const { token, requestId, pkE } = session;
     this.#assertValidIdentifiers([token.identifier]);
@@ -1057,18 +1077,20 @@ export class MfaRecoveryController extends BaseController<
         'invalid_identifier_session',
       );
     }
-    const available = await this.#getAvailableEscrows(escrows);
-    if (available.length === 0) {
-      throw new MfaRecoveryError(
-        'No escrow is available',
-        'no_available_escrow',
-      );
-    }
     const { approval } = await this.#authorizeRecoveryRequest({
       requestHash,
       audiences: available.map((escrow) => escrow.authAudience),
       requireTwoFactor: true,
     });
+    if (
+      profileId !== undefined &&
+      decodeAuthControllerToken(approval)?.sub !== profileId
+    ) {
+      throw new MfaRecoveryError(
+        'Pending mutation is for another profile',
+        'invalid_pending_operation',
+      );
+    }
     const authorizedEscrows = await authorizeEscrowsWithToken({
       escrows: available,
       credentials: [
@@ -1294,6 +1316,19 @@ export class MfaRecoveryController extends BaseController<
       throw new MfaRecoveryError('Invalid epoch', 'invalid_epoch');
     }
     return epoch;
+  }
+
+  async #getReadableEscrows(
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<RecoveryEscrowProvider[]> {
+    const available = await this.#getAvailableEscrows(escrows);
+    if (available.length === 0) {
+      throw new MfaRecoveryError(
+        'No escrow is available',
+        'no_available_escrow',
+      );
+    }
+    return available;
   }
 
   async #getAvailableEscrows(

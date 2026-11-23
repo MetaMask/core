@@ -27,9 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `getPhase()` instead of reading `pendingOperation` from UI state.
 - **BREAKING:** After a restart, `resume()` reads the recovery secret of a pending `writing` `register` or `updateRecoverySecret` back from the escrows that applied it, logging in with the update's identifier or, for `register`, the `identifier` passed to `resume` ([#11679](https://github.com/MetaMask/core/pull/11679))
   - Throws `identifier_required` for a pending `register` resumed without an `identifier`, and `payload_mismatch` if the secret read back does not match the mutation.
+  - Throws `no_available_escrow`, before the identifier login, when no escrow that applied the mutation is available.
+  - Throws `invalid_pending_operation` when the read approval is for another profile than the mutation's, and `read_failed` when the secret read back is not at the mutation's `newVersion`.
   - Throws `recovery_secret_unavailable` when no escrow applied the mutation; it is cleared once its approval expired more than 5 minutes ago.
   - Clears a pending `authorizing` `register` or `updateRecoverySecret`, which reached no escrow, and throws `MutationRejectedError`.
 - **BREAKING:** `Identifier.verifier` is typed as `Json` instead of `unknown`, since identifiers are persisted in controller state ([#11679](https://github.com/MetaMask/core/pull/11679))
+- `register` and `updateRecoverySecret` reject an empty recovery secret with `invalid_recovery_secret` before requesting approval ([#11679](https://github.com/MetaMask/core/pull/11679))
 
 ### Removed
 
