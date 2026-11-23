@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
+  - The account index comes from the provider that executed the order, read when the order succeeds
+  - New optional `PerpsProvider.getNotificationAccountIndex` method, implemented by the Lighter provider and the aggregated provider
+- Add `NOTIFY_PERPS_API_CONFIG` with `LighterNotificationAccountsPath`, `MaxRetries` and `RetryDelayMs` ([#11690](https://github.com/MetaMask/core/pull/11690))
+
+### Changed
+
+- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
+
 ## [26.0.0]
 
 ### Added
@@ -95,11 +108,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `normalizeHyperLiquidScalePriceLadder` and `sizeHyperLiquidScaleLadder`, the Hyperliquid scale ladder Mobile's Pro order form builds locally ([#11699](https://github.com/MetaMask/core/pull/11699))
   - `normalizeHyperLiquidScalePriceLadder({ minPrice, maxPrice, count, szDecimals })` returns the rung prices on Hyperliquid's grid, the same prices `getScalePriceLadder` and Hyperliquid placement use
   - `sizeHyperLiquidScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` matches Mobile's sizing. An exact size must be on the size grid and its rungs must add up to it exactly, otherwise `ORDER_SCALE_SIZE_CONSERVATION_FAILED` (a very large size can lose a step in the float split). A USD amount is a target the ladder meets, starting from the amount over the skew-weighted average price rounded up and searching upward when the rungs fall short. When that first guess starves a skewed rung, the smallest smaller total (within 10,000 size steps) that splits and reaches the target is used, where Mobile fails; a first guess past the safe-integer range fails at once. Unlike `sizeScaleLadder`, the result can exceed the USD amount slightly; `totalSize` is always the sum of the rungs
-- Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#11690](https://github.com/MetaMask/core/pull/11690))
-  - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
-  - The account index comes from the provider that executed the order, read when the order succeeds
-  - New optional `PerpsProvider.getNotificationAccountIndex` method, implemented by the Lighter provider and the aggregated provider
-- Add `NOTIFY_PERPS_API_CONFIG` with `LighterNotificationAccountsPath`, `MaxRetries` and `RetryDelayMs` ([#11690](https://github.com/MetaMask/core/pull/11690))
 
 ### Changed
 
@@ -134,8 +142,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `isMarketTradable` (and `PriceUpdate.isTradable`) checks the deviation with `isPriceOutsideDeviationBand` in exact decimals instead of float division. Results differ only for a price within float error of the band edge ([#11702](https://github.com/MetaMask/core/pull/11702))
 - Order book streams compute `spread`, `midPrice` and `spreadPercentage` with `calculateOrderBookSpread` in exact decimals, keeping each stream's string format. A Lighter book with one empty side now reports a `spread` of `'0'` instead of the other side's price ([#11702](https://github.com/MetaMask/core/pull/11702))
 - Make `TrackingData.totalFee` and `TrackingData.marketPrice` optional, so clients can send tracking data when the fee or price is unknown instead of dropping the whole object; events omit the fee and asset price properties when they are missing ([#11699](https://github.com/MetaMask/core/pull/11699))
-- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
-  - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
 
 ### Deprecated
 
