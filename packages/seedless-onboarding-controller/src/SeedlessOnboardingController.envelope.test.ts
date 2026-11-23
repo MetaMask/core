@@ -2978,6 +2978,50 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      it.each([
+        [
+          'empty',
+          '',
+          SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+        ],
+        [
+          'not a string',
+          123 as unknown as string,
+          SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+        ],
+      ])(
+        'rejects before remote writes when the new password is %s',
+        async (_name, newPassword, expectedError) => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient, baseMessenger } = args;
+            const network = mockNetwork(toprfClient);
+            await migrate(args, network);
+            network.spies.createLocalKey.mockClear();
+            network.spies.persistLocalKey.mockClear();
+            network.spies.addSecretDataItem.mockClear();
+            network.spies.batchAddSecretDataItems.mockClear();
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:changePassword',
+                newPassword,
+                MOCK_PASSWORD,
+              ),
+            ).rejects.toThrow(expectedError);
+
+            expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+            expect(
+              network.spies.batchAddSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(
+              await controller.verifyVaultPassword(MOCK_PASSWORD),
+            ).toBeUndefined();
+          });
+        },
+      );
     });
 
     describe('syncLatestGlobalPassword on an envelope-managed vault', () => {
@@ -3197,6 +3241,39 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).toBe(vault);
         });
       });
+
+      it.each([
+        [
+          'empty',
+          '',
+          SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+        ],
+        [
+          'not a string',
+          123 as unknown as string,
+          SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+        ],
+      ])(
+        'rejects without any call when the global password is %s',
+        async (_name, globalPassword, expectedError) => {
+          await withUnlockedController(async ({ controller, toprfClient }) => {
+            const network = mockNetwork(toprfClient, {
+              globalPassword: NEW_PASSWORD,
+            });
+            const { vault } = controller.state;
+
+            await expect(
+              controller.syncLatestGlobalPassword({ globalPassword }),
+            ).rejects.toThrow(expectedError);
+
+            expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+            expect(
+              network.spies.fetchAllSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(controller.state.vault).toBe(vault);
+          });
+        },
+      );
     });
 
     describe('submitGlobalPassword on an envelope-managed vault', () => {
@@ -3567,6 +3644,36 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.vault).toBeUndefined();
         });
       });
+
+      it.each([
+        [
+          'empty',
+          '',
+          SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+        ],
+        [
+          'not a string',
+          123 as unknown as string,
+          SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+        ],
+      ])(
+        'rejects without any call when the password is %s',
+        async (_name, password, expectedError) => {
+          await withNewDeviceController(async ({ controller, toprfClient }) => {
+            const network = mockNetwork(toprfClient);
+
+            await expect(
+              controller.restoreVaultWithPassword({ password }),
+            ).rejects.toThrow(expectedError);
+
+            expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+            expect(
+              network.spies.fetchAllSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(controller.state.vault).toBeUndefined();
+          });
+        },
+      );
     });
 
     describe('control records in the vault partition', () => {
@@ -4208,6 +4315,43 @@ describe('SeedlessOnboardingController', () => {
         },
       );
 
+      it.each([
+        [
+          'empty',
+          '',
+          SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+        ],
+        [
+          'not a string',
+          123 as unknown as string,
+          SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+        ],
+      ])(
+        'rejects without any call when the password is %s',
+        async (_name, password, expectedError) => {
+          await withNewDeviceController(async (args) => {
+            const { controller, toprfClient, baseMessenger } = args;
+            const network = mockNetwork(toprfClient, {
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: true });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:recoverWithRecoverySecret',
+                { recoverySecret: RECOVERY_SECRET, password },
+              ),
+            ).rejects.toThrow(expectedError);
+
+            expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+            expect(
+              network.spies.fetchAllSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(controller.state.vault).toBeUndefined();
+          });
+        },
+      );
+
       it('does not create a vault when the vault holds no secret data', async () => {
         const store = await createMigratedAccount();
         store.delete(bytesToHex(vaultKeySetFor().authKeyPair.pk));
@@ -4769,6 +4913,56 @@ describe('SeedlessOnboardingController', () => {
           );
         });
       });
+
+      it.each([
+        [
+          'empty',
+          '',
+          SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+        ],
+        [
+          'not a string',
+          123 as unknown as string,
+          SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+        ],
+      ])(
+        'rejects before remote writes when the new password is %s',
+        async (_name, newPassword, expectedError) => {
+          const store = await createMigratedAccount();
+
+          await withNewDeviceController(async (args) => {
+            const { controller, toprfClient, baseMessenger } = args;
+            const network = mockNetwork(toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await recover(args);
+            network.spies.createLocalKey.mockClear();
+            network.spies.persistLocalKey.mockClear();
+            network.spies.addSecretDataItem.mockClear();
+            network.spies.batchAddSecretDataItems.mockClear();
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:resetPasswordWithVaultKeys',
+                { newPassword },
+              ),
+            ).rejects.toThrow(expectedError);
+
+            expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+            expect(
+              network.spies.batchAddSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(controller.state.isLocalPassword).toBe(true);
+            expect(
+              await controller.verifyVaultPassword(RECOVERED_PASSWORD),
+            ).toBeUndefined();
+          });
+        },
+      );
     });
   });
 });

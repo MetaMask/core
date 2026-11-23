@@ -740,6 +740,7 @@ export class SeedlessOnboardingController<
   }: {
     password: string;
   }): Promise<SecretMetadata[]> {
+    assertIsValidPassword(password);
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);
@@ -838,6 +839,7 @@ export class SeedlessOnboardingController<
     newPassword: string,
     oldPassword: string,
   ): Promise<void> {
+    assertIsValidPassword(newPassword);
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
       // verify the old password of the encrypted vault
@@ -1180,6 +1182,7 @@ export class SeedlessOnboardingController<
   }: {
     globalPassword: string;
   }): Promise<void> {
+    assertIsValidPassword(globalPassword);
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
       const doSyncPassword = async (): Promise<void> => {
@@ -2823,6 +2826,7 @@ export class SeedlessOnboardingController<
     password: string;
   }): Promise<SecretMetadata[]> {
     assertIsRecoverySecret(recoverySecret);
+    assertIsValidPassword(password);
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);
@@ -2917,6 +2921,7 @@ export class SeedlessOnboardingController<
   }: {
     newPassword: string;
   }): Promise<void> {
+    assertIsValidPassword(newPassword);
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
