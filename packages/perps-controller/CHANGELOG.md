@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In aggregated mode each venue reads its own global snapshot: HyperLiquid rows come from the HyperLiquid snapshot and Lighter rows take the Lighter snapshot's metadata. Each venue falls back to its provider alone when its snapshot is missing or invalid ([#11698](https://github.com/MetaMask/core/pull/11698))
   - `AggregatedPerpsProvider.getMarketDataWithPrices` takes an optional per-venue reader
   - Each venue uses its provider data if its snapshot expires during an aggregate read. An expired snapshot slice also invalidates the aggregated preload so clients refresh the market list
+- Point `LIGHTER_ENDPOINTS.testnet` at `https://api.testnet.lighter.xyz` and `wss://api.testnet.lighter.xyz/stream`, replacing the `testnet.zklighter.elliot.ai` hosts ([#11698](https://github.com/MetaMask/core/pull/11698))
 - Make `TrackingData.totalFee` and `TrackingData.marketPrice` optional, so clients can send tracking data when the fee or price is unknown instead of dropping the whole object; events omit the fee and asset price properties when they are missing ([#11699](https://github.com/MetaMask/core/pull/11699))
 
 ### Deprecated
