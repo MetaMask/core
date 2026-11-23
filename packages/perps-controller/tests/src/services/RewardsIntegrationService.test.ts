@@ -875,6 +875,35 @@ describe('RewardsIntegrationService', () => {
       },
     );
 
+    it('subtracts allowance reserved by earlier venues in the same batch', async () => {
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
+      wireSubscription(
+        vi
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 1000 })),
+      );
+      await service.refreshSubscriptionBenefits();
+      const first = await service.resolveFee(600, HYPERLIQUID_MAINNET_SCOPE);
+      const second = await service.resolveFee(
+        600,
+        HYPERLIQUID_MAINNET_SCOPE,
+        first.subscriptionCoveredNotionalUsd,
+      );
+      expect(first).toMatchObject({
+        source: 'subscription',
+        subscriptionWaiverKind: 'full',
+        subscriptionCoveredNotionalUsd: 600,
+      });
+      expect(second).toMatchObject({
+        source: 'subscription',
+        subscriptionWaiverKind: 'partial',
+        subscriptionCoveredNotionalUsd: 400,
+      });
+      expect(second.feeBips).toBeGreaterThan(0);
+    });
+
     it('resolves the subscription source to a 0 bips fee only when the eligibility gate passes', async () => {
       const cases = [
         { benefits: createBenefits(), eligible: true, reason: 'eligible' },

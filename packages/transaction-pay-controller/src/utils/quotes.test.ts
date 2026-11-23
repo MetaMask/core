@@ -1350,6 +1350,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1375,6 +1376,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1384,6 +1386,49 @@ describe('Quotes Utils', () => {
         tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
         totalFiat: TOTALS_MOCK.total.usd,
       });
+    });
+
+    it('persists accountOverride in metadata when set', async () => {
+      const accountOverride = 'override-account-id';
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          accountOverride,
+        },
+      });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay).toMatchObject({
+        accountOverride,
+      });
+    });
+
+    it('clears previous accountOverride in metadata when unset', async () => {
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { accountOverride: 'override-account-id' },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.accountOverride).toBeUndefined();
+    });
+
+    it('preserves existing metamaskPay properties such as sourceHash during sync', async () => {
+      const sourceHash =
+        '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex;
+
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { sourceHash },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.sourceHash).toBe(sourceHash);
     });
 
     it('does not persist strategy in metadata when there are no executable quotes', async () => {
@@ -2100,6 +2145,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: undefined,
         isPostQuote: undefined,

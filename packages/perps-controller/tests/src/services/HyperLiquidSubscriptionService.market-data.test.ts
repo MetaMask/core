@@ -472,6 +472,10 @@ describe('HyperLiquidSubscriptionService', () => {
     mockWalletService = {
       createWalletAdapter: vi.fn(() => mockWalletAdapter),
       getUserAddressWithDefault: vi.fn().mockResolvedValue('0x123' as Hex),
+      getAccountStreamAddress: vi.fn(
+        (accountId?: CaipAccountId) =>
+          (accountId?.split(':').at(-1) ?? '0x123') as Hex,
+      ),
     } as any;
 
     service = new HyperLiquidSubscriptionService(

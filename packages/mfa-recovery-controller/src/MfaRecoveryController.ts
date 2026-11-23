@@ -5,12 +5,18 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+} from '@metamask/profile-sync-controller/auth';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
 import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
   decryptFromPublic,
   encryptToPublic,
+  fromBase64Url,
   generateWrapKey,
   hash,
   randomId,
@@ -54,12 +60,17 @@ import {
   selectHighestConsistentVersion,
 } from './replica-utils.js';
 import { getRecoveryPhase } from './state-machine.js';
+import {
+  isTrustedIdentifier,
+  toTrustedIdentifier,
+} from './trusted-identifiers.js';
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  IdentifierWitness,
   KeyBoundCredential,
   Mutation,
   MutationPayload,
@@ -70,13 +81,13 @@ import type {
   PendingUpdateIdentifiersPayload,
   PendingUpdateRecoverySecretPayload,
   RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
   RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
+  RecoveryTrustedIdentifierStore,
   WrappedSecret,
   WritingPendingOperation,
 } from './types.js';
@@ -89,6 +100,9 @@ const CLOCK_SKEW_SECONDS = 5 * 60;
 const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
   'releaseLock',
+  'trustIdentifier',
+  'untrustPasskey',
+  'isTrusted',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -142,7 +156,10 @@ export type MfaRecoveryControllerActions =
   | MfaRecoveryControllerGetStateAction
   | MfaRecoveryControllerMethodActions;
 
-type AllowedActions = never;
+type AllowedActions =
+  | AuthenticationControllerRefreshCanonicalProfileIdAction
+  | AuthenticationControllerRequestMfaApprovalAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 export type MfaRecoveryControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -174,11 +191,6 @@ export type MfaRecoveryControllerOptions = {
   state?: Partial<MfaRecoveryControllerState>;
 
   /**
-   * Authenticates the MetaMask profile and issues request-bound attestations.
-   */
-  authProvider: RecoveryAuthProvider;
-
-  /**
    * Holds the per-profile recovery lease.
    */
   lockProvider: RecoveryLockProvider;
@@ -187,6 +199,11 @@ export type MfaRecoveryControllerOptions = {
    * Obtains key-bound identifier tokens from an IdP.
    */
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
+
+  /**
+   * Stores the identifiers user devices saw. Writes may only use these.
+   */
+  trustedIdentifierStore: RecoveryTrustedIdentifierStore;
 
   /**
    * Ordered, non-empty set of recovery escrow replicas. This is build-time
@@ -234,11 +251,11 @@ export class MfaRecoveryController extends BaseController<
   MfaRecoveryControllerState,
   MfaRecoveryControllerMessenger
 > {
-  readonly #authProvider: RecoveryAuthProvider;
-
   readonly #lockProvider: RecoveryLockProvider;
 
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
+
+  readonly #trustedIdentifierStore: RecoveryTrustedIdentifierStore;
 
   readonly #escrows: RecoveryEscrowProvider[];
 
@@ -251,9 +268,9 @@ export class MfaRecoveryController extends BaseController<
   constructor({
     messenger,
     state,
-    authProvider,
     lockProvider,
     identifierAuthProvider,
+    trustedIdentifierStore,
     escrows,
     pendingOperationEncryptor,
     now = unixNow,
@@ -279,9 +296,9 @@ export class MfaRecoveryController extends BaseController<
       },
     });
 
-    this.#authProvider = authProvider;
     this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
+    this.#trustedIdentifierStore = trustedIdentifierStore;
     this.#escrows = [...escrows];
     this.#encryptor = pendingOperationEncryptor;
     this.#now = now;
@@ -333,6 +350,50 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
+   * Records a passkey the device just created. `register` and
+   * `updateIdentifiers` only accept recorded passkeys and the device's social
+   * login, so a compromised Auth API cannot add its own.
+   *
+   * @param witness - What the device saw.
+   */
+  async trustIdentifier(witness: IdentifierWitness): Promise<void> {
+    await this.#trustedIdentifierStore.add(toTrustedIdentifier(witness));
+  }
+
+  /**
+   * Returns whether writes accept the identifier: a user device saw it, or it
+   * is SIWE. Use it to pick from the identifiers Auth returns.
+   *
+   * @param identifier - An identifier from Auth.
+   * @returns Whether the identifier is trusted.
+   */
+  async isTrusted(identifier: Identifier): Promise<boolean> {
+    return (
+      identifier.type === 'siwe' ||
+      isTrustedIdentifier(
+        identifier,
+        await this.#trustedIdentifierStore.get(),
+        this.messenger.call('SeedlessOnboardingController:getState'),
+      )
+    );
+  }
+
+  /**
+   * Stops trusting a passkey, so a later approval cannot add it back. Call it
+   * before removing the passkey from Auth.
+   *
+   * @param credentialId - The passkey's base64url WebAuthn credential ID.
+   */
+  async untrustPasskey(credentialId: string): Promise<void> {
+    const id = bytesToHex(fromBase64Url(credentialId));
+    for (const entry of await this.#trustedIdentifierStore.get()) {
+      if (entry.credentialId === id) {
+        await this.#trustedIdentifierStore.remove(entry);
+      }
+    }
+  }
+
+  /**
    * Creates version 1 of a recovery record.
    *
    * @param recoverySecret - Secret replicated in full to every escrow.
@@ -345,6 +406,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<void> {
     this.#assertValidIdentifiers(identifiers);
     this.#assertIdentifierSet(identifiers);
+    await this.#assertTrusted(identifiers);
     await this.#mutate({
       operation: 'register',
       payload: {
@@ -394,6 +456,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<void> {
     this.#assertValidIdentifiers([identifier, ...identifiers]);
     this.#assertIdentifierSet(identifiers);
+    await this.#assertTrusted(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
       payload: { identifiers },
@@ -429,6 +492,7 @@ export class MfaRecoveryController extends BaseController<
     const { seedlessAuthData, ...credential } = await requestIdentifierLogin({
       identifier,
       requestHash,
+      now: this.#now(),
       identifierAuthProvider: this.#identifierAuthProvider,
     });
     return {
@@ -480,7 +544,7 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+      const { approval } = await this.#authorizeRecoveryRequest({
         requestHash,
         audiences: available.map((escrow) => escrow.authAudience),
         requireTwoFactor: true,
@@ -656,7 +720,9 @@ export class MfaRecoveryController extends BaseController<
       assertSameVersion(escrowIdentifiers);
       assertEnrolledInEvery(escrowIdentifiers, identifier);
 
-      const profileId = await this.#authProvider.getAuthenticatedProfileId();
+      const profileId = await this.messenger.call(
+        'AuthenticationController:refreshCanonicalProfileId',
+      );
       const audiences = escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
       const payloadHash = await hash(payload);
@@ -695,14 +761,13 @@ export class MfaRecoveryController extends BaseController<
     // The lease outlives the approval, so no write lands after another
     // operation can take the lease.
     await this.#acquireLease();
-    const { approval, identifiers } =
-      await this.#authProvider.authorizeRecoveryRequest({
-        requestHash: mutation.requestHash,
-        audiences: this.#getTargetEscrows(mutation).map(
-          (escrow) => escrow.authAudience,
-        ),
-        requireTwoFactor: true,
-      });
+    const { approval, identifiers } = await this.#authorizeRecoveryRequest({
+      requestHash: mutation.requestHash,
+      audiences: this.#getTargetEscrows(mutation).map(
+        (escrow) => escrow.authAudience,
+      ),
+      requireTwoFactor: true,
+    });
     const isRenewal = pending.phase === 'writing';
     const writing: WritingPendingOperation = {
       ...pending,
@@ -713,6 +778,28 @@ export class MfaRecoveryController extends BaseController<
     };
     await this.#assertPending(writing);
     return writing;
+  }
+
+  async #authorizeRecoveryRequest({
+    requestHash,
+    audiences,
+    requireTwoFactor,
+  }: {
+    requestHash: string;
+    audiences: string[];
+    requireTwoFactor?: boolean;
+  }): Promise<RecoveryApproval> {
+    const { approval, identifiers } = await this.messenger.call(
+      'AuthenticationController:requestMfaApproval',
+      {
+        requestHash,
+        audiences,
+        requireVerification: requireTwoFactor === true,
+        includeIdentifiers: true,
+        reason: { operation: 'mfa_recovery' },
+      },
+    );
+    return { approval, identifiers: identifiers ?? [] };
   }
 
   async #finishPendingMutation(pending: PendingOperation): Promise<void> {
@@ -921,7 +1008,7 @@ export class MfaRecoveryController extends BaseController<
   async #authorizeRead(
     escrows: RecoveryEscrowProvider[],
   ): Promise<RecoveryApproval> {
-    return await this.#authProvider.authorizeRecoveryRequest({
+    return await this.#authorizeRecoveryRequest({
       requestHash: await hash({ operation: 'getIdentifiers' }),
       audiences: escrows.map((escrow) => escrow.authAudience),
     });
@@ -1053,6 +1140,7 @@ export class MfaRecoveryController extends BaseController<
       const { token, proofPrivateKey } = await requestIdentifierLogin({
         identifier,
         requestHash: writing.mutation.requestHash,
+        now: this.#now(),
         identifierAuthProvider: this.#identifierAuthProvider,
       });
       credentials.push({ token, proofPrivateKey });
@@ -1130,6 +1218,26 @@ export class MfaRecoveryController extends BaseController<
           'invalid_identifier',
         );
       }
+    }
+  }
+
+  // SIWE identifiers are proven by their own authorizations.
+  async #assertTrusted(identifiers: Identifier[]): Promise<void> {
+    const trusted = await this.#trustedIdentifierStore.get();
+    const socialLogin = this.messenger.call(
+      'SeedlessOnboardingController:getState',
+    );
+    if (
+      identifiers.some(
+        (identifier) =>
+          identifier.type !== 'siwe' &&
+          !isTrustedIdentifier(identifier, trusted, socialLogin),
+      )
+    ) {
+      throw new MfaRecoveryError(
+        'Identifier was not seen on a user device; call trustIdentifier first',
+        'untrusted_identifier',
+      );
     }
   }
 

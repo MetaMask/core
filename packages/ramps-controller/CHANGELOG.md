@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.0]
+
 ### Added
 
 - Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#11616](https://github.com/MetaMask/core/pull/11616))
@@ -860,7 +862,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0

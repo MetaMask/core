@@ -683,6 +683,9 @@ async function normalizeQuote(
     },
     isInputBased,
     original: {
+      ...(body.authorizationList?.length && !quote.callsDeferred
+        ? { authorizationList: body.authorizationList }
+        : {}),
       client: {
         gasLimits: sourceNetwork.gasLimits,
         is7702: sourceNetwork.is7702,

@@ -186,7 +186,7 @@
       "path": "./packages/logging-controller/tsconfig.lint.json"
     },
     {
-      "path": "./packages/marketing-consent-controller/tsconfig.lint.json"
+      "path": "./packages/marketing-consent-sync-service/tsconfig.lint.json"
     },
     {
       "path": "./packages/message-manager/tsconfig.lint.json"
@@ -316,9 +316,6 @@
     },
     {
       "path": "./packages/transaction-pay-middleware/tsconfig.lint.json"
-    },
-    {
-      "path": "./packages/user-operation-controller/tsconfig.lint.json"
     },
     {
       "path": "./packages/wallet/tsconfig.lint.json"

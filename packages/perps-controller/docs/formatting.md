@@ -61,6 +61,7 @@ Code: `src/utils/perpsFormatters.ts` `PRICE_RANGES_MINIMAL_VIEW`.
 | `formatPerpsCompact`                            | `$---` (`--` for `orderBookSize`)           | `$0.00` (`volume`) |
 | `formatPerpsOrderBookPrice`                     | `$---` (`--` with `symbol: false`)          |                    |
 | `formatPositionFunding`, `formatFundingPayment` | `$---`                                      |                    |
+| `formatPerpsDuration`                           | `--`                                        | `0 sec`            |
 
 A value that rounds to zero at the shown precision counts as zero for the sign, so no sign mode shows `-0.00`.
 
@@ -73,3 +74,9 @@ Code: `src/utils/perpsFormatters.ts` `_parseDisplayNumber`, `_signPrefix`, `Perp
 - Locale separators come from the `formatters` option, built by the client with `createFormatters({ locale })` from `@metamask/client-utils`. Without it the formatters use `en-US`.
 
 Code: `src/constants/perpsConfig.ts` `PERPS_DISPLAY_PRECISION`; `src/utils/perpsFormatters.ts` `PerpsIntlFormatters`, `PerpsDisplayFormatOptions`.
+
+## Durations
+
+`formatPerpsDuration(durationMs, { formatters?, unitDisplay? })` renders TWAP running and elapsed time, slice intervals and chase windows. It rounds to whole seconds and shows each non-zero day, hour, minute and second in the locale's `Intl.NumberFormat` unit style, `short` by default: 90 minutes renders `1 hr 30 min`, and `unitDisplay: 'long'` renders 5 minutes as `5 minutes`.
+
+Code: `src/utils/perpsFormatters.ts` `formatPerpsDuration`, `PerpsDurationFormatOptions`.

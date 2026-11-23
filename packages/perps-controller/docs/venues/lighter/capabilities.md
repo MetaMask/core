@@ -12,20 +12,21 @@ What `LighterProvider` declares and implements. Lighter is a POC provider; how i
 | `unavailable`, `order_market_unsupported` | Market not active, or not a perpetual                   |
 | `ready`                                   | Otherwise, with the fields below                        |
 
-| Field                          | Value                                                                                                                                                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supportedStrategies`          | `scale`; `scale` and `chase` when the Chase probe is on, on testnet, with a signer bridge                                                                                                    |
-| `supportedMarginModes`         | `cross`, `isolated`                                                                                                                                                                          |
-| `supportedTriggerOrderTypes`   | `stop_market`, `stop_limit`, `take_profit_market`, `take_profit_limit`                                                                                                                       |
-| `attachedTpsl`                 | `submission: 'native-oto-otoco'`, `childCoverage: 'venue-native-zero-size'`, `partialSizes: false`, `lifecycleVerification: 'pending'`, `cancellation: 'explicit-exact-owned-orders'`        |
-| `positionTpsl`                 | `supportsExpectedPosition: true`, `childOrderIds: 'request-correlated'`, TP `take_profit_market`, SL `stop_market`, `defaultCoverage: 'position-snapshot'`                                   |
-| `positionTpsl.partialCoverage` | `single: true`, `pair: 'equal-quantity-oco'`, `supportedPairs` `equal-quantity-oco` and `independent`, `replacement: 'cancel-before-create'`, `recovery: 'explicit-current-position-intent'` |
+| Field                          | Value                                                                                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `supportedStrategies`          | `scale`; `scale` and `chase` when the Chase probe is on, on testnet, with a signer bridge                                                                                                                                      |
+| `strategyRules`                | `scale`: `minOrders` 2, `maxOrders` 20 (`SCALE_ORDER_COUNT`). With chase advertised, also `chase`: `defaultIntervalMs` 15,000, `minIntervalMs` 1,000, and no `maxActiveSessions`, since Lighter does not cap concurrent chases |
+| `supportedMarginModes`         | `cross`, `isolated`                                                                                                                                                                                                            |
+| `supportedTriggerOrderTypes`   | `stop_market`, `stop_limit`, `take_profit_market`, `take_profit_limit`                                                                                                                                                         |
+| `attachedTpsl`                 | `submission: 'native-oto-otoco'`, `childCoverage: 'venue-native-zero-size'`, `partialSizes: false`, `lifecycleVerification: 'pending'`, `cancellation: 'explicit-exact-owned-orders'`                                          |
+| `positionTpsl`                 | `supportsExpectedPosition: true`, `childOrderIds: 'request-correlated'`, TP `take_profit_market`, SL `stop_market`, `defaultCoverage: 'position-snapshot'`                                                                     |
+| `positionTpsl.partialCoverage` | `single: true`, `pair: 'equal-quantity-oco'`, `supportedPairs` `equal-quantity-oco` and `independent`, `replacement: 'cancel-before-create'`, `recovery: 'explicit-current-position-intent'`                                   |
 
 - An equal-quantity pair is a native OCO. Independent legs have no sibling cancellation.
 - Snapshot coverage does not resize with the position.
 - TWAP is not advertised. `PerpsController.getOrderCapabilities` returns `not_implemented` for a provider without the method.
 
-Code: `src/providers/LighterProvider.ts` `getOrderCapabilities`; `src/utils/orderTypes.ts` `TRIGGER_ORDER_TYPES`; `src/PerpsController.ts` `getOrderCapabilities`.
+Code: `src/providers/LighterProvider.ts` `getOrderCapabilities`; `src/utils/orderTypes.ts` `TRIGGER_ORDER_TYPES`, `SCALE_ORDER_COUNT`; `src/PerpsController.ts` `getOrderCapabilities`.
 
 ## Order rules
 
@@ -42,11 +43,11 @@ Code: `src/providers/LighterProvider.ts` `placeOrder`, `isLighterMakerOrder`; `s
 
 ## Strategies
 
-| Strategy | Rules                                                                                                                                                                                                                                                                                                                              |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scale    | Advertised. Cancellations in one group share a 10 s settlement window (`LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`).                                                                                                                                                                                                                      |
-| Chase    | Testnet only, signer required. `chaseTestnetProbe` throws on mainnet and the controller passes it only on testnet. Opening orders only, at existing 1x leverage, notional at most $20 (`LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`). Defaults 15 s interval, 60 s duration, 1 repricing, 100 bps distance; limits 300 s and 20 repricings. |
-| TWAP     | Only behind the testnet-only `nativeTwapTestnetProbe` constructor option, which `PerpsController` does not pass                                                                                                                                                                                                                    |
+| Strategy | Rules                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scale    | Advertised. Cancellations in one group share a 10 s settlement window (`LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`).                                                                                                                                                                                                                                                                |
+| Chase    | Testnet only, signer required. `chaseTestnetProbe` throws on mainnet and the controller passes it only on testnet. Opening orders only, at existing 1x leverage, notional at most $20 (`LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`). Defaults 15 s interval (`strategyRules.chase.defaultIntervalMs`), 60 s duration, 1 repricing, 100 bps distance; limits 300 s and 20 repricings. |
+| TWAP     | Only behind the testnet-only `nativeTwapTestnetProbe` constructor option, which `PerpsController` does not pass                                                                                                                                                                                                                                                              |
 
 Code: `src/providers/LighterProvider.ts` constructor, `#placeChaseProbe`, `#placeNativeTwapProbe`; `src/PerpsController.ts` `registerLighterProvider`; `src/constants/lighterConfig.ts` `LIGHTER_CHASE_*`, `LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`, `LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`.
 

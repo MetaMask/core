@@ -148,7 +148,9 @@ const BaseResponseStruct = type({
 const PositionStruct = type({
   marketId: NonNegativeIntegerStruct,
   symbol: string(),
-  initialMarginFraction: NonNegativeDecimalStringStruct,
+  // Size-only reads can close a sound position when another row has no
+  // usable margin fraction. Consumers that need leverage validate the value.
+  initialMarginFraction: optional(string()),
   openOrderCount: NonNegativeIntegerStruct,
   pendingOrderCount: optional(NonNegativeIntegerStruct),
   positionTiedOrderCount: optional(NonNegativeIntegerStruct),

@@ -160,6 +160,39 @@ const MOCK_VAULT_RATE_RESPONSE = {
   indexer_lag_seconds: 4,
 };
 
+const MOCK_VAULTS_RESPONSE = {
+  vaults: [
+    {
+      chain_id: 143,
+      vault_address: MOCK_VAULT_ADDRESS,
+      vault_key: 'standard',
+      name: 'Money Account mUSD Vault',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
+      asset_contract_address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      current_apy: '0.0412',
+      as_of_block: 21455123,
+      as_of_timestamp: '2026-05-10T12:34:56Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 4,
+    },
+    {
+      chain_id: 143,
+      vault_address: '0x4444444444444444444444444444444444444444',
+      vault_key: 'premium',
+      name: 'Money Account mUSD Premium Vault',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
+      asset_contract_address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      current_apy: '0.0518',
+      as_of_block: 21455123,
+      as_of_timestamp: '2026-05-10T12:34:56Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 4,
+    },
+  ],
+};
+
 const MOCK_TX_HASH =
   '0x8b6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f1';
 const MOCK_OTHER_TX_HASH =
@@ -425,6 +458,12 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
         .reply(200, MOCK_VAULT_RATE_RESPONSE);
+      const vaultsScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
       const vaultShareValuationsScope = nock(
         MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
         requestHeaders,
@@ -441,16 +480,18 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchHistory(MOCK_ADDRESS);
       await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
       await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      await service.fetchVaults();
       await service.fetchVaultShareValuations(MOCK_ADDRESS, {
         txHashes: [MOCK_TX_HASH],
       });
 
-      expect(getBearerToken).toHaveBeenCalledTimes(6);
+      expect(getBearerToken).toHaveBeenCalledTimes(7);
       positionsScope.done();
       interestScope.done();
       historyScope.done();
       rateHistoryScope.done();
       vaultRateScope.done();
+      vaultsScope.done();
       vaultShareValuationsScope.done();
       service.destroy();
     });
@@ -1265,6 +1306,64 @@ describe('MoneyAccountApiDataService', () => {
     });
   });
 
+  describe('fetchVaults', () => {
+    it('returns the vault catalog', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      const result = await service.fetchVaults();
+      expect(result).toStrictEqual(MOCK_VAULTS_RESPONSE);
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { rootMessenger, service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:fetchVaults',
+      );
+      expect(result).toStrictEqual(MOCK_VAULTS_RESPONSE);
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on a malformed response without retrying', async () => {
+      const { service } = createService(Env.DEV);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .once()
+        .reply(200, { vaults: [{ not: 'valid' }] });
+
+      await expect(service.fetchVaults()).rejects.toThrow(
+        MoneyAccountApiResponseValidationError,
+      );
+      scope.done();
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiHttpError on a 5xx response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(503);
+
+      const error: unknown = await service
+        .fetchVaults()
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(MoneyAccountApiHttpError);
+      service.destroy();
+    });
+  });
+
   describe('fetchVaultShareValuations', () => {
     it('returns valuations, lowercases the address, and omits chain_id', async () => {
       const { service } = createService(Env.DEV);
@@ -1680,6 +1779,35 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('emits a trace for fetchVaults on cache miss', async () => {
+      const traceRequests: MoneyAccountApiDataServiceTraceRequest[] = [];
+      const trace: MoneyAccountApiDataServiceTraceCallback = async <Result>(
+        request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        traceRequests.push(request);
+        return await Promise.resolve(fn?.() as Result);
+      };
+      const { service } = createService(Env.DEV, { trace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      await service.fetchVaults();
+
+      expect(traceRequests).toHaveLength(1);
+      const [request] = traceRequests;
+      expect(request.name).toBe(TRACES.VAULTS_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchVaults',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
     it('emits a trace for fetchVaultShareValuations on cache miss', async () => {
       const traceRequests: MoneyAccountApiDataServiceTraceRequest[] = [];
       const trace: MoneyAccountApiDataServiceTraceCallback = async <Result>(
@@ -1923,6 +2051,26 @@ describe('MoneyAccountApiDataService', () => {
         .reply(200, responseWithExtras);
 
       const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on vaults responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_VAULTS_RESPONSE,
+        future_vaults_field: 'ok',
+        vaults: MOCK_VAULTS_RESPONSE.vaults.map((vault) => ({
+          ...vault,
+          future_vault_field: true,
+        })),
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchVaults();
       expect(result).toStrictEqual(responseWithExtras);
       service.destroy();
     });

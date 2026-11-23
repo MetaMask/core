@@ -70,9 +70,26 @@ describe('HyperLiquidProvider with accountSigner: a builder fee approval the ven
     ];
 
     expect(prepared).toStrictEqual([
-      { ready: false, error: BUILDER_REFUSAL },
-      { ready: false, error: BUILDER_REFUSAL },
+      {
+        ready: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      },
+      {
+        ready: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      },
     ]);
+    expect(JSON.stringify(prepared)).not.toContain(BUILDER_REFUSAL);
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
     ]);
@@ -117,6 +134,11 @@ describe('HyperLiquidProvider with accountSigner: a builder fee approval the ven
     expect(update).toStrictEqual({
       success: false,
       error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        provider: 'hyperliquid',
+      },
     });
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
@@ -132,7 +154,16 @@ describe('HyperLiquidProvider with accountSigner: a builder fee approval the ven
     await accountSignerProvider.toggleTestnet();
     const prepared = await accountSignerProvider.prepareTradingWallet();
 
-    expect(prepared).toStrictEqual({ ready: false, error: BUILDER_REFUSAL });
+    expect(prepared).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        provider: 'hyperliquid',
+      },
+    });
+    expect(prepared.error).not.toContain('insufficient balance');
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
       BUILDER_FEE_WRITE,
@@ -161,7 +192,16 @@ describe('HyperLiquidProvider with accountSigner: a builder fee approval the ven
     await reconnecting;
     const prepared = await accountSignerProvider.prepareTradingWallet();
 
-    expect(prepared).toStrictEqual({ ready: false, error: BUILDER_REFUSAL });
+    expect(prepared).toStrictEqual({
+      ready: false,
+      error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        provider: 'hyperliquid',
+      },
+    });
+    expect(prepared.error).not.toContain('insufficient balance');
     expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
       BUILDER_FEE_WRITE,
       BUILDER_FEE_WRITE,

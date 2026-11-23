@@ -133,11 +133,11 @@ const available = (value: number): PositionPreviewValue => ({
 const parseFiniteNumber = (value: string | null | undefined): number =>
   Number.parseFloat(value ?? '');
 
-const isPositiveFinite = (value: number): boolean =>
-  Number.isFinite(value) && value > 0;
+const isPositiveFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value > 0;
 
-const isNonNegativeFinite = (value: number): boolean =>
-  Number.isFinite(value) && value >= 0;
+const isNonNegativeFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value >= 0;
 
 const currentFromPosition = (params: {
   currentMargin: number;
@@ -370,6 +370,131 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
   return null;
 }
 
+/** A cross-margin position for {@link estimateCrossMaintenanceMargin}. */
+export type CrossMarginPosition = {
+  /** Position value at mark in USD; the sign is ignored. */
+  notional: number;
+  /** Maintenance tiers, as {@link resolveHyperLiquidMarginTiers} returns. */
+  marginTiers: HyperLiquidMarginTier[] | null | undefined;
+};
+
+/**
+ * Picks the maintenance tier whose notional range contains `notional`.
+ *
+ * @param schedule - Schedule from {@link buildMaintenanceSchedule}.
+ * @param notional - Non-negative position value in USD.
+ * @returns The tier, or undefined when no tier covers the notional.
+ */
+const findMaintenanceTier = (
+  schedule: MaintenanceScheduleTier[],
+  notional: number,
+): MaintenanceScheduleTier | undefined =>
+  schedule.find(
+    (tier) => notional >= tier.lowerBound && notional < tier.upperBound,
+  );
+
+/**
+ * Maintenance margin a cross account must hold for its cross positions:
+ * the sum of `notional * mmr - deduction` at each position's tier. Below this
+ * account value, HyperLiquid liquidates the cross positions.
+ *
+ * @param positions - Every cross position on the account.
+ * @returns Maintenance margin in USD, or `null` when a position's notional
+ * or tiers are unknown.
+ */
+export function estimateCrossMaintenanceMargin(
+  positions: readonly CrossMarginPosition[],
+): number | null {
+  let maintenanceMargin = 0;
+  for (const position of positions) {
+    const notional = Math.abs(position.notional);
+    const tier = Number.isFinite(notional)
+      ? findMaintenanceTier(
+          buildMaintenanceSchedule(position.marginTiers ?? []),
+          notional,
+        )
+      : undefined;
+    if (!tier) {
+      return null;
+    }
+    maintenanceMargin +=
+      notional * tier.maintenanceMarginRate - tier.maintenanceDeduction;
+  }
+  return maintenanceMargin;
+}
+
+/**
+ * Cross-margin liquidation price of one position, holding the account's
+ * other positions at their current value: the price at which account value
+ * falls to the maintenance margin. Within one tier this is HyperLiquid's
+ * documented `mark - side * (accountValue - maintenanceMargin) / size /
+ * (1 - mmr * side)`; the tier the position's notional reaches at that price
+ * is used when it differs from the current one.
+ *
+ * @see https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations
+ * @param params - Position geometry and the cross account's figures.
+ * @param params.isLong - Whether the position is long.
+ * @param params.markPrice - Current mark price.
+ * @param params.positionSize - Absolute position size in base units.
+ * @param params.accountValue - Cross account value, unrealized PnL included.
+ * @param params.maintenanceMargin - Maintenance margin of every cross
+ * position including this one, as {@link estimateCrossMaintenanceMargin}.
+ * @param params.marginTiers - This market's maintenance tiers.
+ * @returns Liquidation price, or `null` when the inputs cannot produce a
+ * positive one (a long with enough collateral to never be liquidated, or
+ * unknown inputs).
+ */
+export function estimateCrossLiquidationPrice(params: {
+  isLong: boolean;
+  markPrice: number;
+  positionSize: number;
+  accountValue: number;
+  maintenanceMargin: number;
+  marginTiers: HyperLiquidMarginTier[] | null | undefined;
+}): number | null {
+  const { isLong, markPrice, positionSize, accountValue, maintenanceMargin } =
+    params;
+  if (
+    !isPositiveFinite(markPrice) ||
+    !isPositiveFinite(positionSize) ||
+    !Number.isFinite(accountValue) ||
+    !isNonNegativeFinite(maintenanceMargin)
+  ) {
+    return null;
+  }
+  const schedule = buildMaintenanceSchedule(params.marginTiers ?? []);
+  const currentTier = findMaintenanceTier(schedule, positionSize * markPrice);
+  if (!currentTier) {
+    return null;
+  }
+
+  const side = isLong ? 1 : -1;
+  for (const tier of schedule) {
+    const denominator = positionSize * (side - tier.maintenanceMarginRate);
+    if (Math.abs(denominator) < Number.EPSILON) {
+      continue;
+    }
+    const liquidationPrice =
+      (maintenanceMargin -
+        accountValue +
+        currentTier.maintenanceDeduction -
+        tier.maintenanceDeduction +
+        positionSize * markPrice * (side - currentTier.maintenanceMarginRate)) /
+      denominator;
+    if (!isPositiveFinite(liquidationPrice)) {
+      continue;
+    }
+    const notionalAtLiquidation = positionSize * liquidationPrice;
+    if (
+      notionalAtLiquidation >= tier.lowerBound &&
+      notionalAtLiquidation < tier.upperBound
+    ) {
+      return liquidationPrice;
+    }
+  }
+  return null;
+}
+
 /**
  * Whether margin may leave an open isolated position on a market.
  *
@@ -486,6 +611,7 @@ export function estimateIsolatedLeverageChange({
     leverage < 1 ||
     maxLeverage === undefined ||
     leverage > maxLeverage ||
+    currentLeverage === undefined ||
     !Number.isFinite(currentLeverage) ||
     currentLeverage < 1 ||
     !isPositiveFinite(size) ||
@@ -588,10 +714,11 @@ export function previewHyperLiquidIsolatedPositionModify(
   const selectedLeverage = params.leverage;
   const orderSize = parseFiniteNumber(params.size);
   const orderPrice = parseFiniteNumber(params.price);
-  const feeAmountUsd =
-    typeof params.feeAmountUsd === 'number' && params.feeAmountUsd > 0
-      ? params.feeAmountUsd
-      : 0;
+  // An omitted, NaN or negative fee is unknown, never $0: increases and
+  // flips then have no resulting margin.
+  const feeAmountUsd = isNonNegativeFinite(params.feeAmountUsd)
+    ? params.feeAmountUsd
+    : undefined;
 
   if (
     !isPositiveFinite(currentSize) ||
@@ -690,7 +817,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const resultingEntryPrice =
       (currentSize * currentEntry + orderSize * fillPrice) / resultingSize;
     const newMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, existingMarginAfterLeverage + orderMargin - feeAmountUsd);
 
@@ -734,7 +861,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const orderMargin = (orderSize * fillPrice) / selectedLeverage;
     const leftoverRatio = leftover / orderSize;
     const leftoverMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, (orderMargin - feeAmountUsd) * leftoverRatio);
 

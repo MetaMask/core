@@ -74,7 +74,7 @@ Code: `src/services/TradingService.ts` `#buildTradeIntentProperties`, `#buildSli
 
 `editOrder` emits `executed` or `failed` with `status`, `asset`, `direction`, the trade intent group, `leverage`, `order_size`, `completion_duration` and `environment_type`. `executed` adds `limit_price` when the order has a price. `failed` adds `error_message`.
 
-`flipPosition` emits `submitted`, then `executed` or `failed`, with `action` set to `flip_long_to_short` or `flip_short_to_long`, `order_type` set to `market` and the attribution group. `submitted` and `executed` carry `direction`, `leverage` and `order_size` (the position size). `executed` adds `completion_duration`, `order_value`, `metamask_fee`, `vip_tier` and `vip_discount`. `failed` carries `completion_duration`, `error_message`, `vip_tier` and `vip_discount`, with no `direction`.
+`flipPosition` emits `submitted`, then `executed` or `failed`, with `action` set to `flip_long_to_short` or `flip_short_to_long`, `order_type` set to `market` and the attribution group. `submitted` and `executed` carry `direction` and `order_size` (the position size), with `leverage` when the position reports it. `executed` adds `completion_duration`, `order_value`, `metamask_fee`, `vip_tier` and `vip_discount`. `failed` carries `completion_duration`, `error_message`, `vip_tier` and `vip_discount`, with no `direction`.
 
 Core never sets `input_method` on this event.
 
