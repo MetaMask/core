@@ -1,119 +1,95 @@
-import {
-  array,
-  assign,
-  boolean,
-  enums,
-  is,
-  literal,
-  nullable,
-  number,
-  optional,
-  record,
-  string,
-  type as structType,
-  unknown as unknownStruct,
-} from '@metamask/superstruct';
-
-import { ProfileIdentityStruct } from './social-types.js';
 import type {
   AuthorComment,
-  FeedItem,
+  CommentEngagement,
   FeedActorSummary,
+  FeedItem,
   ProfileIdentity,
   Trade,
 } from './social-types.js';
-import {
-  AuthorCommentStruct,
-  CommentEngagementStruct,
-  FeedItemStruct,
-} from './structs.js';
 
-const RawTradeCommentStruct = structType({
-  uid: string(),
-  commentText: string(),
-  timestamp: number(),
-  sourceLanguage: optional(nullable(string())),
-  translations: optional(record(string(), string())),
-  metrics: CommentEngagementStruct,
-  replies: optional(array(unknownStruct())),
-});
+type RawTradeComment = {
+  uid: string;
+  commentText: string;
+  timestamp: number;
+  sourceLanguage?: string | null;
+  translations?: Record<string, string>;
+  metrics: CommentEngagement;
+  replies?: unknown[];
+};
 
-const RawTradeStruct = assign(
-  structType({
-    tokenAmount: number(),
-    usdCost: number(),
-    marketCap: nullable(number()),
-    timestamp: number(),
-    transactionHash: string(),
-    direction: enums(['buy', 'sell']),
-    classification: nullable(enums(['spot', 'perp', 'send', 'receive'])),
-    intent: enums(['enter', 'exit']),
-    perpPositionType: nullable(enums(['long', 'short'])),
-    perpLeverage: nullable(number()),
-  }),
-  structType({
-    comments: array(unknownStruct()),
-  }),
-);
+type RawTrade = {
+  tokenAmount: number;
+  usdCost: number;
+  marketCap: number | null;
+  timestamp: number;
+  transactionHash: string;
+  direction: 'buy' | 'sell';
+  classification: 'spot' | 'perp' | 'send' | 'receive' | null;
+  intent: 'enter' | 'exit';
+  perpPositionType: 'long' | 'short' | null;
+  perpLeverage: number | null;
+  comments: RawTradeComment[];
+};
 
-const RawHydratedPositionStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: structType({
-      raw: nullable(string()),
-      xs: nullable(string()),
-      sm: nullable(string()),
-    }),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-      ...ProfileIdentityStruct.schema,
-    }),
-    followerCount: optional(nullable(number())),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenSymbol: string(),
-    tokenName: string(),
-    tokenAddress: string(),
-    positionAmount: number(),
-    positionStats: structType({
-      boughtUSD: nullable(number()),
-      soldUSD: nullable(number()),
-      realizedGainsUSD: nullable(number()),
-      holdingsCostBasisUSD: nullable(number()),
-      receivedCostBasisUSD: nullable(number()),
-      holdingReceivedCostBasisUSD: nullable(number()),
-      isOpen: boolean(),
-    }),
-    trades: array(RawTradeStruct),
-    perpPositionType: optional(nullable(enums(['long', 'short']))),
-    perpLeverage: optional(nullable(number())),
-    positionAmountWithLeverage: optional(nullable(number())),
-  }),
-  metrics: structType({
-    reactions: array(unknownStruct()),
-    userReaction: nullable(string()),
-    commentCount: number(),
-    replyCount: number(),
-    copyCount: optional(nullable(number())),
-  }),
-  imageUrl: optional(nullable(string())),
-  firstTradeAt: optional(nullable(number())),
-  holdTimeMs: optional(nullable(number())),
-  entryPriceUsd: optional(nullable(number())),
-  authorComment: optional(nullable(AuthorCommentStruct)),
-  flags: optional(nullable(array(string()))),
-  currentValueUSD: optional(nullable(number())),
-  positionValueUSD: optional(nullable(number())),
-  pnlValueUsd: optional(nullable(number())),
-  pnlPercent: optional(nullable(number())),
-});
+type RawFeedActor = {
+  type: 'user';
+  address: string;
+  name: string;
+  images: {
+    raw: string | null;
+    xs: string | null;
+    sm: string | null;
+  };
+  profile: ProfileIdentity & {
+    id: string;
+    metadata: Record<string, unknown>;
+  };
+  followerCount?: number | null;
+};
+
+type RawHydratedPosition = {
+  itemId: string;
+  timestamp: number;
+  cardLatestTradeAt: number;
+  actor: RawFeedActor;
+  metadata: {
+    tokenChain: string;
+    tokenSymbol: string;
+    tokenName: string;
+    tokenAddress: string;
+    positionAmount: number;
+    positionStats: {
+      boughtUSD: number | null;
+      soldUSD: number | null;
+      realizedGainsUSD: number | null;
+      holdingsCostBasisUSD: number | null;
+      receivedCostBasisUSD: number | null;
+      holdingReceivedCostBasisUSD: number | null;
+      isOpen: boolean;
+    };
+    trades: RawTrade[];
+    perpPositionType?: 'long' | 'short' | null;
+    perpLeverage?: number | null;
+    positionAmountWithLeverage?: number | null;
+  };
+  metrics: {
+    reactions: unknown[];
+    userReaction: string | null;
+    commentCount: number;
+    replyCount: number;
+    copyCount?: number | null;
+  };
+  imageUrl?: string | null;
+  firstTradeAt?: number | null;
+  holdTimeMs?: number | null;
+  entryPriceUsd?: number | null;
+  authorComment?: AuthorComment | null;
+  flags?: string[] | null;
+  currentValueUSD?: number | null;
+  positionValueUSD?: number | null;
+  pnlValueUsd?: number | null;
+  pnlPercent?: number | null;
+};
 
 const PRICED_KEYS = [
   'currentValueUSD',
@@ -135,20 +111,19 @@ const toPricedFields = (value: PricedFields): PricedFields =>
 
 export type RealtimeFeedEventData = FeedItem;
 
-const readNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-
-const readNullableNumber = (value: unknown): number | null =>
-  readNumber(value) ?? null;
-
 const addNullableNumbers = (
   left: number | null,
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
 
-const PROFILE_IDENTITY_KEYS = Object.keys(
-  ProfileIdentityStruct.schema,
-) as (keyof ProfileIdentity)[];
+const PROFILE_IDENTITY_KEYS = [
+  'displayName',
+  'bio',
+  'createdAt',
+  'updatedAt',
+  'connectedToX',
+  'tradingPrivacy',
+] as const satisfies readonly (keyof ProfileIdentity)[];
 
 // Copies only the identity fields the socket payload sent, as the REST
 // payload omits the ones a profile has no value for.
@@ -159,64 +134,43 @@ const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
     ),
   );
 
-const toActor = (actor: {
-  address: string;
-  name: string;
-  images: { raw: string | null; sm: string | null };
-  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
-  followerCount?: number | null;
-}): FeedActorSummary => ({
+const toActor = (actor: RawFeedActor): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
   imageUrl: actor.images.sm ?? actor.images.raw,
   ...toIdentity(actor.profile),
-  winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
-  pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
-  volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
-  volumeUsd7d: readNullableNumber(actor.profile.metadata.volumeUsd7d),
-  tradeCount30d: readNullableNumber(actor.profile.metadata.tradeCount30d),
+  winRate30d:
+    (actor.profile.metadata.winRate30d as number | null | undefined) ?? null,
+  pnl30d: (actor.profile.metadata.pnl30d as number | null | undefined) ?? null,
+  volumeUsd30d:
+    (actor.profile.metadata.volumeUsd30d as number | null | undefined) ?? null,
+  volumeUsd7d:
+    (actor.profile.metadata.volumeUsd7d as number | null | undefined) ?? null,
+  tradeCount30d:
+    (actor.profile.metadata.tradeCount30d as number | null | undefined) ?? null,
   ...(actor.followerCount === undefined
     ? {}
     : { followerCount: actor.followerCount }),
 });
 
 // Same mapping as social-api's `mapAuthorComment`, so a socket fill carries
-// the comments the REST payload would. Malformed entries are dropped.
-const toTradeComments = (comments: unknown[]): AuthorComment[] =>
-  comments.flatMap((comment) => {
-    if (!is(comment, RawTradeCommentStruct)) {
-      return [];
-    }
-    return [
-      {
-        uid: comment.uid,
-        text: comment.commentText,
-        timestamp: comment.timestamp,
-        sourceLanguage: comment.sourceLanguage ?? null,
-        translations: comment.translations ?? {},
-        engagement: {
-          reactions: comment.metrics.reactions,
-          userReaction: comment.metrics.userReaction,
-          replyCount: comment.replies?.length ?? 0,
-        },
-      },
-    ];
-  });
+// the comments the REST payload would.
+const toTradeComments = (comments: RawTradeComment[]): AuthorComment[] =>
+  comments.map((comment) => ({
+    uid: comment.uid,
+    text: comment.commentText,
+    timestamp: comment.timestamp,
+    sourceLanguage: comment.sourceLanguage ?? null,
+    translations: comment.translations ?? {},
+    engagement: {
+      reactions: comment.metrics.reactions,
+      userReaction: comment.metrics.userReaction,
+      replyCount: comment.replies?.length ?? 0,
+    },
+  }));
 
-const toTrade = (trade: {
-  direction: 'buy' | 'sell';
-  intent: 'enter' | 'exit';
-  classification: 'spot' | 'perp' | 'send' | 'receive' | null;
-  perpPositionType: 'long' | 'short' | null;
-  perpLeverage: number | null;
-  tokenAmount: number;
-  usdCost: number;
-  marketCap: number | null;
-  timestamp: number;
-  transactionHash: string;
-  comments: unknown[];
-}): Trade => ({
+const toTrade = (trade: RawTrade): Trade => ({
   direction: trade.direction,
   intent: trade.intent,
   ...(trade.classification === null ? {} : { category: trade.classification }),
@@ -231,27 +185,26 @@ const toTrade = (trade: {
   comments: toTradeComments(trade.comments),
 });
 
-const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
-  is(value, FeedItemStruct);
+const isRawHydratedPosition = (value: unknown): value is RawHydratedPosition =>
+  typeof value === 'object' &&
+  value !== null &&
+  'metadata' in value &&
+  typeof value.metadata === 'object' &&
+  value.metadata !== null;
 
-export const normalizeRealtimeFeedItem = (
-  value: unknown,
-): FeedItem | undefined => {
-  if (!is(value, RawHydratedPositionStruct)) {
-    return undefined;
-  }
-
-  const stats = value.metadata.positionStats;
+export const normalizeRealtimeFeedItem = (value: unknown): FeedItem => {
+  const raw = value as RawHydratedPosition;
+  const stats = raw.metadata.positionStats;
   const receivedCostBasis = stats.receivedCostBasisUSD;
   const holdingReceivedCostBasis = stats.holdingReceivedCostBasisUSD;
 
   return {
-    positionId: value.itemId,
-    tokenSymbol: value.metadata.tokenSymbol,
-    tokenName: value.metadata.tokenName,
-    tokenAddress: value.metadata.tokenAddress,
-    chain: value.metadata.tokenChain,
-    positionAmount: value.metadata.positionAmount,
+    positionId: raw.itemId,
+    tokenSymbol: raw.metadata.tokenSymbol,
+    tokenName: raw.metadata.tokenName,
+    tokenAddress: raw.metadata.tokenAddress,
+    chain: raw.metadata.tokenChain,
+    positionAmount: raw.metadata.positionAmount,
     isOpen: stats.isOpen,
     boughtUsd: addNullableNumbers(stats.boughtUSD, receivedCostBasis),
     soldUsd: stats.soldUSD,
@@ -260,41 +213,34 @@ export const normalizeRealtimeFeedItem = (
       stats.holdingsCostBasisUSD,
       holdingReceivedCostBasis,
     ),
-    trades: value.metadata.trades.map(toTrade),
-    lastTradeAt: value.cardLatestTradeAt,
-    tokenImageUrl: value.imageUrl,
-    perpPositionType: value.metadata.perpPositionType,
-    perpLeverage: value.metadata.perpLeverage,
-    positionAmountWithLeverage:
-      value.metadata.positionAmountWithLeverage ?? null,
-    actor: toActor(value.actor),
-    timestamp: value.timestamp,
+    trades: raw.metadata.trades.map(toTrade),
+    lastTradeAt: raw.cardLatestTradeAt,
+    tokenImageUrl: raw.imageUrl,
+    perpPositionType: raw.metadata.perpPositionType,
+    perpLeverage: raw.metadata.perpLeverage,
+    positionAmountWithLeverage: raw.metadata.positionAmountWithLeverage ?? null,
+    actor: toActor(raw.actor),
+    timestamp: raw.timestamp,
     // The socket payload carries the server's selected author comment. It is
-    // passed through as sent: an absent field stays absent, an explicit null
-    // stays null, and a malformed value already dropped the item above.
-    ...(value.authorComment === undefined
+    // passed through as sent: an absent field stays absent and an explicit
+    // null stays null.
+    ...(raw.authorComment === undefined
       ? {}
-      : { authorComment: value.authorComment }),
-    commentCount: value.metrics.commentCount,
-    replyCount: value.metrics.replyCount,
-    copyCount: value.metrics.copyCount ?? 0,
-    firstTradeAt: value.firstTradeAt ?? null,
-    holdTimeMs: value.holdTimeMs ?? null,
-    entryPriceUsd: value.entryPriceUsd ?? null,
+      : { authorComment: raw.authorComment }),
+    commentCount: raw.metrics.commentCount,
+    replyCount: raw.metrics.replyCount,
+    copyCount: raw.metrics.copyCount ?? 0,
+    firstTradeAt: raw.firstTradeAt ?? null,
+    holdTimeMs: raw.holdTimeMs ?? null,
+    entryPriceUsd: raw.entryPriceUsd ?? null,
     // `flags` lives on the hydrated card, beside `metadata`. The server does
     // not set `metadata.flags`.
-    ...(value.flags === undefined ? {} : { flags: value.flags }),
-    ...toPricedFields(value),
+    ...(raw.flags === undefined ? {} : { flags: raw.flags }),
+    ...toPricedFields(raw),
   };
 };
 
-export const parseRealtimeFeedItem = (
-  value: unknown,
-): RealtimeFeedEventData | undefined => {
-  const normalized = normalizeRealtimeFeedItem(value);
-  if (normalized) {
-    return normalized;
-  }
-
-  return isNormalizedRealtimeFeedItem(value) ? value : undefined;
-};
+export const parseRealtimeFeedItem = (value: unknown): RealtimeFeedEventData =>
+  isRawHydratedPosition(value)
+    ? normalizeRealtimeFeedItem(value)
+    : (value as FeedItem);

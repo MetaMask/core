@@ -67,7 +67,6 @@ export {
   INSIDER_POSITION_FLAG,
   TRADER_RANKING_TAGS,
   TRADING_PRIVACY_VALUES,
-  TradeStruct,
   UNSUPPORTED_TOKEN_POSITION_FLAG,
 } from './social-types.js';
 export {

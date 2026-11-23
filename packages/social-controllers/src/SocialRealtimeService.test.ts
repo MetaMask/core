@@ -210,59 +210,71 @@ describe('SocialRealtimeService', () => {
     );
   });
 
-  it('drops malformed items without rejecting valid items in a batch', async () => {
+  it('normalizes raw hydrated position events', async () => {
     const { call, service } = createService();
     const listener = vi.fn();
     service.addListener(listener);
+    const rawEvent = {
+      ...event,
+      data: {
+        itemId: 'position-raw',
+        timestamp: 100,
+        cardLatestTradeAt: 101,
+        actor: {
+          type: 'user',
+          address: '0x123',
+          name: 'Trader',
+          images: { raw: null, xs: null, sm: 'small-avatar' },
+          profile: { id: 'profile-1', metadata: {} },
+        },
+        metadata: {
+          tokenChain: 'base',
+          tokenSymbol: 'TKN',
+          tokenName: 'Token',
+          tokenAddress: '0xtoken',
+          positionAmount: 1,
+          positionStats: {
+            boughtUSD: 10,
+            soldUSD: 0,
+            realizedGainsUSD: 0,
+            holdingsCostBasisUSD: 10,
+            receivedCostBasisUSD: 0,
+            holdingReceivedCostBasisUSD: 0,
+            isOpen: true,
+          },
+          trades: [],
+        },
+        metrics: {
+          reactions: [],
+          userReaction: null,
+          commentCount: 0,
+          replyCount: 0,
+        },
+      },
+    };
 
     await service.setActive(true);
     getFeedCallback(call)({
       channel: SOCIAL_FEED_CHANNELS.trending,
-      data: [event, { ...event, eventId: 'invalid', data: null }],
+      data: rawEvent,
     });
 
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledWith(event, 'trending');
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'event-1',
+        data: expect.objectContaining({
+          positionId: 'position-raw',
+          chain: 'base',
+          lastTradeAt: 101,
+          actor: expect.objectContaining({
+            profileId: 'profile-1',
+            imageUrl: 'small-avatar',
+          }),
+        }),
+      }),
+      'trending',
+    );
   });
-
-  it('ignores non-object feed events', async () => {
-    const { call, service } = createService();
-    const listener = vi.fn();
-    service.addListener(listener);
-
-    await service.setActive(true);
-    getFeedCallback(call)({
-      channel: SOCIAL_FEED_CHANNELS.trending,
-      data: null,
-    });
-
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ['version', { version: 2 }],
-    ['kind', { kind: 'other' }],
-    ['eventId', { eventId: 1 }],
-    ['feedItemId', { feedItemId: 1 }],
-    ['revision', { revision: '1' }],
-    ['occurredAt', { occurredAt: 1 }],
-    ['data', { data: null }],
-  ])(
-    'ignores feed events with an invalid %s field',
-    async (_field, invalid) => {
-      const { call, service } = createService();
-      const listener = vi.fn();
-      service.addListener(listener);
-
-      await service.setActive(true);
-      getFeedCallback(call)({
-        channel: SOCIAL_FEED_CHANNELS.trending,
-        data: { ...event, ...invalid },
-      });
-
-      expect(listener).not.toHaveBeenCalled();
-    },
-  );
 
   it('ignores notifications for other channels', async () => {
     const { call, service } = createService();

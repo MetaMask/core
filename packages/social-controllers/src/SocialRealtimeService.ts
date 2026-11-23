@@ -39,9 +39,6 @@ export type SocialRealtimeServiceOptions = {
   isEnabled?: () => boolean;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
 const normalizeScopes = (
   scopes: readonly SocialFeedRealtimeScope[],
 ): SocialFeedRealtimeScope[] => {
@@ -65,33 +62,18 @@ const scopeForChannel = (
     ([, value]) => value === channel,
   )?.[0] as SocialFeedRealtimeScope | undefined) ?? undefined;
 
-const parseSocialFeedEvent = (data: unknown): SocialFeedEvent | undefined => {
-  if (!isRecord(data)) {
-    return undefined;
-  }
-
-  const feedItem = parseRealtimeFeedItem(data.data);
-  if (
-    data.version !== 1 ||
-    data.kind !== 'feed-item' ||
-    typeof data.eventId !== 'string' ||
-    typeof data.feedItemId !== 'string' ||
-    typeof data.revision !== 'number' ||
-    typeof data.occurredAt !== 'string' ||
-    feedItem === undefined
-  ) {
-    return undefined;
-  }
-
-  return { ...data, data: feedItem } as unknown as SocialFeedEvent;
+const parseSocialFeedEvent = (data: unknown): SocialFeedEvent => {
+  const event = data as SocialFeedEvent;
+  return {
+    ...event,
+    data: parseRealtimeFeedItem(event.data),
+  };
 };
 
 const parseSocialFeedEvents = (data: unknown): SocialFeedEvent[] => {
   const entries = Array.isArray(data) ? data : [data];
 
-  return entries
-    .map((entry) => parseSocialFeedEvent(entry))
-    .filter((event): event is SocialFeedEvent => event !== undefined);
+  return entries.map((entry) => parseSocialFeedEvent(entry));
 };
 
 /**
