@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/wallet` calls it through `Wallet.init()`. Clients that construct the service themselves must call it after all controllers and services exist, so a wallet that is already unlocked is still checked
 - Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `isSubscriptionChargeRetryable`, which reports whether a crypto subscription is stuck on a charge a funded Money Account can unblock ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add optional `benefitPeriodId`, `benefitPeriodStart`, and `benefitPeriodEnd` to `SubscriptionBenefitsResponse` and `SubscriptionBenefitsState` (monthly reset window from the benefits API); keep `billingPeriodId` as a deprecated alias on the response ([#11666](https://github.com/MetaMask/core/pull/11666))
 
 ### Changed
 
