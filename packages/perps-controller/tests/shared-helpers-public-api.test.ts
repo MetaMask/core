@@ -17,7 +17,7 @@ import {
   getOrderFillKey,
   getPositionDirection,
   getPriceDeviationBand,
-  HYPERLIQUID_ORDER_LIMITS,
+  HYPERLIQUID_CONFIG,
   isPriceOutsideDeviationBand,
   recomputePositionAtPrice,
   getUndiscountedFeeRate,
@@ -144,10 +144,10 @@ describe('shared Perps helpers public API', () => {
   });
 
   it('exports the oracle price deviation limit and band check', () => {
-    expect(HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation).toBe(0.95);
+    expect(HYPERLIQUID_CONFIG.OraclePriceDeviationLimit).toBe(0.95);
     expect(getPriceDeviationBand(100, 0.5)).toStrictEqual({
       min: 50,
-      max: 200,
+      max: 150,
     });
     expect(isPriceOutsideDeviationBand(10, 100, 0.5)).toBe(true);
   });

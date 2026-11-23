@@ -2775,9 +2775,10 @@ export type PerpsOrderLimits = Readonly<{
   }>;
   /**
    * Furthest a limit price may sit from the oracle price, as a fraction
-   * (0.95 = 95%): a price is rejected when the lower of it and the oracle
-   * price is below `1 - maxOraclePriceDeviation` times the higher. Check it
-   * with `isPriceOutsideDeviationBand`.
+   * (0.95 = 95%): a price `p` is rejected when
+   * `|p - oracle| / oracle > maxOraclePriceDeviation`, the rule
+   * `isMarketTradable` also applies. Check it with
+   * `isPriceOutsideDeviationBand`.
    */
   maxOraclePriceDeviation?: number;
 }>;

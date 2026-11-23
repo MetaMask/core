@@ -68,7 +68,7 @@ Code: `src/providers/LighterProvider.ts` constructor, `#placeChaseProbe`, `#plac
 
 Code: `src/providers/LighterProvider.ts` `#assertStandardAccount`, `closePosition`, `editOrder`, `updateMargin`, `previewPositionModify`, `getDepositRoutes`, `getWithdrawalRoutes`; `src/utils/lighterNativeEdit.ts`.
 
-With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the Lighter snapshot's name, description, icon, category, keywords, tags, listing time, volume, open interest and `marketKey` to each market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with the venue. A missing or invalid Lighter snapshot leaves the venue rows unchanged.
+With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the Lighter snapshot's name, description, icon, category, keywords, tags, listing time, volume, open interest and `marketKey` to each market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with the venue. `getMarkets` keeps the venue's trading rules and joins only the snapshot's `marketKey` and `priceScale` to each Lighter market of the same name, directly or in aggregated mode. A missing or invalid Lighter snapshot leaves the venue rows unchanged.
 
 Code: `src/services/MarketDataService.ts` `getMarketDataWithPrices`.
 

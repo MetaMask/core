@@ -30,6 +30,11 @@ import type {
 } from '../../../src/types/index.js';
 import type { CandleData } from '../../../src/types/perps-types.js';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import {
+  getPerpsWatchlistReferences,
+  groupMarketsByMarketKey,
+  resolveSavedPerpsMarkets,
+} from '../../../src/utils/marketUtils.js';
 import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
@@ -43,6 +48,20 @@ import {
 } from '../../helpers/serviceMocks.js';
 
 vi.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
+
+/**
+ * Direct rows come back tagged with the venue that served them.
+ *
+ * @param rows - Untagged venue rows.
+ * @param providerId - The direct provider.
+ * @returns The rows with `providerId` set.
+ */
+function withVenue(
+  rows: PerpsMarketData[],
+  providerId: PerpsProviderType,
+): PerpsMarketData[] {
+  return rows.map((row) => ({ ...row, providerId }));
+}
 
 describe('MarketDataService', () => {
   let mockProvider: Mocked<PerpsProvider>;
@@ -2028,7 +2047,7 @@ describe('MarketDataService', () => {
           context: createGlobalSnapshotContext({ isCurrent }),
         });
 
-        expect(result).toStrictEqual(snapshotMarkets);
+        expect(result).toStrictEqual(withVenue(snapshotMarkets, 'hyperliquid'));
         expect(mockTerminalService.fetchGlobalSnapshot).toHaveBeenCalledTimes(
           1,
         );
@@ -2050,7 +2069,9 @@ describe('MarketDataService', () => {
           context: createGlobalSnapshotContext(),
         });
 
-        expect(result).toStrictEqual(providerMarketData);
+        expect(result).toStrictEqual(
+          withVenue(providerMarketData, 'hyperliquid'),
+        );
         expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
         expect(mockTerminalService.logError).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -2079,7 +2100,9 @@ describe('MarketDataService', () => {
             context: createGlobalSnapshotContext(),
           });
 
-          expect(result).toStrictEqual(providerMarketData);
+          expect(result).toStrictEqual(
+            withVenue(providerMarketData, 'hyperliquid'),
+          );
           expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
           expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
         },
@@ -2158,7 +2181,9 @@ describe('MarketDataService', () => {
           }),
         });
 
-        expect(result).toStrictEqual([providerMarketData[0]]);
+        expect(result).toStrictEqual(
+          withVenue([providerMarketData[0]], 'hyperliquid'),
+        );
         expect(mockProvider.getMarketDataWithPrices).not.toHaveBeenCalled();
       });
 
@@ -2517,10 +2542,59 @@ describe('MarketDataService', () => {
             },
           });
 
-          expect(result).toStrictEqual([expectedLighterBtc, lighterRows[1]]);
+          expect(result).toStrictEqual(
+            withVenue([expectedLighterBtc, lighterRows[1]], 'lighter'),
+          );
           expect(fetchGlobalSnapshot).toHaveBeenCalledWith(
             lighterContext().request,
           );
+        });
+
+        it('tags untagged direct Lighter rows so saved references keep their venue', async () => {
+          fetchGlobalSnapshot.mockResolvedValue(
+            snapshotResult([{ ...lighterSnapshotBtc, priceScale: 1 }]),
+          );
+
+          const rows = await serviceWithTerminal.getMarketDataWithPrices({
+            provider: lighterProvider,
+            context: {
+              ...mockContext,
+              globalSnapshots: { lighter: lighterContext() },
+            },
+          });
+          const [keyed, unkeyed] = groupMarketsByMarketKey(rows, 'lighter');
+          const hyperLiquidNvda: PerpsMarketData = {
+            ...(lighterRows[1] as PerpsMarketData),
+            providerId: 'hyperliquid',
+          };
+
+          expect(rows.map((row) => row.providerId)).toStrictEqual([
+            'lighter',
+            'lighter',
+          ]);
+          // A keyed row matches the bare symbol Lighter saved before keying.
+          expect(
+            getPerpsWatchlistReferences(
+              keyed.symbol,
+              keyed.marketKey,
+              keyed.venues,
+              'lighter',
+            ),
+          ).toStrictEqual(['market-key:BTC-USD', 'BTC']);
+          // An unkeyed row never saves a bare symbol HyperLiquid also lists.
+          const [nvdaReference] = getPerpsWatchlistReferences(
+            unkeyed.symbol,
+            unkeyed.marketKey,
+            unkeyed.venues,
+          );
+          expect(nvdaReference).toBe('venue:lighter:NVDA');
+          expect(
+            resolveSavedPerpsMarkets(
+              [nvdaReference],
+              [hyperLiquidNvda, ...rows],
+              'hyperliquid',
+            ),
+          ).toStrictEqual([rows[1]]);
         });
 
         it('keeps Lighter rows unchanged when the Lighter snapshot is rejected', async () => {
@@ -2536,7 +2610,7 @@ describe('MarketDataService', () => {
             },
           });
 
-          expect(result).toStrictEqual(lighterRows);
+          expect(result).toStrictEqual(withVenue(lighterRows, 'lighter'));
           expect(mockTerminalService.logError).toHaveBeenCalledWith(
             expect.objectContaining({
               message: 'Terminal global snapshot failed schema validation',
@@ -2768,6 +2842,81 @@ describe('MarketDataService', () => {
           ]);
         });
 
+        it('joins each venue its own snapshot identity in aggregated getMarkets when both list one symbol', async () => {
+          if (mockDeps.terminalApi) {
+            mockDeps.terminalApi.globalSnapshotUrl =
+              'https://terminal.test/v4/perpetuals';
+          }
+          const hyperLiquidBtc: MarketInfo = {
+            name: 'BTC',
+            szDecimals: 5,
+            maxLeverage: 40,
+            marginTableId: 0,
+          };
+          const lighterBtc: MarketInfo = {
+            name: 'BTC',
+            szDecimals: 4,
+            maxLeverage: 20,
+            marginTableId: 0,
+          };
+          mockProvider.getMarkets.mockResolvedValue([hyperLiquidBtc]);
+          lighterProvider.getMarkets.mockResolvedValue([lighterBtc]);
+          fetchGlobalSnapshot.mockImplementation(async (request) => ({
+            ...snapshotResult([]),
+            marketInfos: [
+              {
+                name: 'BTC',
+                szDecimals: 1,
+                maxLeverage: 3,
+                marginTableId: 0,
+                ...(request.provider === 'lighter'
+                  ? { marketKey: 'BTC-LIGHTER', priceScale: 0.5 }
+                  : { marketKey: 'BTC-USD', priceScale: 1 }),
+              },
+            ],
+          }));
+
+          const result = await serviceWithTerminal.getMarkets({
+            provider: createAggregatedProvider(),
+            context: {
+              ...mockContext,
+              globalSnapshots: {
+                hyperliquid: hyperLiquidContext(),
+                lighter: lighterContext(),
+              },
+            },
+          });
+
+          expect(result).toStrictEqual(
+            expect.arrayContaining([
+              {
+                ...hyperLiquidBtc,
+                providerId: 'hyperliquid',
+                marketKey: 'BTC-USD',
+                priceScale: 1,
+              },
+              {
+                ...lighterBtc,
+                providerId: 'lighter',
+                marketKey: 'BTC-LIGHTER',
+                priceScale: 0.5,
+              },
+            ]),
+          );
+          expect(result).toHaveLength(2);
+        });
+
+        it('reads the snapshot from the deprecated globalSnapshot context', async () => {
+          const result = await serviceWithTerminal.getMarketDataWithPrices({
+            provider: lighterProvider,
+            context: { ...mockContext, globalSnapshot: lighterContext() },
+          });
+
+          expect(result).toStrictEqual(
+            withVenue([expectedLighterBtc, lighterRows[1]], 'lighter'),
+          );
+        });
+
         it.each(['getMarketDataWithPrices', 'getMarkets'] as const)(
           'discards a snapshot that expires while the Lighter provider read is pending in %s',
           async (method) => {
@@ -2813,7 +2962,9 @@ describe('MarketDataService', () => {
               resolveProvider();
 
               await expect(pending).resolves.toStrictEqual(
-                method === 'getMarkets' ? lighterMarkets : lighterRows,
+                method === 'getMarkets'
+                  ? lighterMarkets
+                  : withVenue(lighterRows, 'lighter'),
               );
             } finally {
               resolveProvider();

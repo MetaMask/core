@@ -40,7 +40,6 @@ import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
   DECIMAL_PRECISION_CONFIG,
-  HYPERLIQUID_ORDER_LIMITS,
   HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
@@ -2078,8 +2077,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           maxDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes,
           minNotionalUsd: HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd,
         }),
-        maxOraclePriceDeviation:
-          HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation,
+        maxOraclePriceDeviation: this.#priceDeviationLimit,
       }),
     });
   }

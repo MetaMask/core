@@ -472,20 +472,23 @@ describe('PerpsAnalyticsEvent', () => {
 });
 
 describe('analytics keys clients previously defined locally', () => {
+  it('does not export keys that duplicate SEARCH_QUERY, ASSET or RESULT_RANK', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('QUERY_TEXT');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('MARKET');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('POSITION');
+  });
+
   it('exports the search funnel, chase and related-markets property keys', () => {
     expect(PERPS_EVENT_PROPERTY).toMatchObject({
       QUERY_COUNT: 'query_count',
       TIME_IN_SEARCH_MS: 'time_in_search_ms',
       TIME_TO_TAP_MS: 'time_to_tap_ms',
-      QUERY_TEXT: 'query_text',
       QUERY_LENGTH: 'query_length',
       HAS_RESULTS: 'has_results',
       ACTIVE_CHIPS: 'active_chips',
       FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
       SOURCE_MARKET: 'source_market',
-      MARKET: 'market',
       CATEGORY: 'category',
-      POSITION: 'position',
     });
   });
 

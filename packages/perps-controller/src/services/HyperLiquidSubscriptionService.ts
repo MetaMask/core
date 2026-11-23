@@ -87,6 +87,7 @@ import {
   calculateOpenInterestUSD,
   isMarketTradable,
 } from '../utils/marketDataTransform.js';
+import { calculateOrderBookSpread } from '../utils/orderBookGrouping.js';
 import {
   buildPositionTriggerOrderFromOrder,
   hashTriggerOrders,
@@ -3468,6 +3469,11 @@ export class HyperLiquidSubscriptionService {
     this.#positionSubscriberCount += 1;
     const unsubscribe = (): void => {
       removeListener();
+      // An empty opt-in set stops refreshing the dedup hash, so a stale hash
+      // could suppress the next resubscriber's first change.
+      if (this.#completePositionSubscribers.size === 0) {
+        this.#completePositionsHash = '';
+      }
       this.#positionSubscriberCount -= 1;
       this.#cleanupSharedWebData3ISubscription();
     };
@@ -4083,6 +4089,10 @@ export class HyperLiquidSubscriptionService {
     this.#orderSubscriberCount += 1;
     const unsubscribe = (): void => {
       removeListener();
+      // See subscribeToPositions: keep the dedup hash from going stale.
+      if (this.#completeOrderSubscribers.size === 0) {
+        this.#completeOrdersHash = '';
+      }
       this.#orderSubscriberCount -= 1;
       this.#cleanupSharedWebData3ISubscription();
     };
@@ -5950,16 +5960,10 @@ export class HyperLiquidSubscriptionService {
       };
     });
 
-    // Calculate spread and mid price
-    const bestBid = bids[0];
-    const bestAsk = asks[0];
-    const bidPrice = bestBid ? parseFloat(bestBid.price) : 0;
-    const askPrice = bestAsk ? parseFloat(bestAsk.price) : 0;
-    const spread = askPrice > 0 && bidPrice > 0 ? askPrice - bidPrice : 0;
-    const midPrice =
-      askPrice > 0 && bidPrice > 0 ? (askPrice + bidPrice) / 2 : 0;
-    const spreadPercentage =
-      midPrice > 0 ? ((spread / midPrice) * 100).toFixed(4) : '0';
+    const top = calculateOrderBookSpread({
+      bestBid: bids[0]?.price,
+      bestAsk: asks[0]?.price,
+    });
 
     // Calculate max total for depth chart scaling
     const maxTotal = Math.max(bidCumulativeSize, askCumulativeSize).toString();
@@ -5967,9 +5971,9 @@ export class HyperLiquidSubscriptionService {
     return {
       bids,
       asks,
-      spread: spread.toFixed(5),
-      spreadPercentage,
-      midPrice: midPrice.toFixed(5),
+      spread: (top?.spread ?? 0).toFixed(5),
+      spreadPercentage: top ? top.spreadPercentage.toFixed(4) : '0',
+      midPrice: (top?.midPrice ?? 0).toFixed(5),
       lastUpdated: Date.now(),
       maxTotal,
     };
@@ -6171,9 +6175,10 @@ export class HyperLiquidSubscriptionService {
     this.#activeAssetDataStreams.forEach((stream) => stream.reopen());
 
     // Re-establish user data subscriptions if there are user data subscribers
+    // The counts include opt-in complete-snapshot subscribers.
     if (
-      this.#positionSubscribers.size > 0 ||
-      this.#orderSubscribers.size > 0 ||
+      this.#positionSubscriberCount > 0 ||
+      this.#orderSubscriberCount > 0 ||
       this.#accountSubscribers.size > 0 ||
       this.#oiCapSubscribers.size > 0
     ) {

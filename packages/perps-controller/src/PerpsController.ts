@@ -1407,6 +1407,13 @@ export class PerpsController extends BaseController<
     { entries: readonly string[]; snapshot: readonly string[] }[]
   >();
 
+  /**
+   * References an older toggle added but failed to write while a newer
+   * toggle owned them. Remote storage never held them, so the newer toggle
+   * must not restore them if it fails too.
+   */
+  readonly #unpersistedWatchlistAdds = new Map<symbol, Set<string>>();
+
   #userDiskWrite: Promise<void> = Promise.resolve();
 
   readonly #providerSubscriptions = new Set<RebindableProviderSubscription>();
@@ -1738,6 +1745,15 @@ export class PerpsController extends BaseController<
           : this.#isLighterProviderEnabled()
       ) {
         providerIds.add('lighter');
+      }
+    }
+    if (this.isInitialized) {
+      // A disk-hydrated slice of a venue that did not register this session
+      // is never refreshed, so it must not decide the aggregate's freshness.
+      for (const providerId of providerIds) {
+        if (!this.providers.has(providerId as PerpsProviderType)) {
+          providerIds.delete(providerId);
+        }
       }
     }
     const assembled: PerpsMarketData[] = [];
@@ -9838,6 +9854,7 @@ export class PerpsController extends BaseController<
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
       const deferred = this.#deferredWatchlistRestores.get(toggle) ?? [];
+      const unpersisted = this.#unpersistedWatchlistAdds.get(toggle);
       this.update((state) => {
         if (!isWatchlisted && isLatestToggle(reference)) {
           state.watchlistMarkets[currentNetwork] = state.watchlistMarkets[
@@ -9854,6 +9871,14 @@ export class PerpsController extends BaseController<
           .map((entry) => this.#pendingWatchlistToggles.get(toggleKey(entry)))
           .find((pending) => pending !== undefined && pending !== toggle);
         if (newerToggle) {
+          const newerUnpersisted = new Set([
+            ...(this.#unpersistedWatchlistAdds.get(newerToggle) ?? []),
+            ...(unpersisted ?? []),
+            ...(isWatchlisted ? [] : [reference]),
+          ]);
+          if (newerUnpersisted.size > 0) {
+            this.#unpersistedWatchlistAdds.set(newerToggle, newerUnpersisted);
+          }
           // Hand over only what remote storage still holds.
           this.#deferredWatchlistRestores.set(newerToggle, [
             ...(isWatchlisted
@@ -9865,7 +9890,13 @@ export class PerpsController extends BaseController<
           return;
         }
         const restores = isWatchlisted
-          ? [{ entries: references, snapshot: currentWatchlist }, ...deferred]
+          ? [
+              {
+                entries: references.filter((entry) => !unpersisted?.has(entry)),
+                snapshot: currentWatchlist,
+              },
+              ...deferred,
+            ]
           : deferred;
         const watchlist = state.watchlistMarkets[currentNetwork];
         for (const { entries, snapshot } of restores) {
@@ -9878,6 +9909,7 @@ export class PerpsController extends BaseController<
       });
     } finally {
       this.#deferredWatchlistRestores.delete(toggle);
+      this.#unpersistedWatchlistAdds.delete(toggle);
       for (const entry of references) {
         if (isLatestToggle(entry)) {
           this.#pendingWatchlistToggles.delete(toggleKey(entry));

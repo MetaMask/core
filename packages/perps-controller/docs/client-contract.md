@@ -15,21 +15,21 @@ Shared answers clients used to keep their own copies of. Each one is exported fr
 
 `orderLimits`:
 
-| Field                     | HyperLiquid                                                 | Lighter                   |
-| ------------------------- | ----------------------------------------------------------- | ------------------------- |
-| `sizeDecimals`            | market `szDecimals`                                         | `supported_size_decimals` |
-| `minOrderNotionalUsd`     | per-order minimum ($10)                                     | `min_quote_amount`        |
-| `minOrderSize`            | not reported                                                | `min_base_amount`         |
-| `minimumAppliesTo`        | `all_orders`                                                | `resting_limit_orders`    |
-| `scaleOrderCount`         | `SCALE_ORDER_COUNT`                                         | `SCALE_ORDER_COUNT`       |
-| `twap`                    | `HYPERLIQUID_TWAP_LIMITS`                                   | not reported (no TWAP)    |
-| `maxOraclePriceDeviation` | `0.95` (`HYPERLIQUID_ORDER_LIMITS.MaxOraclePriceDeviation`) | not reported              |
+| Field                     | HyperLiquid                                             | Lighter                   |
+| ------------------------- | ------------------------------------------------------- | ------------------------- |
+| `sizeDecimals`            | market `szDecimals`                                     | `supported_size_decimals` |
+| `minOrderNotionalUsd`     | per-order minimum ($10)                                 | `min_quote_amount`        |
+| `minOrderSize`            | not reported                                            | `min_base_amount`         |
+| `minimumAppliesTo`        | `all_orders`                                            | `resting_limit_orders`    |
+| `scaleOrderCount`         | `SCALE_ORDER_COUNT`                                     | `SCALE_ORDER_COUNT`       |
+| `twap`                    | `HYPERLIQUID_TWAP_LIMITS`                               | not reported (no TWAP)    |
+| `maxOraclePriceDeviation` | `0.95` (`HYPERLIQUID_CONFIG.OraclePriceDeviationLimit`) | not reported              |
 
 Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighter, market and IOC orders can go down to one size step. Lighter reports `resting_limit_orders` even when maker minimums are unavailable. It omits both minimums if either is missing or invalid, if either grid is unavailable, or if the maker bounds cannot be met within the venue's wire limits. The largest base size is `(2^48 − 1) × 10^(-sizeDecimals)`, and the largest quote notional is that size times the largest wire price expressed in quote units. A valid grid remains available independently.
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 
-Check a limit price against `maxOraclePriceDeviation` with `isPriceOutsideDeviationBand(price, oraclePrice, maxOraclePriceDeviation)`, or show the accepted range from `getPriceDeviationBand`. Skip the check when the venue omits the limit. Round a price onto the reported grid with `roundPerpsPrice({ price, pricePrecision })`: a HyperLiquid grid gives the same string as `formatHyperLiquidPrice` except that a price rounding to zero returns `undefined` rather than `'0'`, and a Lighter grid rounds the supplied decimal string half up to `tickSize`.
+Check a limit price against `maxOraclePriceDeviation` with `isPriceOutsideDeviationBand(price, oraclePrice, maxOraclePriceDeviation)`, or show the accepted range from `getPriceDeviationBand`. Both use `|price - oracle| / oracle <= maxOraclePriceDeviation`, the same rule as `isMarketTradable` and `PriceUpdate.isTradable`, and Hyperliquid reports the limit the provider was configured with (`fallbackPriceDeviationLimit`, default `0.95`). Skip the check when the venue omits the limit. Round a price onto the reported grid with `roundPerpsPrice({ price, pricePrecision })`: a HyperLiquid grid gives the same string as `formatHyperLiquidPrice` except that a price rounding to zero returns `undefined` rather than `'0'`, and a Lighter grid rounds the supplied decimal string half up to `tickSize`.
 
 `attachedTpslGroupLimit` (`{ takeProfit, stopLoss }`) is the most take-profit and stop-loss legs one order can attach. HyperLiquid and Lighter both report one of each.
 

@@ -1598,6 +1598,127 @@ describe('HyperLiquidSubscriptionService', () => {
     expect(service.getOrdersCacheIfInitialized(true)).toBeNull();
   });
 
+  it('publishes a reverted order list to a complete subscriber that joined after the opt-in set emptied', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribeLegacy = service.subscribeToOrders({ callback: vi.fn() });
+    const first = vi.fn();
+    const unsubscribeFirst = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: first,
+    });
+    await vi.runAllTimersAsync();
+    const publish = mockSubscriptionClient.openOrders.mock.calls[0][1];
+    publish({ dex: '', orders: [] });
+    expect(first).toHaveBeenLastCalledWith([], undefined, true);
+
+    unsubscribeFirst();
+    publish({
+      dex: '',
+      orders: [{ oid: 1, coin: 'BTC', side: 'B', sz: '1', limitPx: '50000' }],
+    });
+    const second = vi.fn();
+    const unsubscribeSecond = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: second,
+    });
+    expect(second).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ orderId: '1' })],
+      undefined,
+      true,
+    );
+    publish({ dex: '', orders: [] });
+
+    expect(second).toHaveBeenLastCalledWith([], undefined, true);
+    unsubscribeSecond();
+    unsubscribeLegacy();
+  });
+
+  it('publishes a reverted position list to a complete subscriber that joined after the opt-in set emptied', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribeLegacy = service.subscribeToPositions({
+      callback: vi.fn(),
+    });
+    const first = vi.fn();
+    const unsubscribeFirst = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: first,
+    });
+    await vi.runAllTimersAsync();
+    const publish = (assetPositions: unknown[]): void =>
+      mockSubscriptionClient.clearinghouseState.mock.calls[0][1]({
+        dex: '',
+        clearinghouseState: {
+          assetPositions,
+          marginSummary: { accountValue: '1000', totalMarginUsed: '0' },
+          withdrawable: '1000',
+        },
+      });
+    publish([]);
+    expect(first).toHaveBeenLastCalledWith([], true);
+
+    unsubscribeFirst();
+    publish([
+      {
+        type: 'oneWay',
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          leverage: { type: 'cross', value: 5 },
+          liquidationPx: '40000',
+          marginUsed: '1000',
+          maxLeverage: 50,
+          cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        },
+      },
+    ]);
+    const second = vi.fn();
+    const unsubscribeSecond = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: second,
+    });
+    expect(second).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ symbol: 'BTC' })],
+      true,
+    );
+    publish([]);
+
+    expect(second).toHaveBeenLastCalledWith([], true);
+    unsubscribeSecond();
+    unsubscribeLegacy();
+  });
+
+  it('restores user-data streams after a reconnect when only complete-snapshot subscribers remain', async () => {
+    await service.updateFeatureFlags(false, [], [], []);
+    const unsubscribePositions = service.subscribeToPositions({
+      includeSnapshotStatus: true,
+      callback: vi.fn(),
+    });
+    const unsubscribeOrders = service.subscribeToOrders({
+      includeSnapshotStatus: true,
+      callback: vi.fn(),
+    });
+    await vi.runAllTimersAsync();
+    const clearinghouseOpens =
+      mockSubscriptionClient.clearinghouseState.mock.calls.length;
+    const openOrdersOpens = mockSubscriptionClient.openOrders.mock.calls.length;
+
+    await service.restoreSubscriptions();
+    await vi.runAllTimersAsync();
+
+    expect(
+      mockSubscriptionClient.clearinghouseState.mock.calls.length,
+    ).toBeGreaterThan(clearinghouseOpens);
+    expect(mockSubscriptionClient.openOrders.mock.calls.length).toBeGreaterThan(
+      openOrdersOpens,
+    );
+    unsubscribePositions();
+    unsubscribeOrders();
+  });
+
   it('publishes replacements with a new order ID on the complete stream', async () => {
     await service.updateFeatureFlags(false, [], [], []);
     const subscription = { unsubscribe: vi.fn().mockResolvedValue(undefined) };

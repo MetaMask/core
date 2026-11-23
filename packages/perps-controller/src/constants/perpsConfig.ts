@@ -377,8 +377,6 @@ export const HYPERLIQUID_ORDER_LIMITS = {
   },
   // Limit orders are 10x market order limits
   LimitOrderMultiplier: 10,
-  // A limit price may sit at most 95% away from the oracle price
-  MaxOraclePriceDeviation: 0.95,
 } as const;
 
 /**

@@ -5,6 +5,7 @@ import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
 } from '../../src/constants/perpsConfig.js';
+import { getDefaultPerpsControllerState } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import {
   selectIsFirstTimeUser,
@@ -23,6 +24,7 @@ import {
   selectVisibleCandleCount,
   selectPerpsMode,
 } from '../../src/selectors.js';
+import type { PerpsMarketData } from '../../src/types/index.js';
 
 describe('PerpsController selectors', () => {
   it('returns no configuration when selector state has not been hydrated', () => {
@@ -221,6 +223,47 @@ describe('PerpsController selectors', () => {
       const result = selectIsWatchlistMarket(state, 'SOL');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('selectIsWatchlistMarket with saved references', () => {
+    const lighterNvda: PerpsMarketData = {
+      symbol: 'NVDA',
+      name: 'NVDA',
+      maxLeverage: '10x',
+      price: '$120.00',
+      change24h: '$0.00',
+      change24hPercent: '0.00%',
+      volume: '$1',
+      providerId: 'lighter',
+    };
+    const stateWith = (mainnet: string[]): PerpsControllerState => ({
+      ...getDefaultPerpsControllerState(),
+      watchlistMarkets: { mainnet, testnet: [] },
+    });
+
+    it('matches a grouped favorite saved by market key', () => {
+      const state = stateWith(['market-key:NVDA-USD']);
+
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', 'NVDA-USD', [
+          { ...lighterNvda, marketKey: 'NVDA-USD', priceScale: 1 },
+        ]),
+      ).toBe(true);
+      expect(selectIsWatchlistMarket(state, 'NVDA')).toBe(false);
+    });
+
+    it('matches a non-legacy venue favorite only on that venue', () => {
+      const state = stateWith(['venue:lighter:NVDA']);
+
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', undefined, [lighterNvda]),
+      ).toBe(true);
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', undefined, [
+          { ...lighterNvda, providerId: 'hyperliquid' },
+        ]),
+      ).toBe(false);
     });
   });
 

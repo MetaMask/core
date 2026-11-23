@@ -222,6 +222,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
     });
 
+    it('reports the configured oracle price deviation limit', async () => {
+      useStrategyClients();
+      const configured = createTestProvider({ priceDeviationLimit: 0.5 });
+
+      const capabilities = await configured.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        orderLimits: { maxOraclePriceDeviation: 0.5 },
+      });
+    });
+
     it.each([-1, 1.5, 7, Number.NaN])(
       'omits grid and limits for invalid size decimals %s',
       async (szDecimals) => {

@@ -1,56 +1,43 @@
 import { BigNumber } from 'bignumber.js';
 
 /**
- * Band bounds in exact decimals, so `1 - 0.95` is exactly 0.05.
- *
- * @param referencePrice - Reference price.
- * @param maxDeviation - Deviation limit as a fraction.
- * @returns The bounds, or undefined when either input is unusable.
- */
-function deviationBounds(
-  referencePrice: number,
-  maxDeviation: number,
-): { min: BigNumber; max: BigNumber } | undefined {
-  if (
-    !Number.isFinite(referencePrice) ||
-    referencePrice <= 0 ||
-    !Number.isFinite(maxDeviation) ||
-    maxDeviation <= 0 ||
-    maxDeviation >= 1
-  ) {
-    return undefined;
-  }
-  const reference = new BigNumber(referencePrice);
-  const ratio = new BigNumber(1).minus(maxDeviation);
-  return {
-    min: reference.multipliedBy(ratio),
-    max: reference.dividedBy(ratio),
-  };
-}
-
-/**
  * Prices a venue accepts around a reference price under a deviation limit
- * such as `PerpsOrderLimits.maxOraclePriceDeviation`: from `1 - maxDeviation`
- * times the reference up to the reference divided by it.
+ * such as `PerpsOrderLimits.maxOraclePriceDeviation`: up to `maxDeviation`
+ * times the reference away from it on either side, so a price `p` is inside
+ * when `|p - reference| / reference <= maxDeviation`. HyperLiquid's rule
+ * ("Order price cannot be more than 95% away from the reference price") and
+ * `isMarketTradable` use this band. The lower bound never goes below 0.
+ * Bounds are computed in exact decimals, so `1 - 0.95` is exactly 0.05.
  *
  * @param referencePrice - Oracle price, or the mark price when the oracle is unknown.
- * @param maxDeviation - Deviation limit as a fraction, above 0 and below 1.
+ * @param maxDeviation - Deviation limit as a positive fraction.
  * @returns The inclusive band, or undefined when either input is unusable.
  */
 export function getPriceDeviationBand(
   referencePrice: number,
   maxDeviation: number,
 ): { min: number; max: number } | undefined {
-  const bounds = deviationBounds(referencePrice, maxDeviation);
-  return bounds && { min: bounds.min.toNumber(), max: bounds.max.toNumber() };
+  if (
+    !Number.isFinite(referencePrice) ||
+    referencePrice <= 0 ||
+    !Number.isFinite(maxDeviation) ||
+    maxDeviation <= 0
+  ) {
+    return undefined;
+  }
+  const reference = new BigNumber(referencePrice);
+  const offset = reference.multipliedBy(maxDeviation);
+  return {
+    min: BigNumber.max(reference.minus(offset), 0).toNumber(),
+    max: reference.plus(offset).toNumber(),
+  };
 }
 
 /**
  * Whether a price is outside the inclusive band {@link getPriceDeviationBand}
- * returns: below `1 - maxDeviation` times the reference, or above the
- * reference divided by it.
+ * returns, i.e. more than `maxDeviation` times the reference away from it.
  *
- * @param price - Order price.
+ * @param price - Order or market price.
  * @param referencePrice - Oracle price, or the mark price when the oracle is unknown.
  * @param maxDeviation - Deviation limit as a fraction, such as
  * `PerpsOrderLimits.maxOraclePriceDeviation`.

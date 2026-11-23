@@ -6,6 +6,7 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
 import type { VenueMarketData } from '../providers/AggregatedPerpsProvider.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type {
   PerpsProvider,
@@ -1039,8 +1040,11 @@ export class MarketDataService {
   /**
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
-   * A configured global snapshot is the market list, whether or not
-   * `useTerminalApi` is set. A rejected snapshot falls back to the provider.
+   * For a direct HyperLiquid read, a configured global snapshot is the market
+   * list, whether or not `useTerminalApi` is set, and a rejected snapshot falls
+   * back to the provider. Direct Lighter and aggregated reads return provider
+   * trading rules and join only each venue's snapshot `marketKey` and
+   * `priceScale`, matched by venue and market name.
    * `skipFilters` uses provider discovery because the snapshot DEX set is
    * restricted to the configured allowlist.
    * Without a snapshot URL, `useTerminalApi` still reads the legacy Terminal
@@ -1312,6 +1316,14 @@ export class MarketDataService {
             Date.now() < read.expiresAt
               ? read.markets
               : await read.getFallback();
+        }
+        // Direct rows carry their venue like aggregated rows do, so saved
+        // watchlist and recent references keep it.
+        const { protocolId } = provider;
+        if (isPerpsProviderType(protocolId)) {
+          markets = markets.map((market) =>
+            market.providerId ? market : { ...market, providerId: protocolId },
+          );
         }
       }
 

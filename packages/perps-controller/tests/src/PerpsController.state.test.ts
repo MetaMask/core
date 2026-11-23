@@ -42,7 +42,10 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
-import type { SubscribeAccountParams } from '../../src/types/index.js';
+import type {
+  PerpsMarketData,
+  SubscribeAccountParams,
+} from '../../src/types/index.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
 
@@ -2149,6 +2152,71 @@ describe('PerpsController', () => {
           expect(store.remote().mainnet).toStrictEqual(expected);
         },
       );
+
+      it.each([
+        ['starred then unstarred', [], 2, []],
+        ['unstarred, starred and unstarred again', ['BTC'], 3, ['BTC']],
+      ])(
+        'does not restore a star that never reached remote storage when a market is %s and every write fails',
+        async (_case, initial, toggleCount, expected) => {
+          const store = createAusStore({
+            mainnet: initial,
+            failingWrites: toggleCount,
+          });
+          const { controller } = buildController({
+            mainnetWatchlist: initial,
+            handlers: store.handlers,
+          });
+
+          const toggles = Promise.all(
+            Array.from({ length: toggleCount }, () =>
+              controller.toggleWatchlistMarket('BTC'),
+            ),
+          );
+          await store.drain();
+          await toggles;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual(
+            expected,
+          );
+          expect(store.remote().mainnet).toStrictEqual(expected);
+        },
+      );
+
+      it('does not save a keyed market twice after three overlapping failed toggles', async () => {
+        const store = createAusStore({ mainnet: ['BTC'], failingWrites: 3 });
+        const { controller } = buildController({
+          mainnetWatchlist: ['BTC'],
+          handlers: store.handlers,
+        });
+        const venues: PerpsMarketData[] = [
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            price: '1',
+            maxLeverage: '40x',
+            change24h: '0',
+            change24hPercent: '0%',
+            volume: '10',
+            marketKey: 'K',
+            priceScale: 1,
+            providerId: 'hyperliquid',
+          },
+        ];
+
+        const toggles = Promise.all([
+          controller.toggleWatchlistMarket('BTC', 'K', venues),
+          controller.toggleWatchlistMarket('BTC', 'K'),
+          controller.toggleWatchlistMarket('BTC', 'K', venues),
+        ]);
+        await store.drain();
+        await toggles;
+
+        expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+          'BTC',
+        ]);
+        expect(store.remote().mainnet).toStrictEqual(['BTC']);
+      });
 
       it('undoes a failed star on one network when the same market is starred on the other', async () => {
         const store = createAusStore({ mainnet: [], failingWrites: 1 });

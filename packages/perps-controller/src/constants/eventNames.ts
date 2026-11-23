@@ -248,30 +248,28 @@ export const PERPS_EVENT_PROPERTY = {
   // Time-on-screen for abandon tracking
   TIME_ON_SCREEN_MS: 'time_on_screen_ms',
 
-  // Search funnel properties
-  /** Queries typed before the session ended. */
+  // Search funnel properties. The query text itself is `SEARCH_QUERY`.
+  /** Queries sent in the search session, reported when it is abandoned. */
   QUERY_COUNT: 'query_count',
   TIME_IN_SEARCH_MS: 'time_in_search_ms',
   TIME_TO_TAP_MS: 'time_to_tap_ms',
-  /** Final query of a search session; `SEARCH_QUERY` is the query a result event fired for. */
-  QUERY_TEXT: 'query_text',
   QUERY_LENGTH: 'query_length',
   HAS_RESULTS: 'has_results',
-  /** Filter chips active when the session ended. */
+  /** Filter chips active when this query event was sent. */
   ACTIVE_CHIPS: 'active_chips',
 
   // Chase termination properties
   FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
 
-  // Related-markets interaction properties
+  // Related-markets interaction properties. The tapped market is `ASSET` and
+  // its one-based slot in the list is `RESULT_RANK`.
   /** Market whose page listed the related market. */
   SOURCE_MARKET: 'source_market',
-  /** Related market tapped. */
-  MARKET: 'market',
-  /** Collection the related markets were drawn from. */
+  /**
+   * Collection the related markets were drawn from. Not `MARKET_CATEGORY`
+   * (the tapped market's own category) or `FILTER_CATEGORY` (a list filter).
+   */
   CATEGORY: 'category',
-  /** One-based slot of the tapped market in the list. */
-  POSITION: 'position',
 } as const;
 
 /**

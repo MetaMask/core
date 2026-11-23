@@ -2020,6 +2020,11 @@ describe('PerpsController', () => {
           activeProvider: 'aggregated',
           cachedMarketDataByProvider: {
             'hyperliquid:mainnet': { data: [btc], timestamp: Date.now() },
+            // A stale disk-hydrated slice from a session where Lighter loaded.
+            'lighter:mainnet': {
+              data: [{ ...btc, providerId: 'lighter' }],
+              timestamp: Date.now() - 24 * 60 * 60 * 1000,
+            },
           },
         },
         clientConfig: {

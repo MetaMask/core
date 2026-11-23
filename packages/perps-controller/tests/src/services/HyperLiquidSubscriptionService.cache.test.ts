@@ -29,6 +29,7 @@ import {
   parseAssetName,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import { calculateOrderBookSpread } from '../../../src/utils/orderBookGrouping.js';
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
   createDeferred,
@@ -4596,9 +4597,13 @@ describe('HyperLiquidSubscriptionService', () => {
               size: '1.5',
             }),
           ]),
-          spread: expect.any(String),
-          spreadPercentage: expect.any(String),
-          midPrice: expect.any(String),
+          // The shared helper's numbers in the stream's string format.
+          spread: '200.00000',
+          spreadPercentage: calculateOrderBookSpread({
+            bestBid: '49900',
+            bestAsk: '50100',
+          })?.spreadPercentage.toFixed(4),
+          midPrice: '50000.00000',
           lastUpdated: expect.any(Number),
           maxTotal: expect.any(String),
         }),

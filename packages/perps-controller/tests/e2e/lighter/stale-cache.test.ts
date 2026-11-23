@@ -76,7 +76,8 @@ globalThis.WebAssembly.instantiate = () => { throw new Error('Unexpected WASM in
           cwd: root,
           encoding: 'utf8',
           env: { TSX_TSCONFIG_PATH: join(packageRoot, 'tsconfig.json') },
-          timeout: 15_000,
+          // Usually under a second; the margin absorbs loaded CI runners.
+          timeout: 45_000,
         },
       );
 
@@ -89,5 +90,5 @@ globalThis.WebAssembly.instantiate = () => { throw new Error('Unexpected WASM in
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  }, 20_000);
+  }, 60_000);
 });

@@ -329,6 +329,7 @@ import type {
 } from '../utils/lighterScaleOrders.js';
 import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
 import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js';
+import { calculateOrderBookSpread } from '../utils/orderBookGrouping.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -19483,9 +19484,10 @@ export class LighterProvider implements PerpsProvider {
           .sort((a, b) => Number(a[0]) - Number(b[0]))
           .slice(0, levels),
       );
-      const bestBid = Number(bids[0]?.price ?? '0');
-      const bestAsk = Number(asks[0]?.price ?? '0');
-      const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
+      const top = calculateOrderBookSpread({
+        bestBid: bids[0]?.price,
+        bestAsk: asks[0]?.price,
+      });
       const maxTotal = Math.max(
         Number(bids[bids.length - 1]?.total ?? '0'),
         Number(asks[asks.length - 1]?.total ?? '0'),
@@ -19493,10 +19495,9 @@ export class LighterProvider implements PerpsProvider {
       const book: OrderBookData = {
         bids,
         asks,
-        spread: String(bestAsk - bestBid),
-        spreadPercentage:
-          mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
-        midPrice: String(mid),
+        spread: String(top?.spread ?? 0),
+        spreadPercentage: top ? String(top.spreadPercentage) : '0',
+        midPrice: String(top?.midPrice ?? 0),
         lastUpdated: Date.now(),
         maxTotal: String(maxTotal),
       };
