@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unsupported keyrings are no longer re-attempted when an operation rolls back.
   - A keyring that fails to destroy during a rollback no longer aborts it: the failure is logged, the rollback completes, and the error of the failed operation is still the one thrown.
   - Instances created by a failed operation are destroyed before any keyring is recreated from its snapshot, releasing any shared resource they hold (e.g. a hardware SDK singleton) for the recreation.
+  - Recreated keyrings are checked for duplicate accounts during both scoped and whole-wallet rollback, and destroyed if validation fails ([#11707](https://github.com/MetaMask/core/pull/11707)).
 - Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
 - Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/utils` from `^12.0.2` to `^12.1.0` ([#11796](https://github.com/MetaMask/core/pull/11796))

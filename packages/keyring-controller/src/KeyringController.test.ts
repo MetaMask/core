@@ -7206,7 +7206,7 @@ describe('KeyringController', () => {
       });
     });
 
-    it('does not check other keyrings for duplicate accounts when rolling back a scoped transaction', async () => {
+    it('checks other keyrings for duplicate accounts when rolling back a scoped transaction', async () => {
       const SHALLOW_ACCOUNT: Hex = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 
       await withController(
@@ -7240,10 +7240,61 @@ describe('KeyringController', () => {
             ),
           ).rejects.toThrow('Oops');
 
-          // The scoped rollback rebuilds the operated keyring without
-          // checking the other keyrings for duplicate accounts: the
-          // transaction owned the only keyring that changed.
-          expect(hdGetAccounts).not.toHaveBeenCalled();
+          // The restored keyring must not introduce duplicate accounts
+          // with any of the keyrings that remain in the session.
+          expect(hdGetAccounts).toHaveBeenCalledTimes(1);
+          expect(await controller.getAccounts()).toContain(SHALLOW_ACCOUNT);
+        },
+      );
+    });
+
+    it('parks a scoped replacement that deserializes to a duplicate account', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const SHALLOW_ACCOUNT: Hex = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [SHALLOW_ACCOUNT] },
+                metadata: { id: 'shallow', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const hdKeyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as HdKeyring;
+          const hdAccounts = await hdKeyring.getAccounts();
+          const vaultBefore = controller.state.vault;
+          vi.spyOn(
+            MockShallowKeyring.prototype,
+            'deserialize',
+          ).mockImplementationOnce(async function (this: MockShallowKeyring) {
+            this.accounts = [...hdAccounts];
+          });
+
+          await expect(
+            controller.withKeyring(
+              { type: MockShallowKeyring.type },
+              async () => {
+                throw new Error('Operation cancelled');
+              },
+            ),
+          ).rejects.toThrow('Operation cancelled');
+
+          expect(
+            controller.getKeyringsByType(MockShallowKeyring.type),
+          ).toHaveLength(0);
+          expect(await hdKeyring.getAccounts()).toStrictEqual(hdAccounts);
+          expect(controller.state.vault).toBe(vaultBefore);
         },
       );
     });
