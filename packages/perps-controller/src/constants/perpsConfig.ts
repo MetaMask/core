@@ -142,6 +142,33 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
+  /** How often a live chase list re-reads the provider's chase snapshots. */
+  RefreshIntervalMs: 1000,
+  /** Most ended chases a live chase list keeps in history, newest first. */
+  HistoryLimit: 50,
+  /**
+   * Reads a live chase list keeps a running chase that a read omits. An
+   * aggregated read drops a provider whose read failed, so one omission is not
+   * proof the chase is gone.
+   */
+  OmissionGraceReads: 1,
+} as const;
+
+/** Refresh cadence of a live TWAP list. */
+export const TWAP_ORDER_CONFIG = {
+  /**
+   * How often a live TWAP list re-reads while a schedule runs. The stream
+   * carries no slice fills, so only reads raise the execution totals.
+   */
+  RefreshIntervalMs: 5000,
+  /** Delay before re-reading when the stream lists a schedule no read has. */
+  StreamCatchUpIntervalMs: 1000,
+} as const;
+
+/** Thresholds for the price warnings shown on a resting order draft. */
+export const ORDER_PRICE_WARNING_CONFIG = {
+  /** Distance from the touch, as a fraction, past which a price is far from market. */
+  FarFromMarketRatio: 0.05,
 } as const;
 
 /** Public lifecycle states reported for an emulated Chase order. */
@@ -300,6 +327,15 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
+ * Quick-pick RoE percentages for take profit (positive) and stop loss
+ * (negative) in TP/SL forms, as Mobile and Extension show them.
+ */
+export const TP_SL_ROE_PRESETS = {
+  TakeProfit: [10, 25, 50, 100],
+  StopLoss: [-5, -10, -25, -50],
+} as const;
+
+/**
  * Bounds applied to a HyperLiquid TWAP placement.
  *
  * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
@@ -319,6 +355,8 @@ export const HYPERLIQUID_TWAP_LIMITS = {
   MinDurationMinutes: 5,
   MaxDurationMinutes: 1440,
   MinNotionalUsd: 100,
+  /** The venue sends one TWAP suborder every 30 seconds. */
+  SliceIntervalSeconds: 30,
 } as const;
 
 /**
@@ -339,6 +377,36 @@ export const HYPERLIQUID_ORDER_LIMITS = {
   },
   // Limit orders are 10x market order limits
   LimitOrderMultiplier: 10,
+} as const;
+
+/**
+ * Cross-margin ratio levels (`PerpsAccountSummary.accountRatio`, maintenance
+ * margin over cross collateral; liquidation at 1) where clients warn: a
+ * warning from `Warning` up, danger above `Danger`.
+ */
+export const CROSS_MARGIN_RATIO_THRESHOLDS = {
+  Warning: 0.5,
+  Danger: 0.75,
+} as const;
+
+/**
+ * Order-book price grouping ladder shared by Mobile, Extension and Terminal.
+ * The `decade` ladder is `10^(floor(log10(mid)) - DecadeOffset)` times each
+ * of `Multipliers`; the `tick` ladder is the market tick times each of
+ * `TickMultipliers`.
+ */
+export const ORDER_BOOK_GROUPING_CONFIG = {
+  DecadeOffset: 4,
+  Multipliers: [1, 2, 5, 10, 100, 1000],
+  /** Multipliers of the market tick for the `tick` ladder. */
+  TickMultipliers: [1, 2, 5, 10, 20, 50],
+  /** Index of the default option; the middle option when the ladder is shorter. */
+  DefaultOptionIndex: 3,
+  /** Options when the mid price is unknown. */
+  FallbackOptions: [0.01, 0.1, 1],
+  /** Significant-figure range a venue aggregates a book stream at. */
+  MinSignificantFigures: 2,
+  MaxSignificantFigures: 5,
 } as const;
 
 /**
@@ -544,6 +612,10 @@ export const MARKET_SORTING_CONFIG = {
     PriceChange: 'priceChange',
     OpenInterest: 'openInterest',
     FundingRate: 'fundingRate',
+    /** `sortMarkets` only: the current price. */
+    Price: 'price',
+    /** `sortMarkets` only: the market name. */
+    Name: 'name',
   } as const,
 
   // Sort button presets for filter chips (simplified buttons without direction)
@@ -763,6 +835,8 @@ export const PERPS_DISPLAY_PRECISION = {
   FeeBps: 2,
   // Distance from the liquidation price as a percentage: "30.00%"
   LiquidationDistancePercent: 2,
+  // Most decimals of a leverage multiplier, trailing zeros dropped: "0.2x", "1.21x"
+  Leverage: 2,
   // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
   TwapProgressPercent: 2,
   // Most decimals of a typed USD amount: "12.34"

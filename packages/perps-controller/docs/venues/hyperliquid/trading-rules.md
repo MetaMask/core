@@ -53,9 +53,9 @@ Code: `src/providers/HyperLiquidProvider.ts` `validateOrder`, `#placeOrder`, `#p
 | Then at most 5 significant figures                                                       | `DECIMAL_PRECISION_CONFIG.MaxSignificantFigures` (5) |
 | Sizes keep `szDecimals`, trailing zeros removed; TP/SL and reduce-only sizes are floored |                                                      |
 
-`formatHyperLiquidPrice` does not check tick divisibility. It is exported from the package.
+Both price caps round half up on the price's decimal form, as hyperliquid.xyz does: `69.9425` becomes `69.943`. `formatHyperLiquidPrice` and `roundPerpsPrice` share this rounding. `formatHyperLiquidPrice` does not check tick divisibility. It is exported from the package.
 
-Code: `src/utils/hyperLiquidAdapter.ts` `formatHyperLiquidPrice`, `formatHyperLiquidSize`; `src/utils/orderCalculations.ts` `floorToSizeDecimals`, `formatPartialTpslSize`.
+Code: `src/utils/hyperLiquidAdapter.ts` `formatHyperLiquidPrice`, `formatHyperLiquidSize`; `src/utils/pricePrecision.ts` `roundToSignificantFiguresGrid`; `src/utils/orderCalculations.ts` `floorToSizeDecimals`, `formatPartialTpslSize`.
 
 ## Asset IDs
 
@@ -69,7 +69,8 @@ Code: `src/utils/hyperLiquidAdapter.ts` `calculateHip3AssetId`; `src/constants/h
 
 ## Margin and collateral
 
-- Cross margin is offered only on main-DEX markets the venue does not mark `onlyIsolated` or restrict by `marginMode`. HIP-3 markets stay isolated because our HIP-3 collateral transfer assumes isolated margin.
+- Cross margin is offered on main-DEX and HIP-3 markets unless the venue marks them `onlyIsolated` or sets a `marginMode` other than `normal` (`noCross`, `strictIsolated`).
+- Without Unified Account, adding to an isolated HIP-3 position transfers the whole position's margin before the order, because the venue checks it against the full position. Adding to a Cross position transfers the new order's margin plus any shortfall when the order lowers the position's leverage, since the venue re-margins the whole position at the new leverage.
 - HIP-3 DEXs whose collateral is not USDC are excluded from market data and order placement.
 - With Unified Account or portfolio margin, HyperLiquid moves HIP-3 collateral itself. Otherwise `#handleHip3PreOrder` moves it with `exchangeClient.sendAsset` before the order.
 

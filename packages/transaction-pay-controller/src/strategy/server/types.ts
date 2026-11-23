@@ -131,6 +131,11 @@ export type ServerQuoteClient = {
 
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
+  /**
+   * Signed EIP-7702 authorizations sent with the quote request, kept when the
+   * quote embeds the calls, so a non-gasless submit can upgrade the account.
+   */
+  authorizationList?: ServerAuthorization[];
   id: string;
   provider: string;
   input: ServerQuoteAmount;

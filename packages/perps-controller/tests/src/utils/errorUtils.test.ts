@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   isAbortError,
   ensureError,
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
+  normalizeHyperLiquidError,
 } from '../../../src/utils/errorUtils.js';
 
 describe('errorUtils', () => {
@@ -163,5 +166,246 @@ describe('errorUtils', () => {
       ).toBe(false);
       expect(isHyperLiquidMultiSigRequiredError(undefined)).toBe(false);
     });
+  });
+
+  describe('normalizeHyperLiquidError', () => {
+    it.each([
+      [
+        'Insufficient margin to place order',
+        PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+      ],
+      [
+        'Reduce only order would increase position',
+        PERPS_ERROR_CODES.REDUCE_ONLY_VIOLATION,
+      ],
+      [
+        'Order could not immediately match against any resting orders',
+        PERPS_ERROR_CODES.IOC_CANCEL,
+      ],
+      [
+        'Too many requests: rate limit exceeded',
+        PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      ],
+      [
+        'Too many cumulative requests sent',
+        PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      ],
+      [
+        'Order must have minimum value of $10',
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      ],
+      [
+        'Order 12: Order must have minimum value of $10',
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      ],
+      [
+        'User or API Wallet 0xabc does not exist.',
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      ],
+      [
+        'Must deposit before performing actions. User: 0xabc',
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      ],
+      ['Not enough balance', PERPS_ERROR_CODES.INSUFFICIENT_BALANCE],
+      [
+        'Isolated position does not have sufficient margin available to decrease leverage',
+        PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,
+      ],
+      ['Multi-sig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+      ['Multisig required', PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED],
+      ['Invalid nonce', PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE],
+      ['Request timeout', PERPS_ERROR_CODES.CONNECTION_TIMEOUT],
+      ['Request timed out', PERPS_ERROR_CODES.CONNECTION_TIMEOUT],
+      ['Service unavailable', PERPS_ERROR_CODES.SERVICE_UNAVAILABLE],
+      ['Network error', PERPS_ERROR_CODES.NETWORK_ERROR],
+      ['Fetch failed', PERPS_ERROR_CODES.NETWORK_ERROR],
+      ['Connection failed', PERPS_ERROR_CODES.NETWORK_ERROR],
+      ['Position would flip', PERPS_ERROR_CODES.POSITION_WOULD_FLIP],
+      ['Order would flip position', PERPS_ERROR_CODES.POSITION_WOULD_FLIP],
+      ['No position found', PERPS_ERROR_CODES.POSITION_NOT_FOUND],
+      ['Slippage exceeded', PERPS_ERROR_CODES.SLIPPAGE_EXCEEDED],
+      ['Price moved too much', PERPS_ERROR_CODES.SLIPPAGE_EXCEEDED],
+      ['Order rejected', PERPS_ERROR_CODES.ORDER_REJECTED],
+      ['Rejected order', PERPS_ERROR_CODES.ORDER_REJECTED],
+      [
+        'Builder has insufficient balance to be approved.',
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      ],
+      [
+        'Error placing new order during modify: Post only order would have immediately matched, bbo was 2503.1@2503.2.',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      ],
+      [
+        'order 0: Only post-only orders allowed immediately after network upgrade',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      ],
+    ])('maps "%s" to %s with provider details', (message, code) => {
+      const cause = new Error(message);
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe(code);
+      expect(result.errorCode).toBe(code);
+      expect(result.errorDetails).toStrictEqual({
+        code,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
+    });
+
+    it.each([
+      'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+      'Order was never placed',
+      'Order already canceled',
+      'Order already cancelled',
+      'Order not found',
+      'TWAP not found',
+      'CANCEL 0: ORDER WAS NEVER PLACED, ALREADY CANCELED, OR FILLED.',
+      'ORDER_NO_LONGER_OPEN',
+    ])('classifies an order no longer open: "%s"', (message) => {
+      const cause = new Error(message);
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe('ORDER_NO_LONGER_OPEN');
+      expect(result.errorCode).toBe('ORDER_NO_LONGER_OPEN');
+      expect(result.errorDetails).toStrictEqual({
+        code: 'ORDER_NO_LONGER_OPEN',
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
+    });
+
+    it.each([
+      'Order partially filled',
+      'Order could not be filled',
+      'Order cancellation failed',
+      'Unknown order state',
+    ])('does not infer an order is gone from "%s"', (message) => {
+      const result = normalizeHyperLiquidError(new Error(message));
+
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+    });
+
+    it('preserves PRICE_MOVED and its local numeric payload', () => {
+      const errorDetails = {
+        code: PERPS_ERROR_CODES.PRICE_MOVED,
+        priceDeltaBps: 150,
+        maxSlippageBps: 100,
+        expectedPrice: 100,
+        currentPrice: 101.5,
+      };
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.PRICE_MOVED,
+        'Price moved too much',
+        errorDetails,
+      );
+
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result).toBe(error);
+      expect(result.errorDetails).toStrictEqual(errorDetails);
+    });
+
+    it('preserves PRICE_MOVED even when it carries no details', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.PRICE_MOVED,
+        PERPS_ERROR_CODES.PRICE_MOVED,
+      );
+
+      expect(normalizeHyperLiquidError(error)).toBe(error);
+    });
+
+    it('preserves a structured controller error that already has details', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+        {
+          code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+          provider: 'hyperliquid',
+        },
+      );
+
+      expect(normalizeHyperLiquidError(error)).toBe(error);
+    });
+
+    it('tags an untagged structured error and keeps its original cause', () => {
+      const venueError = new Error(
+        'Order 0: Order must have minimum value of $10',
+      );
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        undefined,
+        { cause: venueError },
+      );
+
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result).toBeInstanceOf(PerpsControllerError);
+      expect(result.message).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(venueError);
+    });
+
+    it('uses the untagged structured error itself as the cause when it has none', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+      );
+
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(error);
+    });
+
+    it('returns a safe generic error for an unknown failure and retains the cause', () => {
+      const cause = new Error(
+        'Unexpected Hyperliquid response containing sensitive diagnostics',
+      );
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(result.message).not.toContain(cause.message);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
+    });
+
+    it.each([
+      '503 Service Unavailable',
+      'HTTP 503',
+      'Request failed with status code: 503',
+      'Hyperliquid is temporarily unavailable',
+    ])('maps an explicit service outage message: "%s"', (message) => {
+      expect(normalizeHyperLiquidError(new Error(message)).errorCode).toBe(
+        PERPS_ERROR_CODES.SERVICE_UNAVAILABLE,
+      );
+    });
+
+    it.each([
+      'Invalid wallet 0xabc503def',
+      'Unknown asset ID 1503',
+      'Invalid limit price 503.25',
+    ])(
+      'does not infer a service outage from embedded digits: "%s"',
+      (message) => {
+        expect(normalizeHyperLiquidError(new Error(message)).errorCode).toBe(
+          PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        );
+      },
+    );
   });
 });

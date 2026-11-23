@@ -95,6 +95,11 @@ export enum PaymentOverride {
   MoneyAccount = 'moneyAccount',
   Perps = 'perps',
   Predict = 'predict',
+  /**
+   * Direct Lighter perps target. The first mainnet USDC deposit does not use
+   * this override: that quote uses the confirmation's required asset and network.
+   */
+  PerpsLighter = 'perpsLighter',
 }
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type {
+  AssetPosition,
   ClearinghouseStateResponse,
   FrontendOrder,
 } from '../../../src/types/hyperliquid-types.js';
@@ -8,6 +9,7 @@ import {
   adaptAccountStateFromSDK,
   adaptOrderFromSDK,
   adaptMarketFromSDK,
+  adaptPositionFromSDK,
   buildHyperLiquidFillId,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 
@@ -114,6 +116,85 @@ describe('adaptOrderFromSDK', () => {
   });
 });
 
+describe('adaptPositionFromSDK cross display margin', () => {
+  const assetPosition = (
+    type: 'cross' | 'isolated',
+    marginUsed = '100',
+  ): AssetPosition => ({
+    type: 'oneWay',
+    position: {
+      coin: 'ETH',
+      szi: '0.5',
+      entryPx: '2000',
+      positionValue: '1000',
+      unrealizedPnl: '-50',
+      returnOnEquity: '-0.5',
+      liquidationPx: '1900',
+      marginUsed,
+      maxLeverage: 25,
+      leverage:
+        type === 'cross'
+          ? { type: 'cross', value: 10 }
+          : { type: 'isolated', value: 10, rawUsd: '100' },
+      cumFunding: { allTime: '1', sinceOpen: '0.5', sinceChange: '0.1' },
+    },
+  });
+  const summary = (
+    accountValue: string,
+    totalMarginUsed: string,
+  ): ClearinghouseStateResponse['crossMarginSummary'] => ({
+    accountValue,
+    totalMarginUsed,
+    totalNtlPos: '1000',
+    totalRawUsd: '0',
+  });
+
+  it('scales a cross position by accountValue / totalMarginUsed when cross equity is below initial margin', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross', '30'),
+      summary('50', '120'),
+    );
+    expect(position.marginUsed).toBe('30');
+    expect(position.displayMarginUsed).toBe('12.5');
+  });
+
+  it('shows the raw margin when cross equity covers initial margin', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('150', '100'),
+    );
+    expect(position.displayMarginUsed).toBe('100');
+  });
+
+  it('floors the display margin at zero when cross equity is negative', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('-10', '100'),
+    );
+    expect(position.displayMarginUsed).toBe('0');
+  });
+
+  it('shows the raw margin when the summary reports no margin used', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('0', '0'),
+    );
+    expect(position.displayMarginUsed).toBe('100');
+  });
+
+  it('omits the display margin for isolated positions, without a summary or with a non-numeric one', () => {
+    expect(
+      adaptPositionFromSDK(assetPosition('isolated'), summary('50', '100')),
+    ).not.toHaveProperty('displayMarginUsed');
+    expect(adaptPositionFromSDK(assetPosition('cross'))).not.toHaveProperty(
+      'displayMarginUsed',
+    );
+    expect(
+      adaptPositionFromSDK(assetPosition('cross'), summary('oops', '100')),
+    ).not.toHaveProperty('displayMarginUsed');
+  });
+});
+
 describe('adaptMarketFromSDK margin capability', () => {
   it.each(['strictIsolated', 'noCross', undefined] as const)(
     'preserves venue restriction %s',
@@ -131,6 +212,61 @@ describe('adaptMarketFromSDK margin capability', () => {
       expect(result.marginMode).toBe(marginMode);
     },
   );
+});
+
+describe('adaptMarketFromSDK margin tiers', () => {
+  const marginTables: [
+    number,
+    {
+      description: string;
+      marginTiers: { lowerBound: string; maxLeverage: number }[];
+    },
+  ][] = [
+    [
+      56,
+      {
+        description: 'tiered 40x',
+        marginTiers: [
+          { lowerBound: '0.0', maxLeverage: 40 },
+          { lowerBound: '150000000.0', maxLeverage: 20 },
+        ],
+      },
+    ],
+  ];
+
+  it('resolves a tiered table from meta.marginTables', () => {
+    const result = adaptMarketFromSDK(
+      { name: 'BTC', szDecimals: 5, maxLeverage: 40, marginTableId: 56 },
+      marginTables,
+    );
+
+    expect(result.marginTiers).toStrictEqual([
+      { lowerBound: 0, maxLeverage: 40 },
+      { lowerBound: 150000000, maxLeverage: 20 },
+    ]);
+  });
+
+  it('resolves a single-tier table id from max leverage', () => {
+    const result = adaptMarketFromSDK({
+      name: 'ETH',
+      szDecimals: 4,
+      maxLeverage: 25,
+      marginTableId: 25,
+    });
+
+    expect(result.marginTiers).toStrictEqual([
+      { lowerBound: 0, maxLeverage: 25 },
+    ]);
+  });
+
+  it('omits tiers when the tiered table is missing', () => {
+    const result = adaptMarketFromSDK(
+      { name: 'SOL', szDecimals: 2, maxLeverage: 20, marginTableId: 57 },
+      marginTables,
+    );
+
+    expect(result).not.toHaveProperty('marginTiers');
+  });
 });
 
 describe('buildHyperLiquidFillId', () => {

@@ -480,7 +480,7 @@ export type LighterAccountResponse = {
 export type LighterApiPosition = {
   marketId: number;
   symbol: string;
-  initialMarginFraction: string;
+  initialMarginFraction?: string;
   openOrderCount: number;
   /** Optional in legacy captures; live mode changes require authoritative counts. */
   pendingOrderCount?: number;

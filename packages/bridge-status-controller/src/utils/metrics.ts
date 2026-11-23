@@ -19,6 +19,7 @@ import {
   UnifiedSwapBridgeEventName,
   FailurePhase,
   SwapBridgeErrorCode,
+  MoneyAccountAction,
 } from '@metamask/bridge-controller';
 import type {
   AccountHardwareType,
@@ -42,12 +43,27 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types.js';
+import { Operation } from '../types.js';
+import type { BridgeHistoryItem, NextAction } from '../types.js';
 import { calcActualGasUsed } from './gas.js';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount.js';
+
+export const getMoneyAccountActionData = (historyItem: BridgeHistoryItem) => {
+  if (historyItem.depositTxMeta) {
+    return {
+      money_account_action: MoneyAccountAction.Deposit,
+    };
+  }
+  if (historyItem.withdrawTxMeta) {
+    return {
+      money_account_action: MoneyAccountAction.Withdraw,
+    };
+  }
+  return {};
+};
 
 /**
  * Classify a thrown value from submit (sign/broadcast) catch paths.
@@ -84,11 +100,21 @@ export const getHashPresenceProperties = (
  * Prefer destination_execution over source_execution over poll.
  *
  * @param hashPresence - Hash presence at emit time.
+ * @param depositTxMeta - The deposit transaction meta from txHistory
+ * @param withdrawTxMeta - The withdrawal transaction meta from txHistory
  * @returns The Mixpanel `failure_phase` for a status/polling Failed event.
  */
 export const getStatusFailurePhase = (
   hashPresence: HashPresenceProperties,
+  depositTxMeta: BridgeHistoryItem['depositTxMeta'] | null,
+  withdrawTxMeta: BridgeHistoryItem['withdrawTxMeta'] | null,
 ): FailurePhase => {
+  if (depositTxMeta?.batchId && !depositTxMeta?.hash) {
+    return FailurePhase.DepositExecution;
+  }
+  if (withdrawTxMeta?.batchId && !withdrawTxMeta?.hash) {
+    return FailurePhase.WithdrawExecution;
+  }
   if (hashPresence.destination_hash_present) {
     return FailurePhase.DestinationExecution;
   }
@@ -110,6 +136,13 @@ export const promoteFailurePhase = (
   phase: FailurePhase,
   hashPresence: HashPresenceProperties,
 ): FailurePhase => {
+  if (
+    [FailurePhase.DepositExecution, FailurePhase.WithdrawExecution].includes(
+      phase,
+    )
+  ) {
+    return phase;
+  }
   if (hashPresence.destination_hash_present) {
     return FailurePhase.DestinationExecution;
   }
@@ -147,18 +180,31 @@ export const getBroadcastFailureProperties = (
  * Used for poll Failed and TransactionController Failed once a history
  * item exists. Not poll-only.
  *
- * @param sourceHash - Source tx hash from history if known.
- * @param destinationHash - Destination tx hash from history if known.
+ * @param historyItem - The bridge history item
+ * @param historyItem.status - Status of the transaction including hashes
+ * @param historyItem.depositTxMeta - The deposit transaction meta from txHistory
+ * @param historyItem.withdrawTxMeta - The withdrawal transaction meta from txHistory
  * @returns Phase, error code, and hash-presence flags.
  */
-export const getFailurePropertiesFromHistory = (
-  sourceHash?: string | null,
-  destinationHash?: string | null,
-): FailureTelemetryProperties => {
-  const hashPresence = getHashPresenceProperties(sourceHash, destinationHash);
+export const getFailurePropertiesFromHistory = ({
+  status,
+  depositTxMeta,
+  withdrawTxMeta,
+}: Pick<
+  BridgeHistoryItem,
+  'status' | 'depositTxMeta' | 'withdrawTxMeta'
+>): FailureTelemetryProperties => {
+  const hashPresence = getHashPresenceProperties(
+    status?.srcChain.txHash,
+    status?.destChain?.txHash,
+  );
   return {
     ...hashPresence,
-    failure_phase: getStatusFailurePhase(hashPresence),
+    failure_phase: getStatusFailurePhase(
+      hashPresence,
+      depositTxMeta,
+      withdrawTxMeta,
+    ),
     error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
   };
 };
@@ -299,6 +345,12 @@ export const getPriceImpactFromQuote = (
   return { price_impact: Number(quote.priceData?.priceImpact ?? '0') };
 };
 
+const OP_TO_MONEY_ACCOUNT_ACTION = {
+  [Operation.SWAP]: undefined,
+  [Operation.DEPOSIT]: MoneyAccountAction.Deposit,
+  [Operation.WITHDRAW]: MoneyAccountAction.Withdraw,
+};
+
 /**
  * Before the tx is confirmed, its data is not available in txHistory
  * The quote is used to populate event properties before confirmation
@@ -313,6 +365,7 @@ export const getPriceImpactFromQuote = (
  * @param batchSellTrades - The batch sell trades response
  * @param batchId - The batch ID of the transaction batch.
  * @param quotesReceivedContext - The client context captured when quotes were received.
+ * @param moneyAccountAction - The withdraw or deposit action combined with the swap
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -326,6 +379,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   batchSellTrades?: BatchSellTradesResponse | null,
   batchId?: Hex,
   quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
+  moneyAccountAction?: Operation,
 ): RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Submitted] => {
   const { quote } = quoteResponse;
   return {
@@ -359,7 +413,12 @@ export const getPreConfirmationPropertiesFromQuote = (
       activeAbTests.length > 0 && {
         active_ab_tests: activeAbTests,
       }),
-    ...(batchId ? { batch_id: batchId } : {}),
+    ...(batchId && { batch_id: batchId }),
+    ...(moneyAccountAction && OP_TO_MONEY_ACCOUNT_ACTION[moneyAccountAction]
+      ? {
+          money_account_action: OP_TO_MONEY_ACCOUNT_ACTION[moneyAccountAction],
+        }
+      : {}),
     feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };
@@ -492,5 +551,37 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     error_code: transactionMeta.error
       ? SwapBridgeErrorCode.Unknown
       : SwapBridgeErrorCode.MissingErrorObject,
+  };
+};
+
+export const getFailurePropertiesForNextAction = (
+  historyItem: BridgeHistoryItem,
+  quotes: (QuoteResponseV1 & QuoteMetadata)[],
+  operation: NextAction['operation'],
+  batchId?: Hex,
+): Omit<
+  RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed],
+  'error_code' | 'error_message'
+> => {
+  return {
+    ...getPreConfirmationPropertiesFromQuote(
+      quotes[0],
+      Boolean(historyItem.isStxEnabled),
+      null, // hardware wallets require approval so they can't set `next` action
+      historyItem.location,
+      historyItem.abTests,
+      historyItem.activeAbTests,
+      historyItem.tokenSecurityTypeDestination,
+      historyItem.batchSellData,
+      batchId,
+      undefined,
+      operation,
+    ),
+    failure_phase:
+      operation === Operation.DEPOSIT
+        ? FailurePhase.DepositExecution // deposit after swap tx
+        : FailurePhase.Broadcast, // swap after withdraw tx
+    source_hash_present: operation === Operation.DEPOSIT,
+    destination_hash_present: operation === Operation.DEPOSIT,
   };
 };

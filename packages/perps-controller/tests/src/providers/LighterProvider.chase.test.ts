@@ -305,9 +305,22 @@ describe('Lighter bounded Chase provider probe', () => {
       buildProvider({ chaseTestnetProbe: true, isTestnet: false }),
     ).toThrow('testnet-only');
     const built = setup();
-    expect(
-      await built.provider.getOrderCapabilities({ symbol: 'BTC' }),
-    ).toMatchObject({ supportedStrategies: ['scale', 'chase'] });
+    const capabilities = await built.provider.getOrderCapabilities({
+      symbol: 'BTC',
+    });
+    expect(capabilities).toMatchObject({
+      supportedStrategies: ['scale', 'chase'],
+    });
+    expect(capabilities).toMatchObject({
+      strategyRules: {
+        scale: { minOrders: 2, maxOrders: 20 },
+        chase: { defaultIntervalMs: 15_000, minIntervalMs: 1_000 },
+      },
+    });
+    // Lighter puts no cap on concurrent chases, so it reports none.
+    expect(capabilities).not.toHaveProperty(
+      'strategyRules.chase.maxActiveSessions',
+    );
     expect((await buildProvider().provider.placeOrder(intent)).success).toBe(
       false,
     );

@@ -19,6 +19,9 @@ import {
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   parseLighterStrictDecimal,
 } from '../constants/lighterConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { accountReturnOnEquity } from '../internal/accountReturnOnEquity.js';
+import { buildMarketNumericValues } from '../internal/marketNumericValues.js';
 import type {
   AccountState,
   CrossMarginSummary,
@@ -43,6 +46,7 @@ import type {
   LighterWsMarketStat,
   LighterWsUserStats,
 } from '../types/lighter-types.js';
+import { calculateOpenInterestUSD } from './marketDataTransform.js';
 import {
   buildPublicTrade,
   sortPublicTradesNewestFirst,
@@ -122,6 +126,26 @@ export function adaptMarketFromLighter(
 }
 
 /**
+ * Lighter reports open interest in base units; convert it to USD with
+ * `calculateOpenInterestUSD`, as Hyperliquid does.
+ *
+ * @param baseAmount - Open interest in base units.
+ * @param price - Price to convert at.
+ * @returns Open interest in USD, or undefined without a positive price or a
+ * finite amount.
+ */
+function toUsdOpenInterest(
+  baseAmount: number | undefined,
+  price: number,
+): number | undefined {
+  if (!(price > 0)) {
+    return undefined;
+  }
+  const usd = calculateOpenInterestUSD(baseAmount, price);
+  return Number.isFinite(usd) ? usd : undefined;
+}
+
+/**
  * Transform a Lighter order book detail into UI-ready PerpsMarketData.
  *
  * @param detail - Market stats from `GET /api/v1/orderBookDetails`.
@@ -154,6 +178,8 @@ export function adaptMarketDataFromLighter(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid authoritative leverage for ${detail.symbol}`,
     );
   }
+  // The detail has no mark price, so convert at the last trade price.
+  const openInterestUsd = toUsdOpenInterest(detail.openInterest, price);
   return {
     symbol: detail.symbol,
     name: detail.symbol,
@@ -164,7 +190,16 @@ export function adaptMarketDataFromLighter(
     change24h: formatChange(changeAbs, formatters),
     change24hPercent: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
     volume: formatters.formatVolume(detail.dailyQuoteTokenVolume ?? 0),
-    openInterest: formatters.formatVolume(detail.openInterest ?? 0),
+    openInterest:
+      openInterestUsd === undefined
+        ? PERPS_CONSTANTS.FallbackPriceDisplay
+        : formatters.formatVolume(openInterestUsd),
+    numericValues: buildMarketNumericValues({
+      price: detail.lastTradePrice,
+      change24hPercent: detail.dailyPriceChange,
+      volume: detail.dailyQuoteTokenVolume,
+      openInterest: openInterestUsd,
+    }),
   };
 }
 
@@ -180,13 +215,18 @@ export function adaptPriceUpdateFromLighter(
   detail: LighterOrderBookDetail,
   timestamp: number,
 ): PriceUpdate {
+  // The detail has no mark price, so convert at the last trade price.
+  const openInterest = toUsdOpenInterest(
+    detail.openInterest,
+    detail.lastTradePrice,
+  );
   return {
     symbol: detail.symbol,
     price: String(detail.lastTradePrice ?? 0),
     timestamp,
     percentChange24h: String(detail.dailyPriceChange ?? 0),
     volume24h: detail.dailyQuoteTokenVolume ?? 0,
-    openInterest: detail.openInterest ?? 0,
+    ...(openInterest !== undefined && { openInterest }),
     isTradable: detail.status === 'active',
   };
 }
@@ -209,6 +249,11 @@ export function adaptPriceUpdateFromLighterWsStat(
     Number.isFinite(bestBid) && Number.isFinite(bestAsk)
       ? String(bestAsk - bestBid)
       : undefined;
+  const markPrice = parseFloat(stat.markPrice);
+  const openInterest = toUsdOpenInterest(
+    parseFloat(stat.openInterest),
+    markPrice > 0 ? markPrice : parseFloat(stat.lastTradePrice),
+  );
   return {
     symbol: stat.symbol,
     price: stat.midPrice,
@@ -218,8 +263,9 @@ export function adaptPriceUpdateFromLighterWsStat(
     bestAsk: stat.bestAskPrice,
     spread,
     markPrice: stat.markPrice,
+    oraclePrice: stat.indexPrice,
     funding: parseFloat(stat.currentFundingRate ?? stat.fundingRate ?? '0'),
-    openInterest: parseFloat(stat.openInterest ?? '0'),
+    ...(openInterest !== undefined && { openInterest }),
     volume24h: stat.dailyQuoteTokenVolume ?? 0,
     isTradable: true,
   };
@@ -246,6 +292,8 @@ export function adaptAccountStateFromLighterUserStats(
     stats.portfolioValue,
     'WebSocket portfolio value',
   );
+  const marginUsed = Math.max(collateral - available, 0);
+  const unrealizedPnl = portfolioValue - collateral;
   return {
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
@@ -254,12 +302,12 @@ export function adaptAccountStateFromLighterUserStats(
     // spot USDC to add, and this read is a known account, so the amount is 0
     // rather than unknown.
     spotCollateral: '0',
-    marginUsed: String(Math.max(collateral - available, 0)),
-    unrealizedPnl: String(portfolioValue - collateral),
-    returnOnEquity:
-      collateral > 0
-        ? String(((portfolioValue - collateral) / collateral) * 100)
-        : '0',
+    marginUsed: String(marginUsed),
+    unrealizedPnl: String(unrealizedPnl),
+    // Same rate as the REST account state: '0' only when no margin is used.
+    returnOnEquity: String(
+      accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber() ?? 0,
+    ),
   };
 }
 
@@ -567,15 +615,15 @@ export function adaptFillFromLighterTrade(
  *
  * @param positionValue - Position value in USDC.
  * @param initialMarginFraction - Initial margin fraction, in percent.
- * @returns Margin used in USDC; the full value when no fraction is set.
+ * @returns Margin used in USDC, or undefined without a positive fraction.
  */
 function deriveLighterPositionMarginUsed(
   positionValue: number,
   initialMarginFraction: number,
-): number {
-  return initialMarginFraction > 0
+): number | undefined {
+  return Number.isFinite(initialMarginFraction) && initialMarginFraction > 0
     ? (positionValue * initialMarginFraction) / 100
-    : positionValue;
+    : undefined;
 }
 
 /**
@@ -611,16 +659,32 @@ export function adaptPositionFromLighter(
     );
   }
   const size = magnitude * position.sign;
-  const positionValue = parseFloat(position.positionValue);
-  const marginFraction = parseFloat(position.initialMarginFraction);
+  // Malformed values must not turn into NaN margin or RoE.
+  const positionValue = parseStrictAccountDecimal(
+    position.positionValue,
+    `REST position value for ${position.symbol}`,
+  );
+  const unrealizedPnl = parseStrictAccountDecimal(
+    position.unrealizedPnl,
+    `REST unrealized PnL for ${position.symbol}`,
+  );
+  const marginFraction =
+    parseLighterStrictDecimal(position.initialMarginFraction) ?? Number.NaN;
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
-  const leverageValue =
-    marginFraction > 0 ? Math.round(100 / marginFraction) : 1;
-  const marginUsed = deriveLighterPositionMarginUsed(
+  // Without a usable fraction leverage, margin and RoE are unknown, not 1x.
+  const derivedMargin = deriveLighterPositionMarginUsed(
     positionValue,
     marginFraction,
   );
-  const unrealizedPnl = parseFloat(position.unrealizedPnl);
+  if (derivedMargin === undefined && size !== 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} initial margin fraction '${String(position.initialMarginFraction)}' for open position ${position.symbol}`,
+    );
+  }
+  const leverageValue =
+    derivedMargin === undefined ? undefined : Math.round(100 / marginFraction);
+  // A flat row (filtered downstream) uses no margin.
+  const marginUsed = derivedMargin ?? 0;
   const liquidationPrice = parseFloat(position.liquidationPrice);
 
   return {
@@ -643,11 +707,8 @@ export function adaptPositionFromLighter(
     maxLeverage,
     // A fraction (0.1 = 10%), the unit Hyperliquid positions use.
     returnOnEquity: marginUsed > 0 ? String(unrealizedPnl / marginUsed) : '0',
-    cumulativeFunding: {
-      allTime: '0',
-      sinceOpen: '0',
-      sinceChange: '0',
-    },
+    // The account payload carries no funding, so cumulativeFunding is
+    // omitted (unknown) rather than reported as zero.
     takeProfitCount: 0,
     stopLossCount: 0,
     providerId: 'lighter',
@@ -675,7 +736,11 @@ export function adaptAccountStateFromLighter(
     account.availableBalance,
     'REST available balance',
   );
-  const positions = account.positions ?? [];
+  const { positions } = account;
+  if (!positions) {
+    // Without positions, unrealized PnL and the total balance are unknown.
+    throw new Error(`${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`);
+  }
   const unrealizedPnl = positions.reduce(
     (sum, position) =>
       sum +
@@ -698,8 +763,10 @@ export function adaptAccountStateFromLighter(
     spotCollateral: '0',
     marginUsed: String(marginUsed),
     unrealizedPnl: String(unrealizedPnl),
-    returnOnEquity:
-      marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
+    // '0' only when no margin is used, as before.
+    returnOnEquity: String(
+      accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber() ?? 0,
+    ),
     providerId: 'lighter',
   };
 }
@@ -717,7 +784,8 @@ export function adaptAccountStateFromLighter(
  * @param getMaintenanceFraction - Maintenance margin fraction (0.024 = 2.4%)
  * for a market symbol, or undefined when the market has none.
  * @returns The cross-margin summary, or undefined when the payload omits
- * positions or an open cross position's market has no maintenance fraction.
+ * positions or an open cross position has no maintenance or initial margin
+ * fraction.
  */
 export function adaptCrossMarginSummaryFromLighter(
   account: LighterSubAccount,
@@ -752,6 +820,9 @@ export function adaptCrossMarginSummaryFromLighter(
       position.positionValue,
       `REST position value for ${position.symbol}`,
     );
+    if (position.initialMarginFraction === undefined) {
+      return undefined;
+    }
     const initialMarginFraction = parseStrictAccountDecimal(
       position.initialMarginFraction,
       `REST initial margin fraction for ${position.symbol}`,
@@ -760,11 +831,15 @@ export function adaptCrossMarginSummaryFromLighter(
     if (maintenanceFraction === undefined) {
       return undefined;
     }
-    notional += positionValue;
-    marginUsed += deriveLighterPositionMarginUsed(
+    const positionMargin = deriveLighterPositionMarginUsed(
       positionValue,
       initialMarginFraction,
     );
+    if (positionMargin === undefined) {
+      return undefined;
+    }
+    notional += positionValue;
+    marginUsed += positionMargin;
     maintenanceMargin += positionValue * maintenanceFraction;
   }
   return {

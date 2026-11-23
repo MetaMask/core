@@ -7,6 +7,7 @@ import type {
   NetClosedPnlParams,
 } from '../../../src/utils/closeCalculations.js';
 import {
+  calculateCloseSize,
   calculateNetClosedPnl,
   estimateCloseReceive,
 } from '../../../src/utils/closeCalculations.js';
@@ -546,5 +547,217 @@ describe('calculateNetClosedPnl', () => {
     ['a non-finite fee', { pnl: '10', fee: Number.POSITIVE_INFINITY }],
   ] as const)('is undefined for %s, never 0', (_input, params) => {
     expect(calculateNetClosedPnl(params)).toBeUndefined();
+  });
+});
+
+describe('calculateCloseSize', () => {
+  it('rounds the requested share half up to the size grid', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: '1.23457',
+        price: 43000,
+        sizeDecimals: 5,
+        percent: 50,
+      }),
+    ).toStrictEqual({ size: 0.61729, usdValue: 26543.26 });
+  });
+
+  it('adds one size step back when rounding drops the value', () => {
+    // 33% of 10 = 3.3; one decimal keeps 3.3, so no step is added.
+    expect(
+      calculateCloseSize({
+        positionSize: -10,
+        price: 2.5,
+        sizeDecimals: 1,
+        percent: 33,
+      }),
+    ).toStrictEqual({ size: 3.3, usdValue: 8.25 });
+    // 12.5% of 7 = 0.875 rounds to 1 with no decimals: above the request.
+    expect(
+      calculateCloseSize({
+        positionSize: 7,
+        price: 0.123,
+        sizeDecimals: 0,
+        percent: 12.5,
+      }),
+    ).toStrictEqual({ size: 1, usdValue: 0.11 });
+    // 10% of 0.14 = 0.014 rounds down to 0.01: one step brings it to 0.02.
+    expect(
+      calculateCloseSize({
+        positionSize: 0.14,
+        price: 100,
+        sizeDecimals: 2,
+        percent: 10,
+      }),
+    ).toStrictEqual({ size: 0.02, usdValue: 1.4 });
+  });
+
+  it('adds no step to a request already on the size grid', () => {
+    // Float math reads 7% and 33% of 10 as just above 0.7 and 3.3.
+    for (const [percent, size] of [
+      [7, 0.7],
+      [33, 3.3],
+    ]) {
+      expect(
+        calculateCloseSize({
+          positionSize: 10,
+          price: 3,
+          sizeDecimals: 1,
+          percent,
+        })?.size,
+      ).toBe(size);
+    }
+  });
+
+  it('never closes more than the position after the step', () => {
+    // 99.9% of 1.05 = 1.04895 rounds to 1.05 at two decimals: the whole position.
+    expect(
+      calculateCloseSize({
+        positionSize: '1.05',
+        price: 10,
+        sizeDecimals: 2,
+        percent: 99.9,
+      })?.size,
+    ).toBe(1.05);
+    // An off-grid position cannot be overshot by the step.
+    expect(
+      calculateCloseSize({
+        positionSize: '1.234',
+        price: 10,
+        sizeDecimals: 2,
+        percent: 100,
+      })?.size,
+    ).toBe(1.234);
+  });
+
+  it('closes the whole position at 100 percent', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: '-0.3',
+        price: 61000,
+        sizeDecimals: 4,
+        percent: 100,
+      }),
+    ).toStrictEqual({ size: 0.3, usdValue: 18300 });
+  });
+
+  it('converts a USD amount to the same size as its percent', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: '2',
+        price: '100',
+        sizeDecimals: 2,
+        usdAmount: '50',
+      }),
+    ).toStrictEqual(
+      calculateCloseSize({
+        positionSize: 2,
+        price: 100,
+        sizeDecimals: 2,
+        percent: 25,
+      }),
+    );
+  });
+
+  it('caps a USD amount above the position value at the whole position', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: 2,
+        price: 100,
+        sizeDecimals: 2,
+        usdAmount: 1000,
+      }),
+    ).toStrictEqual({ size: 2, usdValue: 200 });
+  });
+
+  it.each([
+    { positionSize: 'abc', price: 100, sizeDecimals: 2, percent: 50 },
+    { positionSize: 0, price: 100, sizeDecimals: 2, percent: 50 },
+    { positionSize: 1, price: 0, sizeDecimals: 2, percent: 50 },
+    { positionSize: 1, price: 'x', sizeDecimals: 2, percent: 50 },
+    { positionSize: 1, price: 100, sizeDecimals: -1, percent: 50 },
+    { positionSize: 1, price: 100, sizeDecimals: 1.5, percent: 50 },
+    { positionSize: 1, price: 100, sizeDecimals: 2, percent: 101 },
+    { positionSize: 1, price: 100, sizeDecimals: 2, percent: -1 },
+    { positionSize: 1, price: 100, sizeDecimals: 2, percent: Number.NaN },
+    { positionSize: 1, price: 100, sizeDecimals: 2, usdAmount: -5 },
+    { positionSize: 1, price: 100, sizeDecimals: 2, usdAmount: 'abc' },
+  ])('returns undefined for unusable input %o', (params) => {
+    expect(calculateCloseSize(params)).toBeUndefined();
+  });
+
+  it('rounds split levels down so they never add up to more than the position', () => {
+    const level = { positionSize: 0.14, price: 100, sizeDecimals: 2 };
+    const sizes = [34, 33, 33].map(
+      (percent) =>
+        calculateCloseSize({ ...level, percent, rounding: 'down' })?.size,
+    );
+
+    // 34% of 0.14 = 0.0476 and 33% = 0.0462 round down to 0.04 each.
+    expect(sizes).toStrictEqual([0.04, 0.04, 0.04]);
+    // The default rounding covers each request, so the levels add up to
+    // 0.15, more than the position.
+    expect(
+      [34, 33, 33].map(
+        (percent) => calculateCloseSize({ ...level, percent })?.size,
+      ),
+    ).toStrictEqual([0.05, 0.05, 0.05]);
+  });
+
+  it('closes the exact position for a full request when rounding down', () => {
+    expect(
+      calculateCloseSize({
+        positionSize: '0.123456',
+        price: 10,
+        sizeDecimals: 2,
+        percent: 100,
+        rounding: 'down',
+      }),
+    ).toStrictEqual({ size: 0.123456, usdValue: 1.23 });
+    expect(
+      calculateCloseSize({
+        positionSize: 2,
+        price: 10,
+        sizeDecimals: 0,
+        usdAmount: 15,
+        rounding: 'down',
+      }),
+    ).toStrictEqual({ size: 1, usdValue: 15 });
+  });
+
+  it('rounds half a 0.0003 position up by default and down on request', () => {
+    const half = {
+      positionSize: 0.0003,
+      price: 60000,
+      sizeDecimals: 4,
+      percent: 50,
+    };
+
+    expect(calculateCloseSize({ ...half, rounding: 'up' })?.size).toBe(0.0002);
+    expect(calculateCloseSize(half)?.size).toBe(0.0002);
+    expect(calculateCloseSize({ ...half, rounding: 'down' })?.size).toBe(
+      0.0001,
+    );
+  });
+
+  it('returns undefined when rounding down leaves nothing to close', () => {
+    // 10% of 0.0003 is 0.00003, below one 0.0001 step.
+    expect(
+      calculateCloseSize({
+        positionSize: 0.0003,
+        price: 60000,
+        sizeDecimals: 4,
+        percent: 10,
+        rounding: 'down',
+      }),
+    ).toBeUndefined();
+    expect(
+      calculateCloseSize({
+        positionSize: 0.0003,
+        price: 60000,
+        sizeDecimals: 4,
+        percent: 10,
+      })?.size,
+    ).toBe(0.0001);
   });
 });

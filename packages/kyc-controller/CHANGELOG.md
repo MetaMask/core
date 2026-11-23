@@ -25,11 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))
   - Reported next to the step, because a user asked to redo the identity provider is on the same step as one doing it the first time. `OnboardingVendorState` carries both
 - Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
-
 - Add `KycApiError`, which `KycService` throws for a failed kyc-api call with the `code` from the response body, and `getKycKalshiErrorCode`, which finds a code kyc-api answers with (`KYC_KALSHI_ERROR_CODES`: the relay's `kalshi_*` codes, `invalid_or_expired_code`, `session_not_in_email_verification`, `kalshi_account_exists`, `not_found` and `idos_relay_unavailable`) on a failure ([#11634](https://github.com/MetaMask/core/pull/11634))
   - The code is written into the error message when the body's message does not already contain it, so a wrapped failure, which keeps only the message, still names the code
   - A client uses it to keep a wrong email code on the code screen and to ask for a retry after `kalshi_signed_request_rejected`
 - Add `KYC_VENDOR_SIGN_PATHS` and `KYC_SIGNED_REQUEST_LIMITS`, which the controller checks a signer's answer against: the route for each call, at most 16 string headers, and a body of at most 4 KB ([#11634](https://github.com/MetaMask/core/pull/11634))
+- `KycController` accepts an optional `trace` callback and records one `KYC Provider Flow` span per `launchProviderFlow` attempt (`result`: `submitted`, `abandoned`, or `failed`). A failure to emit the span is logged and does not change the launch outcome ([#11627](https://github.com/MetaMask/core/pull/11627))
 
 ### Changed
 
@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Fixed
 

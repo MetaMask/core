@@ -1,9 +1,11 @@
 import { MARGIN_ADJUSTMENT_CONFIG } from '../constants/perpsConfig.js';
+import { calculateHip3RebalanceAmount } from '../internal/hyperLiquidHip3Rebalance.js';
 import type {
   MarketInfo,
   PerpsProviderType,
   Position,
   PositionModifyPreviewCurrent,
+  PositionModifyPreviewKind,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
   PositionPreviewValue,
@@ -133,11 +135,11 @@ const available = (value: number): PositionPreviewValue => ({
 const parseFiniteNumber = (value: string | null | undefined): number =>
   Number.parseFloat(value ?? '');
 
-const isPositiveFinite = (value: number): boolean =>
-  Number.isFinite(value) && value > 0;
+const isPositiveFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value > 0;
 
-const isNonNegativeFinite = (value: number): boolean =>
-  Number.isFinite(value) && value >= 0;
+const isNonNegativeFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value >= 0;
 
 const currentFromPosition = (params: {
   currentMargin: number;
@@ -370,6 +372,186 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
   return null;
 }
 
+/** A cross-margin position for {@link estimateCrossMaintenanceMargin}. */
+export type CrossMarginPosition = {
+  /** Position value at mark in USD; the sign is ignored. */
+  notional: number;
+  /** Maintenance tiers, as {@link resolveHyperLiquidMarginTiers} returns. */
+  marginTiers: HyperLiquidMarginTier[] | null | undefined;
+};
+
+/**
+ * Picks the maintenance tier whose notional range contains `notional`.
+ *
+ * @param schedule - Schedule from {@link buildMaintenanceSchedule}.
+ * @param notional - Non-negative position value in USD.
+ * @returns The tier, or undefined when no tier covers the notional.
+ */
+const findMaintenanceTier = (
+  schedule: MaintenanceScheduleTier[],
+  notional: number,
+): MaintenanceScheduleTier | undefined =>
+  schedule.find(
+    (tier) => notional >= tier.lowerBound && notional < tier.upperBound,
+  );
+
+/**
+ * Maintenance margin a cross account must hold for its cross positions:
+ * the sum of `notional * mmr - deduction` at each position's tier. Below this
+ * account value, HyperLiquid liquidates the cross positions.
+ *
+ * @param positions - Every cross position on the account.
+ * @returns Maintenance margin in USD, or `null` when a position's notional
+ * or tiers are unknown.
+ */
+export function estimateCrossMaintenanceMargin(
+  positions: readonly CrossMarginPosition[],
+): number | null {
+  let maintenanceMargin = 0;
+  for (const position of positions) {
+    const notional = Math.abs(position.notional);
+    const tier = Number.isFinite(notional)
+      ? findMaintenanceTier(
+          buildMaintenanceSchedule(position.marginTiers ?? []),
+          notional,
+        )
+      : undefined;
+    if (!tier) {
+      return null;
+    }
+    maintenanceMargin +=
+      notional * tier.maintenanceMarginRate - tier.maintenanceDeduction;
+  }
+  return maintenanceMargin;
+}
+
+/** Inputs to {@link estimateCrossLiquidationPrice}. */
+export type CrossLiquidationPriceParams = {
+  isLong: boolean;
+  markPrice: number;
+  positionSize: number;
+  accountValue: number;
+  maintenanceMargin: number;
+  marginTiers: HyperLiquidMarginTier[] | null | undefined;
+};
+
+/**
+ * A Cross liquidation price, classified: a positive `price`,
+ * `covered_by_account` for a long that no positive price liquidates (the
+ * collateral covers its loss down to a zero price plus the other positions'
+ * maintenance), or `missing_inputs` when the inputs are unknown or produce
+ * no price.
+ */
+export type CrossLiquidationClassification =
+  | { status: 'price'; price: number }
+  | { status: 'covered_by_account' }
+  | { status: 'missing_inputs' };
+
+const missingInputs = { status: 'missing_inputs' } as const;
+
+/**
+ * Classifies the Cross liquidation price of one position, holding the
+ * account's other positions at their current value: the price at which
+ * account value falls to the maintenance margin. Within one tier this is
+ * HyperLiquid's documented
+ * `mark - side * (accountValue - maintenanceMargin) / size / (1 - mmr * side)`;
+ * the tier the position's notional reaches at that price is used when it
+ * differs from the current one. The one Cross
+ * liquidation formula: {@link estimateCrossLiquidationPrice}, the
+ * provider's estimates and the Cross preview all read it.
+ *
+ * @see https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations
+ * @param params - Position geometry and the cross account's figures, as
+ * {@link estimateCrossLiquidationPrice} takes them.
+ * @returns The classified price.
+ */
+export function classifyCrossLiquidationPrice(
+  params: CrossLiquidationPriceParams,
+): CrossLiquidationClassification {
+  const { isLong, markPrice, positionSize, accountValue, maintenanceMargin } =
+    params;
+  if (
+    !isPositiveFinite(markPrice) ||
+    !isPositiveFinite(positionSize) ||
+    !Number.isFinite(accountValue) ||
+    !isNonNegativeFinite(maintenanceMargin)
+  ) {
+    return missingInputs;
+  }
+  const currentMaintenance = estimateCrossMaintenanceMargin([
+    { notional: positionSize * markPrice, marginTiers: params.marginTiers },
+  ]);
+  if (currentMaintenance === null) {
+    return missingInputs;
+  }
+  const otherMaintenance = maintenanceMargin - currentMaintenance;
+  const schedule = buildMaintenanceSchedule(params.marginTiers ?? []);
+
+  // A long loses at most its notional, and its maintenance falls to 0 with
+  // the price. Collateral still above the other positions' maintenance at a
+  // zero price leaves no positive liquidation price.
+  if (
+    isLong &&
+    schedule[0].lowerBound === 0 &&
+    accountValue - positionSize * markPrice >= otherMaintenance
+  ) {
+    return { status: 'covered_by_account' };
+  }
+
+  const side = isLong ? 1 : -1;
+  for (const tier of schedule) {
+    const denominator = positionSize * (side - tier.maintenanceMarginRate);
+    if (Math.abs(denominator) < Number.EPSILON) {
+      continue;
+    }
+    const liquidationPrice =
+      (otherMaintenance -
+        accountValue +
+        side * positionSize * markPrice -
+        tier.maintenanceDeduction) /
+      denominator;
+    if (!isPositiveFinite(liquidationPrice)) {
+      continue;
+    }
+    const notionalAtLiquidation = positionSize * liquidationPrice;
+    if (
+      notionalAtLiquidation >= tier.lowerBound &&
+      notionalAtLiquidation < tier.upperBound
+    ) {
+      return { status: 'price', price: liquidationPrice };
+    }
+  }
+  return missingInputs;
+}
+
+/**
+ * Cross-margin liquidation price of one position, holding the account's
+ * other positions at their current value: the price at which account value
+ * falls to the maintenance margin. Within one tier this is HyperLiquid's
+ * documented `mark - side * (accountValue - maintenanceMargin) / size /
+ * (1 - mmr * side)`; the tier the position's notional reaches at that price
+ * is used when it differs from the current one.
+ *
+ * @see https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations
+ * @param params - Position geometry and the cross account's figures.
+ * @param params.isLong - Whether the position is long.
+ * @param params.markPrice - Current mark price.
+ * @param params.positionSize - Absolute position size in base units.
+ * @param params.accountValue - Cross account value, unrealized PnL included.
+ * @param params.maintenanceMargin - Maintenance margin of every cross
+ * position including this one, as {@link estimateCrossMaintenanceMargin}.
+ * @param params.marginTiers - This market's maintenance tiers.
+ * @returns Liquidation price, or `null` when the inputs cannot produce a
+ * positive one (a long with enough collateral to never be liquidated, or
+ * unknown inputs).
+ */
+export function estimateCrossLiquidationPrice(
+  params: CrossLiquidationPriceParams,
+): number | null {
+  const result = classifyCrossLiquidationPrice(params);
+  return result.status === 'price' ? result.price : null;
+}
+
 /**
  * Whether margin may leave an open isolated position on a market.
  *
@@ -378,7 +560,7 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
  * margin mode is unknown, including an isolated-only market without
  * `marginMode`, which may be strict isolated or `noCross`.
  */
-const isMarginRemovalAllowed = (
+export const isMarginRemovalAllowed = (
   market: Pick<MarketInfo, 'marginMode' | 'onlyIsolated'> | undefined,
 ): boolean | undefined => {
   if (market === undefined) {
@@ -486,6 +668,7 @@ export function estimateIsolatedLeverageChange({
     leverage < 1 ||
     maxLeverage === undefined ||
     leverage > maxLeverage ||
+    currentLeverage === undefined ||
     !Number.isFinite(currentLeverage) ||
     currentLeverage < 1 ||
     !isPositiveFinite(size) ||
@@ -588,10 +771,11 @@ export function previewHyperLiquidIsolatedPositionModify(
   const selectedLeverage = params.leverage;
   const orderSize = parseFiniteNumber(params.size);
   const orderPrice = parseFiniteNumber(params.price);
-  const feeAmountUsd =
-    typeof params.feeAmountUsd === 'number' && params.feeAmountUsd > 0
-      ? params.feeAmountUsd
-      : 0;
+  // An omitted, NaN or negative fee is unknown, never $0: increases and
+  // flips then have no resulting margin.
+  const feeAmountUsd = isNonNegativeFinite(params.feeAmountUsd)
+    ? params.feeAmountUsd
+    : undefined;
 
   if (
     !isPositiveFinite(currentSize) ||
@@ -690,7 +874,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const resultingEntryPrice =
       (currentSize * currentEntry + orderSize * fillPrice) / resultingSize;
     const newMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, existingMarginAfterLeverage + orderMargin - feeAmountUsd);
 
@@ -734,7 +918,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const orderMargin = (orderSize * fillPrice) / selectedLeverage;
     const leftoverRatio = leftover / orderSize;
     const leftoverMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, (orderMargin - feeAmountUsd) * leftoverRatio);
 
@@ -753,5 +937,289 @@ export function previewHyperLiquidIsolatedPositionModify(
     status: 'full_close',
     current: currentSnapshot,
     resultingDirection: openDirection,
+  };
+}
+
+/**
+ * The cross account a {@link projectHyperLiquidCrossPositionModify} order
+ * draws on.
+ */
+export type HyperLiquidCrossAccount = {
+  /** Cross collateral, as `getCrossCollateral` returns. */
+  accountValue: number;
+  /**
+   * Maintenance margin of every cross position, the modified one included at
+   * its current notional.
+   */
+  maintenanceMargin: number;
+  /**
+   * Standard account on a HIP-3 DEX only. Placement moves collateral into the
+   * DEX when its withdrawable balance is below the order's required margin,
+   * then returns the excess the order leaves (`calculateHip3RebalanceAmount`)
+   * to the source DEX. Omit on a Unified account and on the main DEX.
+   */
+  hip3Funding?: {
+    /** The DEX's withdrawable balance before the order. */
+    withdrawable: number;
+    /** Margin placement requires on the DEX before the order. */
+    requiredMargin: number;
+  };
+};
+
+export type ProjectHyperLiquidCrossPositionModifyParams =
+  PositionModifyPreviewParams & {
+    /** This market's maintenance tiers. */
+    marginTiers?: HyperLiquidMarginTier[] | null;
+    /** `null` when unknown: margin is projected, liquidation is not. */
+    crossAccount: HyperLiquidCrossAccount | null;
+  };
+
+/** A Cross position after an order, from {@link projectHyperLiquidCrossPositionModify}. */
+export type HyperLiquidCrossPositionModifyProjection =
+  | { status: 'none' }
+  | { status: 'full_close'; resultingDirection: 'long' | 'short' }
+  | {
+      status: 'open';
+      kind: PositionModifyPreviewKind;
+      direction: 'long' | 'short';
+      size: number;
+      entryPrice: number;
+      /** Notional at the projected mark divided by the order leverage. */
+      margin: number;
+      /** The resulting position's liquidation price, classified. */
+      liquidation: CrossLiquidationClassification;
+    };
+
+/**
+ * Projects the Cross position, flat or open, that would remain after a
+ * proposed order.
+ *
+ * The venue sets the asset's Cross leverage to the order leverage, so the
+ * resulting margin is the notional at the projected mark over that leverage.
+ * Liquidation holds the account's other positions at their current value:
+ * the account gains the existing size's move from its mark to the fill
+ * price, pays the fee on an add or flip, and replaces this position's
+ * maintenance with the resulting position's. A reduce ignores the fee, as the
+ * isolated preview does. On a Standard HIP-3 DEX that placement funds (see
+ * {@link HyperLiquidCrossAccount}), the DEX also receives the shortfall and
+ * returns the excess placement would rebalance away. Without the position
+ * value the current mark is unknown, so liquidation is `missing_inputs`.
+ *
+ * @param params - The position (size `'0'` for an opening), the proposed
+ * order, the market's tiers and the cross account.
+ * @returns The projection; `none` for an order that changes nothing or lacks
+ * an input.
+ */
+export function projectHyperLiquidCrossPositionModify(
+  params: ProjectHyperLiquidCrossPositionModifyParams,
+): HyperLiquidCrossPositionModifyProjection {
+  const { position, direction, reduceOnly = false, leverage } = params;
+  const { marginTiers, crossAccount } = params;
+  const signedSize = parseFiniteNumber(position.size);
+  const currentSize = Math.abs(signedSize);
+  const currentEntry = parseFiniteNumber(position.entryPrice);
+  const currentMargin = parseFiniteNumber(position.marginUsed);
+  const orderSize = parseFiniteNumber(params.size);
+  const orderPrice = parseFiniteNumber(params.price);
+  const fillPrice = isPositiveFinite(orderPrice) ? orderPrice : null;
+  const none = { status: 'none' } as const;
+
+  if (
+    !Number.isFinite(signedSize) ||
+    (currentSize > 0 &&
+      (!isPositiveFinite(currentEntry) ||
+        !isNonNegativeFinite(currentMargin))) ||
+    !isPositiveFinite(leverage) ||
+    !isPositiveFinite(orderSize)
+  ) {
+    return none;
+  }
+
+  const positionValue = parseFiniteNumber(position.positionValue);
+  // Without the position value the mark is unknown: margin is projected at
+  // entry, liquidation is not.
+  const currentMarkKnown = currentSize === 0 || isPositiveFinite(positionValue);
+  let currentNotional = 0;
+  if (currentSize > 0) {
+    currentNotional = isPositiveFinite(positionValue)
+      ? positionValue
+      : currentSize * currentEntry;
+  }
+  let openDirection: 'long' | 'short' = direction;
+  if (signedSize !== 0) {
+    openDirection = signedSize > 0 ? 'long' : 'short';
+  }
+
+  let resulting: {
+    kind: PositionModifyPreviewKind;
+    direction: 'long' | 'short';
+    size: number;
+    entryPrice: number;
+    markPrice: number;
+  };
+  if (openDirection === direction) {
+    if (reduceOnly || fillPrice === null) {
+      return none;
+    }
+    const size = currentSize + orderSize;
+    resulting = {
+      kind: 'increase',
+      direction,
+      size,
+      entryPrice:
+        ((currentSize > 0 ? currentSize * currentEntry : 0) +
+          orderSize * fillPrice) /
+        size,
+      markPrice: fillPrice,
+    };
+  } else if (orderSize + SIZE_EPSILON < currentSize) {
+    resulting = {
+      kind: 'decrease',
+      direction: openDirection,
+      size: currentSize - orderSize,
+      entryPrice: currentEntry,
+      markPrice: fillPrice ?? currentNotional / currentSize,
+    };
+  } else if (orderSize - currentSize > SIZE_EPSILON && !reduceOnly) {
+    if (fillPrice === null) {
+      return none;
+    }
+    resulting = {
+      kind: 'flip',
+      direction,
+      size: orderSize - currentSize,
+      entryPrice: fillPrice,
+      markPrice: fillPrice,
+    };
+  } else {
+    return { status: 'full_close', resultingDirection: openDirection };
+  }
+
+  const margin = (resulting.size * resulting.markPrice) / leverage;
+  // An omitted, NaN or negative fee is unknown, never $0.
+  let feeAmountUsd: number | undefined = 0;
+  if (resulting.kind !== 'decrease') {
+    feeAmountUsd = isNonNegativeFinite(params.feeAmountUsd)
+      ? params.feeAmountUsd
+      : undefined;
+  }
+  const currentMaintenance =
+    currentSize > 0
+      ? estimateCrossMaintenanceMargin([
+          { notional: currentNotional, marginTiers },
+        ])
+      : 0;
+  const resultingMaintenance = estimateCrossMaintenanceMargin([
+    { notional: resulting.size * resulting.markPrice, marginTiers },
+  ]);
+
+  let liquidation: CrossLiquidationClassification = missingInputs;
+  if (
+    crossAccount &&
+    currentMarkKnown &&
+    feeAmountUsd !== undefined &&
+    currentMaintenance !== null &&
+    resultingMaintenance !== null
+  ) {
+    const { hip3Funding } = crossAccount;
+    const currentMark =
+      currentSize > 0 ? currentNotional / currentSize : resulting.markPrice;
+    let accountValue =
+      crossAccount.accountValue -
+      feeAmountUsd +
+      signedSize * (resulting.markPrice - currentMark);
+    if (hip3Funding && hip3Funding.withdrawable < hip3Funding.requiredMargin) {
+      // Placement transfers the shortfall in, then returns the excess the
+      // order leaves withdrawable, as `calculateHip3RebalanceAmount` decides.
+      accountValue += hip3Funding.requiredMargin - hip3Funding.withdrawable;
+      const committed =
+        crossAccount.accountValue -
+        hip3Funding.withdrawable +
+        margin -
+        (currentSize > 0 ? currentMargin : 0);
+      accountValue -= calculateHip3RebalanceAmount({
+        postOrderBalance: accountValue - committed,
+      });
+    }
+    liquidation = classifyCrossLiquidationPrice({
+      isLong: resulting.direction === 'long',
+      markPrice: resulting.markPrice,
+      positionSize: resulting.size,
+      accountValue,
+      maintenanceMargin:
+        crossAccount.maintenanceMargin -
+        currentMaintenance +
+        resultingMaintenance,
+      marginTiers,
+    });
+  }
+
+  return {
+    status: 'open',
+    kind: resulting.kind,
+    direction: resulting.direction,
+    size: resulting.size,
+    entryPrice: resulting.entryPrice,
+    margin,
+    liquidation,
+  };
+}
+
+/**
+ * A Cross liquidation estimate as a preview value.
+ *
+ * @param liquidation - As {@link classifyCrossLiquidationPrice} returns.
+ * @returns The price, or unavailable with the classification as `reason`.
+ */
+const crossLiquidationPreview = (
+  liquidation: CrossLiquidationClassification,
+): PositionPreviewValue =>
+  liquidation.status === 'price'
+    ? available(liquidation.price)
+    : { available: false, reason: liquidation.status };
+
+/**
+ * Previews the Cross position that would remain after a proposed order, as
+ * {@link projectHyperLiquidCrossPositionModify} projects it, in the shape of
+ * the isolated preview. An unavailable resulting liquidation price carries
+ * `reason`: `covered_by_account` when no positive price liquidates the
+ * position, `missing_inputs` otherwise.
+ *
+ * @param params - The open Cross position, the proposed order, the market's
+ * tiers and the cross account.
+ * @returns Discriminated preview; `none` for a flat position.
+ */
+export function previewHyperLiquidCrossPositionModify(
+  params: ProjectHyperLiquidCrossPositionModifyParams,
+): PositionModifyPreviewResult {
+  const signedSize = parseFiniteNumber(params.position.size);
+  if (!Number.isFinite(signedSize) || signedSize === 0) {
+    return { status: 'none' };
+  }
+  const projection = projectHyperLiquidCrossPositionModify(params);
+  if (projection.status === 'none') {
+    return projection;
+  }
+  const current = currentFromPosition({
+    currentMargin: parseFiniteNumber(params.position.marginUsed),
+    currentLiquidationPrice: parseFiniteNumber(
+      params.position.liquidationPrice,
+    ),
+  });
+  if (projection.status === 'full_close') {
+    return { ...projection, current };
+  }
+  return {
+    status: 'open',
+    kind: projection.kind,
+    current,
+    resulting: {
+      direction: projection.direction,
+      size: projection.size,
+      entryPrice: projection.entryPrice,
+      leverage: params.leverage,
+      margin: available(projection.margin),
+      liquidationPrice: crossLiquidationPreview(projection.liquidation),
+    },
   };
 }

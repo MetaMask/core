@@ -21,7 +21,10 @@ export type {
   VbaKycStatus,
   VbaOnboardingSnapshot,
   VbaProviderFlowStatus,
+  SelectProviderForAssetOptions,
 } from './RampsController.js';
+export type { RampsProviderHistoryEntry } from './providerHistory.js';
+export { getPreviouslyUsedProviders } from './providerHistory.js';
 export type {
   RampsControllerExecuteRequestAction,
   RampsControllerAbortRequestAction,
@@ -29,6 +32,7 @@ export type {
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
   RampsControllerSetSelectedProviderForAssetAction,
+  RampsControllerSelectProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,

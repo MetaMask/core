@@ -14,10 +14,8 @@ import type {
   ScaleOrderGroup,
 } from '../types/index.js';
 import type { LighterOrderBookMeta } from '../types/lighter-types.js';
-import {
-  computeScalePriceLadder,
-  splitScaleSizes,
-} from './orderCalculations.js';
+import { sizeScaleLadder } from './advancedOrders.js';
+import { computeScalePriceLadder } from './orderCalculations.js';
 import { SCALE_ORDER_COUNT } from './orderTypes.js';
 
 const LIGHTER_SCALE_MAX_DECIMALS = 18;
@@ -317,73 +315,21 @@ export function buildLighterScaleLadder(
   ) {
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
   }
-  let budget: BigNumber | undefined;
-  let rawSize: BigNumber;
-  try {
-    budget =
-      params.usdAmount === undefined
-        ? undefined
-        : parseScaleDecimal(params.usdAmount);
-    rawSize = budget ? budget.div(prices[0]) : parseScaleDecimal(params.size);
-  } catch {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
-  }
-  const units = rawSize.shiftedBy(decimals).integerValue(BigNumber.ROUND_DOWN);
-  if (units.gt(Number.MAX_SAFE_INTEGER) || units.lt(count)) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
-  }
-  const split = (total: number): string[] => {
-    const sizes = splitScaleSizes({
-      totalSize: new BigNumber(total).shiftedBy(-decimals).toNumber(),
-      count,
-      szDecimals: decimals,
-      skew: params.scaleSkew,
-    });
-    const sum = sizes.reduce(
-      (value, size) => value.plus(size),
-      new BigNumber(0),
-    );
-    if (
-      !sum.shiftedBy(decimals).eq(total) ||
-      sizes.some((size) => !new BigNumber(size).shiftedBy(decimals).isInteger())
-    ) {
-      throw new Error('Lighter Scale size conservation failed');
-    }
-    return sizes;
-  };
-  const quote = (sizes: string[]): BigNumber =>
-    sizes.reduce(
-      (total, size, index) =>
-        total.plus(new BigNumber(size).times(prices[index])),
-      new BigNumber(0),
-    );
-  let total = units.toNumber();
-  if (budget) {
-    let low = count;
-    let high = total;
-    let feasible: number | undefined;
-    while (low <= high) {
-      const candidate = low + Math.floor((high - low) / 2);
-      let sizes: string[];
-      try {
-        sizes = split(candidate);
-      } catch {
-        low = candidate + 1;
-        continue;
-      }
-      if (quote(sizes).lte(budget)) {
-        feasible = candidate;
-        low = candidate + 1;
-      } else {
-        high = candidate - 1;
-      }
-    }
-    if (feasible === undefined) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
-    }
-    total = feasible;
-  }
-  const sizes = split(total);
+  const sizing =
+    params.usdAmount === undefined
+      ? sizeScaleLadder({
+          prices,
+          sizeDecimals: decimals,
+          skew: params.scaleSkew,
+          size: params.size ?? '',
+        })
+      : sizeScaleLadder({
+          prices,
+          sizeDecimals: decimals,
+          skew: params.scaleSkew,
+          usdAmount: params.usdAmount,
+        });
+  const { sizes } = sizing;
   const minimumBase = parseScaleDecimal(market.minBaseAmount);
   const minimumQuote = parseScaleDecimal(market.minQuoteAmount);
   for (const [index, size] of sizes.entries()) {
@@ -397,15 +343,11 @@ export function buildLighterScaleLadder(
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
     }
   }
-  const normalized = new BigNumber(total).shiftedBy(-decimals);
-  if (normalized.gt(rawSize) || (budget && quote(sizes).gt(budget))) {
-    throw new Error('Lighter Scale exposure exceeds intent');
-  }
   return {
     prices,
     sizes,
-    size: normalized.toFixed(),
-    notional: quote(sizes).toFixed(),
+    size: sizing.totalSize,
+    notional: sizing.totalNotional,
   };
 }
 

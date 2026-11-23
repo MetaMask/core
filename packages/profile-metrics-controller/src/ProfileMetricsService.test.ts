@@ -840,20 +840,93 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('attempts a request that responds with 4xx up to 4 times, throwing if it never succeeds', async () => {
-      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+    it.each([400, 403, 429])(
+      'does not retry a request that responds with %i, throwing immediately',
+      async (status) => {
+        nock(defaultBaseEndpoint).post('/nonce/batch').once().reply(status);
+        const { service, rootMessenger } = getService();
+        const onRetry = vi.fn();
+        service.onRetry(onRetry);
 
+        await expect(
+          rootMessenger.call('ProfileMetricsService:fetchNonces', {
+            identifiers: ['0xAddressOne'],
+          }),
+        ).rejects.toThrow(
+          `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '${status}'`,
+        );
+        expect(onRetry).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('resetCircuitBreakers', () => {
+    const policyOptions = { maxRetries: 0, maxConsecutiveFailures: 1 };
+    const circuitOpenMessage =
+      'Execution prevented because the circuit breaker is open';
+
+    it('closes an open submitMetrics circuit breaker', async () => {
+      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(500);
+      const { service, rootMessenger } = getService({
+        options: { policyOptions },
+      });
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).rejects.toThrow('failed with status');
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).rejects.toThrow(circuitOpenMessage);
+
+      service.resetCircuitBreakers();
+
+      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(200);
+      expect(
+        await rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('closes an open fetchNonces circuit breaker', async () => {
+      nock(defaultBaseEndpoint).post('/nonce/batch').once().reply(500);
+      const { service, rootMessenger } = getService({
+        options: { policyOptions },
+      });
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
           identifiers: ['0xAddressOne'],
         }),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
-      );
+      ).rejects.toThrow('failed with status');
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow(circuitOpenMessage);
+
+      service.resetCircuitBreakers();
+
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .once()
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+        ]);
+      expect(
+        await rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).toStrictEqual({ '0xAddressOne': 'nonce-for-one' });
     });
   });
 

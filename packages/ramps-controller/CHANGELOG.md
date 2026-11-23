@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.0]
+
+### Added
+
+- Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add `getPreviouslyUsedProviders`, which returns the providers the user has completed a buy with, most recent first, and the `RampsProviderHistoryEntry` and `SelectProviderForAssetOptions` types ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add the `userSelectedProviderId` state property (not persisted) and a `userSelected` option on `setSelectedProvider` that sets it. It is cleared by `setSelectedProvider(null)` and on region change ([#11616](https://github.com/MetaMask/core/pull/11616))
+
 ### Fixed
 
+- Fix order polling republishing `RampsController:orderStatusChanged` on every poll for an order whose fetched `id` carries a different code than the stored one ([#11593](https://github.com/MetaMask/core/pull/11593))
+  - `getOrder` now keeps the stored order's `id` and `providerOrderId` when the order was requested by its stored code, so the fetched status is written to the stored order. Before, the write was skipped, the stored order stayed pending, and the same transition was published every poll cycle.
+  - Polling now publishes `orderStatusChanged` only when the new status is stored, so an order removed while its request was in flight no longer publishes.
 - `RampsService.getBuyWidgetUrl` now rejects a buy URL whose origin does not match the ramps API origin for the configured environment, before common params are added and before a bearer token is requested. This stops a malicious or compromised quotes response from sending the user's token to an arbitrary host. `baseUrlOverride` does not relax the check. ([#11551](https://github.com/MetaMask/core/pull/11551))
+- Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#11616](https://github.com/MetaMask/core/pull/11616))
 
 ## [30.0.0]
 
@@ -850,7 +862,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0

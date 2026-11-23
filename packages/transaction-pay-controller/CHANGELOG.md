@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Add `PaymentOverride.PerpsLighter` (`perpsLighter`) for a later direct Lighter target ([#11640](https://github.com/MetaMask/core/pull/11640))
+  - Quote building is unchanged. The first mainnet USDC deposit does not set this override.
+
+### Changed
+
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getState`, `NetworkController:getState`, `RampsController:getState`, `TransactionController:failTransaction` and `TransactionController:finalizeResumedTransaction` actions ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Price gas station fees by simulating the full EIP-7702 batch instead of scaling the first transaction ([#11626](https://github.com/MetaMask/core/pull/11626))
+  - Multi-transaction quotes now pass every origin transaction, including the original transaction for post-quote flows, to `TransactionController:getGasFeeTokens` as the batch that is submitted.
+  - Predict withdrawals that pay from a Safe still simulate the first transaction and scale it by the total gas estimate.
+
+## [32.1.1]
+
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+
+## [32.1.0]
+
+### Added
+
+- Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
+
 ### Changed
 
 - Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
@@ -16,12 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaces the `source` and `target` chain ID and token address objects.
   - Native tokens use `slip44` asset IDs, and the Hyperliquid perps margin account uses `hyperliq:mainnet/perps:usdc` instead of the HyperCore placeholder address.
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/ramps-controller` from `^30.0.0` to `^30.1.0` ([#11619](https://github.com/MetaMask/core/pull/11619))
+- Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11649](https://github.com/MetaMask/core/pull/11649))
 
 ### Fixed
 
 - Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
   - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 - Skip the gas station in server strategy quotes when the account does not support EIP-7702, matching the Relay strategy ([#11615](https://github.com/MetaMask/core/pull/11615))
+- Refresh server strategy max amount quotes at the configured `maxBalanceRefreshInterval`, matching the Relay strategy ([#11614](https://github.com/MetaMask/core/pull/11614))
+- Include EIP-7702 authorizations when submitting same-chain server strategy quotes with embedded calls through `TransactionController`, matching the Relay strategy ([#11617](https://github.com/MetaMask/core/pull/11617))
+  - A single transaction includes the authorization address so `TransactionController` signs it, and a batch with an account override includes the pre-signed authorizations.
 
 ## [32.0.0]
 
@@ -1941,7 +1974,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...HEAD
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0
 [31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
 [31.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...@metamask/transaction-pay-controller@31.2.1

@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.2]
+
 ### Changed
 
+- Bump `@metamask/money-account-api-data-service` from `^2.4.0` to `^2.5.0` ([#11709](https://github.com/MetaMask/core/pull/11709))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+### Fixed
+
+- Include premium vault holdings in RPC balances via the optional `moneyAccountPremiumVaultConfig` flag ([#11683](https://github.com/MetaMask/core/pull/11683))
 
 ## [3.2.1]
 
@@ -216,7 +224,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.2...HEAD
+[3.2.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.1...@metamask/money-account-balance-service@3.2.2
 [3.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.0...@metamask/money-account-balance-service@3.2.1
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.2...@metamask/money-account-balance-service@3.2.0
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.1...@metamask/money-account-balance-service@3.1.2

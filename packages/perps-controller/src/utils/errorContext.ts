@@ -75,6 +75,61 @@ export function wasProviderErrorReported(result: object): boolean {
   return (result as ProviderErrorReported)[PROVIDER_ERROR_REPORTED] === true;
 }
 
+const PROVIDER_ERROR_CAUSE = Symbol('providerErrorCause');
+
+type ProviderErrorCause = {
+  [PROVIDER_ERROR_CAUSE]?: Error;
+};
+
+/**
+ * Attach the normalized error behind a failed provider result.
+ *
+ * Results carry only stable codes, so a service that owns reporting would
+ * otherwise rebuild an error from `result.error` and lose the original
+ * failure. The property is non-enumerable so the result's observable shape is
+ * unchanged; a wrapper that spreads a result must carry it over with
+ * `carryProviderErrorCause`.
+ *
+ * @param result - Provider result to annotate.
+ * @param error - Normalized error whose `cause` holds the original failure.
+ * @returns The same result with internal reporting metadata.
+ */
+export function attachProviderErrorCause<Result extends object>(
+  result: Result,
+  error: Error,
+): Result & ProviderErrorCause {
+  return Object.defineProperty(result, PROVIDER_ERROR_CAUSE, {
+    value: error,
+    enumerable: false,
+    configurable: true,
+  });
+}
+
+/**
+ * Copy an attached provider error from one result onto a derived result.
+ *
+ * @param source - Result that may carry an attached error.
+ * @param target - Result derived from `source`, typically by spreading it.
+ * @returns `target`, annotated with the source's error when it had one.
+ */
+export function carryProviderErrorCause<Result extends object>(
+  source: object,
+  target: Result,
+): Result {
+  const error = getProviderErrorCause(source);
+  return error ? attachProviderErrorCause(target, error) : target;
+}
+
+/**
+ * Read the normalized error a provider attached to a failed result.
+ *
+ * @param result - Provider result returned to a service.
+ * @returns The attached error, or undefined when the provider attached none.
+ */
+export function getProviderErrorCause(result: object): Error | undefined {
+  return (result as ProviderErrorCause)[PROVIDER_ERROR_CAUSE];
+}
+
 /**
  * Build a Perps logger payload with bounded, searchable Sentry tags.
  *

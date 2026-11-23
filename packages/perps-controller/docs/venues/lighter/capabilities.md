@@ -12,20 +12,22 @@ What `LighterProvider` declares and implements. Lighter is a POC provider; how i
 | `unavailable`, `order_market_unsupported` | Market not active, or not a perpetual                   |
 | `ready`                                   | Otherwise, with the fields below                        |
 
-| Field                          | Value                                                                                                                                                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supportedStrategies`          | `scale`; `scale` and `chase` when the Chase probe is on, on testnet, with a signer bridge                                                                                                    |
-| `supportedMarginModes`         | `cross`, `isolated`                                                                                                                                                                          |
-| `supportedTriggerOrderTypes`   | `stop_market`, `stop_limit`, `take_profit_market`, `take_profit_limit`                                                                                                                       |
-| `attachedTpsl`                 | `submission: 'native-oto-otoco'`, `childCoverage: 'venue-native-zero-size'`, `partialSizes: false`, `lifecycleVerification: 'pending'`, `cancellation: 'explicit-exact-owned-orders'`        |
-| `positionTpsl`                 | `supportsExpectedPosition: true`, `childOrderIds: 'request-correlated'`, TP `take_profit_market`, SL `stop_market`, `defaultCoverage: 'position-snapshot'`                                   |
-| `positionTpsl.partialCoverage` | `single: true`, `pair: 'equal-quantity-oco'`, `supportedPairs` `equal-quantity-oco` and `independent`, `replacement: 'cancel-before-create'`, `recovery: 'explicit-current-position-intent'` |
+| Field                          | Value                                                                                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `supportedStrategies`          | `scale`; `scale` and `chase` when the Chase probe is on, on testnet, with a signer bridge                                                                                                                                      |
+| `strategyRules`                | `scale`: `minOrders` 2, `maxOrders` 20 (`SCALE_ORDER_COUNT`). With chase advertised, also `chase`: `defaultIntervalMs` 15,000, `minIntervalMs` 1,000, and no `maxActiveSessions`, since Lighter does not cap concurrent chases |
+| `supportedMarginModes`         | `cross`, `isolated`                                                                                                                                                                                                            |
+| `supportedTriggerOrderTypes`   | `stop_market`, `stop_limit`, `take_profit_market`, `take_profit_limit`                                                                                                                                                         |
+| `attachedTpslGroupLimit`       | `takeProfit: 1`, `stopLoss: 1`                                                                                                                                                                                                 |
+| `attachedTpsl`                 | `submission: 'native-oto-otoco'`, `childCoverage: 'venue-native-zero-size'`, `partialSizes: false`, `lifecycleVerification: 'pending'`, `cancellation: 'explicit-exact-owned-orders'`                                          |
+| `positionTpsl`                 | `supportsExpectedPosition: true`, `childOrderIds: 'request-correlated'`, TP `take_profit_market`, SL `stop_market`, `defaultCoverage: 'position-snapshot'`                                                                     |
+| `positionTpsl.partialCoverage` | `single: true`, `pair: 'equal-quantity-oco'`, `supportedPairs` `equal-quantity-oco` and `independent`, `replacement: 'cancel-before-create'`, `recovery: 'explicit-current-position-intent'`                                   |
 
 - An equal-quantity pair is a native OCO. Independent legs have no sibling cancellation.
 - Snapshot coverage does not resize with the position.
 - TWAP is not advertised. `PerpsController.getOrderCapabilities` returns `not_implemented` for a provider without the method.
 
-Code: `src/providers/LighterProvider.ts` `getOrderCapabilities`; `src/utils/orderTypes.ts` `TRIGGER_ORDER_TYPES`; `src/PerpsController.ts` `getOrderCapabilities`.
+Code: `src/providers/LighterProvider.ts` `getOrderCapabilities`; `src/utils/orderTypes.ts` `TRIGGER_ORDER_TYPES`, `SCALE_ORDER_COUNT`; `src/PerpsController.ts` `getOrderCapabilities`.
 
 ## Order rules
 
@@ -42,29 +44,36 @@ Code: `src/providers/LighterProvider.ts` `placeOrder`, `isLighterMakerOrder`; `s
 
 ## Strategies
 
-| Strategy | Rules                                                                                                                                                                                                                                                                                                                              |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scale    | Advertised. Cancellations in one group share a 10 s settlement window (`LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`).                                                                                                                                                                                                                      |
-| Chase    | Testnet only, signer required. `chaseTestnetProbe` throws on mainnet and the controller passes it only on testnet. Opening orders only, at existing 1x leverage, notional at most $20 (`LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`). Defaults 15 s interval, 60 s duration, 1 repricing, 100 bps distance; limits 300 s and 20 repricings. |
-| TWAP     | Only behind the testnet-only `nativeTwapTestnetProbe` constructor option, which `PerpsController` does not pass                                                                                                                                                                                                                    |
+| Strategy | Rules                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scale    | Advertised. Cancellations in one group share a 10 s settlement window (`LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`).                                                                                                                                                                                                                                                                |
+| Chase    | Testnet only, signer required. `chaseTestnetProbe` throws on mainnet and the controller passes it only on testnet. Opening orders only, at existing 1x leverage, notional at most $20 (`LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`). Defaults 15 s interval (`strategyRules.chase.defaultIntervalMs`), 60 s duration, 1 repricing, 100 bps distance; limits 300 s and 20 repricings. |
+| TWAP     | Only behind the testnet-only `nativeTwapTestnetProbe` constructor option, which `PerpsController` does not pass                                                                                                                                                                                                                                                              |
 
 Code: `src/providers/LighterProvider.ts` constructor, `#placeChaseProbe`, `#placeNativeTwapProbe`; `src/PerpsController.ts` `registerLighterProvider`; `src/constants/lighterConfig.ts` `LIGHTER_CHASE_*`, `LIGHTER_NATIVE_PROBE_MAX_NOTIONAL`, `LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`.
 
 ## Other features
 
-| Feature                 | Status                                                                                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Accounts                | Standard accounts only. Premium and unverified accounts are refused across the account-bound surface.                                                                                      |
-| Writes                  | Need a `signerBridge`; without one the provider is read-only                                                                                                                               |
-| Close                   | Whole position, or partial by `size` or `usdAmount`                                                                                                                                        |
-| Edit                    | Native edit of the same active, unfilled, ordinary perpetual limit (GTC or post-only) with no linked or trigger protection. The ABI has no order version, so the final venue race remains. |
-| `updateMargin`          | Implemented                                                                                                                                                                                |
-| `previewPositionModify` | Returns `{ status: 'unsupported', reason: 'provider' }`                                                                                                                                    |
-| Deposits                | `getDepositRoutes()` returns `[]`                                                                                                                                                          |
-| Withdrawals             | Mainnet USDC bridge route only; testnet returns `[]`                                                                                                                                       |
-| Live data               | WebSocket market, account, position, order, fill, order-book and candle streams; REST price polling every 5 s (`LIGHTER_PRICE_POLLING_INTERVAL_MS`) when no WebSocket exists               |
+| Feature                     | Status                                                                                                                                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts                    | Standard accounts only. Premium and unverified accounts are refused across the account-bound surface.                                                                                                                       |
+| Writes                      | Need a `signerBridge`; without one the provider is read-only                                                                                                                                                                |
+| Close                       | Whole position, or partial by `size` or `usdAmount`                                                                                                                                                                         |
+| Edit                        | Native edit of the same active, unfilled, ordinary perpetual limit (GTC or post-only) with no linked or trigger protection. The ABI has no order version, so the final venue race remains.                                  |
+| `updateMargin`              | Implemented                                                                                                                                                                                                                 |
+| `previewPositionModify`     | Returns `{ status: 'unsupported', reason: 'provider' }`                                                                                                                                                                     |
+| `estimateCrossLiquidation`  | Returns `{ status: 'unavailable', reason: 'provider' }`                                                                                                                                                                     |
+| `getMarginAdjustmentLimits` | Not implemented; the controller returns `{ status: 'unavailable', reason: 'provider' }`                                                                                                                                     |
+| `getMarketMeta`             | From `getMarkets`: `marginTiers` is `null` (Lighter has no margin tables), `isDelisted` is true for a market whose status is not `active`, `maxLeverage` is the venue's from margin metadata, and `onlyIsolated` is `false` |
+| Deposits                    | `getDepositRoutes()` returns `[]`                                                                                                                                                                                           |
+| Withdrawals                 | Mainnet USDC bridge route only; testnet returns `[]`                                                                                                                                                                        |
+| Live data                   | WebSocket market, account, position, order, fill, order-book and candle streams; REST price polling every 5 s (`LIGHTER_PRICE_POLLING_INTERVAL_MS`) when no WebSocket exists                                                |
 
-Code: `src/providers/LighterProvider.ts` `#assertStandardAccount`, `closePosition`, `editOrder`, `updateMargin`, `previewPositionModify`, `getDepositRoutes`, `getWithdrawalRoutes`; `src/utils/lighterNativeEdit.ts`.
+Code: `src/providers/LighterProvider.ts` `#assertStandardAccount`, `closePosition`, `editOrder`, `updateMargin`, `previewPositionModify`, `estimateCrossLiquidation`, `getDepositRoutes`, `getWithdrawalRoutes`; `src/utils/lighterNativeEdit.ts`; `src/PerpsController.ts` `getMarginAdjustmentLimits`, `getMarketMeta`; `src/utils/lighterAdapter.ts` `adaptMarketFromLighter`.
+
+With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the Lighter snapshot's name, description, icon, category, keywords, tags, listing time, volume, open interest and `marketKey` to each market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with the venue; the volume and open interest sort values in `numericValues` come from the snapshot with their display strings. Without a snapshot, Lighter reports open interest in base units, and the adapter converts it to USD at the last trade price (no mark price is in that response); a market without a price has no open interest sort value. `getMarkets` keeps the venue's trading rules and joins only the snapshot's `marketKey` and `priceScale` to each Lighter market of the same name, directly or in aggregated mode. A missing or invalid Lighter snapshot leaves the venue rows unchanged.
+
+Code: `src/services/MarketDataService.ts` `getMarketDataWithPrices`.
 
 ## Fees
 

@@ -1,8 +1,10 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   BASIS_POINTS_DIVISOR,
   HIP3_ASSET_ID_CONFIG,
+  isUnrestrictedMarginMode,
 } from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
@@ -30,6 +32,7 @@ import type {
   UserHistoryItem,
 } from '../types/index.js';
 import type { TpslLinkage, TriggerOrderType } from '../types/perps-types.js';
+import { resolveHyperLiquidMarginTiers } from './hyperLiquidPositionPreview.js';
 import {
   buildTriggerOrderType,
   classifyTriggerDirection,
@@ -39,14 +42,11 @@ import {
   isTriggerOrderType,
   toSDKTimeInForce,
 } from './orderTypes.js';
+import { roundToSignificantFiguresGrid } from './pricePrecision.js';
 import {
   buildPublicTrade,
   sortPublicTradesNewestFirst,
 } from './publicTrades.js';
-import {
-  countSignificantFigures,
-  roundToSignificantFigures,
-} from './significantFigures.js';
 import { parseFiniteDecimal } from './stringParseUtils.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
@@ -252,8 +252,55 @@ export function adaptTpslLinkageToGrouping(
   }
 }
 
-export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
+/**
+ * Margin Hyperliquid shows for a cross position. When cross equity is below
+ * the cross initial margin, the venue scales each cross position's margin by
+ * `accountValue / totalMarginUsed`.
+ *
+ * @param marginUsed - The position's raw margin used.
+ * @param crossMarginSummary - The clearinghouse's cross margin summary.
+ * @returns The displayed margin, or undefined when an input is not a number.
+ */
+function deriveCrossDisplayMarginUsed(
+  marginUsed: string,
+  crossMarginSummary: ClearinghouseStateResponse['crossMarginSummary'],
+): string | undefined {
+  const margin = new BigNumber(marginUsed);
+  const accountValue = new BigNumber(crossMarginSummary.accountValue);
+  const totalMarginUsed = new BigNumber(crossMarginSummary.totalMarginUsed);
+  if (
+    !margin.isFinite() ||
+    !accountValue.isFinite() ||
+    !totalMarginUsed.isFinite()
+  ) {
+    return undefined;
+  }
+  if (totalMarginUsed.lte(0) || accountValue.gte(totalMarginUsed)) {
+    return margin.toFixed();
+  }
+  return BigNumber.max(
+    margin.times(accountValue).div(totalMarginUsed),
+    0,
+  ).toFixed();
+}
+
+/**
+ * Adapt a Hyperliquid asset position.
+ *
+ * @param assetPosition - Position from a clearinghouse state.
+ * @param crossMarginSummary - That clearinghouse's `crossMarginSummary`. When
+ * given, a cross position also carries `displayMarginUsed`.
+ * @returns The position.
+ */
+export function adaptPositionFromSDK(
+  assetPosition: AssetPosition,
+  crossMarginSummary?: ClearinghouseStateResponse['crossMarginSummary'],
+): Position {
   const pos = assetPosition.position;
+  const displayMarginUsed =
+    pos.leverage.type === 'cross' && crossMarginSummary
+      ? deriveCrossDisplayMarginUsed(pos.marginUsed, crossMarginSummary)
+      : undefined;
   return {
     symbol: pos.coin,
     size: pos.szi,
@@ -261,6 +308,7 @@ export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
     positionValue: pos.positionValue,
     unrealizedPnl: pos.unrealizedPnl,
     marginUsed: pos.marginUsed,
+    ...(displayMarginUsed !== undefined && { displayMarginUsed }),
     leverage: {
       type: pos.leverage.type,
       value: pos.leverage.value,
@@ -483,17 +531,38 @@ export function adaptPositionTriggerOrderFromSDK(params: {
   };
 }
 
+/**
+ * Map one `meta.universe` entry to {@link MarketInfo}.
+ *
+ * @param sdkMarket - The venue market.
+ * @param marginTables - `meta.marginTables` from the same response. Needed to
+ * resolve tiered tables (ids of 50 and above); single-tier ids resolve
+ * without it.
+ * @returns The market, with `marginTiers` when the table resolves.
+ */
 export function adaptMarketFromSDK(
   sdkMarket: MetaResponse['universe'][number],
+  marginTables?: MetaResponse['marginTables'],
 ): MarketInfo {
+  // The venue also sends `normal` (no restriction), which the SDK type omits.
+  // `MarketInfo.marginMode` carries restrictions only, so drop it.
+  const venueMarginMode: string | undefined = sdkMarket.marginMode;
+  const marginTiers = resolveHyperLiquidMarginTiers({
+    marginTableId: sdkMarket.marginTableId,
+    maxLeverage: sdkMarket.maxLeverage,
+    marginTables,
+  });
   return {
     name: sdkMarket.name,
     szDecimals: sdkMarket.szDecimals,
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
-    marginMode: sdkMarket.marginMode,
+    ...(!isUnrestrictedMarginMode(venueMarginMode) && {
+      marginMode: sdkMarket.marginMode,
+    }),
     isDelisted: sdkMarket.isDelisted,
+    ...(marginTiers && { marginTiers }),
   };
 }
 
@@ -604,25 +673,11 @@ export function formatHyperLiquidPrice(params: {
   szDecimals: number;
 }): string {
   const { price, szDecimals } = params;
-  const priceNum = typeof price === 'string' ? parseFloat(price) : price;
-
-  if (Number.isInteger(priceNum)) {
-    return priceNum.toString();
-  }
-
-  const maxDecimalPlaces =
-    DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals;
-
-  let formattedPrice = priceNum.toFixed(maxDecimalPlaces);
-  formattedPrice = parseFloat(formattedPrice).toString();
-
-  const significantDigits = countSignificantFigures(formattedPrice);
-
-  if (significantDigits > DECIMAL_PRECISION_CONFIG.MaxSignificantFigures) {
-    formattedPrice = roundToSignificantFigures(formattedPrice);
-  }
-
-  return formattedPrice;
+  return roundToSignificantFiguresGrid(
+    price,
+    DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals,
+    DECIMAL_PRECISION_CONFIG.MaxSignificantFigures,
+  );
 }
 
 export function formatHyperLiquidSize(params: {

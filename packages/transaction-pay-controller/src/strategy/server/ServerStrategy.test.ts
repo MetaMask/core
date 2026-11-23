@@ -9,6 +9,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
 import { ServerStrategy } from './ServerStrategy.js';
@@ -17,6 +18,7 @@ import type { ServerQuote } from './types.js';
 vi.mock(import('./server-quotes.js'));
 vi.mock(import('./server-submit.js'));
 vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/max-quote.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
@@ -120,6 +122,28 @@ describe('ServerStrategy', () => {
     it('returns empty batch list', async () => {
       expect(await new ServerStrategy().getBatchTransactions()).toStrictEqual(
         [],
+      );
+    });
+  });
+
+  describe('getRefreshInterval', () => {
+    it('returns max amount refresh interval', async () => {
+      const getMaxAmountRefreshIntervalMock = vi.mocked(
+        getMaxAmountRefreshInterval,
+      );
+      getMaxAmountRefreshIntervalMock.mockReturnValue(5000);
+
+      const refreshRequest = {
+        chainId: 'eip155:1' as const,
+        messenger: {} as TransactionPayControllerMessenger,
+        transactionId: 'tx-1',
+      };
+
+      expect(
+        await new ServerStrategy().getRefreshInterval(refreshRequest),
+      ).toBe(5000);
+      expect(getMaxAmountRefreshIntervalMock).toHaveBeenCalledWith(
+        refreshRequest,
       );
     });
   });

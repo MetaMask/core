@@ -17,6 +17,8 @@ import type {
   CancelOrderResult,
   OrderParams,
   OrderResult,
+  PerpsOrderLimits,
+  PerpsPricePrecision,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
 import { hasFeeReductionAppliedFlag } from '../../../src/utils/subscriptionFeeWaiver.js';
@@ -31,6 +33,22 @@ import {
 } from '../../helpers/hyperLiquidStrategyOrders.js';
 import type { MockClient } from '../../helpers/hyperLiquidStrategyOrders.js';
 import { createDeferred } from '../../helpers/serviceMocks.js';
+
+// Venue rules HyperLiquid reports for every market it runs strategies on.
+const HYPERLIQUID_STRATEGY_RULES = {
+  twap: {
+    minDurationMinutes: 5,
+    maxDurationMinutes: 1440,
+    minNotionalUsd: 100,
+    sliceIntervalSeconds: 30,
+  },
+  chase: {
+    maxActiveSessions: 5,
+    defaultIntervalMs: 15000,
+    minIntervalMs: 1000,
+  },
+  scale: { minOrders: 2, maxOrders: 20 },
+};
 
 vi.mock('../../../src/services/HyperLiquidClientService');
 vi.mock('../../../src/services/HyperLiquidWalletService');
@@ -86,6 +104,35 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 // Mock TradingReadinessCache - global singleton for signing operation caching
 vi.mock('../../../src/services/TradingReadinessCache');
 
+/**
+ * Price grid and order limits HyperLiquid reports for a market with
+ * `szDecimals` on mainnet.
+ *
+ * @param szDecimals - Market size decimals.
+ * @returns The capability fields derived from them.
+ */
+const hyperLiquidMarketLimits = (
+  szDecimals: number,
+): { pricePrecision: PerpsPricePrecision; orderLimits: PerpsOrderLimits } => ({
+  pricePrecision: {
+    type: 'significant_figures',
+    maxSignificantFigures: 5,
+    maxDecimals: 6 - szDecimals,
+  },
+  orderLimits: {
+    sizeDecimals: szDecimals,
+    minOrderNotionalUsd: 10,
+    minimumAppliesTo: 'all_orders',
+    scaleOrderCount: { min: 2, max: 20 },
+    twap: {
+      minDurationMinutes: 5,
+      maxDurationMinutes: 1440,
+      minNotionalUsd: 100,
+    },
+    maxOraclePriceDeviation: 0.95,
+  },
+});
+
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -116,6 +163,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -129,6 +177,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -136,10 +185,106 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
       expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
     });
+
+    it('reports the price grid and order limits placement enforces', async () => {
+      useStrategyClients();
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      // ETH has szDecimals 4, so prices keep at most 6 - 4 decimals.
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        pricePrecision: {
+          type: 'significant_figures',
+          maxSignificantFigures: 5,
+          maxDecimals: 2,
+        },
+        orderLimits: {
+          sizeDecimals: 4,
+          minOrderNotionalUsd: 10,
+          minimumAppliesTo: 'all_orders',
+          scaleOrderCount: { min: 2, max: 20 },
+          twap: {
+            minDurationMinutes: 5,
+            maxDurationMinutes: 1440,
+            minNotionalUsd: 100,
+          },
+          maxOraclePriceDeviation: 0.95,
+        },
+      });
+      expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
+    });
+
+    it('reports the market margin tiers from the venue meta', async () => {
+      const { infoClient } = useStrategyClients();
+      infoClient.meta.mockResolvedValue({
+        universe: [
+          { name: 'ETH', szDecimals: 4, maxLeverage: 25, marginTableId: 55 },
+        ],
+        marginTables: [
+          [
+            55,
+            {
+              description: 'tiered 25x',
+              marginTiers: [
+                { lowerBound: '0.0', maxLeverage: 25 },
+                { lowerBound: '100000000.0', maxLeverage: 15 },
+              ],
+            },
+          ],
+        ],
+      });
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        marginTiers: [
+          { lowerBound: 0, maxLeverage: 25 },
+          { lowerBound: 100000000, maxLeverage: 15 },
+        ],
+      });
+    });
+
+    it('reports the configured oracle price deviation limit', async () => {
+      useStrategyClients();
+      const configured = createTestProvider({ priceDeviationLimit: 0.5 });
+
+      const capabilities = await configured.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      expect(capabilities).toMatchObject({
+        orderLimits: { maxOraclePriceDeviation: 0.5 },
+      });
+    });
+
+    it.each([-1, 1.5, 7, Number.NaN])(
+      'omits grid and limits for invalid size decimals %s',
+      async (szDecimals) => {
+        const { infoClient } = useStrategyClients();
+        infoClient.meta.mockResolvedValue({
+          universe: [{ name: 'ETH', szDecimals, maxLeverage: 50 }],
+        });
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'ETH',
+        });
+
+        expect(capabilities.status).toBe('ready');
+        expect(capabilities).not.toHaveProperty('pricePrecision');
+        expect(capabilities).not.toHaveProperty('orderLimits');
+      },
+    );
 
     it('resolves support before the asset mapping is populated', async () => {
       useStrategyClients();
@@ -151,6 +296,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -164,6 +310,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -171,10 +318,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
     });
 
-    it('advertises strategies for an existing HIP-3 market', async () => {
+    it('advertises strategies and Cross for an existing HIP-3 market', async () => {
       const { capabilityProvider, infoClient } = useHip3Capabilities();
 
       expect(
@@ -183,6 +331,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -196,24 +345,69 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
           'take_profit_market',
           'take_profit_limit',
         ],
-        supportedMarginModes: ['isolated'],
+        supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(3),
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
 
     it.each([
-      ['isolated-only', { onlyIsolated: true }],
+      ['isolated-only', { onlyIsolated: true }, ['isolated'], 'isolatedOnly'],
+      [
+        'strictIsolated',
+        { marginMode: 'strictIsolated' },
+        ['isolated'],
+        'strictIsolated',
+      ],
+      ['noCross', { marginMode: 'noCross' }, ['isolated'], 'noCross'],
+      ['normal', { marginMode: 'normal' }, ['isolated', 'cross'], undefined],
+    ])(
+      'reports the venue margin modes for a %s HIP-3 market',
+      async (_, restriction, supportedMarginModes, reason) => {
+        const { capabilityProvider } = useHip3Capabilities({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:TSLA',
+                szDecimals: 3,
+                maxLeverage: 20,
+                ...restriction,
+              },
+            ],
+            collateralToken: 0,
+          }),
+        });
+
+        const capabilities = await capabilityProvider.getOrderCapabilities({
+          symbol: 'xyz:TSLA',
+        });
+        expect(capabilities).toMatchObject({
+          status: 'ready',
+          supportedMarginModes,
+        });
+        const reasonProperty = Object.getOwnPropertyDescriptor(
+          capabilities,
+          'crossMarginUnavailableReason',
+        );
+        expect(reasonProperty?.value).toBe(reason);
+        expect(reasonProperty !== undefined).toBe(reason !== undefined);
+      },
+    );
+
+    it.each([
+      ['isolatedOnly', { onlyIsolated: true }],
       ['strictIsolated', { marginMode: 'strictIsolated' }],
       ['noCross', { marginMode: 'noCross' }],
     ])(
       'reports only isolated margin for a %s market',
-      async (_, restriction) => {
+      async (reason, restriction) => {
         useStrategyClients({
           info: {
             meta: vi.fn().mockResolvedValue({
@@ -230,6 +424,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -243,6 +438,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -250,9 +446,35 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated'],
+          crossMarginUnavailableReason: reason,
+          ...hyperLiquidMarketLimits(4),
         });
       },
     );
+
+    it('reports Cross for a main-DEX market with explicit normal margin mode', async () => {
+      useStrategyClients({
+        info: {
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 50,
+                marginMode: 'normal',
+              },
+            ],
+          }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({
+        status: 'ready',
+        supportedMarginModes: ['isolated', 'cross'],
+      });
+    });
 
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],
@@ -334,6 +556,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -347,6 +570,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -354,6 +578,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
     });
 
@@ -463,6 +688,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -476,6 +702,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -483,6 +710,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(0),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -498,6 +726,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -511,6 +740,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -518,6 +748,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -589,6 +820,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -602,6 +834,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -609,6 +842,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
 
       pendingSharedMeta.resolve({
@@ -622,6 +856,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -635,6 +870,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -642,6 +878,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -678,6 +915,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -691,6 +929,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -698,11 +937,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated', 'cross'],
+          ...hyperLiquidMarketLimits(3),
         },
         {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -716,6 +957,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               recovery: 'provider-default',
             },
           },
+          attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
           supportedTriggerOrderTypes: [
             'stop_market',
             'stop_limit',
@@ -723,6 +965,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated', 'cross'],
+          ...hyperLiquidMarketLimits(4),
         },
       ]);
     });
@@ -812,6 +1055,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -825,6 +1069,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -832,6 +1077,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -858,6 +1104,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await initializeResult).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       await clientDisconnectStarted.promise;
       expect(
@@ -887,6 +1138,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await provider.initialize()).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockClientService.initialize).not.toHaveBeenCalled();
 
@@ -940,6 +1196,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -953,6 +1210,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -960,6 +1218,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -995,8 +1254,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(disconnectResult).toStrictEqual({
         success: false,
-        error: 'disconnect failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
+      expect(disconnectResult.error).not.toContain('disconnect failed');
       expect(await staleRead).toStrictEqual({
         status: 'unavailable',
         providerId: 'hyperliquid',
@@ -1009,6 +1274,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1022,6 +1288,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1029,6 +1296,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1058,6 +1326,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1071,6 +1340,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1078,6 +1348,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1114,6 +1385,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1127,6 +1399,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1134,6 +1407,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1318,7 +1592,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(await provider.toggleTestnet()).toMatchObject({
         success: false,
-        error: 'initialization failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
@@ -1339,7 +1618,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await provider.toggleTestnet()).toStrictEqual({
         success: false,
         isTestnet: false,
-        error: 'disconnect failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockClientService.setTestnetMode).not.toHaveBeenCalled();
       expect(mockWalletService.setTestnetMode).not.toHaveBeenCalled();
@@ -1349,6 +1633,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1362,6 +1647,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             recovery: 'provider-default',
           },
         },
+        attachedTpslGroupLimit: { takeProfit: 1, stopLoss: 1 },
         supportedTriggerOrderTypes: [
           'stop_market',
           'stop_limit',
@@ -1369,6 +1655,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -1934,6 +2221,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(first).toStrictEqual({
         success: true,
         orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'failed',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
       });
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
 
@@ -1993,6 +2285,74 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
       });
       expect(second).toStrictEqual({ success: true, orderId: placed.orderId });
+    });
+
+    it('reports a fill, not a cancel, when the gone child had filled between reads', async () => {
+      const childStatus = (status: 'open' | 'filled', sz: string): unknown => ({
+        status: 'order',
+        order: {
+          status,
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999',
+            sz,
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel: vi.fn().mockResolvedValue(alreadyGone),
+        },
+        info: {
+          orderStatus: vi
+            .fn()
+            .mockResolvedValueOnce(childStatus('open', '1'))
+            .mockResolvedValue(childStatus('filled', '0')),
+        },
+      });
+      const { orderId: handle = '' } = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } satisfies OrderParams);
+
+      const before = await provider.getChaseOrders();
+      // The child fills here, before the cancel reaches it.
+      const result = await provider.cancelOrder({
+        orderId: handle,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      expect(handle).not.toBe('');
+      expect(before).toStrictEqual([
+        expect.objectContaining({ status: 'active' }),
+      ]);
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: handle,
+        chaseOrder: expect.objectContaining({
+          handle,
+          status: 'filled',
+          remainingSize: '0',
+          restingOrderId: null,
+        }),
+      });
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
     it('completes a chase cancel when the SDK throws that its child is gone', async () => {
@@ -2834,7 +3194,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'filled',
+          remainingSize: '0',
+          restingOrderId: null,
+        }),
+      });
     });
 
     it('retries on the next tick when the resting child is briefly unknown', async () => {
@@ -2891,6 +3259,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toStrictEqual({
         success: true,
         orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
       });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 66 }],
@@ -3434,7 +3807,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'failed',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
     });
   });
 
@@ -3822,6 +4203,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
         submittedSize: '1',
       });
     });

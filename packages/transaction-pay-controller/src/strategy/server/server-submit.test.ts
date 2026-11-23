@@ -868,6 +868,133 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).not.toHaveBeenCalled();
     });
 
+    describe('authorization list', () => {
+      const AUTHORIZATION_MOCK = {
+        address: '0x7777777777777777777777777777777777777777' as Hex,
+        chainId: 137,
+        nonce: 2,
+        r: '0xr' as Hex,
+        s: '0xs' as Hex,
+        yParity: 1,
+      };
+
+      const SAME_CHAIN_OVERRIDES: Partial<ServerQuote> = {
+        authorizationList: [AUTHORIZATION_MOCK],
+        output: {
+          ...ORIGINAL_QUOTE_MOCK.output,
+          asset: 'eip155:137/erc20:0x6666666666666666666666666666666666666666',
+        },
+      };
+
+      const BATCH_STEPS: ServerQuote['steps'] = [
+        ORIGINAL_QUOTE_MOCK.steps[0],
+        {
+          type: 'transaction' as const,
+          chainId: 137,
+          data: '0xseconddata',
+          to: '0x9999999999999999999999999999999999999999',
+          value: '0x20',
+        },
+      ];
+
+      function withoutAccountOverride(
+        executeRequest: PayStrategyExecuteRequest<ServerQuote>,
+      ): PayStrategyExecuteRequest<ServerQuote> {
+        executeRequest.transaction.txParams.from = QUOTE_FROM_MOCK;
+        return executeRequest;
+      }
+
+      it('passes the address and chain ID to a same-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(buildNonGaslessRequest(SAME_CHAIN_OVERRIDES)),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              { address: AUTHORIZATION_MOCK.address, chainId: '0x89' },
+            ],
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it from a cross-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              authorizationList: [AUTHORIZATION_MOCK],
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it when the quote has no authorizations', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              output: SAME_CHAIN_OVERRIDES.output,
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('passes the signed authorizations to a same-chain batch with an account override', async () => {
+        await submitServerQuotes(
+          buildNonGaslessRequest({
+            ...SAME_CHAIN_OVERRIDES,
+            steps: BATCH_STEPS,
+          }),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              {
+                address: AUTHORIZATION_MOCK.address,
+                chainId: '0x89',
+                nonce: '0x2',
+                r: '0xr',
+                s: '0xs',
+                yParity: '0x1',
+              },
+            ],
+          }),
+        );
+      });
+
+      it('omits it from a same-chain batch without an account override', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              ...SAME_CHAIN_OVERRIDES,
+              steps: BATCH_STEPS,
+            }),
+          ),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+        );
+      });
+    });
+
     it('passes gasFeeToken when fees.isSourceGasFeeToken is true', async () => {
       const reqWithGasFeeToken = buildNonGaslessRequest();
       reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
