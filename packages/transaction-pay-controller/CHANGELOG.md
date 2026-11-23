@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PaymentOverride.PerpsLighter` (`perpsLighter`) for a later direct Lighter target ([#11640](https://github.com/MetaMask/core/pull/11640))
   - Quote building is unchanged. The first mainnet USDC deposit does not set this override.
 - Add `PaymentProvider` and `TransactionConfig.paymentProvider` ([#11705](https://github.com/MetaMask/core/pull/11705))
-  - `ServerStrategy` quotes into Lighter (`targetAsset` is `lighter`) when `paymentProvider` is `lighter`. The transaction does not need calldata.
+  - `ServerStrategy` quotes into the Lighter perps balance (`lighter:mainnet/perps:usdc`) when `paymentProvider` is `lighter`. The transaction does not need calldata.
 
 ### Changed
 
