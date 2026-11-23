@@ -4450,6 +4450,159 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.envelope).toBeUndefined();
         });
       });
+
+      it('falls back to a committed rbek when an uncommitted rbek sorts first', async () => {
+        const store = await createMigratedAccount();
+        const staleKeySet = vaultKeySetFor('stale-password');
+        storeSeedPhrase(store, staleKeySet);
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const recoveryKeys = deriveTestEnvelopeKeys(
+            stringToBytes(RECOVERY_SECRET_HEX),
+          );
+          await network.envelopeStore.writeEnvelope(
+            recoveryKeys,
+            await sealEnvelope(
+              recoveryKeys.wrapKey,
+              'recovery-secret',
+              staleKeySet,
+            ),
+          );
+
+          const secrets = await recover(args);
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(controller.state.envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it('falls back to a committed rbek when a stale rbek points to an empty vault partition', async () => {
+        const store = await createMigratedAccount();
+        const staleKeySet = vaultKeySetFor('stale-empty-password');
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const recoveryKeys = deriveTestEnvelopeKeys(
+            stringToBytes(RECOVERY_SECRET_HEX),
+          );
+          await network.envelopeStore.writeEnvelope(
+            recoveryKeys,
+            await sealEnvelope(
+              recoveryKeys.wrapKey,
+              'recovery-secret',
+              staleKeySet,
+            ),
+          );
+
+          const secrets = await recover(args);
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it('deduplicates repeated rbek envelopes for the same uncommitted vault key set', async () => {
+        const store = await createMigratedAccount();
+        const staleKeySet = vaultKeySetFor('stale-dup-password');
+        storeSeedPhrase(store, staleKeySet);
+
+        await withNewDeviceController(async (args) => {
+          const { toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const recoveryKeys = deriveTestEnvelopeKeys(
+            stringToBytes(RECOVERY_SECRET_HEX),
+          );
+          await network.envelopeStore.writeEnvelope(
+            recoveryKeys,
+            await sealEnvelope(
+              recoveryKeys.wrapKey,
+              'recovery-secret',
+              staleKeySet,
+            ),
+          );
+          await network.envelopeStore.writeEnvelope(
+            recoveryKeys,
+            await sealEnvelope(
+              recoveryKeys.wrapKey,
+              'recovery-secret',
+              staleKeySet,
+            ),
+          );
+          network.spies.fetchAllSecretDataItems.mockClear();
+
+          const secrets = await recover(args);
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          // 1 fetch for RS envelopes + 1 fetch for staleKeySet (deduped) + 1 fetch for committed vault
+          expect(network.spies.fetchAllSecretDataItems).toHaveBeenCalledTimes(
+            3,
+          );
+        });
+      });
+
+      it('rethrows metadata fetch errors instead of skipping to another rbek', async () => {
+        const store = await createMigratedAccount();
+        const staleKeySet = vaultKeySetFor('stale-error-password');
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const recoveryKeys = deriveTestEnvelopeKeys(
+            stringToBytes(RECOVERY_SECRET_HEX),
+          );
+          await network.envelopeStore.writeEnvelope(
+            recoveryKeys,
+            await sealEnvelope(
+              recoveryKeys.wrapKey,
+              'recovery-secret',
+              staleKeySet,
+            ),
+          );
+          failOnce(
+            network.spies.fetchAllSecretDataItems,
+            ({ authKeyPair }) =>
+              pubKeysMatch(authKeyPair.pk, staleKeySet.authKeyPair.pk),
+            new Error('metadata down'),
+          );
+
+          await expect(recover(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+          );
+          expect(controller.state.vault).toBeUndefined();
+        });
+      });
     });
 
     describe('after recovery', () => {

@@ -2854,36 +2854,35 @@ export class SeedlessOnboardingController<
         const { envelopeKeys } = await this.#recoverRecoverySecretEnvelopeKeys(
           bytesToHex(recoverySecret),
         );
-        const vaultKeySet = await this.#openNewestEnvelope(
+        const candidates = await this.#openAllEnvelopes(
           envelopeKeys,
           'recovery-secret',
         );
         // K_v never changes once this device has envelope state
         const { envelope } = this.state;
-        if (
-          !vaultKeySet ||
-          (envelope &&
-            !pubKeysEqual(
-              vaultKeySet.authKeyPair.pk,
-              base64ToBytes(envelope.vaultAuthPubKey),
-            ))
-        ) {
+        const matchingCandidates = envelope
+          ? candidates.filter((candidate) =>
+              pubKeysEqual(
+                candidate.authKeyPair.pk,
+                base64ToBytes(envelope.vaultAuthPubKey),
+              ),
+            )
+          : candidates;
+        if (matchingCandidates.length === 0) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
           );
         }
 
-        const { secrets, controlRecords } =
-          await this.#fetchAllSecretDataFromMetadataStore(
-            vaultKeySet.encKey,
-            vaultKeySet.authKeyPair,
-          );
-        // the migration that sealed these keys is not committed yet
-        if (controlRecords.length === 0) {
+        const recovered =
+          await this.#findCommittedRecoveryVault(matchingCandidates);
+        if (!recovered) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
           );
         }
+        const { vaultKeySet, secrets, controlRecords } = recovered;
+
         const { authPubKey } = await this.#fetchGlobalAuthPubKey();
         if (!selectControlRecord(controlRecords, authPubKey)) {
           throw new SeedlessOnboardingError(
@@ -3292,6 +3291,97 @@ export class SeedlessOnboardingController<
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
     );
+  }
+
+  /**
+   * Open every decryptable envelope of a partition's envelope keys, newest
+   * first, deduplicated by vault auth public key.
+   *
+   * @param keys - The envelope keys of the partition.
+   * @param path - The path of the envelopes to open.
+   * @returns The unique vault key sets, newest first, or an empty array when
+   * the partition holds no envelope of the path.
+   * @throws If the envelopes cannot be fetched, or `InvalidEnvelope` if none
+   * opens.
+   */
+  async #openAllEnvelopes(
+    keys: EnvelopeKeys,
+    path: Envelope['path'],
+  ): Promise<VaultKeySet[]> {
+    const envelopes = await this.#envelopeStore.fetchEnvelopes(keys, path);
+    if (envelopes.length === 0) {
+      return [];
+    }
+    const seen = new Set<string>();
+    const vaultKeySets: VaultKeySet[] = [];
+    for (const envelope of envelopes) {
+      try {
+        const vaultKeySet = await openEnvelope(envelope, keys.wrapKey, path);
+        const keyId = bytesToHex(vaultKeySet.authKeyPair.pk);
+        if (!seen.has(keyId)) {
+          seen.add(keyId);
+          vaultKeySets.push(vaultKeySet);
+        }
+      } catch (error) {
+        log('Ignoring envelope that does not open', error);
+      }
+    }
+    if (vaultKeySets.length === 0) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+      );
+    }
+    return vaultKeySets;
+  }
+
+  /**
+   * Find the first candidate vault key set whose partition holds committed
+   * control records. Skips uncommitted partitions (no control records or empty
+   * partition after a legacy password change) while propagating real fetch
+   * errors.
+   *
+   * @param candidates - Candidate vault key sets, newest first.
+   * @returns The committed vault key set, its secrets, and its control
+   * records, or undefined if no candidate is committed.
+   * @throws `NoSecretDataFound` if no candidate is committed and at least one
+   * candidate partition held no secret data, or any metadata fetch error.
+   */
+  async #findCommittedRecoveryVault(candidates: VaultKeySet[]): Promise<
+    | {
+        vaultKeySet: VaultKeySet;
+        secrets: SecretMetadata[];
+        controlRecords: ControlRecord[];
+      }
+    | undefined
+  > {
+    let noSecretDataError: Error | undefined;
+    for (const vaultKeySet of candidates) {
+      try {
+        const { secrets, controlRecords } =
+          await this.#fetchAllSecretDataFromMetadataStore(
+            vaultKeySet.encKey,
+            vaultKeySet.authKeyPair,
+          );
+        // the migration that sealed these keys is not committed yet
+        if (controlRecords.length > 0) {
+          return { vaultKeySet, secrets, controlRecords };
+        }
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message ===
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
+        ) {
+          noSecretDataError ??= error;
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (noSecretDataError) {
+      throw noSecretDataError;
+    }
+    return undefined;
   }
 
   /**
