@@ -30,6 +30,7 @@ import type {
   OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
+  KycStepInfo,
   KycStepStatus,
 } from './types.js';
 import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
@@ -200,7 +201,7 @@ export class VendorOnboardingController extends BaseController<
    * `reset` wins over a slow response.
    */
   readonly #readStepPromises: Partial<
-    Record<OnboardingVendor, Promise<KycStep>>
+    Record<OnboardingVendor, Promise<KycStepInfo>>
   > = {};
 
   /**
@@ -310,14 +311,15 @@ export class VendorOnboardingController extends BaseController<
     intentOpen?: boolean;
   }): Promise<KycStep> {
     const { vendor } = params;
-    const existing = await this.messenger.call(
-      'KycService:getSessionStatusForVendor',
-      vendor,
-    );
-
-    if (existing) {
-      this.#write(vendor, { sessionId: existing.id });
+    if (this.state.vendors[vendor]?.sessionId) {
       return this.#readStep(vendor, { supersede: true });
+    }
+    // Without a saved session id (a fresh install or a reinstall), kyc-api
+    // reports the session it already has for the vendor with the step.
+    const existing = await this.#readStepInfo(vendor);
+
+    if (existing.sessionId) {
+      return existing.step;
     }
 
     if (!params.aal2Token) {
@@ -622,8 +624,8 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Gets the vendor's session id from what the phone saved, or from kyc-api
-   * when the phone has none (a reinstall).
+   * Gets the vendor's session id from what the phone saved, or from the step
+   * kyc-api answers with when the phone has none (a reinstall).
    *
    * @param vendor - The vendor.
    * @returns The session id.
@@ -633,17 +635,13 @@ export class VendorOnboardingController extends BaseController<
     if (saved) {
       return saved;
     }
-    const status = await this.messenger.call(
-      'KycService:getSessionStatusForVendor',
-      vendor,
-    );
-    if (!status) {
+    const { sessionId } = await this.#readStepInfo(vendor);
+    if (!sessionId) {
       throw new Error(
         `VendorOnboardingController: no ${vendor} session to continue.`,
       );
     }
-    this.#write(vendor, { sessionId: status.id });
-    return status.id;
+    return sessionId;
   }
 
   /**
@@ -748,8 +746,26 @@ export class VendorOnboardingController extends BaseController<
    */
   async #readStep(
     vendor: OnboardingVendor,
-    { supersede = false }: { supersede?: boolean } = {},
+    options: { supersede?: boolean } = {},
   ): Promise<KycStep> {
+    return (await this.#readStepInfo(vendor, options)).step;
+  }
+
+  /**
+   * Asks kyc-api for the step, how verification is going and the vendor's
+   * session id, and saves all three. A read joins one already in flight
+   * unless it supersedes it, as described for `#readStep`.
+   *
+   * @param vendor - The vendor.
+   * @param options - The options.
+   * @param options.supersede - Whether to start a new read instead of joining
+   * one already in flight. Defaults to `false`.
+   * @returns What kyc-api answered with.
+   */
+  async #readStepInfo(
+    vendor: OnboardingVendor,
+    { supersede = false }: { supersede?: boolean } = {},
+  ): Promise<KycStepInfo> {
     const inflight = this.#readStepPromises[vendor];
     if (!supersede && inflight) {
       return inflight;
@@ -757,8 +773,8 @@ export class VendorOnboardingController extends BaseController<
     // `let` so the closure can see the promise it is assigning. The binding
     // is written once, before the first await resumes.
     // oxlint-disable-next-line prefer-const
-    let read!: Promise<KycStep>;
-    read = (async (): Promise<KycStep> => {
+    let read!: Promise<KycStepInfo>;
+    read = (async (): Promise<KycStepInfo> => {
       try {
         const info = await this.messenger.call(
           'KycService:getStep',
@@ -767,9 +783,13 @@ export class VendorOnboardingController extends BaseController<
         );
         // A later read, or a reset, has taken this slot.
         if (this.#readStepPromises[vendor] === read) {
-          this.#write(vendor, { step: info.step, status: info.status });
+          this.#write(vendor, {
+            step: info.step,
+            status: info.status,
+            sessionId: info.sessionId,
+          });
         }
-        return info.step;
+        return info;
       } finally {
         if (this.#readStepPromises[vendor] === read) {
           delete this.#readStepPromises[vendor];
