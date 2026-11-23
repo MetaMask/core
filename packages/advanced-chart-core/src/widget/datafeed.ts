@@ -102,7 +102,8 @@ function getPriceScale(): number {
  * bars plus a buffer — orders of magnitude below this bound — so clamping here
  * stops the inherited-range artifact without affecting real scroll-back. This
  * is deliberately NOT applied to the first request (which returns in-memory
- * bars above) to avoid the earlier cap experiment's end-of-history desync.
+ * bars above). Requests above this bound are clamped (not halted) so
+ * scroll-back still works but each individual RN fetch stays bounded.
  */
 const MAX_RNBACKED_PAGINATION_COUNTBACK = 5_000;
 
@@ -236,20 +237,19 @@ export const customDatafeed: TVDatafeed = {
           });
         // Strategy B (RN-backed / Perps):
       } else if (getRnBackedPagination().enabled) {
-        // Bound the inherited-range pagination storm (see
+        // Clamp the inherited-range pagination storm (see
         // MAX_RNBACKED_PAGINATION_COUNTBACK). An over-threshold countBack is the
-        // post-resolution-switch artifact, never a real scroll-back, so halt it
-        // with noData instead of forwarding a request that would fetch hundreds
-        // of pages back through years of history.
-        if (periodParams.countBack > MAX_RNBACKED_PAGINATION_COUNTBACK) {
-          onResult([], { noData: true });
-          return;
-        }
+        // post-resolution-switch artifact, never a real scroll-back, so clamp it
+        // to keep scroll-back functional while bounding each individual RN fetch.
+        const effectiveCountBack = Math.min(
+          periodParams.countBack,
+          MAX_RNBACKED_PAGINATION_COUNTBACK,
+        );
         requestOlderBarsFromRN({
           resolution,
           fromSec: periodParams.from,
           toSec: periodParams.to,
-          countBack: periodParams.countBack,
+          countBack: effectiveCountBack,
           onResult,
         });
       } else {
