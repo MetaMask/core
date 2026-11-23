@@ -3714,6 +3714,48 @@ describe('MfaRecoveryController', () => {
       );
     });
 
+    it('renews a write approval that expires while reading back the recovery secret', async () => {
+      let now = unixNow();
+      await withController(
+        async ({ controller, authProvider, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          const { requestHash } = (
+            controller.state.pendingOperation as PendingOperation
+          ).mutation;
+          const restarted = restart(controller, options, () => now);
+          authProvider.now = (): number => now;
+          escrowA.now = (): number => now;
+          escrowB.now = (): number => now;
+          const getSecret = escrowB.getSecret.bind(escrowB);
+          vi.spyOn(escrowB, 'getSecret').mockImplementation(async (...args) => {
+            const secret = await getSecret(...args);
+            now += 6 * 60;
+            return secret;
+          });
+          const auth = vi.spyOn(authProvider, 'requestMfaApproval');
+
+          await restarted.resume();
+
+          expect(auth).toHaveBeenCalledWith(
+            expect.objectContaining({ requestHash, requireVerification: true }),
+          );
+          expect(await restarted.getPhase()).toBe('idle');
+          escrowB.available = false;
+          expect(
+            bytesToHex((await recover(restarted, PASSKEY)).recoverySecret),
+          ).toBe(bytesToHex(SECRET_2));
+        },
+      );
+    });
+
     it('reads back the recovery secret of a register with the given identifier', async () => {
       await withController(
         async ({ controller, escrowA, escrowB, options }) => {

@@ -858,10 +858,8 @@ export class MfaRecoveryController extends BaseController<
 
     await this.#assertEscrowsAvailable(remainingEscrows);
 
-    const claims = decodeAuthControllerToken(pending.authControllerToken);
-    const isApprovalExpired = claims === undefined || claims.exp <= this.#now();
     let approval = pending.authControllerToken;
-    if (isApprovalExpired) {
+    if (this.#isApprovalExpired(approval)) {
       // Reads with a read-only approval, which needs no 2FA.
       approval = await this.#authorizeProfileRead(mutation, remainingEscrows);
     }
@@ -902,10 +900,16 @@ export class MfaRecoveryController extends BaseController<
       pending,
       readIdentifier,
     );
-    const writing = isApprovalExpired
+    // Reading the secret back can outlast the approval.
+    const writing = this.#isApprovalExpired(pending.authControllerToken)
       ? await this.#authorizeWrite(pending)
       : pending;
     return { writing, remainingEscrows, escrowIdentifiers, recoverySecret };
+  }
+
+  #isApprovalExpired(token: AuthControllerToken): boolean {
+    const claims = decodeAuthControllerToken(token);
+    return claims === undefined || claims.exp <= this.#now();
   }
 
   // Fetches the receipts this client never got for escrows it already wrote,
