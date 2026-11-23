@@ -10259,9 +10259,19 @@ export class PerpsController extends BaseController<
           remoteExchangeWatchlist,
           editsDuringHydration,
         );
+        // AUS holds only bare symbols; keep the local keyed and venue entries.
         this.update((state) => {
-          state.watchlistMarkets.testnet = hydrated.testnet;
-          state.watchlistMarkets.mainnet = hydrated.mainnet;
+          for (const network of ['testnet', 'mainnet'] as const) {
+            const localOnly = state.watchlistMarkets[network].filter(
+              (entry) =>
+                !isSharedPerpsMarketReference(entry) &&
+                !hydrated[network].includes(entry),
+            );
+            state.watchlistMarkets[network] = [
+              ...hydrated[network],
+              ...localOnly,
+            ];
+          }
         });
         this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
           exchangeKey,

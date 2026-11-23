@@ -1443,6 +1443,56 @@ describe('PerpsController', () => {
         expect(ausController.state.watchlistMarkets.mainnet).toEqual(['SOL']);
       });
 
+      it('keeps local market-key and venue entries when hydrating from AUS', async () => {
+        const call = vi.fn().mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.resolve({
+              ...MOCK_PREFS_BASE,
+              perps: {
+                ...MOCK_PREFS_BASE.perps,
+                watchlistMarkets: {
+                  hyperliquid: { testnet: [], mainnet: ['SOL', 'BTC'] },
+                },
+              },
+            });
+          }
+          return undefined;
+        });
+        const state = getDefaultPerpsControllerState();
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = [
+          'market-key:ETH-USD',
+          'BTC',
+          'DOGE',
+          'venue:lighter:SOL',
+        ];
+        const controller = new PerpsController({
+          messenger: createMockMessenger({ call }),
+          state,
+          infrastructure: createMockInfrastructure(),
+        });
+
+        await controller.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+          'SOL',
+          'BTC',
+          'market-key:ETH-USD',
+          'venue:lighter:SOL',
+        ]);
+      });
+
       it('hydrates (clears) local watchlist when remote entry exists with empty arrays', async () => {
         // Remote blob has the hyperliquid key present but both arrays are empty —
         // this represents an intentional clear by another device.  The controller
