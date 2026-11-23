@@ -1720,7 +1720,13 @@ export class PerpsController extends BaseController<
     );
     if (snapshotConfigured) {
       providerIds.add('hyperliquid');
-      if (this.#isLighterProviderEnabled()) {
+      // Before initialization Lighter may still register; afterwards require
+      // its slice only when it did, as snapshot reads only include it then.
+      if (
+        this.isInitialized
+          ? this.providers.has('lighter')
+          : this.#isLighterProviderEnabled()
+      ) {
         providerIds.add('lighter');
       }
     }
@@ -9820,12 +9826,13 @@ export class PerpsController extends BaseController<
       this.update((state) => {
         const watchlist = state.watchlistMarkets[currentNetwork];
         if (isWatchlisted) {
+          // A newer toggle of any alias owns the market's state now; restoring
+          // the other aliases would save the market twice.
+          if (!references.every((entry) => isLatestToggle(entry))) {
+            return;
+          }
           for (const [index, entry] of currentWatchlist.entries()) {
-            if (
-              references.includes(entry) &&
-              isLatestToggle(entry) &&
-              !watchlist.includes(entry)
-            ) {
+            if (references.includes(entry) && !watchlist.includes(entry)) {
               watchlist.splice(Math.min(index, watchlist.length), 0, entry);
             }
           }
