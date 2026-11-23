@@ -1,5 +1,8 @@
 import { successfulFetch } from '@metamask/controller-utils';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  generateEIP7702BatchTransaction,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionType,
@@ -49,6 +52,10 @@ import type { ServerQuote, ServerSignatureStep } from './types.js';
 vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
   ...(await importOriginal()),
   successfulFetch: vi.fn(),
+}));
+vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  generateEIP7702BatchTransaction: vi.fn(),
 }));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/polymarket/withdraw.js'));
@@ -134,6 +141,11 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   ],
 };
 
+const BATCH_PARAMS_MOCK = {
+  data: '0xbatchdata' as Hex,
+  to: QUOTE_FROM_MOCK,
+};
+
 const QUOTE_MOCK = {
   dust: { fiat: '0', usd: '0' },
   estimatedDuration: 30,
@@ -184,6 +196,9 @@ describe('submitServerQuotes', () => {
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
   const submitServerIntentMock = vi.mocked(submitServerIntent);
+  const generateEIP7702BatchTransactionMock = vi.mocked(
+    generateEIP7702BatchTransaction,
+  );
 
   const {
     addTransactionMock: addTxMock,
@@ -225,6 +240,7 @@ describe('submitServerQuotes', () => {
     });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+    generateEIP7702BatchTransactionMock.mockReturnValue(BATCH_PARAMS_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
     getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
@@ -326,6 +342,7 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+      isSubsidized: false,
       transaction: expect.objectContaining({
         chainId: SOURCE_CHAIN_ID_MOCK,
         nestedTransactions: [
@@ -339,6 +356,74 @@ describe('submitServerQuotes', () => {
         txParams: expect.objectContaining({ from: QUOTE_FROM_MOCK }),
       }),
     });
+  });
+
+  it('builds subsidized delegation caveats for subsidized quotes', async () => {
+    request.quotes[0].original.fees.subsidized = true;
+
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isSubsidized: true }),
+    );
+  });
+
+  it('uses the single source call as the delegation transaction params', async () => {
+    await submitServerQuotes(request);
+
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: ORIGINAL_QUOTE_MOCK.steps[0].data,
+            from: QUOTE_FROM_MOCK,
+            to: ORIGINAL_QUOTE_MOCK.steps[0].to,
+            value: ORIGINAL_QUOTE_MOCK.steps[0].value,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('wraps multiple source calls into a batch for the delegation transaction params', async () => {
+    const secondStep = {
+      chainId: 137,
+      data: '0xseconddata',
+      to: '0x7777777777777777777777777777777777777777',
+      type: 'transaction' as const,
+      value: '0x0',
+    };
+
+    request.quotes[0].original.steps = [
+      ...ORIGINAL_QUOTE_MOCK.steps,
+      secondStep,
+    ];
+
+    await submitServerQuotes(request);
+
+    expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+      QUOTE_FROM_MOCK,
+      [
+        {
+          data: ORIGINAL_QUOTE_MOCK.steps[0].data,
+          to: ORIGINAL_QUOTE_MOCK.steps[0].to,
+          value: ORIGINAL_QUOTE_MOCK.steps[0].value,
+        },
+        { data: secondStep.data, to: secondStep.to, value: secondStep.value },
+      ],
+    );
+    expect(getDelegationTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            data: BATCH_PARAMS_MOCK.data,
+            from: QUOTE_FROM_MOCK,
+            to: BATCH_PARAMS_MOCK.to,
+            value: '0x0',
+          }),
+        }),
+      }),
+    );
   });
 
   it('throws when the submit response is unsuccessful', async () => {

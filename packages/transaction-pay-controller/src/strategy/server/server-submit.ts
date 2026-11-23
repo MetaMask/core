@@ -4,6 +4,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -221,6 +222,13 @@ export async function getServerExecuteDelegation(
     value: (param.value ?? '0x0') as Hex,
   }));
 
+  // Subsidized caveats are built from `txParams.data`, so it must match the
+  // calls being redeemed rather than the original transaction.
+  const batchParams =
+    nestedTransactions.length === 1
+      ? nestedTransactions[0]
+      : generateEIP7702BatchTransaction(from, nestedTransactions);
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
@@ -228,13 +236,19 @@ export async function getServerExecuteDelegation(
     nestedTransactions,
     txParams: {
       ...transaction.txParams,
+      data: batchParams.data,
       from,
+      to: batchParams.to,
+      value: batchParams.value ?? '0x0',
     },
   } as TransactionMeta;
 
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+    {
+      isSubsidized: quote.original.fees.subsidized,
+      transaction: sourceCallTransaction,
+    },
   );
 
   log('Delegation result for server source calls', delegation);
