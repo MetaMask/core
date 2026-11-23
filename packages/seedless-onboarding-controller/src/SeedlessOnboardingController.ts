@@ -2203,6 +2203,7 @@ export class SeedlessOnboardingController<
    * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
    * @param params.onStateUpdate - Optional callback to apply additional state changes in the same atomic update.
+   * @param params.sessionGeneration - Session generation to assert before and after vault encryption; defaults to the current generation.
    * @returns A promise that resolves to the updated vault.
    */
   async #updateVault({
@@ -2210,13 +2211,17 @@ export class SeedlessOnboardingController<
     vaultData,
     pwEncKey,
     onStateUpdate,
+    sessionGeneration = this.#sessionGeneration,
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array<ArrayBuffer>;
     onStateUpdate?: (state: SeedlessOnboardingControllerState) => void;
+    sessionGeneration?: number;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
+      this.#assertSessionGeneration(sessionGeneration);
+
       const serializedVaultData = serializeVaultData(vaultData);
 
       const { vaultEncryptionKey, vaultEncryptionSalt, vault } = this.state;
@@ -2272,6 +2277,8 @@ export class SeedlessOnboardingController<
           SeedlessOnboardingControllerErrorMessage.MissingCredentials,
         );
       }
+
+      this.#assertSessionGeneration(sessionGeneration);
 
       // update the state with the updated vault data
       this.update((state) => {
@@ -2571,10 +2578,13 @@ export class SeedlessOnboardingController<
         await this.#updateVault({
           vaultData: updatedVaultData,
           pwEncKey,
+          sessionGeneration,
         });
+        this.#assertSessionGeneration(sessionGeneration);
 
         // Proactively rotate the refresh token now that we have vault access.
         await this.rotateRefreshToken().catch((error) => {
+          this.#assertSessionGeneration(sessionGeneration);
           // Rotation failure is intentionally non-fatal: the JWT refresh
           // itself succeeded and the caller should not be blocked.
           // However the user is now operating with a stale refresh token
@@ -2585,6 +2595,7 @@ export class SeedlessOnboardingController<
             error,
           );
         });
+        this.#assertSessionGeneration(sessionGeneration);
       }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
@@ -3602,6 +3613,7 @@ export class SeedlessOnboardingController<
    * @returns A Promise that resolves to void.
    */
   async rotateRefreshToken(): Promise<void> {
+    const sessionGeneration = this.#sessionGeneration;
     this.#assertIsAuthenticatedUser(this.state);
 
     const vaultData = this.#cachedDecryptedVaultData;
@@ -3621,27 +3633,27 @@ export class SeedlessOnboardingController<
       connection: this.state.authConnection,
       revokeToken,
     });
+    this.#assertSessionGeneration(sessionGeneration);
 
     if (newRevokeToken && newRefreshToken) {
-      // Persist the new revoke token to the vault first. Only update state after
-      // the vault write succeeds, so state and vault stay in sync if the write fails.
+      // Persist the new revoke token to the vault and update state atomically
+      // after vault encryption succeeds, so state and vault stay in sync if
+      // the write fails or the session is cleared in flight.
       await this.#updateVault({
         vaultData: {
           ...vaultData,
           revokeToken: newRevokeToken,
         },
         pwEncKey,
-      });
-
-      this.update((state) => {
-        state.revokeToken = newRevokeToken;
-        state.refreshToken = newRefreshToken;
-      });
-
-      // add the old refresh token to the list to be revoked later when possible
-      this.#addRefreshTokenToRevokeList({
-        refreshToken,
-        revokeToken,
+        sessionGeneration,
+        onStateUpdate: (state) => {
+          state.revokeToken = newRevokeToken;
+          state.refreshToken = newRefreshToken;
+          state.pendingToBeRevokedTokens = [
+            ...(state.pendingToBeRevokedTokens ?? []),
+            { refreshToken, revokeToken },
+          ];
+        },
       });
     }
   }
@@ -3706,28 +3718,6 @@ export class SeedlessOnboardingController<
       return this.#executeWithTokenRefresh(async () => {
         return this.state.accessToken;
       }, 'getAccessToken');
-    });
-  }
-
-  /**
-   * Add a pending refresh, revoke token to the state to be revoked later.
-   *
-   * @param params - The parameters for adding a pending refresh, revoke token.
-   * @param params.refreshToken - The refresh token to add.
-   * @param params.revokeToken - The revoke token to add.
-   */
-  #addRefreshTokenToRevokeList({
-    refreshToken,
-    revokeToken,
-  }: {
-    refreshToken: string;
-    revokeToken: string;
-  }): void {
-    this.update((state) => {
-      state.pendingToBeRevokedTokens = [
-        ...(state.pendingToBeRevokedTokens ?? []),
-        { refreshToken, revokeToken },
-      ];
     });
   }
 

@@ -4761,6 +4761,359 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('does not overwrite a new session or rotate tokens when clearState runs during refresh vault encryption', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const userAPassword = 'user-a-password';
+      const userAVault = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(userAPassword),
+        mockToprfEncryptor.derivePwEncKey(userAPassword),
+        mockToprfEncryptor.deriveAuthKeyPair(userAPassword),
+        userAPassword,
+        'user-a-revoke-token',
+        'user-a-initial-access-token',
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: userAVault.encryptedMockVault,
+            vaultEncryptionKey: userAVault.vaultEncryptionKey,
+            vaultEncryptionSalt: userAVault.vaultEncryptionSalt,
+          }),
+        },
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          mockRenewRefreshToken,
+          toprfClient,
+          encryptor,
+          baseMessenger,
+        }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            userAPassword,
+          );
+
+          mockRefreshJWTToken.mockResolvedValueOnce({
+            idTokens: ['user-a-refreshed-id-token'],
+            accessToken: 'user-a-refreshed-access-token',
+            metadataAccessToken: 'user-a-refreshed-metadata-token',
+          });
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          let resolveVaultEncrypt!: () => void;
+          const vaultEncryptGate = new Promise<void>((resolve) => {
+            resolveVaultEncrypt = resolve;
+          });
+          const originalEncryptWithKey =
+            encryptor.encryptWithKey.bind(encryptor);
+          const encryptWithKeySpy = vi
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockImplementationOnce(async (...args) => {
+              await vaultEncryptGate;
+              return originalEncryptWithKey(...args);
+            });
+
+          const refreshCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+          await vi.waitFor(() =>
+            expect(encryptWithKeySpy).toHaveBeenCalledTimes(1),
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+              revokeToken: 'user-b-revoke-token',
+            },
+          );
+
+          const userBVaultCreation = mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            'user-b-password',
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          resolveVaultEncrypt();
+          await expect(refreshCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+          await userBVaultCreation;
+
+          expect(mockRenewRefreshToken).not.toHaveBeenCalled();
+          expect(controller.state.accessToken).toBe('user-b-access-token');
+          expect(controller.state.refreshToken).toBe('user-b-refresh-token');
+          expect(controller.state.revokeToken).toBe('user-b-revoke-token');
+          expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
+          const decryptedUserBVault = JSON.parse(
+            (await encryptor.decrypt(
+              'user-b-password',
+              controller.state.vault as string,
+            )) as string,
+          ) as { accessToken: string; revokeToken: string };
+          expect(decryptedUserBVault.accessToken).toBe('user-b-access-token');
+          expect(decryptedUserBVault.revokeToken).toBe('user-b-revoke-token');
+        },
+      );
+    });
+
+    it('does not overwrite a new session vault or tokens when clearState runs during refresh token renewal', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const userAPassword = 'user-a-password';
+      const userAVault = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(userAPassword),
+        mockToprfEncryptor.derivePwEncKey(userAPassword),
+        mockToprfEncryptor.deriveAuthKeyPair(userAPassword),
+        userAPassword,
+        'user-a-revoke-token',
+        'user-a-initial-access-token',
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: userAVault.encryptedMockVault,
+            vaultEncryptionKey: userAVault.vaultEncryptionKey,
+            vaultEncryptionSalt: userAVault.vaultEncryptionSalt,
+          }),
+        },
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          mockRenewRefreshToken,
+          toprfClient,
+          encryptor,
+          baseMessenger,
+        }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            userAPassword,
+          );
+
+          mockRefreshJWTToken.mockResolvedValueOnce({
+            idTokens: ['user-a-refreshed-id-token'],
+            accessToken: 'user-a-refreshed-access-token',
+            metadataAccessToken: 'user-a-refreshed-metadata-token',
+          });
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          let resolveRenew!: () => void;
+          const renewGate = new Promise<void>((resolve) => {
+            resolveRenew = resolve;
+          });
+          mockRenewRefreshToken.mockImplementationOnce(async () => {
+            await renewGate;
+            return {
+              newRevokeToken: 'user-a-rotated-revoke-token',
+              newRefreshToken: 'user-a-rotated-refresh-token',
+            };
+          });
+
+          const refreshCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+          await vi.waitFor(() =>
+            expect(mockRenewRefreshToken).toHaveBeenCalledTimes(1),
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+              revokeToken: 'user-b-revoke-token',
+            },
+          );
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            'user-b-password',
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          const userBVault = controller.state.vault;
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+
+          resolveRenew();
+          await expect(refreshCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+
+          expect(encryptWithKeySpy).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(userBVault);
+          expect(controller.state.accessToken).toBe('user-b-access-token');
+          expect(controller.state.refreshToken).toBe('user-b-refresh-token');
+          expect(controller.state.revokeToken).toBe('user-b-revoke-token');
+          expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
+          const decryptedUserBVault = JSON.parse(
+            (await encryptor.decrypt(
+              'user-b-password',
+              controller.state.vault as string,
+            )) as string,
+          ) as { accessToken: string; revokeToken: string };
+          expect(decryptedUserBVault.accessToken).toBe('user-b-access-token');
+          expect(decryptedUserBVault.revokeToken).toBe('user-b-revoke-token');
+        },
+      );
+    });
+
+    it('does not overwrite a new session vault or tokens when clearState runs during refresh token rotation vault encryption', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const userAPassword = 'user-a-password';
+      const userAVault = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(userAPassword),
+        mockToprfEncryptor.derivePwEncKey(userAPassword),
+        mockToprfEncryptor.deriveAuthKeyPair(userAPassword),
+        userAPassword,
+        'user-a-revoke-token',
+        'user-a-initial-access-token',
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: userAVault.encryptedMockVault,
+            vaultEncryptionKey: userAVault.vaultEncryptionKey,
+            vaultEncryptionSalt: userAVault.vaultEncryptionSalt,
+          }),
+        },
+        async ({
+          controller,
+          mockRefreshJWTToken,
+          mockRenewRefreshToken,
+          toprfClient,
+          encryptor,
+          baseMessenger,
+        }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            userAPassword,
+          );
+
+          mockRefreshJWTToken.mockResolvedValueOnce({
+            idTokens: ['user-a-refreshed-id-token'],
+            accessToken: 'user-a-refreshed-access-token',
+            metadataAccessToken: 'user-a-refreshed-metadata-token',
+          });
+          mockRenewRefreshToken.mockResolvedValueOnce({
+            newRevokeToken: 'user-a-rotated-revoke-token',
+            newRefreshToken: 'user-a-rotated-refresh-token',
+          });
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          let resolveRotationVaultEncrypt!: () => void;
+          const rotationVaultEncryptGate = new Promise<void>((resolve) => {
+            resolveRotationVaultEncrypt = resolve;
+          });
+          const originalEncryptWithKey =
+            encryptor.encryptWithKey.bind(encryptor);
+          const encryptWithKeySpy = vi
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockImplementationOnce(async (...args) =>
+              originalEncryptWithKey(...args),
+            )
+            .mockImplementationOnce(async (...args) => {
+              await rotationVaultEncryptGate;
+              return originalEncryptWithKey(...args);
+            });
+
+          const refreshCall = baseMessenger.call(
+            'SeedlessOnboardingController:refreshAuthTokens',
+          );
+          await vi.waitFor(() =>
+            expect(encryptWithKeySpy).toHaveBeenCalledTimes(2),
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+              revokeToken: 'user-b-revoke-token',
+            },
+          );
+          const userBVaultCreation = mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            'user-b-password',
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          resolveRotationVaultEncrypt();
+          await expect(refreshCall).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
+          await userBVaultCreation;
+
+          expect(controller.state.accessToken).toBe('user-b-access-token');
+          expect(controller.state.refreshToken).toBe('user-b-refresh-token');
+          expect(controller.state.revokeToken).toBe('user-b-revoke-token');
+          expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
+          const decryptedUserBVault = JSON.parse(
+            (await encryptor.decrypt(
+              'user-b-password',
+              controller.state.vault as string,
+            )) as string,
+          ) as { accessToken: string; revokeToken: string };
+          expect(decryptedUserBVault.accessToken).toBe('user-b-access-token');
+          expect(decryptedUserBVault.revokeToken).toBe('user-b-revoke-token');
+        },
+      );
+    });
   });
 
   describe('vault', () => {
@@ -9088,6 +9441,105 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
             0,
           );
+        },
+      );
+    });
+
+    it('should abort without overwriting a new session when clearState runs during token renewal', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENC_KEY = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PW_ENC_KEY = mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENC_KEY,
+        MOCK_PW_ENC_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({
+          controller,
+          mockRenewRefreshToken,
+          toprfClient,
+          encryptor,
+          baseMessenger,
+        }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          let resolveRenew!: () => void;
+          const renewGate = new Promise<void>((resolve) => {
+            resolveRenew = resolve;
+          });
+          mockRenewRefreshToken.mockImplementationOnce(async () => {
+            await renewGate;
+            return {
+              newRevokeToken: 'user-a-rotated-revoke-token',
+              newRefreshToken: 'user-a-rotated-refresh-token',
+            };
+          });
+
+          const rotateCall = baseMessenger.call(
+            'SeedlessOnboardingController:rotateRefreshToken',
+          );
+          await vi.waitFor(() =>
+            expect(mockRenewRefreshToken).toHaveBeenCalledTimes(1),
+          );
+
+          baseMessenger.call('SeedlessOnboardingController:clearState');
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['user-b-id-token'],
+              accessToken: 'user-b-access-token',
+              metadataAccessToken: 'user-b-metadata-token',
+              authConnection: AuthConnection.Google,
+              authConnectionId: 'user-b-auth-connection-id',
+              groupedAuthConnectionId: 'user-b-grouped-auth-connection-id',
+              userId: 'user-b@example.com',
+              refreshToken: 'user-b-refresh-token',
+              revokeToken: 'user-b-revoke-token',
+            },
+          );
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            'user-b-password',
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          const userBVault = controller.state.vault;
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+
+          resolveRenew();
+          await expect(rotateCall).rejects.toThrow(
+            'Session was cleared during token refresh',
+          );
+
+          expect(encryptWithKeySpy).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(userBVault);
+          expect(controller.state.refreshToken).toBe('user-b-refresh-token');
+          expect(controller.state.revokeToken).toBe('user-b-revoke-token');
+          expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
         },
       );
     });
