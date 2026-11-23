@@ -1105,13 +1105,40 @@ describe('KycService', () => {
           vendor: 'kalshi',
           step: 'mfa',
           status: 'none',
+          sessionId: null,
         });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
         step: 'mfa',
         status: 'none',
+        sessionId: null,
       });
+    });
+
+    it("returns the vendor's relay session id", async () => {
+      nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
+        vendor: 'kalshi',
+        step: 'sumsub',
+        status: 'none',
+        sessionId: 'relay-session-1',
+      });
+      const { service } = getService();
+
+      expect(await service.getStep('kalshi')).toStrictEqual({
+        step: 'sumsub',
+        status: 'none',
+        sessionId: 'relay-session-1',
+      });
+    });
+
+    it('returns a null session id when kyc-api omits it', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/kalshi/step')
+        .reply(200, { vendor: 'kalshi', step: 'terms', status: 'none' });
+      const { service } = getService();
+
+      expect((await service.getStep('kalshi')).sessionId).toBeNull();
     });
 
     it('sends what only the device knows as a query parameter', async () => {
@@ -1127,7 +1154,7 @@ describe('KycService', () => {
 
       expect(
         await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
-      ).toStrictEqual({ step: 'mfa', status: 'none' });
+      ).toStrictEqual({ step: 'mfa', status: 'none', sessionId: null });
     });
 
     it('ignores a field kyc-api adds that this version does not know', async () => {
@@ -1142,6 +1169,7 @@ describe('KycService', () => {
       expect(await service.getStep('kalshi')).toStrictEqual({
         step: 'kalshi_email_link',
         status: 'pending',
+        sessionId: null,
       });
     });
 
