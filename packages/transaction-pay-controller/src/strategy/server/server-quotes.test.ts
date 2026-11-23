@@ -11,7 +11,6 @@ import {
   CHAIN_ID_HYPERCORE,
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
-  PaymentProvider,
   POLYGON_USDCE_ADDRESS,
   TransactionPayStrategy,
 } from '../../constants.js';
@@ -337,13 +336,16 @@ describe('server-quotes', () => {
     );
   });
 
-  it('requests the Lighter perps asset when the payment provider is Lighter', async () => {
+  it('requests the Lighter perps asset when the payment override is PerpsLighter', async () => {
     await getServerQuotes({
       accountSupports7702: true,
       from: FROM_MOCK,
       messenger,
       requests: [
-        { ...QUOTE_REQUEST_MOCK, paymentProvider: PaymentProvider.Lighter },
+        {
+          ...QUOTE_REQUEST_MOCK,
+          paymentOverride: PaymentOverride.PerpsLighter,
+        },
       ],
       transaction: TRANSACTION_META_MOCK,
     });

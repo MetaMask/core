@@ -184,7 +184,6 @@ export class TransactionPayController extends BaseController<
         isPostQuote: transactionData.isPostQuote,
         isQuoteRequired: transactionData.isQuoteRequired,
         paymentOverride: transactionData.paymentOverride,
-        paymentProvider: transactionData.paymentProvider,
         refundTo: transactionData.refundTo,
       };
 

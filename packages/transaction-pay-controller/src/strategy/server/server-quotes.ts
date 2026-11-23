@@ -10,7 +10,7 @@ import { BigNumber } from 'bignumber.js';
 
 import {
   CHAIN_ID_HYPERCORE,
-  PaymentProvider,
+  PaymentOverride,
   TransactionPayStrategy,
 } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
@@ -335,7 +335,7 @@ async function buildServerQuoteRequest(
   const body: ServerQuoteRequestDraft = {
     sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
     targetAsset:
-      normalizedRequest.paymentProvider === PaymentProvider.Lighter
+      normalizedRequest.paymentOverride === PaymentOverride.PerpsLighter
         ? SERVER_LIGHTER_PERPS_USDC_ASSET
         : buildServerAsset(targetChainId, targetTokenAddress),
     sender: from,

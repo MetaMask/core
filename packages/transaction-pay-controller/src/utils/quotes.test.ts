@@ -9,7 +9,7 @@ import type { MockedFunction } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { mockModuleExcept } from '../../tests/mock-module-except.js';
-import { PaymentProvider, TransactionPayStrategy } from '../constants.js';
+import { TransactionPayStrategy } from '../constants.js';
 import type {
   GetBalanceCallback,
   QuoteRequest,
@@ -1221,25 +1221,6 @@ describe('Quotes Utils', () => {
         signal: expect.any(AbortSignal),
         transaction: TRANSACTION_META_MOCK,
       });
-    });
-
-    it('passes paymentProvider to the quote requests', async () => {
-      await run({
-        transactionData: {
-          ...TRANSACTION_DATA_MOCK,
-          paymentProvider: PaymentProvider.Lighter,
-        },
-      });
-
-      expect(getQuotesMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          requests: [
-            expect.objectContaining({
-              paymentProvider: PaymentProvider.Lighter,
-            }),
-          ],
-        }),
-      );
     });
 
     it('resolves strategies via getStrategiesByName', async () => {

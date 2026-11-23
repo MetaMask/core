@@ -46,7 +46,6 @@ export type {
 } from './TransactionPayController-method-action-types.js';
 export {
   PaymentOverride,
-  PaymentProvider,
   TransactionPayClientId,
   TransactionPayStrategy,
 } from './constants.js';

@@ -10,7 +10,6 @@ import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
 import {
   PaymentOverride,
-  PaymentProvider,
   TransactionPayClientId,
   TransactionPayStrategy,
 } from './constants.js';
@@ -307,18 +306,6 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
       ).toBe(PaymentOverride.MoneyAccount);
-    });
-
-    it('updates paymentProvider in state', () => {
-      const controller = createController();
-
-      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
-        config.paymentProvider = PaymentProvider.Lighter;
-      });
-
-      expect(
-        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentProvider,
-      ).toBe(PaymentProvider.Lighter);
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {

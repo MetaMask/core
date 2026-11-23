@@ -4,11 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
-import {
-  PaymentOverride,
-  PaymentProvider,
-  TransactionPayStrategy,
-} from '../constants.js';
+import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
   EvmPaymentToken,
@@ -191,7 +187,6 @@ export async function updateQuotes(
     isPostQuote,
     isQuoteRequired,
     paymentOverride,
-    paymentProvider,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
@@ -256,7 +251,6 @@ export async function updateQuotes(
       isPolymarketDepositWallet,
       isPostQuote,
       paymentOverride,
-      paymentProvider,
       paymentToken,
       refundTo,
       sourceAddress: sourceAccount?.address ?? from,
@@ -598,7 +592,6 @@ function getSourceAmounts(
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentOverride - Optional payment override type for the transaction.
- * @param request.paymentProvider - Optional venue that receives the funds.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAddress - Address of the account holding the payment token.
@@ -616,7 +609,6 @@ function buildQuoteRequests({
   isPolymarketDepositWallet,
   isPostQuote,
   paymentOverride,
-  paymentProvider,
   paymentToken,
   refundTo,
   sourceAddress,
@@ -632,7 +624,6 @@ function buildQuoteRequests({
   isPolymarketDepositWallet?: boolean;
   isPostQuote?: boolean;
   paymentOverride?: PaymentOverride;
-  paymentProvider?: PaymentProvider;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAddress: string;
@@ -679,7 +670,6 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       paymentOverride,
-      paymentProvider,
       refundTo,
       sourceAccountId,
       sourceAssetId: paymentToken.assetId,
