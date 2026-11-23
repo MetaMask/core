@@ -2789,9 +2789,9 @@ export class SeedlessOnboardingController<
    * password: open `rbek` to get the vault key set `K_v`, fetch the secret
    * data with it, and create the local vault under `password`.
    *
-   * An existing local vault is replaced, e.g. a locked vault whose password
-   * is forgotten. If this device has `envelope` state, the recovered vault
-   * keys must be the ones it names.
+   * Intended for wallet rehydration, not while the wallet is locked. If this
+   * device has `envelope` state, the recovered vault keys must be the ones
+   * it names.
    *
    * `password` only encrypts the local vault. This sets `isLocalPassword`,
    * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
