@@ -26,6 +26,7 @@ exports[`BridgeStatusController (deposit) > submitTx: Solana bridge > adds histo
       "gas_included_7702": false,
       "is_hardware_wallet": false,
       "location": "Unknown",
+      "money_account_action": "deposit",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,

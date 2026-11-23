@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
   - `rotateRefreshToken` throws `IdentityMismatch` and does not renew the vault revoke token when the idToken `sub` does not match `state.userId`
   - A refresh-token rotation that observes an identity change does not persist the new revoke token to the vault
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 
 ## [12.1.0]
 

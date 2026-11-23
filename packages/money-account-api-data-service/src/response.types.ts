@@ -7,6 +7,8 @@ import type {
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
   VaultShareValuationsResponseStruct,
+  VaultSummaryStruct,
+  VaultsResponseStruct,
   VbaSiweChallengeResponseStruct,
   VbaSiweSessionResponseStruct,
   VbaTransfersResponseStruct,
@@ -164,6 +166,17 @@ export type RateHistoryResponse = Infer<typeof RateHistoryResponseStruct>;
  * (assets per share). `timestamp` is when that rate was indexed.
  */
 export type VaultRateResponse = Infer<typeof VaultRateResponseStruct>;
+
+/**
+ * One vault in the vault catalog, including its current APY.
+ */
+export type VaultSummary = Infer<typeof VaultSummaryStruct>;
+
+/**
+ * Response from `GET /v1/vaults`.
+ * Derived from {@link VaultsResponseStruct} to ensure type/struct parity.
+ */
+export type VaultsResponse = Infer<typeof VaultsResponseStruct>;
 
 /**
  * One vault share movement in a past transaction, valued in the vault's

@@ -109,6 +109,14 @@ export enum MetricsSwapType {
   CROSSCHAIN = 'crosschain',
 }
 
+// oxlint-disable-next-line no-redeclare
+export const MoneyAccountAction = {
+  Withdraw: 'withdraw',
+  Deposit: 'deposit',
+} as const;
+export type MoneyAccountAction =
+  (typeof MoneyAccountAction)[keyof typeof MoneyAccountAction];
+
 /**
  * When a SwapBridge attempt failed. Derived from the failing code path plus
  * hash presence — never from `error_message` text.
@@ -120,6 +128,8 @@ export enum FailurePhase {
   DestinationExecution = 'destination_execution',
   Poll = 'poll',
   Unknown = 'unknown',
+  WithdrawExecution = 'withdraw_execution',
+  DepositExecution = 'deposit_execution',
 }
 
 /**
