@@ -35,6 +35,12 @@ export const RATE_HISTORY_STALE_TIME_MS = 300_000;
 export const VAULT_RATE_STALE_TIME_MS = 300_000;
 
 /**
+ * Stale time (ms) for vault catalog queries.
+ * Matches the API's `Cache-Control: max-age=300`.
+ */
+export const VAULTS_STALE_TIME_MS = 300_000;
+
+/**
  * Statement embedded in every Money Account VBA SIWE challenge.
  *
  * Pinned to the Money Account API's SIWE template

@@ -1,3 +1,4 @@
+import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -5,9 +6,13 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { AuthConnection } from '@metamask/seedless-onboarding-controller';
-import { bytesToHex } from '@metamask/utils';
+import {
+  AuthConnection,
+  getDefaultSeedlessOnboardingControllerState,
+} from '@metamask/seedless-onboarding-controller';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
+import { sha256 } from '@noble/hashes/sha2';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -17,6 +22,7 @@ import {
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
   StubSeedlessIdentifierAuthProvider,
+  StubTrustedIdentifierStore,
   createAuthControllerToken,
 } from '../tests/stubs.js';
 import {
@@ -45,6 +51,7 @@ import type {
   RecoveryIdentifierAuthProvider,
   RegisterPayload,
   SeedlessAuthData,
+  TrustedIdentifier,
   WritingPendingOperation,
 } from './types.js';
 
@@ -52,14 +59,24 @@ const PASSKEY: Identifier = {
   type: 'passkey',
   namespace: 'example.com',
   value: 'cred-1',
-  verifier: { publicKey: 'pk' },
+  verifier: {
+    rpId: 'example.com',
+    credentialId: 'AQ',
+    publicKey: { cose: 'Ag' },
+  },
 };
 
 const SOCIAL: Identifier = {
   type: 'social',
   namespace: 'https://accounts.google.com',
-  value: 'hashed-email',
+  // keccak256('user@example.com')
+  value: 'cfb15ca7270395d72219fd758f75a0c95e3f0a61d959222402f24051d08e9b32',
 };
+
+const SEEDLESS_STATE = getDefaultSeedlessOnboardingControllerState({
+  authConnection: AuthConnection.Google,
+  socialLoginEmail: 'user@example.com',
+});
 
 const OTHER_PASSKEY: Identifier = { ...PASSKEY, value: 'cred-2' };
 
@@ -71,6 +88,15 @@ const WALLET: Identifier = {
 };
 
 const IDENTIFIERS = [PASSKEY, SOCIAL];
+
+const TRUSTED: TrustedIdentifier[] = [
+  {
+    type: 'passkey',
+    rpIdHash: bytesToHex(sha256(stringToBytes('example.com'))),
+    credentialId: '0x01',
+    publicKey: '0x02',
+  },
+];
 
 const SECRET = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
 const SECRET_2 = new Uint8Array([8, 7, 6, 5, 4, 3, 2, 1]);
@@ -97,6 +123,7 @@ describe('MfaRecoveryController', () => {
             messenger: getMessenger(rootMessenger),
             lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
+            trustedIdentifierStore: new StubTrustedIdentifierStore(),
             escrows: [],
           }),
       ).toThrow('At least one escrow is required');
@@ -112,6 +139,7 @@ describe('MfaRecoveryController', () => {
             messenger: getMessenger(rootMessenger),
             lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
+            trustedIdentifierStore: new StubTrustedIdentifierStore(),
             escrows: [
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
@@ -329,6 +357,78 @@ describe('MfaRecoveryController', () => {
     });
   });
 
+  describe('trustIdentifier', () => {
+    // Creates PASSKEY: RP ID example.com, credential ID 0x01, COSE key 0x02.
+    const attestationObject = Buffer.from(
+      encodeCBOR(
+        new Map([
+          [
+            'authData',
+            new Uint8Array([
+              ...sha256(stringToBytes('example.com')),
+              0x45,
+              ...new Uint8Array(4 + 16),
+              0,
+              1,
+              0x01,
+              0x02,
+            ]),
+          ],
+        ]),
+      ),
+    ).toString('base64url');
+
+    it('lets register use a witnessed passkey', async () => {
+      await withController(async ({ controller, options }) => {
+        options.trustedIdentifierStore.trusted = [];
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'untrusted_identifier' });
+        await controller.trustIdentifier({
+          type: 'passkey',
+          attestationObject,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+  });
+
+  describe('isTrusted', () => {
+    it('accepts device-seen identifiers and SIWE only', async () => {
+      await withController(async ({ controller }) => {
+        expect(await controller.isTrusted(PASSKEY)).toBe(true);
+        expect(
+          await controller.isTrusted({
+            type: 'siwe',
+            namespace: 'eip155',
+            value: '0xabc',
+          }),
+        ).toBe(true);
+        await controller.untrustPasskey('AQ');
+        expect(await controller.isTrusted(PASSKEY)).toBe(false);
+      });
+    });
+  });
+
+  describe('untrustPasskey', () => {
+    it('stops register from accepting the passkey', async () => {
+      await withController(async ({ controller }) => {
+        await controller.untrustPasskey('AQ');
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'untrusted_identifier' });
+      });
+    });
+
+    it('keeps other passkeys trusted', async () => {
+      await withController(async ({ controller }) => {
+        await controller.untrustPasskey('Ag');
+        expect(await controller.isTrusted(PASSKEY)).toBe(true);
+      });
+    });
+  });
+
   describe('register', () => {
     it('replicates the recovery secret to every escrow', async () => {
       await withController(async ({ controller, escrowA, escrowB }) => {
@@ -393,6 +493,35 @@ describe('MfaRecoveryController', () => {
         );
       });
     });
+
+    it.each([
+      [
+        'a passkey with a swapped public key',
+        [
+          {
+            ...PASSKEY,
+            verifier: {
+              ...(PASSKEY.verifier as object),
+              publicKey: { cose: 'Aw' },
+            },
+          },
+          SOCIAL,
+        ],
+      ],
+      ['another social identity', [PASSKEY, { ...SOCIAL, value: 'attacker' }]],
+    ])(
+      'rejects %s no user device saw, before any approval',
+      async (_name, identifiers) => {
+        await withController(async ({ controller, authProvider }) => {
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
+          await expect(
+            controller.register(SECRET, identifiers),
+          ).rejects.toMatchObject({ code: 'untrusted_identifier' });
+          expect(authorize).not.toHaveBeenCalled();
+          expect(await controller.getPhase()).toBe('idle');
+        });
+      },
+    );
 
     it('rejects an empty identifier list', async () => {
       await withController(async ({ controller }) => {
@@ -1853,6 +1982,19 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateIdentifiers(PASSKEY, [], REGISTERED_EPOCH),
         ).rejects.toThrow('Requires at least 2 identifiers');
+      });
+    });
+
+    it('rejects an identifier no user device saw', async () => {
+      await withController(async ({ controller }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        await expect(
+          controller.updateIdentifiers(
+            PASSKEY,
+            [PASSKEY, { ...SOCIAL, value: 'attacker' }],
+            REGISTERED_EPOCH,
+          ),
+        ).rejects.toMatchObject({ code: 'untrusted_identifier' });
       });
     });
   });
@@ -3773,6 +3915,10 @@ function getRootMessenger(
     'AuthenticationController:requestMfaApproval',
     async (request) => await authProvider.requestMfaApproval(request),
   );
+  rootMessenger.registerActionHandler(
+    'SeedlessOnboardingController:getState',
+    () => SEEDLESS_STATE,
+  );
   return rootMessenger;
 }
 
@@ -3788,6 +3934,7 @@ function getMessenger(
     actions: [
       'AuthenticationController:refreshCanonicalProfileId',
       'AuthenticationController:requestMfaApproval',
+      'SeedlessOnboardingController:getState',
     ],
   });
   return messenger;
@@ -3799,6 +3946,7 @@ function getOptions(
 ): MfaRecoveryControllerOptions & {
   authProvider: StubAuthProvider;
   lockProvider: StubRecoveryLockProvider;
+  trustedIdentifierStore: StubTrustedIdentifierStore;
 } {
   const authProvider = new StubAuthProvider(IDENTIFIERS);
   return {
@@ -3806,6 +3954,7 @@ function getOptions(
     authProvider,
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
+    trustedIdentifierStore: new StubTrustedIdentifierStore([...TRUSTED]),
     escrows: [escrowA, escrowB],
   };
 }

@@ -7,7 +7,12 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import {
+  AuthConnection,
+  getDefaultSeedlessOnboardingControllerState,
+} from '@metamask/seedless-onboarding-controller';
+import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import { sha256 } from '@noble/hashes/sha2';
 import { randomBytes } from 'node:crypto';
 
 import { CubistEscrowProvider } from '../src/escrow-providers/cubist-escrow-provider.js';
@@ -18,6 +23,7 @@ import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
+  StubTrustedIdentifierStore,
 } from '../tests/stubs.js';
 
 /**
@@ -38,14 +44,24 @@ const PASSKEY: Identifier = {
   type: 'passkey',
   namespace: 'example.com',
   value: 'cred-1',
-  verifier: { publicKey: 'mock-passkey' },
+  verifier: {
+    rpId: 'example.com',
+    credentialId: 'AQ',
+    publicKey: { cose: 'Ag' },
+  },
 };
 
 const SOCIAL: Identifier = {
   type: 'social',
   namespace: 'https://accounts.google.com',
-  value: 'hashed-email',
+  // keccak256('user@example.com')
+  value: 'cfb15ca7270395d72219fd758f75a0c95e3f0a61d959222402f24051d08e9b32',
 };
+
+const SEEDLESS_STATE = getDefaultSeedlessOnboardingControllerState({
+  authConnection: AuthConnection.Google,
+  socialLoginEmail: 'user@example.com',
+});
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -109,6 +125,10 @@ function getControllerMessenger(
     'AuthenticationController:requestMfaApproval',
     async (request) => await authProvider.requestMfaApproval(request),
   );
+  rootMessenger.registerActionHandler(
+    'SeedlessOnboardingController:getState',
+    () => SEEDLESS_STATE,
+  );
   const messenger: MfaRecoveryControllerMessenger = new Messenger({
     namespace: 'MfaRecoveryController',
     parent: rootMessenger,
@@ -118,6 +138,7 @@ function getControllerMessenger(
     actions: [
       'AuthenticationController:refreshCanonicalProfileId',
       'AuthenticationController:requestMfaApproval',
+      'SeedlessOnboardingController:getState',
     ],
   });
   return messenger;
@@ -152,6 +173,14 @@ async function main(flags: Record<string, string>): Promise<void> {
     messenger: getControllerMessenger(new StubAuthProvider([PASSKEY, SOCIAL])),
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
+    trustedIdentifierStore: new StubTrustedIdentifierStore([
+      {
+        type: 'passkey',
+        rpIdHash: bytesToHex(sha256(stringToBytes('example.com'))),
+        credentialId: '0x01',
+        publicKey: '0x02',
+      },
+    ]),
     escrows: [escrow],
   });
 

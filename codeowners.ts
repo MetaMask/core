@@ -410,9 +410,6 @@ const config = {
     'type-utils': {
       teams: ['@MetaMask/core-platform'],
     },
-    'user-operation-controller': {
-      teams: ['@MetaMask/confirmations'],
-    },
     utils: {
       teams: ['@MetaMask/core-platform'],
     },

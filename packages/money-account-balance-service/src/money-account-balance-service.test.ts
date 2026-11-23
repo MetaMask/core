@@ -1,4 +1,5 @@
 import { Contract } from '@ethersproject/contracts';
+import type { ContractInterface } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
 import type {
@@ -23,6 +24,7 @@ import {
   MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
+  PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
 } from './constants.js';
 import {
@@ -73,6 +75,14 @@ const MOCK_VAULT_CONFIG = {
 const MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
   ...MOCK_VAULT_CONFIG,
   underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+};
+
+const MOCK_PREMIUM_VAULT_CONFIG = {
+  boringVault: '0x7777777777777777777777777777777777777777',
+  accountantAddress: '0x8888888888888888888888888888888888888888',
+  tellerAddress: '0x9999999999999999999999999999999999999999',
+  lensAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  chainId: MOCK_VAULT_CONFIG.chainId,
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -1404,6 +1414,248 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
   // getMoneyAccountBalance
   // ----------------------------------------------------------
+
+  describe('getMoneyAccountBalance with a premium vault', () => {
+    type BatchedCall = {
+      target: string;
+      allowFailure: boolean;
+      callData: string;
+    };
+
+    const getBatchedCalls = (aggregate3: Mock): BatchedCall[] =>
+      (aggregate3.mock.calls[0] as [BatchedCall[]])[0];
+
+    async function setUpRealAbiMulticall(returns: string[]): Promise<{
+      aggregate3: Mock;
+      lensIface: Contract['interface'];
+    }> {
+      const { Contract: RealContract } = await vi.importActual<
+        typeof import('@ethersproject/contracts')
+      >('@ethersproject/contracts');
+      const erc20Iface = new RealContract(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        abiERC20 as ContractInterface,
+      ).interface;
+      const lensIface = new RealContract(MOCK_LENS_ADDRESS, LENS_ABI).interface;
+
+      const [musd, ...lensValues] = returns;
+      const aggregate3 = vi.fn().mockResolvedValue([
+        {
+          success: true,
+          returnData: erc20Iface.encodeFunctionResult('balanceOf', [musd]),
+        },
+        ...lensValues.map((value) => ({
+          success: true,
+          returnData: lensIface.encodeFunctionResult('balanceOfInAssets', [
+            value,
+          ]),
+        })),
+      ]);
+
+      const multicall3Address =
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+      MockContract.mockImplementation(function (address: string) {
+        if (address === multicall3Address) {
+          return { callStatic: { aggregate3 } } as unknown as Contract;
+        }
+        return new RealContract(
+          address,
+          address === MOCK_UNDERLYING_TOKEN_ADDRESS
+            ? (abiERC20 as ContractInterface)
+            : LENS_ABI,
+        );
+      });
+
+      return { aggregate3, lensIface };
+    }
+
+    it('adds the premium vault value to vmusdValueInMusd and totalBalance', async () => {
+      const { aggregate3, lensIface } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '3000000',
+        totalBalance: '8000000',
+      });
+      const calls = getBatchedCalls(aggregate3);
+      expect(calls).toHaveLength(3);
+      expect(calls[2]).toStrictEqual({
+        target: MOCK_PREMIUM_VAULT_CONFIG.lensAddress,
+        allowFailure: false,
+        callData: lensIface.encodeFunctionData('balanceOfInAssets', [
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_PREMIUM_VAULT_CONFIG.boringVault,
+          MOCK_PREMIUM_VAULT_CONFIG.accountantAddress,
+        ]),
+      });
+    });
+
+    it('ignores a malformed premium config', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('ignores a premium config with a truncated address', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_PREMIUM_VAULT_CONFIG,
+            boringVault: '0x7777',
+          },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('excludes a premium vault on a different chain', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_PREMIUM_VAULT_CONFIG,
+            chainId: '0x1',
+          },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('refetches without premium after the premium flag is removed', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(2);
+      expect((aggregate3.mock.calls[1] as [BatchedCall[]])[0]).toHaveLength(2);
+    });
+
+    it('refetches with premium after the premium flag appears', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(2);
+      expect((aggregate3.mock.calls[1] as [BatchedCall[]])[0]).toHaveLength(3);
+    });
+
+    it('does not invalidate the cache when the premium config is unchanged', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const flags = {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+      };
+      const { service, rootMessenger } = createService({ rffcFlags: flags });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, { ...flags });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects when the batched call fails because the premium lens reverts', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      aggregate3.mockRejectedValue(new Error('execution reverted'));
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+        options: { policyOptions: { maxRetries: 0 } },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+    });
+  });
 
   describe('getMoneyAccountBalance', () => {
     it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {

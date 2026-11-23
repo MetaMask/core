@@ -332,9 +332,6 @@
       "path": "./packages/type-utils/tsconfig.build.json"
     },
     {
-      "path": "./packages/user-operation-controller/tsconfig.build.json"
-    },
-    {
       "path": "./packages/utils/tsconfig.build.json"
     },
     {
