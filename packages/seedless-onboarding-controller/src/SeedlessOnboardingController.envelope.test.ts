@@ -2195,6 +2195,28 @@ describe('SeedlessOnboardingController', () => {
             ).toStrictEqual([MOCK_SEED_PHRASE]);
           });
         });
+
+        it('sets recoverySession.hasRecoveryShare to true when authenticateForRecovery returned false before another device registered the key', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            mockNetwork(toprfClient, {
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            expect(controller.state.recoverySession?.hasRecoveryShare).toBe(
+              false,
+            );
+
+            await migrateToEnvelope(args);
+
+            expect(controller.state.recoverySession?.hasRecoveryShare).toBe(
+              true,
+            );
+            expect(controller.state.envelope).toStrictEqual(
+              expectedEnvelopeState(),
+            );
+          });
+        });
       });
 
       describe('with a Recovery Secret OPRF key at the nodes', () => {

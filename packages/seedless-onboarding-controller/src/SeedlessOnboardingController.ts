@@ -3147,7 +3147,6 @@ export class SeedlessOnboardingController<
     oprfKey: bigint,
     authPubKey: SEC1EncodedPublicKey,
   ): Promise<boolean> {
-    const recoverySession = this.#requireRecoverySession();
     let isConfirmed = true;
     try {
       await this.#withRecoverySession(async (session) =>
@@ -3159,10 +3158,21 @@ export class SeedlessOnboardingController<
       }
       isConfirmed = false;
     }
-    this.update((state) => {
-      state.recoverySession = { ...recoverySession, hasRecoveryShare: true };
-    });
+    this.#markRecoveryShareExists();
     return isConfirmed;
+  }
+
+  /**
+   * Mark `recoverySession.hasRecoveryShare` as `true` once a Recovery Secret
+   * OPRF key is confirmed to exist on the recovery verifier.
+   */
+  #markRecoveryShareExists(): void {
+    const recoverySession = this.#requireRecoverySession();
+    if (!recoverySession.hasRecoveryShare) {
+      this.update((state) => {
+        state.recoverySession = { ...recoverySession, hasRecoveryShare: true };
+      });
+    }
   }
 
   /**
@@ -3182,6 +3192,7 @@ export class SeedlessOnboardingController<
     const { envelopeKeys } = await this.#recoverRecoverySecretEnvelopeKeys(
       bytesToHex(recoverySecret),
     );
+    this.#markRecoveryShareExists();
     let sealed: VaultKeySet | undefined;
     try {
       sealed = await this.#openNewestEnvelope(envelopeKeys, 'recovery-secret');
