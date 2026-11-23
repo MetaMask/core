@@ -1,3 +1,5 @@
+import createFilterMiddleware from '@metamask/eth-json-rpc-filters';
+import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager.js';
 import { providerAsMiddleware } from '@metamask/eth-json-rpc-middleware';
 import {
   createOriginMiddleware,
@@ -14,6 +16,7 @@ import {
   DefaultEvents,
   RootMessenger,
 } from '../initialization/defaults.js';
+import createDuplicateRequestFilterStream from './duplicate-filter-stream.js';
 import { createUnsupportedMethodMiddleware } from './unsupported-methods.js';
 
 const METAMASK_EIP_1193_PROVIDER = 'metamask-provider';
@@ -28,6 +31,7 @@ export type ConnectProviderRpcOptions = {
 export function connectProviderRpc(options: ConnectProviderRpcOptions) {
   const { stream } = options;
   const { engine, destroy } = createJsonRpcEngine(options);
+  // TODO: Determine how to port this to v2.
   const providerStream = createEngineStream({ engine });
   const mux = setupMultiplex(stream);
 
@@ -36,7 +40,7 @@ export function connectProviderRpc(options: ConnectProviderRpcOptions) {
 
   pipeline(
     outStream,
-    // dupeReqFilterStream,
+    createDuplicateRequestFilterStream(),
     providerStream,
     outStream,
     (error) => {
@@ -73,7 +77,6 @@ function createJsonRpcEngine({
   messenger,
   origin,
 }: CreateJsonRpcEngineOptions) {
-  // TODO: Use v2.
   const engine = new JsonRpcEngine();
 
   engine.push(createOriginMiddleware(origin));
@@ -94,7 +97,15 @@ function createJsonRpcEngine({
     origin,
   );
 
-  // TODO: Filter and subscription middlewares
+  engine.push(createFilterMiddleware(proxyClient));
+  const subscriptionManager = createSubscriptionManager(proxyClient);
+  engine.push(subscriptionManager.middleware);
+
+  // TODO: Determine how to port this to v2.
+  subscriptionManager.events.on('notification', (message) =>
+    engine.emit('notification', message),
+  );
+
   engine.push(providerAsMiddleware(proxyClient.provider));
 
   const destroy = () => {
