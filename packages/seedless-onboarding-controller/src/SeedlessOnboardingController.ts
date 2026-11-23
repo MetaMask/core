@@ -897,7 +897,6 @@ export class SeedlessOnboardingController<
         if (controlRecords.length > 0) {
           await this.#changePasswordEnveloped({
             vaultKeySet,
-            controlRecords,
             globalAuthPubKey,
             latestKeyIndex,
             newPassword,
@@ -957,15 +956,14 @@ export class SeedlessOnboardingController<
 
   /**
    * Change the password of an envelope-managed vault: seal `K_v` under the
-   * new password's envelope keys, write the next control record, and swap
-   * the password OPRF key, all under the vault's metadata lock. The swap is
-   * signed with the auth key of the live control record, so the old password
-   * is not needed. Then re-encrypt the local vault under the new password.
-   * The backend vault data is not touched.
+   * new password's envelope keys, then under the vault's metadata lock fetch
+   * the latest control records, write the next control record, and swap the
+   * password OPRF key. The swap is signed with the auth key of the live
+   * control record, so the old password is not needed. Then re-encrypt the
+   * local vault under the new password. The backend vault data is not touched.
    *
    * @param params - The function parameters.
    * @param params.vaultKeySet - The vault key set `K_v`.
-   * @param params.controlRecords - The vault's control records.
    * @param params.globalAuthPubKey - The live password OPRF auth public key.
    * @param params.latestKeyIndex - The live password OPRF key index.
    * @param params.newPassword - The new password.
@@ -974,41 +972,45 @@ export class SeedlessOnboardingController<
    */
   async #changePasswordEnveloped({
     vaultKeySet,
-    controlRecords,
     globalAuthPubKey,
     latestKeyIndex,
     newPassword,
   }: {
     vaultKeySet: VaultKeySet;
-    controlRecords: ControlRecord[];
     globalAuthPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
     newPassword: string;
   }): Promise<void> {
-    const currentRecord = selectControlRecord(controlRecords, globalAuthPubKey);
-    if (!currentRecord) {
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
-      );
-    }
-
     const { oprfKey, seed, envelopeKeys, authKeyPair } =
       await this.toprfClient.createLocalKey({ password: newPassword });
     // the controller only needs the envelope keys, so the seed is not kept
     seed.fill(0);
     const sealed = sealFor(envelopeKeys, 'password', vaultKeySet);
-    const nextControlRecord: ControlRecord = {
-      ...currentRecord,
-      seq: nextControlSeq(controlRecords),
-      passwordNamespace: {
-        ...currentRecord.passwordNamespace,
-        authSk: bigIntToHex(authKeyPair.sk),
-        keyIndex: latestKeyIndex + 1,
-      },
-    };
 
     await this.#withMetadataLock(vaultKeySet.authKeyPair, async (lockId) => {
       await this.#assertGlobalAuthPubKeyUnchanged(globalAuthPubKey);
+      const controlRecords =
+        await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+      const currentRecord = selectControlRecord(
+        controlRecords,
+        globalAuthPubKey,
+      );
+      if (!currentRecord) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+        );
+      }
+
+      const nextControlRecord: ControlRecord = {
+        ...currentRecord,
+        seq: nextControlSeq(controlRecords),
+        passwordNamespace: {
+          ...currentRecord.passwordNamespace,
+          authSk: bigIntToHex(authKeyPair.sk),
+          keyIndex: latestKeyIndex + 1,
+        },
+      };
+
       await this.#writeAndVerifyEnvelope(sealed);
       await this.#envelopeStore.writeControlRecord(
         vaultKeySet,
@@ -2964,11 +2966,8 @@ export class SeedlessOnboardingController<
           await this.#unlockVaultAndGetVaultData(),
         );
         const { authPubKey, keyIndex } = await this.#fetchGlobalAuthPubKey();
-        const controlRecords =
-          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
         await this.#changePasswordEnveloped({
           vaultKeySet,
-          controlRecords,
           globalAuthPubKey: authPubKey,
           latestKeyIndex: keyIndex,
           newPassword,

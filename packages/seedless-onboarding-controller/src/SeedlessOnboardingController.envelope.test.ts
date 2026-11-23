@@ -2951,6 +2951,34 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('computes next control record seq from records fetched under the metadata lock', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          // Simulate another device writing seq 2 before aborting prior to
+          // persistLocalKey (so globalAuthPubKey is unchanged).
+          beforeFirstCall(network.spies.acquireMetadataLock, () =>
+            storeControlRecord(network.store, {
+              ...controlRecordFor('aborted-password'),
+              seq: 2,
+            }),
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_PASSWORD,
+            MOCK_PASSWORD,
+          );
+
+          const records = await fetchControlRecords(network);
+          expect(records.map(({ seq }) => seq)).toStrictEqual([1, 2, 3]);
+          expect(records[2].passwordNamespace.authSk).toBe(
+            bigIntToHex(keysFor(NEW_PASSWORD).authKeyPair.sk),
+          );
+        });
+      });
+
       it('keeps the vault under the old password when swapping the key fails', async () => {
         await withUnlockedController(async (args) => {
           const { controller, toprfClient, baseMessenger } = args;
@@ -5215,6 +5243,39 @@ describe('SeedlessOnboardingController', () => {
           expect(
             await controller.verifyVaultPassword(RECOVERED_PASSWORD),
           ).toBeUndefined();
+        });
+      });
+
+      it('computes next control record seq from records fetched under the metadata lock', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+          // Simulate another device writing seq 3 before aborting prior to
+          // persistLocalKey (so globalAuthPubKey is unchanged).
+          beforeFirstCall(network.spies.acquireMetadataLock, () =>
+            storeControlRecord(network.store, {
+              ...controlRecordFor('aborted-password'),
+              seq: 3,
+            }),
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:resetPasswordWithVaultKeys',
+            { newPassword: 'reset-password' },
+          );
+
+          const records = await fetchControlRecords(network);
+          expect(records.map(({ seq }) => seq)).toStrictEqual([1, 2, 3, 4]);
+          expect(records[3].passwordNamespace.authSk).toBe(
+            bigIntToHex(keysFor('reset-password').authKeyPair.sk),
+          );
         });
       });
 
