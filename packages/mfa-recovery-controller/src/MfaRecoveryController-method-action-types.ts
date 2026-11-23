@@ -23,6 +23,41 @@ export type MfaRecoveryControllerReleaseLockAction = {
 };
 
 /**
+ * Records a passkey the device just created. `register` and
+ * `updateIdentifiers` only accept recorded passkeys and the device's social
+ * login, so a compromised Auth API cannot add its own.
+ *
+ * @param witness - What the device saw.
+ */
+export type MfaRecoveryControllerTrustIdentifierAction = {
+  type: `MfaRecoveryController:trustIdentifier`;
+  handler: MfaRecoveryController['trustIdentifier'];
+};
+
+/**
+ * Returns whether writes accept the identifier: a user device saw it, or it
+ * is SIWE. Use it to pick from the identifiers Auth returns.
+ *
+ * @param identifier - An identifier from Auth.
+ * @returns Whether the identifier is trusted.
+ */
+export type MfaRecoveryControllerIsTrustedAction = {
+  type: `MfaRecoveryController:isTrusted`;
+  handler: MfaRecoveryController['isTrusted'];
+};
+
+/**
+ * Stops trusting a passkey, so a later approval cannot add it back. Call it
+ * before removing the passkey from Auth.
+ *
+ * @param credentialId - The passkey's base64url WebAuthn credential ID.
+ */
+export type MfaRecoveryControllerUntrustPasskeyAction = {
+  type: `MfaRecoveryController:untrustPasskey`;
+  handler: MfaRecoveryController['untrustPasskey'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -143,6 +178,9 @@ export type MfaRecoveryControllerGetPhaseAction = {
 export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAcquireLockAction
   | MfaRecoveryControllerReleaseLockAction
+  | MfaRecoveryControllerTrustIdentifierAction
+  | MfaRecoveryControllerIsTrustedAction
+  | MfaRecoveryControllerUntrustPasskeyAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

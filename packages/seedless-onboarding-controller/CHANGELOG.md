@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope for the global password first, and fall back to the existing key chain only when none exists. Envelope fetch failures are now errors ([#11220](https://github.com/MetaMask/core/pull/11220))
   - On vaults with `envelope` state, throws `PasswordEnvelopeNotFound` unless the global password still derives the vault keys and matches a control record.
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on envelope-managed vaults ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
 
 ### Security
 

@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.4.0]
+
 ### Added
 
+- Export `MoneyAccountAction` enum containing supported actions and use it to populate MixPanel event property `money_account_action` ([#11677](https://github.com/MetaMask/core/pull/11677))
+- Add `FailurePhase` constants for withdraw and deposit transactions ([#11677](https://github.com/MetaMask/core/pull/11677))
+- Add `DiscountType` entry for free quotes ([#11674](https://github.com/MetaMask/core/pull/11674))
 - Export `getQuoteRefreshRate` util that reads the quote refresh interval from the client's LaunchDarkly config, including per-chain overrides ([#11181](https://github.com/MetaMask/core/pull/11181))
 
 ### Changed
@@ -2266,7 +2271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.4.0...HEAD
+[83.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...@metamask/bridge-controller@83.4.0
 [83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
 [83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0
 [83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5

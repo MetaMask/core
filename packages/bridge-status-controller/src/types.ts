@@ -7,6 +7,10 @@ import type {
   ApprovalControllerRejectRequestAction,
 } from '@metamask/approval-controller';
 import type {
+  AssetsControllerAddCustomAssetAction,
+  AssetsControllerGetAssetsAction,
+} from '@metamask/assets-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -27,6 +31,7 @@ import type {
   Trade,
   BridgeControllerFetchQuotesAction,
 } from '@metamask/bridge-controller';
+import { MoneyAccountAction } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
@@ -131,14 +136,15 @@ export type RefuelStatusResponse = object & StatusResponse;
 
 // oxlint-disable-next-line no-redeclare
 export const Operation = {
-  DEPOSIT: 'deposit',
-  WITHDRAW: 'withdraw',
+  DEPOSIT: MoneyAccountAction.Deposit,
+  WITHDRAW: MoneyAccountAction.Withdraw,
   SWAP: 'swap',
 } as const;
 export type Operation = (typeof Operation)[keyof typeof Operation];
 
 export type NextAction = {
-  operation: 'swap' | 'deposit';
+  // Subset of operations that can be performed after a tx
+  operation: 'swap' | 'deposit'; //Exclude<Operation, typeof Operation.WITHDRAW>;
   partialQuote: Omit<QuoteResponseV1<Trade, Trade>, 'quote'>;
 };
 
@@ -481,6 +487,8 @@ type AllowedActions =
   | BridgeControllerGetStateAction
   | BridgeControllerFetchQuotesAction
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerAddCustomAssetAction
+  | AssetsControllerGetAssetsAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction
   | MoneyAccountControllerGetMoneyAccountAction;

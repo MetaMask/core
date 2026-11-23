@@ -244,7 +244,7 @@ export const lockHistoryItem = (
   historyKey: string,
   historyItem: BridgeHistoryItem = state.txHistory[historyKey],
 ): {
-  operation: Operation;
+  operation: NextAction['operation'];
   batchId: `0x${string}`;
   next: NextAction[];
   quoteResponse: QuoteResponseV1;
