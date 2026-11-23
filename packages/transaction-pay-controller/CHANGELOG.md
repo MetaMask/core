@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
+- Add resume support to `FiatStrategy` for fiat to direct mUSD transactions ([#11451](https://github.com/MetaMask/core/pull/11451))
 
 ### Changed
 
