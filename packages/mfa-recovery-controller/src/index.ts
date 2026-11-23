@@ -21,6 +21,8 @@ export type {
   MfaRecoveryControllerRegisterAction,
   MfaRecoveryControllerReleaseLockAction,
   MfaRecoveryControllerResumeAction,
+  MfaRecoveryControllerTrustIdentifierAction,
+  MfaRecoveryControllerUntrustPasskeyAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
@@ -31,6 +33,8 @@ export type {
   RecoveryRegistrationLockProviderMessenger,
   RecoveryRegistrationLockProviderOptions,
 } from './recovery-registration-lock-provider.js';
+export { UserStorageTrustedIdentifierStore } from './trusted-identifiers.js';
+export type { UserStorageTrustedIdentifierStoreMessenger } from './trusted-identifiers.js';
 export {
   IncompleteMutationError,
   MfaRecoveryError,
@@ -46,12 +50,12 @@ export {
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
-  EncryptedPendingOperation,
   GetIdentifiersResponse,
   GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  IdentifierWitness,
   KeyBoundIdentifierLogin,
   KeyBoundIdentifierToken,
   KeyBoundIdentifierTokenRequest,
@@ -60,7 +64,6 @@ export type {
   MutationReceipt,
   PendingMutationPayload,
   PendingOperation,
-  PendingOperationEncryptor,
   PendingRecoverySecretHex,
   PendingRegisterPayload,
   PendingUpdateIdentifiersPayload,
@@ -71,8 +74,10 @@ export type {
   RecoveryIdentifiers,
   RecoveryLockProvider,
   RecoveryPhase,
+  RecoveryTrustedIdentifierStore,
   RecoveredSecret,
   SeedlessAuthData,
+  TrustedIdentifier,
   WrappedSecret,
   WrappedSecretOutput,
 } from './types.js';

@@ -259,6 +259,8 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
       recovery: 'provider-default',
     }),
   }),
+  // A normalTpsl group carries one take profit and one stop loss.
+  attachedTpslGroupLimit: Object.freeze({ takeProfit: 1, stopLoss: 1 }),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration
@@ -732,6 +734,24 @@ export function isUnrestrictedMarginMode(
   return (
     marginMode === undefined || marginMode === null || marginMode === 'normal'
   );
+}
+
+/**
+ * Whether the venue accepts Cross margin for a market, main DEX or HIP-3.
+ * An absent `marginMode` or `normal` allows Cross; strictIsolated, noCross
+ * and any future restriction value prohibit it, as does the deprecated
+ * `onlyIsolated` flag.
+ *
+ * @param market - Venue margin metadata for the market.
+ * @param market.onlyIsolated - Whether the market only allows isolated margin.
+ * @param market.marginMode - Venue margin-mode restriction, if any.
+ * @returns True when Cross margin orders are accepted.
+ */
+export function isCrossMarginSupported(market: {
+  onlyIsolated?: boolean;
+  marginMode?: string | null;
+}): boolean {
+  return !market.onlyIsolated && isUnrestrictedMarginMode(market.marginMode);
 }
 
 /**

@@ -57,6 +57,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetMarginAdjustmentLimitsParams,
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
@@ -75,6 +76,8 @@ import type {
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   MarginResult,
   MarketInfo,
   Order,
@@ -85,6 +88,7 @@ import type {
   PerpsMarketData,
   PerpsAccountSupport,
   PerpsOrderCapabilities,
+  MarginAdjustmentLimits,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
@@ -128,6 +132,15 @@ import { resolveCloseSelection } from '../utils/closePositions.js';
 import { carryProviderErrorCause } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { hasFeeSetter } from '../utils/feeSupport.js';
+
+/** A venue read whose price or metadata can expire before it reaches the caller. */
+export type VenueMarketData =
+  | PerpsMarketData[]
+  | {
+      markets: PerpsMarketData[];
+      expiresAt: number;
+      getFallback: () => Promise<PerpsMarketData[]>;
+    };
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -665,6 +678,38 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve margin adjustment limits with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits reported by the selected provider.
+   */
+  async getMarginAdjustmentLimits(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider?.getMarginAdjustmentLimits) {
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    try {
+      return await provider.getMarginAdjustmentLimits({
+        ...params,
+        providerId,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin adjustment limits unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return { status: 'unavailable', reason: 'provider' };
+    }
+  }
+
+  /**
    * Normalize a Scale price ladder through the selected provider route.
    *
    * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -828,6 +873,28 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return account;
   }
 
+  /**
+   * Read one venue's markets, stamped with its id. Unlike `getMarkets`, a
+   * failed venue read rejects instead of leaving a short list.
+   *
+   * @param providerId - Registered venue to read.
+   * @param params - Market filter passed to the venue.
+   * @returns The venue's markets.
+   * @throws `PROVIDER_NOT_FOUND` when the venue is not registered, or the
+   * venue's own error.
+   */
+  async getProviderMarkets(
+    providerId: PerpsProviderType,
+    params?: GetMarketsParams,
+  ): Promise<MarketInfo[]> {
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const markets = await provider.getMarkets(params);
+    return markets.map((market) => ({ ...market, providerId }));
+  }
+
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
@@ -854,18 +921,70 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
-  async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+  /**
+   * Read market data from every venue and stamp each row with its venue.
+   *
+   * @param readVenue - Per-venue read, such as one that applies the venue's
+   * own Terminal snapshot. Defaults to the venue's `getMarketDataWithPrices`.
+   * @returns Rows from every venue whose read succeeded.
+   */
+  async getMarketDataWithPrices(
+    readVenue: (
+      providerId: PerpsProviderType,
+      provider: PerpsProvider,
+    ) => Promise<VenueMarketData> = async (_providerId, provider) =>
+      provider.getMarketDataWithPrices(),
+  ): Promise<PerpsMarketData[]> {
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const data = await provider.getMarketDataWithPrices();
-        return data.map((item) => ({ ...item, providerId: id }));
-      }),
+      this.#getActiveProviders().map(async ([id, provider]) => ({
+        providerId: id,
+        data: await readVenue(id, provider),
+      })),
     );
+
+    // A sibling read or fallback may outlast another venue's snapshot.
+    // Each expired read is replaced by live rows or a rejection once.
+    while (true) {
+      const now = Date.now();
+      const fallbacks = results.flatMap((result, index) => {
+        if (result.status === 'rejected') {
+          return [];
+        }
+        const { providerId, data } = result.value;
+        if (Array.isArray(data) || data.expiresAt > now) {
+          return [];
+        }
+        return [
+          Promise.resolve()
+            .then(data.getFallback)
+            .then(
+              (markets) => {
+                results[index] = {
+                  status: 'fulfilled',
+                  value: { providerId, data: markets },
+                };
+              },
+              (reason: unknown) => {
+                results[index] = { status: 'rejected', reason };
+              },
+            ),
+        ];
+      });
+      if (fallbacks.length === 0) {
+        break;
+      }
+      await Promise.all(fallbacks);
+    }
 
     return this.#extractSuccessfulResults(
       results,
       'getMarketDataWithPrices',
-    ).flat();
+    ).flatMap(({ providerId, data }) =>
+      (Array.isArray(data) ? data : data.markets).map((item) => ({
+        ...item,
+        providerId,
+      })),
+    );
   }
 
   async getOrderFills(
@@ -2026,6 +2145,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId ?? params.position.providerId,
     );
     return provider.previewPositionModify(params);
+  }
+
+  async estimateCrossLiquidation(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    let provider: PerpsProvider;
+    try {
+      [, provider] = this.#getProviderOrDefault(params.providerId);
+    } catch {
+      // An unregistered route has no estimate; this method never rejects.
+      return { status: 'unavailable', reason: 'provider' };
+    }
+    return provider.estimateCrossLiquidation
+      ? provider.estimateCrossLiquidation(params)
+      : { status: 'unavailable', reason: 'provider' };
   }
 
   // ============================================================================

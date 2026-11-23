@@ -39,6 +39,7 @@ import type {
   OrderParams,
   GetAvailableDexsParams,
   GetScalePriceLadderParams,
+  MarketInfo,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -1489,6 +1490,219 @@ describe('PerpsController', () => {
         status: 'unavailable',
         reason: 'provider_unavailable',
       });
+    });
+  });
+
+  describe('margin adjustment limits', () => {
+    it('returns the limits from the active provider', async () => {
+      mockProvider.getMarginAdjustmentLimits = vi.fn().mockResolvedValue({
+        status: 'available',
+        maxAdd: '271.427458',
+        maxRemove: '0.31',
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({
+        status: 'available',
+        maxAdd: '271.427458',
+        maxRemove: '0.31',
+      });
+      expect(mockProvider.getMarginAdjustmentLimits).toHaveBeenCalledWith({
+        symbol: 'ETH',
+      });
+    });
+
+    it('reports provider when the provider omits the hook, the route conflicts or the read throws', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const unavailable = { status: 'unavailable', reason: 'provider' };
+
+      // The shared provider mock has no limits hook.
+      expect(
+        await controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).toStrictEqual(unavailable);
+
+      mockProvider.getMarginAdjustmentLimits = vi
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+      expect(
+        await controller.getMarginAdjustmentLimits({
+          symbol: 'ETH',
+          providerId: 'lighter',
+        }),
+      ).toStrictEqual(unavailable);
+      expect(mockProvider.getMarginAdjustmentLimits).not.toHaveBeenCalled();
+      expect(
+        await controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).toStrictEqual(unavailable);
+    });
+
+    it('reports provider while no provider is ready', async () => {
+      await expect(
+        controller.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({ status: 'unavailable', reason: 'provider' });
+    });
+  });
+
+  describe('market meta', () => {
+    const tiers = [
+      { lowerBound: 0, maxLeverage: 40 },
+      { lowerBound: 10000, maxLeverage: 25 },
+    ];
+    const markets: MarketInfo[] = [
+      {
+        name: 'BTC',
+        szDecimals: 5,
+        maxLeverage: 40,
+        marginTableId: 56,
+        marginTiers: tiers,
+      },
+      {
+        name: 'OLD',
+        szDecimals: 0,
+        maxLeverage: 3,
+        marginTableId: 3,
+        isDelisted: true,
+        onlyIsolated: true,
+      },
+      {
+        name: 'xyz:NVDA',
+        szDecimals: 3,
+        maxLeverage: 10,
+        marginTableId: 10,
+        marginMode: 'strictIsolated',
+      },
+    ];
+
+    it("reads one market's venue meta from the provider's own market list", async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue([markets[0]]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarketMeta({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        symbol: 'BTC',
+        marginTiers: tiers,
+        isDelisted: false,
+        maxLeverage: 40,
+        onlyIsolated: false,
+      });
+      expect(mockProvider.getMarkets).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+    });
+
+    it('lists every market, with delisted and isolated-only markets flagged', async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue(markets);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.getMarketMeta()).resolves.toStrictEqual([
+        {
+          symbol: 'BTC',
+          marginTiers: tiers,
+          isDelisted: false,
+          maxLeverage: 40,
+          onlyIsolated: false,
+        },
+        {
+          symbol: 'OLD',
+          marginTiers: null,
+          isDelisted: true,
+          maxLeverage: 3,
+          onlyIsolated: true,
+        },
+        {
+          symbol: 'xyz:NVDA',
+          marginTiers: null,
+          isDelisted: false,
+          maxLeverage: 10,
+          onlyIsolated: true,
+        },
+      ]);
+      expect(mockProvider.getMarkets).toHaveBeenCalledWith(undefined);
+    });
+
+    describe('in aggregated mode', () => {
+      const lighterProvider: PerpsProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      };
+      const setAggregated = (
+        providers = new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      ): void => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+        });
+        controller.testSetProviders(providers);
+        controller.testSetActiveProvider(
+          new AggregatedPerpsProvider({
+            providers,
+            defaultProvider: 'hyperliquid',
+            infrastructure: mockInfrastructure,
+          }),
+        );
+      };
+
+      it('reads only the routed venue, or the default one', async () => {
+        mockProvider.getMarkets = vi.fn().mockResolvedValue([markets[0]]);
+        lighterProvider.getMarkets = vi
+          .fn()
+          .mockResolvedValue([{ ...markets[0], marginTiers: undefined }]);
+        setAggregated();
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+        ).resolves.toMatchObject({ symbol: 'BTC', marginTiers: null });
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC' }),
+        ).resolves.toMatchObject({ symbol: 'BTC', marginTiers: tiers });
+        expect(lighterProvider.getMarkets).toHaveBeenCalledTimes(1);
+        expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
+      });
+
+      it('rejects with the venue error when the routed venue read fails', async () => {
+        mockProvider.getMarkets = vi
+          .fn()
+          .mockRejectedValue(new Error('venue offline'));
+        setAggregated();
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC' }),
+        ).rejects.toThrow('venue offline');
+        await expect(controller.getMarketMeta()).rejects.toThrow(
+          'venue offline',
+        );
+      });
+
+      it('throws PROVIDER_NOT_FOUND for an unregistered venue', async () => {
+        setAggregated(new Map([['hyperliquid', mockProvider]]));
+
+        await expect(
+          controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      });
+    });
+
+    it('throws MARKET_NOT_FOUND for an unknown symbol and PROVIDER_NOT_FOUND for a conflicting route', async () => {
+      mockProvider.getMarkets = vi.fn().mockResolvedValue([]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getMarketMeta({ symbol: 'NOPE' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.MARKET_NOT_FOUND);
+      await expect(
+        controller.getMarketMeta({ symbol: 'BTC', providerId: 'lighter' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     });
   });
 

@@ -11,6 +11,7 @@ export {
   PollingStatus,
   FailurePhase,
   SwapBridgeErrorCode,
+  MoneyAccountAction,
 } from './utils/metrics/constants.js';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';

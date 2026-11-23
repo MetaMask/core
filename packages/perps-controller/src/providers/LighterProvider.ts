@@ -204,6 +204,8 @@ import type {
   Position,
   PositionModifyPreviewParams,
   PositionModifyPreviewResult,
+  CrossLiquidationEstimate,
+  EstimateCrossLiquidationParams,
   RawLedgerUpdate,
   ReadyToTradeResult,
   SubscribeAccountParams,
@@ -329,6 +331,7 @@ import type {
 } from '../utils/lighterScaleOrders.js';
 import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
 import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js';
+import { calculateOrderBookSpread } from '../utils/orderBookGrouping.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -358,6 +361,16 @@ type LighterOrderBookState = {
 const NOOP_UNSUBSCRIBE = (): void => undefined;
 
 const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
+
+/**
+ * Take-profit and stop-loss legs one Lighter order can attach: an OTOCO group
+ * carries one of each. Lighter's own limit; equal to Hyperliquid's today only
+ * by coincidence.
+ */
+const LIGHTER_ATTACHED_TPSL_GROUP_LIMIT = Object.freeze({
+  takeProfit: 1,
+  stopLoss: 1,
+});
 
 /** Default Lighter execution protection, in basis points (5%). */
 const LIGHTER_DEFAULT_SLIPPAGE_BPS = 500;
@@ -8550,6 +8563,7 @@ export class LighterProvider implements PerpsProvider {
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       ...this.#getMarketPrecisionAndLimits(market),
+      attachedTpslGroupLimit: LIGHTER_ATTACHED_TPSL_GROUP_LIMIT,
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
@@ -18534,6 +18548,12 @@ export class LighterProvider implements PerpsProvider {
     return { status: 'unsupported', reason: 'provider' };
   }
 
+  async estimateCrossLiquidation(
+    _params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate> {
+    return { status: 'unavailable', reason: 'provider' };
+  }
+
   // ============================================================================
   // Live subscriptions over Lighter WebSocket channels, with REST polling
   // only as the price-stream fallback when no WebSocket transport exists.
@@ -19482,9 +19502,10 @@ export class LighterProvider implements PerpsProvider {
           .sort((a, b) => Number(a[0]) - Number(b[0]))
           .slice(0, levels),
       );
-      const bestBid = Number(bids[0]?.price ?? '0');
-      const bestAsk = Number(asks[0]?.price ?? '0');
-      const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
+      const top = calculateOrderBookSpread({
+        bestBid: bids[0]?.price,
+        bestAsk: asks[0]?.price,
+      });
       const maxTotal = Math.max(
         Number(bids[bids.length - 1]?.total ?? '0'),
         Number(asks[asks.length - 1]?.total ?? '0'),
@@ -19492,10 +19513,9 @@ export class LighterProvider implements PerpsProvider {
       const book: OrderBookData = {
         bids,
         asks,
-        spread: String(bestAsk - bestBid),
-        spreadPercentage:
-          mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
-        midPrice: String(mid),
+        spread: String(top?.spread ?? 0),
+        spreadPercentage: top ? String(top.spreadPercentage) : '0',
+        midPrice: String(top?.midPrice ?? 0),
         lastUpdated: Date.now(),
         maxTotal: String(maxTotal),
       };

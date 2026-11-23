@@ -45,5 +45,5 @@ jobs:
       packages: ${{ inputs.packages }}
       only-changed-packages: ${{ inputs.only-changed-packages }}
       dry-run: ${{ inputs.dry-run }}
-      environment: default-branch
+      environment: npm-preview
       docs-url: 'https://github.com/MetaMask/core/blob/main/docs/processes/preview-builds.md'
