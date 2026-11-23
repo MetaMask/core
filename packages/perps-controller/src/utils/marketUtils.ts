@@ -1,10 +1,226 @@
 import type {
   GetMarketDataWithPricesParams,
+  GroupedPerpsMarket,
+  MarketInfo,
   MarketTypeFilter,
   PerpsMarketData,
+  PerpsProviderType,
 } from '../types/index.js';
 import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
+
+export { getPerpsDisplaySymbol } from '../internal/perpsDisplaySymbol.js';
+
+const SAVED_MARKET_KEY_PREFIX = 'market-key:';
+const SAVED_VENUE_PREFIX = 'venue:';
+
+type MarketIdentity = Pick<MarketInfo, 'marketKey' | 'priceScale'>;
+
+/**
+ * Copy the optional cross-venue identity fields of a snapshot row.
+ *
+ * @param identity - The snapshot row's optional identity.
+ * @returns The identity fields supplied by the backend.
+ */
+export function getSnapshotMarketIdentity(identity: {
+  marketKey?: string | null;
+  priceScale?: number | null;
+}): MarketIdentity {
+  const { marketKey, priceScale } = identity;
+  return {
+    ...(marketKey !== null && marketKey !== undefined && { marketKey }),
+    ...(priceScale !== null && priceScale !== undefined && { priceScale }),
+  };
+}
+
+function getUnscaledMarketKey(market: MarketIdentity): string | undefined {
+  const { marketKey, priceScale } = market;
+  return marketKey && priceScale === 1 ? marketKey : undefined;
+}
+
+/**
+ * Group rows that share a backend market key and explicitly have unit scale.
+ * The first venue supplies the display data and retains its execution symbol.
+ * Only a grouped row carries `marketKey`; an ungrouped row omits it, so it is
+ * saved by venue and symbol and never as a backend key.
+ *
+ * @param markets - Venue market rows whose source provider IDs are preserved.
+ * @param defaultProvider - Preferred venue for ordering and untagged rows.
+ * @returns Display rows in first-seen market order, with the original venue rows.
+ */
+export function groupMarketsByMarketKey(
+  markets: readonly PerpsMarketData[],
+  defaultProvider: PerpsProviderType,
+): GroupedPerpsMarket[] {
+  const groups: Pick<GroupedPerpsMarket, 'marketKey' | 'rowId' | 'venues'>[] =
+    [];
+  const byKey = new Map<string, PerpsMarketData[]>();
+  for (const market of markets) {
+    const marketKey = getUnscaledMarketKey(market);
+    const venues = marketKey ? byKey.get(marketKey) : undefined;
+    if (venues) {
+      venues.push(market);
+    } else {
+      const firstVenue = [market];
+      groups.push({
+        marketKey,
+        rowId: marketKey
+          ? `market:${marketKey}`
+          : `venue:${market.providerId ?? defaultProvider}:${market.symbol}`,
+        venues: firstVenue,
+      });
+      if (marketKey) {
+        byKey.set(marketKey, firstVenue);
+      }
+    }
+  }
+
+  return groups.map(({ marketKey, rowId, venues }) => {
+    const preferred = venues.findIndex(
+      (market) => (market.providerId ?? defaultProvider) === defaultProvider,
+    );
+    if (preferred > 0) {
+      const [primary] = venues.splice(preferred, 1);
+      venues.unshift(primary);
+    }
+    const { marketKey: _venueKey, ...display } = venues[0];
+    return { ...display, ...(marketKey && { marketKey }), rowId, venues };
+  });
+}
+
+/**
+ * Encode a saved market reference without changing the persisted string format.
+ * An explicit key can have the same text as a legacy venue symbol.
+ *
+ * @param symbol - The venue's trading symbol.
+ * @param marketKey - The market key when saving a grouped row.
+ * @returns A reference for persistence in a watchlist or recently viewed list.
+ */
+export function toSavedPerpsMarketReference(
+  symbol: string,
+  marketKey?: string,
+): string {
+  return marketKey ? `${SAVED_MARKET_KEY_PREFIX}${marketKey}` : symbol;
+}
+
+/**
+ * Whether every client can read a saved reference. Mobile and Extension match
+ * saved entries by venue symbol, so `market-key:` and `venue:` references stay
+ * in local state and are never written to shared storage.
+ *
+ * @param reference - A saved watchlist entry.
+ * @returns True for a bare venue symbol.
+ */
+export function isSharedPerpsMarketReference(reference: string): boolean {
+  return (
+    !reference.startsWith(SAVED_MARKET_KEY_PREFIX) &&
+    !reference.startsWith(SAVED_VENUE_PREFIX)
+  );
+}
+
+function getVenueReference(
+  symbol: string,
+  provider: PerpsProviderType | undefined,
+  legacyProvider: PerpsProviderType,
+): string {
+  return provider && provider !== legacyProvider
+    ? `${SAVED_VENUE_PREFIX}${provider}:${symbol}`
+    : symbol;
+}
+
+/**
+ * Match an explicit key and the saved venue entries of its confirmed rows.
+ * Without a key, a row on the legacy venue is saved by its symbol and a row
+ * from another venue as `venue:<provider>:<symbol>`, so it never collides with
+ * a legacy symbol. With a key, those venue entries of each tagged group row
+ * with the same unit-scale key are aliases, so an entry saved before the row
+ * grouped still matches. Uses the same legacy-provider default as
+ * `resolveSavedPerpsMarkets`.
+ *
+ * @param symbol - The displayed venue's symbol.
+ * @param marketKey - Explicit backend key from a unit-scale row.
+ * @param venues - The group's original venue rows.
+ * @param legacyProvider - Venue that owned the saved symbols before grouping.
+ * @returns The new reference and its venue aliases, when available.
+ */
+export function getPerpsWatchlistReferences(
+  symbol: string,
+  marketKey?: string,
+  venues?: readonly PerpsMarketData[],
+  legacyProvider: PerpsProviderType = 'hyperliquid',
+): [reference: string, ...legacyAliases: string[]] {
+  if (!marketKey) {
+    const provider = venues?.find(
+      (venue) => venue.symbol === symbol,
+    )?.providerId;
+    return [getVenueReference(symbol, provider, legacyProvider)];
+  }
+  const aliases = (venues ?? [])
+    .filter(
+      (venue) =>
+        venue.providerId !== undefined &&
+        getUnscaledMarketKey(venue) === marketKey,
+    )
+    .map((venue) =>
+      getVenueReference(venue.symbol, venue.providerId, legacyProvider),
+    );
+  return [toSavedPerpsMarketReference(symbol, marketKey), ...aliases];
+}
+
+/**
+ * Resolve saved entries to executable venue rows. Legacy symbols keep their
+ * original venue when available. Venue references open only that venue's row.
+ * Explicit keys follow the current default venue.
+ *
+ * @param references - Strings read from the watchlist or recently viewed list.
+ * @param markets - Current ungrouped market rows.
+ * @param defaultProvider - Preferred venue for a market key and for untagged direct rows.
+ * @param legacyProvider - Venue that owned the saved symbols before grouping.
+ * @returns The resolved venue rows in saved order.
+ */
+export function resolveSavedPerpsMarkets(
+  references: readonly string[],
+  markets: readonly PerpsMarketData[],
+  defaultProvider: PerpsProviderType,
+  legacyProvider: PerpsProviderType = 'hyperliquid',
+): PerpsMarketData[] {
+  const symbols = new Map<string, PerpsMarketData>();
+  const venueSymbols = new Map<string, PerpsMarketData>();
+  const backendKeys = new Map<string, PerpsMarketData>();
+  for (const market of markets) {
+    const provider = market.providerId ?? defaultProvider;
+    if (provider === legacyProvider) {
+      symbols.set(market.symbol, market);
+    }
+    venueSymbols.set(
+      `${SAVED_VENUE_PREFIX}${provider}:${market.symbol}`,
+      market,
+    );
+    const backendKey = getUnscaledMarketKey(market);
+    if (
+      backendKey &&
+      (!backendKeys.has(backendKey) || provider === defaultProvider)
+    ) {
+      backendKeys.set(backendKey, market);
+    }
+  }
+
+  const resolved = new Set<PerpsMarketData>();
+  for (const reference of references) {
+    let market: PerpsMarketData | undefined;
+    if (reference.startsWith(SAVED_MARKET_KEY_PREFIX)) {
+      market = backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length));
+    } else if (reference.startsWith(SAVED_VENUE_PREFIX)) {
+      market = venueSymbols.get(reference);
+    } else {
+      market = symbols.get(reference);
+    }
+    if (market) {
+      resolved.add(market);
+    }
+  }
+  return [...resolved];
+}
 
 export function clonePerpsMarketData(
   markets: PerpsMarketData[],
@@ -14,6 +230,7 @@ export function clonePerpsMarketData(
     ...(market.keywords && { keywords: [...market.keywords] }),
     ...(market.tags && { tags: [...market.tags] }),
     ...(market.categories && { categories: [...market.categories] }),
+    ...(market.numericValues && { numericValues: { ...market.numericValues } }),
     ...(market.trend && {
       trend: market.trend.map(([timestamp, price]): [number, string] => [
         timestamp,
@@ -65,17 +282,14 @@ export function matchesCategory(
         (isHip3Market(market) && market.marketType === undefined)
       );
     case 'crypto':
-      // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
-      return !isHip3Market(market) || market.marketType === 'crypto';
+      return getMarketTypeFilter(market) === 'crypto';
     case 'memecoin':
-      // Derived category: a crypto market that carries the 'memecoin' tag.
-      // Aligned with the 'crypto' case above so tagged main-DEX markets
-      // still match when their marketType is unset (the common
-      // provider-sourced shape prior to Terminal enrichment). Overlaps
-      // with 'crypto' by design — memecoins appear under both pills.
+      // Derived category, as Mobile's isMemecoinMarket: a main-DEX market
+      // that carries the 'memecoin' tag, whatever its marketType. A HIP-3
+      // market never matches. Overlaps with 'crypto' by design: memecoins
+      // appear under both pills.
       return (
-        (!isHip3Market(market) || market.marketType === 'crypto') &&
-        (market.tags?.includes('memecoin') ?? false)
+        !isHip3Market(market) && (market.tags?.includes('memecoin') ?? false)
       );
     default:
       // Every other filter is a 1:1 data-model category match.
@@ -254,19 +468,6 @@ export const shouldIncludeMarket = (
   );
 
   return !blacklisted;
-};
-
-export const getPerpsDisplaySymbol = (symbol: string): string => {
-  if (!symbol || typeof symbol !== 'string') {
-    return symbol;
-  }
-
-  const colonIndex = symbol.indexOf(':');
-  if (colonIndex > 0 && colonIndex < symbol.length - 1) {
-    return symbol.substring(colonIndex + 1);
-  }
-
-  return symbol;
 };
 
 export const getPerpsDexFromSymbol = (symbol: string): string | null => {

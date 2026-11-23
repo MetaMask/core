@@ -455,6 +455,7 @@ describe('HyperLiquidProvider', () => {
       getCachedPositions: vi.fn().mockReturnValue([]),
       getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: vi.fn(),
@@ -1052,7 +1053,14 @@ describe('HyperLiquidProvider', () => {
           {
             time: 1_700_000_030,
             twapId: 987,
-            state: { coin: 'BTC' },
+            state: {
+              coin: 'BTC',
+              sz: '0.01',
+              executedSz: '0',
+              executedNtl: '0',
+              timestamp: 1_700_000_000_000,
+              minutes: 30,
+            },
             status: { status: 'activated' },
           },
         ]),

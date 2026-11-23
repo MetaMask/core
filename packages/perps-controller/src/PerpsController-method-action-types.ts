@@ -149,6 +149,38 @@ export type PerpsControllerGetMarginModeLockAction = {
 };
 
 /**
+ * Get how much margin an isolated position can take in (`maxAdd`, what the
+ * venue's isolated margin update accepts) and release (`maxRemove`),
+ * through the active provider route used by order placement. Never throws;
+ * failures report an unavailable status.
+ *
+ * @param params - Market and optional provider route.
+ * @returns The limits, or a typed unavailable result.
+ */
+export type PerpsControllerGetMarginAdjustmentLimitsAction = {
+  type: `PerpsController:getMarginAdjustmentLimits`;
+  handler: PerpsController['getMarginAdjustmentLimits'];
+};
+
+/**
+ * Get venue metadata (margin tiers, delisted, max leverage, isolated-only)
+ * for one market, or for every market when `symbol` is omitted. Reads the
+ * provider's own market list, which Hyperliquid builds from its session
+ * `meta` cache, never a Terminal snapshot. In aggregated mode it reads one
+ * venue: `providerId`, else the default provider.
+ *
+ * @param params - Optional market and provider route.
+ * @returns One market's metadata when `symbol` is set, otherwise a list.
+ * @throws `MARKET_NOT_FOUND` when no market has that symbol,
+ * `PROVIDER_NOT_FOUND` when the route conflicts with the active provider or
+ * names an unregistered venue, or the venue's error when its read fails.
+ */
+export type PerpsControllerGetMarketMetaAction = {
+  type: `PerpsController:getMarketMeta`;
+  handler: PerpsController['getMarketMeta'];
+};
+
+/**
  * Build a Scale price ladder using the active provider's venue rules.
  *
  * @param params - Market, ladder bounds, count, optional sizing and explicit route.
@@ -787,9 +819,10 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
- * Project the isolated position that would remain after a proposed order.
+ * Project the position that would remain after a proposed order.
  * Margin and liquidation availability are independent: a missing liquidation
- * does not hide a valid margin projection. Cross-margin returns unsupported.
+ * does not hide a valid margin projection. Hyperliquid projects Cross
+ * positions against the account's Cross collateral.
  *
  * @param params - Live position plus the proposed order.
  * @returns Discriminated preview of the resulting position.
@@ -797,6 +830,20 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 export type PerpsControllerPreviewPositionModifyAction = {
   type: `PerpsController:previewPositionModify`;
   handler: PerpsController['previewPositionModify'];
+};
+
+/**
+ * Estimate the liquidation price of the Cross position an order would
+ * leave: an opening, or an add, reduce or flip of the market's position.
+ * Never rejects: `price`, `none` when no price liquidates it at the
+ * account's collateral, or `unavailable` with a typed reason.
+ *
+ * @param params - The proposed Cross order.
+ * @returns The typed estimate.
+ */
+export type PerpsControllerEstimateCrossLiquidationAction = {
+  type: `PerpsController:estimateCrossLiquidation`;
+  handler: PerpsController['estimateCrossLiquidation'];
 };
 
 /**
@@ -1745,6 +1792,9 @@ export type PerpsControllerSaveMarginModeAction = {
  * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
+ * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy favorite.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  */
 export type PerpsControllerToggleWatchlistMarketAction = {
   type: `PerpsController:toggleWatchlistMarket`;
@@ -1755,7 +1805,10 @@ export type PerpsControllerToggleWatchlistMarketAction = {
  * Check if a market is in the watchlist on the current network
  *
  * @param symbol - The trading pair symbol.
- * @returns True if the condition is met.
+ * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy favorite.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
+ * @returns Whether the reference is saved.
  */
 export type PerpsControllerIsWatchlistMarketAction = {
   type: `PerpsController:isWatchlistMarket`;
@@ -1765,7 +1818,7 @@ export type PerpsControllerIsWatchlistMarketAction = {
 /**
  * Get all watchlist markets for the current network
  *
- * @returns The resulting string value.
+ * @returns Saved market references for the current network.
  */
 export type PerpsControllerGetWatchlistMarketsAction = {
   type: `PerpsController:getWatchlistMarkets`;
@@ -1775,11 +1828,15 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 /**
  * Record that the user viewed a market.
  *
- * The symbol is prepended to the per-network recently-viewed list (newest-first).
- * Any existing entry for the same symbol is removed first so there are no
- * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ * The market reference is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same reference, or for its legacy alias, is
+ * removed first so there are no duplicates. The list is then capped at
+ * PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
  *
  * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+ * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy entry.
+ * @param legacyProvider - Venue that owned saved symbols before grouping.
  */
 export type PerpsControllerRecordMarketViewedAction = {
   type: `PerpsController:recordMarketViewed`;
@@ -1789,12 +1846,12 @@ export type PerpsControllerRecordMarketViewedAction = {
 /**
  * Get recently viewed markets for the current network.
  *
- * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit references, ordered
  * newest-first, filtered to entries within the last
  * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
  * array when no qualifying entries exist.
  *
- * @returns Ordered array of market symbols.
+ * @returns Ordered array of saved market references.
  */
 export type PerpsControllerGetRecentlyViewedMarketsAction = {
   type: `PerpsController:getRecentlyViewedMarkets`;
@@ -1825,6 +1882,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerGetMarginModeLockAction
+  | PerpsControllerGetMarginAdjustmentLimitsAction
+  | PerpsControllerGetMarketMetaAction
   | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
@@ -1875,6 +1934,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
   | PerpsControllerPreviewPositionModifyAction
+  | PerpsControllerEstimateCrossLiquidationAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction

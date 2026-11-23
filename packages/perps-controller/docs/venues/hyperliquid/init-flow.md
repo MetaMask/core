@@ -104,13 +104,30 @@ Code: `src/services/HyperLiquidClientService.ts` `#createAllClients`, `#createHt
 
 ## Subscriptions
 
-| Channel              | Scope              | Feeds                              |
-| -------------------- | ------------------ | ---------------------------------- |
-| `clearinghouseState` | Per DEX            | Positions and account              |
-| `openOrders`         | Per DEX            | Orders                             |
-| `webData3`           | User               | Open-interest caps only            |
-| `allMids`            | Global and per DEX | Mid prices                         |
-| `assetCtxs`          | Per DEX            | Funding, open interest, mark price |
-| `fastAssetCtxs`      | Global             | Price updates                      |
+| Channel              | Scope              | Feeds                               |
+| -------------------- | ------------------ | ----------------------------------- |
+| `clearinghouseState` | Per DEX            | Positions and account               |
+| `openOrders`         | Per DEX            | Orders                              |
+| `spotState`          | User               | Spot balances                       |
+| `webData3`           | User               | Account mode and open-interest caps |
+| `allMids`            | Global and per DEX | Mid prices                          |
+| `assetCtxs`          | Per DEX            | Funding, open interest, mark price  |
+| `fastAssetCtxs`      | Global             | Price updates                       |
+
+Direct Hyperliquid account updates can include `accountMode` from `webData3`
+for the bound wallet on the current WebSocket connection. Cross opening
+previews reuse live data only when that mode and the required account slices
+are current. Standard mode uses the main DEX account slice. Unified mode also
+requires current spot balances and account coverage for every configured
+position DEX. After a wallet switch, reconnect, or mode change, a preview
+uses fresh venue reads while the required inputs are still arriving.
+
+Direct Hyperliquid position and order subscriptions accept
+`includeSnapshotStatus: true`. Each channel waits independently for all
+configured DEXs to deliver that channel's snapshot for the bound wallet and
+current connection. This includes confirmed empty snapshots. Position callbacks
+receive `(positions, true)` and order callbacks receive
+`(orders, undefined, true)`. Calls that omit the option keep their existing
+delivery and callback signatures.
 
 Code: `src/services/HyperLiquidSubscriptionService.ts` `#ensureClearinghouseStateSubscription`, `#ensureOpenOrdersSubscription`, `#ensureGlobalAllMidsSubscription`, `#createDexAllMidsSubscription`, `#createAssetCtxsSubscription`, `#ensureGlobalFastAssetCtxsSubscription`.

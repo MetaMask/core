@@ -107,6 +107,9 @@ import {
   getBroadcastFailureProperties,
   getFailurePropertiesFromHistory,
   promoteFailurePhase,
+  getSubmitErrorCode,
+  getMoneyAccountActionData,
+  getFailurePropertiesForNextAction,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
 import { normalizeQuoteResponses } from './utils/quotes.js';
@@ -1297,6 +1300,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #nextTx = async (historyKey: string): Promise<void> => {
+    let eventProperties:
+      | Omit<
+          RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed],
+          'error_message' | 'error_code'
+        >
+      | undefined;
+
     try {
       const { batchId, next, quoteResponse, operation } =
         this.#lockHistoryItem(historyKey);
@@ -1320,6 +1330,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem,
         quoteResponse,
         operation,
+      );
+
+      eventProperties = getFailurePropertiesForNextAction(
+        historyItem,
+        validQuotes,
+        operation,
+        batchId,
       );
 
       const selectedAccount = getAccountByAddress(
@@ -1391,6 +1408,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
       this.#onTransactionFailed({
         historyKey,
+        ...(eventProperties && {
+          eventProperties: {
+            ...eventProperties,
+            error_message: (error as Error)?.message,
+            error_code: getSubmitErrorCode(error),
+          },
+        }),
       });
     }
   };
@@ -1796,6 +1820,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       batchSellTrades,
       batchId,
       quotesReceivedContext,
+      operation,
     );
 
     let historyKey: string | undefined;
@@ -2157,10 +2182,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.status.destChain?.txHash,
     );
 
-    const failurePropertiesFromHistory = getFailurePropertiesFromHistory(
-      historyItem.status.srcChain.txHash,
-      historyItem.status.destChain?.txHash,
-    );
+    const failurePropertiesFromHistory =
+      getFailurePropertiesFromHistory(historyItem);
     const failedHashPresence = {
       source_hash_present:
         historyHashPresence.source_hash_present ||
@@ -2196,6 +2219,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+        ...getMoneyAccountActionData(historyItem),
       }),
       ...(eventName === UnifiedSwapBridgeEventName.Failed && {
         ...failurePropertiesFromHistory,

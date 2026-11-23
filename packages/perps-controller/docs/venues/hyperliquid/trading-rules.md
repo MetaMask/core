@@ -53,9 +53,9 @@ Code: `src/providers/HyperLiquidProvider.ts` `validateOrder`, `#placeOrder`, `#p
 | Then at most 5 significant figures                                                       | `DECIMAL_PRECISION_CONFIG.MaxSignificantFigures` (5) |
 | Sizes keep `szDecimals`, trailing zeros removed; TP/SL and reduce-only sizes are floored |                                                      |
 
-`formatHyperLiquidPrice` does not check tick divisibility. It is exported from the package.
+Both price caps round half up on the price's decimal form, as hyperliquid.xyz does: `69.9425` becomes `69.943`. `formatHyperLiquidPrice` and `roundPerpsPrice` share this rounding. `formatHyperLiquidPrice` does not check tick divisibility. It is exported from the package.
 
-Code: `src/utils/hyperLiquidAdapter.ts` `formatHyperLiquidPrice`, `formatHyperLiquidSize`; `src/utils/orderCalculations.ts` `floorToSizeDecimals`, `formatPartialTpslSize`.
+Code: `src/utils/hyperLiquidAdapter.ts` `formatHyperLiquidPrice`, `formatHyperLiquidSize`; `src/utils/pricePrecision.ts` `roundToSignificantFiguresGrid`; `src/utils/orderCalculations.ts` `floorToSizeDecimals`, `formatPartialTpslSize`.
 
 ## Asset IDs
 

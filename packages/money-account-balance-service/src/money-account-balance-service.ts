@@ -1,3 +1,4 @@
+import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
@@ -28,7 +29,7 @@ import type {
 } from '@metamask/remote-feature-flag-controller';
 import { assert, is } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, inMilliseconds, isValidHexAddress } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
@@ -40,6 +41,7 @@ import {
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ABI,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
+  PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
@@ -311,6 +313,8 @@ export class MoneyAccountBalanceService extends BaseDataService<
 > {
   #vaultConfig: VaultConfig | undefined;
 
+  #premiumVaultConfig: VaultConfig | undefined;
+
   /** Cache stale time (ms) for on-chain balance reads. Overridable via remote feature flag. */
   #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
 
@@ -459,6 +463,25 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
+   * Returns the premium vault config when it lives on the same chain as the
+   * standard vault (the only case the single Multicall3 batch can serve).
+   *
+   * @param chainId - The standard vault's chain ID.
+   * @returns The premium config, or `undefined` when absent or on another chain.
+   */
+  #getPremiumConfigForChain(chainId: Hex): VaultConfig | undefined {
+    const premium = this.#premiumVaultConfig;
+    if (premium && premium.chainId !== chainId) {
+      configLogger('Premium vault is on a different chain; excluded', {
+        premiumChainId: premium.chainId,
+        chainId,
+      });
+      return undefined;
+    }
+    return premium;
+  }
+
+  /**
    * Applies the balance `staleTime` feature flag, falling back to
    * {@link DEFAULT_BALANCE_STALE_TIME} when the flag is absent or malformed.
    *
@@ -506,7 +529,47 @@ export class MoneyAccountBalanceService extends BaseDataService<
     this.#applyBalanceSourcePolicyFlag(
       remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY],
     );
+    this.#applyPremiumVaultConfig(
+      remoteFeatureFlags[PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY],
+    );
     this.#applyVaultConfig(remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY]);
+  }
+
+  /**
+   * Applies the optional premium vault config flag. If the flag is missing or
+   * invalid then we don't throw, instead the premium vault is left out of RPC
+   * balances.
+   *
+   * If the vault config has changed when this function is called, we invalidate
+   * queries.
+   *
+   * @param flagValue - The raw flag value from `remoteFeatureFlags`.
+   */
+  #applyPremiumVaultConfig(flagValue: Json | undefined): void {
+    let nextConfig: VaultConfig | undefined;
+    if (flagValue !== undefined) {
+      try {
+        nextConfig = this.#parseAndValidateVaultConfig(flagValue);
+        const { chainId: _chainId, ...addresses } = nextConfig;
+        if (!Object.values(addresses).every(isValidHexAddress)) {
+          throw new VaultConfigValidationError();
+        }
+      } catch (error) {
+        nextConfig = undefined;
+        configLogger('Premium vault config invalid; ignoring', { error });
+      }
+    }
+
+    if (
+      JSON.stringify(nextConfig) === JSON.stringify(this.#premiumVaultConfig)
+    ) {
+      return;
+    }
+
+    this.#premiumVaultConfig = nextConfig;
+    configLogger('Premium vault config updated; cache invalidated', nextConfig);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.invalidateQueries();
   }
 
   /**
@@ -1021,31 +1084,50 @@ export class MoneyAccountBalanceService extends BaseDataService<
           },
         ];
 
+        const premium = this.#getPremiumConfigForChain(chainId);
+        if (premium) {
+          calls.push({
+            target: premium.lensAddress,
+            allowFailure: false,
+            callData: lens.interface.encodeFunctionData('balanceOfInAssets', [
+              accountAddress,
+              premium.boringVault,
+              premium.accountantAddress,
+            ]),
+          });
+        }
+
         const multicall3 = new Contract(
           this.#getMulticall3Address(chainId),
           MULTICALL3_ABI,
           provider,
         );
-        const [musdResult, vmusdResult] = (await this.#traceNetworkRequest(
-          {
-            name: TRACES.MONEY_ACCOUNT_BALANCE_RPC,
-            data: { chainId, operation: 'aggregate3' },
-          },
-          async () =>
-            await multicall3.callStatic.aggregate3(
-              calls,
-              PENDING_READ_OVERRIDES,
-            ),
-        )) as [Multicall3Result, Multicall3Result];
+        const [musdResult, vmusdResult, premiumResult] =
+          (await this.#traceNetworkRequest(
+            {
+              name: TRACES.MONEY_ACCOUNT_BALANCE_RPC,
+              data: { chainId, operation: 'aggregate3' },
+            },
+            async () =>
+              await multicall3.callStatic.aggregate3(
+                calls,
+                PENDING_READ_OVERRIDES,
+              ),
+          )) as [Multicall3Result, Multicall3Result, Multicall3Result?];
 
         const musdBalanceBN = erc20.interface.decodeFunctionResult(
           'balanceOf',
           musdResult.returnData,
-        )[0];
-        const vmusdBN = lens.interface.decodeFunctionResult(
-          'balanceOfInAssets',
-          vmusdResult.returnData,
-        )[0];
+        )[0] as BigNumber;
+        const decodeLensBalance = (returnData: string): BigNumber =>
+          lens.interface.decodeFunctionResult(
+            'balanceOfInAssets',
+            returnData,
+          )[0] as BigNumber;
+        const standardVmusdBN = decodeLensBalance(vmusdResult.returnData);
+        const vmusdBN = premiumResult
+          ? standardVmusdBN.add(decodeLensBalance(premiumResult.returnData))
+          : standardVmusdBN;
 
         return {
           musdBalance: musdBalanceBN.toString(),
