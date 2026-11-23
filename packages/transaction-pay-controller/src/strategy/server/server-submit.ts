@@ -37,7 +37,7 @@ import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
-import { getNetworkClientId } from '../../utils/provider.js';
+import { getNetworkClientId, rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getEvmQuoteSource,
@@ -53,12 +53,17 @@ import {
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
+import {
+  getServerStatus,
+  ServerApiError,
+  submitServerIntent,
+} from './server-api.js';
 import type {
   ServerAuthorization,
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
+  ServerStatusLog,
   ServerStatusResponse,
   ServerSubmitRequest,
 } from './types.js';
@@ -73,6 +78,8 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  */
 const MISSING_TARGET_HASH = '0x' as Hex;
 
+const RETRYABLE_CLIENT_ERROR_STATUSES = [408, 429];
+
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
   version: { name: 'version', type: 'string' },
@@ -80,6 +87,8 @@ const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   verifyingContract: { name: 'verifyingContract', type: 'address' },
   salt: { name: 'salt', type: 'bytes32' },
 };
+
+type ReceiptLog = { address: string; data: string; topics: string[] };
 
 /**
  * A transaction to submit for a single quote step.
@@ -1327,19 +1336,28 @@ async function waitForServerCompletion(
 
   let lastStatus: string | undefined;
   let sourceHashEmitted = false;
+  let sourceLogs: ServerStatusLog[] | undefined;
 
   while (true) {
     let statusResponse: ServerStatusResponse | undefined;
 
     try {
       const tx = getTransaction(transactionId, messenger);
+      const hash = tx?.metamaskPay?.sourceHash ?? tx?.hash;
+
+      sourceLogs ??= await getSourceLogs(hash, messenger);
 
       statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
         id: quote.id,
-        hash: tx?.metamaskPay?.sourceHash ?? tx?.hash,
+        hash,
+        logs: sourceLogs,
       });
     } catch (error) {
+      if (isClientError(error)) {
+        throw error;
+      }
+
       log('Polling network error', error);
     }
 
@@ -1382,4 +1400,95 @@ async function waitForServerCompletion(
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
   }
+}
+
+/**
+ * Retrieve the receipt logs of the local transaction with the given hash.
+ *
+ * Falls back to fetching the receipt from the network when the local
+ * transaction has none, such as when a publish hook marks it as intent
+ * complete without the receipt being tracked.
+ *
+ * @param hash - Hash of the source transaction.
+ * @param messenger - Controller messenger.
+ * @returns The receipt logs, or undefined if no matching receipt is found.
+ */
+async function getSourceLogs(
+  hash: string | undefined,
+  messenger: TransactionPayControllerMessenger,
+): Promise<ServerStatusLog[] | undefined> {
+  if (!hash) {
+    return undefined;
+  }
+
+  const { transactions } = messenger.call('TransactionController:getState');
+
+  const sourceTransaction = transactions.find(
+    (tx) => tx.hash?.toLowerCase() === hash.toLowerCase(),
+  );
+
+  if (!sourceTransaction) {
+    return undefined;
+  }
+
+  const localLogs = sourceTransaction.txReceipt?.logs as
+    | ReceiptLog[]
+    | undefined;
+
+  const logs = localLogs?.length
+    ? localLogs
+    : await getNetworkReceiptLogs(hash, sourceTransaction.chainId, messenger);
+
+  if (!logs?.length) {
+    return undefined;
+  }
+
+  return logs.map(({ address, data, topics }) => ({
+    address: address as Hex,
+    data: data as Hex,
+    topics: topics as Hex[],
+  }));
+}
+
+/**
+ * Fetch the receipt logs of a transaction from the network.
+ *
+ * @param hash - Hash of the transaction.
+ * @param chainId - Chain ID of the transaction.
+ * @param messenger - Controller messenger.
+ * @returns The receipt logs, or undefined if the receipt is unavailable.
+ */
+async function getNetworkReceiptLogs(
+  hash: string,
+  chainId: Hex,
+  messenger: TransactionPayControllerMessenger,
+): Promise<ReceiptLog[] | undefined> {
+  try {
+    const receipt = await rpcRequest<{ logs?: ReceiptLog[] } | null>({
+      messenger,
+      chainId,
+      method: 'eth_getTransactionReceipt',
+      params: [hash],
+    });
+
+    return receipt?.logs;
+  } catch (error) {
+    log('Failed to fetch source receipt', { error, hash });
+    return undefined;
+  }
+}
+
+/**
+ * Determine if an error is a client error response from the server.
+ *
+ * @param error - Error thrown when fetching the status.
+ * @returns True if the server responded with a non-retryable 4xx status.
+ */
+function isClientError(error: unknown): boolean {
+  return (
+    error instanceof ServerApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    !RETRYABLE_CLIENT_ERROR_STATUSES.includes(error.status)
+  );
 }
