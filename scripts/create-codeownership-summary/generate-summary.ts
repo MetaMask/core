@@ -540,12 +540,12 @@ function renderApprovalOptionalSection({
 }): string {
   const approvalNotRequiredNote = isApprovalRequiredOwner
     ? ''
-    : '\n\n**You do not need to get approval from this team to merge this PR.**';
+    : `\n\n> [!NOTE]\n> You do not need to get approval from \`${maintenanceOwnershipGroup.owner}\` to merge this PR.`;
 
   return `
 ### ℹ️ Files co-owned by \`${maintenanceOwnershipGroup.owner}\`
 
-For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns the following files and thus may approve changes to them.${approvalNotRequiredNote}
+For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.${approvalNotRequiredNote}
 
 <details>
 <summary><em>(Expand to view list of files)</em></summary>

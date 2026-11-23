@@ -96,7 +96,7 @@ describe('main', () => {
 
         ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
-        For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+        For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
         <details>
         <summary><em>(Expand to view list of files)</em></summary>

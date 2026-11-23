@@ -74,9 +74,10 @@ describe('generateCodeownershipSummary', () => {
 
       ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
-      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
-      **You do not need to get approval from this team to merge this PR.**
+      > [!NOTE]
+      > You do not need to get approval from \`@MetaMask/core-platform\` to merge this PR.
 
       <details>
       <summary><em>(Expand to view list of files)</em></summary>
@@ -88,9 +89,10 @@ describe('generateCodeownershipSummary', () => {
 
       ### ℹ️ Files co-owned by \`@MetaMask/technical-writers\`
 
-      For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns the following files and thus may approve changes to them.
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
-      **You do not need to get approval from this team to merge this PR.**
+      > [!NOTE]
+      > You do not need to get approval from \`@MetaMask/technical-writers\` to merge this PR.
 
       <details>
       <summary><em>(Expand to view list of files)</em></summary>
@@ -182,7 +184,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary).toContain(
-      'For convenience in maintaining this repo, `@MetaMask/core-platform` co-owns the following files and thus may approve changes to them.',
+      'For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.',
     );
     expect(summary).not.toContain('> [!NOTE]');
     expect(summary).toContain(
@@ -486,9 +488,10 @@ describe('generateCodeownershipSummary', () => {
 
       ### ℹ️ Files co-owned by \`@MetaMask/core-platform\`
 
-      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+      For convenience in maintaining this repo, this team co-owns the following files and thus may approve changes to them.
 
-      **You do not need to get approval from this team to merge this PR.**
+      > [!NOTE]
+      > You do not need to get approval from \`@MetaMask/core-platform\` to merge this PR.
 
       <details>
       <summary><em>(Expand to view list of files)</em></summary>
