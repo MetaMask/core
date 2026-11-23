@@ -302,7 +302,8 @@ export type KycServiceGetSessionStatusForVendorAction = {
  * @param vendor - The vendor to get the step for.
  * @param client - What only this device knows, sent so kyc-api can use it
  * for this answer. kyc-api stores none of it.
- * @returns The step, and how verification is going.
+ * @returns The step, how verification is going, and the vendor's relay
+ * session id (`null` when there is none).
  */
 export type KycServiceGetStepAction = {
   type: `KycService:getStep`;

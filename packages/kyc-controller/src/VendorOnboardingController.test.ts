@@ -1120,7 +1120,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('reads the saved session from state and does not create one', async () => {
+    it('resumes the saved session from state with fresh authorizations', async () => {
       await withController(
         {
           options: {
@@ -1143,8 +1143,14 @@ describe('VendorOnboardingController', () => {
           expect(step).toBe('decision');
           expect(handlers.getStep).toHaveBeenCalledTimes(1);
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
-          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            sessionClientPublicKey: expect.any(String),
+          });
+          expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
+          expect(
+            handlers.resetWrappingKeys.mock.invocationCallOrder[0],
+          ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
           expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
         },
       );
@@ -1161,10 +1167,39 @@ describe('VendorOnboardingController', () => {
         const step = await controller.startSession({ vendor: 'kalshi' });
 
         expect(step).toBe('decision');
-        expect(handlers.getStep).toHaveBeenCalledTimes(1);
+        expect(handlers.getStep).toHaveBeenCalledTimes(2);
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+          sessionId: 'sid-1',
+          sessionClientPublicKey: expect.any(String),
+        });
+        expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
       });
+    });
+
+    it('does not read the step when refreshing the authorizations fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: { step: 'terms', status: 'none', sessionId: 'sid-1' },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.resetWrappingKeys.mockRejectedValue(new Error('refused'));
+
+          await expect(
+            controller.startSession({ vendor: 'kalshi' }),
+          ).rejects.toThrow('refused');
+
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(handlers.getStep).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('needs an AAL2 token to create a session', async () => {
