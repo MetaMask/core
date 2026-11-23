@@ -1800,24 +1800,26 @@ describe('MfaRecoveryController', () => {
 
     it('cannot abort a writing mutation that may have been applied', async () => {
       let now = unixNow();
-      await withController(async ({ escrowA, options }) => {
-        const controller = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger(options.authProvider)),
-          now: (): number => now,
-        });
-        await controller.register(SECRET, IDENTIFIERS);
-        escrowA.failNextApplyCount = 1;
-        await expect(
-          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        expect(await controller.getPhase()).toBe('writing');
-        now += 10 * 60;
-        await expect(controller.abort()).rejects.toThrow(
-          'Cannot abort a mutation that may have been applied',
-        );
-        expect(await controller.getPhase()).toBe('writing');
-      });
+      await withController(
+        { now: (): number => now },
+        async ({ controller, escrowA }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          expect(await controller.getPhase()).toBe('writing');
+          now += 10 * 60;
+          await expect(controller.abort()).rejects.toThrow(
+            'Cannot abort a mutation that may have been applied',
+          );
+          expect(await controller.getPhase()).toBe('writing');
+        },
+      );
     });
 
     // A device clock ahead of the escrow's can see an approval as expired while
@@ -2734,12 +2736,8 @@ describe('MfaRecoveryController', () => {
       it('keeps an unapplied mutation when renewing its approval fails', async () => {
         let now = unixNow();
         await withController(
-          async ({ authProvider, escrowA, escrowB, options }) => {
-            const controller = new MfaRecoveryController({
-              ...options,
-              messenger: getMessenger(getRootMessenger(options.authProvider)),
-              now: (): number => now,
-            });
+          { now: (): number => now },
+          async ({ controller, authProvider, escrowA, escrowB }) => {
             await controller.register(SECRET, IDENTIFIERS);
             escrowA.failNextApplyCount = 1;
             escrowB.failNextApplyCount = 1;
@@ -2829,114 +2827,118 @@ describe('MfaRecoveryController', () => {
 
     it('aborts a writing mutation no escrow applied once its approval expires', async () => {
       let now = unixNow();
-      await withController(async ({ escrowA, escrowB, options }) => {
-        const controller = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger(options.authProvider)),
-          now: (): number => now,
-        });
-        await controller.register(SECRET, IDENTIFIERS);
-        escrowA.failNextApplyCount = 1;
-        escrowB.failNextApplyCount = 1;
-        await expect(
-          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        await expect(controller.abort()).rejects.toThrow(
-          'Cannot abort a mutation that may have been applied',
-        );
+      await withController(
+        { now: (): number => now },
+        async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          escrowB.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          await expect(controller.abort()).rejects.toThrow(
+            'Cannot abort a mutation that may have been applied',
+          );
 
-        now += 10 * 60;
-        vi.spyOn(escrowB, 'getIdentifiers').mockRejectedValueOnce(
-          new Error('offline'),
-        );
-        await expect(controller.abort()).rejects.toThrow(
-          'Cannot abort a mutation that may have been applied',
-        );
-        await controller.abort();
+          now += 10 * 60;
+          vi.spyOn(escrowB, 'getIdentifiers').mockRejectedValueOnce(
+            new Error('offline'),
+          );
+          await expect(controller.abort()).rejects.toThrow(
+            'Cannot abort a mutation that may have been applied',
+          );
+          await controller.abort();
 
-        expect(await controller.getPhase()).toBe('idle');
-      });
+          expect(await controller.getPhase()).toBe('idle');
+        },
+      );
     });
 
     it('keeps an expired writing mutation when signed in to another profile', async () => {
       let now = unixNow();
-      await withController(async ({ escrowA, escrowB, options }) => {
-        const controller = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger(options.authProvider)),
-          now: (): number => now,
-        });
-        await controller.register(SECRET, IDENTIFIERS);
-        escrowA.failNextApplyCount = 1;
-        escrowB.failNextApplyCount = 1;
-        await expect(
-          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        options.authProvider.profileId = 'profile-2';
+      await withController(
+        { now: (): number => now },
+        async ({ controller, authProvider, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          escrowB.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          authProvider.profileId = 'profile-2';
 
-        now += 10 * 60;
-        await expect(controller.abort()).rejects.toMatchObject({
-          code: 'invalid_pending_operation',
-        });
+          now += 10 * 60;
+          await expect(controller.abort()).rejects.toMatchObject({
+            code: 'invalid_pending_operation',
+          });
 
-        expect(await controller.getPhase()).toBe('writing');
-      });
+          expect(await controller.getPhase()).toBe('writing');
+        },
+      );
     });
 
     it('clears instead of resuming a writing mutation no escrow applied once its approval expires', async () => {
       let now = unixNow();
-      await withController(async ({ escrowA, escrowB, options }) => {
-        const controller = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger(options.authProvider)),
-          now: (): number => now,
-        });
-        await controller.register(SECRET, IDENTIFIERS);
-        escrowA.failNextApplyCount = 1;
-        escrowB.failNextApplyCount = 1;
-        await expect(
-          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        const authorize = vi.spyOn(options.authProvider, 'requestMfaApproval');
+      await withController(
+        { now: (): number => now },
+        async ({ controller, authProvider, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          escrowB.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          const authorize = vi.spyOn(authProvider, 'requestMfaApproval');
 
-        now += 10 * 60;
-        await expect(controller.resume()).rejects.toBeInstanceOf(
-          MutationRejectedError,
-        );
+          now += 10 * 60;
+          await expect(controller.resume()).rejects.toBeInstanceOf(
+            MutationRejectedError,
+          );
 
-        expect(await controller.getPhase()).toBe('idle');
-        expect(authorize).not.toHaveBeenCalledWith(
-          expect.objectContaining({ requireVerification: true }),
-        );
-      });
+          expect(await controller.getPhase()).toBe('idle');
+          expect(authorize).not.toHaveBeenCalledWith(
+            expect.objectContaining({ requireVerification: true }),
+          );
+        },
+      );
     });
 
     it('aborts a writing register no escrow applied once its approval expires', async () => {
       let now = unixNow();
-      await withController(async ({ escrowA, escrowB, options }) => {
-        const controller = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger(options.authProvider)),
-          now: (): number => now,
-        });
-        escrowA.failNextApplyCount = 1;
-        escrowB.failNextApplyCount = 1;
-        await expect(
-          controller.register(SECRET, IDENTIFIERS),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        // Escrows read a missing record as version 0.
-        for (const escrow of [escrowA, escrowB]) {
-          vi.spyOn(escrow, 'getIdentifiers').mockResolvedValue({
-            identifiers: [],
-            version: 0,
-          });
-        }
+      await withController(
+        { now: (): number => now },
+        async ({ controller, escrowA, escrowB }) => {
+          escrowA.failNextApplyCount = 1;
+          escrowB.failNextApplyCount = 1;
+          await expect(
+            controller.register(SECRET, IDENTIFIERS),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          // Escrows read a missing record as version 0.
+          for (const escrow of [escrowA, escrowB]) {
+            vi.spyOn(escrow, 'getIdentifiers').mockResolvedValue({
+              identifiers: [],
+              version: 0,
+            });
+          }
 
-        now += 10 * 60;
-        await controller.abort();
+          now += 10 * 60;
+          await controller.abort();
 
-        expect(await controller.getPhase()).toBe('idle');
-      });
+          expect(await controller.getPhase()).toBe('idle');
+        },
+      );
     });
 
     it('aborts an authorizing mutation and refuses to abort writing', async () => {
@@ -3748,6 +3750,7 @@ describe('MfaRecoveryController', () => {
     it('renews a write approval that expires while reading back the recovery secret', async () => {
       let now = unixNow();
       await withController(
+        { now: (): number => now },
         async ({ controller, authProvider, escrowA, escrowB, options }) => {
           await controller.register(SECRET, IDENTIFIERS);
           escrowA.failNextApplyCount = 1;
@@ -3761,10 +3764,7 @@ describe('MfaRecoveryController', () => {
           const { requestHash } = (
             controller.state.pendingOperation as PendingOperation
           ).mutation;
-          const restarted = restart(controller, options, () => now);
-          authProvider.now = (): number => now;
-          escrowA.now = (): number => now;
-          escrowB.now = (): number => now;
+          const restarted = restart(controller, options);
           const getSecret = escrowB.getSecret.bind(escrowB);
           vi.spyOn(escrowB, 'getSecret').mockImplementation(async (...args) => {
             const secret = await getSecret(...args);
@@ -3814,6 +3814,7 @@ describe('MfaRecoveryController', () => {
     it('keeps a mutation no escrow applied until its approval expires', async () => {
       let now = unixNow();
       await withController(
+        { now: (): number => now },
         async ({ controller, authProvider, escrowA, escrowB, options }) => {
           await controller.register(SECRET, IDENTIFIERS);
           escrowA.failNextApplyCount = 1;
@@ -3825,7 +3826,7 @@ describe('MfaRecoveryController', () => {
               REGISTERED_EPOCH,
             ),
           ).rejects.toBeInstanceOf(IncompleteMutationError);
-          const restarted = restart(controller, options, () => now);
+          const restarted = restart(controller, options);
           const auth = vi.spyOn(authProvider, 'requestMfaApproval');
           const applyA = vi.spyOn(escrowA, 'applyMutation');
           const applyB = vi.spyOn(escrowB, 'applyMutation');
@@ -4117,13 +4118,11 @@ function getOptions(
 function restart(
   controller: MfaRecoveryController,
   options: ReturnType<typeof getOptions>,
-  now?: () => number,
 ): MfaRecoveryController {
   return new MfaRecoveryController({
     ...options,
     messenger: getMessenger(getRootMessenger(options.authProvider)),
     state: { ...controller.state },
-    ...(now === undefined ? {} : { now }),
   });
 }
 
@@ -4181,6 +4180,7 @@ async function getValidWritingPending(
 
 type WithControllerOptions = {
   identifierAuthProvider?: RecoveryIdentifierAuthProvider;
+  now?: () => number;
 };
 
 async function withController<ReturnValue>(
@@ -4188,7 +4188,7 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ identifierAuthProvider }, testFunction] =
+  const [{ identifierAuthProvider, now }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
   const escrowA = new StubEscrowProvider(
     'escrow-a',
@@ -4201,6 +4201,11 @@ async function withController<ReturnValue>(
     await generateSigningKey(),
   );
   const defaultOptions = getOptions(escrowA, escrowB);
+  if (now !== undefined) {
+    defaultOptions.authProvider.now = now;
+    escrowA.now = now;
+    escrowB.now = now;
+  }
   const rootMessenger = getRootMessenger(defaultOptions.authProvider);
   const controllerMessenger = getMessenger(rootMessenger);
   const options = {
@@ -4208,6 +4213,7 @@ async function withController<ReturnValue>(
     identifierAuthProvider:
       identifierAuthProvider ?? defaultOptions.identifierAuthProvider,
     messenger: controllerMessenger,
+    ...(now === undefined ? {} : { now }),
   };
   const controller = new MfaRecoveryController(options);
   return await testFunction({
