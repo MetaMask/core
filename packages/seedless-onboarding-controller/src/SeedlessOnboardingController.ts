@@ -1217,6 +1217,8 @@ export class SeedlessOnboardingController<
    * no vault keys are sealed for the global password and it does not derive
    * the vault keys either, or the envelope sealed for the global password
    * holds another vault key set.
+   * @throws `NoSecretDataFound` if the global password has no envelope and
+   * its partition has neither secret items nor a matching control record.
    */
   async syncLatestGlobalPassword({
     globalPassword,
@@ -1268,9 +1270,10 @@ export class SeedlessOnboardingController<
           };
           // a migrated vault has no pbek until its first envelope password
           // change, so the password may derive K_v directly
-          const isEnvelopeManaged = await this.#hasMatchingControlRecord(
-            passwordKeySet,
-            authKeyPair.pk,
+          const { secretItems, controlRecords } =
+            await this.#envelopeStore.fetchVaultItems(passwordKeySet);
+          const isEnvelopeManaged = Boolean(
+            selectControlRecord(controlRecords, authKeyPair.pk),
           );
           if (
             this.state.envelope &&
@@ -1284,6 +1287,11 @@ export class SeedlessOnboardingController<
           ) {
             throw new SeedlessOnboardingError(
               SeedlessOnboardingControllerErrorMessage.PasswordEnvelopeNotFound,
+            );
+          }
+          if (!isEnvelopeManaged && secretItems.length === 0) {
+            throw new SeedlessOnboardingError(
+              SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
             );
           }
           // update and encrypt the vault with new password
@@ -3479,25 +3487,6 @@ export class SeedlessOnboardingController<
     this.update((state) => {
       state.envelope = createEnvelopeState(vaultKeySet, passwordAuthPubKey);
     });
-  }
-
-  /**
-   * Until the first envelope password change, a migrated vault has no
-   * `pbek`, so a control record matching the password is what marks it
-   * envelope-managed.
-   *
-   * @param vaultKeySet - The vault key set.
-   * @param passwordAuthPubKey - The password OPRF auth public key.
-   * @returns Whether the vault has a control record for the password.
-   * @throws If the control records cannot be fetched.
-   */
-  async #hasMatchingControlRecord(
-    vaultKeySet: VaultKeySet,
-    passwordAuthPubKey: SEC1EncodedPublicKey,
-  ): Promise<boolean> {
-    const controlRecords =
-      await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-    return Boolean(selectControlRecord(controlRecords, passwordAuthPubKey));
   }
 
   /**

@@ -36,18 +36,26 @@ const log = createModuleLogger(projectLogger, controllerName);
  *
  * @param items - The fetched items, newest first.
  * @returns The parsed envelopes, in the order of `items`.
+ * @throws `InvalidEnvelope` if `KeyEnvelope` items are present but none parse.
  */
 function parseEnvelopeItems(items: FetchedSecretDataItem[]): Envelope[] {
   const envelopes: Envelope[] = [];
+  let hasEnvelopeItem = false;
   for (const item of items) {
     if (item.dataType !== EncAccountDataType.KeyEnvelope) {
       continue;
     }
+    hasEnvelopeItem = true;
     try {
       envelopes.push(parseEnvelope(item.data));
     } catch (error) {
       log('Ignoring malformed envelope item', error);
     }
+  }
+  if (hasEnvelopeItem && envelopes.length === 0) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+    );
   }
   return envelopes;
 }
@@ -79,7 +87,8 @@ export class EnvelopeStore {
    * @param keys - The envelope keys of the partition.
    * @param path - The path of the envelopes.
    * @returns The well-formed envelopes of the path, newest first.
-   * @throws The auth token error as-is, or `FailedToFetchSecretMetadata`.
+   * @throws The auth token error as-is, `InvalidEnvelope` if `KeyEnvelope`
+   * items are present but none parse, or `FailedToFetchSecretMetadata`.
    */
   async fetchEnvelopes(
     keys: EnvelopeKeys,
@@ -107,6 +116,25 @@ export class EnvelopeStore {
   }
 
   /**
+   * Fetch all items of a vault partition, split into secret items and
+   * well-formed control records.
+   *
+   * @param vaultKeySet - The vault key set (K_v).
+   * @returns The secret items and the well-formed control records, newest first.
+   * @throws The auth token error as-is, or `FailedToFetchSecretMetadata`.
+   */
+  async fetchVaultItems(vaultKeySet: VaultKeySet): Promise<{
+    secretItems: FetchedSecretDataItem[];
+    controlRecords: ControlRecord[];
+  }> {
+    const items = await this.#fetchItems(
+      vaultKeySet.encKey,
+      vaultKeySet.authKeyPair,
+    );
+    return splitVaultItems(items);
+  }
+
+  /**
    * Fetch the control records of a vault from the vault partition. The
    * secrets of the partition are ignored.
    *
@@ -117,11 +145,7 @@ export class EnvelopeStore {
   async fetchControlRecords(
     vaultKeySet: VaultKeySet,
   ): Promise<ControlRecord[]> {
-    const items = await this.#fetchItems(
-      vaultKeySet.encKey,
-      vaultKeySet.authKeyPair,
-    );
-    return splitVaultItems(items).controlRecords;
+    return (await this.fetchVaultItems(vaultKeySet)).controlRecords;
   }
 
   /**

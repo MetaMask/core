@@ -231,6 +231,8 @@ export type SeedlessOnboardingControllerSetLockedAction = {
  * no vault keys are sealed for the global password and it does not derive
  * the vault keys either, or the envelope sealed for the global password
  * holds another vault key set.
+ * @throws `NoSecretDataFound` if the global password has no envelope and
+ * its partition has neither secret items nor a matching control record.
  */
 export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
   type: `SeedlessOnboardingController:syncLatestGlobalPassword`;

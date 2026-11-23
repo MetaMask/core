@@ -185,6 +185,37 @@ describe('EnvelopeStore', () => {
       ).toStrictEqual([envelope]);
     });
 
+    it('throws InvalidEnvelope when KeyEnvelope items are present but none parse', async () => {
+      const { store, toprfClient } = createStore();
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        createItem(stringToBytes('garbage')),
+        createItem(
+          stringToBytes(
+            JSON.stringify({ ...sealEnvelope('password', vaultKeySet), v: 2 }),
+          ),
+        ),
+      ]);
+
+      await expect(
+        store.fetchEnvelopes(envelopeKeys, 'password'),
+      ).rejects.toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+      );
+    });
+
+    it('returns no envelopes when only non-envelope items exist', async () => {
+      const { store, toprfClient } = createStore();
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        createItem(stringToBytes('x'), {
+          dataType: EncAccountDataType.PrimarySrp,
+        }),
+      ]);
+
+      expect(
+        await store.fetchEnvelopes(envelopeKeys, 'password'),
+      ).toStrictEqual([]);
+    });
+
     it('returns no envelopes for an empty partition', async () => {
       const { store } = createStore();
 
@@ -285,6 +316,33 @@ describe('EnvelopeStore', () => {
       const { store } = createStore();
 
       expect(await store.fetchControlRecords(vaultKeySet)).toStrictEqual([]);
+    });
+
+    it('fetches secret items and well-formed control records together', async () => {
+      const { store, toprfClient } = createStore();
+      const secretItem = createItem(stringToBytes('srp'), {
+        dataType: EncAccountDataType.PrimarySrp,
+      });
+      const legacyItem = createItem(stringToBytes('legacy'), {
+        dataType: undefined,
+      });
+      const envelope = sealEnvelope('password', vaultKeySet);
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        secretItem,
+        createItem(serializeControlRecord(createRecord(1)), {
+          dataType: EncAccountDataType.EnvelopeControl,
+        }),
+        createItem(stringToBytes('garbage'), {
+          dataType: EncAccountDataType.EnvelopeControl,
+        }),
+        legacyItem,
+        createItem(serializeEnvelope(envelope)),
+      ]);
+
+      expect(await store.fetchVaultItems(vaultKeySet)).toStrictEqual({
+        secretItems: [secretItem, legacyItem],
+        controlRecords: [createRecord(1)],
+      });
     });
   });
 });

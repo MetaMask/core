@@ -3396,6 +3396,76 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('throws NoSecretDataFound without touching the vault when the device has no envelope state and the password envelope is missing', async () => {
+        const store = await createMigratedAccount();
+        store.delete(
+          bytesToHex(keysFor(NEW_PASSWORD).envelopeKeys.authKeyPair.pk),
+        );
+
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
+          expect(controller.state.envelope).toBeUndefined();
+          const { vault, authPubKey } = controller.state;
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
+          );
+
+          expect(controller.state.vault).toBe(vault);
+          expect(controller.state.authPubKey).toBe(authPubKey);
+          expect(controller.state.envelope).toBeUndefined();
+          expect(
+            await controller.verifyVaultPassword(MOCK_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
+      it('throws InvalidEnvelope without touching the vault when the device has no envelope state and the password envelope is unparseable', async () => {
+        const store = await createMigratedAccount();
+        const { envelopeKeys } = keysFor(NEW_PASSWORD);
+        const partition = new Map([
+          [
+            'v2-envelope',
+            {
+              encKey: bytesToHex(envelopeKeys.wrapKey),
+              dataType: EncAccountDataType.KeyEnvelope,
+              data: stringToBytes(
+                JSON.stringify({
+                  ...sealEnvelope('password', vaultKeySetFor()),
+                  v: 2,
+                }),
+              ),
+            },
+          ],
+        ]);
+        store.set(bytesToHex(envelopeKeys.authKeyPair.pk), partition);
+
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
+          expect(controller.state.envelope).toBeUndefined();
+          const { vault, authPubKey } = controller.state;
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+          );
+
+          expect(controller.state.vault).toBe(vault);
+          expect(controller.state.authPubKey).toBe(authPubKey);
+          expect(controller.state.envelope).toBeUndefined();
+          expect(
+            await controller.verifyVaultPassword(MOCK_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
       it('throws PasswordEnvelopeNotFound when the global password derives the keys of another envelope-managed vault', async () => {
         await withUnlockedController(async (args) => {
           const { controller, toprfClient } = args;

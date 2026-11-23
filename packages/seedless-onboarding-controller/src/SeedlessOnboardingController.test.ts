@@ -396,9 +396,17 @@ describe('SeedlessOnboardingController', () => {
   // These tests cover profiles that were never migrated to key envelopes.
   beforeEach(() => {
     vi.spyOn(EnvelopeStore.prototype, 'fetchEnvelopes').mockResolvedValue([]);
-    vi.spyOn(EnvelopeStore.prototype, 'fetchControlRecords').mockResolvedValue(
-      [],
-    );
+    vi.spyOn(EnvelopeStore.prototype, 'fetchVaultItems').mockResolvedValue({
+      secretItems: [
+        {
+          itemId: 'mock-item-id',
+          dataType: EncAccountDataType.PrimarySrp,
+          data: new Uint8Array(),
+          version: 'v2',
+        },
+      ],
+      controlRecords: [],
+    });
   });
 
   describe('constructor', () => {
