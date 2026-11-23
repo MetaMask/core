@@ -129,6 +129,15 @@ import { carryProviderErrorCause } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { hasFeeSetter } from '../utils/feeSupport.js';
 
+/** A venue read whose price or metadata can expire before it reaches the caller. */
+export type VenueMarketData =
+  | PerpsMarketData[]
+  | {
+      markets: PerpsMarketData[];
+      expiresAt: number;
+      getFallback: () => Promise<PerpsMarketData[]>;
+    };
+
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
   readonly suspendedOrders: ChaseOrder[];
@@ -854,18 +863,70 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
-  async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+  /**
+   * Read market data from every venue and stamp each row with its venue.
+   *
+   * @param readVenue - Per-venue read, such as one that applies the venue's
+   * own Terminal snapshot. Defaults to the venue's `getMarketDataWithPrices`.
+   * @returns Rows from every venue whose read succeeded.
+   */
+  async getMarketDataWithPrices(
+    readVenue: (
+      providerId: PerpsProviderType,
+      provider: PerpsProvider,
+    ) => Promise<VenueMarketData> = async (_providerId, provider) =>
+      provider.getMarketDataWithPrices(),
+  ): Promise<PerpsMarketData[]> {
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const data = await provider.getMarketDataWithPrices();
-        return data.map((item) => ({ ...item, providerId: id }));
-      }),
+      this.#getActiveProviders().map(async ([id, provider]) => ({
+        providerId: id,
+        data: await readVenue(id, provider),
+      })),
     );
+
+    // A sibling read or fallback may outlast another venue's snapshot.
+    // Each expired read is replaced by live rows or a rejection once.
+    while (true) {
+      const now = Date.now();
+      const fallbacks = results.flatMap((result, index) => {
+        if (result.status === 'rejected') {
+          return [];
+        }
+        const { providerId, data } = result.value;
+        if (Array.isArray(data) || data.expiresAt > now) {
+          return [];
+        }
+        return [
+          Promise.resolve()
+            .then(data.getFallback)
+            .then(
+              (markets) => {
+                results[index] = {
+                  status: 'fulfilled',
+                  value: { providerId, data: markets },
+                };
+              },
+              (reason: unknown) => {
+                results[index] = { status: 'rejected', reason };
+              },
+            ),
+        ];
+      });
+      if (fallbacks.length === 0) {
+        break;
+      }
+      await Promise.all(fallbacks);
+    }
 
     return this.#extractSuccessfulResults(
       results,
       'getMarketDataWithPrices',
-    ).flat();
+    ).flatMap(({ providerId, data }) =>
+      (Array.isArray(data) ? data : data.markets).map((item) => ({
+        ...item,
+        providerId,
+      })),
+    );
   }
 
   async getOrderFills(

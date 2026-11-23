@@ -470,3 +470,49 @@ describe('PerpsAnalyticsEvent', () => {
     expect(Object.keys(PerpsAnalyticsEvent)).toHaveLength(14);
   });
 });
+
+describe('analytics keys clients previously defined locally', () => {
+  it('does not export keys that duplicate SEARCH_QUERY, ASSET or RESULT_RANK', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('QUERY_TEXT');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('MARKET');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('POSITION');
+  });
+
+  it('exports the search funnel, chase and related-markets property keys', () => {
+    expect(PERPS_EVENT_PROPERTY).toMatchObject({
+      QUERY_COUNT: 'query_count',
+      TIME_IN_SEARCH_MS: 'time_in_search_ms',
+      TIME_TO_TAP_MS: 'time_to_tap_ms',
+      QUERY_LENGTH: 'query_length',
+      HAS_RESULTS: 'has_results',
+      ACTIVE_CHIPS: 'active_chips',
+      FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
+      SOURCE_MARKET: 'source_market',
+      CATEGORY: 'category',
+    });
+  });
+
+  it('exports the close-all, chart, order-book, chase and related-markets interaction values', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE).toMatchObject({
+      CLOSE_ALL_TAPPED: 'close_all_tapped',
+      CLOSE_ALL_CONFIRMED: 'close_all_confirmed',
+      CLOSE_ALL_CANCELLED: 'close_all_cancelled',
+      CHART_OPENED: 'chart_opened',
+      CHART_CLOSED: 'chart_closed',
+      ORDER_BOOK_OPENED: 'order_book_opened',
+      ORDER_BOOK_CLOSED: 'order_book_closed',
+      CHASE_CONCURRENCY_LIMIT_HIT: 'chase_concurrency_limit_hit',
+      CHASE_MAX_DISTANCE_HIT: 'chase_max_distance_hit',
+      CHASE_REPRICE: 'chase_reprice',
+      RELATED_MARKET_CLICKED: 'related_market_clicked',
+      RELATED_MARKETS_HEADER_TAPPED: 'related_markets_header_tapped',
+    });
+    expect(PERPS_EVENT_VALUE.SOURCE.RELATED_MARKETS).toBe('related_markets');
+  });
+
+  it('keeps every property key unique', () => {
+    const values = Object.values(PERPS_EVENT_PROPERTY);
+
+    expect(new Set(values).size).toBe(values.length);
+  });
+});

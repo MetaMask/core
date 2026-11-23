@@ -353,6 +353,7 @@ let mockMessenger = createMockMessenger();
  * @param options.allowlistMarkets - HIP-3 market allowlist.
  * @param options.blocklistMarkets - HIP-3 market blocklist.
  * @param options.useUnifiedAccount - Whether HIP-3 orders use unified collateral.
+ * @param options.priceDeviationLimit - Oracle price deviation limit override.
  * @param options.onChaseOrderMaxDistanceReached - Chase boundary callback.
  * @returns The provider under test.
  */
@@ -364,6 +365,7 @@ export const createTestProvider = (
     allowlistMarkets?: string[];
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
+    priceDeviationLimit?: number;
     onChaseOrderMaxDistanceReached?: (
       event: ChaseOrderMaxDistanceReached,
     ) => void;
