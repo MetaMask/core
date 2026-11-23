@@ -133,7 +133,12 @@ export type TransakAdditionalRequirementOption = {
 export type TransakAdditionalRequirement = {
   type: string;
   metadata?: {
-    options?: TransakAdditionalRequirementOption[];
+    /**
+     * Form-specific option list. Most forms (e.g. `id-proof`) return plain
+     * strings, while `SOURCE_OF_INCOME` returns `{ name, value }` objects.
+     * Callers must handle both shapes.
+     */
+    options?: string[] | TransakAdditionalRequirementOption[];
     documentProofOptions?: string[];
     expiresAt?: string;
     kycUrl?: string;

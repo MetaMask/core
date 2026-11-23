@@ -1520,6 +1520,50 @@ describe('TransakService', () => {
       ).toHaveLength(3);
     });
 
+    it('preserves both string[] and option-object shapes for metadata.options', async () => {
+      const mixedRequirements = {
+        formsRequired: [
+          {
+            type: 'id-proof',
+            metadata: { options: ['passport', 'drivers_license'] },
+          },
+          {
+            type: 'SOURCE_OF_INCOME',
+            metadata: {
+              options: [
+                { name: 'Salary', value: 'salary' },
+                { name: 'Savings', value: 'savings' },
+              ],
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-mixed-1')
+        .reply(200, { data: mixedRequirements });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-mixed-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(mixedRequirements);
+      const [idProof, sourceOfIncome] = result.formsRequired;
+      expect(idProof.metadata?.options).toStrictEqual([
+        'passport',
+        'drivers_license',
+      ]);
+      expect(sourceOfIncome.metadata?.options).toStrictEqual([
+        { name: 'Salary', value: 'salary' },
+        { name: 'Savings', value: 'savings' },
+      ]);
+    });
+
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(service.getAdditionalRequirements('q-1')).rejects.toThrow(
