@@ -34,7 +34,10 @@ import type {
   KycStepStatus,
 } from './types.js';
 import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
-import { createUkycSession } from './ukyc/sessionAuthorization.js';
+import {
+  createUkycSession,
+  refreshAuthorizations,
+} from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 
 // === GENERAL ===
@@ -286,7 +289,9 @@ export class VendorOnboardingController extends BaseController<
    *
    * A new session creates the user's `local_user_secret` when it is missing,
    * then wraps the encryption key and a capability token for idOS. An existing
-   * session is picked up as it is: its authorizations are left alone.
+   * session gets fresh authorizations every time, because the step does not
+   * say whether its capability authorization is still valid. That lets a
+   * reinstall or a second device carry on where the user left off.
    *
    * This does not create a vendor customer. A vendor that needs one before
    * its session (Iron) adds that when it moves to this controller.
@@ -311,15 +316,23 @@ export class VendorOnboardingController extends BaseController<
     intentOpen?: boolean;
   }): Promise<KycStep> {
     const { vendor } = params;
-    if (this.state.vendors[vendor]?.sessionId) {
-      return this.#readStep(vendor, { supersede: true });
-    }
-    // Without a saved session id (a fresh install or a reinstall), kyc-api
-    // reports the session it already has for the vendor with the step.
-    const existing = await this.#readStepInfo(vendor);
+    // A saved id, or the one the step reports when the phone has none (a
+    // reinstall). Either way the session already exists, so it is resumed.
+    const sessionId =
+      this.state.vendors[vendor]?.sessionId ??
+      (await this.#readStepInfo(vendor)).sessionId;
 
-    if (existing.sessionId) {
-      return existing.step;
+    if (sessionId) {
+      // Just assume fresh authorizations are needed.
+      // Without fetching the session status, we cannot actually know. This
+      // points to the capability authorization logic needing to be in its
+      // own explicit step, not one shared with `mfa`.
+      await refreshAuthorizations({
+        messenger: this.messenger,
+        localUserSecretStore: this.#localUserSecretStore,
+        sessionId,
+      });
+      return this.#readStep(vendor, { supersede: true });
     }
 
     if (!params.aal2Token) {
