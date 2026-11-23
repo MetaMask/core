@@ -134,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `isMarketTradable` (and `PriceUpdate.isTradable`) checks the deviation with `isPriceOutsideDeviationBand` in exact decimals instead of float division. Results differ only for a price within float error of the band edge ([#11702](https://github.com/MetaMask/core/pull/11702))
 - Order book streams compute `spread`, `midPrice` and `spreadPercentage` with `calculateOrderBookSpread` in exact decimals, keeping each stream's string format. A Lighter book with one empty side now reports a `spread` of `'0'` instead of the other side's price ([#11702](https://github.com/MetaMask/core/pull/11702))
 - Make `TrackingData.totalFee` and `TrackingData.marketPrice` optional, so clients can send tracking data when the fee or price is unknown instead of dropping the whole object; events omit the fee and asset price properties when they are missing ([#11699](https://github.com/MetaMask/core/pull/11699))
-- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders([#11690](https://github.com/MetaMask/core/pull/11690))
+- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
   - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
 
 ### Deprecated
