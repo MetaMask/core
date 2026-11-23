@@ -1,4 +1,3 @@
-import { Messenger } from '@metamask/messenger';
 import type { SignatureControllerMessenger } from '@metamask/signature-controller';
 import { SignatureController } from '@metamask/signature-controller';
 
@@ -18,14 +17,9 @@ export const signatureController: InitializationConfiguration<
       messenger,
       state,
     }),
-  getMessenger: (parent) => {
-    const messenger: SignatureControllerMessenger = new Messenger({
+  getMessenger: (parent) =>
+    parent.buildChild({
       namespace: 'SignatureController',
-      parent,
-    });
-
-    parent.delegate({
-      messenger,
       actions: [
         'AccountsController:getState',
         'ApprovalController:addRequest',
@@ -36,8 +30,5 @@ export const signatureController: InitializationConfiguration<
         'LoggingController:add',
         'NetworkController:getNetworkClientById',
       ],
-    });
-
-    return messenger;
-  },
+    }),
 };
