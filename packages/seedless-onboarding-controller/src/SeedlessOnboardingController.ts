@@ -430,12 +430,20 @@ export class SeedlessOnboardingController<
           idTokens,
           groupedAuthConnectionId,
         });
-        // recovery state belongs to the user it was started for
-        const isUserChanged = this.state.userId !== userId;
+        // recovery and envelope state belong to the user/verifier they were
+        // started for
+        const currentVerifier =
+          this.state.groupedAuthConnectionId ?? this.state.authConnectionId;
+        const nextVerifier = groupedAuthConnectionId ?? authConnectionId;
+        const isUserChanged =
+          this.state.userId !== userId || currentVerifier !== nextVerifier;
         // update the state with the authenticated user info
         this.update((state) => {
           if (isUserChanged) {
             delete state.recoverySession;
+            delete state.envelope;
+            delete state.isLocalPassword;
+            delete state.passwordOutdatedCache;
           }
           state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
           state.authConnectionId = authConnectionId;

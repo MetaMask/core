@@ -4831,6 +4831,149 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('keeps recovery and envelope state when authenticate switches authConnectionId under the same grouped verifier', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+          const { recoverySession, envelope } = controller.state;
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: AAL2_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['same-grouped-user-id-token'],
+              accessToken: 'same-grouped-user-access-token',
+              metadataAccessToken: 'same-grouped-user-metadata-access-token',
+              ...socialLoginOf(controller.state),
+              authConnectionId: 'other-provider-connection-id',
+              refreshToken: 'same-grouped-user-refresh-token',
+            },
+          );
+
+          expect(controller.state.recoverySession).toStrictEqual(
+            recoverySession,
+          );
+          expect(controller.state.envelope).toStrictEqual(envelope);
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it.each([
+        ['a different userId', { userId: 'other-user@example.com' }],
+        [
+          'a different groupedAuthConnectionId',
+          { groupedAuthConnectionId: 'other-grouped-connection-id' },
+        ],
+        [
+          'a different ungrouped authConnectionId',
+          {
+            groupedAuthConnectionId: undefined,
+            authConnectionId: 'other-auth-connection-id',
+          },
+        ],
+      ])(
+        'clears recovery, envelope, local password, and outdated cache state when authenticate runs for %s',
+        async (_label, overrides) => {
+          const store = await createMigratedAccount();
+
+          await withNewDeviceController(async (args) => {
+            const { controller, toprfClient, baseMessenger } = args;
+            mockNetwork(toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await recover(args);
+            await controller.checkIsPasswordOutdated({ skipCache: true });
+            expect(controller.state.recoverySession).toBeDefined();
+            expect(controller.state.envelope).toBeDefined();
+            expect(controller.state.isLocalPassword).toBe(true);
+            expect(controller.state.passwordOutdatedCache).toBeDefined();
+
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await baseMessenger.call(
+              'SeedlessOnboardingController:authenticate',
+              {
+                idTokens: ['other-user-id-token'],
+                accessToken: 'other-user-access-token',
+                metadataAccessToken: 'other-user-metadata-access-token',
+                ...socialLoginOf(controller.state),
+                ...overrides,
+                refreshToken: 'other-user-refresh-token',
+              },
+            );
+
+            expect(controller.state.recoverySession).toBeUndefined();
+            expect(controller.state.envelope).toBeUndefined();
+            expect(controller.state.isLocalPassword).toBeUndefined();
+            expect(controller.state.passwordOutdatedCache).toBeUndefined();
+          });
+        },
+      );
+
+      it('allows recoverWithRecoverySecret for a new user after authenticating without clearState', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          // @ts-expect-error Accessing protected method for testing
+          controller.update((state) => {
+            state.userId = 'previous-user@example.com';
+            state.envelope = {
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf('previous-user-password'),
+              passwordAuthPubKey: authPubKeyOf('previous-user-password'),
+            };
+            state.isLocalPassword = true;
+          });
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['new-user-id-token'],
+              accessToken: 'new-user-access-token',
+              metadataAccessToken: 'new-user-metadata-access-token',
+              ...socialLoginOf(controller.state),
+              userId: MOCK_USER_ID,
+              refreshToken: 'new-user-refresh-token',
+            },
+          );
+
+          const secrets = await recover(args);
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+        });
+      });
+
       it('returns the access token after recovery', async () => {
         const store = await createMigratedAccount();
 
