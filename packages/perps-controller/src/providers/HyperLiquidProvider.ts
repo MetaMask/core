@@ -18195,10 +18195,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Cross collateral and maintenance, the market's tiers and the live
    * position, flat when the account holds none.
    *
-   * Standard accounts keep a separate clearinghouse per DEX. On a HIP-3 DEX,
-   * placement moves margin in from another DEX when the DEX's withdrawable
-   * balance is below the order's required margin, and returns the excess
-   * afterwards (`#handleHip3PreOrder`, `#handleHip3PostOrderRebalance`).
+   * Standard accounts keep a separate clearinghouse per DEX. On a HIP-3 DEX
+   * with `useUnifiedAccount` off, placement moves margin in from another DEX
+   * when the DEX's withdrawable balance is below the order's required margin,
+   * and returns the excess afterwards (`#handleHip3PreOrder`, `#handleHip3PostOrderRebalance`).
    * `hip3Funding` carries that balance and the required margin placement
    * computes, so the estimate prices the DEX as placement leaves it.
    *
@@ -18312,7 +18312,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       accountValue,
       maintenanceMargin,
     };
-    if (dex !== null && withdrawable !== undefined) {
+    // Placement moves funds to the DEX only without Unified Account.
+    if (
+      dex !== null &&
+      withdrawable !== undefined &&
+      !this.#useUnifiedAccount
+    ) {
       crossAccount.hip3Funding = {
         withdrawable,
         requiredMargin: await this.#calculateHip3RequiredMargin({

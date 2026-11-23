@@ -90,7 +90,10 @@ const parseAmount = (display: string | undefined): number | undefined =>
  */
 const getNumericSortValue = (
   market: PerpsMarketData,
-  sortBy: Exclude<MarketSortField, 'name'>,
+  sortBy: Exclude<
+    MarketSortField,
+    typeof MARKET_SORTING_CONFIG.SortFields.Name
+  >,
 ): number | undefined => {
   const values = market.numericValues;
   switch (sortBy) {
@@ -100,7 +103,7 @@ const getNumericSortValue = (
       return values
         ? toNonNegative(values.openInterest)
         : parseAmount(market.openInterest);
-    case 'price':
+    case MARKET_SORTING_CONFIG.SortFields.Price:
       return values ? toNonNegative(values.price) : parseAmount(market.price);
     case MARKET_SORTING_CONFIG.SortFields.PriceChange:
       return toFinite(
@@ -133,14 +136,14 @@ const getNumericSortValue = (
 export const sortMarkets = ({
   markets,
   sortBy,
-  direction = sortBy === 'name'
+  direction = sortBy === MARKET_SORTING_CONFIG.SortFields.Name
     ? 'asc'
     : MARKET_SORTING_CONFIG.DefaultDirection,
 }: SortMarketsParams): PerpsMarketData[] => {
   const sign = direction === MARKET_SORTING_CONFIG.DefaultDirection ? -1 : 1;
 
   return [...markets].sort((a, b) => {
-    if (sortBy === 'name') {
+    if (sortBy === MARKET_SORTING_CONFIG.SortFields.Name) {
       return (
         sign *
         (compareText(

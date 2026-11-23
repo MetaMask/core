@@ -830,7 +830,6 @@ describe('MarketDataService', () => {
         await marketDataService.estimateCrossLiquidation({
           provider: mockProvider,
           params,
-          context: mockContext,
         }),
       ).toStrictEqual({ status: 'price', price: '45000' });
       expect(mockProvider.estimateCrossLiquidation).toHaveBeenCalledWith(
@@ -845,7 +844,6 @@ describe('MarketDataService', () => {
         await marketDataService.estimateCrossLiquidation({
           provider: mockProvider,
           params,
-          context: mockContext,
         }),
       ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
     });
@@ -859,7 +857,6 @@ describe('MarketDataService', () => {
         await marketDataService.estimateCrossLiquidation({
           provider: mockProvider,
           params,
-          context: mockContext,
         }),
       ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
       expect(mockDeps.logger.error).toHaveBeenCalled();

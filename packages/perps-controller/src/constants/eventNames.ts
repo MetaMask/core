@@ -292,7 +292,7 @@ export const PERPS_EVENT_PROPERTY = {
   OLD_PRICE: 'old_price',
   /** An order or trigger price after the trader moved it. */
   NEW_PRICE: 'new_price',
-  /** A `PERPS_EVENT_VALUE.TP_SL_TYPE`. */
+  /** `PERPS_EVENT_VALUE.ACTION.TP` or `PERPS_EVENT_VALUE.ACTION.SL`. */
   TP_SL_TYPE: 'tp_sl_type',
   INDICATOR_NAME: 'indicator_name',
   /** Indicators on the chart after the change. */
@@ -353,10 +353,6 @@ export const PERPS_EVENT_VALUE = {
     FULLSCREEN_ENTERED: 'fullscreen_entered',
     FULLSCREEN_EXITED: 'fullscreen_exited',
     CHART_VIEWED: 'chart_viewed',
-  },
-  TP_SL_TYPE: {
-    TAKE_PROFIT: 'take_profit',
-    STOP_LOSS: 'stop_loss',
   },
   ASSET_TYPE: {
     SPOT: 'spot',

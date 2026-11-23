@@ -619,6 +619,22 @@ describe('lighterAdapter', () => {
       );
     });
 
+    it('returns returnOnEquity over margin used, like the REST account state', () => {
+      // PnL 1000 over margin used 4000 (collateral 10000 - available 6000).
+      expect(adaptAccountStateFromLighterUserStats(stats).returnOnEquity).toBe(
+        '25',
+      );
+    });
+
+    it('returns returnOnEquity 0 when no margin is used', () => {
+      expect(
+        adaptAccountStateFromLighterUserStats({
+          ...stats,
+          availableBalance: '10000',
+        }).returnOnEquity,
+      ).toBe('0');
+    });
+
     it.each([
       ['collateral', { collateral: '10000USD' }],
       ['available balance', { availableBalance: '6000oops' }],

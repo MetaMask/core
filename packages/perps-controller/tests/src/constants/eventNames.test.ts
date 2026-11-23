@@ -25,7 +25,7 @@ describe('PERPS_EVENT_PROPERTY', () => {
       previousChartType: PERPS_EVENT_PROPERTY.PREVIOUS_CHART_TYPE,
       interactionType: PERPS_EVENT_VALUE.INTERACTION_TYPE.CHART_INTERACTED,
       source: PERPS_EVENT_VALUE.SOURCE.CHART,
-      tpSlTypes: PERPS_EVENT_VALUE.TP_SL_TYPE,
+      tpSlTypes: [PERPS_EVENT_VALUE.ACTION.TP, PERPS_EVENT_VALUE.ACTION.SL],
       chartInteractions: PERPS_EVENT_VALUE.CHART_INTERACTION,
     }).toStrictEqual({
       chartInteraction: 'chart_interaction',
@@ -44,7 +44,7 @@ describe('PERPS_EVENT_PROPERTY', () => {
       previousChartType: 'previous_chart_type',
       interactionType: 'chart_interacted',
       source: 'chart',
-      tpSlTypes: { TAKE_PROFIT: 'take_profit', STOP_LOSS: 'stop_loss' },
+      tpSlTypes: ['tp', 'sl'],
       chartInteractions: {
         PLACE_ORDER: 'place_order',
         EDIT_ORDER: 'edit_order',

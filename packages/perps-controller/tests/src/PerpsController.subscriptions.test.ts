@@ -2126,8 +2126,22 @@ describe('PerpsController', () => {
       ).toHaveBeenCalledWith({
         provider: mockProvider,
         params,
-        context: expect.any(Object),
       });
+    });
+
+    it('is unavailable from the provider when the route names another direct venue', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(
+        await controller.estimateCrossLiquidation({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      expect(
+        mockMarketDataServiceInstance.estimateCrossLiquidation,
+      ).not.toHaveBeenCalled();
     });
 
     it('is unavailable from the provider before initialization', async () => {

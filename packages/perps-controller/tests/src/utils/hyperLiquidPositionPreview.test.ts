@@ -1917,7 +1917,7 @@ describe('previewHyperLiquidCrossPositionModify', () => {
       position: crossPosition(),
       direction: 'short',
       size: '0.05',
-      price: '50000',
+      price: '51000',
       leverage: 10,
       marginTiers: singleTier,
       crossAccount,
@@ -1927,9 +1927,34 @@ describe('previewHyperLiquidCrossPositionModify', () => {
     expect(open.kind).toBe('decrease');
     expect(open.resulting.size).toBeCloseTo(0.05, 10);
     expect(open.resulting.entryPrice).toBe(50_000);
-    expect(availablePreviewValue(open.resulting.margin)).toBeCloseTo(250, 6);
+    expect(availablePreviewValue(open.resulting.margin)).toBeCloseTo(255, 6);
+    // Account value gains the existing size's move to 51000; the position's
+    // maintenance becomes 2550 * 0.01.
     expect(availablePreviewValue(open.resulting.liquidationPrice)).toBeCloseTo(
-      50_000 - (1_000 - 175) / 0.05 / 0.99,
+      51_000 - (1_000 + 0.1 * 1_000 - (200 - 50 + 25.5)) / 0.05 / 0.99,
+      6,
+    );
+  });
+
+  it('projects a reduce of a short at a fill off the mark', () => {
+    const result = previewHyperLiquidCrossPositionModify({
+      position: crossPosition({ size: '-0.1' }),
+      direction: 'long',
+      size: '0.05',
+      price: '49000',
+      leverage: 10,
+      marginTiers: singleTier,
+      crossAccount,
+    });
+
+    const open = expectOpen(result);
+    expect(open.kind).toBe('decrease');
+    expect(open.resulting.direction).toBe('short');
+    expect(open.resulting.size).toBeCloseTo(0.05, 10);
+    // The short gains 0.1 * 1000 as the price falls to 49000; the position's
+    // maintenance becomes 2450 * 0.01.
+    expect(availablePreviewValue(open.resulting.liquidationPrice)).toBeCloseTo(
+      49_000 + (1_000 + 0.1 * 1_000 - (200 - 50 + 24.5)) / 0.05 / 1.01,
       6,
     );
   });
@@ -1939,7 +1964,7 @@ describe('previewHyperLiquidCrossPositionModify', () => {
       position: crossPosition(),
       direction: 'short',
       size: '0.3',
-      price: '50000',
+      price: '49000',
       leverage: 10,
       feeAmountUsd: 3,
       marginTiers: singleTier,
@@ -1950,9 +1975,11 @@ describe('previewHyperLiquidCrossPositionModify', () => {
     expect(open.kind).toBe('flip');
     expect(open.resulting.direction).toBe('short');
     expect(open.resulting.size).toBeCloseTo(0.2, 10);
-    expect(availablePreviewValue(open.resulting.margin)).toBeCloseTo(1_000, 6);
+    expect(availablePreviewValue(open.resulting.margin)).toBeCloseTo(980, 6);
+    // The long loses 0.1 * 1000 to the 49000 fill and pays the fee; the
+    // short's maintenance is 9800 * 0.01.
     expect(availablePreviewValue(open.resulting.liquidationPrice)).toBeCloseTo(
-      50_000 + (997 - 250) / 0.2 / 1.01,
+      49_000 + (1_000 - 3 - 0.1 * 1_000 - (200 - 50 + 98)) / 0.2 / 1.01,
       6,
     );
   });
@@ -2178,7 +2205,7 @@ describe('projectHyperLiquidCrossPositionModify', () => {
     });
   });
 
-  it('returns 0 for a position that cannot be liquidated', () => {
+  it('reports covered_by_account when no price liquidates the position', () => {
     const result = projectHyperLiquidCrossPositionModify({
       ...opening,
       crossAccount: { accountValue: 100_000, maintenanceMargin: 0 },
@@ -2229,8 +2256,10 @@ describe('projectHyperLiquidCrossPositionModify', () => {
   });
 
   it('counts only the margin increase when placement funds an add', () => {
-    // 0.1 held at 500 margin grows to 0.2 at 1000: the DEX settles at
-    // 50 - 50 + 500 + 0.1 over the 50 + 100 - 50 maintenance.
+    // 0.1 held at 500 margin grows to 0.2 at 1000. The DEX holds 550 with 50
+    // withdrawable; placement tops it up to the 501.5 required, and the 1.4
+    // above the 0.1 buffer returns: 550 + 451.5 - 1.4 over the 50 - 50 + 100
+    // maintenance.
     const result = projectHyperLiquidCrossPositionModify({
       ...opening,
       position: {
@@ -2241,14 +2270,14 @@ describe('projectHyperLiquidCrossPositionModify', () => {
         marginUsed: '500',
       },
       crossAccount: {
-        accountValue: 50,
+        accountValue: 550,
         maintenanceMargin: 50,
         hip3Funding: { withdrawable: 50, requiredMargin: 501.5 },
       },
     });
 
     expect(liquidationPriceOf(result)).toBeCloseTo(
-      50_000 - (500.1 - 100) / 0.2 / 0.99,
+      50_000 - (1_000.1 - 100) / 0.2 / 0.99,
       6,
     );
   });

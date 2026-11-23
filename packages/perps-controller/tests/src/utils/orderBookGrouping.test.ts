@@ -286,6 +286,15 @@ describe('calculateOrderBookGroupingOptions tick ladder', () => {
       ).toStrictEqual([0.01, 0.1, 1]);
     },
   );
+
+  it.each([0, -1, Number.NaN])(
+    'defaults to the decade ladder without a usable tick (%s)',
+    (tickSize) => {
+      expect(
+        calculateOrderBookGroupingOptions({ midPrice: 2450, tickSize }),
+      ).toStrictEqual(calculateOrderBookGroupingOptions(2450));
+    },
+  );
 });
 
 describe('selectDefaultOrderBookGrouping', () => {

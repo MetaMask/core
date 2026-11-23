@@ -227,6 +227,19 @@ describe('transformMarketData - human-readable names', () => {
 
     expect(result[0].numericValues).toStrictEqual({});
   });
+
+  it('leaves change24hPercent out of numericValues without a previous day price', () => {
+    const result = transformMarketData(
+      {
+        universe: [makeUniverseEntry('BTC')],
+        assetCtxs: [],
+        allMids: { BTC: '50000' },
+      },
+      mockFormatters,
+    );
+
+    expect(result[0].numericValues).toStrictEqual({ price: 50000 });
+  });
 });
 
 // Terminal metadata enrichment is handled by MarketDataService.#enrichWithTerminalMetadata

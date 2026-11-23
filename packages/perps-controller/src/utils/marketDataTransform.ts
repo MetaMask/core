@@ -338,7 +338,9 @@ export function transformMarketData(
       isNewMarket,
       numericValues: buildMarketNumericValues({
         price: currentPrice,
-        change24hPercent: hasCurrentPrice ? change24hPercent : undefined,
+        // Unknown without both prices, not 0%.
+        change24hPercent:
+          hasCurrentPrice && prevDayPrice > 0 ? change24hPercent : undefined,
         volume,
         openInterest,
       }),

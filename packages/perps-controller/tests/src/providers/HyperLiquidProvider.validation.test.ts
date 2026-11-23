@@ -1257,10 +1257,11 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
-    const setUpStandardHip3 = () => {
+    const setUpStandardHip3 = ({ useUnifiedAccount = false } = {}) => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
         allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount,
       });
       const user = '0x1234567890123456789012345678901234567890';
       const xyzMeta = {
@@ -1326,6 +1327,32 @@ describe('HyperLiquidProvider', () => {
         user,
         dex: 'xyz',
       });
+      expect(
+        await hip3Provider.estimateCrossLiquidation({
+          symbol: 'xyz:TSLA',
+          direction: 'long',
+          size: '0.1',
+          entryPrice: '500',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'price', price });
+    });
+
+    it('prices a HIP-3 opening against the DEX funds when placement skips the transfer', async () => {
+      // With useUnifiedAccount on (the default), placement moves no funds to
+      // the DEX, so the estimate keeps the DEX account value of 2.
+      const { hip3Provider } = setUpStandardHip3({ useUnifiedAccount: true });
+
+      const price = await hip3Provider.calculateLiquidationPrice({
+        asset: 'xyz:TSLA',
+        entryPrice: 500,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      expect(Number(price)).toBeCloseTo(500 - (2 - 1.25) / 0.1 / 0.975, 6);
       expect(
         await hip3Provider.estimateCrossLiquidation({
           symbol: 'xyz:TSLA',

@@ -292,6 +292,8 @@ export function adaptAccountStateFromLighterUserStats(
     stats.portfolioValue,
     'WebSocket portfolio value',
   );
+  const marginUsed = Math.max(collateral - available, 0);
+  const unrealizedPnl = portfolioValue - collateral;
   return {
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
@@ -300,12 +302,12 @@ export function adaptAccountStateFromLighterUserStats(
     // spot USDC to add, and this read is a known account, so the amount is 0
     // rather than unknown.
     spotCollateral: '0',
-    marginUsed: String(Math.max(collateral - available, 0)),
-    unrealizedPnl: String(portfolioValue - collateral),
-    returnOnEquity:
-      collateral > 0
-        ? String(((portfolioValue - collateral) / collateral) * 100)
-        : '0',
+    marginUsed: String(marginUsed),
+    unrealizedPnl: String(unrealizedPnl),
+    // Same rate as the REST account state: '0' only when no margin is used.
+    returnOnEquity: String(
+      accountReturnOnEquity(unrealizedPnl, marginUsed)?.toNumber() ?? 0,
+    ),
   };
 }
 

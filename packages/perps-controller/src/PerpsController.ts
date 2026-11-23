@@ -6924,15 +6924,18 @@ export class PerpsController extends BaseController<
   async estimateCrossLiquidation(
     params: EstimateCrossLiquidationParams,
   ): Promise<CrossLiquidationEstimate> {
-    // Not initialized or reinitializing: no provider to ask.
+    // Not initialized or reinitializing: no provider to ask. A direct-mode
+    // route that names another venue would answer for the wrong venue.
     const provider = this.getActiveProviderOrNull();
-    if (!provider) {
+    if (
+      !provider ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
       return { status: 'unavailable', reason: 'provider' };
     }
     return this.#marketDataService.estimateCrossLiquidation({
       provider,
       params,
-      context: this.#createServiceContext('estimateCrossLiquidation'),
     });
   }
 

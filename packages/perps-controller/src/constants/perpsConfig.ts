@@ -612,6 +612,10 @@ export const MARKET_SORTING_CONFIG = {
     PriceChange: 'priceChange',
     OpenInterest: 'openInterest',
     FundingRate: 'fundingRate',
+    /** `sortMarkets` only: the current price. */
+    Price: 'price',
+    /** `sortMarkets` only: the market name. */
+    Name: 'name',
   } as const,
 
   // Sort button presets for filter chips (simplified buttons without direction)

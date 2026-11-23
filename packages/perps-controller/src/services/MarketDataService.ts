@@ -1607,13 +1607,11 @@ export class MarketDataService {
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.params - The proposed Cross order.
-   * @param options.context - The service context for dependencies.
    * @returns The typed estimate.
    */
   async estimateCrossLiquidation(options: {
     provider: PerpsProvider;
     params: EstimateCrossLiquidationParams;
-    context: ServiceContext;
   }): Promise<CrossLiquidationEstimate> {
     const { provider, params } = options;
     if (!provider.estimateCrossLiquidation) {

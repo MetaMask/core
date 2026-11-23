@@ -160,10 +160,13 @@ export type OrderBookGroupingOptionsParams = {
   tickSize?: number;
   /**
    * `decade` (Mobile's ladder) or `tick`. Defaults to `tick` when `tickSize`
-   * is given, otherwise `decade`.
+   * is a positive number, otherwise `decade`.
    */
   ladder?: OrderBookGroupingLadder;
 };
+
+const isUsableTick = (tickSize: number | undefined): tickSize is number =>
+  tickSize !== undefined && Number.isFinite(tickSize) && tickSize > 0;
 
 const roundGroupingWidth = (width: number): number =>
   Number(width.toFixed(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals));
@@ -197,7 +200,7 @@ export function calculateOrderBookGroupingOptions(
   const {
     midPrice,
     tickSize,
-    ladder = tickSize === undefined ? 'decade' : 'tick',
+    ladder = isUsableTick(tickSize) ? 'tick' : 'decade',
   } = typeof params === 'number' ? { midPrice: params } : params;
   if (!Number.isFinite(midPrice) || midPrice <= 0) {
     return [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
@@ -229,7 +232,7 @@ function calculateTickGroupingOptions(
   midPrice: number,
   tickSize: number | undefined,
 ): number[] {
-  if (tickSize === undefined || !Number.isFinite(tickSize) || tickSize <= 0) {
+  if (!isUsableTick(tickSize)) {
     return [...ORDER_BOOK_GROUPING_CONFIG.FallbackOptions];
   }
   const options = ORDER_BOOK_GROUPING_CONFIG.TickMultipliers.map((multiplier) =>
