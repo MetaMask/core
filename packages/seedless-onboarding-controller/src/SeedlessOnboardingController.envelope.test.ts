@@ -4964,5 +4964,210 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    describe('atomic state transitions', () => {
+      it('emits a single stateChange with complete state during recoverWithRecoverySecret', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await authenticateAal2(args, { hasRecoveryShare: true });
+
+          const snapshots: SeedlessOnboardingControllerState[] = [];
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              snapshots.push(state);
+            },
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:recoverWithRecoverySecret',
+            {
+              recoverySecret: RECOVERY_SECRET,
+              password: RECOVERED_PASSWORD,
+            },
+          );
+
+          expect(snapshots).toHaveLength(1);
+          expect(snapshots[0].vault).toBeDefined();
+          expect(snapshots[0].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(snapshots[0].isLocalPassword).toBe(true);
+          expect(snapshots[0].envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+          expect(snapshots[0].passwordOutdatedCache).toBeUndefined();
+        });
+      });
+
+      it('emits a single stateChange with complete state during restoreVaultWithPassword', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+          await controller.checkIsPasswordOutdated({ skipCache: true });
+          expect(controller.state.passwordOutdatedCache).toBeDefined();
+          expect(controller.state.isLocalPassword).toBe(true);
+
+          const snapshots: SeedlessOnboardingControllerState[] = [];
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              snapshots.push(state);
+            },
+          );
+
+          await controller.restoreVaultWithPassword({
+            password: NEW_PASSWORD,
+          });
+
+          expect(snapshots).toHaveLength(1);
+          expect(snapshots[0].vault).toBeDefined();
+          expect(snapshots[0].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(snapshots[0].isLocalPassword).toBeUndefined();
+          expect(snapshots[0].envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+          expect(snapshots[0].passwordOutdatedCache).toBeUndefined();
+        });
+      });
+
+      it('emits a single stateChange with complete state during syncLatestGlobalPassword', async () => {
+        const store: MetadataStore = new Map();
+        await withUnlockedController(async (args) => {
+          await migrate(args, mockNetwork(args.toprfClient, { store }));
+          await args.baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_PASSWORD,
+            MOCK_PASSWORD,
+          );
+        });
+
+        await withUnlockedController(
+          async ({ controller, toprfClient, baseMessenger }) => {
+            mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
+            await controller.checkIsPasswordOutdated({ skipCache: true });
+            expect(controller.state.passwordOutdatedCache).toBeDefined();
+
+            const snapshots: SeedlessOnboardingControllerState[] = [];
+            baseMessenger.subscribe(
+              'SeedlessOnboardingController:stateChange',
+              (state) => {
+                snapshots.push(state);
+              },
+            );
+
+            await controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            });
+
+            expect(snapshots).toHaveLength(1);
+            expect(snapshots[0].vault).toBeDefined();
+            expect(snapshots[0].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+            expect(snapshots[0].isLocalPassword).toBeUndefined();
+            expect(snapshots[0].envelope).toStrictEqual({
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+            });
+            expect(snapshots[0].passwordOutdatedCache).toBeUndefined();
+          },
+        );
+      });
+
+      it('emits a single vault stateChange during changePassword on an envelope-managed vault', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          const previousVault = controller.state.vault;
+
+          const snapshots: SeedlessOnboardingControllerState[] = [];
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              snapshots.push(state);
+            },
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_PASSWORD,
+            MOCK_PASSWORD,
+          );
+
+          // 1st update: #assertPasswordInSync caches passwordOutdatedCache
+          // 2nd update: single atomic vault + envelope + authPubKey + cache reset
+          expect(snapshots).toHaveLength(2);
+          expect(snapshots[0].vault).toBe(previousVault);
+          expect(snapshots[0].passwordOutdatedCache).toBeDefined();
+
+          expect(snapshots[1].vault).not.toBe(previousVault);
+          expect(snapshots[1].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(snapshots[1].isLocalPassword).toBeUndefined();
+          expect(snapshots[1].envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+          expect(snapshots[1].passwordOutdatedCache).toBeUndefined();
+        });
+      });
+
+      it('emits a single stateChange with complete state during resetPasswordWithVaultKeys', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+          await controller.checkIsPasswordOutdated({ skipCache: true });
+          expect(controller.state.passwordOutdatedCache).toBeDefined();
+
+          const snapshots: SeedlessOnboardingControllerState[] = [];
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              snapshots.push(state);
+            },
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:resetPasswordWithVaultKeys',
+            { newPassword: 'reset-password' },
+          );
+
+          expect(snapshots).toHaveLength(1);
+          expect(snapshots[0].vault).toBeDefined();
+          expect(snapshots[0].authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(snapshots[0].isLocalPassword).toBeUndefined();
+          expect(snapshots[0].envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf('reset-password'),
+          });
+          expect(snapshots[0].passwordOutdatedCache).toBeUndefined();
+        });
+      });
+    });
   });
 });

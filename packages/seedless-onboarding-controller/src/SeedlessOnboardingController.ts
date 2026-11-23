@@ -81,6 +81,7 @@ import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
+  EnvelopeState,
   SeedlessAuthData,
   SocialBackupsMetadata,
   RefreshJWTToken,
@@ -139,6 +140,25 @@ function toVaultKeySet(vaultData: DeserializedVaultData): VaultKeySet {
     authKeyPair: vaultData.toprfAuthKeyPair,
     encKey: vaultData.toprfEncryptionKey,
     localWrapKey: vaultData.toprfPwEncryptionKey,
+  };
+}
+
+/**
+ * Build the persisted envelope state for an envelope-managed vault.
+ *
+ * @param vaultKeySet - The vault key set `K_v`.
+ * @param passwordAuthPubKey - The password OPRF auth public key the local
+ * password is synced with.
+ * @returns The persisted envelope state.
+ */
+function createEnvelopeState(
+  vaultKeySet: VaultKeySet,
+  passwordAuthPubKey: SEC1EncodedPublicKey,
+): EnvelopeState {
+  return {
+    v: 1,
+    vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
+    passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
   };
 }
 
@@ -801,22 +821,21 @@ export class SeedlessOnboardingController<
           rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
+          // the vault was replaced, so `isLocalPassword` and `envelope`
+          // describe the old password and key set
+          onStateUpdate: (state) => {
+            delete state.isLocalPassword;
+            if (envelope) {
+              state.envelope = createEnvelopeState(
+                envelope.vaultKeySet,
+                envelope.passwordAuthPubKey,
+              );
+            } else {
+              delete state.envelope;
+            }
+            delete state.passwordOutdatedCache;
+          },
         });
-        // the vault was replaced, so `isLocalPassword` and `envelope` describe
-        // the old password and key set
-        this.update((state) => {
-          delete state.isLocalPassword;
-          if (!envelope) {
-            delete state.envelope;
-          }
-        });
-        if (envelope) {
-          this.#setEnvelopeState(
-            envelope.vaultKeySet,
-            envelope.passwordAuthPubKey,
-          );
-        }
-        this.#resetPasswordOutdatedCache();
 
         return secrets;
       }, 'restoreVaultWithPassword');
@@ -898,13 +917,12 @@ export class SeedlessOnboardingController<
             rawToprfEncryptionKey: newEncKey as Uint8Array<ArrayBuffer>,
             rawToprfPwEncryptionKey: newPwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: newAuthKeyPair,
+            onStateUpdate: (state) => {
+              delete state.isLocalPassword;
+              delete state.passwordOutdatedCache;
+            },
           });
         }
-
-        this.update((state) => {
-          delete state.isLocalPassword;
-        });
-        this.#resetPasswordOutdatedCache();
 
         // store the keyring encryption key if it exists
         if (keyringEncryptionKey) {
@@ -1012,8 +1030,12 @@ export class SeedlessOnboardingController<
       rawToprfPwEncryptionKey:
         vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
       rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
+      onStateUpdate: (state) => {
+        state.envelope = createEnvelopeState(vaultKeySet, authKeyPair.pk);
+        delete state.isLocalPassword;
+        delete state.passwordOutdatedCache;
+      },
     });
-    this.#setEnvelopeState(vaultKeySet, authKeyPair.pk);
   }
 
   /**
@@ -1213,8 +1235,12 @@ export class SeedlessOnboardingController<
             rawToprfPwEncryptionKey:
               vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
+            onStateUpdate: (state) => {
+              state.envelope = createEnvelopeState(vaultKeySet, authKeyPair.pk);
+              delete state.isLocalPassword;
+              delete state.passwordOutdatedCache;
+            },
           });
-          this.#setEnvelopeState(vaultKeySet, authKeyPair.pk);
         } else {
           const passwordKeySet: VaultKeySet = {
             authKeyPair,
@@ -1247,18 +1273,20 @@ export class SeedlessOnboardingController<
             rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
             rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
+            onStateUpdate: (state) => {
+              if (isEnvelopeManaged) {
+                state.envelope = createEnvelopeState(
+                  passwordKeySet,
+                  authKeyPair.pk,
+                );
+              } else {
+                delete state.envelope;
+              }
+              delete state.isLocalPassword;
+              delete state.passwordOutdatedCache;
+            },
           });
-          this.#updateEnvelopeState(
-            isEnvelopeManaged,
-            passwordKeySet,
-            authKeyPair.pk,
-          );
         }
-
-        this.update((state) => {
-          delete state.isLocalPassword;
-        });
-        this.#resetPasswordOutdatedCache();
       };
       return await this.#executeWithTokenRefresh(
         doSyncPassword,
@@ -1566,19 +1594,6 @@ export class SeedlessOnboardingController<
         },
       );
     }
-  }
-
-  /**
-   * Persist the authentication public key for the seedless onboarding flow.
-   * convert to suitable format before persisting.
-   *
-   * @param params - The parameters for persisting the authentication public key.
-   * @param params.authPubKey - The authentication public key to be persisted.
-   */
-  #persistAuthPubKey(params: { authPubKey: SEC1EncodedPublicKey }): void {
-    this.update((state) => {
-      state.authPubKey = bytesToBase64(params.authPubKey);
-    });
   }
 
   /**
@@ -2113,17 +2128,20 @@ export class SeedlessOnboardingController<
    * @param params.rawToprfEncryptionKey - The encryption key to encrypt the vault.
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
    * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
+   * @param params.onStateUpdate - Optional callback to apply additional state changes in the same atomic update.
    */
   async #createNewVaultWithAuthData({
     password,
     rawToprfEncryptionKey,
     rawToprfPwEncryptionKey,
     rawToprfAuthKeyPair,
+    onStateUpdate,
   }: {
     password: string;
     rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
+    onStateUpdate?: (state: SeedlessOnboardingControllerState) => void;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
@@ -2142,11 +2160,10 @@ export class SeedlessOnboardingController<
       password,
       vaultData,
       pwEncKey: rawToprfPwEncryptionKey,
-    });
-
-    // update the authPubKey in the state
-    this.#persistAuthPubKey({
-      authPubKey: rawToprfAuthKeyPair.pk,
+      onStateUpdate: (state) => {
+        state.authPubKey = bytesToBase64(rawToprfAuthKeyPair.pk);
+        onStateUpdate?.(state);
+      },
     });
 
     this.#setUnlocked();
@@ -2159,16 +2176,19 @@ export class SeedlessOnboardingController<
    * @param params.password - The optional password to encrypt the vault. If not provided, the vault will be encrypted with the encryption key in the state.
    * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
+   * @param params.onStateUpdate - Optional callback to apply additional state changes in the same atomic update.
    * @returns A promise that resolves to the updated vault.
    */
   async #updateVault({
     password,
     vaultData,
     pwEncKey,
+    onStateUpdate,
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array<ArrayBuffer>;
+    onStateUpdate?: (state: SeedlessOnboardingControllerState) => void;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       const serializedVaultData = serializeVaultData(vaultData);
@@ -2234,6 +2254,7 @@ export class SeedlessOnboardingController<
         state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
         state.encryptedSeedlessEncryptionKey =
           updatedState.encryptedSeedlessEncryptionKey;
+        onStateUpdate?.(state);
       });
 
       // cache the vault data to avoid decrypting the vault data multiple times
@@ -2434,12 +2455,6 @@ export class SeedlessOnboardingController<
           },
         );
       });
-  }
-
-  #resetPasswordOutdatedCache(): void {
-    this.update((state) => {
-      delete state.passwordOutdatedCache;
-    });
   }
 
   /**
@@ -2882,12 +2897,12 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey:
             vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
+          onStateUpdate: (state) => {
+            state.isLocalPassword = true;
+            state.envelope = createEnvelopeState(vaultKeySet, authPubKey);
+            delete state.passwordOutdatedCache;
+          },
         });
-        this.update((state) => {
-          state.isLocalPassword = true;
-        });
-        this.#setEnvelopeState(vaultKeySet, authPubKey);
-        this.#resetPasswordOutdatedCache();
         return secrets;
       }, 'recoverWithRecoverySecret'),
     );
@@ -2951,10 +2966,6 @@ export class SeedlessOnboardingController<
           latestKeyIndex: keyIndex,
           newPassword,
         });
-        this.update((state) => {
-          delete state.isLocalPassword;
-        });
-        this.#resetPasswordOutdatedCache();
 
         if (keyringEncryptionKey) {
           await this.storeKeyringEncryptionKey(keyringEncryptionKey);
@@ -3354,11 +3365,7 @@ export class SeedlessOnboardingController<
     passwordAuthPubKey: SEC1EncodedPublicKey,
   ): void {
     this.update((state) => {
-      state.envelope = {
-        v: 1,
-        vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
-        passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
-      };
+      state.envelope = createEnvelopeState(vaultKeySet, passwordAuthPubKey);
     });
   }
 
@@ -3379,28 +3386,6 @@ export class SeedlessOnboardingController<
     const controlRecords =
       await this.#envelopeStore.fetchControlRecords(vaultKeySet);
     return Boolean(selectControlRecord(controlRecords, passwordAuthPubKey));
-  }
-
-  /**
-   * Mark the vault as envelope-managed, or clear the envelope state.
-   *
-   * @param isEnvelopeManaged - Whether the vault is envelope-managed.
-   * @param vaultKeySet - The vault key set `K_v`.
-   * @param passwordAuthPubKey - The password OPRF auth public key the local
-   * password is synced with.
-   */
-  #updateEnvelopeState(
-    isEnvelopeManaged: boolean,
-    vaultKeySet: VaultKeySet,
-    passwordAuthPubKey: SEC1EncodedPublicKey,
-  ): void {
-    if (isEnvelopeManaged) {
-      this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
-      return;
-    }
-    this.update((state) => {
-      delete state.envelope;
-    });
   }
 
   /**
