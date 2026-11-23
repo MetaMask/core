@@ -46,7 +46,8 @@ export class FiatStrategy implements PayStrategy<FiatQuote> {
 
   /**
    * Only the direct mUSD Money Account flow can be resumed, so the
-   * transaction must be a Money Account deposit with persisted order metadata.
+   * transaction must be a Money Account deposit whose persisted order
+   * metadata marks it as direct mUSD.
    *
    * @param transaction - The transaction to check.
    * @returns True if the transaction can be resumed.
@@ -55,7 +56,8 @@ export class FiatStrategy implements PayStrategy<FiatQuote> {
     const { fiat } = transaction.metamaskPay ?? {};
 
     return Boolean(
-      fiat?.orderId &&
+      fiat?.isDirectMusd &&
+      fiat.orderId &&
       fiat.provider &&
       isMoneyAccountDepositTransaction(transaction),
     );

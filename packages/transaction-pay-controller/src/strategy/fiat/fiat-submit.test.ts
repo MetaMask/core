@@ -652,7 +652,11 @@ describe('submitFiatQuotes', () => {
     updateFn(txDraft);
 
     expect(txDraft.metamaskPay).toStrictEqual({
-      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
+      fiat: {
+        isDirectMusd: false,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      },
     });
   });
 
@@ -669,7 +673,11 @@ describe('submitFiatQuotes', () => {
 
     expect(txDraft.metamaskPay).toStrictEqual({
       totalFiat: '20.00',
-      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
+      fiat: {
+        isDirectMusd: false,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      },
     });
   });
 
@@ -1161,6 +1169,37 @@ describe('submitFiatQuotes', () => {
         ([action]) => action === 'RampsController:getOrder',
       );
       expect(getOrderCall?.[3]).toBe(MONEY_ACCOUNT_ADDRESS);
+    });
+
+    it('marks the persisted fiat order metadata as direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        status: RampsOrderStatus.Completed,
+        txHash: MUSD_SETTLEMENT_HASH_MOCK,
+      });
+      const { request } = getRequest({
+        order,
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await submitFiatQuotes(request);
+
+      const txDraft = { metamaskPay: undefined } as unknown as TransactionMeta;
+      const updateFn = updateTransactionMock.mock.calls.find(
+        ([{ note }]) => note === 'Persist fiat order metadata',
+      )?.[1];
+      updateFn?.(txDraft);
+
+      expect(txDraft.metamaskPay?.fiat).toStrictEqual({
+        isDirectMusd: true,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      });
     });
 
     it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {

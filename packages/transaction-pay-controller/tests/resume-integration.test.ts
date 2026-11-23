@@ -46,7 +46,7 @@ function getParentTransactionMock(): TransactionMeta {
     chainId: CHAIN_ID_MONAD,
     id: 'parent-tx',
     metamaskPay: {
-      fiat: { orderId: 'order-1', provider: 'transak' },
+      fiat: { isDirectMusd: true, orderId: 'order-1', provider: 'transak' },
       strategy: TransactionPayStrategy.Fiat,
     },
     status: TransactionStatus.approved,

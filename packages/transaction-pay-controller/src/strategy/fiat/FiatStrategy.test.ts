@@ -172,18 +172,49 @@ describe('FiatStrategy', () => {
       expect(
         new FiatStrategy().canResume({
           metamaskPay: {
-            fiat: { orderId: 'order-1', provider: 'transak' },
+            fiat: {
+              isDirectMusd: true,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
           },
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(true);
     });
 
-    it('returns false when the transaction is not a Money Account deposit', () => {
+    it('returns false when the fiat order is not direct mUSD', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: {
+              isDirectMusd: false,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
+          },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
       expect(
         new FiatStrategy().canResume({
           metamaskPay: {
             fiat: { orderId: 'order-1', provider: 'transak' },
+          },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when the transaction is not a Money Account deposit', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: {
+              isDirectMusd: true,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
           },
           type: TransactionType.perpsDeposit,
         } as TransactionMeta),
@@ -194,13 +225,13 @@ describe('FiatStrategy', () => {
       expect(new FiatStrategy().canResume({} as TransactionMeta)).toBe(false);
       expect(
         new FiatStrategy().canResume({
-          metamaskPay: { fiat: { orderId: 'order-1' } },
+          metamaskPay: { fiat: { isDirectMusd: true, orderId: 'order-1' } },
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(false);
       expect(
         new FiatStrategy().canResume({
-          metamaskPay: { fiat: { provider: 'transak' } },
+          metamaskPay: { fiat: { isDirectMusd: true, provider: 'transak' } },
           type: TransactionType.moneyAccountDeposit,
         } as TransactionMeta),
       ).toBe(false);

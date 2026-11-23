@@ -81,6 +81,8 @@ export async function submitFiatQuotes(
     throw new Error('Missing provider code');
   }
 
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(request.quotes[0]);
+
   updateTransaction(
     {
       transactionId,
@@ -89,7 +91,11 @@ export async function submitFiatQuotes(
     },
     (tx) => {
       tx.metamaskPay ??= {};
-      tx.metamaskPay.fiat = { orderId, provider: providerCode };
+      tx.metamaskPay.fiat = {
+        isDirectMusd,
+        orderId,
+        provider: providerCode,
+      };
     },
   );
 
