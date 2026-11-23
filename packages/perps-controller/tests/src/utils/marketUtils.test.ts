@@ -85,28 +85,45 @@ describe('groupMarketsByMarketKey', () => {
     ]);
   });
 
-  it('never saves an ungrouped row as a backend key', () => {
+  it('saves an ungrouped row by venue, never as a backend key or a bare symbol on another venue', () => {
     const scaled = market({
       ...hyperliquid,
       symbol: '1000TSLA',
       priceScale: 1000,
     });
+    const hyperliquidTsla = market({
+      symbol: 'TSLA',
+      providerId: 'hyperliquid',
+    });
     const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
-    const references = groupMarketsByMarketKey(
-      [scaled, lighterFallback],
-      'lighter',
-    ).map((group) =>
-      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    const rows = [scaled, hyperliquidTsla, lighterFallback];
+    const references = groupMarketsByMarketKey(rows, 'lighter').map((group) =>
+      getPerpsWatchlistReferences(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'hyperliquid',
+      ),
     );
 
-    expect(references).toStrictEqual([['1000TSLA'], ['TSLA']]);
+    expect(references).toStrictEqual([
+      ['1000TSLA'],
+      ['TSLA'],
+      ['venue:lighter:TSLA'],
+    ]);
+    expect(
+      resolveSavedPerpsMarkets(['venue:lighter:TSLA'], rows, 'lighter'),
+    ).toStrictEqual([lighterFallback]);
+    expect(
+      resolveSavedPerpsMarkets(['TSLA'], rows, 'lighter', 'hyperliquid'),
+    ).toStrictEqual([hyperliquidTsla]);
     expect(
       resolveSavedPerpsMarkets(
-        references.flat(),
-        [scaled, lighterFallback],
+        ['venue:lighter:TSLA'],
+        [hyperliquidTsla],
         'lighter',
       ),
-    ).toStrictEqual([scaled]);
+    ).toStrictEqual([]);
   });
 
   it('resolves legacy symbols to their original venue and new keys to the preferred venue', () => {

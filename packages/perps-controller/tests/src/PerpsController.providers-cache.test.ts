@@ -4877,6 +4877,44 @@ describe('PerpsController', () => {
       expect(controller.isWatchlistMarket(...args)).toBe(false);
     });
 
+    it('stars only the saved venue for ungrouped rows with the same symbol', async () => {
+      const [hyperliquidEth, lighterEth] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'ETH',
+            name: 'Ether',
+            providerId: 'hyperliquid',
+          },
+          { ...market, symbol: 'ETH', name: 'Ether', providerId: 'lighter' },
+        ],
+        'hyperliquid',
+      );
+      const lighterArgs = [
+        lighterEth.symbol,
+        lighterEth.marketKey,
+        lighterEth.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+
+      await controller.toggleWatchlistMarket(...lighterArgs);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:ETH',
+      ]);
+      expect(controller.isWatchlistMarket(...lighterArgs)).toBe(true);
+      expect(
+        controller.isWatchlistMarket(
+          hyperliquidEth.symbol,
+          hyperliquidEth.marketKey,
+          hyperliquidEth.venues,
+        ),
+      ).toBe(false);
+    });
+
     it('replaces a legacy recent with the keyed entry for the same group', () => {
       const [group] = groupMarketsByMarketKey(
         [

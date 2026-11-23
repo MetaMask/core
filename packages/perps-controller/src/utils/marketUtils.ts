@@ -10,6 +10,7 @@ import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
 
 const SAVED_MARKET_KEY_PREFIX = 'market-key:';
+const SAVED_VENUE_PREFIX = 'venue:';
 
 type MarketIdentity = Pick<MarketInfo, 'marketKey' | 'priceScale'>;
 
@@ -39,7 +40,7 @@ function getUnscaledMarketKey(market: MarketIdentity): string | undefined {
  * Group rows that share a backend market key and explicitly have unit scale.
  * The first venue supplies the display data and retains its execution symbol.
  * Only a grouped row carries `marketKey`; an ungrouped row omits it, so it is
- * saved by its venue symbol and never as a backend key.
+ * saved by venue and symbol and never as a backend key.
  *
  * @param markets - Venue market rows whose source provider IDs are preserved.
  * @param defaultProvider - Preferred venue for ordering and untagged rows.
@@ -103,7 +104,8 @@ export function toSavedPerpsMarketReference(
 /**
  * Match an explicit key and any legacy favorite for its confirmed venue row on
  * the legacy venue. Uses the same legacy-provider default as
- * `resolveSavedPerpsMarkets`.
+ * `resolveSavedPerpsMarkets`. Without a key, a row from another venue is saved
+ * as `venue:<provider>:<symbol>` so it never collides with a legacy symbol.
  *
  * @param symbol - The displayed venue's symbol.
  * @param marketKey - Explicit backend key from a unit-scale row.
@@ -117,20 +119,29 @@ export function getPerpsWatchlistReferences(
   venues?: readonly PerpsMarketData[],
   legacyProvider: PerpsProviderType = 'hyperliquid',
 ): [reference: string, ...legacyAliases: string[]] {
+  if (!marketKey) {
+    const provider = venues?.find(
+      (venue) => venue.symbol === symbol,
+    )?.providerId;
+    return [
+      provider && provider !== legacyProvider
+        ? `${SAVED_VENUE_PREFIX}${provider}:${symbol}`
+        : symbol,
+    ];
+  }
   const reference = toSavedPerpsMarketReference(symbol, marketKey);
-  const legacy = marketKey
-    ? venues?.find(
-        (venue) =>
-          venue.providerId === legacyProvider &&
-          getUnscaledMarketKey(venue) === marketKey,
-      )
-    : undefined;
+  const legacy = venues?.find(
+    (venue) =>
+      venue.providerId === legacyProvider &&
+      getUnscaledMarketKey(venue) === marketKey,
+  );
   return legacy ? [reference, legacy.symbol] : [reference];
 }
 
 /**
  * Resolve saved entries to executable venue rows. Legacy symbols keep their
- * original venue when available. Explicit keys follow the current default venue.
+ * original venue when available. Venue references open only that venue's row.
+ * Explicit keys follow the current default venue.
  *
  * @param references - Strings read from the watchlist or recently viewed list.
  * @param markets - Current ungrouped market rows.
@@ -145,12 +156,17 @@ export function resolveSavedPerpsMarkets(
   legacyProvider: PerpsProviderType = 'hyperliquid',
 ): PerpsMarketData[] {
   const symbols = new Map<string, PerpsMarketData>();
+  const venueSymbols = new Map<string, PerpsMarketData>();
   const backendKeys = new Map<string, PerpsMarketData>();
   for (const market of markets) {
     const provider = market.providerId ?? defaultProvider;
     if (provider === legacyProvider) {
       symbols.set(market.symbol, market);
     }
+    venueSymbols.set(
+      `${SAVED_VENUE_PREFIX}${provider}:${market.symbol}`,
+      market,
+    );
     const backendKey = getUnscaledMarketKey(market);
     if (
       backendKey &&
@@ -162,9 +178,14 @@ export function resolveSavedPerpsMarkets(
 
   const resolved = new Set<PerpsMarketData>();
   for (const reference of references) {
-    const market = reference.startsWith(SAVED_MARKET_KEY_PREFIX)
-      ? backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length))
-      : symbols.get(reference);
+    let market: PerpsMarketData | undefined;
+    if (reference.startsWith(SAVED_MARKET_KEY_PREFIX)) {
+      market = backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length));
+    } else if (reference.startsWith(SAVED_VENUE_PREFIX)) {
+      market = venueSymbols.get(reference);
+    } else {
+      market = symbols.get(reference);
+    }
     if (market) {
       resolved.add(market);
     }
