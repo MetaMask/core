@@ -45,8 +45,8 @@ export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
  * then wraps the encryption key and a capability token for idOS. An existing
  * session is picked up as it is: its authorizations are left alone.
  *
- * This does not create a vendor customer. A vendor that needs one before
- * its session (Iron) adds that when it moves to this controller.
+ * For Iron this creates the customer first, then posts the signings for the
+ * terms the user accepted, then opens the session. Kalshi needs neither.
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.

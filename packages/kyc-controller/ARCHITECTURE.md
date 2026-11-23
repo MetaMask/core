@@ -204,6 +204,14 @@ touches `KycController` state.
   whose `code` `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`,
   `sumsub`, and `decision`. `sumsubLauncher` presents SumSub.
 
+Accepted terms stay on the phone. `recordVendorDisclaimers` saves the accepted
+disclaimer ids and the country in state, and every step read sends them as the
+`KycClientContext` (`acceptedDisclaimerIds`, `country`). kyc-api compares them
+with the vendor's current catalog, so new terms are asked for again. Kalshi
+posts nothing. Iron's signings need a customer, so `startSession` creates the
+Iron customer and then posts the saved ids before it opens the session. Once
+the customer exists, Iron's own status decides the `terms` step.
+
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `refreshStep`, `recordVendorDisclaimers`, `startSession`, `fetchSessionDisclaimers`,
@@ -212,14 +220,14 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 It uses these `KycService` endpoints on top of the ones above:
 
-| Method              | HTTP   | Endpoint                                     | Purpose                                     |
-| ------------------- | ------ | -------------------------------------------- | ------------------------------------------- |
-| `getStep`           | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status        |
-| `acceptVendorTerms` | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor terms acceptance (no session) |
-| `sendEmailOtp`      | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again          |
-| `verifyEmailOtp`    | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code              |
-| `sendPhoneOtp`      | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                  |
-| `verifyPhoneOtp`    | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code                |
+| Method              | HTTP   | Endpoint                                     | Purpose                                          |
+| ------------------- | ------ | -------------------------------------------- | ------------------------------------------------ |
+| `getStep`           | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status             |
+| `acceptVendorTerms` | `POST` | `/vendors/{vendor}/disclaimers`              | Iron only: sign the terms once it has a customer |
+| `sendEmailOtp`      | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again               |
+| `verifyEmailOtp`    | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code                   |
+| `sendPhoneOtp`      | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                       |
+| `verifyPhoneOtp`    | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code                     |
 
 ---
 

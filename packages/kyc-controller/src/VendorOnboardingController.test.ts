@@ -25,6 +25,7 @@ import {
   VendorOnboardingController,
 } from './VendorOnboardingController.js';
 import type {
+  OnboardingVendorState,
   VendorOnboardingControllerMessenger,
   VendorOnboardingControllerOptions,
 } from './VendorOnboardingController.js';
@@ -47,6 +48,7 @@ const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
 >;
 
 const KALSHI_EMAIL = 'a@b.co';
+const NO_TERMS = { acceptedDisclaimerIds: [] as string[], termsCountry: null };
 
 /**
  * The call the test signer answers with for one operation.
@@ -124,6 +126,7 @@ describe('VendorOnboardingController', () => {
                   step: 'decision',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -134,6 +137,7 @@ describe('VendorOnboardingController', () => {
             step: 'decision',
             status: 'none',
             sessionId: 'sid-1',
+            ...NO_TERMS,
           });
         },
       );
@@ -158,6 +162,25 @@ describe('VendorOnboardingController', () => {
       },
     );
 
+    it('reads an entry saved before terms were kept as nothing accepted', async () => {
+      const legacyEntry = {
+        step: 'mfa',
+        status: 'none',
+        sessionId: null,
+      } as OnboardingVendorState;
+
+      await withController(
+        { options: { state: { vendors: { kalshi: legacyEntry } } } },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({ step: 'mfa', status: 'none' });
+
+          await controller.refreshStep({ vendor: 'kalshi' });
+
+          expect(handlers.getStep).toHaveBeenCalledWith('kalshi', {});
+        },
+      );
+    });
+
     it('saves the step kyc-api answers with', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
@@ -173,6 +196,8 @@ describe('VendorOnboardingController', () => {
           step: 'mfa',
           status: 'none',
           sessionId: null,
+          acceptedDisclaimerIds: [],
+          termsCountry: null,
         });
       });
     });
@@ -194,6 +219,8 @@ describe('VendorOnboardingController', () => {
           step: null,
           status: null,
           sessionId: 'sid-1',
+          acceptedDisclaimerIds: [],
+          termsCountry: null,
         });
       });
     });
@@ -208,6 +235,7 @@ describe('VendorOnboardingController', () => {
                   step: 'terms',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -225,6 +253,7 @@ describe('VendorOnboardingController', () => {
             step: 'decision',
             status: 'none',
             sessionId: 'sid-1',
+            ...NO_TERMS,
           });
         },
       );
@@ -431,6 +460,7 @@ describe('VendorOnboardingController', () => {
                   step: 'mfa',
                   status: 'none',
                   sessionId: null,
+                  ...NO_TERMS,
                 },
               },
             },
@@ -450,7 +480,7 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('recordVendorDisclaimers', () => {
-    it('sends the terms to kyc-api, then saves the step it reads', async () => {
+    it('saves the terms on the phone, then saves the step it reads', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
           step: 'mfa',
@@ -464,12 +494,27 @@ describe('VendorOnboardingController', () => {
         });
 
         expect(step).toBe('mfa');
-        expect(handlers.acceptVendorTerms).toHaveBeenCalledWith({
+        expect(handlers.acceptVendorTerms).not.toHaveBeenCalled();
+        expect(
+          controller.state.vendors.kalshi?.acceptedDisclaimerIds,
+        ).toStrictEqual(['tos-v1']);
+        expect(controller.state.vendors.kalshi?.termsCountry).toBe('USA');
+        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
+      });
+    });
+
+    it('sends the saved terms with the next step read', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.recordVendorDisclaimers({
           vendor: 'kalshi',
           disclaimerIds: ['tos-v1'],
           country: 'USA',
         });
-        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
+
+        expect(handlers.getStep).toHaveBeenLastCalledWith('kalshi', {
+          acceptedDisclaimerIds: ['tos-v1'],
+          country: 'USA',
+        });
       });
     });
 
@@ -492,18 +537,20 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('saves nothing when kyc-api rejects the terms', async () => {
+    it('keeps the ids when kyc-api rejects the signings, so the next try sends them', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.acceptVendorTerms.mockRejectedValue(new Error('rejected'));
 
         await expect(
           controller.recordVendorDisclaimers({
-            vendor: 'kalshi',
+            vendor: 'iron',
             disclaimerIds: ['a'],
           }),
         ).rejects.toThrow('rejected');
 
-        expect(controller.state.vendors).toStrictEqual({});
+        expect(
+          controller.state.vendors.iron?.acceptedDisclaimerIds,
+        ).toStrictEqual(['a']);
       });
     });
   });
@@ -555,6 +602,7 @@ describe('VendorOnboardingController', () => {
                   step: 'kalshi_email_link',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -604,6 +652,7 @@ describe('VendorOnboardingController', () => {
                   step: 'kalshi_email_link',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -640,6 +689,7 @@ describe('VendorOnboardingController', () => {
                   step: 'kalshi_email_link',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -670,6 +720,7 @@ describe('VendorOnboardingController', () => {
                   step: 'kalshi_email_link',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -735,6 +786,7 @@ describe('VendorOnboardingController', () => {
                   step: 'mfa',
                   status: 'none',
                   sessionId: 'sid-iron',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -766,6 +818,7 @@ describe('VendorOnboardingController', () => {
                   step: 'mfa',
                   status: 'none',
                   sessionId: 'sid-iron',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -822,6 +875,7 @@ describe('VendorOnboardingController', () => {
                     step: 'sumsub',
                     status: 'none',
                     sessionId: 'sid-1',
+                    ...NO_TERMS,
                   },
                 },
               },
@@ -859,6 +913,7 @@ describe('VendorOnboardingController', () => {
                   step: 'sumsub',
                   status: 'none',
                   sessionId: 'sid-1',
+                  ...NO_TERMS,
                 },
               },
             },
@@ -952,6 +1007,8 @@ describe('VendorOnboardingController', () => {
           step: 'sumsub',
           status: 'none',
           sessionId: 'sid-1',
+          acceptedDisclaimerIds: [],
+          termsCountry: null,
         });
       });
     });
@@ -1093,6 +1150,37 @@ describe('VendorOnboardingController', () => {
       });
     });
 
+    it('creates the customer, then posts the saved terms, before the session', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.recordVendorDisclaimers({
+          vendor: 'iron',
+          disclaimerIds: ['tos-v1'],
+          country: 'USA',
+        });
+
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-token',
+        });
+        expect(handlers.acceptVendorTerms).toHaveBeenLastCalledWith({
+          vendor: 'iron',
+          disclaimerIds: ['tos-v1'],
+          country: 'USA',
+        });
+        expect(
+          handlers.createVendorCustomer.mock.invocationCallOrder[0],
+        ).toBeLessThan(handlers.acceptVendorTerms.mock.invocationCallOrder[1]);
+        expect(
+          handlers.acceptVendorTerms.mock.invocationCallOrder[1],
+        ).toBeLessThan(handlers.createUkycSession.mock.invocationCallOrder[0]);
+      });
+    });
+
     it('sends the minted token to kyc-api', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
@@ -1214,6 +1302,7 @@ describe('VendorOnboardingController', () => {
               step: 'sumsub',
               status: 'none',
               sessionId: 'sid-1',
+              ...NO_TERMS,
             },
           },
         },
@@ -1238,6 +1327,7 @@ describe('VendorOnboardingController', () => {
           step: 'sumsub',
           status: 'none',
           sessionId: 'sid-1',
+          ...NO_TERMS,
         });
       });
     });
@@ -1336,6 +1426,7 @@ describe('VendorOnboardingController', () => {
             step: 'sumsub',
             status: 'none',
             sessionId: 'sid-1',
+            ...NO_TERMS,
           },
         },
       },
@@ -1611,6 +1702,7 @@ describe('VendorOnboardingController', () => {
             step: 'sumsub',
             status: 'none',
             sessionId: 'sid-1',
+            ...NO_TERMS,
           },
         },
       },
@@ -1624,7 +1716,7 @@ describe('VendorOnboardingController', () => {
         });
 
         const step = await controller.recordVendorDisclaimers({
-          vendor: 'kalshi',
+          vendor: 'iron',
           disclaimerIds: ['a'],
         });
 
@@ -1634,7 +1726,7 @@ describe('VendorOnboardingController', () => {
           handlers.acceptVendorTerms.mock.invocationCallOrder[0],
         ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
         expect(step).toBe('mfa');
-        expect(controller.state.vendors.kalshi?.step).toBe('mfa');
+        expect(controller.state.vendors.iron?.step).toBe('mfa');
       });
     });
 
@@ -1677,11 +1769,17 @@ describe('VendorOnboardingController', () => {
   describe('reset', () => {
     const state = {
       vendors: {
-        iron: { step: 'decision', status: 'none', sessionId: 'sid-iron' },
+        iron: {
+          step: 'decision',
+          status: 'none',
+          sessionId: 'sid-iron',
+          ...NO_TERMS,
+        },
         kalshi: {
           step: 'decision',
           status: 'none',
           sessionId: 'sid-kalshi',
+          ...NO_TERMS,
         },
       },
     } satisfies VendorOnboardingControllerOptions['state'];
@@ -1766,6 +1864,7 @@ describe('VendorOnboardingController', () => {
 type ServiceHandlers = {
   getStep: Mock;
   acceptVendorTerms: Mock;
+  createVendorCustomer: Mock;
   sendEmailOtp: Mock;
   verifyEmailOtp: Mock;
   sendPhoneOtp: Mock;
@@ -1821,6 +1920,7 @@ function withController<ReturnValue>(
     actions: [
       'KycService:getStep',
       'KycService:acceptVendorTerms',
+      'KycService:createVendorCustomer',
       'KycService:sendEmailOtp',
       'KycService:verifyEmailOtp',
       'KycService:sendPhoneOtp',
@@ -1847,6 +1947,7 @@ function withController<ReturnValue>(
   const handlers: ServiceHandlers = {
     getStep: vi.fn().mockResolvedValue({ step: 'terms', status: 'none' }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
+    createVendorCustomer: vi.fn().mockResolvedValue({ id: 'customer-1' }),
     sendEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     verifyEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     sendPhoneOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
@@ -1888,6 +1989,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:acceptVendorTerms',
     handlers.acceptVendorTerms,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createVendorCustomer',
+    handlers.createVendorCustomer,
   );
   rootMessenger.registerActionHandler(
     'KycService:sendEmailOtp',

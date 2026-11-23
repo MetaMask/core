@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `KycClientContext` sends `acceptedDisclaimerIds` and `country` instead of `vendorTermsAcceptedLocally`, and `OnboardingVendorState` keeps `acceptedDisclaimerIds` and `termsCountry` ([#PR](https://github.com/MetaMask/core/pull/PR))
+  - `recordVendorDisclaimers` saves the accepted ids and posts them to kyc-api only for Iron. Kalshi terms are no longer stored by kyc-api: every step read carries the ids, and kyc-api checks them against the current catalog
+  - `startSession` creates the Iron customer and then posts the saved terms, before it opens the session
 - Onboarding steps are `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`, `sumsub`, and `decision`. Kalshi uses all of them. Iron uses `terms`, `mfa`, `sumsub`, and `decision`. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
 - Kalshi session creation and the email steps send phone-signed `KycSignedRequest` objects. `kalshiRequestSigner` replaces `kalshiAccountLinkAdapter`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))

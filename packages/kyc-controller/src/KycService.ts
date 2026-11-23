@@ -1152,8 +1152,14 @@ export class KycService extends BaseDataService<
     );
     // What only this device knows. kyc-api reads it for one answer and
     // stores none of it.
-    if (client.vendorTermsAcceptedLocally) {
-      url.searchParams.set('vendorTermsAcceptedLocally', 'true');
+    if (client.acceptedDisclaimerIds?.length) {
+      url.searchParams.set(
+        'acceptedDisclaimerIds',
+        client.acceptedDisclaimerIds.join(','),
+      );
+    }
+    if (client.country) {
+      url.searchParams.set('country', client.country);
     }
     const data = await this.#requestJson(url, { method: 'GET' });
     const { step, status } = this.#validateResponse(

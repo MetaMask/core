@@ -1114,19 +1114,25 @@ describe('KycService', () => {
       });
     });
 
-    it('sends what only the device knows as a query parameter', async () => {
+    it('sends the accepted terms and their country as query parameters', async () => {
       nock(MOCK_API_URL)
-        .get('/vendors/iron/step')
-        .query({ vendorTermsAcceptedLocally: 'true' })
+        .get('/vendors/kalshi/step')
+        .query({
+          acceptedDisclaimerIds: 'tos-v1,privacy-v1',
+          country: 'USA',
+        })
         .reply(200, {
-          vendor: 'iron',
+          vendor: 'kalshi',
           step: 'mfa',
           status: 'none',
         });
       const { service } = getService();
 
       expect(
-        await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
+        await service.getStep('kalshi', {
+          acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
+          country: 'USA',
+        }),
       ).toStrictEqual({ step: 'mfa', status: 'none' });
     });
 

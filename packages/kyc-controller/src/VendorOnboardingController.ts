@@ -64,6 +64,13 @@ export type OnboardingVendorState = {
   status: KycStepStatus | null;
   /** The vendor's UKYC session id, once one exists. */
   sessionId: string | null;
+  /**
+   * The disclaimer ids the user accepted, sent with every step read so
+   * kyc-api can tell whether the terms still need accepting.
+   */
+  acceptedDisclaimerIds: string[];
+  /** The country the terms were fetched for, if any. */
+  termsCountry: string | null;
 };
 
 /**
@@ -270,11 +277,20 @@ export class VendorOnboardingController extends BaseController<
     disclaimerIds: string[];
     country?: string;
   }): Promise<KycStep> {
-    await this.messenger.call('KycService:acceptVendorTerms', {
-      vendor: params.vendor,
-      disclaimerIds: params.disclaimerIds,
-      ...(params.country ? { country: params.country } : {}),
+    this.#write(params.vendor, {
+      acceptedDisclaimerIds: params.disclaimerIds,
+      termsCountry: params.country ?? null,
     });
+    // Iron signs its terms at its customer, so the signings are posted here
+    // too once a customer exists. kyc-api posts nothing before that: the
+    // session opening posts them. Kalshi keeps its record in the ids alone.
+    if (params.vendor === 'iron') {
+      await this.messenger.call('KycService:acceptVendorTerms', {
+        vendor: params.vendor,
+        disclaimerIds: params.disclaimerIds,
+        ...(params.country ? { country: params.country } : {}),
+      });
+    }
     return this.#readStep(params.vendor, { supersede: true });
   }
 
@@ -287,8 +303,8 @@ export class VendorOnboardingController extends BaseController<
    * then wraps the encryption key and a capability token for idOS. An existing
    * session is picked up as it is: its authorizations are left alone.
    *
-   * This does not create a vendor customer. A vendor that needs one before
-   * its session (Iron) adds that when it moves to this controller.
+   * For Iron this creates the customer first, then posts the signings for the
+   * terms the user accepted, then opens the session. Kalshi needs neither.
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
@@ -336,6 +352,22 @@ export class VendorOnboardingController extends BaseController<
     // The phone signs that same address into `users/link`; it is not sent
     // beside the signed calls.
     const partnerIdentityToken = await this.#mintPartnerIdentityToken(vendor);
+    if (vendor === 'iron') {
+      // Iron's customer comes before its signings, and both come before the
+      // session. The signings are the terms the user accepted on this device.
+      await this.messenger.call('KycService:createVendorCustomer', {
+        vendor,
+        partnerIdentityToken,
+      });
+      const { acceptedDisclaimerIds, termsCountry } = this.#savedTerms(vendor);
+      if (acceptedDisclaimerIds.length > 0) {
+        await this.messenger.call('KycService:acceptVendorTerms', {
+          vendor,
+          disclaimerIds: acceptedDisclaimerIds,
+          ...(termsCountry ? { country: termsCountry } : {}),
+        });
+      }
+    }
     // A signature lasts 60 seconds, so this is the last thing before the
     // call that carries it.
     const signedRequests =
@@ -720,16 +752,39 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * What only this device knows, sent with every step request.
+   * What only this device knows, sent with every step request: the terms
+   * the user accepted here and the country they were fetched for.
    *
-   * Empty for Kalshi: kyc-api records its terms as they are accepted, so
-   * there is nothing the server cannot already see.
-   *
-   * @param _vendor - The vendor the step is being read for.
+   * @param vendor - The vendor the step is being read for.
    * @returns The client context to send.
    */
-  #clientContext(_vendor: OnboardingVendor): KycClientContext {
-    return {};
+  #clientContext(vendor: OnboardingVendor): KycClientContext {
+    const { acceptedDisclaimerIds, termsCountry } = this.#savedTerms(vendor);
+    if (acceptedDisclaimerIds.length === 0) {
+      return {};
+    }
+    return {
+      acceptedDisclaimerIds,
+      ...(termsCountry ? { country: termsCountry } : {}),
+    };
+  }
+
+  /**
+   * Reads the terms saved for a vendor. Entries persisted before these
+   * fields existed have neither, so they read as nothing accepted.
+   *
+   * @param vendor - The vendor to read.
+   * @returns The saved disclaimer ids and country.
+   */
+  #savedTerms(vendor: OnboardingVendor): {
+    acceptedDisclaimerIds: string[];
+    termsCountry: string | null;
+  } {
+    const saved = this.state.vendors[vendor];
+    return {
+      acceptedDisclaimerIds: saved?.acceptedDisclaimerIds ?? [],
+      termsCountry: saved?.termsCountry ?? null,
+    };
   }
 
   /**
@@ -789,6 +844,8 @@ export class VendorOnboardingController extends BaseController<
         step: null,
         status: null,
         sessionId: null,
+        acceptedDisclaimerIds: [],
+        termsCountry: null,
       };
       state.vendors[vendor] = { ...entry, ...patch };
     });
