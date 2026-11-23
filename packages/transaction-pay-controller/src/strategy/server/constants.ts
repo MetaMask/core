@@ -17,9 +17,7 @@ export const SERVER_HYPERLIQUID_PERPS_USDC_ASSET =
   'hyperliq:mainnet/perps:usdc' as CaipAssetType;
 
 /**
- * CAIP-19 asset ID the server intents API uses for USDC in the Lighter perps
- * balance. It follows the `hyperliq` convention, as Lighter has no official
- * CAIP namespace.
+ * Asset ID the server intents API uses for Lighter. It is the plain string
+ * `lighter`, not a CAIP-19 asset ID.
  */
-export const SERVER_LIGHTER_PERPS_USDC_ASSET =
-  'lighter:mainnet/perps:usdc' as CaipAssetType;
+export const SERVER_LIGHTER_PERPS_USDC_ASSET = 'lighter' as CaipAssetType;
