@@ -7295,7 +7295,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-balance-service@npm:^3.2.1, @metamask/money-account-balance-service@workspace:packages/money-account-balance-service":
+"@metamask/money-account-balance-service@npm:^3.2.2, @metamask/money-account-balance-service@workspace:packages/money-account-balance-service":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-balance-service@workspace:packages/money-account-balance-service"
   dependencies:
@@ -8840,7 +8840,7 @@ __metadata:
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/money-account-balance-service": "npm:^3.2.1"
+    "@metamask/money-account-balance-service": "npm:^3.2.2"
     "@metamask/money-account-upgrade-controller": "npm:^7.0.0"
     "@metamask/money-account-utils": "npm:^2.2.1"
     "@metamask/polling-controller": "npm:^17.0.0"
