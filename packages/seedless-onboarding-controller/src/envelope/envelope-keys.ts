@@ -1,4 +1,3 @@
-import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import {
   enums,
   is,
@@ -20,7 +19,6 @@ import {
   bytesToBase64,
   bytesToHex,
   bytesToString,
-  concatBytes,
   hexToBigInt,
   hexToBytes,
   stringToBytes,
@@ -30,6 +28,8 @@ import { bytesToNumberBE } from '@noble/curves/utils';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
+
+const SYMMETRIC_KEY_BYTE_LENGTH = 32;
 
 /**
  * The vault key set `K_v`. It addresses and encrypts the backend vault and
@@ -44,16 +44,21 @@ export type VaultKeySet = {
 
 export type EnvelopePath = 'password' | 'recovery-secret';
 
-export type EnvelopeHeader = {
+/**
+ * Key envelope payload stored in the Metadata Service (encrypted once by the
+ * Metadata Service outer AES-256-GCM layer under `envelopeKeys.wrapKey`).
+ */
+export type Envelope = {
   v: 1;
   path: EnvelopePath;
   /** Hex encoded uncompressed SEC1 public key of `K_v.authKeyPair`. */
   vaultAuthPubKey: string;
-};
-
-export type Envelope = EnvelopeHeader & {
-  /** base64(iv || AES-256-GCM(wrapKey, serialize(K_v), aad = header)). */
-  ct: string;
+  /** Hex encoded secp256k1 private key of `K_v.authKeyPair`. */
+  authSk: string;
+  /** base64 encoded `K_v.encKey` (32 bytes). */
+  encKey: string;
+  /** base64 encoded `K_v.localWrapKey` (32 bytes). */
+  localWrapKey: string;
 };
 
 /** An envelope and the keys of the partition it is written to. */
@@ -76,17 +81,13 @@ export type ControlRecord = {
   migratedAt: number;
 };
 
-type SerializedVaultKeySet = {
-  authSk: string;
-  encKey: string;
-  localWrapKey: string;
-};
-
 const EnvelopeStruct = type({
   v: literal(1),
   path: enums(['password', 'recovery-secret'] as const),
   vaultAuthPubKey: string(),
-  ct: string(),
+  authSk: string(),
+  encKey: string(),
+  localWrapKey: string(),
 });
 
 /**
@@ -96,16 +97,6 @@ function createInvalidEnvelopeError(): SeedlessOnboardingError {
   return new SeedlessOnboardingError(
     SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
   );
-}
-
-/**
- * Check that a value is a non-null, non-array object.
- *
- * @param value - The value to check.
- * @returns Whether the value is a plain object.
- */
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -159,97 +150,69 @@ export function deriveKeyPair(bytes: Uint8Array): KeyPair {
 }
 
 /**
- * Serialize an envelope header with a fixed key order, so the same header
- * always yields the same associated data.
+ * Pack a vault key set into an envelope payload. Confidentiality and integrity
+ * are provided by the Metadata Service AES-256-GCM layer under the partition's
+ * `wrapKey`.
  *
- * @param header - The envelope header.
- * @returns The associated data.
- */
-function headerToAad(header: EnvelopeHeader): Uint8Array<ArrayBuffer> {
-  const { v, path, vaultAuthPubKey } = header;
-  return stringToBytes(JSON.stringify({ v, path, vaultAuthPubKey }));
-}
-
-/**
- * Seal a vault key set into an envelope.
- *
- * @param wrapKey - The envelope wrap key.
- * @param path - The path the wrap key was derived on.
- * @param vaultKeySet - The vault key set to seal.
+ * @param path - The path the envelope belongs to.
+ * @param vaultKeySet - The vault key set to pack.
  * @returns The envelope.
  */
-export async function sealEnvelope(
-  wrapKey: Uint8Array,
+export function sealEnvelope(
   path: EnvelopePath,
   vaultKeySet: VaultKeySet,
-): Promise<Envelope> {
-  const header: EnvelopeHeader = {
+): Envelope {
+  return {
     v: 1,
     path,
     vaultAuthPubKey: bytesToHex(vaultKeySet.authKeyPair.pk),
-  };
-  const body: SerializedVaultKeySet = {
     authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
     encKey: bytesToBase64(vaultKeySet.encKey),
     localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
   };
-  const { iv, ciphertext } = await encrypt(
-    wrapKey as Uint8Array<ArrayBuffer>,
-    stringToBytes(JSON.stringify(body)),
-    { additionalData: headerToAad(header) },
-  );
-  return { ...header, ct: bytesToBase64(concatBytes([iv, ciphertext])) };
 }
 
 /**
- * Open an envelope: decrypt it with the header as associated data, check
- * that the sealed auth key matches the header, and check the path.
+ * Open and validate an envelope: check the path, verify that the auth private
+ * key derives `vaultAuthPubKey`, and validate symmetric key byte lengths.
  *
  * @param envelope - The envelope.
- * @param wrapKey - The envelope wrap key.
- * @param path - The path the wrap key was derived on.
+ * @param path - The expected path of the envelope.
  * @returns The vault key set.
- * @throws `InvalidEnvelope` if the envelope does not open or does not match.
+ * @throws `InvalidEnvelope` if the envelope is malformed or does not match.
  */
-export async function openEnvelope(
+export function openEnvelope(
   envelope: Envelope,
-  wrapKey: Uint8Array,
   path: EnvelopePath,
-): Promise<VaultKeySet> {
+): VaultKeySet {
   if (envelope.path !== path) {
     throw createInvalidEnvelopeError();
   }
-  const ct = base64ToBytes(envelope.ct);
-  let plaintext: Uint8Array;
   try {
-    plaintext = await decrypt(
-      wrapKey as Uint8Array<ArrayBuffer>,
-      ct.slice(0, IV_LENGTH),
-      ct.slice(IV_LENGTH),
-      { additionalData: headerToAad(envelope) },
-    );
-  } catch {
+    const sk = hexToBigInt(envelope.authSk);
+    const pk = derivePubKey(sk);
+    if (!pubKeysEqual(pk, hexToBytes(envelope.vaultAuthPubKey))) {
+      throw createInvalidEnvelopeError();
+    }
+    const encKey = base64ToBytes(envelope.encKey);
+    const localWrapKey = base64ToBytes(envelope.localWrapKey);
+    if (
+      encKey.length !== SYMMETRIC_KEY_BYTE_LENGTH ||
+      localWrapKey.length !== SYMMETRIC_KEY_BYTE_LENGTH
+    ) {
+      throw createInvalidEnvelopeError();
+    }
+    return {
+      authKeyPair: { sk, pk },
+      encKey,
+      localWrapKey,
+    };
+  } catch (error) {
+    if (error instanceof SeedlessOnboardingError) {
+      throw error;
+    }
     throw createInvalidEnvelopeError();
   }
-  const body = parseJsonBytes(plaintext);
-  if (
-    !isObject(body) ||
-    typeof body.authSk !== 'string' ||
-    typeof body.encKey !== 'string' ||
-    typeof body.localWrapKey !== 'string'
-  ) {
-    throw createInvalidEnvelopeError();
-  }
-  const sk = hexToBigInt(body.authSk);
-  const pk = derivePubKey(sk);
-  if (!pubKeysEqual(pk, hexToBytes(envelope.vaultAuthPubKey))) {
-    throw createInvalidEnvelopeError();
-  }
-  return {
-    authKeyPair: { sk, pk },
-    encKey: base64ToBytes(body.encKey),
-    localWrapKey: base64ToBytes(body.localWrapKey),
-  };
 }
 
 /**
@@ -274,7 +237,9 @@ export function parseEnvelope(data: Uint8Array): Envelope {
     v: 1,
     path: value.path,
     vaultAuthPubKey: value.vaultAuthPubKey,
-    ct: value.ct,
+    authSk: value.authSk,
+    encKey: value.encKey,
+    localWrapKey: value.localWrapKey,
   };
 }
 

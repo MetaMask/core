@@ -22,11 +22,19 @@ import {
 import type { ControlRecord, VaultKeySet } from './envelope-keys.js';
 import { EnvelopeStore } from './EnvelopeStore.js';
 
-const vaultKeySet: VaultKeySet = {
-  authKeyPair: deriveKeyPair(new Uint8Array(32).fill(1)),
-  encKey: new Uint8Array(32).fill(2),
-  localWrapKey: new Uint8Array(32).fill(3),
-};
+/**
+ * @param fill - Byte fill used to produce distinct vault key sets.
+ * @returns A deterministic vault key set.
+ */
+function createVaultKeySet(fill = 1): VaultKeySet {
+  return {
+    authKeyPair: deriveKeyPair(new Uint8Array(32).fill(fill)),
+    encKey: new Uint8Array(32).fill(fill + 1),
+    localWrapKey: new Uint8Array(32).fill(fill + 2),
+  };
+}
+
+const vaultKeySet: VaultKeySet = createVaultKeySet(1);
 const envelopeKeys = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
 
 /**
@@ -94,11 +102,7 @@ describe('EnvelopeStore', () => {
   describe('envelopes', () => {
     it('adds an envelope to its partition', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'recovery-secret',
-        vaultKeySet,
-      );
+      const envelope = sealEnvelope('recovery-secret', vaultKeySet);
 
       await store.writeEnvelope(envelopeKeys, envelope);
 
@@ -112,21 +116,9 @@ describe('EnvelopeStore', () => {
 
     it('fetches the envelopes of a path, newest first', async () => {
       const { store, toprfClient } = createStore();
-      const older = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'password',
-        vaultKeySet,
-      );
-      const newer = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'password',
-        vaultKeySet,
-      );
-      const otherPath = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'recovery-secret',
-        vaultKeySet,
-      );
+      const older = sealEnvelope('password', createVaultKeySet(1));
+      const newer = sealEnvelope('password', createVaultKeySet(4));
+      const otherPath = sealEnvelope('recovery-secret', createVaultKeySet(7));
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(newer), { createdAt: '2000' }),
         createItem(serializeEnvelope(older), { createdAt: '1000' }),
@@ -144,10 +136,8 @@ describe('EnvelopeStore', () => {
 
     it('orders items by ISO creation time, then by later position', async () => {
       const { store, toprfClient } = createStore();
-      const [first, second, third] = await Promise.all(
-        [0, 1, 2].map(async () =>
-          sealEnvelope(envelopeKeys.wrapKey, 'password', vaultKeySet),
-        ),
+      const [first, second, third] = [1, 4, 7].map((fill) =>
+        sealEnvelope('password', createVaultKeySet(fill)),
       );
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(first)),
@@ -164,10 +154,8 @@ describe('EnvelopeStore', () => {
 
     it('treats an unparseable creation time as unknown', async () => {
       const { store, toprfClient } = createStore();
-      const [first, second] = await Promise.all(
-        [0, 1].map(async () =>
-          sealEnvelope(envelopeKeys.wrapKey, 'password', vaultKeySet),
-        ),
+      const [first, second] = [1, 4].map((fill) =>
+        sealEnvelope('password', createVaultKeySet(fill)),
       );
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(first), { createdAt: 'not-a-date' }),
@@ -181,11 +169,7 @@ describe('EnvelopeStore', () => {
 
     it('skips items of other types and malformed envelopes', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'password',
-        vaultKeySet,
-      );
+      const envelope = sealEnvelope('password', vaultKeySet);
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(stringToBytes('x'), {
           dataType: EncAccountDataType.PrimarySrp,
@@ -254,11 +238,7 @@ describe('EnvelopeStore', () => {
 
     it('fetches control records from the vault partition, ignoring secret and envelope items', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = await sealEnvelope(
-        envelopeKeys.wrapKey,
-        'password',
-        vaultKeySet,
-      );
+      const envelope = sealEnvelope('password', vaultKeySet);
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(stringToBytes('srp'), {
           dataType: EncAccountDataType.PrimarySrp,

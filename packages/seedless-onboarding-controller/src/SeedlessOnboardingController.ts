@@ -170,14 +170,14 @@ function createEnvelopeState(
  * @param vaultKeySet - The vault key set.
  * @returns The envelope and its partition keys.
  */
-async function sealFor(
+function sealFor(
   keys: EnvelopeKeys,
   path: Envelope['path'],
   vaultKeySet: VaultKeySet,
-): Promise<SealedEnvelope> {
+): SealedEnvelope {
   return {
     keys,
-    envelope: await sealEnvelope(keys.wrapKey, path, vaultKeySet),
+    envelope: sealEnvelope(path, vaultKeySet),
   };
 }
 
@@ -996,7 +996,7 @@ export class SeedlessOnboardingController<
       await this.toprfClient.createLocalKey({ password: newPassword });
     // the controller only needs the envelope keys, so the seed is not kept
     seed.fill(0);
-    const sealed = await sealFor(envelopeKeys, 'password', vaultKeySet);
+    const sealed = sealFor(envelopeKeys, 'password', vaultKeySet);
     const nextControlRecord: ControlRecord = {
       ...currentRecord,
       seq: nextControlSeq(controlRecords),
@@ -3192,7 +3192,7 @@ export class SeedlessOnboardingController<
       return;
     }
     await this.#writeAndVerifyEnvelope(
-      await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+      sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
     );
   }
 
@@ -3217,7 +3217,7 @@ export class SeedlessOnboardingController<
     // the controller only needs the envelope keys, so the seed is not kept
     seed.fill(0);
     await this.#writeAndVerifyEnvelope(
-      await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+      sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
     );
     if (!(await this.#registerRecoverySecretKey(oprfKey, authKeyPair.pk))) {
       await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
@@ -3291,7 +3291,7 @@ export class SeedlessOnboardingController<
     }
     for (const envelope of envelopes) {
       try {
-        return await openEnvelope(envelope, keys.wrapKey, path);
+        return openEnvelope(envelope, path);
       } catch (error) {
         log('Ignoring envelope that does not open', error);
       }
@@ -3302,8 +3302,8 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Open every decryptable envelope of a partition's envelope keys, newest
-   * first, deduplicated by vault auth public key.
+   * Open every valid envelope of a partition's envelope keys, newest first,
+   * deduplicated by vault auth public key.
    *
    * @param keys - The envelope keys of the partition.
    * @param path - The path of the envelopes to open.
@@ -3324,7 +3324,7 @@ export class SeedlessOnboardingController<
     const vaultKeySets: VaultKeySet[] = [];
     for (const envelope of envelopes) {
       try {
-        const vaultKeySet = await openEnvelope(envelope, keys.wrapKey, path);
+        const vaultKeySet = openEnvelope(envelope, path);
         const keyId = bytesToHex(vaultKeySet.authKeyPair.pk);
         if (!seen.has(keyId)) {
           seen.add(keyId);
@@ -3393,9 +3393,7 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Write an envelope, then read it back and check that it opens (I1). The
-   * header is bound as associated data, so an envelope with the same
-   * ciphertext that opens also names the same vault key set.
+   * Write an envelope, then read it back and check that it opens (I1).
    *
    * @param sealed - The envelope and its partition keys.
    * @throws `InvalidEnvelope` if the envelope does not read back.
@@ -3405,13 +3403,19 @@ export class SeedlessOnboardingController<
     await this.#envelopeStore.writeEnvelope(keys, envelope);
     const stored = (
       await this.#envelopeStore.fetchEnvelopes(keys, envelope.path)
-    ).find(({ ct }) => ct === envelope.ct);
+    ).find(
+      (item) =>
+        item.vaultAuthPubKey === envelope.vaultAuthPubKey &&
+        item.authSk === envelope.authSk &&
+        item.encKey === envelope.encKey &&
+        item.localWrapKey === envelope.localWrapKey,
+    );
     if (!stored) {
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
       );
     }
-    await openEnvelope(stored, keys.wrapKey, envelope.path);
+    openEnvelope(stored, envelope.path);
   }
 
   /**

@@ -7,7 +7,6 @@ import {
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { describe, expect, it } from 'vitest';
 
-import { deriveTestEnvelopeKeys } from '../../tests/mocks/envelopeKeys.js';
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import {
   deriveKeyPair,
@@ -64,77 +63,47 @@ const INVALID_ENVELOPE =
 
 describe('envelope keys', () => {
   describe('sealEnvelope / openEnvelope', () => {
-    it('round-trips the vault key set', async () => {
+    it('round-trips the vault key set', () => {
       const vaultKeySet = createVaultKeySet();
-      const { wrapKey } = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
 
-      const envelope = await sealEnvelope(wrapKey, 'password', vaultKeySet);
+      const envelope = sealEnvelope('password', vaultKeySet);
 
       expect(envelope).toStrictEqual({
         v: 1,
         path: 'password',
         vaultAuthPubKey: bytesToHex(vaultKeySet.authKeyPair.pk),
-        ct: expect.any(String),
+        authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
+        encKey: bytesToBase64(vaultKeySet.encKey),
+        localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
       });
-      expect(await openEnvelope(envelope, wrapKey, 'password')).toStrictEqual(
-        vaultKeySet,
-      );
+      expect(openEnvelope(envelope, 'password')).toStrictEqual(vaultKeySet);
     });
 
-    it('rejects an envelope opened on the other path', async () => {
-      const { wrapKey } = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
-      const envelope = await sealEnvelope(
-        wrapKey,
-        'recovery-secret',
-        createVaultKeySet(),
-      );
+    it('rejects an envelope opened on the other path', () => {
+      const envelope = sealEnvelope('recovery-secret', createVaultKeySet());
 
-      await expect(openEnvelope(envelope, wrapKey, 'password')).rejects.toThrow(
+      expect(() => openEnvelope(envelope, 'password')).toThrow(
         INVALID_ENVELOPE,
       );
     });
 
-    it('rejects an envelope whose header was changed', async () => {
-      const { wrapKey } = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
-      const envelope = await sealEnvelope(
-        wrapKey,
-        'password',
-        createVaultKeySet(),
-      );
+    it('rejects an envelope whose vaultAuthPubKey does not match authSk', () => {
+      const envelope = sealEnvelope('password', createVaultKeySet());
 
-      await expect(
+      expect(() =>
         openEnvelope(
           {
             ...envelope,
             vaultAuthPubKey: bytesToHex(createVaultKeySet(7).authKeyPair.pk),
           },
-          wrapKey,
           'password',
         ),
-      ).rejects.toThrow(INVALID_ENVELOPE);
+      ).toThrow(INVALID_ENVELOPE);
     });
 
-    it('rejects an envelope under another wrap key', async () => {
-      const envelope = await sealEnvelope(
-        deriveTestEnvelopeKeys(new Uint8Array(32).fill(4)).wrapKey,
-        'password',
-        createVaultKeySet(),
-      );
-
-      await expect(
-        openEnvelope(
-          envelope,
-          deriveTestEnvelopeKeys(new Uint8Array(32).fill(5)).wrapKey,
-          'password',
-        ),
-      ).rejects.toThrow(INVALID_ENVELOPE);
-    });
-
-    it('rejects a sealed key set that does not match the header', async () => {
-      const { wrapKey } = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
+    it('rejects a forged key set whose pk does not match sk', () => {
       const other = createVaultKeySet(7);
-      // seal another key set under a header naming the first one
-      const forged = await sealEnvelope(wrapKey, 'password', {
+      const forged = sealEnvelope('password', {
         ...other,
         authKeyPair: {
           sk: other.authKeyPair.sk,
@@ -142,44 +111,34 @@ describe('envelope keys', () => {
         },
       });
 
-      await expect(openEnvelope(forged, wrapKey, 'password')).rejects.toThrow(
-        INVALID_ENVELOPE,
-      );
+      expect(() => openEnvelope(forged, 'password')).toThrow(INVALID_ENVELOPE);
     });
 
-    it('rejects a sealed body that is not a key set', async () => {
-      const { wrapKey } = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
-      const envelope = await sealEnvelope(
-        wrapKey,
-        'password',
-        createVaultKeySet(),
-      );
-      const { encrypt } = await import('@metamask/cryptography/aes-gcm');
-      const header = {
-        v: 1 as const,
-        path: 'password' as const,
-        vaultAuthPubKey: envelope.vaultAuthPubKey,
-      };
-      const { iv, ciphertext } = await encrypt(
-        wrapKey as Uint8Array<ArrayBuffer>,
-        stringToBytes('{"authSk":1}'),
-        { additionalData: stringToBytes(JSON.stringify(header)) },
-      );
-      const ct = bytesToBase64(new Uint8Array([...iv, ...ciphertext]));
+    it.each([
+      ['an invalid authSk hex', { authSk: 'not-hex' }],
+      ['an out-of-range authSk', { authSk: '0x0' }],
+      ['an invalid vaultAuthPubKey hex', { vaultAuthPubKey: 'not-hex' }],
+      [
+        'an encKey that is not 32 bytes',
+        { encKey: bytesToBase64(new Uint8Array(16).fill(1)) },
+      ],
+      [
+        'a localWrapKey that is not 32 bytes',
+        { localWrapKey: bytesToBase64(new Uint8Array(31).fill(1)) },
+      ],
+      ['invalid base64 in encKey', { encKey: 'not!base64!' }],
+    ])('rejects an envelope with %s', (_name, overrides) => {
+      const envelope = sealEnvelope('password', createVaultKeySet());
 
-      await expect(
-        openEnvelope({ ...header, ct }, wrapKey, 'password'),
-      ).rejects.toThrow(INVALID_ENVELOPE);
+      expect(() =>
+        openEnvelope({ ...envelope, ...overrides }, 'password'),
+      ).toThrow(INVALID_ENVELOPE);
     });
   });
 
   describe('serializeEnvelope / parseEnvelope', () => {
-    it('round-trips an envelope', async () => {
-      const envelope = await sealEnvelope(
-        new Uint8Array(32).fill(1),
-        'recovery-secret',
-        createVaultKeySet(),
-      );
+    it('round-trips an envelope', () => {
+      const envelope = sealEnvelope('recovery-secret', createVaultKeySet());
 
       expect(parseEnvelope(serializeEnvelope(envelope))).toStrictEqual(
         envelope,
@@ -190,12 +149,23 @@ describe('envelope keys', () => {
       ['not JSON', 'nope'],
       [
         'an unknown version',
-        '{"v":2,"path":"password","vaultAuthPubKey":"","ct":""}',
+        '{"v":2,"path":"password","vaultAuthPubKey":"","authSk":"","encKey":"","localWrapKey":""}',
       ],
-      ['an unknown path', '{"v":1,"path":"x","vaultAuthPubKey":"","ct":""}'],
       [
-        'a missing ciphertext',
-        '{"v":1,"path":"password","vaultAuthPubKey":""}',
+        'an unknown path',
+        '{"v":1,"path":"x","vaultAuthPubKey":"","authSk":"","encKey":"","localWrapKey":""}',
+      ],
+      [
+        'a missing authSk',
+        '{"v":1,"path":"password","vaultAuthPubKey":"","encKey":"","localWrapKey":""}',
+      ],
+      [
+        'a missing encKey',
+        '{"v":1,"path":"password","vaultAuthPubKey":"","authSk":"","localWrapKey":""}',
+      ],
+      [
+        'a missing localWrapKey',
+        '{"v":1,"path":"password","vaultAuthPubKey":"","authSk":"","encKey":""}',
       ],
       ['an array', '[]'],
     ])('rejects %s', (_name, data) => {

@@ -742,7 +742,7 @@ describe('SeedlessOnboardingController', () => {
     ): Promise<VaultKeySet | undefined> {
       const keys = deriveTestEnvelopeKeys(stringToBytes(seedSource));
       const [envelope] = await network.envelopeStore.fetchEnvelopes(keys, path);
-      return envelope && (await openEnvelope(envelope, keys.wrapKey, path));
+      return envelope && openEnvelope(envelope, path);
     }
 
     /**
@@ -1386,8 +1386,7 @@ describe('SeedlessOnboardingController', () => {
               ? {
                   ...params,
                   secretData: serializeEnvelope(
-                    await sealEnvelope(
-                      params.encKey,
+                    sealEnvelope(
                       'recovery-secret',
                       vaultKeySetFor('other-password'),
                     ),
@@ -2089,13 +2088,12 @@ describe('SeedlessOnboardingController', () => {
                 {
                   encKey: bytesToHex(envelopeKeys.wrapKey),
                   dataType: EncAccountDataType.KeyEnvelope,
-                  data: serializeEnvelope(
-                    await sealEnvelope(
-                      keysFor('other-password').envelopeKeys.wrapKey,
-                      'recovery-secret',
-                      vaultKeySetFor(),
+                  data: serializeEnvelope({
+                    ...sealEnvelope('recovery-secret', vaultKeySetFor()),
+                    vaultAuthPubKey: bytesToHex(
+                      vaultKeySetFor('other-password').authKeyPair.pk,
                     ),
-                  ),
+                  }),
                 },
               ],
             ]),
@@ -3214,11 +3212,7 @@ describe('SeedlessOnboardingController', () => {
           const { envelopeKeys } = keysFor(NEW_PASSWORD);
           await network.envelopeStore.writeEnvelope(
             envelopeKeys,
-            await sealEnvelope(
-              envelopeKeys.wrapKey,
-              'password',
-              vaultKeySetFor('other-password'),
-            ),
+            sealEnvelope('password', vaultKeySetFor('other-password')),
           );
           network.setGlobalPassword(NEW_PASSWORD);
           const { vault, envelope, authPubKey } = controller.state;
@@ -4271,11 +4265,12 @@ describe('SeedlessOnboardingController', () => {
           });
           await network.envelopeStore.writeEnvelope(
             deriveTestEnvelopeKeys(stringToBytes(RECOVERY_SECRET_HEX)),
-            await sealEnvelope(
-              deriveTestEnvelopeKeys(stringToBytes('other-seed')).wrapKey,
-              'recovery-secret',
-              vaultKeySetFor(),
-            ),
+            {
+              ...sealEnvelope('recovery-secret', vaultKeySetFor()),
+              vaultAuthPubKey: bytesToHex(
+                vaultKeySetFor('other-password').authKeyPair.pk,
+              ),
+            },
           );
 
           await expect(recover(args)).rejects.toThrow(
@@ -4468,11 +4463,7 @@ describe('SeedlessOnboardingController', () => {
           );
           await network.envelopeStore.writeEnvelope(
             recoveryKeys,
-            await sealEnvelope(
-              recoveryKeys.wrapKey,
-              'recovery-secret',
-              staleKeySet,
-            ),
+            sealEnvelope('recovery-secret', staleKeySet),
           );
 
           const secrets = await recover(args);
@@ -4506,11 +4497,7 @@ describe('SeedlessOnboardingController', () => {
           );
           await network.envelopeStore.writeEnvelope(
             recoveryKeys,
-            await sealEnvelope(
-              recoveryKeys.wrapKey,
-              'recovery-secret',
-              staleKeySet,
-            ),
+            sealEnvelope('recovery-secret', staleKeySet),
           );
 
           const secrets = await recover(args);
@@ -4540,19 +4527,11 @@ describe('SeedlessOnboardingController', () => {
           );
           await network.envelopeStore.writeEnvelope(
             recoveryKeys,
-            await sealEnvelope(
-              recoveryKeys.wrapKey,
-              'recovery-secret',
-              staleKeySet,
-            ),
+            sealEnvelope('recovery-secret', staleKeySet),
           );
           await network.envelopeStore.writeEnvelope(
             recoveryKeys,
-            await sealEnvelope(
-              recoveryKeys.wrapKey,
-              'recovery-secret',
-              staleKeySet,
-            ),
+            sealEnvelope('recovery-secret', staleKeySet),
           );
           network.spies.fetchAllSecretDataItems.mockClear();
 
@@ -4584,11 +4563,7 @@ describe('SeedlessOnboardingController', () => {
           );
           await network.envelopeStore.writeEnvelope(
             recoveryKeys,
-            await sealEnvelope(
-              recoveryKeys.wrapKey,
-              'recovery-secret',
-              staleKeySet,
-            ),
+            sealEnvelope('recovery-secret', staleKeySet),
           );
           failOnce(
             network.spies.fetchAllSecretDataItems,
