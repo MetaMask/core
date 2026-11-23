@@ -5044,6 +5044,51 @@ describe('PerpsController', () => {
       expect(controller.getWatchlistMarkets()).toStrictEqual(['BTC']);
     });
 
+    it('restores keyed aliases when the newer toggle that took over also fails', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const mockCall = mockMessenger.call as Mock;
+      const defaultCall = mockCall.getMockImplementation();
+      mockCall.mockImplementation((action: string, ...rest: unknown[]) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.reject(new Error('AUS server error'));
+        }
+        return defaultCall?.(action, ...rest);
+      });
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = ['market-key:BTC-USD', 'BTC'];
+      });
+
+      await Promise.all([
+        controller.toggleWatchlistMarket(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+        controller.toggleWatchlistMarket('BTC'),
+      ]);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'BTC',
+      ]);
+    });
+
     it('replaces a legacy recent with the keyed entry for the same group', () => {
       const [group] = groupMarketsByMarketKey(
         [

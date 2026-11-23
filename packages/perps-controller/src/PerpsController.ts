@@ -1397,6 +1397,15 @@ export class PerpsController extends BaseController<
    */
   readonly #pendingWatchlistToggles = new Map<string, symbol>();
 
+  /**
+   * Removals a failed toggle could not undo because a newer pending toggle
+   * owned one of its references. The newer toggle undoes them if it fails too.
+   */
+  readonly #deferredWatchlistRestores = new Map<
+    symbol,
+    { entries: readonly string[]; snapshot: readonly string[] }[]
+  >();
+
   #userDiskWrite: Promise<void> = Promise.resolve();
 
   readonly #providerSubscriptions = new Set<RebindableProviderSubscription>();
@@ -9782,6 +9791,10 @@ export class PerpsController extends BaseController<
     }
     const toggle = Symbol(reference);
     const toggleKey = (entry: string): string => `${currentNetwork}:${entry}`;
+    // References with no pending write reflect remote storage.
+    const settledReferences = references.filter(
+      (entry) => !this.#pendingWatchlistToggles.has(toggleKey(entry)),
+    );
     for (const entry of references) {
       this.#pendingWatchlistToggles.set(toggleKey(entry), toggle);
     }
@@ -9823,26 +9836,47 @@ export class PerpsController extends BaseController<
       // Undo only this toggle. The list may have changed since it was made
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
+      const deferred = this.#deferredWatchlistRestores.get(toggle) ?? [];
       this.update((state) => {
+        if (!isWatchlisted && isLatestToggle(reference)) {
+          state.watchlistMarkets[currentNetwork] = state.watchlistMarkets[
+            currentNetwork
+          ].filter((marketSymbol) => marketSymbol !== reference);
+        }
+        // A newer toggle of any alias owns the market's state now; restoring
+        // the other aliases would save the market twice. It restores them
+        // only if its own write fails too.
+        const newerToggle = [
+          ...references,
+          ...deferred.flatMap(({ entries }) => entries),
+        ]
+          .map((entry) => this.#pendingWatchlistToggles.get(toggleKey(entry)))
+          .find((pending) => pending !== undefined && pending !== toggle);
+        if (newerToggle) {
+          // Hand over only what remote storage still holds.
+          this.#deferredWatchlistRestores.set(newerToggle, [
+            ...(isWatchlisted
+              ? [{ entries: settledReferences, snapshot: currentWatchlist }]
+              : []),
+            ...deferred,
+            ...(this.#deferredWatchlistRestores.get(newerToggle) ?? []),
+          ]);
+          return;
+        }
+        const restores = isWatchlisted
+          ? [{ entries: references, snapshot: currentWatchlist }, ...deferred]
+          : deferred;
         const watchlist = state.watchlistMarkets[currentNetwork];
-        if (isWatchlisted) {
-          // A newer toggle of any alias owns the market's state now; restoring
-          // the other aliases would save the market twice.
-          if (!references.every((entry) => isLatestToggle(entry))) {
-            return;
-          }
-          for (const [index, entry] of currentWatchlist.entries()) {
-            if (references.includes(entry) && !watchlist.includes(entry)) {
+        for (const { entries, snapshot } of restores) {
+          for (const [index, entry] of snapshot.entries()) {
+            if (entries.includes(entry) && !watchlist.includes(entry)) {
               watchlist.splice(Math.min(index, watchlist.length), 0, entry);
             }
           }
-        } else if (isLatestToggle(reference)) {
-          state.watchlistMarkets[currentNetwork] = watchlist.filter(
-            (marketSymbol) => marketSymbol !== reference,
-          );
         }
       });
     } finally {
+      this.#deferredWatchlistRestores.delete(toggle);
       for (const entry of references) {
         if (isLatestToggle(entry)) {
           this.#pendingWatchlistToggles.delete(toggleKey(entry));
