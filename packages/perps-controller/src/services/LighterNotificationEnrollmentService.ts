@@ -1,5 +1,5 @@
 import {
-  DATA_LAKE_API_CONFIG,
+  NOTIFY_PERPS_API_CONFIG,
   PERPS_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
@@ -11,20 +11,20 @@ const delay = async (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * LighterEnrollmentService
+ * LighterNotificationEnrollmentService
  *
  * Tells notify-perps which Lighter account to watch for the signed-in profile.
  * Mirrors the order reporting done for Hyperliquid (`DataLakeService`): meant
  * to be fired without awaiting, retries with exponential backoff, never
  * throws, and only logs failures.
  */
-export class LighterEnrollmentService {
+export class LighterNotificationEnrollmentService {
   readonly #deps: PerpsPlatformDependencies;
 
   readonly #messenger: PerpsControllerMessengerBase;
 
   /**
-   * Create a new LighterEnrollmentService instance
+   * Create a new LighterNotificationEnrollmentService instance
    *
    * @param deps - Platform dependencies for logging.
    * @param messenger - Controller messenger for cross-controller communication.
@@ -56,13 +56,17 @@ export class LighterEnrollmentService {
     const { isTestnet, getAccountIndex } = options;
 
     if (isTestnet) {
-      this.#deps.debugLogger.log('Lighter enrollment: Skipping for testnet');
+      this.#deps.debugLogger.log(
+        'Lighter notification enrollment: Skipping for testnet',
+      );
       return { success: true, error: 'Skipped for testnet' };
     }
 
     const baseUrl = this.#deps.notifyPerpsApi?.baseUrl;
     if (!baseUrl) {
-      this.#deps.debugLogger.log('Lighter enrollment: No base URL configured');
+      this.#deps.debugLogger.log(
+        'Lighter notification enrollment: No base URL configured',
+      );
       return { success: false, error: 'No base URL configured' };
     }
 
@@ -74,15 +78,19 @@ export class LighterEnrollmentService {
         getAccountIndex(),
       ]);
       if (!token) {
-        this.#deps.debugLogger.log('Lighter enrollment: No token available');
+        this.#deps.debugLogger.log(
+          'Lighter notification enrollment: No token available',
+        );
         return { success: false, error: 'No token available' };
       }
       const body = JSON.stringify({ account_index: accountIndex });
-      const url = `${baseUrl.replace(/\/$/u, '')}${DATA_LAKE_API_CONFIG.LighterAccountsPath}`;
+      const url = `${baseUrl.replace(/\/$/u, '')}${NOTIFY_PERPS_API_CONFIG.LighterNotificationAccountsPath}`;
 
-      for (; attempt <= DATA_LAKE_API_CONFIG.MaxRetries; attempt++) {
+      for (; attempt <= NOTIFY_PERPS_API_CONFIG.MaxRetries; attempt++) {
         if (attempt > 0) {
-          await delay(DATA_LAKE_API_CONFIG.RetryDelayMs * 2 ** (attempt - 1));
+          await delay(
+            NOTIFY_PERPS_API_CONFIG.RetryDelayMs * 2 ** (attempt - 1),
+          );
         }
         try {
           const response = await fetch(url, {
@@ -94,23 +102,28 @@ export class LighterEnrollmentService {
             body,
           });
           if (!response.ok) {
-            throw new Error(`Lighter enrollment API error: ${response.status}`);
+            throw new Error(
+              `Lighter notification enrollment API error: ${response.status}`,
+            );
           }
           return { success: true };
         } catch (error) {
           lastError = ensureError(
             error,
-            'LighterEnrollmentService.enroll',
+            'LighterNotificationEnrollmentService.enroll',
           ).message;
           this.#logError(
             error,
             attempt,
-            attempt < DATA_LAKE_API_CONFIG.MaxRetries,
+            attempt < NOTIFY_PERPS_API_CONFIG.MaxRetries,
           );
         }
       }
     } catch (error) {
-      lastError = ensureError(error, 'LighterEnrollmentService.enroll').message;
+      lastError = ensureError(
+        error,
+        'LighterNotificationEnrollmentService.enroll',
+      ).message;
       this.#logError(error, attempt, false);
     }
     return { success: false, error: lastError };
@@ -118,11 +131,11 @@ export class LighterEnrollmentService {
 
   #logError(error: unknown, retryCount: number, willRetry: boolean): void {
     this.#deps.logger.error(
-      ensureError(error, 'LighterEnrollmentService.enroll'),
+      ensureError(error, 'LighterNotificationEnrollmentService.enroll'),
       {
         tags: { feature: PERPS_CONSTANTS.FeatureName },
         context: {
-          name: 'LighterEnrollmentService.enroll',
+          name: 'LighterNotificationEnrollmentService.enroll',
           data: { retryCount, willRetry },
         },
       },

@@ -61,7 +61,7 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
-import { LighterEnrollmentService } from './services/LighterEnrollmentService.js';
+import { LighterNotificationEnrollmentService } from './services/LighterNotificationEnrollmentService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
@@ -1446,7 +1446,7 @@ export class PerpsController extends BaseController<
 
   readonly #dataLakeService: DataLakeService;
 
-  readonly #lighterEnrollmentService: LighterEnrollmentService;
+  readonly #lighterNotificationEnrollmentService: LighterNotificationEnrollmentService;
 
   readonly #depositService: DepositService;
 
@@ -1511,10 +1511,8 @@ export class PerpsController extends BaseController<
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
-    this.#lighterEnrollmentService = new LighterEnrollmentService(
-      infrastructure,
-      messenger,
-    );
+    this.#lighterNotificationEnrollmentService =
+      new LighterNotificationEnrollmentService(infrastructure, messenger);
     this.#depositService = new DepositService(infrastructure, messenger);
     this.#featureFlagConfigurationService = new FeatureFlagConfigurationService(
       infrastructure,
@@ -10488,13 +10486,15 @@ export class PerpsController extends BaseController<
     provider: PerpsProvider,
   ): Promise<{ success: boolean; error?: string }> {
     if (params.providerId === 'lighter') {
-      return this.#lighterEnrollmentService.enroll({
+      return this.#lighterNotificationEnrollmentService.enroll({
         isTestnet: isProviderOnTestnet('lighter', this.state.isTestnet),
         getAccountIndex: async () => {
-          if (!provider.getEnrollmentAccountIndex) {
-            throw new Error('Provider does not support enrollment');
+          if (!provider.getNotificationAccountIndex) {
+            throw new Error(
+              'Provider does not support notification enrollment',
+            );
           }
-          return provider.getEnrollmentAccountIndex();
+          return provider.getNotificationAccountIndex();
         },
       });
     }

@@ -33,7 +33,7 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
-import * as lighterEnrollmentServiceModule from '../../src/services/LighterEnrollmentService.js';
+import * as lighterNotificationEnrollmentServiceModule from '../../src/services/LighterNotificationEnrollmentService.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   OrderParams,
@@ -179,13 +179,13 @@ vi.mock('../../src/services/DataLakeService', () => ({
   }),
 }));
 
-// Mock LighterEnrollmentService as a class with instance methods
-const mockLighterEnrollmentServiceInstance = {
+// Mock LighterNotificationEnrollmentService as a class with instance methods
+const mockLighterNotificationEnrollmentServiceInstance = {
   enroll: vi.fn(),
 };
-vi.mock('../../src/services/LighterEnrollmentService', () => ({
-  LighterEnrollmentService: vi.fn().mockImplementation(function () {
-    return mockLighterEnrollmentServiceInstance;
+vi.mock('../../src/services/LighterNotificationEnrollmentService', () => ({
+  LighterNotificationEnrollmentService: vi.fn().mockImplementation(function () {
+    return mockLighterNotificationEnrollmentServiceInstance;
   }),
 }));
 
@@ -437,10 +437,14 @@ describe('PerpsController', () => {
       return mockDataLakeServiceInstance;
     });
     (
-      (lighterEnrollmentServiceModule as unknown as Record<string, Mock>)
-        .LighterEnrollmentService as Mock
+      (
+        lighterNotificationEnrollmentServiceModule as unknown as Record<
+          string,
+          Mock
+        >
+      ).LighterNotificationEnrollmentService as Mock
     ).mockImplementation(function () {
-      return mockLighterEnrollmentServiceInstance;
+      return mockLighterNotificationEnrollmentServiceInstance;
     });
     (
       (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
@@ -3050,7 +3054,7 @@ describe('PerpsController', () => {
 
     describe('lighter', () => {
       const mockLighterProvider = {
-        getEnrollmentAccountIndex: vi.fn().mockResolvedValue(9828),
+        getNotificationAccountIndex: vi.fn().mockResolvedValue(9828),
       } as unknown as PerpsProvider;
       const lighterOrder = {
         action: 'open' as const,
@@ -3060,13 +3064,15 @@ describe('PerpsController', () => {
 
       beforeEach(() => {
         (
-          mockLighterProvider.getEnrollmentAccountIndex as Mock
+          mockLighterProvider.getNotificationAccountIndex as Mock
         ).mockResolvedValue(9828);
         mockDataLakeServiceInstance.reportOrder.mockClear();
-        mockLighterEnrollmentServiceInstance.enroll.mockReset();
-        mockLighterEnrollmentServiceInstance.enroll.mockResolvedValue({
-          success: true,
-        });
+        mockLighterNotificationEnrollmentServiceInstance.enroll.mockReset();
+        mockLighterNotificationEnrollmentServiceInstance.enroll.mockResolvedValue(
+          {
+            success: true,
+          },
+        );
       });
 
       it('enrolls the account instead of reporting to the orders endpoint', async () => {
@@ -3078,14 +3084,15 @@ describe('PerpsController', () => {
         expect(result).toEqual({ success: true });
         expect(mockDataLakeServiceInstance.reportOrder).not.toHaveBeenCalled();
         const { isTestnet, getAccountIndex } =
-          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
         expect(isTestnet).toBe(controller.state.isTestnet);
         await expect(getAccountIndex()).resolves.toBe(9828);
       });
 
       it('enrolls the account of the provider that executed the order, not the active one', async () => {
         const activeProvider = {
-          getEnrollmentAccountIndex: vi.fn().mockResolvedValue(1),
+          getNotificationAccountIndex: vi.fn().mockResolvedValue(1),
         } as unknown as PerpsProvider;
         controller.testSetProviders(new Map([['lighter', activeProvider]]));
 
@@ -3095,9 +3102,12 @@ describe('PerpsController', () => {
         );
 
         const { getAccountIndex } =
-          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
         await expect(getAccountIndex()).resolves.toBe(9828);
-        expect(activeProvider.getEnrollmentAccountIndex).not.toHaveBeenCalled();
+        expect(
+          activeProvider.getNotificationAccountIndex,
+        ).not.toHaveBeenCalled();
       });
 
       it('keeps reporting hyperliquid orders to the orders endpoint', async () => {
@@ -3114,7 +3124,7 @@ describe('PerpsController', () => {
           1,
         );
         expect(
-          mockLighterEnrollmentServiceInstance.enroll,
+          mockLighterNotificationEnrollmentServiceInstance.enroll,
         ).not.toHaveBeenCalled();
       });
 
@@ -3132,7 +3142,7 @@ describe('PerpsController', () => {
           1,
         );
         expect(
-          mockLighterEnrollmentServiceInstance.enroll,
+          mockLighterNotificationEnrollmentServiceInstance.enroll,
         ).not.toHaveBeenCalled();
       });
 
@@ -3140,9 +3150,10 @@ describe('PerpsController', () => {
         await controller.testReportOrderToDataLake(lighterOrder, mockProvider);
 
         const { getAccountIndex } =
-          mockLighterEnrollmentServiceInstance.enroll.mock.calls[0][0];
+          mockLighterNotificationEnrollmentServiceInstance.enroll.mock
+            .calls[0][0];
         await expect(getAccountIndex()).rejects.toThrow(
-          'Provider does not support enrollment',
+          'Provider does not support notification enrollment',
         );
       });
     });

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
-import { LighterEnrollmentService } from '../../../src/services/LighterEnrollmentService.js';
+import { LighterNotificationEnrollmentService } from '../../../src/services/LighterNotificationEnrollmentService.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
@@ -10,7 +10,7 @@ import {
   createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
-describe('LighterEnrollmentService', () => {
+describe('LighterNotificationEnrollmentService', () => {
   let mockDeps: Mocked<PerpsPlatformDependencies>;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
   const mockToken = 'mock-bearer-token';
@@ -20,16 +20,16 @@ describe('LighterEnrollmentService', () => {
   const createService = (
     baseUrl: string | null = 'https://notify.test',
     messenger: ConstructorParameters<
-      typeof LighterEnrollmentService
+      typeof LighterNotificationEnrollmentService
     >[1] = mockMessenger,
   ) => {
     mockDeps = createMockInfrastructure();
     mockDeps.notifyPerpsApi = baseUrl === null ? undefined : { baseUrl };
-    return new LighterEnrollmentService(mockDeps, messenger);
+    return new LighterNotificationEnrollmentService(mockDeps, messenger);
   };
 
   const enroll = (
-    service: LighterEnrollmentService,
+    service: LighterNotificationEnrollmentService,
     overrides: { isTestnet?: boolean } = {},
   ) =>
     service.enroll({
@@ -179,7 +179,7 @@ describe('LighterEnrollmentService', () => {
 
       await expect(promise).resolves.toEqual({
         success: false,
-        error: 'Lighter enrollment API error: 503',
+        error: 'Lighter notification enrollment API error: 503',
       });
       expect(mockFetch).toHaveBeenCalledTimes(4);
       expect(mockDeps.logger.error).toHaveBeenCalled();

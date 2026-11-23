@@ -2696,7 +2696,7 @@ export class LighterProvider implements PerpsProvider {
    *
    * @returns The account index.
    */
-  async getEnrollmentAccountIndex(): Promise<number> {
+  async getNotificationAccountIndex(): Promise<number> {
     return await this.#ensureAccountIndex();
   }
 

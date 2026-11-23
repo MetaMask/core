@@ -1525,12 +1525,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    *
    * @returns The Lighter account index.
    */
-  async getEnrollmentAccountIndex(): Promise<number> {
+  async getNotificationAccountIndex(): Promise<number> {
     const [, provider] = this.#getProviderOrDefault('lighter');
-    if (!provider.getEnrollmentAccountIndex) {
+    if (!provider.getNotificationAccountIndex) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
-    return await provider.getEnrollmentAccountIndex();
+    return await provider.getNotificationAccountIndex();
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {

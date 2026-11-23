@@ -3546,7 +3546,7 @@ export type PerpsProvider = {
    * Optional: only providers whose notification events are keyed by account
    * index (Lighter) implement it.
    */
-  getEnrollmentAccountIndex?(): Promise<number>;
+  getNotificationAccountIndex?(): Promise<number>;
   /**
    * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
    * push channel omit it, and clients fall back to polling `getTwapOrders`.

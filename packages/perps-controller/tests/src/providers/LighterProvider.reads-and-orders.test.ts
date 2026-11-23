@@ -1216,7 +1216,7 @@ describe('LighterProvider', () => {
 
       it('exposes the configured account index for enrollment', async () => {
         const { provider } = buildProvider();
-        expect(await provider.getEnrollmentAccountIndex()).toBe(28);
+        expect(await provider.getNotificationAccountIndex()).toBe(28);
       });
 
       it('exposes the master (lowest) account index for enrollment', async () => {
@@ -1231,7 +1231,7 @@ describe('LighterProvider', () => {
             { ...ACCOUNT, index: 3 },
           ],
         });
-        expect(await provider.getEnrollmentAccountIndex()).toBe(3);
+        expect(await provider.getNotificationAccountIndex()).toBe(3);
       });
 
       it('still reads a wallet without a Lighter account as empty', async () => {

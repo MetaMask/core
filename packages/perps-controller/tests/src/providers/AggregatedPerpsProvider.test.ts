@@ -4987,11 +4987,11 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
-  describe('getEnrollmentAccountIndex', () => {
+  describe('getNotificationAccountIndex', () => {
     it('delegates to the lighter provider', async () => {
       const lighter = {
         ...createMockProvider('lighter'),
-        getEnrollmentAccountIndex: vi.fn().mockResolvedValue(9828),
+        getNotificationAccountIndex: vi.fn().mockResolvedValue(9828),
       };
       const provider = new AggregatedPerpsProvider({
         providers: new Map([
@@ -5002,7 +5002,7 @@ describe('AggregatedPerpsProvider', () => {
         infrastructure: mockInfrastructure,
       });
 
-      await expect(provider.getEnrollmentAccountIndex()).resolves.toBe(9828);
+      await expect(provider.getNotificationAccountIndex()).resolves.toBe(9828);
     });
 
     it('throws when the lighter provider cannot enroll', async () => {
@@ -5014,7 +5014,7 @@ describe('AggregatedPerpsProvider', () => {
         infrastructure: mockInfrastructure,
       });
 
-      await expect(provider.getEnrollmentAccountIndex()).rejects.toThrow(
+      await expect(provider.getNotificationAccountIndex()).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
       );
     });

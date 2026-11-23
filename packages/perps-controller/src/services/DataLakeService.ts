@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import {
   DATA_LAKE_API_CONFIG,
+  NOTIFY_PERPS_API_CONFIG,
   PERPS_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
@@ -110,7 +111,7 @@ export class DataLakeService {
       action,
       symbol,
       attempt: retryCount + 1,
-      maxAttempts: DATA_LAKE_API_CONFIG.MaxRetries + 1,
+      maxAttempts: NOTIFY_PERPS_API_CONFIG.MaxRetries + 1,
       hasStopLoss: Boolean(slPrice),
       hasTakeProfit: Boolean(tpPrice),
       timestamp: new Date().toISOString(),
@@ -203,16 +204,16 @@ export class DataLakeService {
               action,
               symbol,
               retryCount,
-              willRetry: retryCount < DATA_LAKE_API_CONFIG.MaxRetries,
+              willRetry: retryCount < NOTIFY_PERPS_API_CONFIG.MaxRetries,
             },
           },
         },
       );
 
       // Retry logic
-      if (retryCount < DATA_LAKE_API_CONFIG.MaxRetries) {
+      if (retryCount < NOTIFY_PERPS_API_CONFIG.MaxRetries) {
         const retryDelay =
-          DATA_LAKE_API_CONFIG.RetryDelayMs * Math.pow(2, retryCount);
+          NOTIFY_PERPS_API_CONFIG.RetryDelayMs * Math.pow(2, retryCount);
         this.#deps.debugLogger.log('DataLake API: Scheduling retry', {
           retryIn: `${retryDelay}ms`,
           nextAttempt: retryCount + 2,
