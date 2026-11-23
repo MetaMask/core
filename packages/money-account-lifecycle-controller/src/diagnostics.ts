@@ -43,9 +43,15 @@ export type MoneyAccountMigrationStage =
   | 'registerIntents'
   | 'startFundsTransfer';
 
+/**
+ * Why `upgradeMoneyAccount` did not upgrade. `unavailableAfterIdentitiesFetch`
+ * means the wallet locked or the feature was disabled while the upgrade
+ * waited for identities, as opposed to `walletNotReady` when it was called.
+ */
 export type MoneyAccountUpgradeSkipReason =
   | 'migrationInFlight'
   | 'walletNotReady'
+  | 'unavailableAfterIdentitiesFetch'
   | 'notUpgradable';
 
 /**

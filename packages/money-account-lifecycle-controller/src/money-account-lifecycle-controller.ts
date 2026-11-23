@@ -55,23 +55,13 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
-import {
-  MAX_DIAGNOSTICS_HISTORY_LENGTH,
-  buildLifecycleChangedEvent,
-  getDefaultMoneyAccountLifecycleDiagnostics,
-  isKeptInHistory,
-  summarizeError,
-} from './diagnostics.js';
+import { DiagnosticsRecorder } from './diagnostics-recorder.js';
+import type { UpgradeDiagnostics } from './diagnostics-recorder.js';
+import { getDefaultMoneyAccountLifecycleDiagnostics } from './diagnostics.js';
 import type {
   MoneyAccountLifecycleDiagnostics,
-  MoneyAccountLifecycleErrorSummary,
   MoneyAccountLifecycleLogEntry,
-  MoneyAccountLifecycleLogEvent,
-  MoneyAccountMigrationStage,
-  MoneyAccountOperation,
-  MoneyAccountOperationDiagnostics,
   MoneyAccountRegistrationRole,
-  MoneyAccountUpgradeSkipReason,
 } from './diagnostics.js';
 import {
   MoneyAccountLifecycleError,
@@ -82,13 +72,7 @@ import {
   isMigrating,
 } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
-import { createModuleLogger, projectLogger } from './logger.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
-
-const log = createModuleLogger(
-  projectLogger,
-  'MoneyAccountLifecycleController',
-);
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
@@ -227,7 +211,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 > {
   readonly #isEnabled: MoneyAccountLifecycleControllerHooks['isEnabled'];
 
-  readonly #logHook: MoneyAccountLifecycleControllerHooks['log'];
+  readonly #diagnostics: DiagnosticsRecorder;
 
   #initialized = false;
 
@@ -246,11 +230,6 @@ export class MoneyAccountLifecycleController extends BaseController<
     Promise<MoneyAccountRegistrationStatus>
   >();
 
-  readonly #registrationStatusFailures = new Map<
-    MoneyAccountRegistrationRole,
-    MoneyAccountLifecycleErrorSummary
-  >();
-
   #isMigrationInFlight = false;
 
   /**
@@ -261,8 +240,6 @@ export class MoneyAccountLifecycleController extends BaseController<
   #generation = 0;
 
   #migrationGeneration = 0;
-
-  #migrationStage: MoneyAccountMigrationStage = 'checkIdentities';
 
   constructor({
     messenger,
@@ -284,7 +261,16 @@ export class MoneyAccountLifecycleController extends BaseController<
     });
 
     this.#isEnabled = hooks.isEnabled;
-    this.#logHook = hooks.log;
+    this.#diagnostics = new DiagnosticsRecorder({
+      getDiagnostics: (): MoneyAccountLifecycleDiagnostics =>
+        this.state.diagnostics,
+      updateDiagnostics: (recipe): void => {
+        this.update((draft) => recipe(draft.diagnostics));
+      },
+      getGeneration: (): number => this.#generation,
+      logHook: hooks.log,
+      reportError: (error): void => this.#reportError(error),
+    });
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -415,14 +401,13 @@ export class MoneyAccountLifecycleController extends BaseController<
       return;
     }
 
-    const generation = this.#generation;
-    const startedAt = Date.now();
+    const diagnostics = this.#diagnostics.trackUpgrade();
     if (this.#isMigrationInFlight) {
-      this.#skipUpgrade(generation, startedAt, 'migrationInFlight');
+      diagnostics.skipped('migrationInFlight');
       return;
     }
     if (!isWalletReady(this.messenger.call('KeyringController:getState'))) {
-      this.#skipUpgrade(generation, startedAt, 'walletNotReady');
+      diagnostics.skipped('walletNotReady');
       return;
     }
 
@@ -435,7 +420,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         MoneyAccountLifecycleErrorCode.NoMoneyAccount,
         'No Money Account to upgrade',
       );
-      this.#failUpgrade(generation, startedAt, error);
+      diagnostics.failed(error);
       throw error;
     }
 
@@ -447,6 +432,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     const upgrade = this.#upgradeMoneyAccount(
       moneyAccount.address as Hex,
+      diagnostics,
     ).finally(() => {
       if (this.#upgradesInFlight.get(moneyAccountKey) === upgrade) {
         this.#upgradesInFlight.delete(moneyAccountKey);
@@ -456,89 +442,47 @@ export class MoneyAccountLifecycleController extends BaseController<
     return upgrade;
   }
 
-  async #upgradeMoneyAccount(moneyAccountAddress: Hex): Promise<void> {
+  async #upgradeMoneyAccount(
+    moneyAccountAddress: Hex,
+    diagnostics: UpgradeDiagnostics,
+  ): Promise<void> {
     const generation = this.#generation;
-    const startedAt = Date.now();
     try {
       await this.#waitForLatestDerivedIdentities();
     } catch (error) {
-      this.#failUpgrade(generation, startedAt, error);
+      diagnostics.failed(error);
       throw error;
     }
     if (!this.#isCurrent(generation)) {
-      this.#skipUpgrade(generation, startedAt, 'walletNotReady');
+      diagnostics.skipped('unavailableAfterIdentitiesFetch');
       return;
     }
 
     const lifecycle =
       this.state.moneyAccounts[moneyAccountAddress.toLowerCase()];
     if (lifecycle?.type !== 'sfa' && lifecycle?.type !== 'notInIdentity') {
-      this.#skipUpgrade(generation, startedAt, 'notUpgradable');
+      diagnostics.skipped('notUpgradable');
       return;
     }
 
-    this.#log({ type: 'upgradeStarted', lifecycle: lifecycle.type });
+    diagnostics.started(lifecycle.type);
     try {
       await this.messenger.call(
         'MoneyAccountUpgradeController:upgradeAccount',
         moneyAccountAddress,
       );
     } catch (error) {
-      this.#failUpgrade(generation, startedAt, error);
+      diagnostics.failed(error);
       throw error;
     }
 
-    this.#log(
-      { type: 'upgradeSucceeded', durationMs: Date.now() - startedAt },
-      generation,
-    );
-    this.#recordAttempt('upgrade', generation, {
-      startedAt,
-      outcome: 'succeeded',
-      skipReason: null,
-      error: null,
-    });
+    diagnostics.succeeded();
     if (!this.#isCurrent(generation)) {
       return;
     }
 
     this.#fetchDerivedIdentities();
     await this.#waitForLatestDerivedIdentities().catch(() => undefined);
-  }
-
-  #skipUpgrade(
-    generation: number,
-    startedAt: number,
-    reason: MoneyAccountUpgradeSkipReason,
-  ): void {
-    if (generation !== this.#generation) {
-      return;
-    }
-    this.#log({ type: 'upgradeSkipped', reason });
-    this.#recordAttempt('upgrade', generation, {
-      startedAt,
-      outcome: 'skipped',
-      skipReason: reason,
-      error: null,
-    });
-  }
-
-  #failUpgrade(generation: number, startedAt: number, error: unknown): void {
-    const summary = summarizeError(error);
-    this.#log(
-      {
-        type: 'upgradeFailed',
-        durationMs: Date.now() - startedAt,
-        error: summary,
-      },
-      generation,
-    );
-    this.#recordAttempt('upgrade', generation, {
-      startedAt,
-      outcome: 'failed',
-      skipReason: null,
-      error: summary,
-    });
   }
 
   async #waitForLatestDerivedIdentities(): Promise<void> {
@@ -644,38 +588,12 @@ export class MoneyAccountLifecycleController extends BaseController<
     }
 
     this.#isMigrationInFlight = true;
-    const generation = this.#generation;
-    const startedAt = Date.now();
-    this.#log({ type: 'migrationStarted' });
+    this.#diagnostics.migrationStarted();
     try {
       await this.#startMigration();
-      this.#log(
-        { type: 'migrationSucceeded', durationMs: Date.now() - startedAt },
-        generation,
-      );
-      this.#recordAttempt('migration', generation, {
-        startedAt,
-        outcome: 'succeeded',
-        stage: this.#migrationStage,
-        error: null,
-      });
+      this.#diagnostics.migrationSucceeded();
     } catch (error) {
-      const summary = summarizeError(error);
-      this.#log(
-        {
-          type: 'migrationFailed',
-          durationMs: Date.now() - startedAt,
-          stage: this.#migrationStage,
-          error: summary,
-        },
-        generation,
-      );
-      this.#recordAttempt('migration', generation, {
-        startedAt,
-        outcome: 'failed',
-        stage: this.#migrationStage,
-        error: summary,
-      });
+      this.#diagnostics.migrationFailed(error);
       throw error;
     } finally {
       this.#isMigrationInFlight = false;
@@ -701,11 +619,9 @@ export class MoneyAccountLifecycleController extends BaseController<
     this.#isFetchingDerivedIdentities = false;
     this.#derivedIdentities = undefined;
     this.#registrationStatusRequests.clear();
-    this.#registrationStatusFailures.clear();
 
     this.update(() => getDefaultMoneyAccountLifecycleControllerState());
-    this.#log({
-      type: 'stateCleared',
+    this.#diagnostics.stateCleared({
       upgradeWasInFlight,
       migrationWasInFlight,
     });
@@ -713,7 +629,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   async #startMigration(): Promise<void> {
     this.#migrationGeneration = this.#generation;
-    this.#enterMigrationStage('checkIdentities');
+    this.#diagnostics.migrationStageStarted('checkIdentities');
     this.#assertReadyToMigrate();
 
     const moneyAccount = this.messenger.call(
@@ -735,27 +651,27 @@ export class MoneyAccountLifecycleController extends BaseController<
       : await this.#createSuccessor(moneyAccountAddress);
 
     try {
-      this.#enterMigrationStage('linkSuccessor');
+      this.#diagnostics.migrationStageStarted('linkSuccessor');
       await this.messenger.call(
         'MoneyAccountUpgradeController:upgradeSuccessorAccount',
         successorAddress,
         moneyAccountAddress,
       );
       this.#assertReadyToMigrate();
-      this.#enterMigrationStage('moveSubscription');
+      this.#diagnostics.migrationStageStarted('moveSubscription');
       await this.#moveSubscriptionToSuccessor(
         moneyAccountAddress,
         successorAddress,
       );
       this.#assertReadyToMigrate();
-      this.#enterMigrationStage('registerIntents');
+      this.#diagnostics.migrationStageStarted('registerIntents');
       await this.messenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         moneyAccountAddress,
         successorAddress,
       );
       this.#assertReadyToMigrate();
-      this.#enterMigrationStage('startFundsTransfer');
+      this.#diagnostics.migrationStageStarted('startFundsTransfer');
       await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
       if (this.#isCurrent(this.#migrationGeneration)) {
@@ -778,10 +694,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       ) {
         throw error;
       }
-      this.#log(
-        { type: 'fundsTransferRetried', error: summarizeError(error) },
-        this.#migrationGeneration,
-      );
+      this.#diagnostics.fundsTransferRetried(error);
       await new Promise((resolve) =>
         setTimeout(resolve, FUNDS_TRANSFER_RETRY_DELAY_MS),
       );
@@ -806,14 +719,6 @@ export class MoneyAccountLifecycleController extends BaseController<
         'Money Account migration is not available',
       );
     }
-  }
-
-  #enterMigrationStage(stage: MoneyAccountMigrationStage): void {
-    this.#migrationStage = stage;
-    this.#log(
-      { type: 'migrationStageStarted', stage },
-      this.#migrationGeneration,
-    );
   }
 
   #isCurrent(generation: number): boolean {
@@ -983,7 +888,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   async #getResumableSuccessor(
     migration: DerivedIdentityMigration,
   ): Promise<Hex> {
-    this.#enterMigrationStage('restoreSuccessor');
+    this.#diagnostics.migrationStageStarted('restoreSuccessor');
     const mpcMoneyAccount = await this.messenger.call(
       'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
@@ -999,7 +904,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   async #createSuccessor(moneyAccountAddress: Hex): Promise<Hex> {
-    this.#enterMigrationStage('createSuccessor');
+    this.#diagnostics.migrationStageStarted('createSuccessor');
     const mpcMoneyAccount = await this.messenger.call(
       'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
@@ -1065,7 +970,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         if (this.#derivedIdentitiesRequest === request) {
           this.#isFetchingDerivedIdentities = false;
           this.#derivedIdentities = identities;
-          this.#recordIdentitiesFetchSuccess(identities);
+          this.#diagnostics.identitiesFetchSucceeded(identities);
           this.#updateMoneyAccountLifecycle({ isRehydrating: true });
         }
       })
@@ -1075,48 +980,10 @@ export class MoneyAccountLifecycleController extends BaseController<
           this.#derivedIdentitiesRequest = undefined;
           this.#isFetchingDerivedIdentities = false;
           this.#derivedIdentities = undefined;
-          this.#recordIdentitiesFetchFailure(error);
+          this.#diagnostics.identitiesFetchFailed(error);
         }
         this.#reportError(error);
       });
-  }
-
-  #recordIdentitiesFetchSuccess(identities: DerivedIdentity[]): void {
-    const { succeedingSince, identityCount } =
-      this.state.diagnostics.identitiesFetch;
-    if (succeedingSince !== null && identityCount === identities.length) {
-      return;
-    }
-
-    this.update((state) => {
-      const { identitiesFetch } = state.diagnostics;
-      identitiesFetch.succeedingSince ??= Date.now();
-      identitiesFetch.failingSince = null;
-      identitiesFetch.identityCount = identities.length;
-    });
-    this.#log({
-      type: 'identitiesFetchSucceeding',
-      identityCount: identities.length,
-      statuses: identities.map(({ status }) => status),
-    });
-  }
-
-  #recordIdentitiesFetchFailure(error: unknown): void {
-    const summary = summarizeError(error);
-    const { failingSince, lastFailure } =
-      this.state.diagnostics.identitiesFetch;
-    if (failingSince !== null && deepEqual(lastFailure?.error, summary)) {
-      return;
-    }
-
-    this.update((state) => {
-      const { identitiesFetch } = state.diagnostics;
-      const now = Date.now();
-      identitiesFetch.failingSince ??= now;
-      identitiesFetch.succeedingSince = null;
-      identitiesFetch.lastFailure = { at: now, error: summary };
-    });
-    this.#log({ type: 'identitiesFetchFailing', error: summary });
   }
 
   #updateMoneyAccountLifecycle({
@@ -1148,7 +1015,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.update((state) => {
           state.moneyAccounts[moneyAccountKey] = lifecycle;
         });
-        this.#log(buildLifecycleChangedEvent(previousLifecycle, lifecycle));
+        this.#diagnostics.lifecycleChanged(previousLifecycle, lifecycle);
       }
 
       if (lifecycle.type === 'mfa') {
@@ -1191,7 +1058,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       'MoneyAccountController:setDefaultMoneyAccount',
       mpcMoneyAccount.id,
     );
-    this.#log({ type: 'mpcMoneyAccountSetAsDefault' });
+    this.#diagnostics.mpcMoneyAccountSetAsDefault();
   }
 
   #fetchRegistrationStatus(
@@ -1210,7 +1077,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         if (this.#registrationStatusRequests.get(addressKey) !== request) {
           return;
         }
-        this.#registrationStatusFailures.delete(role);
+        this.#diagnostics.registrationStatusFetched(role);
         if (
           this.state.addressRegistrations[addressKey]?.isRegistered ===
           isRegistered
@@ -1220,20 +1087,11 @@ export class MoneyAccountLifecycleController extends BaseController<
         this.update((state) => {
           state.addressRegistrations[addressKey] = { isRegistered };
         });
-        this.#log({ type: 'registrationStatusChanged', role, isRegistered });
+        this.#diagnostics.registrationStatusChanged(role, isRegistered);
       })
       .catch((error: unknown) => {
-        const summary = summarizeError(error);
-        if (
-          this.#registrationStatusRequests.get(addressKey) === request &&
-          !deepEqual(this.#registrationStatusFailures.get(role), summary)
-        ) {
-          this.#registrationStatusFailures.set(role, summary);
-          this.#log({
-            type: 'registrationStatusFetchFailed',
-            role,
-            error: summary,
-          });
+        if (this.#registrationStatusRequests.get(addressKey) === request) {
+          this.#diagnostics.registrationStatusFetchFailed(role, error);
         }
         this.#reportError(error);
       })
@@ -1244,75 +1102,11 @@ export class MoneyAccountLifecycleController extends BaseController<
       });
   }
 
-  /**
-   * Passes a log entry to the `log` hook and, unless it would crowd the
-   * history, records it in the diagnostics.
-   *
-   * @param event - The log event.
-   * @param generation - The generation the event belongs to. Nothing is
-   * recorded for a generation that `clearState` has moved on from.
-   */
-  #log(
-    event: MoneyAccountLifecycleLogEvent,
-    generation: number = this.#generation,
-  ): void {
-    const entry: MoneyAccountLifecycleLogEntry = {
-      ...event,
-      timestamp: Date.now(),
-    };
-    log(entry.type, entry);
-    try {
-      this.#logHook?.(entry);
-    } catch (error) {
-      this.#reportError(error);
-    }
-
-    if (generation !== this.#generation || !isKeptInHistory(event)) {
-      return;
-    }
-    this.update((state) => {
-      const { history } = state.diagnostics;
-      history.push(entry);
-      if (history.length > MAX_DIAGNOSTICS_HISTORY_LENGTH) {
-        history.splice(0, history.length - MAX_DIAGNOSTICS_HISTORY_LENGTH);
-      }
-    });
-  }
-
-  #recordAttempt<Operation extends MoneyAccountOperation>(
-    operation: Operation,
-    generation: number,
-    attempt: Omit<
-      NonNullable<MoneyAccountLifecycleDiagnostics[Operation]['lastAttempt']>,
-      'finishedAt'
-    >,
-  ): void {
-    if (generation !== this.#generation) {
-      return;
-    }
-    const record = { ...attempt, finishedAt: Date.now() };
-    this.update((state) => {
-      const diagnostics: MoneyAccountOperationDiagnostics<unknown> =
-        state.diagnostics[operation];
-      diagnostics.lastAttempt = record;
-      if (record.outcome === 'failed') {
-        diagnostics.lastFailure = record;
-        diagnostics.consecutiveFailures += 1;
-      } else if (record.outcome === 'succeeded') {
-        diagnostics.consecutiveFailures = 0;
-      }
-    });
-  }
-
   #reportUnexpectedError(
     operation: 'sync' | 'lifecycleUpdate',
     error: unknown,
   ): void {
-    this.#log({
-      type: 'unexpectedError',
-      operation,
-      error: summarizeError(error),
-    });
+    this.#diagnostics.unexpectedError(operation, error);
     this.#reportError(error);
   }
 

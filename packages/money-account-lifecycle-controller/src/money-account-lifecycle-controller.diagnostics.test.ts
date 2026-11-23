@@ -646,7 +646,10 @@ describe('MoneyAccountLifecycleController diagnostics', () => {
 
           expect(
             controller.state.diagnostics.upgrade.lastAttempt,
-          ).toMatchObject({ outcome: 'skipped', skipReason: 'walletNotReady' });
+          ).toMatchObject({
+            outcome: 'skipped',
+            skipReason: 'unavailableAfterIdentitiesFetch',
+          });
         },
       );
     });
