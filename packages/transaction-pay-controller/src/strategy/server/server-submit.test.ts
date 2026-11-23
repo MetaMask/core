@@ -265,6 +265,49 @@ describe('submitServerQuotes', () => {
     });
   });
 
+  it('includes the quote signature in the submit request', async () => {
+    request.quotes[0].original.signature = 'signature-mock';
+
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ signature: 'signature-mock' }),
+    );
+  });
+
+  it('omits signature when the quote has no signature', async () => {
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.not.objectContaining({ signature: expect.anything() }),
+    );
+  });
+
+  it('polls status with the ID returned by submit', async () => {
+    submitServerIntentMock.mockResolvedValue({
+      id: 'submitted-id-mock',
+      success: true,
+    });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: 'submitted-id-mock' }),
+    );
+  });
+
+  it('polls status with the quote ID when submit returns no ID', async () => {
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ id: ORIGINAL_QUOTE_MOCK.id }),
+    );
+  });
+
   it('omits authorizationList when delegation has no authorization entries', async () => {
     getDelegationTransactionMock.mockResolvedValue({
       ...DELEGATION_MOCK,

@@ -745,6 +745,40 @@ describe('server-quotes', () => {
     expect(result[0].original.gasless).toBe(true);
   });
 
+  it('passes signature through to the normalized quote', async () => {
+    fetchServerQuoteMock.mockResolvedValue({
+      results: [
+        {
+          ...FULFILLED_RESULT_MOCK,
+          quote: {
+            ...FULFILLED_RESULT_MOCK.quote,
+            signature: 'signature-mock',
+          },
+        },
+      ],
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original.signature).toBe('signature-mock');
+  });
+
+  it('omits signature from the normalized quote when not returned', async () => {
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original).not.toHaveProperty('signature');
+  });
+
   it('normalizes network fees to zero for gasless quotes and uses the server strategy', async () => {
     const result = await getServerQuotes({
       accountSupports7702: true,
