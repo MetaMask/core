@@ -4611,13 +4611,16 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 21
+      "count": 35
     },
     "typescript/no-unsafe-return": {
       "count": 1
     },
     "vitest/no-conditional-in-test": {
-      "count": 40
+      "count": 48
+    },
+    "vitest/prefer-strict-equal": {
+      "count": 2
     }
   },
   "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
