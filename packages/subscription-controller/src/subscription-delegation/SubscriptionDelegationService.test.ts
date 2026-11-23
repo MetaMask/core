@@ -2041,6 +2041,33 @@ describe('SubscriptionDelegationService charge retry', () => {
       expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
     });
 
+    it('reconciles on init when the wallet is already unlocked', async () => {
+      const { service, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      service.init();
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
+        EXPECTED_RETRY_REQUEST,
+      );
+    });
+
+    it('does nothing on init while the wallet is locked', async () => {
+      const { service, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        isUnlocked: false,
+      });
+
+      service.init();
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+    });
+
     it('reconciles on unlock without a prior deposit', async () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],

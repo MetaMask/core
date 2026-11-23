@@ -377,6 +377,15 @@ export class SubscriptionDelegationService {
   }
 
   /**
+   * Checks for a stuck charge once. Call after every controller and service is
+   * constructed so a wallet that is already unlocked, and so never publishes
+   * `KeyringController:unlock` to this service, is still reconciled.
+   */
+  init(): void {
+    this.#requestChargeRetry();
+  }
+
+  /**
    * Stops the periodic charge retry. A retry still in flight finishes but
    * does not schedule another one.
    */

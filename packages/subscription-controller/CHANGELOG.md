@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction (again 90 seconds later, past the balance cache), on `KeyringController:unlock`, when the cached Plus subscription changes, and every 5 minutes while the balance stays short and the wallet is unlocked
   - The balance check uses the pricing cached in `SubscriptionController` state, and fetches it only when none is cached
   - When the balance covers the charge, it calls `SubscriptionController:updatePaymentMethod` with no `delegationHash` or `rawTransaction`, so the Subscription API reuses the stored delegation
+- Add `SubscriptionDelegationService.init`, which checks for a stuck charge once ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - `@metamask/wallet` calls it through `Wallet.init()`. Clients that construct the service themselves must call it after all controllers and services exist, so a wallet that is already unlocked is still checked
 - Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `isSubscriptionChargeRetryable`, which reports whether a crypto subscription is stuck on a charge a funded Money Account can unblock ([#11612](https://github.com/MetaMask/core/pull/11612))
 
