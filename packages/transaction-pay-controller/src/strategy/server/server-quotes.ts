@@ -8,7 +8,11 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
+import {
+  CHAIN_ID_HYPERCORE,
+  PaymentProvider,
+  TransactionPayStrategy,
+} from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -51,7 +55,10 @@ import {
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
-import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
+import {
+  SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
+  SERVER_LIGHTER_PERPS_USDC_ASSET,
+} from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
@@ -327,7 +334,10 @@ async function buildServerQuoteRequest(
 
   const body: ServerQuoteRequestDraft = {
     sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
-    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
+    targetAsset:
+      normalizedRequest.paymentProvider === PaymentProvider.Lighter
+        ? SERVER_LIGHTER_PERPS_USDC_ASSET
+        : buildServerAsset(targetChainId, targetTokenAddress),
     sender: from,
     recipient,
     slippage: Math.round(

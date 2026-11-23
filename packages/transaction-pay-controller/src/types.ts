@@ -62,6 +62,7 @@ import type { Draft } from 'immer';
 import type {
   CONTROLLER_NAME,
   PaymentOverride,
+  PaymentProvider,
   TransactionPayClientId,
   TransactionPayStrategy,
 } from './constants.js';
@@ -158,6 +159,13 @@ export type TransactionConfig = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /**
+   * Venue that receives the funds, such as Lighter. The server strategy
+   * quotes into the venue's asset instead of the required token, so the
+   * transaction does not need calldata.
+   */
+  paymentProvider?: PaymentProvider;
 
   /** When true, a quote is always fetched even when the source and target tokens are identical. */
   isQuoteRequired?: boolean;
@@ -386,6 +394,9 @@ export type TransactionData = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** Venue that receives the funds. See {@link TransactionConfig.paymentProvider}. */
+  paymentProvider?: PaymentProvider;
 
   /** When true, a quote is always fetched even when the source and target tokens are identical. */
   isQuoteRequired?: boolean;
@@ -639,6 +650,9 @@ export type QuoteRequest = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** Venue that receives the funds. See {@link TransactionConfig.paymentProvider}. */
+  paymentProvider?: PaymentProvider;
 
   /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
   recipient?: Hex;

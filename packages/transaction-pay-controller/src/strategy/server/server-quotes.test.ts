@@ -11,6 +11,7 @@ import {
   CHAIN_ID_HYPERCORE,
   NATIVE_TOKEN_ADDRESS,
   PaymentOverride,
+  PaymentProvider,
   POLYGON_USDCE_ADDRESS,
   TransactionPayStrategy,
 } from '../../constants.js';
@@ -40,7 +41,10 @@ import {
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { TradeType } from '../../utils/trade-type.js';
-import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
+import {
+  SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
+  SERVER_LIGHTER_PERPS_USDC_ASSET,
+} from './constants.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -329,6 +333,27 @@ describe('server-quotes', () => {
         slippage: 50,
         supportsGasless: false,
       },
+      undefined,
+    );
+  });
+
+  it('requests the Lighter perps asset when the payment provider is Lighter', async () => {
+    await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [
+        { ...QUOTE_REQUEST_MOCK, paymentProvider: PaymentProvider.Lighter },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        sourceAsset: SOURCE_ASSET_MOCK,
+        targetAsset: SERVER_LIGHTER_PERPS_USDC_ASSET,
+        recipient: FROM_MOCK,
+      }),
       undefined,
     );
   });

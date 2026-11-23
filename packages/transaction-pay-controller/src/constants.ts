@@ -103,6 +103,14 @@ export enum PaymentOverride {
 }
 
 /**
+ * Venue that receives the funds when it is not the on-chain asset the
+ * transaction requires. The server strategy quotes straight into the venue.
+ */
+export enum PaymentProvider {
+  Lighter = 'lighter',
+}
+
+/**
  * Identifies the MetaMask client making MM Pay requests.
  *
  * Sent as the `X-Client-Id` header on requests to the intents API so the
