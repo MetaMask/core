@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#11706](https://github.com/MetaMask/core/pull/11706))
   - Applies to attached TP/SL, standalone stop and take profit orders (market and limit), and `updatePositionTPSL`
   - Bits 47 to 32 are `0xA5C3`, bit 31 is 0 for stop loss and 1 for take profit, and bits 30 to 0 are random
   - Every other Lighter order redraws its random index when it would carry the `0xA5C3` prefix
