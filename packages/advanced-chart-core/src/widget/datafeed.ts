@@ -104,7 +104,7 @@ function getPriceScale(): number {
  * is deliberately NOT applied to the first request (which returns in-memory
  * bars above) to avoid the earlier cap experiment's end-of-history desync.
  */
-const MAX_RNBACKED_PAGINATION_COUNTBACK = 10_000;
+const MAX_RNBACKED_PAGINATION_COUNTBACK = 5_000;
 
 /**
  * Strips internal fields from an OHLCVBar to the shape TV expects.
