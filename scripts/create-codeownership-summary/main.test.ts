@@ -94,13 +94,12 @@ describe('main', () => {
         </ul>
         </details>
 
+        <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+
+        For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+
         <details>
-        <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
-
-        For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
-
-        **It is not required to get approval from this team to change these files. This section is purely informational.**
-
+        <summary>Show files</summary>
         <ul>
         <li><code>packages/accounts-controller/CHANGELOG.md</code></li>
         </ul>

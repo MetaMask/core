@@ -72,26 +72,30 @@ describe('generateCodeownershipSummary', () => {
       </ul>
       </details>
 
+      <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+
+      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+
+      > [!NOTE]
+      > It is not required to get approval from this team to merge this PR.
+
       <details>
-      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
-
-      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
-
-      **It is not required to get approval from this team to change these files. This section is purely informational.**
-
+      <summary>Show files</summary>
       <ul>
       <li><code>packages/example-controller/CHANGELOG.md</code></li>
       <li><code>packages/shared-controller/package.json</code></li>
       </ul>
       </details>
 
+      <h3>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code></h3>
+
+      For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns the following files and thus may approve changes to them.
+
+      > [!NOTE]
+      > It is not required to get approval from this team to merge this PR.
+
       <details>
-      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/technical-writers</code></h3></summary>
-
-      For convenience in maintaining this repo, \`@MetaMask/technical-writers\` co-owns the following files.
-
-      **It is not required to get approval from this team to change these files. This section is purely informational.**
-
+      <summary>Show files</summary>
       <ul>
       <li><code>packages/shared-controller/README.md</code></li>
       </ul>
@@ -158,6 +162,35 @@ describe('generateCodeownershipSummary', () => {
       </details>
 
     `);
+  });
+
+  it('says maintenance owners may approve when they are approval-required owners', async () => {
+    mockGitRepository({
+      codeowners: outdent`
+        /docs @MetaMask/core-platform
+        /packages/example-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform
+
+      `,
+      changedFilePaths: [
+        'docs/guide.md',
+        'packages/example-controller/CHANGELOG.md',
+      ],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
+    expect(summary).toContain(
+      'For convenience in maintaining this repo, `@MetaMask/core-platform` co-owns the following files and thus may approve changes to them.',
+    );
+    expect(summary).not.toContain('> [!NOTE]');
+    expect(summary).toContain(
+      '<h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>',
+    );
+    expect(summary).toContain('<details>\n<summary>Show files</summary>');
   });
 
   it('requires approval from maintenance owners when they are the only owners of a file', async () => {
@@ -439,8 +472,7 @@ describe('generateCodeownershipSummary', () => {
       <summary><strong>@MetaMask/team-a</strong> (30 files)</summary>
       <br>
       <ul>
-      <li><code>a/01.ts</code></li>
-      <li>... <em>(29 more files)</em> ...</li>
+      <li>... <em>(30 more files)</em> ...</li>
       </ul>
       </details>
 
@@ -448,20 +480,21 @@ describe('generateCodeownershipSummary', () => {
       <summary><strong>@MetaMask/team-b</strong> (1 file)</summary>
       <br>
       <ul>
-      <li><code>b/index.ts</code></li>
+      <li>... <em>(1 more file)</em> ...</li>
       </ul>
       </details>
 
+      <h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3>
+
+      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files and thus may approve changes to them.
+
+      > [!NOTE]
+      > It is not required to get approval from this team to merge this PR.
+
       <details>
-      <summary><h3>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code></h3></summary>
-
-      For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns the following files.
-
-      **It is not required to get approval from this team to change these files. This section is purely informational.**
-
+      <summary>Show files</summary>
       <ul>
-      <li><code>a/01.ts</code></li>
-      <li>... <em>(29 more files)</em> ...</li>
+      <li>... <em>(30 more files)</em> ...</li>
       </ul>
       </details>
 

@@ -407,6 +407,9 @@ function renderSummary({
       ...maintenanceOwnershipGroups.map((maintenanceOwnershipGroup) =>
         renderApprovalOptionalSection({
           maintenanceOwnershipGroup,
+          isApprovalRequiredOwner: primaryOwnershipGroups.some(({ owners }) =>
+            owners.includes(maintenanceOwnershipGroup.owner),
+          ),
           maxFilesPerList,
         }),
       ),
@@ -521,24 +524,31 @@ ${groups.join('')}`;
  *
  * @param options - The options.
  * @param options.maintenanceOwnershipGroup - The maintenance ownership group.
+ * @param options.isApprovalRequiredOwner - Whether this owner also appears in
+ * the approval-required section.
  * @param options.maxFilesPerList - The most files to list.
- * @returns A collapsible Markdown section.
+ * @returns A Markdown section with a collapsible file list.
  */
 function renderApprovalOptionalSection({
   maintenanceOwnershipGroup,
+  isApprovalRequiredOwner,
   maxFilesPerList,
 }: {
   maintenanceOwnershipGroup: MaintenanceOwnershipGroup;
+  isApprovalRequiredOwner: boolean;
   maxFilesPerList: number;
 }): string {
+  const approvalNotRequiredNote = isApprovalRequiredOwner
+    ? ''
+    : '\n\n> [!NOTE]\n> It is not required to get approval from this team to merge this PR.';
+
   return `
+<h3>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code></h3>
+
+For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns the following files and thus may approve changes to them.${approvalNotRequiredNote}
+
 <details>
-<summary><h3>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code></h3></summary>
-
-For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns the following files.
-
-**It is not required to get approval from this team to change these files. This section is purely informational.**
-
+<summary>Show files</summary>
 ${renderFileList(maintenanceOwnershipGroup.filePaths, maxFilesPerList)}
 </details>
 `;
