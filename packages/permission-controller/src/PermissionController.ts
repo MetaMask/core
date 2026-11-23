@@ -2756,8 +2756,11 @@ export class PermissionController<
       const specification = this.#getPermissionSpecification(
         permission.parentCapability,
       );
-      if (hasSpecificationType(specification, PermissionType.Endowment)) {
-        return rpcMethods.concat(specification.rpcMethods ?? []);
+      if (
+        hasSpecificationType(specification, PermissionType.Endowment) &&
+        specification.rpcMethods
+      ) {
+        return rpcMethods.concat(specification.rpcMethods);
       }
       return rpcMethods;
     }, []);
