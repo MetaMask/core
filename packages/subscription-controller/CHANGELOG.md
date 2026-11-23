@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `benefitPeriodId`, `benefitPeriodStart`, and `benefitPeriodEnd` to `SubscriptionBenefitsResponse` and `SubscriptionBenefitsState` (monthly reset window from the benefits API); keep `billingPeriodId` as a deprecated alias on the response ([#11666](https://github.com/MetaMask/core/pull/11666))
+
 ### Changed
 
 - Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))

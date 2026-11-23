@@ -39,7 +39,10 @@ import {
 } from '../../utils/polymarket/withdraw.js';
 import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
-import { estimateSourceGas } from '../../utils/quote-gas.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
@@ -814,13 +817,17 @@ async function calculateSourceNetworkCost({
     hasServerDepositStep(steps),
   );
 
+  const quoteTransactions = steps.map((step) =>
+    stepToGasTransaction(step, sender),
+  );
+
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
     await estimateSourceGas({
       fromOverride,
       messenger,
       request: quoteRequest,
       transaction,
-      transactions: steps.map((step) => stepToGasTransaction(step, sender)),
+      transactions: quoteTransactions,
     });
 
   const estimate = calculateGasCost({
@@ -852,11 +859,6 @@ async function calculateSourceNetworkCost({
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,
     feeTokenAccount,
-    firstStepData: {
-      data: firstStep.data,
-      to: firstStep.to,
-      value: firstStep.value,
-    },
     messenger,
     nativeGasCostRaw: max.raw,
     request: {
@@ -865,9 +867,13 @@ async function calculateSourceNetworkCost({
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: feeTokenAccount
-      ? steps.length + 1
-      : Math.max(steps.length, gasLimits.length),
+    transactions: feeTokenAccount
+      ? quoteTransactions
+      : getSourceTransactions({
+          request: quoteRequest,
+          transaction,
+          transactions: quoteTransactions,
+        }),
   });
 
   if (!gasStationCost.amount) {
@@ -898,14 +904,7 @@ function getServerMaxQuoteDetails({
   return {
     gasLimits: original.client.gasLimits,
     gasStationTransactions: firstStep
-      ? {
-          firstStepData: {
-            data: firstStep.data,
-            to: firstStep.to,
-            value: firstStep.value,
-          },
-          totalItemCount: transactionSteps.length,
-        }
+      ? transactionSteps.map(({ data, to, value }) => ({ data, to, value }))
       : undefined,
     isGasless: original.gasless || !firstStep,
     isSubsidized: original.fees.subsidized,
