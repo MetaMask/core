@@ -301,6 +301,11 @@ import {
   reconcileLighterChaseChild,
 } from '../utils/lighterChase.js';
 import {
+  getLighterClientOrderKind,
+  toLighterClientOrderIndex,
+} from '../utils/lighterClientOrderTag.js';
+import type { LighterClientOrderKind } from '../utils/lighterClientOrderTag.js';
+import {
   LIGHTER_EDIT_JOURNAL_PREFIX,
   decodeLighterModifyOrder,
   lighterEditOrderId,
@@ -7926,11 +7931,17 @@ export class LighterProvider implements PerpsProvider {
    * collides with probability 1/2^48 (~3.6e-15) and the birthday bound
    * over n total ids is ~n(n-1)/2^49 — about 1.8e-7 after ten thousand
    * orders, versus the 1% per-pair risk of the previous 100-lane scheme.
+   * Stop loss and take profit ids carry the MetaMask tag that notify-perps
+   * reads off fills, with 31 random bits (see toLighterClientOrderIndex).
    *
    * @param count - How many ids to reserve.
+   * @param kinds - Tag kind per id, in order; missing entries are untagged.
    * @returns The reserved ids.
    */
-  readonly #allocateClientOrderIndexes = (count: number): number[] => {
+  readonly #allocateClientOrderIndexes = (
+    count: number,
+    kinds: readonly LighterClientOrderKind[] = [],
+  ): number[] => {
     const ids: number[] = [];
     // Bounded: a degenerate randomness source (or an absurdly full
     // collision set) must surface as an error, never a synchronous spin.
@@ -7946,8 +7957,15 @@ export class LighterProvider implements PerpsProvider {
       }
       attempts += 1;
       const [high, low] = randomUint24Pair();
-      const candidate = high * 2 ** 24 + low;
-      if (candidate === 0 || this.#issuedClientOrderIds.has(candidate)) {
+      const draw = high * 2 ** 24 + low;
+      if (draw === 0) {
+        continue;
+      }
+      const candidate = toLighterClientOrderIndex(
+        kinds[ids.length] ?? 'other',
+        draw,
+      );
+      if (candidate === null || this.#issuedClientOrderIds.has(candidate)) {
         continue;
       }
       this.#issuedClientOrderIds.add(candidate);
@@ -11977,7 +11995,12 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generationAtIntent);
       }
       const [clientOrderIndex, ...attachedClientIds] =
-        this.#allocateClientOrderIndexes(1 + attachedChildren.length);
+        this.#allocateClientOrderIndexes(1 + attachedChildren.length, [
+          getLighterClientOrderKind(orderTypeInt),
+          ...attachedChildren.map((child) =>
+            getLighterClientOrderKind(child[5]),
+          ),
+        ]);
       if (params.timeInForce === 'ALO') {
         postOnlyClientOrderId = String(clientOrderIndex);
       }
@@ -15158,6 +15181,9 @@ export class LighterProvider implements PerpsProvider {
         // and a degenerate RNG must exhaust BEFORE any cancellation.
         const clientOrderIds = this.#allocateClientOrderIndexes(
           validatedOrders.length,
+          validatedOrders.map((entry) =>
+            getLighterClientOrderKind(entry.orderType),
+          ),
         );
         createdClientIds = clientOrderIds;
         // VENUE CONTRACT (proven live: 'GroupingType is not valid'):

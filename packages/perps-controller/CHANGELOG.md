@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
   - New types `WithdrawalRoute`, `ResolveWithdrawalRouteParams` and `PerpsControllerResolveWithdrawalRouteAction`
 
+### Changed
+
+- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Applies to attached TP/SL, standalone stop and take profit orders (market and limit), and `updatePositionTPSL`
+  - Bits 47 to 32 are `0xA5C3`, bit 31 is 0 for stop loss and 1 for take profit, and bits 30 to 0 are random
+  - Every other Lighter order redraws its random index when it would carry the `0xA5C3` prefix
+
 ### Fixed
 
 - Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins ([#11676](https://github.com/MetaMask/core/pull/11676))
