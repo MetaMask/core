@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@metamask/analytics-controller": "^4.4.0",
-    "@metamask/auth-network-utils": "^0.4.0",
+    "@metamask/auth-network-utils": "^0.5.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/cryptography": "^1.1.2",
