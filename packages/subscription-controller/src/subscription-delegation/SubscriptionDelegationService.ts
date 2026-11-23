@@ -3,6 +3,7 @@ import type {
   AuthenticatedUserStorageServiceCreateDelegationAction,
   AuthenticatedUserStorageServiceListDelegationsAction,
 } from '@metamask/authenticated-user-storage';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
@@ -51,7 +52,6 @@ import type {
 import type {
   SubscriptionControllerGetStateAction,
   SubscriptionControllerState,
-  SubscriptionControllerStateChangeEvent,
 } from '../SubscriptionController.js';
 import {
   CRYPTO_AUTH_METHODS,
@@ -264,8 +264,15 @@ export type SubscriptionDelegationServiceEvents = never;
  * subscribes to.
  */
 type AllowedEvents =
+  | ControllerStateChangedEvent<
+      'AuthenticationController',
+      AuthenticationController.AuthenticationControllerState
+    >
   | KeyringControllerUnlockEvent
-  | SubscriptionControllerStateChangeEvent
+  | ControllerStateChangedEvent<
+      'SubscriptionController',
+      SubscriptionControllerState
+    >
   | TransactionControllerTransactionConfirmedEvent;
 
 /**
@@ -329,8 +336,9 @@ type ResolvedSubscriptionDelegationConfig = {
  *
  * Also retries a stuck Money Account Plus charge (see
  * {@link isSubscriptionChargeRetryable}) once the Money Account covers it. It
- * re-checks after a confirmed Money deposit, on unlock, when the cached Plus
- * subscription changes, and periodically while the balance stays short.
+ * re-checks after a confirmed Money deposit, on unlock, on sign-in, when the
+ * cached Plus subscription changes, and periodically while the balance stays
+ * short.
  */
 export class SubscriptionDelegationService {
   readonly name: typeof serviceName = serviceName;
@@ -370,7 +378,16 @@ export class SubscriptionDelegationService {
       this.#requestChargeRetry(),
     );
     this.#messenger.subscribe(
-      'SubscriptionController:stateChange',
+      'AuthenticationController:stateChanged',
+      (isSignedIn) => {
+        if (isSignedIn) {
+          this.#requestChargeRetry();
+        }
+      },
+      (state) => state.isSignedIn,
+    );
+    this.#messenger.subscribe(
+      'SubscriptionController:stateChanged',
       () => this.#requestChargeRetry(),
       selectMoneyAccountPlusSubscription,
     );

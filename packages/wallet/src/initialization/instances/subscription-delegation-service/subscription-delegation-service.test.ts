@@ -69,7 +69,8 @@ describe('subscriptionDelegationService', () => {
       events: [
         'TransactionController:transactionConfirmed',
         'KeyringController:unlock',
-        'SubscriptionController:stateChange',
+        'AuthenticationController:stateChanged',
+        'SubscriptionController:stateChanged',
       ],
     });
   });

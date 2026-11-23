@@ -1,4 +1,5 @@
 import type { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type {
   ChompApiService,
   VerifyDelegationParams,
@@ -17,6 +18,7 @@ import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   TransactionStatus,
   TransactionType,
@@ -36,7 +38,6 @@ import {
 import type {
   SubscriptionController,
   SubscriptionControllerState,
-  SubscriptionControllerStateChangeEvent,
 } from '../SubscriptionController.js';
 import {
   CANCEL_TYPES,
@@ -467,8 +468,15 @@ function setup(
         type: `${typeof serviceName}:startSubscriptionWithDelegation`;
         handler: SubscriptionDelegationService['startSubscriptionWithDelegation'];
       },
+    | ControllerStateChangedEvent<
+        'AuthenticationController',
+        AuthenticationController.AuthenticationControllerState
+      >
     | KeyringControllerUnlockEvent
-    | SubscriptionControllerStateChangeEvent
+    | ControllerStateChangedEvent<
+        'SubscriptionController',
+        SubscriptionControllerState
+      >
     | TransactionControllerTransactionConfirmedEvent
   >({ namespace: MOCK_ANY_NAMESPACE });
 
@@ -568,8 +576,9 @@ function setup(
       'SubscriptionController:updatePaymentMethod',
     ],
     events: [
+      'AuthenticationController:stateChanged',
       'KeyringController:unlock',
-      'SubscriptionController:stateChange',
+      'SubscriptionController:stateChanged',
       'TransactionController:transactionConfirmed',
     ],
   });
@@ -1969,8 +1978,19 @@ describe('SubscriptionDelegationService charge retry', () => {
     subscriptions: Subscription[],
   ): void {
     rootMessenger.publish(
-      'SubscriptionController:stateChange',
+      'SubscriptionController:stateChanged',
       { subscriptions } as unknown as SubscriptionControllerState,
+      [],
+    );
+  }
+
+  function publishSignedIn(
+    rootMessenger: RootMessenger,
+    isSignedIn: boolean,
+  ): void {
+    rootMessenger.publish(
+      'AuthenticationController:stateChanged',
+      { isSignedIn },
       [],
     );
   }
@@ -2077,6 +2097,38 @@ describe('SubscriptionDelegationService charge retry', () => {
       await flush();
 
       expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconciles on sign-in after unlocking while signed out', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        isSignedIn: false,
+      });
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+
+      mocks.isSignedIn.mockReturnValue(true);
+      publishSignedIn(rootMessenger, true);
+      await flush();
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod.mock.calls[0][0]).toStrictEqual(
+        EXPECTED_RETRY_REQUEST,
+      );
+    });
+
+    it('does not reconcile on sign-out', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        isSignedIn: false,
+      });
+
+      publishSignedIn(rootMessenger, false);
+      await flush();
+
+      expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
     });
 
     it('reconciles when the cached Plus subscription changes', async () => {

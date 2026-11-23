@@ -43,7 +43,8 @@ export const subscriptionDelegationService: InitializationConfiguration<
       events: [
         'TransactionController:transactionConfirmed',
         'KeyringController:unlock',
-        'SubscriptionController:stateChange',
+        'AuthenticationController:stateChanged',
+        'SubscriptionController:stateChanged',
       ],
     });
 
