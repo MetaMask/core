@@ -13,22 +13,33 @@ import type {
   Mutation,
   MutationReceipt,
   PendingMutationPayload,
+  PendingRecoverySecretHex,
   PendingRegisterPayload,
   PendingUpdateIdentifiersPayload,
-  PendingUpdateRecoverySecretPayload,
 } from './types.js';
 
 /**
- * Validates decrypted pending state before it can trigger authorization or
+ * A pending mutation's recovery secret, held in memory only.
+ */
+export type KeptRecoverySecret = {
+  mutationId: string;
+  recoverySecret: PendingRecoverySecretHex;
+};
+
+/**
+ * Validates persisted pending state before it can trigger authorization or
  * escrow operations.
  *
- * @param pending - Decrypted pending state.
+ * @param pending - Persisted pending state.
  * @param escrowIds - Build-configured escrow ids.
+ * @param kept - Recovery secret kept in memory, if any. Without one for this
+ * mutation, a secret-bearing payload cannot be checked against `payloadHash`.
  * @throws If the pending state is malformed or inconsistent.
  */
 export async function assertValidPendingOperation(
   pending: unknown,
   escrowIds: string[],
+  kept?: KeptRecoverySecret,
 ): Promise<void> {
   if (!isRecord(pending)) {
     throwInvalidPendingOperation();
@@ -88,11 +99,13 @@ export async function assertValidPendingOperation(
   if (mutation.operation === 'register' && mutation.expectedVersion !== 0) {
     throwInvalidPendingOperation();
   }
-  if ((await hash(payload)) !== mutation.payloadHash) {
-    throw new MfaRecoveryError(
-      'Pending payload does not match mutation',
-      'payload_mismatch',
-    );
+  const recoverySecret =
+    kept?.mutationId === mutation.id ? kept.recoverySecret : undefined;
+  if (
+    mutation.operation === 'updateIdentifiers' ||
+    recoverySecret !== undefined
+  ) {
+    await assertPayloadHash(mutation, payload, recoverySecret);
   }
   const requestHash = await hash({
     id: mutation.id,
@@ -160,23 +173,53 @@ function isMutationOperation(value: unknown): value is Mutation['operation'] {
 }
 
 /**
- * @param payload - Logical pending mutation payload.
+ * Checks a pending payload, plus the recovery secret for operations that
+ * carry one, against the mutation's `payloadHash`.
+ *
+ * @param mutation - Pending mutation.
+ * @param payload - Persisted pending payload.
+ * @param recoverySecret - Recovery secret, for `register` and
+ * `updateRecoverySecret`.
+ * @throws If the hash does not match.
+ */
+export async function assertPayloadHash(
+  mutation: Mutation,
+  payload: PendingMutationPayload,
+  recoverySecret: PendingRecoverySecretHex | undefined,
+): Promise<void> {
+  if (
+    (await hashPendingPayload(payload, recoverySecret)) !== mutation.payloadHash
+  ) {
+    throw new MfaRecoveryError(
+      'Pending payload does not match mutation',
+      'payload_mismatch',
+    );
+  }
+}
+
+/**
+ * @param payload - Persisted pending payload.
+ * @param recoverySecret - Recovery secret, for `register` and
+ * `updateRecoverySecret`.
+ * @returns The mutation's `payloadHash`.
+ */
+export async function hashPendingPayload(
+  payload: PendingMutationPayload,
+  recoverySecret: PendingRecoverySecretHex | undefined,
+): Promise<string> {
+  return await hash(
+    recoverySecret === undefined ? payload : { ...payload, recoverySecret },
+  );
+}
+
+/**
+ * @param payload - Persisted pending payload.
  * @returns Whether the payload includes an identifier set.
  */
 export function pendingPayloadHasIdentifiers(
   payload: PendingMutationPayload,
 ): payload is PendingRegisterPayload | PendingUpdateIdentifiersPayload {
   return Object.prototype.hasOwnProperty.call(payload, 'identifiers');
-}
-
-/**
- * @param payload - Logical pending mutation payload.
- * @returns Whether the payload includes a hex recovery secret.
- */
-export function pendingPayloadHasRecoverySecret(
-  payload: PendingMutationPayload,
-): payload is PendingRegisterPayload | PendingUpdateRecoverySecretPayload {
-  return Object.prototype.hasOwnProperty.call(payload, 'recoverySecret');
 }
 
 function isPendingPayload(
@@ -188,29 +231,14 @@ function isPendingPayload(
   }
   const keys = Object.keys(payload);
   if (operation === 'updateRecoverySecret') {
-    return (
-      keys.every((key) => key === 'recoverySecret') &&
-      isHexSecret(payload.recoverySecret)
-    );
+    return keys.length === 0;
   }
-  if (
-    !Array.isArray(payload.identifiers) ||
-    !payload.identifiers.every(isIdentifier) ||
-    countDistinctIdentifiers(payload.identifiers) < MIN_IDENTIFIERS
-  ) {
-    return false;
-  }
-  if (operation === 'register') {
-    return (
-      isHexSecret(payload.recoverySecret) &&
-      keys.every((key) => key === 'identifiers' || key === 'recoverySecret')
-    );
-  }
-  return keys.every((key) => key === 'identifiers');
-}
-
-function isHexSecret(value: unknown): value is string {
-  return typeof value === 'string' && /^0x(?:[0-9a-fA-F]{2})+$/u.test(value);
+  return (
+    Array.isArray(payload.identifiers) &&
+    payload.identifiers.every(isIdentifier) &&
+    countDistinctIdentifiers(payload.identifiers) >= MIN_IDENTIFIERS &&
+    keys.every((key) => key === 'identifiers')
+  );
 }
 
 function isIdentifier(value: unknown): value is Identifier {
