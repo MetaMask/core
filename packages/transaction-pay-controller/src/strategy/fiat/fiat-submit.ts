@@ -164,7 +164,18 @@ function getFiatOptions(
 }
 
 /**
+ * How long to keep retrying a failing order fetch once the poll timeout has
+ * passed, so a resume that starts after the timeout still gets to read the
+ * order at least once.
+ */
+const ORDER_FETCH_GRACE_MS = 30_000;
+
+/**
  * Polls the on-ramp order until it reaches a terminal status.
+ *
+ * The timeout only applies once the order has been fetched successfully, or
+ * once fetches have kept failing for {@link ORDER_FETCH_GRACE_MS}. This matters
+ * when `startTime` is in the past, as on resume after a restart.
  *
  * @param options - The polling options.
  * @param options.messenger - Controller messenger for calling `RampsController:getOrder`.
@@ -192,6 +203,8 @@ export async function waitForOrderCompletion({
 }): Promise<RampsOrder> {
   const pollIntervalMs = getFiatOrderPollIntervalMs(messenger);
   const pollTimeoutMs = getFiatOrderPollTimeoutMs(messenger);
+  const callStartTime = Date.now();
+  let hasFetchedOrder = false;
   let lastStatus: string | undefined;
 
   while (true) {
@@ -209,6 +222,7 @@ export async function waitForOrderCompletion({
     }
 
     if (order) {
+      hasFetchedOrder = true;
       lastStatus = order.status;
 
       log('Polled fiat order', {
@@ -226,7 +240,10 @@ export async function waitForOrderCompletion({
       }
     }
 
-    if (Date.now() - startTime >= pollTimeoutMs) {
+    const isPastTimeout = Date.now() - startTime >= pollTimeoutMs;
+    const isPastFetchGrace = Date.now() - callStartTime >= ORDER_FETCH_GRACE_MS;
+
+    if (isPastTimeout && (hasFetchedOrder || isPastFetchGrace)) {
       throw new Error(
         `Fiat order polling timed out (last status: ${lastStatus})`,
       );

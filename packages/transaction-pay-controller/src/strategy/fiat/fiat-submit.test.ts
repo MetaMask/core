@@ -7,7 +7,7 @@ import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
@@ -31,7 +31,7 @@ import { submitServerQuotes } from '../server/server-submit.js';
 import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
-import { submitFiatQuotes } from './fiat-submit.js';
+import { submitFiatQuotes, waitForOrderCompletion } from './fiat-submit.js';
 import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
 import type { FiatQuote } from './types.js';
 import {
@@ -1475,5 +1475,94 @@ describe('submitFiatQuotes', () => {
 
       expect(deriveFiatAssetForFiatPaymentMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('waitForOrderCompletion', () => {
+  const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+  function getMessengerMock(getOrderMock: Mock): {
+    messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'];
+  } {
+    const actions: Record<string, (...args: unknown[]) => unknown> = {
+      'RampsController:getOrder': getOrderMock,
+      'RemoteFeatureFlagController:getState': () => ({
+        remoteFeatureFlags: {},
+      }),
+    };
+
+    return {
+      messenger: {
+        call: vi.fn((action: string, ...args: unknown[]) =>
+          actions[action](...args),
+        ),
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+    };
+  }
+
+  function waitPastTimeout(
+    messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'],
+  ): Promise<RampsOrder> {
+    return waitForOrderCompletion({
+      messenger,
+      orderCode: ORDER_ID_MOCK,
+      providerCode: 'transak-native-staging',
+      startTime: Date.now() - POLL_TIMEOUT_MS - 1,
+      transactionId: TRANSACTION_ID_MOCK,
+      walletAddress: WALLET_ADDRESS_MOCK,
+    });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retries a failed fetch when starting past the timeout', async () => {
+    const completedOrder = getFiatOrderMock({
+      status: RampsOrderStatus.Completed,
+    });
+    const getOrderMock = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('Network error');
+      })
+      .mockReturnValue(completedOrder);
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    const promise = waitPastTimeout(messenger);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(await promise).toBe(completedOrder);
+    expect(getOrderMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('times out after the fetch grace period when every fetch fails past the timeout', async () => {
+    const getOrderMock = vi.fn().mockImplementation(() => {
+      throw new Error('Network error');
+    });
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    const result = waitPastTimeout(messenger).catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(await result).toStrictEqual(
+      new Error('Fiat order polling timed out (last status: undefined)'),
+    );
+  });
+
+  it('times out on the first fetch past the timeout when the order is still pending', async () => {
+    const getOrderMock = vi
+      .fn()
+      .mockReturnValue(getFiatOrderMock({ status: RampsOrderStatus.Pending }));
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    await expect(waitPastTimeout(messenger)).rejects.toThrow(
+      'Fiat order polling timed out (last status: PENDING)',
+    );
+    expect(getOrderMock).toHaveBeenCalledTimes(1);
   });
 });
