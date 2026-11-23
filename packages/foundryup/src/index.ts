@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { Dir } from 'node:fs';
 import {
+  access,
   copyFile,
   mkdir,
   opendir,
@@ -98,13 +99,21 @@ export async function checkAndDownloadBinaries(
   let downloadedBinaries: Dir;
   try {
     say(`checking cache`);
+    // An empty or partially-populated cache directory (e.g. after an
+    // incomplete cleanup) must not be treated as a valid cache, so verify
+    // that every expected binary is actually present.
+    await Promise.all(
+      binaries.map(async (binary) => access(join(cachePath, binary))),
+    );
     downloadedBinaries = await opendir(cachePath);
     say(`found binaries in cache`);
   } catch (e: unknown) {
     say(`binaries not in cache`);
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       say(`installing from ${url.toString()}`);
-      // directory doesn't exist, download and extract
+      // Remove any stale cache contents, since extraction renames a
+      // temporary directory onto this path and would otherwise fail.
+      await rm(cachePath, { recursive: true, force: true, maxRetries: 3 });
       const platformChecksums = transformChecksums(checksums, platform, arch);
       await extractFrom(url, binaries, cachePath, platformChecksums);
       downloadedBinaries = await opendir(cachePath);

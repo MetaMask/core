@@ -241,6 +241,39 @@ describe('foundryup', () => {
         /^Request to https:\/\/example\.com\/binaries\.zip failed\. Status Code: 500 - (null|Internal Server Error)$/u,
       );
     });
+
+    it('re-downloads when the cache directory exists but is missing binaries', async () => {
+      // Simulates a stale cache left behind by an incomplete cleanup: the
+      // directory opens successfully, but the expected binary is not in it.
+      (fs.access as Mock).mockRejectedValueOnce({ code: 'ENOENT' });
+      (fs.opendir as Mock).mockResolvedValueOnce({
+        async *[Symbol.asyncIterator]() {},
+      } as unknown as Dir);
+
+      nock('https://example.com')
+        .head('/binaries.zip')
+        .reply(500, 'Internal Server Error')
+        .get('/binaries.zip')
+        .reply(500, 'Internal Server Error');
+
+      const result = checkAndDownloadBinaries(
+        mockUrl,
+        mockBinaries,
+        mockCachePath,
+        Platform.Linux,
+        Architecture.Amd64,
+      );
+      await expect(result).rejects.toThrow(
+        /^Request to https:\/\/example\.com\/binaries\.zip failed\. Status Code: 500 - (null|Internal Server Error)$/u,
+      );
+      // The stale cache directory must be cleared before re-extracting, since
+      // extraction renames a temporary directory onto the cache path.
+      expect(fs.rm).toHaveBeenCalledWith(mockCachePath, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+      });
+    });
   });
 
   describe('installBinaries', () => {
