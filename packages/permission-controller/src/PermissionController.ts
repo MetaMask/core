@@ -2752,7 +2752,7 @@ export class PermissionController<
   getEndowmentsRpcMethods(origin: string): string[] {
     const permissions = Object.values(this.getPermissions(origin) ?? {});
 
-    return permissions.reduce((rpcMethods, permission) => {
+    return permissions.reduce<string[]>((rpcMethods, permission) => {
       const specification = this.#getPermissionSpecification(
         permission.parentCapability,
       );
@@ -2770,14 +2770,15 @@ export class PermissionController<
    * @returns True if the RPC method is tied to an endowment, otherwise false.
    */
   isEndowmentRpcMethod(method: string): boolean {
-    const specifications = Object.values(this.#permissionSpecifications);
+    const specifications = Object.values(
+      this.#permissionSpecifications,
+    ) as PermissionSpecificationConstraint[];
 
-    return specifications.some((specification) => {
-      return (
+    return specifications.some(
+      (specification) =>
         hasSpecificationType(specification, PermissionType.Endowment) &&
-        specification.rpcMethods?.includes(method)
-      );
-    });
+        (specification.rpcMethods?.includes(method) ?? false),
+    );
   }
 
   /**

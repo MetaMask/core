@@ -469,9 +469,9 @@ export type EndowmentSpecificationConstraint =
      */
     endowmentGetter?: EndowmentGetter<Json>;
     /**
-     * A list of of RPC method names this endowment gates access to.
+     * A list of RPC method names this endowment gates access to.
      */
-    rpcMethods?: string[];
+    rpcMethods?: readonly string[];
   };
 
 /**
