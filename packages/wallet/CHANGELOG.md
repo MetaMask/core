@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Changed
 
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))

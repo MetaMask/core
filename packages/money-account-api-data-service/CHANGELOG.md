@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
+## [2.5.0]
 
 ### Added
 
@@ -135,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.5.0...HEAD
+[2.5.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.4.0...@metamask/money-account-api-data-service@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.1...@metamask/money-account-api-data-service@2.4.0
 [2.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...@metamask/money-account-api-data-service@2.3.1
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...@metamask/money-account-api-data-service@2.3.0
