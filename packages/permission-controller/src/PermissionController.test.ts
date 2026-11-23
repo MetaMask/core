@@ -5451,6 +5451,25 @@ describe('PermissionController', () => {
       ).toStrictEqual(['endowment1']);
     });
 
+    it('returns null if the endowment has no endowment getter', async () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.endowmentRpcMethods]: {},
+        },
+      });
+
+      expect(
+        await controller.getEndowments(
+          origin,
+          PermissionNames.endowmentRpcMethods,
+        ),
+      ).toBeNull();
+    });
+
     it('throws if the requested permission target is not an endowment', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
@@ -5490,7 +5509,7 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('getEndowmentRpc', () => {
+  describe('getEndowmentRpcMethods', () => {
     it('gets the RPC methods', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
@@ -5508,6 +5527,25 @@ describe('PermissionController', () => {
           PermissionNames.endowmentRpcMethods,
         ),
       ).toStrictEqual(['eth_sendTransaction']);
+    });
+
+    it('returns an empty array if the endowment has no RPC methods getter', async () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.endowmentAnySubject]: {},
+        },
+      });
+
+      expect(
+        await controller.getEndowmentRpcMethods(
+          origin,
+          PermissionNames.endowmentAnySubject,
+        ),
+      ).toStrictEqual([]);
     });
 
     it('throws if the requested permission target is not an endowment', async () => {
