@@ -253,6 +253,22 @@ describe('PerpsController selectors', () => {
       expect(selectIsWatchlistMarket(state, 'NVDA')).toBe(false);
     });
 
+    it('matches an AUS-saved bare symbol for a keyed check in direct HyperLiquid mode', () => {
+      const state = {
+        ...stateWith(['NVDA']),
+        activeProvider: 'hyperliquid' as const,
+      };
+
+      expect(selectIsWatchlistMarket(state, 'NVDA', 'NVDA-USD')).toBe(true);
+      expect(
+        selectIsWatchlistMarket(
+          { ...state, activeProvider: 'aggregated' },
+          'NVDA',
+          'NVDA-USD',
+        ),
+      ).toBe(false);
+    });
+
     it('matches a non-legacy venue favorite only on that venue', () => {
       const state = stateWith(['venue:lighter:NVDA']);
 

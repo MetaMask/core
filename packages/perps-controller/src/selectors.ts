@@ -15,6 +15,7 @@ import type {
   PerpsMode,
   ProLayoutPreferences,
 } from './constants/perpsConfig.js';
+import { resolveWatchlistExchangeKey } from './PerpsController.js';
 import type { PerpsControllerState } from './PerpsController.js';
 import { resolveTradeConfigProviderKey } from './routing/resolveTradeConfigProviderKey.js';
 import type {
@@ -97,12 +98,20 @@ export const selectIsWatchlistMarket = (
   legacyProvider?: PerpsProviderType,
 ): boolean => {
   const watchlist = selectWatchlistMarkets(state);
-  return getPerpsWatchlistReferences(
+  const references = getPerpsWatchlistReferences(
     symbol,
     marketKey,
     venues,
     legacyProvider,
-  ).some((reference) => watchlist.includes(reference));
+  );
+  // Same alias as the controller: an AUS-synced watchlist saves the venue
+  // symbol for a grouped favorite.
+  if (marketKey && resolveWatchlistExchangeKey(state.activeProvider)) {
+    references.push(
+      getPerpsWatchlistReferences(symbol, undefined, venues, legacyProvider)[0],
+    );
+  }
+  return references.some((reference) => watchlist.includes(reference));
 };
 
 /**
