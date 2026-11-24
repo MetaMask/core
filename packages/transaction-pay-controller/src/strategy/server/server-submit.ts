@@ -20,6 +20,7 @@ import { projectLogger } from '../../logger.js';
 import type {
   GetDelegationTransactionCallback,
   PayStrategyExecuteRequest,
+  PayStrategyResumeRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
@@ -138,15 +139,53 @@ export async function submitServerQuotes(
 
   let transactionHash: Hex | undefined;
 
+  // Only a single quote is resumable, as the persisted intent covers one quote.
+  const isSingleQuote = quotes.length === 1;
+
   for (const quote of quotes) {
     ({ transactionHash } = await executeSingleServerQuote(
       quote,
       messenger,
       transaction,
+      isSingleQuote,
     ));
   }
 
   return { transactionHash };
+}
+
+/**
+ * Resume polling a server intent after a restart, using the intent persisted
+ * on the transaction when it was submitted.
+ *
+ * @param request - Resume request.
+ * @returns An object containing the target-chain transaction hash.
+ */
+export async function resumeServerQuote(
+  request: PayStrategyResumeRequest,
+): Promise<{ transactionHash?: Hex }> {
+  const { messenger, transaction } = request;
+  const intent = transaction.metamaskPay?.server;
+
+  if (!intent) {
+    throw new Error('Missing server intent');
+  }
+
+  log('Resuming server intent', { id: transaction.id, intent });
+
+  const completion = await waitForServerCompletion(
+    intent,
+    messenger,
+    transaction.id,
+  );
+
+  log('Resumed server request completed', completion);
+
+  throwIfNotConfirmed(completion);
+
+  markIntentComplete(transaction.id, messenger);
+
+  return { transactionHash: completion.targetHash ?? MISSING_TARGET_HASH };
 }
 
 /**
@@ -262,6 +301,7 @@ async function executeSingleServerQuote(
   quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  isSingleQuote: boolean,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single server quote', quote);
 
@@ -277,6 +317,17 @@ async function executeSingleServerQuote(
   );
 
   const isDepositWallet = Boolean(quote.request.isPolymarketDepositWallet);
+  const isResumable =
+    isSingleQuote && !isDepositWallet && !quote.requiresSecondLeg;
+
+  let intent = { id: quote.original.id, provider: quote.original.provider };
+
+  // Persist the intent before submitting so polling can resume after a
+  // restart. Deposit wallet sweeps and second legs need in-memory state, so
+  // those quotes are not resumable.
+  if (isResumable) {
+    persistServerIntent(intent, transaction.id, messenger);
+  }
 
   // Phase 1: off-chain signature steps (e.g. Relay authorize, HyperLiquid deposit).
   // Use quote.request.from (resolved accountOverride) not transaction.txParams.from.
@@ -301,12 +352,20 @@ async function executeSingleServerQuote(
     statusId = await submitTransactionSteps(quote, messenger, transaction);
   }
 
+  // The server submit can return a different ID to poll with.
+  if (statusId) {
+    intent = { ...intent, id: statusId };
+
+    if (isResumable) {
+      persistServerIntent(intent, transaction.id, messenger);
+    }
+  }
+
   // Phase 3: poll until the intent settles on the target chain.
   const completion = await waitForServerCompletion(
-    quote.original,
+    intent,
     messenger,
     transaction.id,
-    statusId,
   );
 
   log('Server request completed', completion);
@@ -322,15 +381,7 @@ async function executeSingleServerQuote(
     });
   }
 
-  if (completion.status === ServerStatus.Timeout) {
-    const { lastStatus } = completion;
-    const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
-    throw new Error(`Server intent timed out${statusDetail}`);
-  }
-
-  if (completion.status !== ServerStatus.Confirmed) {
-    throw new Error(`Server intent ${completion.status.toLowerCase()}`);
-  }
+  throwIfNotConfirmed(completion);
 
   // True exact output recipients reconcile the settlement by its hash.
   if (quote.request.isTrueExactOutput && !completion.targetHash) {
@@ -347,9 +398,65 @@ async function executeSingleServerQuote(
 
   // Only complete once every leg has landed, so a failed second leg does not
   // leave the parent transaction flagged as achieved.
+  markIntentComplete(transaction.id, messenger);
+
+  return { transactionHash: secondLegHash ?? targetHash };
+}
+
+/**
+ * Persist a server intent on the parent transaction so polling can resume
+ * after a restart.
+ *
+ * @param intent - Server intent to poll.
+ * @param intent.id - ID to poll.
+ * @param intent.provider - Provider the intent was submitted to.
+ * @param transactionId - ID of the parent transaction.
+ * @param messenger - Controller messenger.
+ */
+function persistServerIntent(
+  intent: { id: string; provider: string },
+  transactionId: string,
+  messenger: TransactionPayControllerMessenger,
+): void {
+  updateTransaction(
+    { transactionId, messenger, note: 'Add server intent for resume' },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.server = intent;
+    },
+  );
+}
+
+/**
+ * Throw if a server intent did not confirm.
+ *
+ * @param completion - Terminal outcome of the intent.
+ */
+function throwIfNotConfirmed(completion: ServerCompletion): void {
+  if (completion.status === ServerStatus.Timeout) {
+    const { lastStatus } = completion;
+    const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+    throw new Error(`Server intent timed out${statusDetail}`);
+  }
+
+  if (completion.status !== ServerStatus.Confirmed) {
+    throw new Error(`Server intent ${completion.status.toLowerCase()}`);
+  }
+}
+
+/**
+ * Flag the parent transaction as complete once the intent has settled.
+ *
+ * @param transactionId - ID of the parent transaction.
+ * @param messenger - Controller messenger.
+ */
+function markIntentComplete(
+  transactionId: string,
+  messenger: TransactionPayControllerMessenger,
+): void {
   updateTransaction(
     {
-      transactionId: transaction.id,
+      transactionId,
       messenger,
       note: 'Intent complete after Server completion',
     },
@@ -357,8 +464,6 @@ async function executeSingleServerQuote(
       tx.isIntentComplete = true;
     },
   );
-
-  return { transactionHash: secondLegHash ?? targetHash };
 }
 
 /**
@@ -1356,23 +1461,28 @@ function deriveEIP712DomainType(
  * The server owns the provider-specific timeout and reports it as a `TIMEOUT`
  * status, so there is no local polling timeout.
  *
- * @param quote - Server quote being polled.
+ * Elapsed time is measured from the parent transaction's `submittedTime`, set
+ * when the pay publish hook starts, so it carries over a restart.
+ *
+ * @param intent - Server intent being polled.
+ * @param intent.id - ID to poll, either the quote ID or the ID returned by
+ * the server submit.
+ * @param intent.provider - Provider the intent was submitted to.
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the parent transaction.
- * @param statusId - ID returned by the server submit, used instead of the quote ID when set.
  * @returns The terminal status and the target-chain hash when reported.
  */
 async function waitForServerCompletion(
-  quote: ServerQuote,
+  intent: { id: string; provider: string },
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
-  statusId?: string,
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
 
   log('Server polling config', { pollingInterval });
 
-  const startTime = Date.now();
+  const startTime =
+    getTransaction(transactionId, messenger)?.submittedTime ?? Date.now();
 
   let lastStatus: ServerStatus | undefined;
   let sourceHashEmitted = false;
@@ -1390,9 +1500,9 @@ async function waitForServerCompletion(
       statusResponse = await getServerStatus(messenger, {
         elapsedMs: Date.now() - startTime,
         hash,
-        id: statusId ?? quote.id,
+        id: intent.id,
         logs: sourceLogs,
-        provider: quote.provider,
+        provider: intent.provider,
       });
     } catch (error) {
       if (isClientError(error)) {

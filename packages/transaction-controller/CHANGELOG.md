@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `isDirectMusd` property to `MetamaskPayMetadata.fiat` to record whether a fiat order on-ramps mUSD directly into the Money Account ([#11451](https://github.com/MetaMask/core/pull/11451))
+- Add optional `MetamaskPayMetadata.server` property to persist the pay controller's server intent (`id` and `provider`) for resume after a restart ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER))
 
 ### Changed
 
