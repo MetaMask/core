@@ -7,26 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Changed
 
-- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
-- Bump `@metamask/eth-json-rpc-middleware` from `^26.0.0` to `^26.0.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
-- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
-
-## [38.0.1]
-
-### Changed
-
-- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.1` ([#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
-- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
+- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
 
 ## [38.0.0]
 
@@ -1371,8 +1354,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@38.0.1...HEAD
-[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@38.0.0...@metamask/network-controller@38.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@38.0.0...HEAD
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.1.1...@metamask/network-controller@38.0.0
 [37.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.1.0...@metamask/network-controller@37.1.1
 [37.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.1...@metamask/network-controller@37.1.0

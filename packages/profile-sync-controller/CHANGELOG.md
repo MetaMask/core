@@ -7,36 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- chore: Bump keyring dependencies ([#11532](https://github.com/MetaMask/core/pull/11532))
-- chore(deps): bump the metamask-non-major group across 1 directory with 13 updates ([#11494](https://github.com/MetaMask/core/pull/11494))
-
-### Changed
-
-- Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
-- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
-
-## [36.1.2]
-
-### Changed
-
-- Bump `@metamask/key-tree` from `^10.1.1` to `^11.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-
-## [36.1.1]
-
-### Fixed
-
-- `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#11414](https://github.com/MetaMask/core/pull/11414))
-  - The social provider is taken from `authConnection` alone, which is known right after the social login and before the password creates the vault, so social login recovery can verify an MFA credential at that point
-  - Sign-in and profile pairing are unchanged and still treat a wallet without a vault as `SRP`
-
 ## [36.1.0]
 
 ### Added
@@ -1162,9 +1132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.2...HEAD
-[36.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.1...@metamask/profile-sync-controller@36.1.2
-[36.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...@metamask/profile-sync-controller@36.1.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...HEAD
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...@metamask/profile-sync-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...@metamask/profile-sync-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0

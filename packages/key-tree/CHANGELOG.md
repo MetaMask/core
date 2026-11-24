@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-### Changed
-
-- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
-
-## [11.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#11361](https://github.com/MetaMask/core/pull/11361))
@@ -30,14 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Replace cryptography implementations with `@metamask/cryptography` ([#11395](https://github.com/MetaMask/core/pull/11395))
   - The custom `cryptographicFunctions` option was removed. Consumers that passed it must stop doing so, as the package now always uses `@metamask/cryptography`.
 - **BREAKING:** Replace curve objects with simple objects containing only the curve parameters ([#11395](https://github.com/MetaMask/core/pull/11395))
-- **BREAKING:** Make `getPublicKey` on `secp256k1`, `ed25519`, and `ed25519Bip32` curves asynchronous ([#11453](https://github.com/MetaMask/core/pull/11453))
-- **BREAKING:** Derive `ed25519` public keys using `@metamask/cryptography` ([#11453](https://github.com/MetaMask/core/pull/11453))
 - All functions now use `Uint8Array<ArrayBuffer>` instead of `Uint8Array` ([#11395](https://github.com/MetaMask/core/pull/11395))
   - `Uint8Array`s backed by a `SharedArrayBuffer` were never properly supported, so this only makes the types reflect the existing runtime behaviour.
 - Replace the `@metamask/utils` dependency with `@metamask/byte-utils` and `@metamask/type-utils` ([#11361](https://github.com/MetaMask/core/pull/11361))
 - Bump `@noble/curves` from `^1.8.1` to `^1.9.7`, `@noble/hashes` from `^1.3.2` to `^1.8.0`, and `@scure/base` from `^1.0.0` to `^1.2.6` ([#11361](https://github.com/MetaMask/core/pull/11361))
-- This package was migrated from `MetaMask/key-tree` to the `MetaMask/core` monorepo ([#11354](https://github.com/MetaMask/core/pull/11354), [#11367](https://github.com/MetaMask/core/pull/11367))
+- This package was migrated from `MetaMask/key-tree` to the `MetaMask/core` monorepo ([#11354](https://github.com/MetaMask/core/pull/11354))
   - See [`MetaMask/key-tree`](https://github.com/MetaMask/key-tree/blob/742c995fa27144d038941df5bddbc7351ee0e8ff/CHANGELOG.md) for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/key-tree@11.0.0...HEAD
-[11.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/key-tree@11.0.0
+[Unreleased]: https://github.com/MetaMask/core/

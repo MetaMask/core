@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.4.0]
+
 ### Added
 
 - Add optional `isDirectMusd` property to `MetamaskPayMetadata.fiat` to record whether a fiat order on-ramps mUSD directly into the Money Account ([#11451](https://github.com/MetaMask/core/pull/11451))
@@ -2952,7 +2954,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.4.0...HEAD
+[74.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.3.0...@metamask/transaction-controller@74.4.0
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.2.0...@metamask/transaction-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.2.0
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0

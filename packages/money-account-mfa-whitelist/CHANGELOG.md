@@ -7,29 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 1441.0.0 ([#11669](https://github.com/MetaMask/core/pull/11669))
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-## [0.3.0]
-
-### Added
-
-- Whitelist CHOMP's successor association message for `chompSignInDomain`, so migrating to the MPC Money Account no longer asks for MFA ([#11310](https://github.com/MetaMask/core/pull/11310))
-
 ### Changed
 
 - Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-
-### Fixed
-
-- Whitelist single-use vault deposit delegations that carry a `Redeemer` caveat ([#11310](https://github.com/MetaMask/core/pull/11310))
 
 ## [0.2.0]
 
@@ -55,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A whitelisted request must be for the signing account and hash to exactly the given hash (EIP-191, EIP-712 or EIP-7702), so the signer can sign the hash after inspecting the request
   - Whitelist the CHOMP authentication, Rewards binding and Card sign-in messages, the EIP-7702 authorization to `EIP7702StatelessDeleGatorImpl`, standing vault delegations to the CHOMP delegate, and single-use vault deposit delegations
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-mfa-whitelist@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-mfa-whitelist@0.2.0...@metamask/money-account-mfa-whitelist@0.3.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-mfa-whitelist@0.2.0...HEAD
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-mfa-whitelist@0.1.0...@metamask/money-account-mfa-whitelist@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-mfa-whitelist@0.1.0

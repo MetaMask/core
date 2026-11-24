@@ -7,38 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-### Changed
-
-- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
-- Bump `@metamask/money-account-utils` from `^2.2.0` to `^2.2.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
-- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
-
-## [7.0.0]
-
-### Added
-
-- Add `upgradeSuccessorAccount` method to upgrade an address as the successor of an existing Money Account, which links it to the Money Account on CHOMP, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
-- Add `getRegistrationStatus` method to check whether an address is part of a Money Account identity on CHOMP, and the `MoneyAccountRegistrationStatus` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
-- Add `registerMigrationIntents` method to sign and register the CHOMP intents of the old address in a Money Account migration, only when CHOMP reports the expected successor, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
-
-### Changed
-
-- **BREAKING:** `UpgradeConfig` now requires `allowedCalldataEnforcer` and `allowedTargetsEnforcer` ([#11369](https://github.com/MetaMask/core/pull/11369))
-- **BREAKING:** `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:getDerivedIdentityByAddress` and `ChompApiService:createIntentsV2` actions ([#11369](https://github.com/MetaMask/core/pull/11369))
-- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
-
-### Fixed
-
-- Hex-encode the CHOMP challenge message before signing it, so the MPC keyring can sign it ([#11369](https://github.com/MetaMask/core/pull/11369))
-
 ## [6.0.1]
 
 ### Changed
@@ -291,8 +259,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.1...@metamask/money-account-upgrade-controller@7.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.1...HEAD
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.0...@metamask/money-account-upgrade-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...@metamask/money-account-upgrade-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...@metamask/money-account-upgrade-controller@5.1.0

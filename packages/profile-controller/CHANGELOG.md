@@ -7,27 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-
-## [3.1.0]
-
-### Added
-
-- Add a `ProfileApiErrorCode` catalogue and a `ProfileServiceError` class in a new `errors` module; the error carries the Profile API envelope (`code`, `code_info`, `details`, `retryable`, `requestId`) ([#11381](https://github.com/MetaMask/core/pull/11381))
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^36.1.0` to `^36.1.1` ([#11419](https://github.com/MetaMask/core/pull/11419))
-
 ## [3.0.0]
 
 ### Added
@@ -125,8 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger ([#10558](https://github.com/MetaMask/core/pull/10558))
 - Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger, with superstruct validation on all inputs and responses ([#10558](https://github.com/MetaMask/core/pull/10558))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@3.1.0...HEAD
-[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@3.0.0...@metamask/profile-controller@3.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@3.0.0...HEAD
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@2.0.0...@metamask/profile-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.2.1...@metamask/profile-controller@2.0.0
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.2.0...@metamask/profile-controller@1.2.1

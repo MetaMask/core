@@ -7,26 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- Revert "Release 1441.0.0 (#11653)" ([#11665](https://github.com/MetaMask/core/pull/11665))
-- Release 1441.0.0 ([#11653](https://github.com/MetaMask/core/pull/11653))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- Release 1425.0.0 ([#11537](https://github.com/MetaMask/core/pull/11537))
-
-### Changed
-
-- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
-
-## [4.1.1]
-
 ### Changed
 
 - Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [4.1.0]
 
@@ -180,8 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.1...HEAD
-[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.0...@metamask/eip-5792-middleware@4.1.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.1.0...HEAD
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.0.1...@metamask/eip-5792-middleware@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@4.0.0...@metamask/eip-5792-middleware@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.5...@metamask/eip-5792-middleware@4.0.0

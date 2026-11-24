@@ -7,29 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-## [4.2.0]
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-- Add `getUserAssets`, `setUserAssets`, `importTokens`, `hideTokens`, and `clearUserAssets` methods to `AuthenticatedUserStorageService` for managing the authenticated user's custom tokens, along with corresponding messenger actions (`AuthenticatedUserStorageService:getUserAssets`, `AuthenticatedUserStorageService:setUserAssets`, `AuthenticatedUserStorageService:importTokens`, `AuthenticatedUserStorageService:hideTokens`, `AuthenticatedUserStorageService:clearUserAssets`) and the `UserAssetsBlob` type ([#10233](https://github.com/MetaMask/core/pull/10233))
-  - Backed by the new `GET`/`PUT /api/v1/preferences/custom-tokens` API endpoints; `getUserAssets` returns the blob or `null` on 404, mirroring `getAssetsWatchlist`.
-  - Every write is normalized: entries are de-duplicated (order-preserving) and conflicts between `importedAssets` and `hiddenAssets` are resolved "fail-open" — an identifier present in both lists stays in `importedAssets` (the user's intent to import wins) and is removed from `hiddenAssets`.
-  - `importTokens`/`hideTokens` are high-level wrappers that fetch the current blob, merge with deduplication and mutual exclusivity, persist, and return the resolved blob.
-  - `clearUserAssets` wipes the blob by persisting empty lists, giving users a clean slate.
-  - Writes enforce that every entry is a CAIP-19 asset identifier and that each list holds at most `USER_ASSETS_MAX_ASSETS` (100) entries, mirroring the API's server-side cap, throwing a superstruct `StructError` before the request is sent.
 
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [4.1.0]
 
@@ -139,8 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.2.0...HEAD
-[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...@metamask/authenticated-user-storage@4.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...HEAD
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...@metamask/authenticated-user-storage@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...@metamask/authenticated-user-storage@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...@metamask/authenticated-user-storage@3.0.2

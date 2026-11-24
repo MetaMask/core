@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+
 ### Added
 
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
@@ -1979,7 +1981,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...@metamask/transaction-pay-controller@33.0.0
 [32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
 [32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0

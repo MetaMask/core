@@ -7,59 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: pin nock to 15.0.5 to fix Node 22 test crash ([#11664](https://github.com/MetaMask/core/pull/11664))
-- chore(deps): bump the external-non-major group across 1 directory with 23 updates ([#11645](https://github.com/MetaMask/core/pull/11645))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
-### Added
-
-- Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with a caller-provided ISO 8601 timestamp. Returns `SubmitMicaConsentResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `submitSourceOfIncome` method to `TransakService` (also exposed on the messenger as `TransakService:submitSourceOfIncome`) for submitting source of income details including monthly volume and source of funds type. Returns `SubmitSourceOfIncomeResponse` containing the submission status from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `submitAdditionalDetailsNationality` method to `TransakService` (also exposed on the messenger as `TransakService:submitAdditionalDetailsNationality`) for submitting employment status and country of citizenship. Returns `SubmitAdditionalDetailsNationalityResponse` containing the submission status (`'SUBMITTED'` or `'FAILED'`) from Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `transakSubmitMicaConsent` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitMicaConsent`) for submitting MiCA consent through the controller. Returns `SubmitMicaConsentResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `transakSubmitSourceOfIncome` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitSourceOfIncome`) for submitting source of income details through the controller. Returns `SubmitSourceOfIncomeResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `transakSubmitAdditionalDetailsNationality` method to `RampsController` (also exposed on the messenger as `RampsController:transakSubmitAdditionalDetailsNationality`) for submitting additional nationality details through the controller. Returns `SubmitAdditionalDetailsNationalityResponse` containing the submission status ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `SubmitMicaConsentRequest`, `SubmitMicaConsentResponse`, `SubmitSourceOfIncomeRequest`, `SubmitSourceOfIncomeResponse`, `SubmitAdditionalDetailsNationalityRequest`, and `SubmitAdditionalDetailsNationalityResponse` types for MiCA/EEA KYC submission payloads and responses ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add `ADDITIONAL_DETAILS_NATIONALITY` form type to `TransakAdditionalRequirement`, with metadata containing `employmentStatusOptions` and `countryOfCitizenshipOptions` (both arrays of `TransakAdditionalRequirementOption`) ([#11672](https://github.com/MetaMask/core/pull/11672))
-
-### Changed
-
-- **BREAKING:** `TransakService.submitMicaConsent` now returns `Promise<SubmitMicaConsentResponse>` instead of `Promise<void>`, allowing clients to check the submission status (e.g., `SUCCESS` or `FAILED`) returned by Transak's API ([#11672](https://github.com/MetaMask/core/pull/11672))
-- **BREAKING:** `TransakService.submitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `submitAdditionalDetailsNationality` method. Returns `Promise<SubmitSourceOfIncomeResponse>` instead of `Promise<void>` ([#11672](https://github.com/MetaMask/core/pull/11672))
-- **BREAKING:** `RampsController.transakSubmitSourceOfIncome` signature changed from `(monthlyVolume, sourceOfFundsType, employmentStatus, countryOfCitizenship)` to `(monthlyVolume, sourceOfFundsType)`. Employment status and country of citizenship are now submitted via the new `transakSubmitAdditionalDetailsNationality` method ([#11672](https://github.com/MetaMask/core/pull/11672))
-- **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]`. Existing forms (e.g. `id-proof`) still return `string[]`, while the `SOURCE_OF_INCOME` form returns `TransakAdditionalRequirementOption[]`, matching the structure of other MiCA/EEA option fields. Clients that handle `getAdditionalRequirements` responses must handle both shapes. All `metadata` fields are also now optional ([#11672](https://github.com/MetaMask/core/pull/11672))
-- `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#11672](https://github.com/MetaMask/core/pull/11672))
-- `SOURCE_OF_INCOME` additional requirement metadata now contains only `options` (array of `TransakAdditionalRequirementOption`); employment status and citizenship options are in the separate `ADDITIONAL_DETAILS_NATIONALITY` form ([#11672](https://github.com/MetaMask/core/pull/11672))
-
-## [30.1.0]
-
-### Added
-
-- Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#11616](https://github.com/MetaMask/core/pull/11616))
-- Add `getPreviouslyUsedProviders`, which returns the providers the user has completed a buy with, most recent first, and the `RampsProviderHistoryEntry` and `SelectProviderForAssetOptions` types ([#11616](https://github.com/MetaMask/core/pull/11616))
-- Add the `userSelectedProviderId` state property (not persisted) and a `userSelected` option on `setSelectedProvider` that sets it. It is cleared by `setSelectedProvider(null)` and on region change ([#11616](https://github.com/MetaMask/core/pull/11616))
-
-### Fixed
-
-- Fix order polling republishing `RampsController:orderStatusChanged` on every poll for an order whose fetched `id` carries a different code than the stored one ([#11593](https://github.com/MetaMask/core/pull/11593))
-  - `getOrder` now keeps the stored order's `id` and `providerOrderId` when the order was requested by its stored code, so the fetched status is written to the stored order. Before, the write was skipped, the stored order stayed pending, and the same transition was published every poll cycle.
-  - Polling now publishes `orderStatusChanged` only when the new status is stored, so an order removed while its request was in flight no longer publishes.
-- `RampsService.getBuyWidgetUrl` now rejects a buy URL whose origin does not match the ramps API origin for the configured environment, before common params are added and before a bearer token is requested. This stops a malicious or compromised quotes response from sending the user's token to an arbitrary host. `baseUrlOverride` does not relax the check. ([#11551](https://github.com/MetaMask/core/pull/11551))
-- Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#11616](https://github.com/MetaMask/core/pull/11616))
-
-## [30.0.0]
-
 ### Added
 
 - Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
 - Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
-- Added an optional `isNetworkAccessAllowed` constructor option to `RampsController`. Every method that can reach the network checks it before any state write or request, and throws an error carrying the new `RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED` code when it returns `false`. A denied call does not serve a non-expired request-cache entry either, so hosts render already-fetched data from controller state while access is denied. Omitting the option keeps the existing behavior. `addOrder`, `addPrecreatedOrder`, `removeOrder`, and `transakLogout` still apply their local change and skip only the remote call ([#11222](https://github.com/MetaMask/core/pull/11222))
-- Add `SepaDepositInstructions` and `extractSepaDepositInstructions`; `NeoBankService.getDepositInstructions` now returns `{ type: 'Sepa' }` for an EUR autoramp with a SEPA deposit rail, including `paymentReference` from the autoramp's `inbound_payment_reference` when MoonPay uses pay-by-reference and `isThirdParty` from its `is_third_party` when present ([#11397](https://github.com/MetaMask/core/pull/11397))
 
 ### Changed
 
@@ -71,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RampsServiceMessenger` now includes the `RampsService:invalidateQueries` action and the `RampsService:cacheUpdated` events. Messengers built from `RampsServiceActions` and `RampsServiceEvents` pick these up automatically.
 - **BREAKING:** `NeoBankService` now extends `BaseDataService` from `@metamask/base-data-service`, so reads and writes share one circuit breaker (previously each had its own) and repeated read failures can now block writes ([#10882](https://github.com/MetaMask/core/pull/10882))
   - `NeoBankServiceMessenger` now includes the `NeoBankService:invalidateQueries` action and `NeoBankService:cacheUpdated` events. Messengers built from `NeoBankServiceActions` / `NeoBankServiceEvents` pick these up automatically.
-- **BREAKING:** `AutorampDepositInstructions` now includes a `Sepa` variant, so exhaustive switches on its `type` must handle it ([#11397](https://github.com/MetaMask/core/pull/11397))
-  - `NeoBankService.getDepositInstructions` returns `{ type: 'Sepa', iban, ... }` when the autoramp has a SEPA rail with an IBAN, after PIX and US bank rails. The result includes `paymentReference` when MoonPay returns an `inbound_payment_reference` for a pay-by-reference autoramp.
-- `getMusdAutorampDepositRailReadiness` now checks the `sepa` rail for EUR ([#11397](https://github.com/MetaMask/core/pull/11397))
-- Dropped `source_is_third_party` from `buildMusdAutorampRequest`; neobank-proxy now sets it on every market create, choosing first- or third-party per customer from the eligible rails ([#11397](https://github.com/MetaMask/core/pull/11397))
 - Concurrent identical `TransakService` reads are now deduplicated: while one request is in flight, identical calls reuse it instead of sending another. Reads still always hit the API ([#11216](https://github.com/MetaMask/core/pull/11216))
 - Responses are now validated, and a malformed response throws `Query function for "TransakService:<method>" returned an unexpected response: ...` for reads or `Mutation function for "TransakService:<method>" returned an unexpected response: ...` for writes. Previously the response was returned unchecked ([#11216](https://github.com/MetaMask/core/pull/11216))
 - Writes (every POST, PATCH and DELETE request) are no longer retried. Previously only `verifyUserOtp` was exempt from retries ([#11216](https://github.com/MetaMask/core/pull/11216))
@@ -88,8 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions` and `createAutoramp`.
 - Add dependency `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Add dependency `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ### Removed
 
@@ -890,9 +837,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
-[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
-[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...HEAD
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...@metamask/ramps-controller@28.0.0

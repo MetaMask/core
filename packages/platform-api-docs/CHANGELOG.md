@@ -7,49 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add vite as a devDependency to packages using vitest ([#11661](https://github.com/MetaMask/core/pull/11661))
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-- test(platform-api-docs): skip default lib in generate tests ([#11288](https://github.com/MetaMask/core/pull/11288))
-- test(platform-api-docs): skip default lib in extraction tests ([#11287](https://github.com/MetaMask/core/pull/11287))
-- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
-- test: switch Vitest coverage provider to `v8` ([#11261](https://github.com/MetaMask/core/pull/11261))
-- ci: validate all changelogs in a single run ([#11199](https://github.com/MetaMask/core/pull/11199))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- test: run core-platform-misc packages on Vitest ([#10973](https://github.com/MetaMask/core/pull/10973))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-- docs(platform-api-docs): document --site-url and --site-base-url ([#10673](https://github.com/MetaMask/core/pull/10673))
-- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
-- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
-- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
-- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
-- fix: restore shebangs on CLI entry points removed during Oxlint migration ([#10463](https://github.com/MetaMask/core/pull/10463))
-- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
-- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
-- chore(deps): update dependency tsx to ^4.23.15 ([#10434](https://github.com/MetaMask/core/pull/10434))
-- chore(deps): update dependency tsx to ^4.23.13 ([#10369](https://github.com/MetaMask/core/pull/10369))
-- chore(deps): update dependency rimraf to v6 ([#10379](https://github.com/MetaMask/core/pull/10379))
-- chore(deps): update dependency @metamask/auto-changelog to ^6.2.1 ([#10364](https://github.com/MetaMask/core/pull/10364))
-- chore(deps): update dependency ts-jest to ^29.4.12 ([#10328](https://github.com/MetaMask/core/pull/10328))
-- chore(deps): update dependency rimraf to ^5.0.10 ([#10327](https://github.com/MetaMask/core/pull/10327))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
-- Bump `execa` from `^5.0.0` to `^10.2.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332), [#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
 - Bump `yargs` from `^17.7.2` to `^18.2.0` ([#10446](https://github.com/MetaMask/core/pull/10446), [#10603](https://github.com/MetaMask/core/pull/10603))
 - Bump `@docusaurus/core` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/plugin-content-docs` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/preset-classic` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/theme-common` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
 - Bump `@docusaurus/types` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
-- Bump `react` from `^19.0.0` to `^19.3.1` ([#10534](https://github.com/MetaMask/core/pull/10534), [#11645](https://github.com/MetaMask/core/pull/11645))
-- Bump `react-dom` from `^19.0.0` to `^19.3.1` ([#10534](https://github.com/MetaMask/core/pull/10534), [#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `react` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
+- Bump `react-dom` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
 - Bump `@easyops-cn/docusaurus-search-local` from `^0.55.1` to `^0.55.3` ([#10713](https://github.com/MetaMask/core/pull/10713))
 - Replace `@metamask/utils` dependency with `@metamask/node-utils` ([#10970](https://github.com/MetaMask/core/pull/10970))
 - Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
