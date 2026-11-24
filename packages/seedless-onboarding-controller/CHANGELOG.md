@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prevent a refresh-token rotation that overlaps a password change from writing the previous TOPRF keys into the rewritten vault ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - `rotateRefreshToken` now merges the new revoke token into the latest decrypted vault data after the renewal request completes, and throws `VaultLocked` when the controller is locked in the meantime
 - Decode JWT idToken payloads that use base64url (`-` and `_`), so a spec-compliant OAuth idToken is checked locally and can still be sent to the nodes ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
   - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped

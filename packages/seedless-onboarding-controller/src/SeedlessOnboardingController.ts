@@ -2722,7 +2722,7 @@ export class SeedlessOnboardingController<
       );
     }
 
-    const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
+    const { revokeToken } = vaultData;
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
       revokeToken,
@@ -2741,14 +2741,25 @@ export class SeedlessOnboardingController<
         SeedlessIdentityMismatchSource.RotateRefreshToken,
       );
 
+      // The renewal can take a while, and the vault may have been rewritten in
+      // the meantime (for example by a password change). Merge into the latest
+      // vault data instead of the copy taken before the renewal, otherwise the
+      // old TOPRF keys would be written back.
+      const latestVaultData = this.#cachedDecryptedVaultData;
+      if (!this.#isUnlocked || !latestVaultData) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.VaultLocked,
+        );
+      }
+
       // Persist the new revoke token to the vault first. Only update state after
       // the vault write succeeds, so state and vault stay in sync if the write fails.
       await this.#updateVault({
         vaultData: {
-          ...vaultData,
+          ...latestVaultData,
           revokeToken: newRevokeToken,
         },
-        pwEncKey,
+        pwEncKey: latestVaultData.toprfPwEncryptionKey,
       });
 
       // Re-check immediately before the state write. There is no `await`
