@@ -9,4 +9,3 @@
 - Make sure the following checks pass after completing a task:
   - There should be no lint violations, formatting differences, or type errors. (See ["Linting and formatting"](../processes/linting-and-formatting.md).)
   - All tests should pass. (See ["Testing"](../processes/testing.md).)
-  - All changelogs should pass validation. (See ["Updating changelogs"](../processes/updating-changelogs.md).)
