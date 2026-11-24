@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `createBlockCacheMiddleware` and `createRetryOnEmptyMiddleware` failing on EIP-1898 object block selectors (`{ blockHash }` / `{ blockNumber }`); such requests are now passed through to the next middleware without caching or retrying ([#11219](https://github.com/MetaMask/core/issues/11219))
+- Fix `createBlockCacheMiddleware` and `createRetryOnEmptyMiddleware` failing on EIP-1898 object block selectors (`{ blockHash }` / `{ blockNumber }`); such requests are now passed through to the next middleware without caching or retrying ([#11729](https://github.com/MetaMask/core/pull/11729))
 
 ## [26.0.1]
 
