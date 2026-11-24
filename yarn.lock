@@ -5511,7 +5511,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@types/bn.js": "npm:^5.2.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/node": "npm:^22.13.14"
@@ -5642,7 +5642,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
@@ -5837,7 +5837,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
@@ -5862,7 +5862,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.4"
     typedoc: "npm:^0.28.20"
@@ -5970,7 +5970,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     reselect: "npm:^5.3.0"
@@ -6097,7 +6097,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     cockatiel: "npm:^3.2.1"
@@ -7083,7 +7083,7 @@ __metadata:
     "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^2.4.0"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     chokidar-cli: "npm:^3.0.0"
     nock: "npm:15.0.5"
@@ -7334,7 +7334,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
@@ -8352,8 +8352,8 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
-    "@tanstack/react-query": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
+    "@tanstack/react-query": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
@@ -8426,7 +8426,7 @@ __metadata:
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
@@ -8517,7 +8517,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
     rimraf: "npm:^6.1.4"
@@ -8545,7 +8545,7 @@ __metadata:
     "@metamask/signature-controller": "npm:^40.1.1"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
     lodash-es: "npm:^4.18.1"
@@ -8901,7 +8901,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^74.3.0"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     fast-deep-equal: "npm:^3.1.3"
@@ -9166,7 +9166,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
-    "@tanstack/query-core": "npm:^5.107.1"
+    "@tanstack/query-core": "npm:^5.108.2"
     "@types/react": "npm:^19.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     nock: "npm:15.0.5"
@@ -11639,25 +11639,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tanstack/query-core@npm:5.107.1, @tanstack/query-core@npm:^5.107.1":
-  version: 5.107.1
-  resolution: "@tanstack/query-core@npm:5.107.1"
-  checksum: 10/a0346fb46f2d2326409d15c7b82e818c2c85770e3624989e9f4a8ca2bd631d31fa051d176c31ef1f98487487313a5d352bf10cab1d123d5ead5461f52748cc4a
+"@tanstack/query-core@npm:5.108.2, @tanstack/query-core@npm:^5.108.2":
+  version: 5.108.2
+  resolution: "@tanstack/query-core@npm:5.108.2"
+  checksum: 10/ddef207d67e60b780278d0ffdfcadaf95283953e6b48398f30bed210c551a90f7d256712fee8a91ccf4a2f2a014c1533aebe3a5fcdc77135b8a09a5772c26b5f
   languageName: node
   linkType: hard
 
-"@tanstack/react-query@npm:^5.107.1":
-  version: 5.107.1
-  resolution: "@tanstack/react-query@npm:5.107.1"
+"@tanstack/react-query@npm:^5.108.2":
+  version: 5.108.2
+  resolution: "@tanstack/react-query@npm:5.108.2"
   dependencies:
-    "@tanstack/query-core": "npm:5.107.1"
+    "@tanstack/query-core": "npm:5.108.2"
   peerDependencies:
     "@types/react": ^18 || ^19
     react: ^18 || ^19
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10/04fc353d85fee5108ea7aec2fad558dc30429c5730ba59b8c22dd4556bafdcf9ae9fd6f22840f2ff378ec969db4d196d066592d2f98fd3eaf24c9067c1f2857f
+  checksum: 10/63bb443f6044de365e8f97b9e704570f9e6cb7ff81240f4f5fb39cfdff3f29aa8d59ecc973db0253887ad0965ad1555bf4bf9f2249ef983c73aa982538f26b11
   languageName: node
   linkType: hard
 
