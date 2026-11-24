@@ -9,48 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action, which start an aal2 recovery session after `authenticate` ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Takes `authConnectionId` and `groupedAuthConnectionId`, and throws `MissingAuthUserInfo` if `authenticate` has not succeeded first.
-  - Authenticating as a different user or verifier clears the recovery session, envelope state, local password flag, and password outdated cache for the previous user.
-- Add non-persisted `recoverySession` state and the `RecoverySession` type, cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
-- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable key set for the account ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
-  - Takes a 32-byte `recoverySecret` and requires `mfaFlag` to be `true`, an unlocked vault in sync with the global password, an aal2 session, and `migrationVersion` `V1` or later.
-  - Completes when the vault has an `EnvelopeControl` record. Retries are safe and reuse the Recovery Secret OPRF key if one was already registered.
-  - Emits `Seedless Onboarding Envelope Migration Checkpoint` events with `phase` `STARTED` or `COMPLETED`, and `partial` set when a key from an earlier attempt exists.
-- Add optional `mfaFlag` option to `SeedlessOnboardingControllerOptions` (default `false`) to gate `migrateToEnvelope` until the feature is enabled ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add `recoverWithRecoverySecret` and the `SeedlessOnboardingController:recoverWithRecoverySecret` messenger action, which recover an envelope-managed vault with the Recovery Secret and create a local vault under `password` ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Requires the social login session and an aal2 session, and returns the secret data.
-  - Replaces any existing local vault. Sets `isLocalPassword` and `envelope.passwordAuthPubKey`.
-  - Throws `RecoveryEnvelopeNotFound` or `EnvelopeControlRecordNotFound` when no committed migration matches, without creating a local vault.
-- Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password after `recoverWithRecoverySecret` without the old password ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Requires `isLocalPassword` and an aal2 session, and clears `isLocalPassword` on success.
-- Add `restoreVaultWithPassword` and the `SeedlessOnboardingController:restoreVaultWithPassword` messenger action, which restore the local vault with the global password and return the secret data ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
-  - Replaces any existing local vault.
-  - Uses the password's envelope when one exists, or a matching control record otherwise.
-- Add persisted `envelope` state and the `EnvelopeState` type, set once the vault is envelope-managed ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - `passwordAuthPubKey` is the password OPRF auth public key the local password is synced with.
-- Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared once the global password is set again ([#11220](https://github.com/MetaMask/core/pull/11220))
-- Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which report whether the vault is envelope-managed and whether the password is local ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType` error messages ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
+- Add password envelope migration and MFA recovery methods and messenger actions: `authenticateForRecovery`, `migrateToEnvelope`, `recoverWithRecoverySecret`, `resetPasswordWithVaultKeys`, and `restoreVaultWithPassword` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add optional `mfaFlag` option (default `false`) to `SeedlessOnboardingControllerOptions` to gate `migrateToEnvelope` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add `envelope`, `isLocalPassword`, and non-persisted `recoverySession` controller state fields along with `EnvelopeState`, `RecoverySession`, `SeedlessOnboardingEnvelopeStatus`, and `getEnvelopeStatus` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add envelope and MFA recovery error messages to `SeedlessOnboardingControllerErrorMessage` (`Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType`) ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add dependency `@metamask/superstruct` (`^3.4.1`) ([#11346](https://github.com/MetaMask/core/pull/11346))
 
 ### Changed
 
-- **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and does not change the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
+- **BREAKING:** `fetchAllSecretData` no longer accepts a `password` parameter; it requires an unlocked vault and does not modify the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
   - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })`.
-- `changePassword` on an envelope-managed vault keeps the vault keys: it seals them for the new password, appends a control record, and swaps the password OPRF key, under the vault's metadata lock ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - The legacy path throws `EnvelopeVaultRequiresEnvelopePasswordChange` without writing anything when the vault has a control record.
-- `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope for the global password first, and fall back to the existing key chain only when none exists. Envelope fetch failures are now errors ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - On vaults with `envelope` state, throws `PasswordEnvelopeNotFound` unless the global password still derives the vault keys and matches a control record.
-- `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on envelope-managed vaults ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Update `changePassword`, `syncLatestGlobalPassword`, `submitGlobalPassword`, and `checkIsPasswordOutdated` to support envelope-managed vaults ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Bump `@metamask/toprf-secure-backup` from `^1.1.0` to `^2.0.0` ([#11346](https://github.com/MetaMask/core/pull/11346))
 
 ### Fixed
 
-- `refreshAuthTokens` now rejects with `AuthenticationError` instead of applying its tokens when `clearState` runs while the refresh is in flight, so a refresh from a previous session can no longer overwrite the current session's tokens or vault ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Reject in-flight `refreshAuthTokens` calls with `AuthenticationError` if `clearState` runs before the refresh completes, preventing stale tokens from overwriting the current session ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Treat invalid or expired auth token errors wrapped in `SomeError` (for example from `fetchAuthPubKey`) as auth token errors in `isAuthTokenError`, allowing token refresh and error handling to trigger ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Support base64url-encoded JWT payloads in `decodeJWTToken` ([#11346](https://github.com/MetaMask/core/pull/11346))
 
 ### Security
 
-- Exclude `envelope` from state logs, since its public keys can fingerprint an account across logs ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Exclude `envelope` state from state logs to avoid fingerprinting accounts across logs ([#11346](https://github.com/MetaMask/core/pull/11346))
 
 ## [12.1.0]
 
