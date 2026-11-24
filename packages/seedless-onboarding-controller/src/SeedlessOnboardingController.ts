@@ -836,8 +836,9 @@ export class SeedlessOnboardingController<
         const recoverEncKeyResult = await this.#recoverEncKey(password);
         // an envelope-managed vault keeps its keys across password
         // changes, so the password only opens them (I6)
-        const vaultKeySet = await this.#openPasswordEnvelope(
+        const vaultKeySet = await this.#openNewestEnvelope(
           recoverEncKeyResult.envelopeKeys,
+          'password',
         );
         if (vaultKeySet) {
           encKey = vaultKeySet.encKey;
@@ -1280,7 +1281,10 @@ export class SeedlessOnboardingController<
         // update vault with latest globalPassword
         const { envelopeKeys, encKey, pwEncKey, authKeyPair } =
           await this.#recoverEncKey(globalPassword);
-        const vaultKeySet = await this.#openPasswordEnvelope(envelopeKeys);
+        const vaultKeySet = await this.#openNewestEnvelope(
+          envelopeKeys,
+          'password',
+        );
 
         if (vaultKeySet) {
           // K_v never changes once this device has envelope state
@@ -1427,7 +1431,10 @@ export class SeedlessOnboardingController<
     try {
       // Envelope first (I6): the global password opens K_v, whose PW_BACKUP
       // chain leads back to this device's key set if it lagged behind.
-      const vaultKeySet = await this.#openPasswordEnvelope(envelopeKeys);
+      const vaultKeySet = await this.#openNewestEnvelope(
+        envelopeKeys,
+        'password',
+      );
       const chainStart = vaultKeySet
         ? {
             pwEncKey: vaultKeySet.localWrapKey,
@@ -3362,21 +3369,6 @@ export class SeedlessOnboardingController<
       log('Error resetting recovery secret rate limit', error);
     });
     return { envelopeKeys, authKeyPair };
-  }
-
-  /**
-   * Open the password envelope `pbek` of a password's envelope keys.
-   *
-   * @param keys - The envelope keys derived from the password's TOPRF seed.
-   * @returns The vault key set, or undefined when the password has no
-   * envelope (legacy layout).
-   * @throws If the envelopes cannot be fetched, or `InvalidEnvelope` if none
-   * opens. A fetch error is never treated as "absent" (I6).
-   */
-  async #openPasswordEnvelope(
-    keys: EnvelopeKeys,
-  ): Promise<VaultKeySet | undefined> {
-    return await this.#openNewestEnvelope(keys, 'password');
   }
 
   /**
