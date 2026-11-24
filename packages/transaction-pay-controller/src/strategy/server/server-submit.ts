@@ -105,7 +105,12 @@ type StepTransaction = {
 
 /** Terminal outcome of a server intent. */
 type ServerCompletion = {
-  status: ServerStatus.Confirmed | ServerStatus.Failed | ServerStatus.Refunded;
+  lastStatus?: ServerStatus;
+  status:
+    | ServerStatus.Confirmed
+    | ServerStatus.Failed
+    | ServerStatus.Refunded
+    | ServerStatus.Timeout;
   targetHash?: Hex;
 };
 
@@ -318,6 +323,12 @@ async function executeSingleServerQuote(
       messenger,
       preSubmitUsdceBalance,
     });
+  }
+
+  if (completion.status === ServerStatus.Timeout) {
+    const { lastStatus } = completion;
+    const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+    throw new Error(`Server intent timed out${statusDetail}`);
   }
 
   if (completion.status !== ServerStatus.Confirmed) {
@@ -1337,8 +1348,11 @@ function deriveEIP712DomainType(
 /**
  * Poll the server until the intent reaches a terminal status.
  *
- * Failures are returned rather than thrown so callers can clean up first, such
- * as sweeping a deposit wallet refund. Timeouts still throw.
+ * Failures and timeouts are returned rather than thrown so callers can clean
+ * up first, such as sweeping a deposit wallet refund.
+ *
+ * The server owns the provider-specific timeout and reports it as a `TIMEOUT`
+ * status, while the local polling timeout remains as a backstop.
  *
  * @param quote - Server quote being polled.
  * @param messenger - Controller messenger.
@@ -1354,13 +1368,13 @@ async function waitForServerCompletion(
 ): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
   const pollingTimeout = getServerPollingTimeout(messenger);
-  const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
+  const hasTimeout = pollingTimeout > 0;
 
   log('Server polling config', { pollingInterval, pollingTimeout });
 
   const startTime = Date.now();
 
-  let lastStatus: string | undefined;
+  let lastStatus: ServerStatus | undefined;
   let sourceHashEmitted = false;
   let sourceLogs: ServerStatusLog[] | undefined;
 
@@ -1374,10 +1388,11 @@ async function waitForServerCompletion(
       sourceLogs ??= await getSourceLogs(hash, messenger);
 
       statusResponse = await getServerStatus(messenger, {
-        provider: quote.provider,
-        id: statusId ?? quote.id,
+        elapsedMs: Date.now() - startTime,
         hash,
+        id: statusId ?? quote.id,
         logs: sourceLogs,
+        provider: quote.provider,
       });
     } catch (error) {
       if (isClientError(error)) {
@@ -1388,7 +1403,6 @@ async function waitForServerCompletion(
     }
 
     if (statusResponse) {
-      lastStatus = statusResponse.status;
       log('Polled status', statusResponse.status, statusResponse);
 
       if (!sourceHashEmitted && statusResponse.sourceHash) {
@@ -1417,11 +1431,16 @@ async function waitForServerCompletion(
       ) {
         return { status, targetHash };
       }
+
+      if (status === ServerStatus.Timeout) {
+        return { lastStatus, status };
+      }
+
+      lastStatus = status;
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
-      const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
-      throw new Error(`Server polling timed out${statusDetail}`);
+      return { lastStatus, status: ServerStatus.Timeout };
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

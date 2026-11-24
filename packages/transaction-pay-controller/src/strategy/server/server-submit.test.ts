@@ -250,7 +250,7 @@ describe('submitServerQuotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
     getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
-    getServerPollingTimeoutMock.mockReturnValue(undefined);
+    getServerPollingTimeoutMock.mockReturnValue(0);
     getServerStatusMock.mockResolvedValue({
       status: ServerStatus.Confirmed,
       targetHash: TARGET_HASH_MOCK,
@@ -719,13 +719,13 @@ describe('submitServerQuotes', () => {
     const dateNowMock = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(100)
-      .mockReturnValueOnce(110);
+      .mockReturnValue(110);
 
     getServerPollingTimeoutMock.mockReturnValue(5);
     getServerStatusMock.mockResolvedValue({ status: ServerStatus.Pending });
 
     await expect(submitServerQuotes(request)).rejects.toThrow(
-      'Server polling timed out (last status: PENDING)',
+      'Server intent timed out (last status: PENDING)',
     );
 
     dateNowMock.mockRestore();
@@ -735,13 +735,60 @@ describe('submitServerQuotes', () => {
     const dateNowMock = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(100)
-      .mockReturnValueOnce(110);
+      .mockReturnValue(110);
 
     getServerPollingTimeoutMock.mockReturnValue(5);
     getServerStatusMock.mockRejectedValue(new Error('network error'));
 
     await expect(submitServerQuotes(request)).rejects.toThrow(
-      /^Server polling timed out$/u,
+      /^Server intent timed out$/u,
+    );
+
+    dateNowMock.mockRestore();
+  });
+
+  it('does not time out locally when the polling timeout is zero', async () => {
+    const dateNowMock = vi
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValue(Number.MAX_SAFE_INTEGER);
+
+    getServerPollingTimeoutMock.mockReturnValue(0);
+    getServerStatusMock
+      .mockResolvedValueOnce({ status: ServerStatus.Pending })
+      .mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: TARGET_HASH_MOCK,
+      });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+
+    dateNowMock.mockRestore();
+  });
+
+  it('throws when the server reports a timeout, including the last status', async () => {
+    getServerStatusMock
+      .mockResolvedValueOnce({ status: ServerStatus.Pending })
+      .mockResolvedValue({ status: ServerStatus.Timeout });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server intent timed out (last status: PENDING)',
+    );
+  });
+
+  it('sends the elapsed time since polling started', async () => {
+    const dateNowMock = vi
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValue(350);
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ elapsedMs: 250 }),
     );
 
     dateNowMock.mockRestore();
@@ -889,6 +936,7 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(request);
 
       expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        elapsedMs: expect.any(Number),
         hash: SOURCE_HASH_MOCK,
         id: ORIGINAL_QUOTE_MOCK.id,
         logs: [LOG_MOCK],
@@ -902,6 +950,7 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(request);
 
       expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        elapsedMs: expect.any(Number),
         hash: SOURCE_HASH_MOCK,
         id: ORIGINAL_QUOTE_MOCK.id,
         logs: undefined,
@@ -982,6 +1031,7 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(request);
 
       expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        elapsedMs: expect.any(Number),
         hash: undefined,
         id: ORIGINAL_QUOTE_MOCK.id,
         logs: undefined,
@@ -1073,6 +1123,18 @@ describe('submitServerQuotes', () => {
 
       expect(sweepPolymarketDepositWalletMock).toHaveBeenCalledWith(
         expect.objectContaining({ isRefund: true }),
+      );
+    });
+
+    it('sweeps before reporting a timed out intent', async () => {
+      getServerStatusMock.mockResolvedValue({ status: ServerStatus.Timeout });
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Server intent timed out',
+      );
+
+      expect(sweepPolymarketDepositWalletMock).toHaveBeenCalledWith(
+        expect.objectContaining({ isRefund: false }),
       );
     });
 

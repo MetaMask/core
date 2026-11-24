@@ -91,15 +91,18 @@ export async function submitServerIntent(
  *
  * @param messenger - Controller messenger.
  * @param params - Status request parameters.
- * @param params.provider - The provider that the intent was submitted to.
- * @param params.id - The intent ID.
+ * @param params.elapsedMs - Optional milliseconds since the intent was
+ * submitted, so the server can report a provider-specific timeout.
  * @param params.hash - Optional source transaction hash.
+ * @param params.id - The intent ID.
  * @param params.logs - Optional logs from the source transaction receipt.
+ * @param params.provider - The provider that the intent was submitted to.
  * @returns The current status of the intent.
  */
 export async function getServerStatus(
   messenger: TransactionPayControllerMessenger,
   params: {
+    elapsedMs?: number;
     hash?: string;
     id: string;
     logs?: ServerStatusLog[];
@@ -108,7 +111,7 @@ export async function getServerStatus(
 ): Promise<ServerStatusResponse> {
   const { server } = getPayStrategiesConfig(messenger);
   const url = `${server.baseUrl}/status`;
-  const { hash, id, logs, provider } = params;
+  const { elapsedMs, hash, id, logs, provider } = params;
 
   log('Fetching status', { url });
 
@@ -120,6 +123,7 @@ export async function getServerStatus(
       id,
       ...(hash ? { hash } : {}),
       ...(logs ? { logs } : {}),
+      ...(elapsedMs === undefined ? {} : { elapsedMs }),
     }),
   });
 

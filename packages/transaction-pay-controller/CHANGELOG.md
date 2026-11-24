@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Include the `address`, `data`, and `topics` of each log from the receipt of the local transaction matching the source hash, so providers can resolve their order.
   - Fetch the source transaction receipt from the network when the local transaction has no receipt logs, such as relayed transactions marked as intent complete.
   - Stop polling and fail immediately when the status request returns a `4xx` response, while still retrying on `408`, `429`, `5xx` and network errors.
+- Support provider-specific timeouts reported by the server in `ServerStrategy` ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER))
+  - Send `elapsedMs` with each status request and stop polling when the server returns the new `TIMEOUT` status.
+  - Default the `confirmations_pay_extended.payStrategies.server.pollingTimeout` backstop to 30 minutes when unset. A value of `0` still disables it.
+  - Sweep Polymarket deposit wallets before reporting a timed out intent, as is already done for failed and refunded intents.
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [32.1.1]

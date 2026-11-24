@@ -18,6 +18,7 @@ import {
   DEFAULT_GAS_BUFFER,
   DEFAULT_GAS_STATION_COST_BUFFER,
   DEFAULT_SERVER_BASE_URL,
+  DEFAULT_SERVER_POLLING_TIMEOUT_MS,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
@@ -1266,7 +1267,7 @@ describe('Feature Flags Utils', () => {
         enabledTransactionTypes: [],
         baseUrl: DEFAULT_SERVER_BASE_URL,
         pollingInterval: 2000,
-        pollingTimeout: undefined,
+        pollingTimeout: DEFAULT_SERVER_POLLING_TIMEOUT_MS,
       });
     });
 
@@ -1427,8 +1428,27 @@ describe('Feature Flags Utils', () => {
   });
 
   describe('getServerPollingTimeout', () => {
-    it('returns undefined when no feature flag is set', () => {
-      expect(getServerPollingTimeout(messenger)).toBeUndefined();
+    it('returns the default when no feature flag is set', () => {
+      expect(getServerPollingTimeout(messenger)).toBe(
+        DEFAULT_SERVER_POLLING_TIMEOUT_MS,
+      );
+    });
+
+    it('returns zero when set to zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                pollingTimeout: 0,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getServerPollingTimeout(messenger)).toBe(0);
     });
 
     it('returns the configured polling timeout when set', () => {
