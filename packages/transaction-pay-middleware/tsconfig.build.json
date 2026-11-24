@@ -6,6 +6,12 @@
   },
   "references": [
     {
+      "path": "../account-tree-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "../controller-utils/tsconfig.build.json"
     },
     {

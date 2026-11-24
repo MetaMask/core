@@ -81,6 +81,9 @@ export type RampsControllerSetUserRegionAction = {
  * @param options.autoSelected - When true, marks the provider as system-guessed
  * (soft selection). The UI will silently auto-switch on token conflict instead
  * of showing the "Token Not Available" modal. Defaults to false.
+ * @param options.userSelected - When true, also records the provider as the
+ * user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+ * Defaults to false. Passing `null` as the provider always clears the pick.
  */
 export type RampsControllerSetSelectedProviderAction = {
   type: `RampsController:setSelectedProvider`;
@@ -121,6 +124,38 @@ export type RampsControllerSetSelectedProviderAction = {
 export type RampsControllerSetSelectedProviderForAssetAction = {
   type: `RampsController:setSelectedProviderForAsset`;
   handler: RampsController['setSelectedProviderForAsset'];
+};
+
+/**
+ * Selects the provider for the given asset and returns its id.
+ *
+ * Among the providers in `providers.data` that offer the asset (minus
+ * `excludeProviderIds`), the first match wins:
+ * 1. The user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+ * 2. The first provider in `aheadOfHistory`.
+ * 3. The provider of the most recent completed buy, across all accounts,
+ * from controller orders plus `extraHistory`.
+ * 4. The first provider in API ranking order.
+ *
+ * With a `null` asset (no token chosen yet) every provider is a candidate
+ * and step 2 is skipped, since that list only applies to assets its
+ * providers offer.
+ *
+ * The selection is marked auto-selected unless it is the user's own pick.
+ * The user's pick is kept when another provider is chosen, so it comes back
+ * on the next asset it offers.
+ *
+ * @param assetId - CAIP-19 asset id the user is buying, or `null`.
+ * @param options - Optional inputs.
+ * @param options.aheadOfHistory - Provider ids that win over history.
+ * @param options.extraHistory - Completed buys from outside controller state.
+ * @param options.excludeProviderIds - Provider ids to leave out.
+ * @returns The selected provider id, or `null` when providers are not loaded
+ * or none offers the asset (the selection is left unchanged).
+ */
+export type RampsControllerSelectProviderForAssetAction = {
+  type: `RampsController:selectProviderForAsset`;
+  handler: RampsController['selectProviderForAsset'];
 };
 
 /**
@@ -360,6 +395,9 @@ export type RampsControllerGetQuoteWithFeesAction = {
  * Unchanged syncable payloads (including unchanged poll results) are ignored
  * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
+ * When network access is denied, the order is still written locally and the
+ * remote push is deferred to the next full sync.
+ *
  * @param order - The RampsOrder to add or update.
  */
 export type RampsControllerAddOrderAction = {
@@ -369,6 +407,9 @@ export type RampsControllerAddOrderAction = {
 
 /**
  * Removes a V2 order from controller state by providerOrderId.
+ *
+ * When network access is denied, the order is still removed locally and the
+ * remote tombstone is deferred to the next full sync.
  *
  * @param providerOrderId - The provider order ID to remove.
  */
@@ -518,6 +559,18 @@ export type RampsControllerRefreshAutorampAction = {
 };
 
 /**
+ * Fetches the MoonPay customer's rail abilities from the neo-bank proxy and
+ * stores them in `vbaCustomerAbilities`. A failed fetch throws and leaves the
+ * stored value unchanged.
+ *
+ * @returns The fetched abilities.
+ */
+export type RampsControllerRefreshCustomerAbilitiesAction = {
+  type: `RampsController:refreshCustomerAbilities`;
+  handler: RampsController['refreshCustomerAbilities'];
+};
+
+/**
  * Refreshes all known local autoramps from MoonPay.
  * Intended for app resume / unlock catch-up when webhooks were missed.
  *
@@ -526,6 +579,27 @@ export type RampsControllerRefreshAutorampAction = {
 export type RampsControllerRefreshAutorampsAction = {
   type: `RampsController:refreshAutoramps`;
   handler: RampsController['refreshAutoramps'];
+};
+
+/**
+ * Fetches the newest page of transactions for one autoramp and calls
+ * `trackAutorampTransactionStatusChanged` for each new id or status change.
+ *
+ * The updated record is written before the callback runs. A failed fetch
+ * leaves the record untouched. Concurrent calls for the same autoramp share
+ * one request. The first successful fetch seeds the record and calls
+ * nothing. When this autoramp was on the cursor at the start of the fetch
+ * and was removed before the response is applied (`removeAutoramp`, a cursor
+ * replace that drops the id, or a foreign VBA session discard), the record
+ * is not restored and the callback is not called. A callback that throws
+ * is ignored, so one failing change does not drop the rest of the batch.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Transaction summaries from the newest page.
+ */
+export type RampsControllerRefreshAutorampTransactionsAction = {
+  type: `RampsController:refreshAutorampTransactions`;
+  handler: RampsController['refreshAutorampTransactions'];
 };
 
 /**
@@ -581,6 +655,9 @@ export type RampsControllerGetFallbackBuyWidgetDataAction = {
  * Registers an order ID for polling until the order is created or resolved.
  * Adds a minimal stub order to controller state; the existing order polling
  * will fetch the full order when the provider has created it.
+ *
+ * When network access is denied, the stub is still written locally and its
+ * remote push is deferred to the next full sync.
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
@@ -697,6 +774,9 @@ export type RampsControllerTransakVerifyUserOtpAction = {
 /**
  * Logs the user out of Transak. Clears authentication state and user details
  * regardless of whether the API call succeeds or fails.
+ *
+ * When network access is denied, the local session is cleared and a message
+ * is returned without calling the Transak service.
  *
  * @returns A message indicating the logout result.
  */
@@ -937,6 +1017,41 @@ export type RampsControllerTransakGetActiveOrdersAction = {
 };
 
 /**
+ * Submits MiCA consent for the authenticated user.
+ *
+ * @param consentedAt - ISO 8601 timestamp of consent.
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitMicaConsentAction = {
+  type: `RampsController:transakSubmitMicaConsent`;
+  handler: RampsController['transakSubmitMicaConsent'];
+};
+
+/**
+ * Submits source of income details for the authenticated user.
+ *
+ * @param monthlyVolume - Expected monthly transaction volume.
+ * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitSourceOfIncomeAction = {
+  type: `RampsController:transakSubmitSourceOfIncome`;
+  handler: RampsController['transakSubmitSourceOfIncome'];
+};
+
+/**
+ * Submits additional nationality details for the authenticated user.
+ *
+ * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+ * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+ * @returns The submission response containing the status.
+ */
+export type RampsControllerTransakSubmitAdditionalDetailsNationalityAction = {
+  type: `RampsController:transakSubmitAdditionalDetailsNationality`;
+  handler: RampsController['transakSubmitAdditionalDetailsNationality'];
+};
+
+/**
  * Union of all RampsController action types.
  */
 export type RampsControllerMethodActions =
@@ -946,6 +1061,7 @@ export type RampsControllerMethodActions =
   | RampsControllerSetUserRegionAction
   | RampsControllerSetSelectedProviderAction
   | RampsControllerSetSelectedProviderForAssetAction
+  | RampsControllerSelectProviderForAssetAction
   | RampsControllerInitAction
   | RampsControllerGetCountriesAction
   | RampsControllerGetTokensAction
@@ -967,7 +1083,9 @@ export type RampsControllerMethodActions =
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshCustomerAbilitiesAction
   | RampsControllerRefreshAutorampsAction
+  | RampsControllerRefreshAutorampTransactionsAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction
@@ -1001,4 +1119,7 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakGetIdProofStatusAction
   | RampsControllerTransakCancelOrderAction
   | RampsControllerTransakCancelAllActiveOrdersAction
-  | RampsControllerTransakGetActiveOrdersAction;
+  | RampsControllerTransakGetActiveOrdersAction
+  | RampsControllerTransakSubmitMicaConsentAction
+  | RampsControllerTransakSubmitSourceOfIncomeAction
+  | RampsControllerTransakSubmitAdditionalDetailsNationalityAction;

@@ -15,6 +15,7 @@ describe('@metamask/kyc-controller', () => {
       CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH: expect.any(Set),
       FINAL_STATUSES_TO_SKIP_AUTH_REFRESH: expect.any(Set),
       KYC_STATUSES: expect.any(Object),
+      KYC_CURRENT_STEPS: expect.any(Object),
       FINAL_STATUSES_TO_STOP_POLLING: expect.any(Set),
       alpha2ToAlpha3: expect.any(Function),
       generateKeyPair: expect.any(Function),
@@ -31,6 +32,15 @@ describe('@metamask/kyc-controller', () => {
       retry: 'retry',
       new: 'new',
       pending: 'pending',
+    });
+    expect(packageExports.KYC_CURRENT_STEPS).toStrictEqual({
+      processing: 'processing',
+      emailOtpCollection: 'emailOtpCollection',
+      phoneOtpCollection: 'phoneOtpCollection',
+      capabilityAuthorization: 'capabilityAuthorization',
+      kyc: 'kyc',
+      approved: 'approved',
+      rejected: 'rejected',
     });
     expect(packageExports.TERMINAL_SESSION_STATUSES).toBeInstanceOf(Set);
     expect([...packageExports.TERMINAL_SESSION_STATUSES].sort()).toStrictEqual([

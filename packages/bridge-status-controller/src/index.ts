@@ -29,7 +29,6 @@ export type {
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
-  StartPollingForBridgeTxStatusArgsSerialized,
   TokenAmountValuesSerialized,
   QuoteMetadataSerialized,
 } from './types.js';
@@ -55,8 +54,6 @@ export {
 
 export {
   getHashPresenceProperties,
-  getStatusFailurePhase,
-  getFailurePropertiesFromHistory,
   getSubmitErrorCode,
   getBroadcastFailureProperties,
 } from './utils/metrics.js';

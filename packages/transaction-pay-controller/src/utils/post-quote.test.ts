@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { QuoteRequest, TransactionPayQuote } from '../types.js';
 import { reservePostQuoteGas } from './post-quote.js';
@@ -9,17 +9,12 @@ const TOKEN_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
 
 const REQUEST_MOCK = {
   from: FROM_MOCK,
+  sourceAssetId: `eip155:137/erc20:${TOKEN_MOCK}`,
   sourceBalanceRaw: '1000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: TOKEN_MOCK,
   sourceTokenAmount: '1000',
 } as unknown as QuoteRequest;
 
 describe('post-quote', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('reservePostQuoteGas', () => {
     function buildQuote({
       isSourceGasFeeToken = true,
@@ -73,7 +68,9 @@ describe('post-quote', () => {
     ])('requotes when the source is %s', async (_title, sourceTokenAddress) => {
       const quote = buildQuote({
         isSourceGasFeeToken: false,
-        request: { sourceTokenAddress: sourceTokenAddress as Hex },
+        request: {
+          sourceAssetId: `eip155:137/erc20:${sourceTokenAddress as Hex}`,
+        },
       });
       const requote = vi.fn().mockResolvedValue(quote);
 

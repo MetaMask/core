@@ -283,12 +283,13 @@ function buildMockSnapKeyringV2(
     configurable: true,
   });
 
-  return Object.assign(instance, overrides);
+  // The `type` is usually set in the constructor, which we skipped.
+  return Object.assign(instance, { type: KeyringType.Snap }, overrides);
 }
 
 /**
  * Wraps a mock SnapKeyringV2 in a KeyringV1Adapter so it passes the
- * `instanceof KeyringV1Adapter` check in AccountsController.
+ * `isKeyringV1Adapter` check in AccountsController.
  *
  * @param inner - The mock SnapKeyringV2 instance to wrap.
  * @returns A KeyringV1Adapter wrapping the mock instance.
@@ -983,6 +984,91 @@ describe('AccountsController', () => {
         expect(accounts[0].scopes).not.toBe(mockSnapV2KeyringAccount.scopes);
       });
 
+      it('add Snap v2 accounts from an adapter built by another copy of keyring-sdk', () => {
+        const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+        const mockSnapV2SnapId = 'mock-snap-v2-id';
+        const mockSnapV2AccountId = 'mock-snap-v2-account-id';
+
+        const mockSnapV2KeyringAccount = {
+          id: mockSnapV2AccountId,
+          address: mockSnapV2Address,
+          options: {},
+          methods: [...ETH_EOA_METHODS],
+          type: EthAccountType.Eoa,
+          scopes: [EthScope.Eoa],
+        };
+
+        const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+          mockSnapV2SnapId,
+          {
+            lookupByAddress: vi.fn().mockReturnValue(mockSnapV2KeyringAccount),
+          },
+        );
+
+        // Simulates an adapter constructed from a different copy of
+        // `@metamask/keyring-sdk` (a split dependency tree): `instanceof` would
+        // fail, but the structural `isKeyringV1Adapter` check still
+        // recognizes it.
+        const foreignAdapter = {
+          type: KeyringType.Snap,
+          unwrap: (): SnapKeyringV2 => mockSnapKeyringV2Instance,
+        };
+
+        expect(foreignAdapter).not.toBeInstanceOf(KeyringV1Adapter);
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([foreignAdapter]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listMultichainAccounts();
+
+        expect(accounts).toHaveLength(1);
+        expect(accounts[0]).toMatchObject({
+          id: mockSnapV2AccountId,
+          address: mockSnapV2Address,
+          metadata: {
+            keyring: { type: KeyringType.Snap },
+            snap: {
+              id: mockSnapV2SnapId,
+            },
+            importTime: expect.any(Number),
+          },
+        });
+      });
+
       it('handles the event when a Snap v2 deleted the account before it was added', () => {
         const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
 
@@ -1042,7 +1128,7 @@ describe('AccountsController', () => {
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
-            // Plain object — does NOT pass instanceof KeyringV1Adapter
+            // Plain object — does NOT pass isKeyringV1Adapter
             { lookupByAddress: vi.fn() },
           ]),
         );
@@ -1215,7 +1301,7 @@ describe('AccountsController', () => {
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
-            // Plain object — does NOT pass instanceof KeyringV1Adapter
+            // Plain object — does NOT pass isKeyringV1Adapter
             { lookupByAddress: vi.fn() },
           ]),
         );

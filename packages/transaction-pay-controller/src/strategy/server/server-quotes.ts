@@ -4,15 +4,11 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  PaymentOverride,
-  TransactionPayStrategy,
-} from '../../constants.js';
+import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -22,27 +18,44 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
-import { getSlippage, isEIP7702Chain } from '../../utils/feature-flags.js';
+import {
+  getSlippage,
+  isEIP7702Chain,
+  isServerGaslessEnabled,
+} from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
   resolveGasPayment,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
+import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
 import {
   getPolymarketDepositWalletOverrides,
   getPredictWithdrawFeeTokenAccount,
   getPredictWithdrawSafeAddress,
 } from '../../utils/polymarket/withdraw.js';
+import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
-import { estimateSourceGas } from '../../utils/quote-gas.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
-import { getTokenFiatRate } from '../../utils/token.js';
+import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
+import {
+  buildCaipAssetType,
+  getEvmQuoteSource,
+  getTokenFiatRate,
+} from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
+import { SERVER_HYPERLIQUID_PERPS_USDC_ASSET } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
+import { validateServerQuotes } from './server-validation.js';
 import type {
   ServerQuote,
   ServerQuotePayload,
@@ -52,7 +65,6 @@ import type {
 } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
-const HYPERCORE_CHAIN_ID_NUMBER = Number(CHAIN_ID_HYPERCORE);
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
 const TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
@@ -107,13 +119,24 @@ export async function getServerQuotes(
 
   log('Fetching quotes', { quoteRequests });
 
-  const quotes = await Promise.all(
-    quoteRequests.map((quoteRequest) =>
-      getQuotesForRequest(quoteRequest, request),
-    ),
-  );
+  const quotes = (
+    await Promise.all(
+      quoteRequests.map((quoteRequest) =>
+        getQuotesForRequest(quoteRequest, request),
+      ),
+    )
+  ).flat();
 
-  return quotes.flat();
+  if (quotes.length) {
+    await validateServerQuotes({
+      messenger: request.messenger,
+      quotes,
+      signal: request.signal,
+      transaction: request.transaction,
+    });
+  }
+
+  return quotes;
 }
 
 async function getQuotesForRequest(
@@ -121,6 +144,22 @@ async function getQuotesForRequest(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   try {
+    if (quoteRequest.isMaxAmount) {
+      return await getMaxQuotes({
+        fullRequest,
+        getQuoteDetails: getServerMaxQuoteDetails,
+        getQuotes: (request, transaction) =>
+          fetchQuotes(request, { ...fullRequest, transaction }),
+        request: quoteRequest,
+        requote: (quote, request, transaction) =>
+          requoteProvider(
+            request,
+            { ...fullRequest, transaction },
+            quote.original,
+          ),
+      });
+    }
+
     const quotes = await fetchQuotes(quoteRequest, fullRequest);
 
     if (!quoteRequest.isPostQuote) {
@@ -165,14 +204,17 @@ async function fetchQuotes(
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
 
-  const settledRequest = await resolveSettledRequest(
-    quoteRequest,
-    transaction,
+  const normalizedRequest = await applyHyperliquidActivationFee(
+    normalizeServerPerpsRequest(quoteRequest, transaction),
     messenger,
+    transaction,
+    signal,
   );
 
+  const { hyperliquidActivationFeeUsd } = normalizedRequest;
+
   const body = await buildServerQuoteRequest(
-    settledRequest,
+    normalizedRequest,
     transaction,
     messenger,
     accountSupports7702,
@@ -199,12 +241,16 @@ async function fetchQuotes(
     fulfilledResults.map((result) =>
       normalizeQuote(
         result,
-        settledRequest,
+        {
+          ...quoteRequest,
+          hyperliquidActivationFeeUsd,
+          recipient: body.recipient,
+        },
         messenger,
         body,
         transaction,
         accountSupports7702,
-        isSecondLegRequired(body, settledRequest, transaction, result.quote),
+        isSecondLegRequired(body, quoteRequest, transaction, result.quote),
       ),
     ),
   );
@@ -214,84 +260,74 @@ async function fetchQuotes(
   return normalized;
 }
 
-/**
- * Carry the account the funds settle on as the request recipient.
- *
- * The second leg runs from `request.recipient`, which has to match where the
- * funds actually landed. Non-atomic flows settle on the account submitting the
- * second leg, such as the Money Account of a Predict withdraw. Otherwise the
- * quote settles on the executing account rather than the payer.
- *
- * @param quoteRequest - Quote request.
- * @param transaction - Original transaction meta.
- * @param messenger - Controller messenger.
- * @returns The request with the settlement recipient applied.
- */
-async function resolveSettledRequest(
-  quoteRequest: QuoteRequest,
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-): Promise<QuoteRequest> {
-  const recipient =
-    (await resolveNonAtomicRecipient(transaction, quoteRequest, messenger)) ??
-    (transaction.txParams.from as Hex);
-
-  return { ...quoteRequest, recipient };
-}
-
 async function buildServerQuoteRequest(
-  quoteRequest: QuoteRequest,
+  normalizedRequest: QuoteRequest,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
   accountSupports7702: boolean,
 ): Promise<ServerQuoteRequest> {
-  const normalizedRequest = normalizeServerPerpsRequest(
-    quoteRequest,
-    transaction,
-  );
   const {
     atomic,
     from,
     isMaxAmount,
     isPolymarketDepositWallet,
     isPostQuote,
-    paymentOverride,
     refundTo,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(normalizedRequest);
 
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
-    !isHypercore && Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
+    !isHypercore &&
+    atomic !== false &&
+    !isPostQuote &&
+    !isPolymarketDepositWallet &&
+    !normalizedRequest.skipProcessTransactions &&
+    Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
 
   // `from` is the payer, which differs from the account the transaction's calls
   // run from when an account override (e.g. Money Account) is active.
   const executionAccount = transaction.txParams.from as Hex;
 
-  const recipient =
+  const tokenTransferRecipient =
     isTokenTransfer && singleData
       ? decodeTransferRecipient(singleData)
-      : (normalizedRequest.recipient ?? executionAccount);
+      : undefined;
+
+  const override = await processPostQuotePaymentOverride({
+    messenger,
+    request: normalizedRequest,
+    transaction,
+  });
+  const recipient = await resolveQuoteRecipient({
+    messenger,
+    request: {
+      ...normalizedRequest,
+      recipient: override?.recipient ?? tokenTransferRecipient,
+    },
+    transaction,
+  });
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
 
   // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
   // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
   const supportsGasless =
+    isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequestDraft = {
-    source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
-    target: { chainId: Number(targetChainId), token: targetTokenAddress },
+    sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
+    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
     sender: from,
     recipient,
     slippage: Math.round(
@@ -301,7 +337,7 @@ async function buildServerQuoteRequest(
   };
 
   if (isPolymarketDepositWallet) {
-    await applyDepositWalletOverrides(body, from, messenger);
+    await applyDepositWalletOverrides(body, from, sourceChainId, messenger);
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
@@ -314,22 +350,27 @@ async function buildServerQuoteRequest(
     // they must not be embedded in the quote.
     atomic === false ||
     (isPostQuote ?? false) ||
-    (isMaxAmount ?? false) ||
+    // Max requests only embed calls when quoted atomically, as the calls must
+    // be re-encoded for the amount the max quote delivers.
+    (isMaxAmount === true &&
+      !isAtomicMaxSupported({
+        messenger,
+        request: normalizedRequest,
+        transaction,
+      })) ||
     // The deposit wallet funds the quote with a plain token transfer, so there
     // are no calls to embed.
     (isPolymarketDepositWallet ?? false);
 
-  if (
-    isPostQuote &&
-    atomic !== false &&
-    paymentOverride === PaymentOverride.MoneyAccount
-  ) {
-    await processMoneyAccountPostQuote(
-      transaction,
-      normalizedRequest,
-      body,
-      messenger,
-    );
+  if (override) {
+    body.amount = override.amount;
+    body.calls = override.calls;
+
+    if (override.authorizationList?.length) {
+      body.authorizationList = normalizeAuthorizationList(
+        override.authorizationList,
+      );
+    }
   } else if (!skipDelegation) {
     const delegation = await messenger.call(
       'TransactionPayController:getDelegationTransaction',
@@ -350,11 +391,12 @@ async function buildServerQuoteRequest(
     ];
 
     // Prefer atomic execution, but let providers that cannot run the calls
-    // still quote for the funds. Only this path can fall back to a second leg:
-    // the calls run as the execution account, which is also the recipient, so
-    // we can submit them ourselves once the funds land. Post-quote flows submit
-    // their own calls and must not opt in.
+    // still quote for the funds. The response determines whether execution is
+    // deferred. Post-quote flows submit their own calls and must not opt in.
+    // Atomic max quotes are only valid when the calls are executed by the
+    // provider, so they must not opt in either.
     if (
+      !isMaxAmount &&
       canDeferCalls({
         accountSupports7702,
         messenger,
@@ -444,20 +486,40 @@ function canDeferCalls({
  *
  * @param body - Quote request body to update.
  * @param from - The user EOA that owns the deposit wallet.
+ * @param sourceChainId - Chain the deposit wallet funds the quote from.
  * @param messenger - Controller messenger.
  */
 async function applyDepositWalletOverrides(
   body: ServerQuoteRequestDraft,
   from: Hex,
+  sourceChainId: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { depositWallet, sourceTokenAddress } =
     await getPolymarketDepositWalletOverrides(from, messenger);
 
-  body.source = { ...body.source, token: sourceTokenAddress };
+  body.sourceAsset = buildServerAsset(sourceChainId, sourceTokenAddress);
   body.sender = depositWallet;
   body.refundTo = depositWallet;
   body.useDepositAddress = true;
+}
+
+/**
+ * Build the CAIP-19 asset ID the server intents API expects for a token.
+ *
+ * HyperCore is only used for the Hyperliquid perps margin account, which has
+ * no standard CAIP-19 asset ID.
+ *
+ * @param chainId - Chain ID of the token.
+ * @param tokenAddress - Token address, or the native token address.
+ * @returns CAIP-19 asset ID.
+ */
+function buildServerAsset(chainId: Hex, tokenAddress: Hex): CaipAssetType {
+  if (chainId === CHAIN_ID_HYPERCORE) {
+    return SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+  }
+
+  return buildCaipAssetType(chainId, tokenAddress);
 }
 
 function normalizeAuthorizationList(
@@ -471,60 +533,6 @@ function normalizeAuthorizationList(
     s: entry.s as Hex,
     yParity: Number(entry.yParity),
   }));
-}
-
-async function processMoneyAccountPostQuote(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  body: ServerQuoteRequestDraft,
-  messenger: TransactionPayControllerMessenger,
-): Promise<void> {
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const {
-    calls: overrideCalls,
-    recipient,
-    authorizationList,
-  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
-    amount: amountHuman,
-    transaction,
-    transactionData,
-  });
-
-  if (!overrideCalls.length) {
-    log('No payment override calls for money account post-quote');
-    return;
-  }
-
-  const fundingRecipient = recipient ?? request.from;
-  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
-
-  // The bundled calls transfer exactly this amount, so pin it rather than
-  // letting the amount be derived from the request.
-  body.amount = rawAmount;
-
-  // Settle directly on the Money Account. The deposit calls are delegated from
-  // the Money Account, so the funds have to be there before they run.
-  body.recipient = fundingRecipient;
-
-  body.calls = overrideCalls.map((call) => ({
-    data: call.data as Hex,
-    to: call.to as Hex,
-    value: call.value ?? '0x0',
-  }));
-
-  if (authorizationList?.length) {
-    body.authorizationList = normalizeAuthorizationList(authorizationList);
-  }
-
-  log('Added money account post-quote calls to server quote body', {
-    callCount: overrideCalls.length,
-  });
 }
 
 function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
@@ -571,10 +579,7 @@ function isSecondLegRequired(
   // HyperCore settles off-chain, so there is no target-chain transfer to read
   // a settled amount from. Checks the built body rather than the original
   // request, since perps deposits are only rewritten to HyperCore there.
-  if (
-    body.target.chainId === HYPERCORE_CHAIN_ID_NUMBER ||
-    body.source.chainId === HYPERCORE_CHAIN_ID_NUMBER
-  ) {
+  if (body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
     return false;
   }
 
@@ -583,6 +588,10 @@ function isSecondLegRequired(
   // left to run once the funds settle.
   if (quoteRequest.isPostQuote) {
     return quoteRequest.atomic === false;
+  }
+
+  if (body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
+    return false;
   }
 
   // No calls to run. Plain funding transfers and empty calldata are already
@@ -628,10 +637,12 @@ async function normalizeQuote(
     transaction,
   });
 
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quoteRequest);
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    quoteRequest.sourceTokenAddress,
-    quoteRequest.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   const usdToFiatRate = sourceFiatRate
@@ -649,8 +660,12 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
+  // Any reserved HyperLiquid activation fee is withheld from the source send,
+  // so it is surfaced in the provider fee to keep the displayed amount intact.
   const provider = getFiatValueFromUsd(
-    new BigNumber(quote.fees.provider),
+    new BigNumber(quote.fees.provider).plus(
+      quoteRequest.hyperliquidActivationFeeUsd ?? '0',
+    ),
     usdToFiatRate,
   );
 
@@ -671,6 +686,9 @@ async function normalizeQuote(
     },
     isInputBased,
     original: {
+      ...(body.authorizationList?.length && !quote.callsDeferred
+        ? { authorizationList: body.authorizationList }
+        : {}),
       client: {
         gasLimits: sourceNetwork.gasLimits,
         is7702: sourceNetwork.is7702,
@@ -744,8 +762,9 @@ async function calculateSourceNetworkCost({
     maxPriorityFeePerGas: undefined,
   };
 
-  const { from, isPolymarketDepositWallet, sourceChainId, sourceTokenAddress } =
-    quoteRequest;
+  const { from, isPolymarketDepositWallet } = quoteRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quoteRequest);
 
   // A deposit wallet withdraw is broadcast by the Polymarket relayer, which
   // pays the gas, so the user only signs.
@@ -798,13 +817,17 @@ async function calculateSourceNetworkCost({
     hasServerDepositStep(steps),
   );
 
+  const quoteTransactions = steps.map((step) =>
+    stepToGasTransaction(step, sender),
+  );
+
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
     await estimateSourceGas({
       fromOverride,
       messenger,
       request: quoteRequest,
       transaction,
-      transactions: steps.map((step) => stepToGasTransaction(step, sender)),
+      transactions: quoteTransactions,
     });
 
   const estimate = calculateGasCost({
@@ -834,12 +857,8 @@ async function calculateSourceNetworkCost({
   );
 
   const gasStationCost = await resolveGasStationCost({
+    accountSupports7702,
     feeTokenAccount,
-    firstStepData: {
-      data: firstStep.data,
-      to: firstStep.to,
-      value: firstStep.value,
-    },
     messenger,
     nativeGasCostRaw: max.raw,
     request: {
@@ -848,9 +867,13 @@ async function calculateSourceNetworkCost({
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: feeTokenAccount
-      ? steps.length + 1
-      : Math.max(steps.length, gasLimits.length),
+    transactions: feeTokenAccount
+      ? quoteTransactions
+      : getSourceTransactions({
+          request: quoteRequest,
+          transaction,
+          transactions: quoteTransactions,
+        }),
   });
 
   if (!gasStationCost.amount) {
@@ -869,6 +892,23 @@ async function calculateSourceNetworkCost({
     isSourceGasFeeToken: true,
     max: gasStationCost.amount,
     ...fees,
+  };
+}
+
+function getServerMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<ServerQuote>): MaxQuoteDetails {
+  const transactionSteps = original.steps.filter(isTransactionStep);
+  const [firstStep] = transactionSteps;
+
+  return {
+    gasLimits: original.client.gasLimits,
+    gasStationTransactions: firstStep
+      ? transactionSteps.map(({ data, to, value }) => ({ data, to, value }))
+      : undefined,
+    isGasless: original.gasless || !firstStep,
+    isSubsidized: original.fees.subsidized,
+    targetAmountRaw: original.output.raw,
   };
 }
 

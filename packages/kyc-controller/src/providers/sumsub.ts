@@ -111,29 +111,42 @@ export type KycSumSubLauncher = {
 
 // SumSub statuses that mean the applicant submitted (see `KycSumSubSdkStatus`
 // for what each one reports). `Completed` covers launchers that normalize the
-// platform status before forwarding it. Review decisions (`Approved`,
-// `FinallyRejected`, `TemporarilyDeclined`) are post-submission outcomes: the
-// applicant finished the SDK, so UKYC is queried for the authoritative
-// decision. Pre-submission statuses (`Ready`, `Initial`, `Incomplete`) must
-// not be recorded as a completed verification.
-const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
-  new Set<KycSumSubSdkStatus>([
-    'Completed',
-    'Pending',
-    'Approved',
-    'ActionCompleted',
-    'FinallyRejected',
-    'TemporarilyDeclined',
-  ]);
+// platform status before forwarding it.
+const SUMSUB_SUBMISSION_STATUSES: ReadonlySet<string> =
+  new Set<KycSumSubSdkStatus>(['Completed', 'Pending', 'ActionCompleted']);
+
+// SumSub statuses that mean the applicant is still filling in the flow.
+const SUMSUB_PRE_SUBMISSION_STATUSES: ReadonlySet<string> =
+  new Set<KycSumSubSdkStatus>(['Ready', 'Initial', 'Incomplete']);
 
 /**
  * Checks whether a SumSub status means the applicant submitted the flow.
  *
+ * Review decisions (`Approved`, `FinallyRejected`, `TemporarilyDeclined`) are
+ * not submissions on their own: the SDK opens on the applicant's current
+ * decision, so a retry applicant who closes it right away reports
+ * `TemporarilyDeclined` without submitting anything.
+ *
  * @param status - Status from a launcher callback or launch result.
- * @returns Whether the applicant submitted, including a review decision.
+ * @returns Whether the status is a submission.
  */
-export function isSumSubFlowCompleted(status: unknown): boolean {
-  return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);
+export function isSumSubSubmissionStatus(status: unknown): boolean {
+  return typeof status === 'string' && SUMSUB_SUBMISSION_STATUSES.has(status);
+}
+
+/**
+ * Checks whether a SumSub status means the applicant has not submitted yet.
+ *
+ * SumSub can report `Pending` partway through a level and then go back to
+ * `Initial` on the next step, so this status clears an earlier submission.
+ *
+ * @param status - Status from a launcher callback or launch result.
+ * @returns Whether the status comes before a submission.
+ */
+export function isSumSubPreSubmissionStatus(status: unknown): boolean {
+  return (
+    typeof status === 'string' && SUMSUB_PRE_SUBMISSION_STATUSES.has(status)
+  );
 }
 
 /**

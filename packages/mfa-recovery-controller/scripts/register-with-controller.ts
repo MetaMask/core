@@ -7,7 +7,12 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import {
+  AuthConnection,
+  getDefaultSeedlessOnboardingControllerState,
+} from '@metamask/seedless-onboarding-controller';
+import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import { sha256 } from '@noble/hashes/sha2';
 import { randomBytes } from 'node:crypto';
 
 import { CubistEscrowProvider } from '../src/escrow-providers/cubist-escrow-provider.js';
@@ -17,7 +22,8 @@ import type { Identifier } from '../src/types.js';
 import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
-  passthroughEncryptor,
+  StubRecoveryLockProvider,
+  StubTrustedIdentifierStore,
 } from '../tests/stubs.js';
 
 /**
@@ -26,27 +32,36 @@ import {
  * Usage:
  *   yarn workspace @metamask/mfa-recovery-controller run cubesigner:register -- \
  *     --wrap-key <x25519-public-key-hex> \
- *     --receipt-key <ed25519-public-key-hex> \
+ *     --receipt-key <ed25519-public-key-hex> --auth-audience <audience> \
  *     [--function-id <name-or-id>] [--version latest|v0]
  *
  * Keys are raw 32-byte public keys, hex-encoded.
  */
 const USAGE =
-  'Usage: cubesigner:register --wrap-key <x25519-public-key-hex> --receipt-key <ed25519-public-key-hex> [--function-id <name-or-id>] [--version latest|v0]';
+  'Usage: cubesigner:register --wrap-key <x25519-public-key-hex> --receipt-key <ed25519-public-key-hex> --auth-audience <audience> [--function-id <name-or-id>] [--version latest|v0]';
 
 const PASSKEY: Identifier = {
   type: 'passkey',
   namespace: 'example.com',
   value: 'cred-1',
-  verifier: { publicKey: 'mock-passkey' },
+  verifier: {
+    rpId: 'example.com',
+    credentialId: 'AQ',
+    publicKey: { cose: 'Ag' },
+  },
 };
 
-const OIDC: Identifier = {
-  type: 'oidc',
+const SOCIAL: Identifier = {
+  type: 'social',
   namespace: 'https://accounts.google.com',
-  value: 'sub-1',
-  verifier: { auds: ['mock-client'] },
+  // keccak256('user@example.com')
+  value: 'cfb15ca7270395d72219fd758f75a0c95e3f0a61d959222402f24051d08e9b32',
 };
+
+const SEEDLESS_STATE = getDefaultSeedlessOnboardingControllerState({
+  authConnection: AuthConnection.Google,
+  socialLoginEmail: 'user@example.com',
+});
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -96,20 +111,48 @@ function parseVersion(value: string | undefined): Version {
   throw new Error(`Invalid CubeSigner version: ${value}`);
 }
 
-function getControllerMessenger(): MfaRecoveryControllerMessenger {
+function getControllerMessenger(
+  authProvider: StubAuthProvider,
+): MfaRecoveryControllerMessenger {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
-  return new Messenger({
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:refreshCanonicalProfileId',
+    async () => await authProvider.refreshCanonicalProfileId(),
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:requestMfaApproval',
+    async (request) => await authProvider.requestMfaApproval(request),
+  );
+  rootMessenger.registerActionHandler(
+    'SeedlessOnboardingController:getState',
+    () => SEEDLESS_STATE,
+  );
+  const messenger: MfaRecoveryControllerMessenger = new Messenger({
     namespace: 'MfaRecoveryController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AuthenticationController:refreshCanonicalProfileId',
+      'AuthenticationController:requestMfaApproval',
+      'SeedlessOnboardingController:getState',
+    ],
+  });
+  return messenger;
 }
 
 async function main(flags: Record<string, string>): Promise<void> {
   const wrapPublicKey = flags['wrap-key'];
   const receiptPublicKey = flags['receipt-key'];
-  if (wrapPublicKey === undefined || receiptPublicKey === undefined) {
+  const authAudience = flags['auth-audience'];
+  if (
+    wrapPublicKey === undefined ||
+    receiptPublicKey === undefined ||
+    authAudience === undefined
+  ) {
     console.error(USAGE);
     process.exitCode = 1;
     return;
@@ -117,7 +160,8 @@ async function main(flags: Record<string, string>): Promise<void> {
 
   const client = await CubeSignerClient.create(defaultUserSessionManager());
   const escrow = new CubistEscrowProvider({
-    client,
+    getClient: async (): Promise<CubeSignerClient> => client,
+    authAudience,
     wrapPublicKey: hexToBytes(wrapPublicKey),
     receiptPublicKey: hexToBytes(receiptPublicKey),
     ...(flags['function-id'] === undefined
@@ -126,15 +170,22 @@ async function main(flags: Record<string, string>): Promise<void> {
     version: parseVersion(flags.version),
   });
   const controller = new MfaRecoveryController({
-    messenger: getControllerMessenger(),
-    authProvider: new StubAuthProvider(),
+    messenger: getControllerMessenger(new StubAuthProvider([PASSKEY, SOCIAL])),
+    lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
+    trustedIdentifierStore: new StubTrustedIdentifierStore([
+      {
+        type: 'passkey',
+        rpIdHash: bytesToHex(sha256(stringToBytes('example.com'))),
+        credentialId: '0x01',
+        publicKey: '0x02',
+      },
+    ]),
     escrows: [escrow],
-    pendingOperationEncryptor: passthroughEncryptor,
   });
 
   const recoverySecret = new Uint8Array(randomBytes(32));
-  await controller.register(recoverySecret, [PASSKEY, OIDC]);
+  await controller.register(recoverySecret, [PASSKEY, SOCIAL]);
 
   const identifierSession = await controller.authenticateIdentifier(PASSKEY);
   const recovered = await controller.getRecoverySecret(identifierSession);

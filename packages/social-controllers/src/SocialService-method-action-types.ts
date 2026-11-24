@@ -261,6 +261,25 @@ export type SocialServiceCreateSwapCommentAction = {
 };
 
 /**
+ * Requests a translation of a swap comment (Call).
+ *
+ * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
+ * does not expose this route yet, so a missing route rejects with
+ * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
+ * `SocialController.translateComment` logs that case.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @param options.targetLanguage - AWS language code to translate into, for
+ * example `en`.
+ * @returns The detected source language and stored translations.
+ */
+export type SocialServiceTranslateCommentAction = {
+  type: `SocialService:translateComment`;
+  handler: SocialService['translateComment'];
+};
+
+/**
  * Records that the current user is copying a trade from a social post, so
  * the copy can be detected and attributed to the post's author.
  *
@@ -413,6 +432,22 @@ export type SocialServiceBlockAction = {
 };
 
 /**
+ * Removes the current user's block on a trader.
+ *
+ * Calls `DELETE ${baseUrl}/moderation/blocks/profiles/${profileId}`.
+ * Unblocking a trader who is not blocked is a no-op. The caller is
+ * identified server-side from the JWT sub claim carried in the
+ * Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.profileId - Profile id (UUID) of the trader to unblock.
+ */
+export type SocialServiceUnblockProfileAction = {
+  type: `SocialService:unblockProfile`;
+  handler: SocialService['unblockProfile'];
+};
+
+/**
  * Fetches traders the current user has blocked.
  *
  * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
@@ -445,6 +480,61 @@ export type SocialServiceFetchBlockedContentAction = {
 };
 
 /**
+ * Fetches whether the moderation team has banned the current user.
+ *
+ * Calls `GET ${baseUrl}/moderation/status`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The current user's ban status, with the reason they may be shown.
+ */
+export type SocialServiceFetchModerationStatusAction = {
+  type: `SocialService:fetchModerationStatus`;
+  handler: SocialService['fetchModerationStatus'];
+};
+
+/**
+ * Fetches native, wrapped native, and stablecoin assets that do not produce
+ * indexed positions.
+ *
+ * Calls `GET ${baseUrl}/tokens/quote-tokens`.
+ *
+ * @returns CAIP-19 ids grouped by asset category.
+ */
+export type SocialServiceFetchQuoteTokensAction = {
+  type: `SocialService:fetchQuoteTokens`;
+  handler: SocialService['fetchQuoteTokens'];
+};
+
+/**
+ * Fetches a page of trending GIFs through the social-api GIF proxy.
+ *
+ * Calls `GET ${baseUrl}/gifs/trending`. Query parameters are forwarded
+ * unchanged, and the return value is the provider page itself.
+ *
+ * @param params - Provider query parameters (`page`, `per_page`, `locale`,
+ * `content_filter`, `format_filter`, and any others the caller sets).
+ * @returns The GIF page response.
+ */
+export type SocialServiceFetchTrendingGifsAction = {
+  type: `SocialService:fetchTrendingGifs`;
+  handler: SocialService['fetchTrendingGifs'];
+};
+
+/**
+ * Searches GIFs through the social-api GIF proxy.
+ *
+ * Calls `GET ${baseUrl}/gifs/search`. Query parameters are forwarded
+ * unchanged, and the return value is the provider page itself.
+ *
+ * @param params - Provider query parameters. `q` is the search text.
+ * @returns The GIF page response.
+ */
+export type SocialServiceSearchGifsAction = {
+  type: `SocialService:searchGifs`;
+  handler: SocialService['searchGifs'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -461,6 +551,7 @@ export type SocialServiceMethodActions =
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
+  | SocialServiceTranslateCommentAction
   | SocialServiceCreateCopyTradeIntentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFetchMyFollowingAction
@@ -471,5 +562,10 @@ export type SocialServiceMethodActions =
   | SocialServiceOptInToLeaderboardAction
   | SocialServiceRefreshNotificationPreferencesCacheAction
   | SocialServiceBlockAction
+  | SocialServiceUnblockProfileAction
   | SocialServiceFetchBlockedProfilesAction
-  | SocialServiceFetchBlockedContentAction;
+  | SocialServiceFetchBlockedContentAction
+  | SocialServiceFetchModerationStatusAction
+  | SocialServiceFetchQuoteTokensAction
+  | SocialServiceFetchTrendingGifsAction
+  | SocialServiceSearchGifsAction;

@@ -8,7 +8,7 @@ import {
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type {
@@ -215,10 +215,6 @@ async function importSnapshot(
 }
 
 describe('importState', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('mnemonic wallets', () => {
     it('applies metadata to existing groups when the wallet already exists locally', async () => {
       const { context, mocks } = setup({ wallets: makeMnemonicWalletState() });

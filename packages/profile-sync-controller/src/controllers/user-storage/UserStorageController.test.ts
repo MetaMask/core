@@ -27,6 +27,16 @@ import {
   defaultState,
 } from './UserStorageController.js';
 
+// Lower the scrypt cost used for encryption, which is very slow when running
+// with coverage enabled.
+vi.mock(
+  import('../../shared/encryption/constants.js'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    SCRYPT_N: 2 ** 10,
+  }),
+);
+
 vi.mock('../../shared/utils/message-signing.js', () => ({
   MESSAGE_SIGNING_SNAP_ID: 'npm:@metamask/message-signing-snap',
   getMessageSigningPublicKey: vi.fn(async () => 'MOCK_PUBLIC_KEY'),

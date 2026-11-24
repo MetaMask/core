@@ -1,7 +1,10 @@
 import { BigNumber } from 'bignumber.js';
 
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
-import type { UpdatePositionTPSLParams } from '../types/index.js';
+import type {
+  ReplacePositionTPSLLegParams,
+  UpdatePositionTPSLParams,
+} from '../types/index.js';
 
 /**
  * Reject a protection mutation whose caller-owned position no longer matches.
@@ -37,4 +40,24 @@ export function assertExpectedPosition(
   ) {
     throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
   }
+}
+
+/**
+ * Express a single-leg replace as the TP/SL price of a whole-position update.
+ *
+ * @param params - The leg replacement.
+ * @param params.leg - 'tp' or 'sl'.
+ * @param params.triggerPrice - New trigger price for that leg.
+ * @returns The take profit or stop loss price field for that leg.
+ */
+export function toPositionTpslLegPrices({
+  leg,
+  triggerPrice,
+}: Pick<ReplacePositionTPSLLegParams, 'leg' | 'triggerPrice'>): Pick<
+  UpdatePositionTPSLParams,
+  'takeProfitPrice' | 'stopLossPrice'
+> {
+  return leg === 'tp'
+    ? { takeProfitPrice: triggerPrice }
+    : { stopLossPrice: triggerPrice };
 }

@@ -145,6 +145,35 @@ describe('platform/iframeHost', () => {
       expect(onMessage).toHaveBeenCalledWith('b');
     });
 
+    it('accepts any origin matching a scheme-only allowlist entry (Firefox)', () => {
+      const onMessage = vi.fn();
+      createIframeHost({
+        allowedOrigins: ['chrome-extension://abc', 'moz-extension:'],
+      }).subscribe(onMessage);
+      listeners[0]({
+        origin: 'moz-extension://b57acb39-f061-48d8-ad54-05789e87eb85',
+        data: 'a',
+      } as MessageEvent);
+      expect(onMessage).toHaveBeenCalledWith('a');
+      listeners[0]({
+        origin: 'moz-extension://a-different-install-uuid',
+        data: 'b',
+      } as MessageEvent);
+      expect(onMessage).toHaveBeenCalledWith('b');
+    });
+
+    it('drops an origin whose scheme is not in a scheme-only allowlist', () => {
+      const onMessage = vi.fn();
+      createIframeHost({
+        allowedOrigins: ['moz-extension:'],
+      }).subscribe(onMessage);
+      listeners[0]({
+        origin: 'chrome-extension://abc',
+        data: 'a',
+      } as MessageEvent);
+      expect(onMessage).not.toHaveBeenCalled();
+    });
+
     it('returns an unsubscribe that removes the listener', () => {
       const unsubscribe = createIframeHost().subscribe(() => undefined);
       unsubscribe();

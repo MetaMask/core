@@ -1,4 +1,4 @@
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 /* eslint-disable vitest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import {
@@ -77,7 +77,7 @@ describe('cache', () => {
 
 describe('download', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('downloads a file from a URL', async () => {

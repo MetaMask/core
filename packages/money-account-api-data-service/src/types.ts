@@ -52,6 +52,18 @@ export type VaultRateOptions = {
   chainId?: number;
 };
 
+/**
+ * Options for the `fetchVaultShareValuations` method.
+ */
+export type VaultShareValuationsOptions = {
+  /**
+   * Transaction hashes to value. At most 50 distinct hashes after lowercasing
+   * and de-duplication.
+   */
+  txHashes: string[];
+  chainId?: number;
+};
+
 /** Options for the SIWE-authenticated current VBA transfer read. */
 export type FetchVbaTransfersOptions = {
   /** Address whose SIWE session is used to authorize the request. */

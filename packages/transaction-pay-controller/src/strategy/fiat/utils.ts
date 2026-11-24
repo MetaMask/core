@@ -10,16 +10,22 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
-import type { TransactionPayControllerMessenger } from '../../types.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+} from '../../types.js';
 import {
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
 } from '../../utils/feature-flags.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
-import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
-import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants.js';
+import {
+  DEFAULT_FIAT_CURRENCY,
+  FIAT_ENABLED_TYPES,
+  MONEY_ACCOUNT_DEPOSIT_TYPES,
+} from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -63,8 +69,9 @@ export function resolveTransactionType(
 /**
  * Checks whether a transaction is a Money Account deposit.
  *
- * Handles both direct `moneyAccountDeposit` transactions and EIP-7702
- * batch transactions that contain a `moneyAccountDeposit` nested call.
+ * Matches any of `MONEY_ACCOUNT_DEPOSIT_TYPES` (`moneyAccountDeposit` and
+ * `membershipSubscription`), either as the transaction type or as a nested
+ * call in an EIP-7702 batch.
  * Uses {@link resolveTransactionType} with `FIAT_ENABLED_TYPES` to
  * correctly skip non-deposit nested types (e.g. `tokenMethodApprove`).
  *
@@ -74,10 +81,9 @@ export function resolveTransactionType(
 export function isMoneyAccountDepositTransaction(
   transaction: TransactionMeta,
 ): boolean {
-  return (
-    resolveTransactionType(transaction, FIAT_ENABLED_TYPES) ===
-    TransactionType.moneyAccountDeposit
-  );
+  const type = resolveTransactionType(transaction, FIAT_ENABLED_TYPES);
+
+  return type !== undefined && MONEY_ACCOUNT_DEPOSIT_TYPES.includes(type);
 }
 
 /**
@@ -280,21 +286,15 @@ export function validateRelayRateDrift({
   maxRateDriftPercent,
   transactionId,
 }: {
-  originalQuote: RelayQuote;
-  discoveryQuote: RelayQuote;
+  originalQuote: TransactionPayQuote<unknown>;
+  discoveryQuote: TransactionPayQuote<unknown>;
   maxRateDriftPercent: number;
   transactionId: string;
 }): void {
-  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(
-    originalQuote.details.currencyOut.amountUsd,
-  );
-  const discoveryIn = new BigNumber(
-    discoveryQuote.details.currencyIn.amountUsd,
-  );
-  const discoveryOut = new BigNumber(
-    discoveryQuote.details.currencyOut.amountUsd,
-  );
+  const originalIn = new BigNumber(originalQuote.sourceAmount.usd);
+  const originalOut = new BigNumber(originalQuote.targetAmount.usd);
+  const discoveryIn = new BigNumber(discoveryQuote.sourceAmount.usd);
+  const discoveryOut = new BigNumber(discoveryQuote.targetAmount.usd);
 
   if (
     !originalIn.gt(0) ||

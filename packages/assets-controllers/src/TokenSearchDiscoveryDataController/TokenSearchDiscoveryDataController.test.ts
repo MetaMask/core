@@ -8,7 +8,7 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type {
@@ -255,10 +255,6 @@ async function withController<ReturnValue>(
 }
 
 describe('TokenSearchDiscoveryDataController', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('constructor', () => {
     it('should set default state', async () => {
       await withController(async ({ controller }) => {

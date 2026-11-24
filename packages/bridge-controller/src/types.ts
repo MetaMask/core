@@ -200,6 +200,10 @@ export type QuoteRequest<
    * The fee that will be charged by MetaMask
    */
   fee?: number;
+  /**
+   * Whether the destWalletAddress is a money account, only needed for same-chain swaps
+   */
+  isMoneyAccount?: boolean;
 };
 
 export enum StatusTypes {
@@ -397,13 +401,13 @@ export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AssetsControllerGetExchangeRatesForBridgeAction;
+  | SnapControllerHandleRequestAction;
 export type AllowedEvents = never;
 
 /**

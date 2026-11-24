@@ -23,6 +23,7 @@ The AnalyticsController provides a unified interface for tracking analytics even
 | `consentDecisionMade`          | `boolean`               | Whether a product consent decision has been made                    | Yes       |
 | `optedInToMarketing`           | `boolean`               | Marketing analytics opt-in status                                   | Yes       |
 | `marketingConsentDecisionMade` | `boolean`               | Whether a marketing consent decision has been made                  | Yes       |
+| `marketingConsentSyncPending`  | `boolean`               | Whether marketing consent is waiting to be saved to user storage    | Yes       |
 | `eventsConfig`                 | `AnalyticsEventsConfig` | Cached event-purpose classification and its config registry version | Yes       |
 | `eventQueue`                   | `object`                | Optional persisted delivery queue                                   | Yes       |
 | `eventFragments`               | `object`                | Optional in-progress event fragments                                | Yes       |
@@ -114,6 +115,28 @@ The consent gate also applies to accumulation, not just to emission, so a fragme
 Fragments are removed when they are finalized, deleted, or when no eligible purpose remains allowed or undecided. Opting out of one purpose retains a dual-purpose fragment when another purpose still permits capture. `resetConsentDecision` keeps fragments only while the now-undecided user can still accumulate them. On `init`, any fragment that did not set `persist: true` is discarded, since the journey it belonged to cannot be resumed. Persistent fragments that have not been written to for longer than `EVENT_FRAGMENT_MAX_AGE` (24 hours, measured from `lastUpdated`) are also discarded, so abandoned journeys cannot keep `properties` or `sensitiveProperties` in storage indefinitely. Nothing is emitted for a discarded fragment: a journey that never reached its own finalization is unfinished, not failed.
 
 This feature is disabled by default. When disabled, every fragment method is a logged no-op and no fragment is written to state.
+
+## Error events
+
+`trackErrorAsAnalytics` reports a caught error as an `Error Occurred` event. The properties always include `source` and `error_message`. The message is whitespace-normalized and capped at 500 characters. Stack traces are not included. Callers may pass an optional `properties` argument.
+
+`source` must uniquely identify the error case (for example `swap-quote-fetch`). Do not reuse one value for every error in a file or package.
+
+The call is fail-safe and returns without throwing. Events use the same consent gate as `trackEvent`. An opted-out user does not emit an event and does not consume the session budget.
+
+Volume is bounded per controller instance:
+
+- `samplingRate` defaults to `1` and is clamped to the range 0 through 1. A rate of `0` never emits.
+- `dedupWindowMs` defaults to `10000`. The same source and message are suppressed inside that window.
+- `sessionCap` defaults to `50`. A caller can only lower that ceiling.
+
+```ts
+controller.trackErrorAsAnalytics(
+  error,
+  { source: 'swap-quote-fetch' },
+  { anonymous: true },
+);
+```
 
 ## Lifecycle Hooks
 

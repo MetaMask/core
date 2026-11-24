@@ -45,12 +45,21 @@ export type DependencyGraph = {
 /**
  * Get all non-root workspaces in the monorepo.
  *
+ * @param options - The options object.
+ * @param options.includePrivate - Whether to include private workspaces.
  * @returns All workspaces.
  */
-export async function getAllWorkspaces(): Promise<Workspace[]> {
+export async function getAllWorkspaces({
+  includePrivate = false,
+}: { includePrivate?: boolean } = {}): Promise<Workspace[]> {
   const { stdout } = await execa(
     'yarn',
-    ['workspaces', 'list', '--no-private', '--json'],
+    [
+      'workspaces',
+      'list',
+      ...(includePrivate ? [] : ['--no-private']),
+      '--json',
+    ],
     {
       cwd: ROOT_WORKSPACE,
       encoding: 'utf8',
@@ -60,8 +69,8 @@ export async function getAllWorkspaces(): Promise<Workspace[]> {
   return stdout
     .trim()
     .split('\n')
-    .map((line) => JSON.parse(line))
-    .filter(({ location }: Workspace) => location !== '.');
+    .map((line) => JSON.parse(line) as Workspace)
+    .filter(({ location }) => location !== '.');
 }
 
 /**

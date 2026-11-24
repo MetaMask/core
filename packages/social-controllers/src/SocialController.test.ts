@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -5,9 +6,13 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Mock } from 'vitest';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { controllerName } from './social-constants.js';
+import { log } from './logger.js';
+import {
+  SocialServiceErrorMessage,
+  controllerName,
+} from './social-constants.js';
 import type { SocialControllerState } from './social-types.js';
 import type { SocialControllerMessenger } from './SocialController.js';
 import {
@@ -62,6 +67,7 @@ function getMessenger(rootMessenger: RootMessenger): SocialControllerMessenger {
       'SocialService:fetchFollowing',
       'SocialService:optOutOfLeaderboard',
       'SocialService:optInToLeaderboard',
+      'SocialService:translateComment',
     ],
     events: [],
     messenger,
@@ -674,6 +680,96 @@ describe('SocialController', () => {
         'fetch following failed',
       );
       expect(controller.state.followingAddresses).toStrictEqual(['0xold']);
+    });
+  });
+
+  describe('translateComment', () => {
+    const logged: unknown[][] = [];
+
+    beforeEach(() => {
+      logged.length = 0;
+      log.enabled = true;
+      log.log = (...args: unknown[]): void => {
+        logged.push(args);
+      };
+    });
+
+    const translation = {
+      sourceLanguage: 'ko',
+      translations: { en: 'This content is in Korean.' },
+    };
+
+    it('returns the translation from the service', async () => {
+      const rootMessenger = getRootMessenger();
+      const translateComment = vi.fn().mockResolvedValue(translation);
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:translateComment',
+        translateComment,
+      );
+      const { controller } = createController({ rootMessenger });
+
+      expect(
+        await controller.translateComment({
+          commentId: 'comment-1',
+          targetLanguage: 'en',
+        }),
+      ).toStrictEqual(translation);
+      expect(translateComment).toHaveBeenCalledWith({
+        commentId: 'comment-1',
+        targetLanguage: 'en',
+      });
+      expect(logged).toStrictEqual([]);
+    });
+
+    it('logs and rethrows when the translation endpoint does not exist', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:translateComment',
+        vi
+          .fn()
+          .mockRejectedValue(
+            new HttpError(
+              404,
+              `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
+            ),
+          ),
+      );
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.translateComment({
+          commentId: 'comment-1',
+          targetLanguage: 'en',
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
+      );
+      expect(logged[0]?.[0]).toStrictEqual(
+        expect.stringContaining('Translation endpoint does not exist yet'),
+      );
+    });
+
+    it('logs and rethrows other translation errors', async () => {
+      const rootMessenger = getRootMessenger();
+      const failure = new Error('translation unavailable');
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:translateComment',
+        vi.fn().mockRejectedValue(failure),
+      );
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.translateComment({
+          commentId: 'comment-1',
+          targetLanguage: 'en',
+        }),
+      ).rejects.toThrow('translation unavailable');
+      expect(logged[0]?.[0]).toStrictEqual(
+        expect.stringContaining('translation unavailable'),
+      );
     });
   });
 });

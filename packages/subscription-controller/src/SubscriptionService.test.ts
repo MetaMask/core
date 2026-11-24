@@ -6,7 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { create } from '@metamask/superstruct';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -74,6 +74,9 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: true,
+  benefitPeriodId: 'bp_2026_08_15',
+  benefitPeriodStart: '2026-08-15T00:00:00.000Z',
+  benefitPeriodEnd: '2026-09-15T00:00:00.000Z',
   billingPeriodId: 'bp_2026_08_15',
   products: {
     swaps: {
@@ -102,6 +105,9 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: false,
+  benefitPeriodId: null,
+  benefitPeriodStart: null,
+  benefitPeriodEnd: null,
   billingPeriodId: null,
   products: {
     swaps: {
@@ -320,10 +326,6 @@ function getTestUrl(env: Env): string {
 }
 
 describe('SubscriptionService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('should create instance with valid config', () => {
       const { service } = createService({ fetchMock: vi.fn() });

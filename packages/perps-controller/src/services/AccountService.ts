@@ -7,6 +7,7 @@ import {
 import { USDC_SYMBOL } from '../constants/hyperLiquidConfig.js';
 import { WITHDRAWAL_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -142,13 +143,26 @@ export class AccountService {
             },
           );
 
-          // Add withdrawal request to tracking
+          // Add withdrawal request to tracking. The initiating venue is
+          // captured now, before any asynchronous work, and is never
+          // relabeled by later default changes.
+          const resolvedProviderId =
+            provider.getWriteProviderId?.(params.providerId) ??
+            provider.protocolId;
+          const withdrawalProviderId = isPerpsProviderType(resolvedProviderId)
+            ? resolvedProviderId
+            : undefined;
           const withdrawalRequest = {
             id: currentWithdrawalId,
             timestamp: Date.now(),
             amount: netAmount.toString(), // Use net amount (after fees)
             asset: USDC_SYMBOL,
             accountAddress, // Track which account initiated withdrawal
+            // The aggregated wrapper resolves the write route; direct
+            // providers are their own venue.
+            ...(withdrawalProviderId !== undefined && {
+              providerId: withdrawalProviderId,
+            }),
             success: false, // Will be updated when transaction completes
             txHash: undefined,
             status: 'pending' as TransactionStatus,

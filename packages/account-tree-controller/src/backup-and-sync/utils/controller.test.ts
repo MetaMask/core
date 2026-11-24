@@ -1,5 +1,5 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { AccountTreeController } from '../../AccountTreeController.js';
@@ -50,10 +50,6 @@ describe('BackupAndSyncUtils - Controller', () => {
     mockControllerStateUpdateFn.mockImplementation((updateFn) => {
       updateFn(mockController.state);
     });
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('getLocalEntropyWallets', () => {

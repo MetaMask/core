@@ -7,11 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.5]
+
 ### Changed
 
+- Bump `@metamask/subscription-controller` from `^15.3.0` to `^15.4.0` ([#11727](https://github.com/MetaMask/core/pull/11727))
+- Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11669](https://github.com/MetaMask/core/pull/11669))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
+
+## [21.0.4]
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^15.2.2` to `^15.3.0` ([#11594](https://github.com/MetaMask/core/pull/11594), [#11611](https://github.com/MetaMask/core/pull/11611))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
+
+## [21.0.3]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^7.1.2` to `^7.1.3` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/shield-controller` from `^7.1.1` to `^7.1.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/subscription-controller` from `^15.2.1` to `^15.2.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [21.0.2]
+
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.1` ([#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1`
+- Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.2`
+
+## [21.0.1]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/subscription-controller` from `^15.1.2` to `^15.2.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.2.0` ([#11323](https://github.com/MetaMask/core/pull/11323))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-enablement-controller` from `^7.1.0` to `^7.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/selected-network-controller` from `^27.0.0` to `^27.1.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [21.0.0]
+
+### Added
+
+- **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
+  - Delegates `MultichainNetworkController:getState`. `Wallet` does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`. `NetworkEnablementController.init()` reads it during `Wallet.init()`, and `enableAllPopularNetworks` and `listPopularMultichainNetworks` read it later.
+  - Also delegates `ConfigRegistryController:getState`, `NetworkController:getState`, `NetworkController:networkAdded`, `NetworkController:networkRemoved`, `NetworkController:stateChange`, and `TransactionController:transactionSubmitted`. `Wallet` constructs those controllers during default initialization.
+
+### Changed
+
+- **BREAKING:** Delegate `SentinelApiService:simulateTransactions` from the wallet root messenger to `TransactionController` ([#9476](https://github.com/MetaMask/core/pull/9476))
+  - `TransactionController` now performs transaction simulation through this action.
+  - The wallet does not construct `SentinelApiService`. Clients must register that action on the Wallet messenger.
+- Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Bump `@metamask/claims-controller` from `^1.0.4` to `^1.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-- Bump `@metamask/shield-controller` from `^7.0.5` to `^7.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-- Bump `@metamask/subscription-controller` from `^15.0.0` to `^15.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/shield-controller` from `^7.0.5` to `^7.1.1` ([#11092](https://github.com/MetaMask/core/pull/11092), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/subscription-controller` from `^15.0.0` to `^15.1.2` ([#11092](https://github.com/MetaMask/core/pull/11092), [#11120](https://github.com/MetaMask/core/pull/11120), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^73.0.0` ([#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/network-enablement-controller` from `^7.0.2` to `^7.1.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 
 ## [20.0.0]
 
@@ -430,7 +497,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.5...HEAD
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...@metamask/wallet@21.0.5
+[21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
+[21.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...@metamask/wallet@21.0.3
+[21.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...@metamask/wallet@21.0.2
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.0...@metamask/wallet@21.0.1
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...@metamask/wallet@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0

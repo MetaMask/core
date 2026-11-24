@@ -472,6 +472,10 @@ describe('HyperLiquidSubscriptionService', () => {
     mockWalletService = {
       createWalletAdapter: vi.fn(() => mockWalletAdapter),
       getUserAddressWithDefault: vi.fn().mockResolvedValue('0x123' as Hex),
+      getAccountStreamAddress: vi.fn(
+        (accountId?: CaipAccountId) =>
+          (accountId?.split(':').at(-1) ?? '0x123') as Hex,
+      ),
     } as any;
 
     service = new HyperLiquidSubscriptionService(
@@ -3246,6 +3250,111 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('maps the venue mark price to markPrice and the oracle price to oraclePrice', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (_params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback,
+        includeMarketData: true,
+      });
+      await vi.runAllTimersAsync();
+      allMidsCallback?.({ mids: { BTC: '100.05' } });
+      await vi.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '99',
+          funding: '0.0001',
+          openInterest: '2000000',
+          dayNtlVlm: '100000000',
+          oraclePx: '100.0',
+          markPx: '100.1',
+          midPx: '100.05',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      const lastUpdate: PriceUpdate =
+        callback.mock.calls[callback.mock.calls.length - 1][0][0];
+      expect(lastUpdate.markPrice).toBe('100.1');
+      expect(lastUpdate.oraclePrice).toBe('100.0');
+
+      unsubscribe();
+    });
+
+    it('omits markPrice when the venue context carries no markPx', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (_params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback,
+        includeMarketData: true,
+      });
+      await vi.runAllTimersAsync();
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await vi.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          funding: '0.0001',
+          openInterest: '2000000',
+          oraclePx: '50050',
+          midPx: '50500',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      const lastUpdate: PriceUpdate =
+        callback.mock.calls[callback.mock.calls.length - 1][0][0];
+      expect(lastUpdate.markPrice).toBeUndefined();
+      expect(lastUpdate.oraclePrice).toBe('50050');
+
+      unsubscribe();
+    });
+
     it('keeps projecting the fast price after an assetCtxs batch update (does not clobber the fast-stream cache)', async () => {
       let allMidsCallback: ((data: any) => void) | undefined;
       let activeAssetCallback: ((data: any) => void) | undefined;
@@ -3325,6 +3434,7 @@ describe('HyperLiquidSubscriptionService', () => {
             openInterest: '1000000',
             dayNtlVlm: '50000000',
             oraclePx: '50100',
+            markPx: '50150',
             midPx: '50200',
           },
         ],
@@ -3337,7 +3447,12 @@ describe('HyperLiquidSubscriptionService', () => {
         focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0];
       expect(lastCall).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ symbol: 'BTC', price: '50500' }),
+          expect.objectContaining({
+            symbol: 'BTC',
+            price: '50500',
+            markPrice: '50150',
+            oraclePrice: '50100',
+          }),
         ]),
       );
 

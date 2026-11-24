@@ -33,6 +33,9 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
+
 const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   dust: { usd: '0', fiat: '0' },
   estimatedDuration: 0,
@@ -87,9 +90,9 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   },
   request: {
     from: FROM_MOCK,
+    sourceAccountId: `eip155:1:${FROM_MOCK}`,
+    sourceAssetId: 'eip155:1/erc20:0xabc',
     sourceBalanceRaw: '100',
-    sourceChainId: '0x1',
-    sourceTokenAddress: '0xabc',
     sourceTokenAmount: '100',
     targetAmountMinimum: '100',
     targetChainId: '0x2',
@@ -245,7 +248,7 @@ describe('Across Submit', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -327,6 +330,8 @@ describe('Across Submit', () => {
       });
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456],
+        mode: 'eip7702',
+        totalGasLimit: 123456,
       });
 
       await submitAcrossQuotes({
@@ -347,7 +352,7 @@ describe('Across Submit', () => {
       });
 
       expect(estimateGasBatchMock).toHaveBeenCalledWith({
-        chainId: QUOTE_MOCK.request.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         from: FROM_MOCK,
         transactions: [
           expect.objectContaining({
@@ -505,6 +510,8 @@ describe('Across Submit', () => {
     it('submits 7702 batches without estimated gas when estimation returns multiple gas limits', async () => {
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456, 234567],
+        mode: 'separate',
+        totalGasLimit: 358023,
       });
 
       await submitAcrossQuotes({
@@ -526,6 +533,64 @@ describe('Across Submit', () => {
         expect.objectContaining({
           disable7702: false,
           gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when estimation returns a single separate gas limit', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        mode: 'separate',
+        totalGasLimit: 123456,
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('detects an EIP-7702 outer result from the gas limit count if mode is missing', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        totalGasLimit: 123456,
+      } as Awaited<ReturnType<typeof estimateGasBatchMock>>);
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: expect.any(String),
         }),
       );
     });
@@ -586,7 +651,7 @@ describe('Across Submit', () => {
         expect.anything(),
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -820,7 +885,7 @@ describe('Across Submit', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -965,6 +1030,37 @@ describe('Across Submit', () => {
         expect.anything(),
         expect.objectContaining({
           type: TransactionType.swap,
+        }),
+      );
+    });
+
+    it('uses perps across deposit type for perps deposit-and-order transactions', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDepositAndOrder,
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
         }),
       );
     });

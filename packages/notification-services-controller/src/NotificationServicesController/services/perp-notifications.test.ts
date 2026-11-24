@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 import { mockCreatePerpNotification } from '../__fixtures__/mockServices.js';
@@ -13,10 +13,6 @@ const mockOrderInput = (): OrderInput => ({
 const mockBearerToken = 'mock-jwt-token';
 
 describe('Perps Service - createPerpOrderNotification', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   const arrangeMocks = (): {
     consoleErrorSpy: MockInstance<typeof console.error>;
   } => {

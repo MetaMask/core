@@ -10,38 +10,6 @@ setup() {
   source "${SCRIPT}"
 }
 
-# --- should_validate_as_release_candidate (pure decision) --------------------
-
-@test "release candidate: release branch with a bumped version" {
-  run should_validate_as_release_candidate "release/1136.0.0" "69.2.0" "69.1.0"
-  [ "$status" -eq 0 ]
-}
-
-@test "not a release candidate: release branch with an unchanged version" {
-  run should_validate_as_release_candidate "release/1136.0.0" "9.1.2" "9.1.2"
-  [ "$status" -eq 1 ]
-}
-
-@test "not a release candidate: non-release branch even with a changed version" {
-  run should_validate_as_release_candidate "feature/some-work" "2.0.0" "1.0.0"
-  [ "$status" -eq 1 ]
-}
-
-@test "not a release candidate: main branch" {
-  run should_validate_as_release_candidate "main" "2.0.0" "1.0.0"
-  [ "$status" -eq 1 ]
-}
-
-@test "not a release candidate: unpublished 0.0.0 package" {
-  run should_validate_as_release_candidate "release/1136.0.0" "0.0.0" ""
-  [ "$status" -eq 1 ]
-}
-
-@test "not a release candidate: base version could not be determined" {
-  run should_validate_as_release_candidate "release/1136.0.0" "1.0.0" ""
-  [ "$status" -eq 1 ]
-}
-
 # --- resolve_branch_name -----------------------------------------------------
 
 @test "branch name in CI comes from GITHUB_HEAD_REF for pull requests" {
@@ -111,27 +79,106 @@ setup_release_repo() {
   [ "$output" = "1.0.0" ]
 }
 
-@test "package that was not bumped on the branch is not a release candidate" {
-  setup_release_repo
-  # No bump on the release branch.
-  cd packages/foo
-  base_version="$(env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; resolve_base_version")"
-  [ "$base_version" = "1.0.0" ]
+# --- should_validate_as_release_candidate (real git history) -----------------
 
-  run should_validate_as_release_candidate "release/1.0.0" "1.0.0" "${base_version}"
+# Run `should_validate_as_release_candidate` for the `foo` package of the repo
+# built by `setup_release_repo`, with `main` as the base branch.
+run_should_validate() {
+  cd "${REPO}/packages/foo"
+  run env CHANGELOG_BASE_REF="${BASE_REF:-main}" bash -c "source '${SCRIPT}'; should_validate_as_release_candidate '$1'"
+}
+
+# Commit the given version of `foo` on the current branch.
+commit_foo_version() {
+  echo "{\"name\":\"@metamask/foo\",\"version\":\"$1\"}" >"${REPO}/packages/foo/package.json"
+  git -C "${REPO}" add -A
+  git -C "${REPO}" commit -qm "set foo to $1"
+}
+
+@test "release candidate: release branch with a bumped version" {
+  setup_release_repo
+  commit_foo_version "1.1.0"
+  run_should_validate "release/1.0.0"
+  [ "$status" -eq 0 ]
+}
+
+@test "not a release candidate: release branch with an unchanged version" {
+  setup_release_repo
+  run_should_validate "release/1.0.0"
   [ "$status" -eq 1 ]
 }
 
-@test "package bumped on the branch is a release candidate end to end" {
+@test "not a release candidate: non-release branch even with a changed version" {
+  setup_release_repo
+  commit_foo_version "1.1.0"
+  run_should_validate "feature/some-work"
+  [ "$status" -eq 1 ]
+}
+
+@test "not a release candidate: main branch" {
+  setup_release_repo
+  commit_foo_version "1.1.0"
+  run_should_validate "main"
+  [ "$status" -eq 1 ]
+}
+
+@test "not a release candidate: unpublished 0.0.0 package" {
+  setup_release_repo
+  commit_foo_version "0.0.0"
+  run_should_validate "release/1.0.0"
+  [ "$status" -eq 1 ]
+}
+
+@test "not a release candidate: package added on the branch" {
+  setup_release_repo
+  mkdir -p "${REPO}/packages/bar"
+  echo '{"name":"@metamask/bar","version":"1.0.0"}' >"${REPO}/packages/bar/package.json"
+  git add -A
+  git commit -qm "add bar"
+
+  cd "${REPO}/packages/bar"
+  run env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; should_validate_as_release_candidate release/1.0.0"
+  [ "$status" -eq 1 ]
+}
+
+@test "not a release candidate: base version cannot be resolved" {
+  setup_release_repo
+  commit_foo_version "1.1.0"
+  BASE_REF="does-not-exist" run_should_validate "release/1.0.0"
+  [ "$status" -eq 1 ]
+}
+
+# --- resolve_rc_flag ---------------------------------------------------------
+
+@test "rc flag is printed for a package bumped on the release branch" {
   setup_release_repo
   echo '{"name":"@metamask/foo","version":"1.1.0"}' >packages/foo/package.json
   git add -A
   git commit -qm "bump foo"
 
   cd packages/foo
-  base_version="$(env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; resolve_base_version")"
-  [ "$base_version" = "1.0.0" ]
-
-  run should_validate_as_release_candidate "release/1.0.0" "1.1.0" "${base_version}"
+  run env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; resolve_rc_flag release/1.0.0"
   [ "$status" -eq 0 ]
+  [ "$output" = "--rc" ]
+}
+
+@test "rc flag is empty for a package not bumped on the release branch" {
+  setup_release_repo
+
+  cd packages/foo
+  run env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; resolve_rc_flag release/1.0.0"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "rc flag is empty outside a release branch" {
+  setup_release_repo
+  echo '{"name":"@metamask/foo","version":"1.1.0"}' >packages/foo/package.json
+  git add -A
+  git commit -qm "bump foo"
+
+  cd packages/foo
+  run env CHANGELOG_BASE_REF=main bash -c "source '${SCRIPT}'; resolve_rc_flag feature/some-work"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }

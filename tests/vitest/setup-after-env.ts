@@ -1,4 +1,4 @@
-import { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, expect } from 'vitest';
 
 import { matchers } from '../matchers.js';
@@ -8,10 +8,10 @@ import { matchers } from '../matchers.js';
 expect.extend(matchers);
 
 beforeEach(() => {
-  disableNetConnect();
+  nock.disableNetConnect();
 });
 
 afterEach(() => {
-  cleanAll();
-  enableNetConnect();
+  nock.cleanAll();
+  nock.enableNetConnect();
 });

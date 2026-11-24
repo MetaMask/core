@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   eachChartDocument,
@@ -58,10 +58,6 @@ describe('eachChartDocument', () => {
       id === 'tv_chart_container'
         ? mockContainer
         : null) as typeof document.getElementById);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('calls fn(document) at minimum', () => {

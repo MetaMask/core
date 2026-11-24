@@ -2,14 +2,16 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
+  EvmPaymentToken,
   QuoteRequest,
   QuoteErrorInfo,
   TransactionData,
+  GetBalanceCallback,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayRequiredToken,
@@ -18,8 +20,17 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types.js';
-import { accountSupports7702 } from './7702.js';
+import {
+  accountSupports7702,
+  getAssetAccount,
+  getCaipAccountId,
+  getEvmAccountAddress,
+  getEvmAccountOverride,
+  withNonAtomicRequests,
+} from './account.js';
+import type { AssetAccount } from './account.js';
 import { buildNoOpQuote } from './no-op-quote.js';
+import { updateSourceAmounts } from './source-amounts.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -27,9 +38,14 @@ import {
   getStrategyByName,
 } from './strategy.js';
 import {
+  buildCaipAssetType,
   computeTokenAmounts,
+  getAssetBalance,
+  getAssetFiatRate,
+  getEvmPaymentToken,
   getLiveTokenBalance,
   getTokenFiatRate,
+  isNonEvmPaymentToken,
 } from './token.js';
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
@@ -40,6 +56,84 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 const inFlightQuoteRequests = new Map<string, AbortController>();
+
+/**
+ * Helper class for determining quote routing behavior.
+ */
+export class QuoteRoutingHelper {
+  /**
+   * Determine whether to skip building a no-op quote.
+   *
+   * A no-op quote marks a genuine direct route. When a post-quote max flow
+   * has tokens but no requests (because all tokens were filtered out with
+   * amountRaw '0' funded by prepended transfer), no no-op quote should be
+   * returned. The UI should show a loading state until the amount is encoded.
+   *
+   * However, legitimate direct routes (same-token, skipIfBalance with sufficient
+   * balance, etc.) also have tokens but no requests. These should still get a
+   * no-op quote. The distinguishing factor is that pending tokens have amountRaw
+   * '0', while direct route tokens have non-zero amounts.
+   *
+   * @param context - Context for the decision.
+   * @param context.isPostQuote - Whether this is a post-quote flow.
+   * @param context.isMaxAmount - Whether this is a max amount transaction.
+   * @param context.requests - Built quote requests.
+   * @param context.tokens - Required tokens for the transaction.
+   * @returns True if no-op quote should be skipped (pending max post-quote scenario).
+   */
+  static shouldSkipNoOpQuote({
+    isPostQuote,
+    isMaxAmount,
+    requests,
+    tokens,
+  }: {
+    isPostQuote?: boolean;
+    isMaxAmount: boolean;
+    requests: QuoteRequest[];
+    tokens: TransactionPayRequiredToken[];
+  }): boolean {
+    // Not a post-quote flow: normal behavior
+    if (!isPostQuote) {
+      return false;
+    }
+
+    // Not a max amount: normal behavior
+    if (!isMaxAmount) {
+      return false;
+    }
+
+    // Has requests: quote will be fetched, normal behavior
+    if (requests.length > 0) {
+      return false;
+    }
+
+    // No tokens: this isn't a pending scenario, normal behavior
+    if (!tokens.length) {
+      return false;
+    }
+
+    // Check if all tokens have zero amounts (pending case) vs non-zero amounts
+    // (legitimate direct route like same-token or skipIfBalance). Only skip
+    // the no-op quote if amounts are truly pending (all zero).
+    const allTokensHaveZeroAmount = tokens.every(
+      (token) => token.amountRaw === '0',
+    );
+
+    return allTokensHaveZeroAmount;
+  }
+}
+
+/**
+ * Determine whether to skip building a no-op quote for this transaction.
+ *
+ * @param context - Context for the decision.
+ * @returns True if no-op quote should be skipped (pending max post-quote scenario).
+ */
+function shouldSkipNoOpQuote(
+  context: Parameters<typeof QuoteRoutingHelper.shouldSkipNoOpQuote>[0],
+): boolean {
+  return QuoteRoutingHelper.shouldSkipNoOpQuote(context);
+}
 
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
@@ -85,7 +179,7 @@ export async function updateQuotes(
 
   const {
     accountOverride,
-    atomic,
+    atomic: requestedAtomic,
     fiatPayment,
     isHyperliquidSource,
     isMaxAmount,
@@ -99,7 +193,8 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = accountOverride ?? (transaction.txParams.from as Hex);
+  const transactionFrom = transaction.txParams.from as Hex;
+  const from = getFrom(messenger, transaction, transactionData);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -110,10 +205,21 @@ export async function updateQuotes(
   });
 
   try {
+    const sourceAccount =
+      originalPaymentToken && isNonEvmPaymentToken(originalPaymentToken)
+        ? getAssetAccount(messenger, {
+            accountOverride,
+            assetId: originalPaymentToken.assetId,
+            from: transactionFrom,
+          })
+        : undefined;
+
     const paymentToken = await refreshPaymentTokenBalance({
-      from,
+      // Post-quote payment tokens are received by `accountOverride`.
+      from: getEvmAccountAddress(messenger, accountOverride, transactionFrom),
       messenger,
       paymentToken: originalPaymentToken,
+      sourceAccount,
       signal,
       transactionId,
       updateTransactionData,
@@ -133,7 +239,12 @@ export async function updateQuotes(
       getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
 
     const requests = buildQuoteRequests({
-      atomic,
+      // Post-quote output is received by the EVM account override. Other flows
+      // send from the EVM account override, which is already `from`.
+      accountOverride: isPostQuote
+        ? getEvmAccountOverride(messenger, accountOverride)
+        : undefined,
+      atomic: requestedAtomic,
       from,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
@@ -142,12 +253,20 @@ export async function updateQuotes(
       paymentOverride,
       paymentToken,
       refundTo,
+      sourceAddress: sourceAccount?.address ?? from,
       sourceAmounts: latestSourceAmounts,
       tokens,
       transactionId,
     });
 
     const supports7702 = accountSupports7702(messenger, from);
+
+    const isPendingMaxPostQuote = shouldSkipNoOpQuote({
+      isPostQuote,
+      isMaxAmount: isMaxAmount ?? false,
+      requests,
+      tokens,
+    });
 
     const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
@@ -160,6 +279,7 @@ export async function updateQuotes(
       messenger,
       fiatPayment?.selectedPaymentMethodId,
       signal,
+      isPendingMaxPostQuote,
     );
 
     if (signal.aborted) {
@@ -185,6 +305,7 @@ export async function updateQuotes(
     log('Calculated totals', { transactionId, totals });
 
     syncTransaction({
+      accountOverride,
       batchTransactions,
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: executableQuotes.length > 0,
@@ -222,9 +343,37 @@ export async function updateQuotes(
 }
 
 /**
+ * Get the account that sends quotes for a transaction.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction metadata.
+ * @param transactionData - Transaction pay data.
+ * @returns The quote sender address.
+ */
+function getFrom(
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  transactionData: TransactionData,
+): Hex {
+  const transactionFrom = transaction.txParams.from as Hex;
+
+  // Post-quote output goes to `accountOverride`, so the funds holder sends.
+  if (transactionData.isPostQuote) {
+    return transactionFrom;
+  }
+
+  return getEvmAccountAddress(
+    messenger,
+    transactionData.accountOverride,
+    transactionFrom,
+  );
+}
+
+/**
  * Sync batch transactions to the transaction meta.
  *
  * @param request - Request object.
+ * @param request.accountOverride - Optional ID of an `InternalAccount` overriding the default account.
  * @param request.batchTransactions - Batch transactions to sync.
  * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
@@ -236,6 +385,7 @@ export async function updateQuotes(
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
+  accountOverride,
   batchTransactions,
   hasQuotes,
   isPostQuote,
@@ -246,6 +396,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
+  accountOverride?: string;
   batchTransactions: BatchTransaction[];
   selectedFiatPayment?: string;
   hasQuotes: boolean;
@@ -285,14 +436,20 @@ function syncTransaction({
         tx.isExternalSign = hasQuotes;
       }
 
+      // The legacy chain ID and token address only describe EVM payment
+      // tokens, so they are unset for a non-EVM payment token.
+      const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
       tx.metamaskPay = {
+        ...tx.metamaskPay,
+        accountOverride,
         bridgeFeeFiat: totals.fees.provider.usd,
-        chainId: paymentToken?.chainId,
+        chainId: evmPaymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
         targetFiat: totals.targetAmount.usd,
-        tokenAddress: paymentToken?.address,
+        tokenAddress: evmPaymentToken?.address,
         totalFiat: totals.total.usd,
       };
     },
@@ -300,16 +457,18 @@ function syncTransaction({
 }
 
 /**
- * Refresh quotes for all transactions if expired.
+ * Refresh source amounts and quotes for all transactions if expired.
  *
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
+ * @param getBalance - Optional callback to override the source balance used for max-amount calculation.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
+  getBalance?: GetBalanceCallback,
 ): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -335,8 +494,9 @@ export async function refreshQuotes(
 
     const refreshInterval =
       (await strategy.getRefreshInterval?.({
-        chainId: quotes[0].request.sourceChainId,
+        chainId: parseCaipAssetType(quotes[0].request.sourceAssetId).chainId,
         messenger,
+        transactionId,
       })) ?? DEFAULT_REFRESH_INTERVAL;
 
     const isExpired = Date.now() - (quotesLastUpdated ?? 0) > refreshInterval;
@@ -345,10 +505,25 @@ export async function refreshQuotes(
       continue;
     }
 
+    updateTransactionData(transactionId, (data) =>
+      updateSourceAmounts(
+        transactionId,
+        /* oxlint-disable typescript/no-unnecessary-type-assertion */
+        data as never,
+        /* oxlint-enable typescript/no-unnecessary-type-assertion */
+        messenger,
+        getBalance,
+      ),
+    );
+
+    const latestTransactionData = messenger.call(
+      'TransactionPayController:getState',
+    ).transactionData[transactionId];
+
     const isUpdated = await updateQuotes({
       getStrategies,
       messenger,
-      transactionData,
+      transactionData: latestTransactionData,
       transactionId,
       updateTransactionData,
     });
@@ -400,9 +575,16 @@ function getSourceAmounts(
 }
 
 /**
- * Build quote requests required to retrieve quotes.
+ * Build quote requests required to retrieve quotes using an EVM payment token.
+ *
+ * Requests are built the same way for every payment token, identifying the
+ * source by its CAIP-19 asset type and the CAIP-10 account holding it.
+ * Strategies support or reject them based on the protocol of the source
+ * asset. Post-quote flows with a non-EVM destination token are not supported
+ * and return no requests.
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
@@ -412,12 +594,14 @@ function getSourceAmounts(
  * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
+ * @param request.sourceAddress - Address of the account holding the payment token.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  accountOverride,
   atomic,
   from,
   isHyperliquidSource,
@@ -427,10 +611,12 @@ function buildQuoteRequests({
   paymentOverride,
   paymentToken,
   refundTo,
+  sourceAddress,
   sourceAmounts,
   tokens,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
   from: Hex;
   isHyperliquidSource?: boolean;
@@ -440,6 +626,7 @@ function buildQuoteRequests({
   paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
+  sourceAddress: string;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
@@ -449,9 +636,16 @@ function buildQuoteRequests({
   }
 
   if (isPostQuote) {
+    const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
+    if (!evmPaymentToken) {
+      return [];
+    }
+
     return buildPostQuoteRequests({
+      accountOverride,
       atomic,
-      destinationToken: paymentToken,
+      destinationToken: evmPaymentToken,
       from,
       isHyperliquidSource,
       isMaxAmount,
@@ -462,6 +656,8 @@ function buildQuoteRequests({
       transactionId,
     });
   }
+
+  const sourceAccountId = getCaipAccountId(paymentToken.assetId, sourceAddress);
 
   // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
@@ -475,9 +671,9 @@ function buildQuoteRequests({
       isMaxAmount,
       paymentOverride,
       refundTo,
+      sourceAccountId,
+      sourceAssetId: paymentToken.assetId,
       sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
       targetChainId: token.chainId,
@@ -498,6 +694,7 @@ function buildQuoteRequests({
  * and the target is the user's selected destination token (paymentToken).
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving the output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
@@ -511,6 +708,7 @@ function buildQuoteRequests({
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  accountOverride,
   atomic,
   destinationToken,
   from,
@@ -522,8 +720,9 @@ function buildPostQuoteRequests({
   sourceAmounts,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
-  destinationToken: TransactionPaymentToken;
+  destinationToken: EvmPaymentToken;
   from: Hex;
   isHyperliquidSource?: boolean;
   isMaxAmount: boolean;
@@ -552,7 +751,13 @@ function buildPostQuoteRequests({
     return [];
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    sourceAmount.sourceChainId,
+    sourceAmount.sourceTokenAddress,
+  );
+
   const request: QuoteRequest = {
+    accountOverride,
     atomic,
     from,
     isHyperliquidSource,
@@ -561,9 +766,9 @@ function buildPostQuoteRequests({
     isPostQuote: true,
     paymentOverride,
     refundTo,
+    sourceAccountId: getCaipAccountId(sourceAssetId, from),
+    sourceAssetId,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
-    sourceChainId: sourceAmount.sourceChainId,
-    sourceTokenAddress: sourceAmount.sourceTokenAddress,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
@@ -582,6 +787,7 @@ async function refreshPaymentTokenBalance({
   messenger,
   paymentToken,
   signal,
+  sourceAccount,
   transactionId,
   updateTransactionData,
 }: {
@@ -589,6 +795,7 @@ async function refreshPaymentTokenBalance({
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
   signal: AbortSignal;
+  sourceAccount: AssetAccount | undefined;
   transactionId: string;
   updateTransactionData: UpdateTransactionDataCallback;
 }): Promise<TransactionPaymentToken | undefined> {
@@ -596,11 +803,23 @@ async function refreshPaymentTokenBalance({
     return undefined;
   }
 
+  if (sourceAccount) {
+    return refreshNonEvmPaymentTokenBalance({
+      messenger,
+      paymentToken,
+      sourceAccount,
+      transactionId,
+      updateTransactionData,
+    });
+  }
+
+  const evmPaymentToken = getEvmPaymentToken(paymentToken) as EvmPaymentToken;
+
   try {
     const fiatRates = getTokenFiatRate(
       messenger,
-      paymentToken.address,
-      paymentToken.chainId,
+      evmPaymentToken.address,
+      evmPaymentToken.chainId,
     );
 
     if (!fiatRates) {
@@ -610,8 +829,8 @@ async function refreshPaymentTokenBalance({
     const liveBalance = await getLiveTokenBalance(
       messenger,
       from,
-      paymentToken.chainId,
-      paymentToken.address,
+      evmPaymentToken.chainId,
+      evmPaymentToken.address,
     );
 
     if (signal.aborted) {
@@ -648,10 +867,71 @@ async function refreshPaymentTokenBalance({
 }
 
 /**
+ * Re-read a non-EVM payment token balance and fiat value from
+ * `AssetsController` state.
+ *
+ * @param request - Request parameters.
+ * @param request.messenger - Controller messenger.
+ * @param request.paymentToken - Non-EVM payment token to refresh.
+ * @param request.sourceAccount - Account holding the payment token.
+ * @param request.transactionId - ID of the transaction.
+ * @param request.updateTransactionData - Callback to update transaction data.
+ * @returns The refreshed payment token, or the original token if no fiat rate is available.
+ */
+function refreshNonEvmPaymentTokenBalance({
+  messenger,
+  paymentToken,
+  sourceAccount,
+  transactionId,
+  updateTransactionData,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  paymentToken: TransactionPaymentToken;
+  sourceAccount: AssetAccount;
+  transactionId: string;
+  updateTransactionData: UpdateTransactionDataCallback;
+}): TransactionPaymentToken {
+  const fiatRates = getAssetFiatRate(messenger, paymentToken.assetId);
+
+  if (!fiatRates) {
+    return paymentToken;
+  }
+
+  const balance = getAssetBalance(
+    messenger,
+    sourceAccount.id,
+    paymentToken.assetId,
+  );
+
+  const {
+    raw: balanceRaw,
+    human: balanceHuman,
+    usd: balanceUsd,
+    fiat: balanceFiat,
+  } = computeTokenAmounts(balance, paymentToken.decimals, fiatRates);
+
+  const updatedToken = {
+    ...paymentToken,
+    balanceFiat,
+    balanceHuman,
+    balanceRaw,
+    balanceUsd,
+  };
+
+  updateTransactionData(transactionId, (data) => {
+    data.paymentToken = updatedToken;
+  });
+
+  log('Refreshed non-EVM payment token balance', { transactionId, balanceRaw });
+
+  return updatedToken;
+}
+
+/**
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
- * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
+ * @param from - Sending wallet address (`txParams.from` for post-quote, otherwise the EVM account override or `txParams.from`).
  * @param requests - Quote requests.
  * @param paymentToken - Selected payment token, if any.
  * @param isQuoteRequired - Whether a quote is always required for the transaction.
@@ -660,6 +940,7 @@ async function refreshPaymentTokenBalance({
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @param signal - Signal that aborts when the quote request is superseded.
+ * @param isPendingMaxPostQuote - Whether this is a pending max post-quote scenario (amount still 0).
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -673,6 +954,7 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
   signal?: AbortSignal,
+  isPendingMaxPostQuote?: boolean,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   error?: QuoteErrorInfo;
@@ -689,19 +971,25 @@ async function getQuotes(
     },
   );
 
-  if (!requests?.length && !fiatPaymentMethod) {
+  if (!requests.length && !fiatPaymentMethod) {
     // A selected payment token with no conversion requests means the route is
     // direct. Return an explicit no-op quote so clients and the publish hook
     // can distinguish "no conversion needed" from "quote needed but missing".
     // Not applicable when a quote is always required, as an empty requests
     // list then means the source amounts could not be calculated.
+    // Also not applicable when this is a pending max post-quote scenario:
+    // the amount is still 0 (funded by prepended transfer), so no quote should
+    // be returned yet (loading state) until the amount is encoded.
+    const evmPaymentToken = getEvmPaymentToken(paymentToken);
     const noOpQuote =
-      paymentToken && !isQuoteRequired
-        ? buildNoOpQuote(from, paymentToken)
+      evmPaymentToken && !isQuoteRequired && !isPendingMaxPostQuote
+        ? buildNoOpQuote(from, evmPaymentToken)
         : undefined;
 
     if (noOpQuote) {
       log('Built no-op quote for direct route', { transactionId });
+    } else if (isPendingMaxPostQuote) {
+      log('Skipping no-op quote for pending max post-quote', { transactionId });
     }
 
     return {
@@ -710,7 +998,9 @@ async function getQuotes(
     };
   }
 
-  const request = {
+  // One place for every strategy. An MFA signing account never receives an
+  // atomic request, whichever strategy runs.
+  const request = withNonAtomicRequests({
     accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
     from,
@@ -718,7 +1008,7 @@ async function getQuotes(
     requests,
     signal,
     transaction,
-  };
+  });
 
   let error: QuoteErrorInfo | undefined;
 

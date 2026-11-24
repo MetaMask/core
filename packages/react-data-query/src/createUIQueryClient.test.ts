@@ -24,7 +24,7 @@ import {
   QueryObserver,
 } from '@tanstack/query-core';
 import assert from 'assert';
-import { ReplyBody } from 'nock';
+import type nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -386,7 +386,7 @@ describe('createUIQueryClient', () => {
 
     const { promise: promiseToResolveMutation, resolve: resolveMutation } =
       createDeferredPromise();
-    const replyFn = async (): Promise<[number, ReplyBody]> => {
+    const replyFn = async (): Promise<[number, nock.ReplyBody]> => {
       await promiseToResolveMutation;
       return [
         DEFAULT_ADD_FOLLOWER_REPLY.status,
@@ -803,7 +803,7 @@ describe('createUIQueryClient', () => {
     const { clientA, clientB, service } = createClients();
     const { promise: promiseToResolveMutation, resolve: resolveMutation } =
       createDeferredPromise();
-    const replyFn = async (): Promise<[number, ReplyBody]> => {
+    const replyFn = async (): Promise<[number, nock.ReplyBody]> => {
       await promiseToResolveMutation;
       return [
         DEFAULT_ADD_FOLLOWER_REPLY.status,

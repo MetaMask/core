@@ -74,6 +74,7 @@ import {
   PerpsAnalyticsEvent,
   WebSocketConnectionState,
 } from '../../src/types/index.js';
+import { groupMarketsByMarketKey } from '../../src/utils/marketUtils.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
 vi.mock('../../src/providers/LighterProvider');
@@ -378,9 +379,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -904,7 +909,7 @@ describe('PerpsController', () => {
       },
     );
 
-    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+    it('registerLighterProvider registers the provider and forwards the signer bridge and idle close from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must
       // forward it (the shared platform surface stays venue-agnostic).
@@ -920,7 +925,9 @@ describe('PerpsController', () => {
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
         clientConfig: {
-          providerCredentials: { lighter: { signerBridge: mockBridge } },
+          providerCredentials: {
+            lighter: { signerBridge: mockBridge, socketIdleCloseMs: 12_000 },
+          },
         },
         infrastructure: mockInfrastructure,
       });
@@ -941,6 +948,7 @@ describe('PerpsController', () => {
           // mainnet writes are blocked inside LighterProvider instead.
           isTestnet: false,
           signerBridge: mockBridge,
+          socketIdleCloseMs: 12_000,
         }),
       );
     });
@@ -1265,6 +1273,7 @@ describe('PerpsController', () => {
             subscriptionBuilderAddressTestnet: undefined,
             subscriptionBuilderAddressMainnet: undefined,
             onChaseOrderMaxDistanceReached: expect.any(Function),
+            getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
@@ -1844,23 +1853,25 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot?.request).toStrictEqual({
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
         enabledDexes: ['main', 'xyz'],
       });
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:GOLD')).toBe(
-        true,
-      );
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
-        false,
-      );
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:GOLD'),
+      ).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(true);
 
       controller.testUpdate((state) => {
         state.hip3ConfigVersion += 1;
       });
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(
+        false,
+      );
 
       const liveUpdate = {
         symbol: 'BTC',
@@ -1879,6 +1890,161 @@ describe('PerpsController', () => {
       });
       expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
       expect(priceCallback).toHaveBeenCalledWith([liveUpdate]);
+    });
+
+    it('passes one snapshot identity per venue in aggregated mode, each with its own guard', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.isMarketAllowed('NVDA')).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.hip3ConfigVersion += 1;
+      });
+      expect(snapshots?.hyperliquid?.isCurrent()).toBe(false);
+      expect(snapshots?.lighter?.isCurrent()).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+      expect(snapshots?.lighter?.isCurrent()).toBe(false);
+    });
+
+    it('passes only the Lighter identity in direct Lighter mode', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'lighter',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarkets.mock.calls[0]?.[0].context
+          .globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeUndefined();
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'testnet',
+        enabledDexes: ['main'],
+      });
+    });
+
+    it('leaves Lighter out of aggregated snapshots when Lighter is not registered', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeDefined();
+      expect(snapshots?.lighter).toBeUndefined();
+    });
+
+    it('requires a Lighter cache slice only while Lighter can still register', () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      const btc = {
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        price: '50000',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        maxLeverage: '50x',
+        volume: '$1M',
+        providerId: 'hyperliquid' as const,
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          cachedMarketDataByProvider: {
+            'hyperliquid:mainnet': { data: [btc], timestamp: Date.now() },
+            // A stale disk-hydrated slice from a session where Lighter loaded.
+            'lighter:mainnet': {
+              data: [{ ...btc, providerId: 'lighter' }],
+              timestamp: Date.now() - 24 * 60 * 60 * 1000,
+            },
+          },
+        },
+        clientConfig: {
+          providerCredentials: { lighter: { enabled: true } },
+        } as never,
+        infrastructure: mockInfrastructure,
+      });
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toBeNull();
+
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual([
+        btc,
+      ]);
     });
 
     it('treats a bare allowlist entry as a DEX shorthand', async () => {
@@ -1906,7 +2072,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toStrictEqual(['main', 'xyz']);
     });
 
@@ -1930,7 +2096,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toEqual(['main', 'flx', 'xyz']);
     });
 
@@ -1953,7 +2119,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot,
+          .context.globalSnapshots,
       ).toBeUndefined();
     });
 
@@ -1981,15 +2147,17 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot?.request).toStrictEqual({
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
         enabledDexes: ['main', 'xyz'],
       });
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
-        false,
-      );
-      expect(call.context.globalSnapshot?.isMarketAllowed('BTC')).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('BTC'),
+      ).toBe(true);
     });
 
     it('leaves getMarkets on the legacy path when no snapshot URL is configured', async () => {
@@ -2008,7 +2176,7 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot).toBeUndefined();
+      expect(call.context.globalSnapshots).toBeUndefined();
     });
 
     it('uses existing provider for standalone queries when available', async () => {
@@ -2232,6 +2400,12 @@ describe('PerpsController', () => {
             changePercent1h: '-0.50%',
             maxLeverage: '50x',
             volume: '$1B',
+            numericValues: {
+              price: 50000,
+              change24hPercent: 0.2,
+              volume: 1e9,
+              openInterest: 2e8,
+            },
           },
         ],
         timestamp: Date.now(),
@@ -2259,6 +2433,11 @@ describe('PerpsController', () => {
       expect(cached?.data[0].symbol).toBe('BTC');
       // Prices are stripped to placeholder values
       expect(cached?.data[0].price).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      // Stale price sort values go with them; volume and OI stay displayed.
+      expect(cached?.data[0].numericValues).toStrictEqual({
+        volume: 1e9,
+        openInterest: 2e8,
+      });
       expect(cached?.data[0].change24h).toBe(
         PERPS_CONSTANTS.FallbackDataDisplay,
       );
@@ -2439,7 +2618,15 @@ describe('PerpsController', () => {
             address: '0x1234567890abcdef1234567890abcdef12345678',
             positions: [createMockPosition({ symbol: 'ETH', size: '2.0' })],
             orders: [],
-            accountState: null,
+            accountState: {
+              totalBalance: '1000.20',
+              spendableBalance: '800.20',
+              withdrawableBalance: '700.20',
+              marginUsed: '200',
+              unrealizedPnl: '60',
+              returnOnEquity: '30',
+              providerId: 'lighter',
+            },
             timestamp,
           },
         ],
@@ -2474,7 +2661,20 @@ describe('PerpsController', () => {
         skipTTL: true,
       });
       expect(aggregated?.positions).toHaveLength(2);
-      expect(aggregated?.accountState?.providerId).toBe('hyperliquid');
+      expect(aggregated?.accountState).toMatchObject({
+        totalBalance: '6000.2',
+        spendableBalance: '4800.2',
+        withdrawableBalance: '4700.2',
+        marginUsed: '1200',
+        unrealizedPnl: '60',
+        returnOnEquity: '5',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+      expect(aggregated?.accountState?.providerId).toBeUndefined();
     });
 
     it('hydrates user data from disk at construction time', () => {
@@ -3827,6 +4027,153 @@ describe('PerpsController', () => {
       ).not.toBeNull();
     });
 
+    it('reconstructs combined cached totals after preloading separate venue snapshots', async () => {
+      const venueAccount = (
+        totalBalance: string,
+        providerId: PerpsProviderType,
+      ): AccountState => ({
+        totalBalance,
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId,
+      });
+      const hlAccount = venueAccount('100', 'hyperliquid');
+      const lighterAccount = venueAccount('200', 'lighter');
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        totalBalance: '300',
+        spendableBalance: '300',
+        withdrawableBalance: '300',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerStates: {
+          hyperliquid: {
+            status: 'available',
+            providerId: 'hyperliquid',
+            state: hlAccount,
+          },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toStrictEqual(
+        hlAccount,
+      );
+      expect(cache['lighter:mainnet'].accountState).toStrictEqual(
+        lighterAccount,
+      );
+      expect(cache['aggregated:mainnet'].accountState).toBeNull();
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '300',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+    });
+
+    it('clears a previously cached balance for an unavailable venue during aggregated preload', async () => {
+      const lighterAccount: AccountState = {
+        totalBalance: '200',
+        spendableBalance: '200',
+        withdrawableBalance: '200',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId: 'lighter',
+      };
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          address: mockEvmAccount.address,
+          accountState: { ...lighterAccount, providerId: 'hyperliquid' },
+          timestamp: Date.now(),
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+          positions: [],
+          orders: [],
+        };
+      });
+      vi.spyOn(preloadController, 'getPositions').mockResolvedValue([
+        lighterPosition,
+      ]);
+      vi.spyOn(preloadController, 'getOpenOrders').mockResolvedValue([]);
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        ...lighterAccount,
+        providerId: undefined,
+        providerStates: {
+          hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toBeNull();
+      expect(cache['lighter:mainnet'].positions).toStrictEqual([
+        lighterPosition,
+      ]);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '200',
+        aggregate: {
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
+        },
+      });
+    });
+
     it('stamps Hyperliquid identity for aggregated preload before initialization', async () => {
       preloadController.testUpdate((state) => {
         state.activeProvider = 'aggregated';
@@ -4473,6 +4820,325 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('grouped watchlist', () => {
+    const market = {
+      price: '1',
+      maxLeverage: '20x',
+      change24h: '0',
+      change24hPercent: '0%',
+      volume: '10',
+    };
+
+    it('removes a legacy favorite when its grouped row is unfavorited', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+          {
+            ...market,
+            symbol: 'BTC-PERP',
+            name: 'Bitcoin',
+            providerId: 'lighter',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      const args = [group.symbol, group.marketKey, group.venues] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['BTC', 'ETH'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['ETH']);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'ETH',
+        'market-key:BTC-USD',
+      ]);
+    });
+
+    it('keeps the original favorite when a distinct Lighter group key equals its symbol', async () => {
+      const [legacy, lighter] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'xyz:TSLA',
+            name: 'Tesla',
+            providerId: 'hyperliquid',
+          },
+          {
+            ...market,
+            symbol: 'TSLA',
+            name: 'Tesla',
+            providerId: 'lighter',
+            marketKey: 'xyz:TSLA',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      expect(legacy.rowId).not.toBe(lighter.rowId);
+      const args = [lighter.symbol, lighter.marketKey, lighter.venues] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['xyz:TSLA'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'xyz:TSLA',
+        'market-key:xyz:TSLA',
+      ]);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['xyz:TSLA']);
+    });
+
+    it('removes a legacy Lighter favorite when Lighter is the stated legacy venue', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'NVDA',
+            name: 'Nvidia',
+            providerId: 'lighter',
+            marketKey: 'NVDA-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const args = [
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'lighter',
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['NVDA'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+    });
+
+    it('stars only the saved venue for ungrouped rows with the same symbol', async () => {
+      const [hyperliquidEth, lighterEth] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'ETH',
+            name: 'Ether',
+            providerId: 'hyperliquid',
+          },
+          { ...market, symbol: 'ETH', name: 'Ether', providerId: 'lighter' },
+        ],
+        'hyperliquid',
+      );
+      const lighterArgs = [
+        lighterEth.symbol,
+        lighterEth.marketKey,
+        lighterEth.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+
+      await controller.toggleWatchlistMarket(...lighterArgs);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:ETH',
+      ]);
+      expect(controller.isWatchlistMarket(...lighterArgs)).toBe(true);
+      expect(
+        controller.isWatchlistMarket(
+          hyperliquidEth.symbol,
+          hyperliquidEth.marketKey,
+          hyperliquidEth.venues,
+        ),
+      ).toBe(false);
+    });
+
+    it('matches a venue favorite and recent saved before its row grouped', async () => {
+      const lighterBtc = {
+        ...market,
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        providerId: 'lighter' as const,
+      };
+      const [ungrouped] = groupMarketsByMarketKey([lighterBtc], 'hyperliquid');
+      const ungroupedArgs = [
+        ungrouped.symbol,
+        ungrouped.marketKey,
+        ungrouped.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+      await controller.toggleWatchlistMarket(...ungroupedArgs);
+      controller.recordMarketViewed(...ungroupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:BTC',
+      ]);
+
+      const [grouped] = groupMarketsByMarketKey(
+        [{ ...lighterBtc, marketKey: 'BTC-USD', priceScale: 1 }],
+        'hyperliquid',
+      );
+      const groupedArgs = [
+        grouped.symbol,
+        grouped.marketKey,
+        grouped.venues,
+      ] as const;
+
+      expect(controller.isWatchlistMarket(...groupedArgs)).toBe(true);
+      controller.recordMarketViewed(...groupedArgs);
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+      ]);
+      await controller.toggleWatchlistMarket(...groupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+    });
+
+    it('does not restore keyed aliases when a newer toggle took over the market', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const mockCall = mockMessenger.call as Mock;
+      const defaultCall = mockCall.getMockImplementation();
+      let preferenceReads = 0;
+      mockCall.mockImplementation((action: string, ...rest: unknown[]) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          preferenceReads += 1;
+          return preferenceReads === 1
+            ? Promise.reject(new Error('AUS server error'))
+            : Promise.resolve(null);
+        }
+        return defaultCall?.(action, ...rest);
+      });
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = ['market-key:BTC-USD', 'BTC'];
+      });
+
+      await Promise.all([
+        controller.toggleWatchlistMarket(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+        controller.toggleWatchlistMarket('BTC'),
+      ]);
+
+      expect(preferenceReads).toBe(2);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['BTC']);
+    });
+
+    it('restores keyed aliases when the newer toggle that took over also fails', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const mockCall = mockMessenger.call as Mock;
+      const defaultCall = mockCall.getMockImplementation();
+      mockCall.mockImplementation((action: string, ...rest: unknown[]) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.reject(new Error('AUS server error'));
+        }
+        return defaultCall?.(action, ...rest);
+      });
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = ['market-key:BTC-USD', 'BTC'];
+      });
+
+      await Promise.all([
+        controller.toggleWatchlistMarket(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+        controller.toggleWatchlistMarket('BTC'),
+      ]);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'BTC',
+      ]);
+    });
+
+    it('replaces a legacy recent with the keyed entry for the same group', () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      controller.recordMarketViewed('BTC');
+      controller.recordMarketViewed('ETH');
+
+      controller.recordMarketViewed(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+      );
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'ETH',
+      ]);
+    });
+  });
+
   describe('getCachedUserDataForActiveProvider', () => {
     const mockAddress = '0x1234567890123456789012345678901234567890';
 
@@ -4550,52 +5216,188 @@ describe('PerpsController', () => {
       expect(result?.accountState?.totalBalance).toBe('50000');
     });
 
-    it('assembles user data from multiple providers in aggregated mode', () => {
-      const hlPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
-      const lighterPosition = createMockPosition({
-        symbol: 'ETH',
-        size: '5.0',
-      });
-      const mockLighterProvider = createMockHyperLiquidProvider();
-      markControllerAsInitialized();
-      controller.testSetProviders(
-        new Map([
-          ['hyperliquid', mockProvider],
-          ['lighter', mockLighterProvider],
-        ] as any),
-      );
-      controller.testUpdate((state) => {
-        state.activeProvider = 'aggregated';
-        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
-          positions: [hlPosition],
-          orders: [],
-          accountState: {
-            totalBalance: '50000',
-            spendableBalance: '45000',
-            withdrawableBalance: '45000',
-            marginUsed: '5000',
-            unrealizedPnl: '1000',
-            returnOnEquity: '20',
+    describe('aggregated account totals', () => {
+      const hlAccount: AccountState = {
+        totalBalance: '50000.10',
+        spendableBalance: '45000.10',
+        withdrawableBalance: '45000.10',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '50000.10',
+            spendableBalance: '45000.10',
+            withdrawableBalance: '45000.10',
           },
-          timestamp: Date.now(),
-          address: mockAddress,
-          hip3ConfigVersion: 0,
-          dexes: ['main'],
-        };
-        state.cachedUserDataByProvider['lighter:mainnet'] = {
-          positions: [lighterPosition],
-          orders: [],
-          accountState: null,
-          timestamp: Date.now(),
-          address: mockAddress,
-        };
+        },
+      };
+      const lighterAccount: AccountState = {
+        totalBalance: '1000.20',
+        spendableBalance: '800.20',
+        withdrawableBalance: '700.20',
+        marginUsed: '1000',
+        unrealizedPnl: '-100',
+        returnOnEquity: '-10',
+      };
+
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(
+          new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', mockProvider],
+            ['lighter', createMockHyperLiquidProvider()],
+          ]),
+        );
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+          state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'BTC', size: '1.0' })],
+            orders: [],
+            accountState: hlAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          };
+          state.cachedUserDataByProvider['lighter:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'ETH', size: '5.0' })],
+            orders: [],
+            accountState: lighterAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+          };
+        });
       });
 
-      const result = controller.getCachedUserDataForActiveProvider();
+      it('combines venue totals and retains venue-local details only in providerStates', () => {
+        const result = controller.getCachedUserDataForActiveProvider();
 
-      expect(result).not.toBeNull();
-      expect(result?.positions).toHaveLength(2);
-      expect(result?.accountState?.totalBalance).toBe('50000');
+        expect(result?.positions.map(({ symbol }) => symbol)).toEqual([
+          'BTC',
+          'ETH',
+        ]);
+        expect(result?.accountState).toStrictEqual({
+          totalBalance: '51000.3',
+          spendableBalance: '45800.3',
+          withdrawableBalance: '45700.3',
+          marginUsed: '6000',
+          unrealizedPnl: '900',
+          returnOnEquity: '15',
+          providerStates: {
+            hyperliquid: {
+              status: 'available',
+              providerId: 'hyperliquid',
+              state: { ...hlAccount, providerId: 'hyperliquid' },
+            },
+            lighter: {
+              status: 'available',
+              providerId: 'lighter',
+              state: { ...lighterAccount, providerId: 'lighter' },
+            },
+          },
+          aggregate: {
+            status: 'complete',
+            availableProviders: ['hyperliquid', 'lighter'],
+            unavailableProviders: [],
+          },
+        });
+      });
+
+      it.each([
+        'missing',
+        'expired',
+        'other account',
+        'other network',
+        'HIP-3',
+        'null',
+        'malformed',
+      ])(
+        'returns a Lighter subtotal when the HyperLiquid cache is %s',
+        (invalidity) => {
+          controller.testUpdate((state) => {
+            const key = 'hyperliquid:mainnet';
+            const entry = state.cachedUserDataByProvider[key];
+            switch (invalidity) {
+              case 'missing':
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'expired':
+                entry.timestamp = Date.now() - 60_000;
+                break;
+              case 'other account':
+                entry.address = '0x9999999999999999999999999999999999999999';
+                break;
+              case 'other network':
+                state.cachedUserDataByProvider['hyperliquid:testnet'] = entry;
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'HIP-3':
+                entry.hip3ConfigVersion = state.hip3ConfigVersion + 1;
+                break;
+              case 'null':
+                entry.accountState = null;
+                break;
+              case 'malformed':
+                entry.accountState!.totalBalance = 'NaN';
+                break;
+            }
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toMatchObject({
+            totalBalance: '1000.2',
+            aggregate: {
+              status: 'partial',
+              availableProviders: ['lighter'],
+              unavailableProviders: ['hyperliquid'],
+            },
+            providerStates: {
+              hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+              lighter: { status: 'available', providerId: 'lighter' },
+            },
+          });
+          if (invalidity === 'expired') {
+            expect(
+              controller.getCachedUserDataForActiveProvider({ skipTTL: true })
+                ?.accountState?.totalBalance,
+            ).toBe('51000.3');
+          }
+        },
+      );
+
+      it('returns no account total when neither venue has a usable account snapshot', () => {
+        controller.testUpdate((state) => {
+          for (const entry of Object.values(state.cachedUserDataByProvider)) {
+            entry.accountState = null;
+          }
+        });
+
+        const result = controller.getCachedUserDataForActiveProvider();
+
+        expect(result?.positions).toHaveLength(2);
+        expect(result?.accountState).toBeNull();
+      });
+
+      it.each(['hyperliquid', 'lighter'] as const)(
+        'preserves the direct snapshot shape when only %s participates',
+        (providerId) => {
+          controller.testSetProviders(new Map([[providerId, mockProvider]]));
+          controller.testUpdate((state) => {
+            const otherProvider =
+              providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid';
+            delete state.cachedUserDataByProvider[`${otherProvider}:mainnet`];
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toStrictEqual({
+            ...(providerId === 'hyperliquid' ? hlAccount : lighterAccount),
+            providerId,
+          });
+        },
+      );
     });
 
     it('returns null in aggregated mode when no valid entries exist', () => {
@@ -4710,6 +5512,87 @@ describe('PerpsController', () => {
         controller.state.cachedMarketDataByProvider['aggregated:mainnet'];
       expect(sentinel?.data).toHaveLength(0);
       expect(sentinel?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('refreshes an incomplete aggregate when the HyperLiquid snapshot expires first', async () => {
+      const sourceExpiresAt = Date.now() + 20_000;
+      const base = {
+        maxLeverage: '50x',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        volume: '$1M',
+      };
+      const rows: [PerpsMarketData, PerpsMarketData] = [
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50000',
+          providerId: 'hyperliquid',
+          dataSource: 'terminal-global-snapshot-mark',
+          sourceExpiresAt,
+        },
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50010',
+          providerId: 'lighter',
+          categories: ['crypto'],
+        },
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(rows);
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const hlEntry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(hlEntry?.sourceExpiresAt).toBe(sourceExpiresAt);
+      expect(hlEntry?.hip3ConfigVersion).toBe(0);
+      expect(hlEntry?.dexes).toStrictEqual(['main']);
+      const lighterEntry =
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'];
+      expect(lighterEntry?.sourceExpiresAt).toBeUndefined();
+      expect(lighterEntry?.data[0]?.categories).toStrictEqual(['crypto']);
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual(
+        rows,
+      );
+
+      vi.setSystemTime(sourceExpiresAt);
+      expect(
+        controller.getCachedMarketDataForActiveProvider({ skipTTL: true }),
+      ).toBeNull();
+      expect(
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'],
+      ).toStrictEqual(lighterEntry);
+
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          ...rows[0],
+          price: '50020',
+          sourceExpiresAt: sourceExpiresAt + 20_000,
+        },
+        rows[1],
+      ]);
+      controller.stopMarketDataPreload();
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual([
+        expect.objectContaining({ providerId: 'hyperliquid', price: '50020' }),
+        rows[1],
+      ]);
     });
 
     it('assigns items without providerId to hyperliquid fallback', async () => {

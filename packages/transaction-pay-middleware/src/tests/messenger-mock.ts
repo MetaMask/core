@@ -1,3 +1,8 @@
+import type { AccountTreeControllerSetSelectedAccountGroupByAccountIdAction } from '@metamask/account-tree-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
@@ -26,7 +31,25 @@ export type MessengerMocks = {
   refreshEligibility: Handler<PerpsControllerRefreshEligibilityAction>;
   findNetworkClientIdByChainId: Handler<NetworkControllerFindNetworkClientIdByChainIdAction>;
   addTransaction: Handler<TransactionControllerAddTransactionAction>;
+  getAccountByAddress: Handler<AccountsControllerGetAccountByAddressAction>;
+  getSelectedAccount: Handler<AccountsControllerGetSelectedAccountAction>;
+  setSelectedAccountGroupByAccountId: Handler<AccountTreeControllerSetSelectedAccountGroupByAccountIdAction>;
 };
+
+type InternalAccount = ReturnType<
+  AccountsControllerGetSelectedAccountAction['handler']
+>;
+
+/**
+ * Creates an internal account with the given id and address.
+ *
+ * @param id - The account id.
+ * @param address - The account address.
+ * @returns The account.
+ */
+export function createAccount(id: string, address: string): InternalAccount {
+  return { id, address } as InternalAccount;
+}
 
 /**
  * Creates a middleware messenger backed by mock action handlers.
@@ -36,16 +59,23 @@ export type MessengerMocks = {
  * @param options.eligibility - `isEligible` values, returned in order; the
  * last one repeats.
  * @param options.hash - Hash the added transaction resolves with.
+ * @param options.accounts - Accounts known to the wallet. Defaults to accounts
+ * for every address passed to `getAccountByAddress`.
+ * @param options.selectedAccount - The selected account.
  * @returns The messenger and its mock handlers.
  */
 export function createMessenger({
   remoteFeatureFlags = {},
   eligibility = [true],
   hash = '0xhash',
+  accounts,
+  selectedAccount = createAccount('selected-account', '0xselected'),
 }: {
   remoteFeatureFlags?: Record<string, Json>;
   eligibility?: boolean[];
   hash?: string;
+  accounts?: InternalAccount[];
+  selectedAccount?: InternalAccount;
 } = {}): MessengerMocks {
   const states = [...eligibility];
 
@@ -74,6 +104,21 @@ export function createMessenger({
       >,
   );
 
+  const getAccountByAddress: MessengerMocks['getAccountByAddress'] = vi.fn(
+    (address) =>
+      accounts
+        ? accounts.find(
+            (account) =>
+              account.address.toLowerCase() === address.toLowerCase(),
+          )
+        : createAccount(`account-${address.toLowerCase()}`, address),
+  );
+  const getSelectedAccount: MessengerMocks['getSelectedAccount'] = vi.fn(
+    () => selectedAccount,
+  );
+  const setSelectedAccountGroupByAccountId: MessengerMocks['setSelectedAccountGroupByAccountId'] =
+    vi.fn((_accountId) => undefined);
+
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -99,6 +144,19 @@ export function createMessenger({
     addTransaction,
   );
 
+  rootMessenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    getAccountByAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    getSelectedAccount,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:setSelectedAccountGroupByAccountId',
+    setSelectedAccountGroupByAccountId,
+  );
+
   const messenger: TransactionPayMiddlewareMessenger = new Messenger({
     namespace: 'TransactionPayMiddleware',
     parent: rootMessenger,
@@ -112,6 +170,9 @@ export function createMessenger({
       'PerpsController:refreshEligibility',
       'NetworkController:findNetworkClientIdByChainId',
       'TransactionController:addTransaction',
+      'AccountsController:getAccountByAddress',
+      'AccountsController:getSelectedAccount',
+      'AccountTreeController:setSelectedAccountGroupByAccountId',
     ],
   });
 
@@ -122,5 +183,8 @@ export function createMessenger({
     refreshEligibility,
     findNetworkClientIdByChainId,
     addTransaction,
+    getAccountByAddress,
+    getSelectedAccount,
+    setSelectedAccountGroupByAccountId,
   };
 }

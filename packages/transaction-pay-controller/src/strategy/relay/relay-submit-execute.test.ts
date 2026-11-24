@@ -3,7 +3,7 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
@@ -30,6 +30,7 @@ const REQUEST_ID_MOCK = '0x1234567890abcdef';
 
 const FROM_MOCK = '0xabcde' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_ASSET_ID_MOCK: CaipAssetType = 'eip155:1/slip44:60';
 
 const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
 const DELEGATION_MANAGER_MOCK = '0xdelegationmanager' as Hex;
@@ -142,7 +143,7 @@ describe('Relay Submit Execute', () => {
       original: cloneDeep(ORIGINAL_QUOTE_MOCK),
       request: {
         from: FROM_MOCK,
-        sourceChainId: CHAIN_ID_MOCK,
+        sourceAssetId: SOURCE_ASSET_ID_MOCK,
       },
       sourceAmount: {
         raw: '1000000',

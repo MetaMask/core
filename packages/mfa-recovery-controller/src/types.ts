@@ -2,11 +2,16 @@
  * MFA recovery protocol types from the recovery ADR.
  */
 
+import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
+import type { Json } from '@metamask/utils';
+
+export type { SeedlessAuthData };
+
 export type Identifier = {
   type: string;
   namespace: string;
   value: string;
-  verifier: unknown;
+  verifier?: Json;
 };
 
 export type PoPChallenge = {
@@ -27,6 +32,10 @@ export type KeyBoundIdentifierToken = {
    */
   proofPublicKey: Uint8Array;
   requestHash: string;
+  /**
+   * Unix seconds after which escrows reject this token.
+   */
+  notAfter: number;
   providerAssertion: unknown;
 };
 
@@ -63,10 +72,15 @@ export type Mutation = {
 };
 
 /**
- * Hydra access token (compact JWT). Its `ext` claims bind it to one mutation:
+ * Auth API approval (compact JWT). Its `ext` claims bind it to one mutation:
  * `aal`, `request_hash`, and `identifiers_hash`.
  */
 export type AuthControllerToken = string;
+
+export type RecoveryApproval = {
+  approval: AuthControllerToken;
+  identifiers: Identifier[];
+};
 
 export type MutationReceipt = {
   mutationId: string;
@@ -93,12 +107,47 @@ export type KeyBoundCredential = {
 };
 
 /**
- * Result of first-factor identifier authentication, consumed by
- * `getRecoverySecret`.
+ * Parameters for requesting a key-bound identifier token from an IdP.
+ */
+export type KeyBoundIdentifierTokenRequest = {
+  identifier: Identifier;
+  /**
+   * Raw 32-byte Ed25519 public key to bind into the token.
+   */
+  proofPublicKey: Uint8Array;
+  requestHash: string;
+  /**
+   * Unix seconds to copy into the token. The provider assertion must sign
+   * `hash([proofPublicKey, requestHash, notAfter])` as its OIDC / SIWE nonce,
+   * or `getEscrowPasskeyChallenge(request)` as its passkey challenge.
+   */
+  notAfter: number;
+};
+
+/**
+ * Result of one identifier login. `token` is the key-bound recovery material
+ * presented to escrows (its `providerAssertion` carries the provider ID token
+ * or assertion). `seedlessAuthData` is present when the IdP issued seedless
+ * auth-server tokens in the same exchange (social logins); passkey / SIWE
+ * omit it.
+ */
+export type KeyBoundIdentifierLogin = {
+  token: KeyBoundIdentifierToken;
+  seedlessAuthData?: SeedlessAuthData;
+};
+
+/**
+ * Result of first-factor identifier authentication from
+ * `authenticateIdentifier`, and the input to `getRecoverySecret`.
  *
  * `proofPrivateKey` signs escrow challenges. `ephemeralPrivateKey` is the
  * private half of `pkE` and decrypts the recovery secret. Keep both in
  * memory only.
+ *
+ * `seedlessAuthData` is present when the same login also completed a seedless
+ * auth-server exchange. Use it for `SeedlessOnboardingController.authenticate`,
+ * then drop it before holding the session for a later `getRecoverySecret`.
+ * Escrow paths use only the key-bound credential fields.
  */
 export type IdentifierSession = KeyBoundCredential & {
   requestId: string;
@@ -110,6 +159,7 @@ export type IdentifierSession = KeyBoundCredential & {
    * Raw 32-byte X25519 public key, the client's one-time read key.
    */
   pkE: Uint8Array;
+  seedlessAuthData?: SeedlessAuthData;
 };
 
 /**
@@ -155,29 +205,27 @@ export type MutationPayload =
   | UpdateIdentifiersPayload;
 
 /**
- * 0x-hex of a plaintext recovery secret. Encrypted pending state stores this
- * logical value; each escrow receives a {@link WrappedSecret} only at apply.
+ * 0x-hex of a plaintext recovery secret. `payloadHash` covers it, but it is
+ * held only in memory; each escrow receives a {@link WrappedSecret} at apply.
  */
 export type PendingRecoverySecretHex = string;
 
 /**
- * Logical register payload stored in encrypted pending state.
+ * Register payload stored in pending state. `payloadHash` also covers the
+ * recovery secret, which is not persisted.
  */
 export type PendingRegisterPayload = {
   identifiers: Identifier[];
-  recoverySecret: PendingRecoverySecretHex;
 };
 
 /**
- * Logical secret-update payload stored in encrypted pending state.
+ * Secret-update payload stored in pending state. `payloadHash` covers the
+ * recovery secret, which is not persisted.
  */
-export type PendingUpdateRecoverySecretPayload = Pick<
-  PendingRegisterPayload,
-  'recoverySecret'
->;
+export type PendingUpdateRecoverySecretPayload = Record<string, never>;
 
 /**
- * Logical identifier-update payload stored in encrypted pending state.
+ * Identifier-update payload stored in pending state.
  */
 export type PendingUpdateIdentifiersPayload = Pick<
   PendingRegisterPayload,
@@ -185,8 +233,8 @@ export type PendingUpdateIdentifiersPayload = Pick<
 >;
 
 /**
- * Logical mutation payload persisted in encrypted pending state. Distinct from
- * {@link MutationPayload}, which is the per-escrow apply body.
+ * Mutation payload persisted in pending state, without any recovery secret.
+ * Distinct from {@link MutationPayload}, which is the per-escrow apply body.
  */
 export type PendingMutationPayload =
   | PendingRegisterPayload
@@ -206,6 +254,11 @@ export type AuthorizingPendingOperation = PendingOperationBase & {
 export type WritingPendingOperation = PendingOperationBase & {
   phase: 'writing';
   authControllerToken: AuthControllerToken;
+  /**
+   * The approval's identifiers, in Auth API order, bound by its
+   * `identifiers_hash`.
+   */
+  approvedIdentifiers: Identifier[];
   receipts: MutationReceipt[];
 };
 
@@ -214,17 +267,6 @@ export type PendingOperation =
   | WritingPendingOperation;
 
 export type RecoveryPhase = 'idle' | PendingOperation['phase'];
-
-/**
- * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
- * encrypts this blob (including any hex recovery secret). A raw recovery
- * secret is never persisted in BaseController state.
- *
- * The recovery spec's pseudocode represents this as `Uint8Array`, but the
- * controller stores the encoded ciphertext as a string so BaseController state
- * persistence and serialization preserve it without binary coercion.
- */
-export type EncryptedPendingOperation = string;
 
 export type GetRecoverySecretResponse = {
   recoverySecret: WrappedSecretOutput;
@@ -242,30 +284,77 @@ export type RecoveredSecret = {
 };
 
 /**
- * Authenticates the MetaMask profile and issues request-bound attestations.
+ * One escrow's enrolled identifiers and record version.
  */
-export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
-  authorizeRecoveryRequest: (params: {
-    requestHash: string;
-    audiences: string[];
-    requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
-  }) => Promise<AuthControllerToken>;
+export type GetIdentifiersResponse = {
+  identifiers: Identifier[];
+  version: number;
+};
+
+export type GetMutationReceiptResponse = {
+  receipt: MutationReceipt | null;
+  version: number;
+};
+
+/**
+ * Enrolled identifiers and `epoch`, plus Auth's current identifiers to build
+ * an `updateIdentifiers` set from.
+ */
+export type RecoveryIdentifiers = {
+  identifiers: Identifier[];
+  epoch: number;
+  authIdentifiers: Identifier[];
+};
+
+/**
+ * Per-profile recovery lease. It must outlive the approvals requested right
+ * after acquiring it. Acquiring a held lease again extends it.
+ */
+export type RecoveryLockProvider = {
+  acquire: (lockId: string) => Promise<void>;
+  release: (lockId: string) => Promise<void>;
+};
+
+/**
+ * A passkey a user device created, so Auth cannot add or swap one. Fields are
+ * hex.
+ */
+export type TrustedIdentifier = {
+  type: 'passkey';
+  rpIdHash: string;
+  credentialId: string;
+  publicKey: string;
+};
+
+/**
+ * Proof the device created a passkey: its base64url `attestationObject`.
+ */
+export type IdentifierWitness = { type: 'passkey'; attestationObject: string };
+
+/**
+ * Stores {@link TrustedIdentifier}s where only the user can write them.
+ * Adding one already stored has no effect.
+ */
+export type RecoveryTrustedIdentifierStore = {
+  get: () => Promise<TrustedIdentifier[]>;
+  add: (entry: TrustedIdentifier) => Promise<void>;
+  remove: (entry: TrustedIdentifier) => Promise<void>;
 };
 
 /**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
 export type RecoveryIdentifierAuthProvider = {
-  getKeyBoundIdentifierToken: (params: {
-    identifier: Identifier;
-    /**
-     * Raw 32-byte Ed25519 public key to bind into the token.
-     */
-    proofPublicKey: Uint8Array;
-    requestHash: string;
-  }) => Promise<KeyBoundIdentifierToken>;
+  /**
+   * One identifier login. Returns the key-bound token, bound to the requested
+   * `proofPublicKey`, `requestHash`, and `notAfter`, and any seedless
+   * auth-server tokens from the same exchange. Omit `seedlessAuthData` when the IdP does not
+   * issue it (e.g. passkey). Every controller path calls this method and uses
+   * only the parts it needs.
+   */
+  getKeyBoundIdentifierLogin: (
+    params: KeyBoundIdentifierTokenRequest,
+  ) => Promise<KeyBoundIdentifierLogin>;
 };
 
 /**
@@ -285,17 +374,42 @@ export type RecoveryEscrowProvider = {
    */
   readonly wrapPublicKey: Uint8Array;
   isAvailable: () => Promise<boolean>;
-  generateChallenge: () => Promise<PoPChallenge>;
+  generateChallenge: (
+    authControllerToken: AuthControllerToken,
+  ) => Promise<PoPChallenge>;
+  getIdentifiers: (
+    authControllerToken: AuthControllerToken,
+  ) => Promise<GetIdentifiersResponse>;
+  /**
+   * Returns the receipt the escrow stored for `mutation` at its `newVersion`,
+   * or `null` when there is none, with the record's current `version`.
+   * Escrows keep only recent receipts.
+   */
+  getMutationReceipt: (
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ) => Promise<GetMutationReceiptResponse>;
   getSecret: (
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: Uint8Array,
   ) => Promise<GetRecoverySecretResponse>;
+  /**
+   * On first application, `identifierAuthorizations` share one challenge: one
+   * proof per SIWE identifier the escrow has not enrolled, plus one
+   * enrolled-identifier proof for updates.
+   *
+   * An escrow that already applied the mutation returns its matching stored
+   * receipt before validating proofs, which may include SIWE identifiers still
+   * missing from other escrows.
+   */
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;
   /**
    * Verifies a receipt cryptographically using the build-pinned receipt key
@@ -310,12 +424,4 @@ export type RecoveryEscrowProvider = {
     mutation: Mutation,
     expectedEscrowId: string,
   ) => Promise<boolean>;
-};
-
-/**
- * Encrypts pending mutation state using wallet secure storage.
- */
-export type PendingOperationEncryptor = {
-  encrypt: (operation: PendingOperation) => Promise<EncryptedPendingOperation>;
-  decrypt: (ciphertext: EncryptedPendingOperation) => Promise<PendingOperation>;
 };

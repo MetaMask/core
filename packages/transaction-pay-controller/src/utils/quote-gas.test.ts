@@ -13,7 +13,11 @@ import type {
 } from '../types.js';
 import { getFeatureFlags, getGasBuffer } from './feature-flags.js';
 import { estimateGasLimit } from './gas.js';
-import { estimateQuoteGasLimits, estimateSourceGas } from './quote-gas.js';
+import {
+  estimateQuoteGasLimits,
+  estimateSourceGas,
+  getSourceTransactions,
+} from './quote-gas.js';
 import type { QuoteGasTransaction } from './quote-gas.js';
 
 vi.mock(import('./feature-flags.js'), async (importOriginal) => ({
@@ -73,6 +77,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 51000,
       gasLimits: [21000, 30000],
+      mode: 'separate',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -101,7 +106,7 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('uses per-transaction estimation when there is only one transaction', async () => {
+  it('uses separate estimation when there is only one transaction', async () => {
     estimateGasLimitMock.mockResolvedValueOnce({
       estimate: 21000,
       max: 21000,
@@ -123,6 +128,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],
+      mode: 'eip7702',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -170,6 +176,7 @@ describe('quote gas estimation', () => {
       totalGasLimit: 50000,
       gasLimits: [50000],
       requiresAuthorizationList: true,
+      mode: 'eip7702',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -196,11 +203,12 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('uses per-transaction batch gas limits and preserves provided gas when it already matches', async () => {
+  it('uses separate batch gas limits and preserves provided gas when it already matches', async () => {
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 51000,
       gasLimits: [21000, 30000],
+      mode: 'separate',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -226,11 +234,12 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('buffers per-transaction batch gas when a provided gas value is overridden', async () => {
+  it('buffers separate batch gas when a provided gas value is overridden', async () => {
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 56000,
       gasLimits: [21000, 35000],
+      mode: 'separate',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -277,6 +286,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 123000,
       gasLimits: [21000, 30000, 72000],
+      mode: 'separate',
     });
 
     await expect(
@@ -288,6 +298,54 @@ describe('quote gas estimation', () => {
 
     expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
     expect(estimateGasLimitMock).not.toHaveBeenCalled();
+  });
+
+  it('throws when an EIP-7702 outer result has more than one gas limit', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 51000,
+      gasLimits: [21000, 30000],
+      mode: 'eip7702',
+    });
+
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Unexpected batch gas limit count');
+  });
+
+  it('throws when a separate result has a single gas limit for multiple transactions', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+      mode: 'separate',
+    });
+
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Unexpected batch gas limit count');
+  });
+
+  it('detects an EIP-7702 outer result from the gas limit count if mode is missing', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+    } as Awaited<ReturnType<typeof estimateGasBatchMock>>);
+
+    const result = await estimateQuoteGasLimits({
+      messenger,
+      transactions: TRANSACTIONS_MOCK,
+    });
+
+    expect(result.is7702).toBe(true);
+    expect(result.batchGasLimit).toStrictEqual({
+      estimate: 50000,
+      max: 50000,
+    });
   });
 
   it('treats numeric gas values as provided gas limits', async () => {
@@ -317,7 +375,7 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('defaults missing transaction values to zero for per-transaction estimation', async () => {
+  it('defaults missing transaction values to zero for separate estimation', async () => {
     estimateGasLimitMock.mockResolvedValueOnce({
       estimate: 21000,
       max: 21000,
@@ -347,6 +405,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],
+      mode: 'eip7702',
     });
 
     await estimateQuoteGasLimits({
@@ -413,6 +472,7 @@ describe('quote gas estimation', () => {
     function mockBatchGas(gasLimits: number[]): void {
       batchMock.mockResolvedValue({
         gasLimits,
+        mode: gasLimits.length === 1 ? 'eip7702' : 'separate',
         totalGasLimit: gasLimits.reduce((sum, gas) => sum + gas, 0),
       });
     }
@@ -620,6 +680,65 @@ describe('quote gas estimation', () => {
       expect(batchMock.mock.calls[0][0].transactions[0]).toStrictEqual(
         expect.objectContaining({ data: '0x', gas: undefined, value: '0x0' }),
       );
+    });
+  });
+
+  describe('getSourceTransactions', () => {
+    const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+
+    const QUOTE_TRANSACTION_MOCK: QuoteGasTransaction = {
+      chainId: '0x89',
+      data: '0xbbbb',
+      from: FROM_MOCK,
+      to: '0x4444444444444444444444444444444444444444',
+      value: '0',
+    };
+
+    const TRANSACTION_MOCK = {
+      chainId: '0x89',
+      txParams: {
+        data: '0xaaaa',
+        from: FROM_MOCK,
+        gas: '0x5208',
+        to: '0x5555555555555555555555555555555555555555',
+        value: '0x1',
+      },
+    } as unknown as TransactionMeta;
+
+    const REQUEST_MOCK = {
+      from: FROM_MOCK,
+    } as unknown as QuoteRequest;
+
+    it('prepends the original transaction for post-quote flows', () => {
+      expect(
+        getSourceTransactions({
+          request: { ...REQUEST_MOCK, isPostQuote: true },
+          transaction: TRANSACTION_MOCK,
+          transactions: [QUOTE_TRANSACTION_MOCK],
+        }),
+      ).toStrictEqual([
+        {
+          chainId: '0x89',
+          data: '0xaaaa',
+          from: FROM_MOCK,
+          gas: '0x5208',
+          to: '0x5555555555555555555555555555555555555555',
+          value: '0x1',
+        },
+        QUOTE_TRANSACTION_MOCK,
+      ]);
+    });
+
+    it('returns only the quote transactions when not post-quote', () => {
+      const transactions = [QUOTE_TRANSACTION_MOCK];
+
+      expect(
+        getSourceTransactions({
+          request: REQUEST_MOCK,
+          transaction: TRANSACTION_MOCK,
+          transactions,
+        }),
+      ).toBe(transactions);
     });
   });
 });

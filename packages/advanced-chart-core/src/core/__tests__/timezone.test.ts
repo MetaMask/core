@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   CANONICAL_TO_TV,
@@ -20,10 +20,6 @@ type ResolvedOptions = {
 };
 
 describe('resolveUserTimezone', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('returns a TV-supported zone when Intl reports one directly', () => {
     stubIntlTimezone('Europe/Paris');
     expect(resolveUserTimezone()).toBe('Europe/Paris');

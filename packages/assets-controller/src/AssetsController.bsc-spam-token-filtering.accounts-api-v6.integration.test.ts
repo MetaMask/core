@@ -1,5 +1,5 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -35,8 +35,7 @@ import type { AssetsControllerState } from './AssetsController.js';
 /**
  * Integration coverage for `AssetsController` against the BNB Chain wallet
  * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report, on the Accounts API
- * **v6** balances endpoint, enabled the way the rollout does it: the
- * `assetsAccountsApiV6` remote feature flag.
+ * v6 balances endpoint.
  *
  * Boots the real controller, answers the same live-captured v6 APIs as
  * `buildFastFetchSources.bsc-spam-token-filtering.accounts-api-v6.integration.test.ts`,
@@ -46,9 +45,6 @@ import type { AssetsControllerState } from './AssetsController.js';
  * custom asset, in which case the pin travels as `includeAssetIds` and the
  * row must survive (see the custom-asset suite below).
  */
-
-/** The flag set that turns the Accounts API v6 balances endpoint on. */
-const ACCOUNTS_API_V6_FLAGS = { assetsAccountsApiV6: true } as const;
 
 const BALANCES = stateBalancesSurface(BSC_SPAM_ACCOUNT_ID);
 const METADATA = STATE_METADATA_SURFACE;
@@ -63,7 +59,7 @@ async function withController<ReturnValue>(
   {
     state = buildEmptyAssetsState(),
     queryApiClient = createTestApiClient(),
-    remoteFeatureFlags = ACCOUNTS_API_V6_FLAGS,
+    remoteFeatureFlags = {},
   }: {
     state?: Partial<AssetsControllerState>;
     queryApiClient?: ApiPlatformClient;
@@ -93,31 +89,25 @@ async function withController<ReturnValue>(
 
 async function fetchWallet(
   state: Partial<AssetsControllerState> = buildEmptyAssetsState(),
-  remoteFeatureFlags: Record<string, boolean> = ACCOUNTS_API_V6_FLAGS,
 ): Promise<{ state: AssetsControllerState; v6Balances: V6BalancesMock }> {
   const { accountsSupportedNetworks, v6Balances } = mockBscSpamApisV6();
 
-  const stateAfter = await withController(
-    { state, remoteFeatureFlags },
-    async ({ controller }) => {
-      // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
-      await waitFor(() =>
-        expect(accountsSupportedNetworks.isDone()).toBe(true),
-      );
+  const stateAfter = await withController({ state }, async ({ controller }) => {
+    // wait for `AccountsApiDataSource` to ask `/v2/supportedNetworks` to indicate the fast-lane is ready
+    await waitFor(() => expect(accountsSupportedNetworks.isDone()).toBe(true));
 
-      await controller.getAssets([buildBscSpamAccount()], {
-        chainIds: [BSC_CHAIN_ID],
-        forceUpdate: true,
-      });
+    await controller.getAssets([buildBscSpamAccount()], {
+      chainIds: [BSC_CHAIN_ID],
+      forceUpdate: true,
+    });
 
-      // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
-      // and can still be writing. Let state settle so the assertions about CDOGE
-      // being absent cannot pass just because nothing has landed yet.
-      await waitUntilStable(() => controller.state);
+    // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
+    // and can still be writing. Let state settle so the assertions about CDOGE
+    // being absent cannot pass just because nothing has landed yet.
+    await waitUntilStable(() => controller.state);
 
-      return controller.state;
-    },
-  );
+    return controller.state;
+  });
 
   return { state: stateAfter, v6Balances };
 }
@@ -132,7 +122,7 @@ const WALLET_PASSES = [
     pass: 'second pass over the wallet the first pass left behind',
     run: async (): Promise<AssetsControllerState> => {
       const firstPass = (await fetchWallet()).state;
-      cleanAll();
+      nock.cleanAll();
 
       const secondPass = await fetchWallet(
         buildEmptyAssetsState({
@@ -148,7 +138,7 @@ const WALLET_PASSES = [
 
 describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(WALLET_PASSES)('$pass', ({ run }) => {
@@ -195,7 +185,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
 
 describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   function buildCustomAssetWalletState(): AssetsControllerState {
@@ -238,7 +228,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) impor
 
 describe("AssetsController (Accounts API v6): 'full' update operation - stale tracked spam token already in state", () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   /**

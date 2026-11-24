@@ -257,8 +257,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       if (!result.modified) {
         this.update((state) => {
           state.lastFetched = Date.now();
-          if (result.etag !== undefined) {
-            state.etag = result.etag ?? null;
+          if (result.etag !== null) {
+            state.etag = result.etag;
           }
         });
         return;
@@ -276,7 +276,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         state.configs.networks = newConfigs;
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
-        state.etag = result.etag ?? null;
+        state.etag = result.etag;
       });
     } catch (error) {
       const errorInstance =
@@ -296,9 +296,9 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       );
 
       if (!result.modified) {
-        if (result.etag !== undefined) {
+        if (result.etag !== null) {
           this.update((state) => {
-            state.eventsConfigEtag = result.etag as string;
+            state.eventsConfigEtag = result.etag;
           });
         }
         return;
@@ -306,7 +306,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
       this.update((state) => {
         state.configs.eventsConfig = result.data.data;
-        state.eventsConfigEtag = result.etag ?? null;
+        state.eventsConfigEtag = result.etag;
       });
     } catch (error) {
       const errorInstance =

@@ -14,6 +14,7 @@ import {
   create,
   enums,
   literal,
+  nullable,
   number,
   optional,
   record,
@@ -33,20 +34,27 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types.js';
 import type {
+  AddressIdentityResponse,
   AssociateAddressResponse,
   AssociateAddressV2Params,
   CreateAddressChallengeParams,
   CreateAddressChallengeResponse,
   ProfileAddressEntry,
   ChompIntentType,
+  ChompMigrationIntentType,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   UpgradeEntry,
   CreateWithdrawalParams,
+  FundsTransferStart,
   CreateWithdrawalResponse,
+  DerivedIdentitiesResponse,
   IntentEntry,
+  MigrationStep,
   SendIntentParams,
   SendIntentResponse,
+  SendIntentV2Params,
+  SendIntentV2Response,
   ServiceDetailsResponse,
   VerifyDelegationParams,
   VerifyDelegationResponse,
@@ -60,8 +68,30 @@ const CHOMP_INTENT_TYPES: ChompIntentType[] = [
   'cash-subscription',
 ];
 
+const CHOMP_MIGRATION_INTENT_TYPES: ChompMigrationIntentType[] = [
+  'cash-migration-root',
+  'cash-migration-transfer',
+  'cash-migration-premium-transfer',
+];
+
+const MIGRATION_STEPS: MigrationStep[] = [
+  'SUCCESSOR_DEPOSIT_INTENT',
+  'SUCCESSOR_WITHDRAWAL_INTENT',
+  'SUCCESSOR_SUBSCRIPTION_INTENT',
+  'SUCCESSOR_MONITORED',
+  'ROOT_DELEGATION',
+  'TRANSFER_INTENT_MUSD',
+  'TRANSFER_INTENT_VMUSD',
+  'TRANSFER_INTENT_PVMUSD',
+  'FUNDS_TRANSFERRED',
+];
+
 function isChompIntentType(value: string): value is ChompIntentType {
   return (CHOMP_INTENT_TYPES as string[]).includes(value);
+}
+
+function isMigrationStep(value: string): value is MigrationStep {
+  return (MIGRATION_STEPS as string[]).includes(value);
 }
 
 // === GENERAL ===
@@ -127,14 +157,19 @@ async function createChompApiError(
 const MESSENGER_EXPOSED_METHODS = [
   'createAddressChallenge',
   'associateAddressV2',
+  'disassociateAddress',
   'getAssociatedAddresses',
   'createUpgrade',
   'getUpgrades',
   'verifyDelegation',
   'createIntents',
+  'createIntentsV2',
   'getIntentsByAddress',
   'createWithdrawal',
   'getServiceDetails',
+  'getDerivedIdentities',
+  'getDerivedIdentityByAddress',
+  'startFundsTransfer',
 ] as const;
 
 /**
@@ -225,6 +260,58 @@ const ProfileAddressEntryArrayStruct = array(
   }),
 );
 
+const MigrationTransferStruct = nullable(
+  type({
+    requestId: string(),
+    status: string(),
+  }),
+);
+
+const DerivedIdentityStruct = type({
+  currentAddress: LowercaseHexAddressStruct,
+  previousAddresses: array(LowercaseHexAddressStruct),
+  status: enums(['NONE', 'MIGRATING', 'DONE']),
+  migration: nullable(
+    type({
+      from: LowercaseHexAddressStruct,
+      to: LowercaseHexAddressStruct,
+      steps: coerce(
+        array(
+          type({
+            step: enums(MIGRATION_STEPS),
+            completed: boolean(),
+          }),
+        ),
+        array(type({ step: string(), completed: boolean() })),
+        (steps) => steps.filter(({ step }) => isMigrationStep(step)),
+      ),
+      transfer: MigrationTransferStruct,
+      premiumTransfer: MigrationTransferStruct,
+    }),
+  ),
+});
+
+const DerivedIdentitiesResponseStruct = type({
+  identities: array(DerivedIdentityStruct),
+});
+
+const AddressIdentityResponseStruct = type({
+  identity: DerivedIdentityStruct,
+  address: type({
+    address: LowercaseHexAddressStruct,
+    role: enums(['CURRENT', 'PREVIOUS', 'PENDING_SUCCESSOR']),
+    predecessor: nullable(LowercaseHexAddressStruct),
+    successor: nullable(LowercaseHexAddressStruct),
+  }),
+});
+
+const FundsTransferStartStruct = type({
+  from: LowercaseHexAddressStruct,
+  to: LowercaseHexAddressStruct,
+  transfer: MigrationTransferStruct,
+  premiumTransfer: MigrationTransferStruct,
+});
+
 const AccountUpgradeStatusStruct = enums(['pending', 'upgraded']);
 
 const AuthorizationDataStruct = type({
@@ -276,6 +363,22 @@ const SendIntentResponseArrayStruct = array(
   }),
 );
 
+const SendIntentV2ResponseArrayStruct = array(
+  type({
+    delegationHash: StrictHexStruct,
+    intent: type({
+      type: enums([...CHOMP_INTENT_TYPES, ...CHOMP_MIGRATION_INTENT_TYPES]),
+      data: type({
+        allowance: StrictHexStruct,
+        tokenSymbol: string(),
+        tokenAddress: StrictHexStruct,
+        userSignature: optional(StrictHexStruct),
+      }),
+    }),
+    createdAt: string(),
+  }),
+);
+
 const IntentEntryArrayStruct = array(
   type({
     account: StrictHexStruct,
@@ -318,6 +421,7 @@ const ServiceDetailsResponseStruct = type({
     StrictHexStruct,
     type({
       autoDepositDelegate: StrictHexStruct,
+      vaultMigrationHelperAddress: optional(StrictHexStruct),
       protocol: type({
         vedaProtocol: ServiceDetailsProtocolStruct,
         vedaPremiumProtocol: optional(ServiceDetailsProtocolStruct),
@@ -415,6 +519,27 @@ export class ChompApiService extends BaseDataService<
     return {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+    };
+  }
+
+  /**
+   * Fetches the bearer token along with a SHA-256 digest of it, for query
+   * keys of profile-scoped requests. The digest, not the token, goes in the
+   * key because query keys leave the service via the `cacheUpdated`
+   * messenger events.
+   *
+   * @returns The bearer token and its digest.
+   */
+  async #getProfileScopedToken(): Promise<{
+    token: string;
+    profileKey: Hex;
+  }> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return {
+      token,
+      profileKey: bytesToHex(await sha256(stringToBytes(token))),
     };
   }
 
@@ -527,6 +652,45 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Removes an address association from the authenticated profile.
+   * When called with an addresses that is linked as successors it will only succeed
+   * if the chomp migration has not yet created a funds-transfer request. Otherwise
+   * CHOMP will reject the request with `LINK_COMPLETE`
+   *
+   * DELETE /v1/auth/address
+   *
+   * Executed as a mutation so it is never retried: a retry after a lost
+   * response would hit an already-removed address and fail with a 404.
+   *
+   * @param address - The address to disassociate.
+   */
+  async disassociateAddress(address: Hex): Promise<void> {
+    await this.executeMutation({
+      mutationKey: [`${this.name}:disassociateAddress`],
+      mutationFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v1/auth/address', this.#baseUrl),
+          {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({ address }),
+          },
+        );
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `DELETE /v1/auth/address failed with status '${response.status}'`,
+          );
+        }
+
+        return null;
+      },
+    });
+  }
+
+  /**
    * Fetches the addresses associated with the authenticated profile.
    *
    * GET /v1/auth/address
@@ -544,10 +708,7 @@ export class ChompApiService extends BaseDataService<
    * Addresses are lowercased.
    */
   async getAssociatedAddresses(): Promise<ProfileAddressEntry[]> {
-    const token = await this.messenger.call(
-      'AuthenticationController:getBearerToken',
-    );
-    const profileKey = bytesToHex(await sha256(stringToBytes(token)));
+    const { token, profileKey } = await this.#getProfileScopedToken();
 
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getAssociatedAddresses`, profileKey],
@@ -722,6 +883,46 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Submits one or more intents to the CHOMP API, including the Money Account
+   * migration intents that `POST /v1/intent` rejects.
+   *
+   * POST /v2/intent
+   *
+   * CHOMP accepts at most 10 intents per request. Their delegations must
+   * already be saved to the authenticated user storage.
+   *
+   * @param intents - The array of intents to submit.
+   * @returns The array of intent responses.
+   */
+  async createIntentsV2(
+    intents: SendIntentV2Params[],
+  ): Promise<SendIntentV2Response[]> {
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createIntentsV2`, intents],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(new URL('/v2/intent', this.#baseUrl), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(intents),
+        });
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST /v2/intent failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, SendIntentV2ResponseArrayStruct);
+  }
+
+  /**
    * Fetches intents associated with a given address.
    *
    * GET /v1/intent/account/:address
@@ -829,5 +1030,145 @@ export class ChompApiService extends BaseDataService<
     });
 
     return create(jsonResponse, ServiceDetailsResponseStruct);
+  }
+
+  /**
+   * Fetches the Money Account identities of the authenticated profile, including
+   * status and migration steps information. Calling this will start migrations.
+   *
+   * GET /v1/money-account/identities
+   *
+   * Profile-scoped and used to drive migrations, so it is always fetched
+   * fresh and keyed by a digest of the bearer token, like
+   * {@link ChompApiService.getAssociatedAddresses}.
+   *
+   * @returns The identities; empty when the profile has no Money Account.
+   * Addresses are lowercased.
+   */
+  async getDerivedIdentities(): Promise<DerivedIdentitiesResponse> {
+    const { token, profileKey } = await this.#getProfileScopedToken();
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getDerivedIdentities`, profileKey],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const response = await fetch(
+          new URL('/v1/money-account/identities', this.#baseUrl),
+          { headers: this.#headersForToken(token) },
+        );
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `GET /v1/money-account/identities failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, DerivedIdentitiesResponseStruct);
+  }
+
+  /**
+   * Fetches the identity containing an address, along with where the address
+   * sits in it.
+   *
+   * GET /v1/money-account/identities/address/:address
+   *
+   * Always fetched fresh and keyed by a digest of the bearer token.
+   *
+   * @param address - The address to look up.
+   * @returns The identity and address details, or `null` when CHOMP responds
+   * with `ADDRESS_NOT_ASSOCIATED`
+   *
+   * Addresses are lowercased.
+   */
+  async getDerivedIdentityByAddress(
+    address: Hex,
+  ): Promise<AddressIdentityResponse | null> {
+    const { token, profileKey } = await this.#getProfileScopedToken();
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:getDerivedIdentityByAddress`,
+        profileKey,
+        address,
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const response = await fetch(
+          new URL(
+            `/v1/money-account/identities/address/${address}`,
+            this.#baseUrl,
+          ),
+          { headers: this.#headersForToken(token) },
+        );
+
+        if (!response.ok) {
+          const error = await createChompApiError(
+            response,
+            `GET /v1/money-account/identities/address/${address} failed with status '${response.status}'`,
+          );
+          if (error.code === 'ADDRESS_NOT_ASSOCIATED') {
+            return null;
+          }
+          throw error;
+        }
+
+        return response.json();
+      },
+    });
+
+    return jsonResponse === null
+      ? null
+      : create(jsonResponse, AddressIdentityResponseStruct);
+  }
+
+  /**
+   * Starts moving the funds of a migrating Money Account to its successor.
+   *
+   * POST /v1/money-account/identities/address/:address/funds-transfer
+   *
+   * CHOMP starts the transfer for the predecessor of the migrating identity
+   * that contains `address`, once every other migration step is complete,
+   * and rejects the request with `MIGRATION_STEPS_INCOMPLETE` otherwise. Once
+   * the transfer exists, the migration can no longer be cancelled. Repeating
+   * the request returns the existing transfer requests, so it is retried like
+   * a read.
+   *
+   * @param address - Any address of the migrating identity.
+   * @returns The funds-transfer requests. Addresses are lowercased.
+   */
+  async startFundsTransfer(address: Hex): Promise<FundsTransferStart> {
+    const { token, profileKey } = await this.#getProfileScopedToken();
+    const path = `/v1/money-account/identities/address/${address}/funds-transfer`;
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:startFundsTransfer`, profileKey, address],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const response = await fetch(new URL(path, this.#baseUrl), {
+          method: 'POST',
+          headers: this.#headersForToken(token),
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST ${path} failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, FundsTransferStartStruct);
   }
 }

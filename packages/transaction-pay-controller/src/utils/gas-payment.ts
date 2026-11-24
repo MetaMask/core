@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type {
   GasFeeToken,
   TransactionMeta,
@@ -15,7 +16,7 @@ import type {
 } from '../types.js';
 import { getFeatureFlags, isEIP7702Chain } from './feature-flags.js';
 import { calculateGasFeeTokenCost } from './gas.js';
-import { getNativeToken, getTokenBalance } from './token.js';
+import { getEvmQuoteSource, getNativeToken, getTokenBalance } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'gas-payment');
 
@@ -138,11 +139,11 @@ type GasStationCostRequest = {
    * Account the gas station simulates the fee token transfer from. Defaults to
    * `request.from`. Predict withdrawals hold the source token in a Safe proxy,
    * so the probe must target the proxy rather than the still-empty EOA.
+   *
+   * The Safe cannot submit the EIP-7702 batch, so when set only the first
+   * transaction is simulated and its cost is scaled to `totalGasEstimate`.
    */
   feeTokenAccount?: Hex;
-
-  /** First origin-chain call, simulated to discover available fee tokens. */
-  firstStepData: GasStationStepData;
 
   messenger: TransactionPayControllerMessenger;
 
@@ -153,28 +154,44 @@ type GasStationCostRequest = {
    */
   nativeGasCostRaw?: string;
 
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId' | 'sourceTokenAddress'>;
+  request: EvmGasPaymentSource & { sourceTokenAddress: Hex };
 
-  /** Combined gas estimate across every origin-chain call. */
+  /**
+   * Combined gas estimate across every origin-chain call. Only used to scale
+   * the cost when simulating from a `feeTokenAccount`.
+   */
   totalGasEstimate: number;
 
-  /** Number of origin-chain calls the estimate covers. */
-  totalItemCount: number;
+  /**
+   * Every origin-chain call in submission order. Multiple calls are simulated
+   * as the EIP-7702 batch that is submitted, so the gas station prices the
+   * whole batch rather than the first call alone.
+   */
+  transactions: GasStationStepData[];
 };
 
-type GasStationStepData = {
+export type GasStationStepData = {
   data: Hex;
   to: Hex;
-  value?: string;
+  value?: number | string;
 };
 
 type SponsorshipRequest = {
   /** Whether the paying account can sign EIP-7702 authorizations. */
   accountSupports7702: boolean | undefined;
 
-  request: Pick<QuoteRequest, 'sourceChainId' | 'targetChainId'>;
+  request: Pick<QuoteRequest, 'sourceAssetId' | 'targetChainId'>;
 
   transaction: Pick<TransactionMeta, 'chainId' | 'isGasFeeSponsored'>;
+};
+
+/** EVM account and chain paying origin gas, derived from a quote request. */
+type EvmGasPaymentSource = {
+  /** Address of the account paying origin gas. */
+  from: Hex;
+
+  /** Chain ID of the source token. */
+  sourceChainId: Hex;
 };
 
 /**
@@ -199,7 +216,7 @@ export function shouldUseGasStation({
 }: {
   messenger: TransactionPayControllerMessenger;
   nativeGasCostRaw: string | undefined;
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
+  request: EvmGasPaymentSource;
 }): boolean {
   const { isSufficient, nativeBalanceRaw } = checkNativeBalance({
     messenger,
@@ -241,7 +258,7 @@ export function shouldUseGasStation({
  */
 function canUseGasStation(
   messenger: TransactionPayControllerMessenger,
-  sourceChainId: QuoteRequest['sourceChainId'],
+  sourceChainId: Hex,
 ): boolean {
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
@@ -384,23 +401,21 @@ function getGasPayment({
  * @param request - Cost request.
  * @param request.accountSupports7702 - Whether the account can sign EIP-7702 authorizations.
  * @param request.feeTokenAccount - Account the fee token transfer is simulated from.
- * @param request.firstStepData - First origin-chain call to simulate.
  * @param request.messenger - Controller messenger.
  * @param request.nativeGasCostRaw - Native gas cost the user would otherwise pay, in raw units.
  * @param request.request - Quote request fields identifying the payment.
  * @param request.totalGasEstimate - Combined gas estimate across every origin-chain call.
- * @param request.totalItemCount - Number of origin-chain calls the estimate covers.
+ * @param request.transactions - Every origin-chain call in submission order.
  * @returns The resolved gas station cost.
  */
 export async function resolveGasStationCost({
   accountSupports7702,
   feeTokenAccount,
-  firstStepData,
   messenger,
   nativeGasCostRaw,
   request,
   totalGasEstimate,
-  totalItemCount,
+  transactions,
 }: GasStationCostRequest): Promise<GasStationCost> {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
@@ -436,13 +451,13 @@ export async function resolveGasStationCost({
   });
 
   const amount = await getGasStationCostInSourceToken({
-    feeTokenAccount: feeTokenAccount ?? from,
-    firstStepData,
+    feeTokenAccount,
+    from,
     messenger,
     sourceChainId,
     sourceTokenAddress,
     totalGasEstimate,
-    totalItemCount,
+    transactions,
   });
 
   return { amount, isAvailable: true };
@@ -450,23 +465,29 @@ export async function resolveGasStationCost({
 
 async function getGasStationCostInSourceToken({
   feeTokenAccount,
-  firstStepData,
+  from,
   messenger,
   sourceChainId,
   sourceTokenAddress,
   totalGasEstimate,
-  totalItemCount,
+  transactions,
 }: {
-  feeTokenAccount: Hex;
-  firstStepData: GasStationStepData;
+  feeTokenAccount?: Hex;
+  from: Hex;
   messenger: TransactionPayControllerMessenger;
   sourceChainId: Hex;
   sourceTokenAddress: Hex;
   totalGasEstimate: number;
-  totalItemCount: number;
+  transactions: GasStationStepData[];
 }): Promise<Amount | undefined> {
-  const { data, to, value } = firstStepData;
+  if (!transactions.length) {
+    log('No origin transactions to estimate gas fee tokens', {
+      sourceChainId,
+    });
+    return undefined;
+  }
 
+  const isBatch = !feeTokenAccount && transactions.length > 1;
   let gasFeeTokens: GasFeeToken[] | undefined;
 
   try {
@@ -474,10 +495,12 @@ async function getGasStationCostInSourceToken({
       'TransactionController:getGasFeeTokens',
       {
         chainId: sourceChainId,
-        data,
-        from: feeTokenAccount,
-        to,
-        value: toHex(value ?? '0'),
+        ...getGasStationSimulation({
+          feeTokenAccount,
+          from,
+          isBatch,
+          transactions,
+        }),
       },
     );
   } catch (error) {
@@ -505,24 +528,22 @@ async function getGasStationCostInSourceToken({
   log('Found gas fee token', {
     amount: gasFeeToken.amount,
     gas: gasFeeToken.gas,
+    isBatch,
     sourceChainId,
     sourceTokenAddress,
+    transactionCount: transactions.length,
   });
-
-  const gasFeeTokenWithNormalizedAmount = {
-    ...gasFeeToken,
-    amount: toHex(
-      getNormalizedGasFeeTokenAmount({
-        gasFeeToken,
-        totalGasEstimate,
-        totalItemCount,
-      }),
-    ),
-  };
 
   const gasFeeTokenCost = calculateGasFeeTokenCost({
     chainId: sourceChainId,
-    gasFeeToken: gasFeeTokenWithNormalizedAmount,
+    gasFeeToken: feeTokenAccount
+      ? {
+          ...gasFeeToken,
+          amount: toHex(
+            getScaledGasFeeTokenAmount({ gasFeeToken, totalGasEstimate }),
+          ),
+        }
+      : gasFeeToken,
     messenger,
   });
 
@@ -543,25 +564,73 @@ async function getGasStationCostInSourceToken({
   return gasFeeTokenCost;
 }
 
-function getNormalizedGasFeeTokenAmount({
+/**
+ * Build the transaction the gas station simulates.
+ *
+ * Multiple origin calls are submitted as a single EIP-7702 batch to the
+ * account itself, so that batch is simulated to price exactly what is
+ * submitted. A fee token account such as a Predict Safe cannot submit the
+ * batch, so only its first call is simulated.
+ *
+ * @param request - Simulation request.
+ * @param request.feeTokenAccount - Account the fee token transfer is simulated from.
+ * @param request.from - Account submitting the origin calls.
+ * @param request.isBatch - Whether to simulate every call as an EIP-7702 batch.
+ * @param request.transactions - Every origin-chain call in submission order.
+ * @returns The transaction to simulate.
+ */
+function getGasStationSimulation({
+  feeTokenAccount,
+  from,
+  isBatch,
+  transactions,
+}: {
+  feeTokenAccount?: Hex;
+  from: Hex;
+  isBatch: boolean;
+  transactions: GasStationStepData[];
+}): { data: Hex; from: Hex; to: Hex; value: Hex } {
+  if (!isBatch) {
+    const { data, to, value } = transactions[0];
+
+    return {
+      data,
+      from: feeTokenAccount ?? from,
+      to,
+      value: toHex(value ?? '0'),
+    };
+  }
+
+  const batch = generateEIP7702BatchTransaction(
+    from,
+    transactions.map(({ data, to, value }) => ({
+      data,
+      to,
+      value: toHex(value ?? '0'),
+    })),
+  );
+
+  return {
+    data: batch.data as Hex,
+    from,
+    to: batch.to as Hex,
+    value: '0x0',
+  };
+}
+
+function getScaledGasFeeTokenAmount({
   gasFeeToken,
   totalGasEstimate,
-  totalItemCount,
 }: {
   gasFeeToken: GasFeeToken;
   totalGasEstimate: number;
-  totalItemCount: number;
 }): string {
   let amount = new BigNumber(gasFeeToken.amount);
+  const gas = new BigNumber(gasFeeToken.gas);
 
-  if (totalItemCount > 1) {
-    const gas = new BigNumber(gasFeeToken.gas);
-    const gasFeeAmount = new BigNumber(gasFeeToken.amount);
-
-    if (totalGasEstimate > 0 && gas.isGreaterThan(0)) {
-      const gasRate = gasFeeAmount.dividedBy(gas);
-      amount = gasRate.multipliedBy(totalGasEstimate);
-    }
+  if (totalGasEstimate > 0 && gas.isGreaterThan(0)) {
+    const gasRate = amount.dividedBy(gas);
+    amount = gasRate.multipliedBy(totalGasEstimate);
   }
 
   return amount.integerValue(BigNumber.ROUND_CEIL).toFixed(0);
@@ -587,7 +656,7 @@ function checkNativeBalance({
 }: {
   messenger: TransactionPayControllerMessenger;
   nativeGasCostRaw: string | undefined;
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
+  request: EvmGasPaymentSource;
 }): { isSufficient: boolean; nativeBalanceRaw: string } {
   const { from, sourceChainId } = request;
 
@@ -635,7 +704,7 @@ function isSponsoredRoute(
 
   return (
     isGasFeeSponsored &&
-    request.sourceChainId === transaction.chainId &&
+    getEvmQuoteSource(request).chainId === transaction.chainId &&
     request.targetChainId === transaction.chainId &&
     Boolean(accountSupports7702)
   );

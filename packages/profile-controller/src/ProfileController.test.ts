@@ -44,6 +44,7 @@ const mockMappedProfile: Profile = {
   avatarUrl: 'https://example.com/avatar.png',
   tradingPrivacy: 'public',
   connectedToX: false,
+  verified: false,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-02T00:00:00Z',
 };
@@ -143,10 +144,7 @@ function createController(
 } {
   const rootMessenger = options.rootMessenger ?? getRootMessenger();
   const messenger = getMessenger(rootMessenger);
-  const controller = new ProfileController({
-    messenger,
-    state: options.state,
-  });
+  const controller = new ProfileController({ messenger, state: options.state });
   return { controller, rootMessenger, messenger };
 }
 
@@ -163,6 +161,7 @@ describe('ProfileController', () => {
           avatarUrl: '',
           tradingPrivacy: 'public',
           connectedToX: false,
+          verified: false,
           createdAt: '',
           updatedAt: '',
         },
@@ -171,6 +170,20 @@ describe('ProfileController', () => {
   });
 
   describe('constructor', () => {
+    it('defaults verification in legacy persisted profiles to false', () => {
+      const { verified: _verified, ...legacyProfile } = mockMappedProfile;
+      const { controller } = createController({
+        state: { profile: legacyProfile as Profile },
+      });
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+    });
+
+    it('preserves verification from persisted profiles', () => {
+      const { controller } = createController({
+        state: { profile: { ...mockMappedProfile, verified: true } },
+      });
+      expect(controller.state.profile.verified).toBe(true);
+    });
     it('initializes with default state', () => {
       const { controller } = createController();
 
@@ -248,6 +261,27 @@ describe('ProfileController', () => {
   });
 
   describe('createProfile', () => {
+    it.each([true, false])('maps verified=%s into state', async (verified) => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:createProfile',
+        vi.fn().mockResolvedValue({ ...mockProfileResponse, verified }),
+      );
+      const { controller } = createController({ rootMessenger });
+      await controller.createProfile({
+        profile_id: 'canonical-123',
+        username: 'alice',
+        display_name: 'Alice Wonderland',
+        linked_addresses: [],
+        trading_privacy: 'public',
+      });
+      expect(controller.state.profile).toStrictEqual({
+        ...mockMappedProfile,
+        verified,
+      });
+    });
+
     it('calls ProfileService:createProfile and updates state', async () => {
       const rootMessenger = getRootMessenger();
       const createProfileMock = vi.fn().mockResolvedValue(mockProfileResponse);
@@ -716,10 +750,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
-        vi.fn().mockResolvedValue({
-          ...mockProfileResponse,
-          bio: null,
-        }),
+        vi.fn().mockResolvedValue({ ...mockProfileResponse, bio: null }),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -899,6 +930,31 @@ describe('ProfileController', () => {
       expect(disconnectXMock).toHaveBeenCalledWith('profile-123');
       expect(controller.state.xProfile).toBeUndefined();
       expect(controller.state.profile.connectedToX).toBe(false);
+    });
+  });
+
+  describe('clearState', () => {
+    it('resets the profile and removes the X profile', () => {
+      const { controller, messenger } = createController({
+        state: {
+          profile: { ...mockMappedProfile, connectedToX: true },
+          xProfile: mockMappedXProfile,
+        },
+      });
+      const stateChangedListener = vi.fn();
+      messenger.subscribe(
+        'ProfileController:stateChanged',
+        stateChangedListener,
+      );
+
+      controller.clearState();
+
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
+      expect(controller.getProfile()).toBeUndefined();
+      expect(controller.getXProfile()).toBeUndefined();
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -4,7 +4,7 @@ import { assert, JsonRpcParams } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { MAX_SAFE_CHAIN_ID } from './constants.js';
 import * as util from './util.js';
@@ -525,6 +525,10 @@ describe('util', () => {
       nock(SOME_FAILING_API).get(/.+/u).reply(500).persist();
     });
 
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
     it('should return successful fetch response', async () => {
       const res = await util.successfulFetch(SOME_API);
       const parsed = await res.json();
@@ -545,17 +549,23 @@ describe('util', () => {
   });
 
   describe('timeoutFetch', () => {
-    beforeEach(() => {
-      nock(SOME_API).get(/.+/u).delay(300).reply(200, {}).persist();
+    afterEach(() => {
+      nock.cleanAll();
     });
 
     it('should fetch first if response is faster than timeout', async () => {
+      nock(SOME_API).get(/.+/u).reply(200, {});
+
       const res = await util.timeoutFetch(SOME_API);
       const parsed = await res.json();
       expect(parsed).toStrictEqual({});
     });
 
     it('should fail fetch with timeout', async () => {
+      nock(SOME_API)
+        .get(/.+/u)
+        .reply(async () => await new Promise<never>(() => undefined));
+
       await expect(util.timeoutFetch(SOME_API, {}, 100)).rejects.toThrow(
         'timeout',
       );

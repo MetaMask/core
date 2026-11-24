@@ -11,7 +11,10 @@ import { flushPromises } from '../../../../../tests/vitest/helpers.js';
 import type { ServerNotificationMessage } from '../BackendWebSocketService.js';
 import { WebSocketState } from '../BackendWebSocketService.js';
 import { OHLCVService } from './OHLCVService.js';
-import type { OHLCVServiceMessenger } from './OHLCVService.js';
+import type {
+  OHLCVServiceMessenger,
+  OHLCVServiceOptions,
+} from './OHLCVService.js';
 import type { OHLCVSubscriptionOptions } from './types.js';
 
 // =============================================================================
@@ -157,9 +160,15 @@ type WithServiceCallback<R> = (payload: {
   destroy: () => void;
 }) => Promise<R> | R;
 
-async function withService<R>(fn: WithServiceCallback<R>): Promise<R> {
+async function withService<R>(
+  fn: WithServiceCallback<R>,
+  options?: Pick<OHLCVServiceOptions, 'subscriptionNamespace'>,
+): Promise<R> {
   const setup = getMessenger();
-  const service = new OHLCVService({ messenger: setup.messenger });
+  const service = new OHLCVService({
+    messenger: setup.messenger,
+    ...options,
+  });
   service.init();
 
   try {
@@ -184,7 +193,7 @@ const getSystemNotificationCallback = (mocks: {
       typeof c[0] === 'object' &&
       'channelName' in c[0] &&
       (c[0] as { channelName: string }).channelName ===
-        'system-notifications.v1.market-data.v1',
+        'system-notifications.v1.ohlcv.v1',
   );
 
   if (!call) {
@@ -206,7 +215,7 @@ const SUB_OPTS: OHLCVSubscriptionOptions = {
 };
 
 const EXPECTED_CHANNEL =
-  'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1m.usd';
+  'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1m.usd';
 
 const BASE_CONNECTION_INFO = {
   url: 'ws://test',
@@ -240,10 +249,38 @@ describe('OHLCVService', () => {
         expect(service.name).toBe('OHLCVService');
 
         expect(mocks.addChannelCallback).toHaveBeenCalledWith({
-          channelName: 'system-notifications.v1.market-data.v1',
+          channelName: 'system-notifications.v1.ohlcv.v1',
           callback: expect.any(Function),
         });
       });
+    });
+
+    it('should use subscriptionNamespace for channels and system notifications', async () => {
+      const subscriptionNamespace = 'custom-ohlcv.v2';
+      const channel = `${subscriptionNamespace}.${SUB_OPTS.assetId}.${SUB_OPTS.interval}.${SUB_OPTS.currency}`;
+
+      await withService(
+        async ({ service, mocks }) => {
+          await service.subscribe(SUB_OPTS);
+
+          expect(mocks.addChannelCallback).toHaveBeenCalledWith({
+            channelName: `system-notifications.v1.${subscriptionNamespace}`,
+            callback: expect.any(Function),
+          });
+          expect(mocks.subscribe).toHaveBeenCalledWith({
+            channels: [channel],
+            channelType: subscriptionNamespace,
+            callback: expect.any(Function),
+          });
+
+          service.destroy();
+
+          expect(mocks.removeChannelCallback).toHaveBeenCalledWith(
+            `system-notifications.v1.${subscriptionNamespace}`,
+          );
+        },
+        { subscriptionNamespace },
+      );
     });
   });
 
@@ -262,7 +299,7 @@ describe('OHLCVService', () => {
         );
         expect(mocks.subscribe).toHaveBeenCalledWith({
           channels: [EXPECTED_CHANNEL],
-          channelType: 'market-data.v1',
+          channelType: 'ohlcv.v1',
           callback: expect.any(Function),
         });
       });
@@ -445,7 +482,7 @@ describe('OHLCVService', () => {
         interval: '1h',
       };
       const channel1h =
-        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
+        'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
         const mockUnsub1m = vi.fn().mockResolvedValue(undefined);
@@ -492,7 +529,7 @@ describe('OHLCVService', () => {
         interval: '1h',
       };
       const channel1h =
-        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
+        'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
         const mockUnsub = vi.fn().mockResolvedValue(undefined);
@@ -910,7 +947,7 @@ describe('OHLCVService', () => {
 
         expect(mocks.subscribe).toHaveBeenCalledWith({
           channels: [EXPECTED_CHANNEL],
-          channelType: 'market-data.v1',
+          channelType: 'ohlcv.v1',
           callback: expect.any(Function),
         });
       });
@@ -1011,7 +1048,7 @@ describe('OHLCVService', () => {
           expect(mocks.connect).toHaveBeenCalledTimes(1);
           expect(mocks.subscribe).toHaveBeenCalledWith({
             channels: [EXPECTED_CHANNEL],
-            channelType: 'market-data.v1',
+            channelType: 'ohlcv.v1',
             callback: expect.any(Function),
           });
 
@@ -1105,7 +1142,7 @@ describe('OHLCVService', () => {
         const systemCallback = getSystemNotificationCallback(mocks);
         systemCallback({
           event: 'system-notification',
-          channel: 'system-notifications.v1.market-data.v1',
+          channel: 'system-notifications.v1.ohlcv.v1',
           data: { chainIds: ['eip155:8453'], status: 'up' },
           timestamp: Date.now(),
         });
@@ -1186,7 +1223,7 @@ describe('OHLCVService', () => {
         const systemCallback = getSystemNotificationCallback(mocks);
         systemCallback({
           event: 'system-notification',
-          channel: 'system-notifications.v1.market-data.v1',
+          channel: 'system-notifications.v1.ohlcv.v1',
           data: { chainIds: ['eip155:8453'], status: 'down' },
           timestamp: 1776364071003,
         });
@@ -1207,7 +1244,7 @@ describe('OHLCVService', () => {
         const systemCallback = getSystemNotificationCallback(mocks);
         systemCallback({
           event: 'system-notification',
-          channel: 'system-notifications.v1.market-data.v1',
+          channel: 'system-notifications.v1.ohlcv.v1',
           data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
           timestamp: 1776364071003,
         });
@@ -1227,7 +1264,7 @@ describe('OHLCVService', () => {
         expect(() =>
           systemCallback({
             event: 'system-notification',
-            channel: 'system-notifications.v1.market-data.v1',
+            channel: 'system-notifications.v1.ohlcv.v1',
             data: { invalid: true },
             timestamp: Date.now(),
           }),
@@ -1310,7 +1347,7 @@ describe('OHLCVService', () => {
         interval: '1h',
       };
       const channel1h =
-        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
+        'ohlcv.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
         const mockUnsub1h = vi.fn().mockResolvedValue(undefined);
@@ -1446,7 +1483,7 @@ describe('OHLCVService', () => {
 
         expect(mocks.subscribe).toHaveBeenCalledWith({
           channels: [EXPECTED_CHANNEL],
-          channelType: 'market-data.v1',
+          channelType: 'ohlcv.v1',
           callback: expect.any(Function),
         });
       });
@@ -1559,7 +1596,7 @@ describe('OHLCVService', () => {
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
 
         expect(mocks.removeChannelCallback).toHaveBeenCalledWith(
-          'system-notifications.v1.market-data.v1',
+          'system-notifications.v1.ohlcv.v1',
         );
       });
     });

@@ -4,12 +4,13 @@ import type {
   BatchTransactionParams,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import { PaymentOverride } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
@@ -25,7 +26,7 @@ import {
 import * as polymarketWithdraw from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
-  getLiveTokenBalance,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
 } from '../../utils/token.js';
 import {
@@ -44,7 +45,12 @@ vi.mock(import('../../utils/second-leg.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   submitSecondLeg: vi.fn(),
 }));
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 vi.mock(import('../../utils/transaction.js'));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('./hyperliquid-withdraw.js'));
@@ -58,6 +64,7 @@ const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const TOKEN_ADDRESS_MOCK = '0x123' as Hex;
+const SOURCE_ASSET_ID_MOCK: CaipAssetType = `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -124,8 +131,7 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
       original: ORIGINAL_QUOTE_MOCK,
       request: {
         from: FROM_MOCK,
-        sourceChainId: CHAIN_ID_MOCK,
-        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+        sourceAssetId: SOURCE_ASSET_ID_MOCK,
       },
       sourceAmount: {
         raw: SOURCE_AMOUNT_RAW_MOCK,
@@ -149,7 +155,7 @@ describe('Relay Submit Utils', () => {
   const getTransactionMock = vi.mocked(getTransaction);
   const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
   const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
-  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const normalizeTokenAddressMock = vi.mocked(normalizeTokenAddress);
   const getRelayPollingIntervalMock = vi.mocked(getRelayPollingInterval);
   const getRelayPollingTimeoutMock = vi.mocked(getRelayPollingTimeout);
@@ -475,9 +481,8 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('keeps max-gas-station submissions on current gasFeeToken-only options', async () => {
+    it('keeps source gas fee token submissions on gasFeeToken-only options', async () => {
       request.quotes[0].fees.isSourceGasFeeToken = true;
-      request.quotes[0].original.metamask.isMaxGasStation = true;
 
       await submitRelayQuotes(request);
 
@@ -1522,6 +1527,49 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
 
+      it.each([
+        ['no account override', undefined],
+        ['an account override', '0xaccountOverride'],
+      ])(
+        'submits Predict Safe withdraws from the transaction account with %s',
+        async (_title, accountOverride) => {
+          const safeAddress = '0xsafe' as Hex;
+          const safeExecData = '0x6a761202' as Hex;
+
+          request.quotes[0].request.accountOverride = accountOverride as
+            | Hex
+            | undefined;
+          request.quotes[0].request.refundTo = safeAddress;
+          request.transaction = {
+            id: ORIGINAL_TRANSACTION_ID_MOCK,
+            nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+            txParams: { data: safeExecData, from: FROM_MOCK, to: safeAddress },
+            type: TransactionType.predictWithdraw,
+          } as TransactionMeta;
+
+          await submitRelayQuotes(request);
+
+          expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+          expect(addTransactionBatchMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              from: FROM_MOCK,
+              transactions: [
+                expect.objectContaining({
+                  params: expect.objectContaining({
+                    data: safeExecData,
+                    to: safeAddress,
+                  }),
+                  type: TransactionType.predictWithdraw,
+                }),
+                expect.objectContaining({
+                  type: TransactionType.relayDeposit,
+                }),
+              ],
+            }),
+          );
+        },
+      );
+
       it('activates 7702 mode with single combined post-quote gas limit', async () => {
         request.quotes[0].original.metamask.gasLimits = [203093];
         request.quotes[0].original.metamask.is7702 = true;
@@ -1711,12 +1759,14 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
 
-    it('throws descriptive error if balance check fails', async () => {
-      getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
+    it('submits anyway if the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so submission
+      // proceeds and the Relay and the chain reject if truly underfunded.
+      getLiveTokenBalanceMock.mockResolvedValue(undefined);
 
-      await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay: Cannot validate payment token balance - RPC timeout',
-      );
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
 
     describe('HyperLiquid source', () => {

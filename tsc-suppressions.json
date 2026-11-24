@@ -96,25 +96,16 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
-      "count": 12
-    },
-    "TS2345": {
-      "count": 1
+      "count": 11
     },
     "TS2352": {
-      "count": 2
-    },
-    "TS2445": {
-      "count": 2
+      "count": 1
     },
     "TS2493": {
       "count": 1
     },
     "TS2532": {
       "count": 1
-    },
-    "TS2554": {
-      "count": 9
     },
     "TS2739": {
       "count": 4
@@ -156,11 +147,6 @@
       "count": 2
     }
   },
-  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
-    "TS2554": {
-      "count": 2
-    }
-  },
   "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
     "TS2418": {
       "count": 3
@@ -168,10 +154,7 @@
   },
   "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
     "TS18048": {
-      "count": 5
-    },
-    "TS2532": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
@@ -353,19 +336,13 @@
       "count": 5
     }
   },
-  "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
-    "TS2307": {
+  "packages/bridge-status-controller/src/bridge-status-controller.deposit.test.ts": {
+    "TS6305": {
       "count": 1
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
     "TS2322": {
-      "count": 2
-    },
-    "TS2345": {
-      "count": 1
-    },
-    "TS2741": {
       "count": 2
     }
   },
@@ -374,12 +351,14 @@
       "count": 1
     }
   },
-  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
-    "TS2345": {
+  "packages/bridge-status-controller/src/bridge-status-controller.withdraw.test.ts": {
+    "TS6305": {
       "count": 1
-    },
-    "TS2353": {
-      "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/utils/with-mm-pay-approval.test.ts": {
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
@@ -402,20 +381,8 @@
     }
   },
   "packages/client-utils/src/mappers/helpers/transactions.test.ts": {
-    "TS2322": {
-      "count": 9
-    },
-    "TS2345": {
-      "count": 1
-    },
     "TS2352": {
       "count": 12
-    },
-    "TS2739": {
-      "count": 3
-    },
-    "TS2741": {
-      "count": 1
     }
   },
   "packages/client-utils/test/fixtures/api-transactions.ts": {
@@ -465,6 +432,17 @@
   "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
     "TS2741": {
       "count": 1
+    }
+  },
+  "packages/eth-sig-util/src/sign-typed-data.test.ts": {
+    "TS2351": {
+      "count": 1
+    },
+    "TS2593": {
+      "count": 1
+    },
+    "TS7053": {
+      "count": 18
     }
   },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
@@ -622,11 +600,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
-    "TS2769": {
-      "count": 3
-    }
-  },
   "packages/passkey-controller/tests/mocks/passkey-controller-messenger.ts": {
     "TS2322": {
       "count": 1
@@ -638,6 +611,11 @@
   "packages/perps-controller/tests/helpers/advancedOrders.ts": {
     "TS2322": {
       "count": 2
+    }
+  },
+  "packages/perps-controller/tests/helpers/lighterProvider.ts": {
+    "TS2339": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/helpers/serviceMocks.ts": {
@@ -688,9 +666,6 @@
     "TS2339": {
       "count": 1
     },
-    "TS2554": {
-      "count": 1
-    },
     "TS7005": {
       "count": 189
     },
@@ -712,9 +687,6 @@
   "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
     "TS18048": {
       "count": 8
-    },
-    "TS2304": {
-      "count": 1
     },
     "TS2339": {
       "count": 15
@@ -752,21 +724,42 @@
       "count": 6
     }
   },
-  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
-    "TS18048": {
-      "count": 1
-    },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-capabilities-and-chase-races.test.ts": {
     "TS2322": {
-      "count": 36
+      "count": 16
     },
     "TS2339": {
       "count": 1
     },
     "TS2345": {
-      "count": 2
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-chase-placement.test.ts": {
+    "TS2322": {
+      "count": 9
     },
     "TS7006": {
-      "count": 2
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-scale-ladder-and-fee-quotes.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 6
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS7006": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-twap-and-scale.test.ts": {
+    "TS2322": {
+      "count": 5
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.trading.test.ts": {
@@ -774,15 +767,24 @@
       "count": 1
     }
   },
-  "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
+  "packages/perps-controller/tests/src/providers/LighterProvider.order-validation.test.ts": {
     "TS2322": {
-      "count": 5
-    },
-    "TS2339": {
-      "count": 1
-    },
-    "TS2739": {
       "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.reads-and-orders.test.ts": {
+    "TS2322": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.recovery-journals.test.ts": {
+    "TS2739": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.settlement-recovery.test.ts": {
+    "TS2739": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/src/services/HyperLiquidClientService.test.ts": {
@@ -821,9 +823,6 @@
   "packages/perps-controller/tests/src/services/TradingService.test.ts": {
     "TS2339": {
       "count": 3
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidOrderBookProcessor.test.ts": {
@@ -847,11 +846,6 @@
       "count": 7
     }
   },
-  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
-    "TS2769": {
-      "count": 3
-    }
-  },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
     "TS2741": {
       "count": 1
@@ -868,14 +862,6 @@
     },
     "TS2339": {
       "count": 1
-    }
-  },
-  "packages/ramps-controller/src/NeoBankService.test.ts": {
-    "TS2322": {
-      "count": 2
-    },
-    "TS2345": {
-      "count": 2
     }
   },
   "packages/ramps-controller/src/NeoBankService.ts": {
@@ -1133,9 +1119,6 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-api.test.ts": {
-    "TS2741": {
-      "count": 2
-    },
     "TS2820": {
       "count": 1
     }
@@ -1191,7 +1174,7 @@
       "count": 7
     },
     "TS2741": {
-      "count": 55
+      "count": 52
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
@@ -1242,7 +1225,7 @@
   },
   "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.test.ts": {
     "TS1479": {
-      "count": 2
+      "count": 3
     },
     "TS1541": {
       "count": 1

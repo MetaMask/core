@@ -13,6 +13,7 @@ import {
 } from '../caip-formatters.js';
 import type { QuoteWarning } from '../quote-warnings/types.js';
 import { MetricsSwapType } from './constants.js';
+import type { MoneyAccountAction } from './constants.js';
 import type {
   AccountHardwareType,
   InputKeys,
@@ -177,6 +178,8 @@ export const getQuotesReceivedProperties = (
     token_symbol_source?: string;
     // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
     token_symbol_destination?: string | null;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    operation?: MoneyAccountAction;
   } = {},
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
@@ -219,5 +222,8 @@ export const getQuotesReceivedProperties = (
       custom_slippage: options.custom_slippage,
     }),
     feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
+    ...(options.operation && {
+      money_account_action: options.operation,
+    }),
   };
 };

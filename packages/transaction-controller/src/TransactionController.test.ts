@@ -146,6 +146,9 @@ const DATA_MOCK = '0x12345678';
 const VALUE_MOCK = '0xabcd';
 const ORIGIN_MOCK = 'test.com';
 const GAS_FEE_TOKEN_ADDRESS_MOCK = '0x20c0000000000000000000000000000000000000';
+const { projectLoggerMock } = vi.hoisted(() => ({
+  projectLoggerMock: Object.assign(vi.fn(), { extend: vi.fn(() => vi.fn()) }),
+}));
 
 vi.mock('./api/accounts-api');
 vi.mock('./gas-flows/DefaultGasFeeFlow');
@@ -157,6 +160,12 @@ vi.mock('./helpers/MethodDataHelper');
 vi.mock('./helpers/MultichainTrackingHelper');
 vi.mock('./helpers/PendingTransactionTracker');
 vi.mock('./hooks/ExtraTransactionsPublishHook');
+vi.mock('./logger.js', () => ({
+  createModuleLogger: vi.fn(() => vi.fn()),
+  incomingTransactionsLogger: vi.fn(),
+  lifecycleLogger: vi.fn(),
+  projectLogger: projectLoggerMock,
+}));
 vi.mock('./utils/batch');
 vi.mock('./utils/feature-flags');
 vi.mock('./utils/first-time-interaction');
@@ -619,6 +628,7 @@ describe('TransactionController', () => {
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+        'SentinelApiService:simulateTransactions',
       ],
     });
 
@@ -1255,6 +1265,260 @@ describe('TransactionController', () => {
       expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
       expect(incompleteTransaction?.error?.message).toBe(
         'Transaction incomplete at startup',
+      );
+    });
+
+    it('fails approved and signed transactions when isResumable is not provided', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+          transaction.error?.message,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          [
+            '123',
+            TransactionStatus.failed,
+            'Transaction incomplete at startup',
+          ],
+          [
+            '456',
+            TransactionStatus.failed,
+            'Transaction incomplete at startup',
+          ],
+        ]),
+      );
+    });
+
+    it('does not fail resumable transactions or their required transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(5),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+      const isResumable = vi.fn().mockReturnValue(true);
+
+      const { controller } = setupController({
+        options: {
+          isResumable,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(isResumable).toHaveBeenCalledTimes(1);
+      expect(isResumable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '123' }),
+      );
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual([
+        ['222', TransactionStatus.submitted],
+        ['123', TransactionStatus.approved],
+      ]);
+    });
+
+    it('does not fail incomplete required transactions of resumable transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '222',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222'],
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          isResumable: (transactionMeta: TransactionMeta) =>
+            transactionMeta.id === '123',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          ['222', TransactionStatus.approved],
+          ['123', TransactionStatus.approved],
+        ]),
+      );
+    });
+
+    it('does not fail required transactions shared with a resumable transaction', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '333',
+          chainId: toHex(5),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['333'],
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          isResumable: (transactionMeta: TransactionMeta) =>
+            transactionMeta.id === '123',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          ['333', TransactionStatus.submitted],
+          ['123', TransactionStatus.approved],
+          ['456', TransactionStatus.failed],
+        ]),
+      );
+    });
+
+    it('fails incomplete transactions when isResumable throws', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          isResumable: () => {
+            throw new Error('Cannot resume');
+          },
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
+      expect(projectLoggerMock).toHaveBeenCalledWith(
+        'isResumable error',
+        expect.any(Error),
       );
     });
 
@@ -2464,7 +2728,7 @@ describe('TransactionController', () => {
     describe('updates simulation data', () => {
       it('by default', async () => {
         getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
+          await request.getSimulationConfig?.('https://testurl.com');
           return {
             simulationData: SIMULATION_DATA_RESULT_MOCK,
           };
@@ -2612,7 +2876,7 @@ describe('TransactionController', () => {
 
       it('with getSimulationConfig', async () => {
         getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
+          await request.getSimulationConfig?.('https://testurl.com');
           return {
             simulationData: SIMULATION_DATA_RESULT_MOCK,
           };
@@ -2762,6 +3026,32 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
           GAS_FEE_TOKEN_MOCK,
         ]);
+      });
+
+      it('with sponsor', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [{ ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' }],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          { ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' },
+        ]);
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
       });
 
       it('with getSimulationConfig', async () => {
@@ -2980,6 +3270,113 @@ describe('TransactionController', () => {
 
         expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
         expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+    });
+
+    describe('updates gasFeeSponsor', () => {
+      it('sets gasFeeSponsor when simulation reports sponsored without gas fee tokens', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeSponsor).toBe('Uniswap');
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
+      it('does not set gasFeeSponsor when simulation reports not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
+      });
+
+      it('does not set gasFeeSponsor when isGasFeeSponsored is false in options', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isGasFeeSponsored: false,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
+      });
+
+      it('clears gasFeeSponsor when simulation no longer reports sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0xabcdef',
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
       });
     });
 
@@ -6538,6 +6935,114 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('finalizeResumedTransaction', () => {
+    const approvedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      hash: undefined,
+      status: TransactionStatus.approved as const,
+    } as unknown as TransactionMeta;
+
+    it('marks an approved transaction as submitted with the provided hash', () => {
+      const submittedListener = vi.fn();
+      const finishedListener = vi.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          isResumable: () => true,
+          state: {
+            transactions: [approvedTransactionMock],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionSubmitted',
+        submittedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.finalizeResumedTransaction(approvedTransactionMock.id, '0x1');
+
+      expect(controller.state.transactions[0]).toMatchObject({
+        hash: '0x1',
+        status: TransactionStatus.submitted,
+        submittedTime: expect.any(Number),
+      });
+      expect(submittedListener).toHaveBeenCalledTimes(1);
+      expect(submittedListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          hash: '0x1',
+          status: TransactionStatus.submitted,
+        }),
+      });
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hash: '0x1',
+          status: TransactionStatus.submitted,
+        }),
+      );
+    });
+
+    it('marks a signed transaction as submitted with the provided hash', () => {
+      const signedTransactionMock = {
+        ...TRANSACTION_META_MOCK,
+        hash: undefined,
+        status: TransactionStatus.signed as const,
+      } as unknown as TransactionMeta;
+      const { controller } = setupController({
+        options: {
+          isResumable: () => true,
+          state: {
+            transactions: [signedTransactionMock],
+          },
+        },
+      });
+
+      controller.finalizeResumedTransaction(signedTransactionMock.id, '0x1');
+
+      expect(controller.state.transactions[0]).toMatchObject({
+        hash: '0x1',
+        status: TransactionStatus.submitted,
+      });
+    });
+
+    it.each([TransactionStatus.submitted, TransactionStatus.confirmed])(
+      'throws without changing state when transaction status is %s',
+      (status) => {
+        const transactionMock = {
+          ...TRANSACTION_META_MOCK,
+          hash: '0x2',
+          status,
+        } as unknown as TransactionMeta;
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMock],
+            },
+          },
+        });
+
+        expect(() =>
+          controller.finalizeResumedTransaction(transactionMock.id, '0x1'),
+        ).toThrow(
+          `Cannot finalize resumed transaction ${transactionMock.id}: status is ${status}`,
+        );
+        expect(controller.state.transactions[0]).toStrictEqual(transactionMock);
+      },
+    );
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.finalizeResumedTransaction('missing-id', '0x1'),
+      ).toThrow('No transaction found with id missing-id');
+      expect(controller.state.transactions).toStrictEqual([]);
+    });
+  });
+
   describe('updateSecurityAlertResponse', () => {
     it('add securityAlertResponse to transaction meta', async () => {
       const transactionMeta = TRANSACTION_META_MOCK;
@@ -9073,6 +9578,7 @@ describe('TransactionController', () => {
         estimateGasBatchMock.mockResolvedValueOnce({
           totalGasLimit: totalGasLimitMock,
           gasLimits: gasLimitsMock,
+          mode: 'separate',
         });
 
         const result = await messenger.call(
@@ -9098,6 +9604,7 @@ describe('TransactionController', () => {
         expect(result).toStrictEqual({
           totalGasLimit: totalGasLimitMock,
           gasLimits: gasLimitsMock,
+          mode: 'separate',
         });
 
         expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);

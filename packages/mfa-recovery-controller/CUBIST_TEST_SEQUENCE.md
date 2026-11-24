@@ -7,46 +7,13 @@ each one. Error branches, pending-state repair, and multi-escrow behavior are
 in [ARCHITECTURE.md](./ARCHITECTURE.md); treat the TypeScript in `src/` as the
 source of truth if a diagram drifts.
 
-| Step | Client call                                                  | Version |
-| ---- | ------------------------------------------------------------ | ------- |
-| 1    | `register(secret, [siwe, passkey])`                          | `0 → 1` |
-| 2    | `updateRecoverySecret(passkey, newSecret, epoch)`            | `1 → 2` |
-| 3    | `updateIdentifiers(siwe, [siwe, replacementPasskey], epoch)` | `2 → 3` |
+| Step | Client call                                                  | Read with            | Version |
+| ---- | ------------------------------------------------------------ | -------------------- | ------- |
+| 1    | `register(secret, [siwe, passkey])`                          | `siwe`               | `0 → 1` |
+| 2    | `updateRecoverySecret(passkey, newSecret, epoch)`            | `passkey`            | `1 → 2` |
+| 3    | `updateIdentifiers(siwe, [siwe, replacementPasskey], epoch)` | `replacementPasskey` | `2 → 3` |
 
 Each update passes the `epoch` returned by the previous read.
-
-## Overview
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant Mobile as Mobile client
-  participant C as MfaRecoveryController
-  participant Cubist as Cubist escrow
-
-  Note over Mobile,Cubist: Setup: sign in, open Cubist session, build controller
-
-  Mobile->>C: register(secret, [siwe, passkey])
-  C->>Cubist: applyMutation (version 0 → 1)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with siwe
-  C->>Cubist: getSecret
-  C-->>Mobile: secret, epoch 1
-
-  Mobile->>C: updateRecoverySecret(passkey, newSecret, 1)
-  C->>Cubist: applyMutation (version 1 → 2)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with passkey
-  C->>Cubist: getSecret
-  C-->>Mobile: newSecret, epoch 2
-
-  Mobile->>C: updateIdentifiers(siwe, [siwe, replacementPasskey], 2)
-  C->>Cubist: applyMutation (version 2 → 3)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with replacementPasskey
-  C->>Cubist: getSecret
-  C-->>Mobile: same secret, epoch 3
-```
 
 ## Setup
 
@@ -57,116 +24,102 @@ never calls these services itself.
 sequenceDiagram
   autonumber
   participant Mobile as Mobile client
-  participant Auth as authProvider
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant C as MfaRecoveryController
   participant Cubist as Cubist escrow
 
   Note over Mobile: SIWE sign-in with the primary account → accessToken
-  Mobile->>Auth: new StubAuthProvider(accessToken, apiKey)
-  Mobile->>Auth: getAccessToken()
-  Auth-->>Mobile: dev JWT (POST /token)
+  Mobile->>Auth: getBearerToken()
+  Auth-->>Mobile: profile bearer token
   Note over Mobile: Recovery Registration API exchanges that token → OIDC idToken
   Mobile->>Cubist: createOidcSession(orgId, idToken, scopes)
   Cubist-->>Mobile: CubeSigner session
   Note over Mobile: new CubistEscrowProvider(session, wrap key, receipt key)
   Mobile->>Id: new TestIdentifierAuthProvider(address, signPersonalMessage)
-  Mobile->>C: new MfaRecoveryController(authProvider, identifierAuthProvider, [escrow])
+  Mobile->>C: new MfaRecoveryController({ messenger, identifierAuthProvider, escrows: [escrow] })
 ```
 
-- `authProvider` (`StubAuthProvider` in mobile) takes the profile ID from the
-  access token and mints request-bound JWTs from the MPC service's
-  development-only `POST /token` endpoint. That route is not mounted in
-  production builds.
+- `AuthenticationController` serves the `refreshCanonicalProfileId` and
+  `requestMfaApproval` messenger actions, which the controller calls directly.
 - `identifierAuthProvider` (`TestIdentifierAuthProvider` in mobile) signs SIWE
   proofs with the primary account and passkey proofs with a software passkey.
 
 ## Write: `register`, `updateRecoverySecret`, `updateIdentifiers`
 
-All three mutations share one path.
+All mutations require a request-bound AAL2 approval. `register` and
+`updateIdentifiers` also send the approval's identifiers as
+`approvedIdentifiers`, bound by `identifiers_hash`.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant Mobile as Mobile client
   participant C as MfaRecoveryController
-  participant Auth as authProvider
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant Cubist as Cubist escrow
 
   Mobile->>C: register / updateRecoverySecret / updateIdentifiers
-  C->>Auth: getAuthenticatedProfileId()
+  C->>Auth: refreshCanonicalProfileId()
   Auth-->>C: profileId
   Note over C: Build the mutation (version epoch → epoch + 1)<br/>and its requestHash
-  C->>Auth: authorizeRecoveryRequest(requestHash, ...)
+  C->>Auth: requestMfaApproval(requestHash, requireVerification: true, includeIdentifiers: true, ...)
   Auth-->>C: JWT bound to requestHash
   C->>Cubist: isAvailable
 
-  opt updates only (not register)
+  C->>Cubist: getIdentifiers(JWT)
+  Cubist-->>C: version and enrolled identifiers
+  opt updateIdentifiers adding SIWE identifiers
+    C->>Cubist: getIdentifiers(JWT)
+    Cubist-->>C: enrolled identifiers, version
+  end
+  opt updates, or SIWE identifiers not yet enrolled
     Note over C,Cubist: Proof of possession for requestHash (see below)
   end
 
   Note over C: Encrypt the secret to the Cubist wrap key
-  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload)
+  C->>Cubist: applyMutation(mutation, JWT, [{ token, proof }, ...], payload, approvedIdentifiers)
   Cubist-->>C: signed receipt
   Note over C: Verify the receipt with the pinned receipt key
   C-->>Mobile: done
 ```
 
-| Operation              | Identifier proof        | JWT requires     | Payload              |
-| ---------------------- | ----------------------- | ---------------- | -------------------- |
-| `register`             | none                    | identifiers      | identifiers + secret |
-| `updateRecoverySecret` | the identifier argument | 2FA              | secret               |
-| `updateIdentifiers`    | the identifier argument | 2FA, identifiers | identifiers          |
+| Operation              | Identifier proofs                                      | Payload              |
+| ---------------------- | ------------------------------------------------------ | -------------------- |
+| `register`             | each SIWE identifier                                   | identifiers + secret |
+| `updateRecoverySecret` | the identifier argument                                | secret               |
+| `updateIdentifiers`    | the identifier argument + each SIWE identifier it adds | identifiers          |
 
-If an escrow refuses the mutation (`MutationRejectedError`) and every replica
-does the same, the controller clears the pending mutation. A transport failure
-or a partial receipt keeps it and throws `incomplete_mutation`; call `resume()`
-to finish that write.
+Auth does not vouch for SIWE wallets, so `approvedIdentifiers` need not
+include them; each new wallet proves control instead. In step 1 the primary
+account signs a SIWE proof for `register`.
+
+If every remaining replica refuses the mutation (`MutationRejectedError`), the
+controller clears the pending mutation. Any other failure keeps it and throws
+`incomplete_mutation`; call `resume()` to finish that write. Before a retry, the
+controller calls `getMutationReceipt` on each replica that has moved past
+`expectedVersion`. If a replica has no receipt for this mutation, the controller
+clears it and throws `mutation_superseded`; reread state.
 
 ## Proof of possession
 
-Updates and reads prove control of a registered identifier in two parts. The
-identifier provider signs a token that names a fresh proof key and the
-`requestHash`. Then the controller signs a Cubist challenge with that proof
-key. Code: `requestKeyBoundIdentifierToken` and `authorizeEscrowsWithToken` in
-`src/identifier-auth.ts`.
+Updates and reads prove control of a registered identifier; mutations also prove
+each SIWE identifier the escrow has not enrolled:
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant C as MfaRecoveryController
-  participant Id as identifierAuthProvider
-  participant Cubist as Cubist escrow
+1. The controller generates an Ed25519 proof key per identifier and requests an
+   identifier token binding `hash([proofPublicKey, requestHash])`: the SIWE nonce
+   or WebAuthn challenge.
+2. Each escrow issues one challenge, keyed to the approval's profile. Every proof
+   key signs `hash([token, challenge.id, requestHash])` for that challenge. The
+   controller sends the approval and the `{ kind: 'key-bound', token, proof }`
+   list with `applyMutation`, or the single proof with `getSecret`.
+3. The escrow C2F verifies the provider assertions, identifiers, request
+   binding, challenge, and proof signatures, then consumes the challenge once.
 
-  rect rgba(128, 128, 128, 0.1)
-  Note over C,Id: Part 1: proof key + identifier token
-  Note over C: generateSigningKey() → Ed25519 proof key pair
-  C->>Id: getKeyBoundIdentifierToken(identifier, proofPublicKey, requestHash)
-  Note over Id: binding = hash([proofPublicKey, requestHash])<br/>SIWE: personal_sign a SIWE message, Nonce = binding<br/>Passkey: WebAuthn assertion, challenge = binding
-  Id-->>C: token { identifier, proofPublicKey, requestHash, providerAssertion }
-  end
-
-  rect rgba(128, 128, 128, 0.1)
-  Note over C,Cubist: Part 2: challenge + signature
-  C->>Cubist: generateChallenge()
-  Cubist-->>C: challenge { id, escrowId, expiresAt }
-  Note over C: signature = sign(proofPrivateKey,<br/>hash([token, challenge.id, requestHash]))
-  Note over C: authorization = { kind: key-bound, token,<br/>proof: { challengeId, requestHash, signature } }
-  C->>Cubist: applyMutation or getSecret(authorization, ...)
-  Note over Cubist: providerAssertion is valid for the identifier<br/>and binds proofPublicKey + requestHash<br/>identifier is registered, challenge id is its own<br/>signature verifies under proofPublicKey
-  end
-```
-
-- The identifier provider signs once, over the proof key and `requestHash`.
-  The proof key then signs each escrow challenge, so the token works only for
-  this request.
-- The proof private key is never sent to the identifier provider or Cubist.
-  For reads it lives only in the session returned by `authenticateIdentifier`.
-- The Cubist-side checks happen in the escrow C2F (`cubist_secret_escrow`),
-  not in this package.
-- `register` sends no identifier proof (`null`); the JWT from `authProvider`
-  is the only authorization.
+The proof private keys never leave the controller/caller; read sessions keep
+theirs in memory. A `register` without SIWE identifiers sends no proofs. Implementation:
+`requestIdentifierLogin` and `authorizeEscrowsWithToken` in `src/identifier-auth.ts`.
 
 ## Read: `authenticateIdentifier`, `getRecoverySecret`
 
@@ -175,6 +128,7 @@ sequenceDiagram
   autonumber
   participant Mobile as Mobile client
   participant C as MfaRecoveryController
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant Cubist as Cubist escrow
 
@@ -186,8 +140,10 @@ sequenceDiagram
   Mobile->>C: getRecoverySecret(session)
   Note over C: Recompute requestHash, must equal token.requestHash
   C->>Cubist: isAvailable
+  C->>Auth: requestMfaApproval(requestHash, requireVerification: true, includeIdentifiers: true, ...)
+  Auth-->>C: request-bound AAL2 approval
   Note over C,Cubist: Proof of possession, part 2: challenge + signature
-  C->>Cubist: getSecret({ token, proof }, requestId, pkE)
+  C->>Cubist: getSecret(approval, { token, proof }, requestId, pkE)
   Cubist-->>C: secret encrypted to the read key, version
   Note over C: Decrypt the secret
   C-->>Mobile: { recoverySecret, epoch: version }

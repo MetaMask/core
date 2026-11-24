@@ -774,7 +774,7 @@ export function testsForRpcMethodSupportingBlockParam(
               },
             );
 
-            await expect(promiseForResult).rejects.toThrow(error.message);
+            await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
           });
         });
 
@@ -793,9 +793,9 @@ export function testsForRpcMethodSupportingBlockParam(
           },
           failure: error,
           isRetriableFailure: true,
-          getExpectedError: (url: string) =>
+          getExpectedError: () =>
             expect.objectContaining({
-              message: `request to ${url} failed, reason: ${errorCode}`,
+              message: expect.stringMatching(/fetch failed/u),
             }),
         });
       },
@@ -1020,7 +1020,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          await expect(promiseForResult).rejects.toThrow(error.message);
+          await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
         });
       });
 
@@ -1039,9 +1039,9 @@ export function testsForRpcMethodSupportingBlockParam(
         },
         failure: error,
         isRetriableFailure: true,
-        getExpectedError: (url: string) =>
+        getExpectedError: () =>
           expect.objectContaining({
-            message: `request to ${url} failed, reason: ${error.message}`,
+            message: expect.stringMatching(/fetch failed/u),
           }),
       });
     });

@@ -798,6 +798,10 @@ describe('NftController', () => {
         },
         true,
       );
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+          .source,
+      ).toBe(Source.Dapp);
       // No on-chain RPC fallback for name/symbol — sourced from API only
       expect(mockGetERC721AssetName).not.toHaveBeenCalled();
       expect(mockGetERC721AssetSymbol).not.toHaveBeenCalled();
@@ -1255,6 +1259,7 @@ describe('NftController', () => {
               ...ERC721_NFT,
               favorite: false,
               isCurrentlyOwned: true,
+              source: Source.Dapp,
               description: 'testERC721Description',
               image: 'testERC721Image',
               name: 'testERC721Name',
@@ -1368,6 +1373,7 @@ describe('NftController', () => {
               ...ERC721_NFT,
               favorite: false,
               isCurrentlyOwned: true,
+              source: Source.Dapp,
               description: 'testERC721Description',
               image: 'testERC721Image',
               name: 'testERC721Name',
@@ -1501,6 +1507,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         collection: {
           tokenCount: '0',
           image: 'url',
@@ -1633,6 +1640,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
     });
 
@@ -1663,6 +1671,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1687,6 +1696,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
     });
     it('should update NFT collection field if new nft metadata has new keys', async () => {
@@ -1717,6 +1727,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1746,6 +1757,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1791,6 +1803,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1829,6 +1842,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1897,6 +1911,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI: '',
         creator: 'Oxaddress',
         collection: {
@@ -1967,6 +1982,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
@@ -2039,6 +2055,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
@@ -2098,6 +2115,7 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI:
           'https://api.opensea.io/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
       });
@@ -2147,6 +2165,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
       });
@@ -2188,8 +2207,207 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI: testTokenUriEncoded,
       });
+    });
+
+    describe('when tokenURI is a data URL', () => {
+      const metadataJson = JSON.stringify({
+        name: 'Data NFT',
+        description: 'Fully on-chain ✓',
+        image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      });
+      const base64Json = btoa(
+        String.fromCharCode(...new TextEncoder().encode(metadataJson)),
+      );
+      const decodedMetadata = {
+        name: 'Data NFT',
+        description: 'Fully on-chain ✓',
+        image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      };
+      const fallbackMetadata = {
+        name: null,
+        description: null,
+        image: null,
+      };
+
+      /**
+       * Asserts that `fetch` was never called with a `data:` URL. The NFT API
+       * request is expected; the tokenURI must never reach `fetch`.
+       *
+       * @param fetchSpy - A spy on `globalThis.fetch`.
+       */
+      const expectNoDataUrlFetch = (fetchSpy: Mock): void => {
+        const requestedUrls = fetchSpy.mock.calls.map(([input]) =>
+          input instanceof Request ? input.url : String(input),
+        );
+        expect(requestedUrls).not.toContainEqual(
+          expect.stringMatching(/^data:/iu),
+        );
+      };
+
+      it.each([
+        ['base64 JSON', `data:application/json;base64,${base64Json}`],
+        [
+          'base64 JSON with a charset parameter',
+          `data:application/json;charset=utf-8;base64,${base64Json}`,
+        ],
+        [
+          'percent-encoded JSON',
+          `data:application/json,${encodeURIComponent(metadataJson)}`,
+        ],
+        [
+          'percent-encoded JSON with a charset parameter',
+          `data:application/json;charset=utf-8,${encodeURIComponent(metadataJson)}`,
+        ],
+        [
+          'plain (not percent-encoded) JSON',
+          `data:application/json;utf8,${metadataJson}`,
+        ],
+        [
+          'JSON with an upper-case media type',
+          `DATA:Application/JSON;Base64,${base64Json}`,
+        ],
+      ])(
+        'decodes %s inline without fetching',
+        async (_description, tokenURI) => {
+          const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+          const { nftController } = setupController({
+            getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+            defaultSelectedAccount: OWNER_ACCOUNT,
+          });
+
+          await nftController.addNft(
+            ERC721_KUDOSADDRESS,
+            ERC721_KUDOS_TOKEN_ID,
+            'mainnet',
+          );
+
+          expectNoDataUrlFetch(fetchSpy);
+          expect(
+            nftController.state.allNfts[OWNER_ACCOUNT.address][
+              ChainId.mainnet
+            ][0],
+          ).toStrictEqual({
+            address: ERC721_KUDOSADDRESS,
+            chainId: convertHexToDecimal(ChainId.mainnet),
+            ...decodedMetadata,
+            tokenId: ERC721_KUDOS_TOKEN_ID,
+            standard: ERC721,
+            favorite: false,
+            isCurrentlyOwned: true,
+            source: Source.Custom,
+            tokenURI,
+          });
+        },
+      );
+
+      it('drops non-string metadata fields from a JSON data URL', async () => {
+        const tokenURI = `data:application/json,${encodeURIComponent(
+          JSON.stringify({
+            name: { evil: true },
+            description: 42,
+            image: ['https://example.com/a.png'],
+          }),
+        )}`;
+        const { nftController } = setupController({
+          getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+
+        await nftController.addNft(
+          ERC721_KUDOSADDRESS,
+          ERC721_KUDOS_TOKEN_ID,
+          'mainnet',
+        );
+
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][
+            ChainId.mainnet
+          ][0],
+        ).toMatchObject({ ...fallbackMetadata, tokenURI });
+      });
+
+      it('decodes a JSON data URL returned by an ERC-1155 uri without fetching', async () => {
+        const tokenURI = `data:application/json;base64,${base64Json}`;
+        const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+        const { nftController } = setupController({
+          getERC721TokenURI: vi
+            .fn()
+            .mockRejectedValue(new Error('Not an ERC721 contract')),
+          getERC1155TokenURI: vi.fn().mockResolvedValue(tokenURI),
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+
+        await nftController.addNft(
+          ERC1155_NFT_ADDRESS,
+          ERC1155_NFT_ID,
+          'mainnet',
+        );
+
+        expectNoDataUrlFetch(fetchSpy);
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][
+            ChainId.mainnet
+          ][0],
+        ).toMatchObject({
+          ...decodedMetadata,
+          standard: ERC1155,
+          tokenURI,
+        });
+      });
+
+      it.each([
+        ['malformed base64', 'data:application/json;base64,!!!not-base64!!!'],
+        [
+          'base64 that does not decode to JSON',
+          `data:application/json;base64,${btoa('not json')}`,
+        ],
+        ['malformed JSON', 'data:application/json,{"name":'],
+        ['JSON that is not an object', 'data:application/json,"a string"'],
+        ['a JSON array', 'data:application/json,[1,2]'],
+        ['JSON null', 'data:application/json,null'],
+        ['a data URL without a comma', 'data:application/json;base64'],
+        ['a text/plain payload that is not JSON', 'data:text/plain,hello'],
+        [
+          'a non-JSON media type that is base64-encoded',
+          `data:text/html;base64,${btoa('<p>hi</p>')}`,
+        ],
+        ['an audio media type', 'data:audio/mpeg;base64,SUQz'],
+      ])(
+        'falls back to null metadata without fetching for %s',
+        async (_description, tokenURI) => {
+          const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+          const { nftController } = setupController({
+            getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+            defaultSelectedAccount: OWNER_ACCOUNT,
+          });
+
+          await nftController.addNft(
+            ERC721_KUDOSADDRESS,
+            ERC721_KUDOS_TOKEN_ID,
+            'mainnet',
+          );
+
+          expectNoDataUrlFetch(fetchSpy);
+          expect(
+            nftController.state.allNfts[OWNER_ACCOUNT.address][
+              ChainId.mainnet
+            ][0],
+          ).toStrictEqual({
+            address: ERC721_KUDOSADDRESS,
+            chainId: convertHexToDecimal(ChainId.mainnet),
+            ...fallbackMetadata,
+            tokenId: ERC721_KUDOS_TOKEN_ID,
+            standard: ERC721,
+            favorite: false,
+            isCurrentlyOwned: true,
+            source: Source.Custom,
+            tokenURI,
+          });
+        },
+      );
     });
 
     it('should add NFT by provider type', async () => {
@@ -2221,6 +2439,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
       });
     });
@@ -2274,6 +2493,7 @@ describe('NftController', () => {
               tokenURI,
               favorite: false,
               isCurrentlyOwned: true,
+              source: Source.Custom,
             },
           ],
         },
@@ -2286,6 +2506,51 @@ describe('NftController', () => {
         symbol: undefined,
         source: Source.Custom,
       });
+    });
+
+    it('should store the source of the NFT', async () => {
+      const { nftController } = setupController({
+        options: {},
+      });
+
+      // Manually imported (defaults to Source.Custom).
+      await nftController.addNft('0x01', '1', 'mainnet', {
+        nftMetadata: {
+          name: 'manual',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+      });
+
+      // Auto-detected.
+      await nftController.addNft('0x02', '2', 'mainnet', {
+        nftMetadata: {
+          name: 'detected',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+        source: Source.Detected,
+      });
+
+      // Suggested by a dapp.
+      await nftController.addNft('0x03', '3', 'mainnet', {
+        nftMetadata: {
+          name: 'dapp',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+        source: Source.Dapp,
+      });
+
+      const [manual, detected, dapp] =
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet];
+
+      expect(manual.source).toBe(Source.Custom);
+      expect(detected.source).toBe(Source.Detected);
+      expect(dapp.source).toBe(Source.Dapp);
     });
 
     it('should add an nft and nftContract to state when all contract information is falsy and the source is "dapp"', async () => {
@@ -2337,6 +2602,7 @@ describe('NftController', () => {
               favorite: false,
               standard: ERC721,
               isCurrentlyOwned: true,
+              source: Source.Dapp,
               tokenURI,
             },
           ],
@@ -2437,6 +2703,7 @@ describe('NftController', () => {
           tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
+          source: Source.Detected,
           tokenURI: null,
           collection: {
             id: ERC721_KUDOSADDRESS,
@@ -2550,6 +2817,7 @@ describe('NftController', () => {
           tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
+          source: Source.Detected,
           tokenURI: null,
           collection: {
             id: ERC721_KUDOSADDRESS,
@@ -2727,6 +2995,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI:
           'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
       });
@@ -2754,6 +3023,7 @@ describe('NftController', () => {
         standard: null,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI: null,
       });
     });
@@ -2836,6 +3106,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
 
@@ -2853,6 +3124,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-2.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
 
@@ -2868,6 +3140,7 @@ describe('NftController', () => {
           standard: ERC1155,
           tokenURI: 'https://testtokenuri-3.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
     });
@@ -2952,6 +3225,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
       expect(
@@ -2968,6 +3242,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-2.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
       expect(
@@ -2984,6 +3259,7 @@ describe('NftController', () => {
           standard: ERC1155,
           tokenURI: 'https://testtokenuri-3.com',
           isCurrentlyOwned: true,
+          source: Source.Custom,
         },
       ]);
     });
@@ -3013,6 +3289,240 @@ describe('NftController', () => {
       });
 
       expect(nftController.state.allNftContracts['']).toBeUndefined();
+    });
+  });
+
+  describe('NFT source', () => {
+    const metadata = {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: ERC721,
+    };
+    const changedMetadata = { ...metadata, image: 'new-image' };
+
+    type Adder = (
+      controller: NftController,
+      source: Source,
+      nftMetadata?: typeof metadata,
+    ) => Promise<void>;
+
+    const adders: [string, Adder][] = [
+      [
+        'addNft',
+        async (controller, source, nftMetadata = metadata): Promise<void> => {
+          await controller.addNft('0x01', '1', 'mainnet', {
+            nftMetadata,
+            source,
+          });
+        },
+      ],
+      [
+        'addNfts',
+        async (controller, source, nftMetadata = metadata): Promise<void> => {
+          await controller.addNfts(
+            [
+              {
+                tokenAddress: '0x01',
+                tokenId: '1',
+                nftMetadata: { ...nftMetadata, chainId: 1 },
+              },
+            ],
+            OWNER_ACCOUNT.address,
+            source,
+          );
+        },
+      ],
+    ];
+
+    const getNft = (controller: NftController): Nft =>
+      controller.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0];
+
+    const setupWithLegacyNft = (
+      isCurrentlyOwned = true,
+    ): ReturnType<typeof setupController> & { onNftAdded: Mock } => {
+      const onNftAdded = vi.fn();
+      const result = setupController({
+        options: {
+          onNftAdded,
+          state: {
+            allNfts: {
+              [OWNER_ACCOUNT.address]: {
+                [ChainId.mainnet]: [
+                  {
+                    address: '0x01',
+                    tokenId: '1',
+                    favorite: false,
+                    isCurrentlyOwned,
+                    chainId: 1,
+                    ...metadata,
+                  },
+                ],
+              },
+            },
+          },
+        },
+      });
+      return { ...result, onNftAdded };
+    };
+
+    describe.each(adders)('%s', (_name, add) => {
+      it.each([Source.Custom, Source.Detected, Source.Dapp])(
+        'stores %s as the source of a new NFT',
+        async (source) => {
+          const { nftController } = setupController({ options: {} });
+
+          await add(nftController, source);
+
+          expect(getNft(nftController).source).toBe(source);
+        },
+      );
+
+      it.each([
+        ['changed', changedMetadata],
+        ['identical', metadata],
+      ])(
+        'does not overwrite a custom or dapp source when the NFT is re-detected with %s metadata',
+        async (_label, nextMetadata) => {
+          const custom = setupController({ options: {} }).nftController;
+          await add(custom, Source.Custom);
+          await add(custom, Source.Detected, nextMetadata);
+          expect(getNft(custom).source).toBe(Source.Custom);
+
+          const dapp = setupController({ options: {} }).nftController;
+          await add(dapp, Source.Dapp);
+          await add(dapp, Source.Detected, nextMetadata);
+          expect(getNft(dapp).source).toBe(Source.Dapp);
+        },
+      );
+
+      it('still applies updated metadata when re-detecting a custom NFT', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Custom);
+
+        await add(nftController, Source.Detected, changedMetadata);
+
+        expect(getNft(nftController).image).toBe('new-image');
+        expect(getNft(nftController).source).toBe(Source.Custom);
+      });
+
+      it('does not overwrite a custom source with a dapp suggestion', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Custom);
+
+        await add(nftController, Source.Dapp, changedMetadata);
+
+        expect(getNft(nftController).source).toBe(Source.Custom);
+      });
+
+      it.each([
+        [Source.Dapp, Source.Custom],
+        [Source.Detected, Source.Dapp],
+        [Source.Detected, Source.Custom],
+      ])(
+        'upgrades %s to %s when metadata changed and calls onNftAdded',
+        async (initial, next) => {
+          const onNftAdded = vi.fn();
+          const { nftController } = setupController({
+            options: { onNftAdded },
+          });
+          await add(nftController, initial);
+          onNftAdded.mockClear();
+
+          await add(nftController, next, changedMetadata);
+
+          expect(getNft(nftController).source).toBe(next);
+          expect(onNftAdded).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it.each([
+        [Source.Detected, Source.Dapp],
+        [Source.Detected, Source.Custom],
+        [Source.Dapp, Source.Custom],
+      ])(
+        'upgrades %s to %s with identical metadata and calls onNftAdded',
+        async (initial, next) => {
+          const onNftAdded = vi.fn();
+          const { nftController } = setupController({
+            options: { onNftAdded },
+          });
+          await add(nftController, initial);
+          onNftAdded.mockClear();
+
+          await add(nftController, next);
+
+          expect(getNft(nftController).source).toBe(next);
+          expect(onNftAdded).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it.each([Source.Custom, Source.Detected, Source.Dapp])(
+        'skips the update and callback when a %s NFT is re-added with the same source and identical metadata',
+        async (source) => {
+          const onNftAdded = vi.fn();
+          const { nftController } = setupController({
+            options: { onNftAdded },
+          });
+          await add(nftController, source);
+          const stateBefore = nftController.state.allNfts;
+          onNftAdded.mockClear();
+
+          await add(nftController, source);
+
+          expect(nftController.state.allNfts).toBe(stateBefore);
+          expect(onNftAdded).not.toHaveBeenCalled();
+        },
+      );
+
+      it('leaves the source unset when an NFT stored before sources existed is re-detected', async () => {
+        const { nftController, onNftAdded } = setupWithLegacyNft();
+
+        await add(nftController, Source.Detected);
+
+        expect(getNft(nftController).source).toBeUndefined();
+        expect(onNftAdded).not.toHaveBeenCalled();
+      });
+
+      it.each([Source.Custom, Source.Dapp])(
+        'sets the source to %s on an NFT stored before sources existed',
+        async (source) => {
+          const { nftController, onNftAdded } = setupWithLegacyNft();
+
+          await add(nftController, source);
+
+          expect(getNft(nftController).source).toBe(source);
+          expect(onNftAdded).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('updates a not currently owned NFT, sets the source and calls onNftAdded', async () => {
+        const { nftController, onNftAdded } = setupWithLegacyNft(false);
+
+        await add(nftController, Source.Custom);
+
+        expect(getNft(nftController).source).toBe(Source.Custom);
+        expect(onNftAdded).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps an ignored NFT in ignoredNfts when it is manually imported', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Detected);
+        nftController.removeAndIgnoreNft('0x01', '1', 'mainnet');
+        const ignoredBefore = nftController.state.ignoredNfts;
+        expect(ignoredBefore).toHaveLength(1);
+
+        await add(nftController, Source.Custom);
+
+        expect(getNft(nftController).source).toBe(Source.Custom);
+        expect(nftController.state.ignoredNfts).toStrictEqual(ignoredBefore);
+      });
+    });
+
+    it('exports Source from the package root', async () => {
+      const root = await import('./index.js');
+
+      expect(root.Source).toBe(Source);
     });
   });
 
@@ -3066,6 +3576,7 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
       expect(
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][1],
@@ -3079,6 +3590,7 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
     });
 
@@ -3350,6 +3862,7 @@ describe('NftController', () => {
         tokenURI,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
     });
 
@@ -3438,6 +3951,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
       });
       expect(
@@ -3452,6 +3966,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
       });
     });
@@ -3505,6 +4020,7 @@ describe('NftController', () => {
         favorite: false,
         standard: ERC721,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
       });
       expect(
@@ -3519,6 +4035,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
       });
     });
@@ -3641,6 +4158,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
         standard: ERC721,
       });
@@ -3677,6 +4195,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI,
         standard: ERC721,
       });
@@ -3729,6 +4248,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
       });
 
       mockGetAccount.mockReturnValue(userAccount2);
@@ -3913,6 +4433,7 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
+        source: Source.Custom,
         tokenURI: 'ipfs://*',
       });
     });
@@ -4893,6 +5414,7 @@ describe('NftController', () => {
         favorite: false,
         image: 'image.png',
         isCurrentlyOwned: true,
+        source: Source.Custom,
         name: 'toto',
         standard: ERC721,
         tokenId: '3',

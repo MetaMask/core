@@ -6,6 +6,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import { QuoteAndTxMetadata } from '../types.js';
+import { getHistoryOverridesFromTxMeta } from '../utils/history.js';
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -41,19 +42,12 @@ export async function* submitBatchSellHandler(
     batchId: batchIdParam,
   } = args;
 
+  const batchId = batchIdParam ?? generateBatchId();
+
   const tradeData = toQuoteAndTxMetadataBatch({
     quoteResponses,
     batchSellTrades,
   });
-
-  const { gasIncluded7702, gasIncluded, gasSponsored } = batchSellTrades;
-
-  const gasFeeToken = tradeData.find(
-    ({ type }) => type === TransactionType.tokenMethodTransfer,
-  )?.tx.to;
-
-  const batchId = batchIdParam ?? generateBatchId();
-
   // Create 1 history item for the parent tx or first quote, keyed by the batchId
   yield {
     type: SubmitStep.AddHistoryItem,
@@ -66,6 +60,12 @@ export async function* submitBatchSellHandler(
       },
     },
   };
+
+  const { gasIncluded7702, gasIncluded, gasSponsored } = batchSellTrades;
+
+  const gasFeeToken = tradeData.find(
+    ({ type }) => type === TransactionType.tokenMethodTransfer,
+  )?.tx.to;
 
   const transactionParams = await getAddTransactionBatchParams({
     messenger,
@@ -166,6 +166,11 @@ export async function* submitBatchSellHandler(
           historyItemOverrides: {
             quote: initialTrade.quoteResponse.quote,
             quoteIds,
+            ...getHistoryOverridesFromTxMeta(
+              false,
+              args.quoteResponses[0].quote.srcChainId,
+              initialTrade.txMeta,
+            ),
           },
           tradeMeta: initialTrade.txMeta,
         },

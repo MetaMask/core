@@ -23,6 +23,7 @@ export const createMockHyperLiquidProvider = (): Mocked<HyperLiquidProvider> =>
       totalBalance30dAgo: '9000',
     }),
     getMarkets: vi.fn(),
+    getAccountSupport: vi.fn().mockResolvedValue({ isSupported: true }),
     getOrderCapabilities: vi.fn().mockResolvedValue({
       status: 'ready',
       providerId: 'hyperliquid',
@@ -55,6 +56,7 @@ export const createMockHyperLiquidProvider = (): Mocked<HyperLiquidProvider> =>
     setLiveDataConfig: vi.fn(),
     disconnect: vi.fn(),
     updatePositionTPSL: vi.fn(),
+    replacePositionTPSLLeg: vi.fn(),
     calculateLiquidationPrice: vi.fn(),
     calculateMaintenanceMargin: vi.fn(),
     getMaxLeverage: vi.fn(),

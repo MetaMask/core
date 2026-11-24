@@ -6,6 +6,12 @@
   },
   "references": [
     {
+      "path": "../account-tree-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../controller-utils/tsconfig.lint.json"
     },
     {

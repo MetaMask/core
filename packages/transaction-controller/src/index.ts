@@ -46,6 +46,7 @@ export type {
   TransactionControllerSetTransactionActiveAction,
   TransactionControllerApproveTransactionsWithSameNonceAction,
   TransactionControllerEstimateGasFeeAction,
+  TransactionControllerFinalizeResumedTransactionAction,
   TransactionControllerFailTransactionAction,
   TransactionControllerGetLayer1GasFeeAction,
   TransactionControllerClearUnapprovedTransactionsAction,
@@ -57,6 +58,7 @@ export type {
   TransactionControllerUpdatePreviousGasParamsAction,
   TransactionControllerUpdateSelectedGasFeeTokenAction,
   TransactionControllerUpdateRequiredTransactionIdsAction,
+  TransactionControllerUpdateBatchTransactionsAction,
 } from './TransactionController-method-action-types.js';
 export {
   CANCEL_RATE,
@@ -130,6 +132,10 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types.js';
+export type {
+  EstimateGasBatchMode,
+  EstimateGasBatchResult,
+} from './utils/gas.js';
 export { mergeGasFeeEstimates } from './utils/gas-flow.js';
 export {
   decodeAuthorizationSignature,

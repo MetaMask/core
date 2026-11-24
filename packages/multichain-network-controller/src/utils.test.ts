@@ -92,7 +92,6 @@ describe('utils', () => {
         rpcEndpoints: [
           {
             url: 'https://mainnet.infura.io/',
-            failoverUrls: [],
             networkClientId: 'random-id',
             // @ts-expect-error - network-controller does not export RpcEndpointType
             type: 'custom',

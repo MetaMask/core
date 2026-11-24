@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   GasFeeToken,
-  GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
 } from '../index.js';
@@ -39,11 +38,12 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
+const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: vi.fn().mockResolvedValue(true),
-  getSimulationConfig: vi.fn(),
-  messenger: {} as TransactionControllerMessenger,
+  messenger: MESSENGER_MOCK,
   publicKeyEIP7702: '0x123',
   transactionMeta: TRANSACTION_META_MOCK,
 };
@@ -234,6 +234,120 @@ describe('Gas Fee Tokens Utils', () => {
       });
     });
 
+    it('returns sponsor if gas fee is sponsored', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          {
+            fees: [
+              {
+                gas: '0x1',
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x3',
+                tokenFees: [
+                  {
+                    token: {
+                      address: TOKEN_ADDRESS_1_MOCK,
+                      decimals: 3,
+                      symbol: 'TEST1',
+                    },
+                    balanceNeededToken: '0x4',
+                    currentBalanceToken: '0x5',
+                    feeRecipient: '0x6',
+                    rateWei: '0x7',
+                    transferEstimate: '0x7a',
+                  },
+                ],
+              },
+            ],
+            return: '0x',
+          },
+        ],
+        sponsorship: {
+          isSponsored: true,
+          error: '',
+          sponsor: 'Uniswap',
+        },
+      });
+
+      const result = await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(result.gasFeeTokens[0].sponsor).toBe('Uniswap');
+      expect(result.gasFeeSponsor).toBe('Uniswap');
+      expect(result.isGasFeeSponsored).toBe(true);
+    });
+
+    it('returns sponsor if gas fee is sponsored without token fees', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          {
+            fees: [
+              {
+                gas: '0x1',
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x3',
+                tokenFees: [],
+              },
+            ],
+            return: '0x',
+          },
+        ],
+        sponsorship: {
+          isSponsored: true,
+          error: '',
+          sponsor: 'Uniswap',
+        },
+      });
+
+      const result = await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(result).toStrictEqual({
+        gasFeeTokens: [],
+        gasFeeSponsor: 'Uniswap',
+        isGasFeeSponsored: true,
+      });
+    });
+
+    it('does not return sponsor if gas fee is not sponsored', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          {
+            fees: [
+              {
+                gas: '0x1',
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x3',
+                tokenFees: [
+                  {
+                    token: {
+                      address: TOKEN_ADDRESS_1_MOCK,
+                      decimals: 3,
+                      symbol: 'TEST1',
+                    },
+                    balanceNeededToken: '0x4',
+                    currentBalanceToken: '0x5',
+                    feeRecipient: '0x6',
+                    rateWei: '0x7',
+                    transferEstimate: '0x7a',
+                  },
+                ],
+              },
+            ],
+            return: '0x',
+          },
+        ],
+        sponsorship: {
+          isSponsored: false,
+          error: '',
+          sponsor: 'Uniswap',
+        },
+      });
+
+      const result = await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(result.gasFeeTokens[0]).not.toHaveProperty('sponsor');
+      expect(result).not.toHaveProperty('gasFeeSponsor');
+    });
+
     it('returns empty if error', async () => {
       simulateTransactionsMock.mockImplementationOnce(() => {
         throw new Error('Simulation error');
@@ -264,8 +378,14 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        expect.anything(),
+        { getSimulationConfig: undefined },
+      );
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][2].suggestFees,
       ).toMatchObject({
         with7702: true,
         withRedeemerEnforcer: true,
@@ -289,8 +409,14 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        expect.anything(),
+        { getSimulationConfig: undefined },
+      );
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][2].suggestFees,
       ).toMatchObject({
         with7702: false,
         withRedeemerEnforcer: false,
@@ -315,6 +441,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -328,6 +455,7 @@ describe('Gas Fee Tokens Utils', () => {
             }),
           ],
         }),
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -355,6 +483,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -368,25 +497,19 @@ describe('Gas Fee Tokens Utils', () => {
             }),
           ],
         }),
+        { getSimulationConfig: undefined },
       );
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = vi.fn();
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await getGasFeeTokens(request);
+    it('forwards the messenger to simulateTransactions', async () => {
+      await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
+        { getSimulationConfig: undefined },
       );
     });
   });

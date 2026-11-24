@@ -1,12 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { executeWithRetry } from './network-utils.js';
 
 describe('BackupAndSync - UserStorage - NetworkUtils', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('executeWithRetry', () => {
     afterEach(() => {
       vi.useRealTimers();

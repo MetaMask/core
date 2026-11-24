@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as ControllerIntegration from './controller-integration.js';
 import { setupContactSyncingSubscriptions } from './setup-subscriptions.js';
@@ -27,10 +27,6 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
       ControllerIntegration,
       'deleteContactInRemoteStorage',
     ).mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('should subscribe to contactUpdated and contactDeleted events', () => {

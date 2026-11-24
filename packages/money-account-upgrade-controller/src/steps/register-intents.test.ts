@@ -14,7 +14,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
@@ -212,6 +212,8 @@ async function run(
     boringVaultAddress: MOCK_BORING_VAULT,
     delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: '0x2222222222222222222222222222222222222222',
+    allowedCalldataEnforcer: '0x1010101010101010101010101010101010101010',
+    allowedTargetsEnforcer: '0x2020202020202020202020202020202020202020',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_MUSD,
     premiumVault,
@@ -227,10 +229,6 @@ describe('registerIntentsStep', () => {
     // picks the hex overload, but `vi.mocked()` picks the bytes overload, so
     // cast through `never` to satisfy both.
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it('is named "register-intents"', () => {

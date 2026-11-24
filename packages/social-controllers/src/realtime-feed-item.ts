@@ -14,15 +14,29 @@ import {
   unknown as unknownStruct,
 } from '@metamask/superstruct';
 
+import { ProfileIdentityStruct } from './social-types.js';
 import type {
   AuthorComment,
-  CommentEngagement,
-  CommentReaction,
   FeedItem,
   FeedActorSummary,
+  ProfileIdentity,
   Trade,
 } from './social-types.js';
-import { FeedItemStruct } from './structs.js';
+import {
+  AuthorCommentStruct,
+  CommentEngagementStruct,
+  FeedItemStruct,
+} from './structs.js';
+
+const RawTradeCommentStruct = structType({
+  uid: string(),
+  commentText: string(),
+  timestamp: number(),
+  sourceLanguage: optional(nullable(string())),
+  translations: optional(record(string(), string())),
+  metrics: CommentEngagementStruct,
+  replies: optional(array(unknownStruct())),
+});
 
 const RawTradeStruct = assign(
   structType({
@@ -58,6 +72,7 @@ const RawHydratedPositionStruct = structType({
     profile: structType({
       id: string(),
       metadata: record(string(), unknownStruct()),
+      ...ProfileIdentityStruct.schema,
     }),
     followerCount: optional(nullable(number())),
   }),
@@ -92,12 +107,33 @@ const RawHydratedPositionStruct = structType({
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
+  authorComment: optional(nullable(AuthorCommentStruct)),
+  flags: optional(nullable(array(string()))),
+  currentValueUSD: optional(nullable(number())),
+  positionValueUSD: optional(nullable(number())),
+  pnlValueUsd: optional(nullable(number())),
+  pnlPercent: optional(nullable(number())),
 });
 
-export type RealtimeFeedEventData = FeedItem;
+const PRICED_KEYS = [
+  'currentValueUSD',
+  'positionValueUSD',
+  'pnlValueUsd',
+  'pnlPercent',
+] as const;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+type PricedFields = Pick<FeedItem, (typeof PRICED_KEYS)[number]>;
+
+// The server prices the card when it publishes it. A field it did not send
+// stays absent, so the client keeps using its own live price for it.
+const toPricedFields = (value: PricedFields): PricedFields =>
+  Object.fromEntries(
+    PRICED_KEYS.flatMap((key) =>
+      value[key] === undefined ? [] : [[key, value[key]]],
+    ),
+  );
+
+export type RealtimeFeedEventData = FeedItem;
 
 const readNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -110,113 +146,31 @@ const addNullableNumbers = (
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
 
-const toCommentReaction = (value: unknown): CommentReaction | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { emotion, count: rawCount } = value;
-  const count = readNumber(rawCount);
-  if (typeof emotion !== 'string' || count === undefined) {
-    return null;
-  }
+const PROFILE_IDENTITY_KEYS = Object.keys(
+  ProfileIdentityStruct.schema,
+) as (keyof ProfileIdentity)[];
 
-  const profiles = Array.isArray(value.profiles)
-    ? value.profiles.filter(isRecord).flatMap((profile) => {
-        const { id, name } = profile;
-        return typeof id === 'string' && typeof name === 'string'
-          ? [{ id, name }]
-          : [];
-      })
-    : [];
-
-  return { emotion, count, profiles };
-};
-
-const toCommentEngagement = (value: unknown): CommentEngagement => {
-  if (!isRecord(value)) {
-    return { reactions: [], userReaction: null };
-  }
-
-  const reactions = Array.isArray(value.reactions)
-    ? value.reactions
-        .map(toCommentReaction)
-        .filter((reaction): reaction is CommentReaction => reaction !== null)
-    : [];
-  const replyCount = readNumber(value.replyCount);
-
-  return {
-    reactions,
-    userReaction:
-      typeof value.userReaction === 'string' ? value.userReaction : null,
-    ...(replyCount === undefined ? {} : { replyCount }),
-  };
-};
-
-const toAuthorComment = (value: unknown): AuthorComment | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { uid, commentText: text, timestamp: rawTimestamp, replies } = value;
-  const timestamp = readNumber(rawTimestamp);
-  if (
-    typeof uid !== 'string' ||
-    typeof text !== 'string' ||
-    timestamp === undefined
-  ) {
-    return null;
-  }
-
-  const replyCount = Array.isArray(replies) ? replies.length : 0;
-  const engagement = toCommentEngagement(value.metrics);
-
-  return {
-    uid,
-    text,
-    timestamp,
-    engagement: {
-      ...engagement,
-      ...(engagement.replyCount === undefined ? { replyCount } : {}),
-    },
-  };
-};
-
-const toLatestAuthorComment = (
-  trades: {
-    intent: 'enter' | 'exit';
-    timestamp: number;
-    comments: unknown[];
-  }[],
-): AuthorComment | null => {
-  if (trades.length === 0) {
-    return null;
-  }
-
-  const latestTrade = trades.reduce((latest, trade) =>
-    trade.timestamp >= latest.timestamp ? trade : latest,
+// Copies only the identity fields the socket payload sent, as the REST
+// payload omits the ones a profile has no value for.
+const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
+  Object.fromEntries(
+    PROFILE_IDENTITY_KEYS.flatMap((key) =>
+      profile[key] === undefined ? [] : [[key, profile[key]]],
+    ),
   );
-  const candidates = trades
-    .filter((trade) => trade.intent === latestTrade.intent)
-    .flatMap((trade) =>
-      trade.comments
-        .map(toAuthorComment)
-        .filter((comment): comment is AuthorComment => comment !== null),
-    )
-    .sort((left, right) => left.timestamp - right.timestamp);
-
-  return candidates[candidates.length - 1] ?? null;
-};
 
 const toActor = (actor: {
   address: string;
   name: string;
   images: { raw: string | null; sm: string | null };
-  profile: { id: string; metadata: Record<string, unknown> };
+  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
   followerCount?: number | null;
 }): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
   imageUrl: actor.images.sm ?? actor.images.raw,
+  ...toIdentity(actor.profile),
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
   volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
@@ -226,6 +180,29 @@ const toActor = (actor: {
     ? {}
     : { followerCount: actor.followerCount }),
 });
+
+// Same mapping as social-api's `mapAuthorComment`, so a socket fill carries
+// the comments the REST payload would. Malformed entries are dropped.
+const toTradeComments = (comments: unknown[]): AuthorComment[] =>
+  comments.flatMap((comment) => {
+    if (!is(comment, RawTradeCommentStruct)) {
+      return [];
+    }
+    return [
+      {
+        uid: comment.uid,
+        text: comment.commentText,
+        timestamp: comment.timestamp,
+        sourceLanguage: comment.sourceLanguage ?? null,
+        translations: comment.translations ?? {},
+        engagement: {
+          reactions: comment.metrics.reactions,
+          userReaction: comment.metrics.userReaction,
+          replyCount: comment.replies?.length ?? 0,
+        },
+      },
+    ];
+  });
 
 const toTrade = (trade: {
   direction: 'buy' | 'sell';
@@ -238,6 +215,7 @@ const toTrade = (trade: {
   marketCap: number | null;
   timestamp: number;
   transactionHash: string;
+  comments: unknown[];
 }): Trade => ({
   direction: trade.direction,
   intent: trade.intent,
@@ -250,6 +228,7 @@ const toTrade = (trade: {
   marketCap: trade.marketCap,
   timestamp: trade.timestamp,
   transactionHash: trade.transactionHash,
+  comments: toTradeComments(trade.comments),
 });
 
 const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
@@ -290,13 +269,22 @@ export const normalizeRealtimeFeedItem = (
       value.metadata.positionAmountWithLeverage ?? null,
     actor: toActor(value.actor),
     timestamp: value.timestamp,
-    authorComment: toLatestAuthorComment(value.metadata.trades),
+    // The socket payload carries the server's selected author comment. It is
+    // passed through as sent: an absent field stays absent, an explicit null
+    // stays null, and a malformed value already dropped the item above.
+    ...(value.authorComment === undefined
+      ? {}
+      : { authorComment: value.authorComment }),
     commentCount: value.metrics.commentCount,
     replyCount: value.metrics.replyCount,
     copyCount: value.metrics.copyCount ?? 0,
     firstTradeAt: value.firstTradeAt ?? null,
     holdTimeMs: value.holdTimeMs ?? null,
     entryPriceUsd: value.entryPriceUsd ?? null,
+    // `flags` lives on the hydrated card, beside `metadata`. The server does
+    // not set `metadata.flags`.
+    ...(value.flags === undefined ? {} : { flags: value.flags }),
+    ...toPricedFields(value),
   };
 };
 

@@ -32,7 +32,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 import type { CaipChainId } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import {
@@ -532,10 +532,6 @@ function setup({
 }
 
 describe('AccountTreeController', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('isInitialized', () => {
     it('returns false before init', () => {
       const { controller } = setup({
@@ -5878,10 +5874,6 @@ describe('AccountTreeController', () => {
   });
 
   describe('syncWithUserStorage', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('calls performFullSync on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
       const performFullSyncSpy = vi.spyOn(
@@ -5922,10 +5914,6 @@ describe('AccountTreeController', () => {
   });
 
   describe('syncWithUserStorageAtLeastOnce', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('calls performFullSyncAtLeastOnce on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
       const performFullSyncAtLeastOnceSpy = vi.spyOn(
@@ -5966,10 +5954,6 @@ describe('AccountTreeController', () => {
   });
 
   describe('UserStorageController:stateChange subscription', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('calls BackupAndSyncService.handleUserStorageStateChange', () => {
       const handleUserStorageStateChangeSpy = vi.spyOn(
         BackupAndSyncService.prototype,

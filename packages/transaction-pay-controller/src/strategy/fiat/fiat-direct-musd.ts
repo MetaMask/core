@@ -2,6 +2,7 @@ import type {
   Quote as RampsQuote,
   RampsOrder,
 } from '@metamask/ramps-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -9,12 +10,13 @@ import { BigNumber } from 'bignumber.js';
 import { TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
-  PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  TransactionPayControllerMessenger,
   TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types.js';
+import { getCaipAccountId } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { getFiatVaultDisabled } from '../../utils/feature-flags.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
@@ -123,17 +125,19 @@ export function isDirectMusdMoneyAccountQuote(
  *
  * @param options - Submit options.
  * @param options.order - Completed fiat order.
- * @param options.request - Strategy execute request.
+ * @param options.messenger - Controller messenger.
+ * @param options.transaction - Original transaction metadata.
  * @returns Hash of the submitted direct mUSD transaction, if available.
  */
 export async function submitDirectMusdAfterFiatCompletion({
+  messenger,
   order,
-  request,
+  transaction,
 }: {
+  messenger: TransactionPayControllerMessenger;
   order: RampsOrder;
-  request: PayStrategyExecuteRequest<FiatQuote>;
+  transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
-  const { messenger, transaction } = request;
   const moneyAccountAddress = transaction.txParams.from as Hex;
 
   try {
@@ -207,6 +211,10 @@ function combineDirectMusdFiatQuote({
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
+  const sourceAssetId = buildCaipAssetType(
+    MUSD_MONAD_FIAT_ASSET.chainId,
+    MUSD_MONAD_FIAT_ASSET.address,
+  );
 
   return {
     // Direct mUSD is fee-on-top: the fee is added to the entered amount, so the
@@ -243,9 +251,9 @@ function combineDirectMusdFiatQuote({
       from: moneyAccountAddress,
       isDirectMusdMoneyAccount: true,
       recipient: moneyAccountAddress,
+      sourceAccountId: getCaipAccountId(sourceAssetId, moneyAccountAddress),
+      sourceAssetId,
       sourceBalanceRaw: sourceAmountRaw,
-      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: sourceAmountRaw,
       targetChainId: requiredToken.chainId,

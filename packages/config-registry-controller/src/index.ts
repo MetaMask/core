@@ -34,6 +34,9 @@ export type {
   ConfigRegistryApiServiceOptions,
   ConfigRegistryApiServiceActions,
   ConfigRegistryApiServiceEvents,
+  ConfigRegistryApiServiceInvalidateQueriesAction,
+  ConfigRegistryApiServiceCacheUpdatedEvent,
+  ConfigRegistryApiServiceGranularCacheUpdatedEvent,
   ConfigRegistryApiServiceMessenger,
 } from './config-registry-api-service/config-registry-api-service.js';
 export type {

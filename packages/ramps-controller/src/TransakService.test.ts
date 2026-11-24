@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, isDone } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -310,7 +310,7 @@ describe('TransakService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -341,7 +341,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('uses production URLs when environment is Production', async () => {
@@ -359,7 +359,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -577,6 +577,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('invalid');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -597,6 +598,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('test@example.com');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -676,6 +678,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.verifyUserOtp('a@b.com', 'wrong', 'st');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -754,6 +757,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -816,6 +820,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -839,6 +844,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -867,6 +873,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -894,6 +901,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -998,6 +1006,7 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Bad' },
       });
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1174,6 +1183,59 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toBeDefined();
+    });
+
+    it('returns quote with MiCA/EEA termsIds for disclaimers', async () => {
+      nockTranslation();
+
+      const quoteWithTermsIds = {
+        ...MOCK_BUY_QUOTE,
+        termsIds: ['MICA_EEA_BUY', 'MICA_EEA_SELL'],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(true)
+        .reply(200, { data: quoteWithTermsIds });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'EUR',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        '100',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.termsIds).toStrictEqual(['MICA_EEA_BUY', 'MICA_EEA_SELL']);
+    });
+
+    it('returns quote without termsIds when not provided by API', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(true)
+        .reply(200, { data: MOCK_BUY_QUOTE });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        '100',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.termsIds).toBeUndefined();
     });
   });
 
@@ -1377,6 +1439,131 @@ describe('TransakService', () => {
       expect(result).toStrictEqual(MOCK_ADDITIONAL_REQUIREMENTS);
     });
 
+    it('fetches MiCA/EEA CONSENT form requirement with metadata', async () => {
+      const micaConsentRequirement = {
+        formsRequired: [
+          {
+            type: 'CONSENT',
+            metadata: {
+              expiresAt: '2025-12-31T00:00:00.000Z',
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-mica-1')
+        .reply(200, { data: micaConsentRequirement });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-mica-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(micaConsentRequirement);
+      expect(result.formsRequired[0].type).toBe('CONSENT');
+    });
+
+    it('fetches MiCA/EEA SOURCE_OF_INCOME form requirement with option lists', async () => {
+      const sourceOfIncomeRequirement = {
+        formsRequired: [
+          {
+            type: 'SOURCE_OF_INCOME',
+            metadata: {
+              sourceOfFundsTypeOptions: [
+                { name: 'Salary', value: 'salary' },
+                { name: 'Business Income', value: 'business_income' },
+                { name: 'Savings', value: 'savings' },
+              ],
+              employmentStatusOptions: [
+                { name: 'Employed', value: 'employed' },
+                { name: 'Self-Employed', value: 'self_employed' },
+                { name: 'Unemployed', value: 'unemployed' },
+              ],
+              countryOfCitizenshipOptions: [
+                { name: 'Germany', value: 'DE' },
+                { name: 'France', value: 'FR' },
+                { name: 'Spain', value: 'ES' },
+              ],
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-eea-1')
+        .reply(200, { data: sourceOfIncomeRequirement });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-eea-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(sourceOfIncomeRequirement);
+      expect(result.formsRequired[0].type).toBe('SOURCE_OF_INCOME');
+      expect(
+        result.formsRequired[0].metadata?.sourceOfFundsTypeOptions,
+      ).toHaveLength(3);
+      expect(
+        result.formsRequired[0].metadata?.employmentStatusOptions,
+      ).toHaveLength(3);
+      expect(
+        result.formsRequired[0].metadata?.countryOfCitizenshipOptions,
+      ).toHaveLength(3);
+    });
+
+    it('preserves both string[] and option-object shapes for metadata.options', async () => {
+      const mixedRequirements = {
+        formsRequired: [
+          {
+            type: 'id-proof',
+            metadata: { options: ['passport', 'drivers_license'] },
+          },
+          {
+            type: 'SOURCE_OF_INCOME',
+            metadata: {
+              options: [
+                { name: 'Salary', value: 'salary' },
+                { name: 'Savings', value: 'savings' },
+              ],
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-mixed-1')
+        .reply(200, { data: mixedRequirements });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-mixed-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(mixedRequirements);
+      const [idProof, sourceOfIncome] = result.formsRequired;
+      expect(idProof.metadata?.options).toStrictEqual([
+        'passport',
+        'drivers_license',
+      ]);
+      expect(sourceOfIncome.metadata?.options).toStrictEqual([
+        { name: 'Salary', value: 'salary' },
+        { name: 'Savings', value: 'savings' },
+      ]);
+    });
+
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(service.getAdditionalRequirements('q-1')).rejects.toThrow(
@@ -1409,6 +1596,263 @@ describe('TransakService', () => {
       await expect(
         service.submitSsnDetails('111-22-3333', 'q1'),
       ).rejects.toThrow('Authentication required');
+    });
+  });
+
+  describe('submitMicaConsent', () => {
+    it('submits MiCA consent with ISO 8601 timestamp', async () => {
+      const consentedAt = '2025-01-15T10:30:00.000Z';
+
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/consent',
+          (body) => body.consentedAt === consentedAt,
+        )
+        .reply(200, { data: { status: 'SUCCESS' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent(consentedAt);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
+    });
+
+    it('submits MiCA consent with ISO 8601 timestamp with offset', async () => {
+      const consentedAt = '2025-01-15T10:30:00+01:00';
+
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/consent',
+          (body) => body.consentedAt === consentedAt,
+        )
+        .reply(200, { data: { status: 'SUCCESS' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent(consentedAt);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toEqual({ status: 'SUCCESS' });
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitMicaConsent('2025-01-15T10:30:00.000Z'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns an error', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/user/consent')
+        .reply(400, { error: { code: '5001', message: 'Invalid timestamp' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent('invalid-timestamp');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+  });
+
+  describe('submitSourceOfIncome', () => {
+    it('submits source of income details', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/source-of-income',
+          (body) =>
+            body.monthlyVolume === '5000' &&
+            body.sourceOfFundsType === 'salary' &&
+            body.employmentStatus === undefined &&
+            body.countryOfCitizenship === undefined,
+        )
+        .reply(200, { data: { status: 'SUCCESS' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome('5000', 'salary');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toStrictEqual({ status: 'SUCCESS' });
+    });
+
+    it('submits source of income with different type', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/source-of-income',
+          (body) =>
+            body.monthlyVolume === '10000' &&
+            body.sourceOfFundsType === 'business_income' &&
+            body.employmentStatus === undefined &&
+            body.countryOfCitizenship === undefined,
+        )
+        .reply(200, { data: { status: 'SUCCESS' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome('10000', 'business_income');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toStrictEqual({ status: 'SUCCESS' });
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitSourceOfIncome('5000', 'salary'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns an error', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/user/source-of-income')
+        .reply(422, {
+          error: { code: '5002', message: 'Invalid source of funds type' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome('5000', 'invalid-type');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '422'");
+    });
+  });
+
+  describe('submitAdditionalDetailsNationality', () => {
+    it('submits additional nationality details', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/kyc/additional-details-nationality',
+          (body) =>
+            body.employmentStatus === 'mid_level_employee' &&
+            body.countryOfCitizenship === 'DE',
+        )
+        .reply(200, { data: { status: 'SUBMITTED' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'mid_level_employee',
+        'DE',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toStrictEqual({ status: 'SUBMITTED' });
+    });
+
+    it('submits additional nationality details for a different country', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/kyc/additional-details-nationality',
+          (body) =>
+            body.employmentStatus === 'student' &&
+            body.countryOfCitizenship === 'FR',
+        )
+        .reply(200, { data: { status: 'SUBMITTED' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'student',
+        'FR',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      const result = await promise;
+      expect(result).toStrictEqual({ status: 'SUBMITTED' });
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitAdditionalDetailsNationality('employed', 'DE'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns error code 2034', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '2034', message: 'Invalid country selection' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'employed',
+        'XX',
+      );
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+
+    it('throws when the API returns error code 2035', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '2035', message: 'Invalid employment status' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality(
+        'invalid',
+        'DE',
+      );
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+
+    it('throws when the API returns error code 9001', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/kyc/additional-details-nationality')
+        .reply(400, {
+          error: { code: '9001', message: 'Invalid request payload input' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitAdditionalDetailsNationality('', '');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
     });
   });
 
@@ -1516,6 +1960,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1643,6 +2088,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1666,6 +2112,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2220,6 +2667,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2428,6 +2876,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('bad-order');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2446,6 +2895,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('err-order');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2490,7 +2940,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('collects individual cancel errors instead of throwing', async () => {
@@ -2591,6 +3041,520 @@ describe('TransakService', () => {
       await expect(service.getActiveOrders()).rejects.toThrow(
         'Authentication required',
       );
+    });
+  });
+
+  describe('BaseDataService integration', () => {
+    async function settle<Result>(promise: Promise<Result>): Promise<Result> {
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      return await promise;
+    }
+
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
+
+      expect(
+        await rootMessenger.call('TransakService:invalidateQueries'),
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated events after a read', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .reply(200, { data: [] });
+      const { service, messenger } = getService();
+      authenticateService(service);
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.getActiveOrders());
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'TransakService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('publishes cacheUpdated events after a write', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'a@b.com',
+            expiresIn: 300,
+          },
+        });
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.sendUserOtp('a@b.com'));
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'TransakService:cacheUpdated',
+        expect.objectContaining({ objectType: 'mutation' }),
+      );
+    });
+
+    it('keeps request bodies and credentials out of published cache keys', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'secret@example.com',
+            expiresIn: 300,
+          },
+        })
+        .post('/api/v2/kyc/ssn')
+        .reply(200, { data: {} });
+      const { service, messenger } = getService();
+      authenticateService(service);
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await settle(service.sendUserOtp('secret@example.com'));
+      await settle(service.submitSsnDetails('123-45-6789', 'quote-1'));
+
+      const eventNames = publishSpy.mock.calls
+        .map(([eventName]) => String(eventName))
+        .join(' ');
+      expect(eventNames).toContain('TransakService:sendUserOtp');
+      expect(eventNames).not.toContain('secret@example.com');
+      expect(eventNames).not.toContain('123-45-6789');
+      expect(eventNames).not.toContain(MOCK_API_KEY);
+      expect(eventNames).not.toContain(MOCK_ACCESS_TOKEN.accessToken);
+    });
+
+    it('shares one request between concurrent identical reads', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS });
+      const secondRequest = nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Other' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all([service.getUserDetails(), service.getUserDetails()]),
+      );
+
+      expect(results).toStrictEqual([MOCK_USER_DETAILS, MOCK_USER_DETAILS]);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('does not share requests between reads with different parameters', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/requirement')
+        .query((query) => query['metadata[quoteId]'] === 'quote-a')
+        .reply(200, { data: MOCK_KYC_REQUIREMENT })
+        .get('/api/v2/kyc/requirement')
+        .query((query) => query['metadata[quoteId]'] === 'quote-b')
+        .reply(200, { data: { ...MOCK_KYC_REQUIREMENT, kycType: 'L3' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all([
+          service.getKycRequirement('quote-a'),
+          service.getKycRequirement('quote-b'),
+        ]),
+      );
+
+      expect(results.map(({ kycType }) => kycType)).toStrictEqual(['L2', 'L3']);
+    });
+
+    it('does not share a read between different login sessions', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS })
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Second' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const first = service.getUserDetails();
+      service.setAccessToken({
+        accessToken: 'other-session',
+        ttl: 3600,
+        created: new Date(Date.now() + 1000),
+      });
+      const second = service.getUserDetails();
+      const results = await settle(Promise.all([first, second]));
+
+      expect(results.map(({ firstName }) => firstName)).toStrictEqual([
+        'Test',
+        'Second',
+      ]);
+    });
+
+    it('does not share a read between requests for different paths', async () => {
+      const orderIds = ['order-a', 'order-b'];
+      for (const orderId of orderIds) {
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/${orderId}`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get(`/api/v2/orders/${orderId}`)
+          .query(true)
+          .reply(200, {
+            data: {
+              ...MOCK_TRANSAK_ORDER,
+              paymentDetails: [
+                {
+                  fiatCurrency: 'USD',
+                  paymentMethod: 'credit_debit_card',
+                  fields: [{ name: 'reference', id: 'ref', value: orderId }],
+                },
+              ],
+            },
+          });
+      }
+      const { service } = getService();
+      authenticateService(service);
+
+      const results = await settle(
+        Promise.all(
+          orderIds.map((orderId) =>
+            service.getOrder(
+              `${STAGING_PROVIDER_PATH}/orders/${orderId}`,
+              '0x1234',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        results.map(({ paymentDetails }) => paymentDetails?.[0]?.fields[0]),
+      ).toStrictEqual([
+        { name: 'reference', id: 'ref', value: 'order-a' },
+        { name: 'reference', id: 'ref', value: 'order-b' },
+      ]);
+    });
+
+    describe('sparse responses', () => {
+      it('accepts a user profile that is missing optional fields', async () => {
+        const sparseProfile = {
+          id: 'user-1',
+          firstName: 'Test',
+          kyc: { status: 'APPROVED', type: 'SIMPLE' },
+          address: { addressLine1: '123 Test St', city: 'Test City' },
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: sparseProfile });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(service.getUserDetails());
+
+        expect(result).toStrictEqual(sparseProfile);
+      });
+
+      it('accepts a profile that has no kyc or address yet', async () => {
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: { id: 'user-1' } });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(service.getUserDetails());
+
+        expect(result).toStrictEqual({ id: 'user-1' });
+      });
+
+      it('still rejects a profile field with the wrong type', async () => {
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/user/')
+          .query(true)
+          .reply(200, { data: { id: 'user-1', firstName: 42 } });
+        const { service } = getService();
+        authenticateService(service);
+
+        await expect(settle(service.getUserDetails())).rejects.toThrow(
+          'unexpected response',
+        );
+      });
+
+      it('accepts a buy quote that only has the quote id and amounts', async () => {
+        nockTranslation();
+        const sparseQuote = {
+          quoteId: 'quote-1',
+          conversionPrice: 4072.34,
+          fiatCurrency: 'USD',
+          cryptoCurrency: 'ETH',
+          fiatAmount: 100,
+          cryptoAmount: 0.02455598,
+          totalFee: 23.33,
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/lookup/quotes')
+          .query(true)
+          .reply(200, { data: sparseQuote });
+        const { service } = getService();
+
+        const result = await settle(
+          service.getBuyQuote(
+            'USD',
+            'eip155:1/slip44:60',
+            'eip155:1',
+            '/payments/debit-credit-card',
+            '100',
+          ),
+        );
+
+        expect(result.quoteId).toBe('quote-1');
+      });
+
+      it('rejects a buy quote without a quote id', async () => {
+        nockTranslation();
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/lookup/quotes')
+          .query(true)
+          .reply(200, { data: { fiatAmount: 100 } });
+        const { service } = getService();
+
+        await expect(
+          settle(
+            service.getBuyQuote(
+              'USD',
+              'eip155:1/slip44:60',
+              'eip155:1',
+              '/payments/debit-credit-card',
+              '100',
+            ),
+          ),
+        ).rejects.toThrow('unexpected response');
+      });
+
+      it('accepts user limits without a shortage', async () => {
+        nockTranslation();
+        const limits = {
+          limits: { '1': 5000, '30': 25000, '365': 100000 },
+          spent: { '1': 0, '30': 0, '365': 0 },
+          remaining: { '1': 5000, '30': 25000, '365': 100000 },
+          exceeded: { '1': false, '30': false, '365': false },
+        };
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/user-limit')
+          .query(true)
+          .reply(200, { data: limits });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.getUserLimits('USD', 'credit_debit_card', 'SIMPLE'),
+        );
+
+        expect(result).toStrictEqual(limits);
+      });
+
+      it('accepts a created order whose payment details are null', async () => {
+        nockTranslation();
+        nock(STAGING_TRANSAK_BASE)
+          .post('/api/v2/orders')
+          .reply(200, {
+            data: {
+              orderId: 'order-abc-123',
+              walletAddress: '0x1234',
+              paymentDetails: null,
+            },
+          });
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/order-abc-123')
+          .query(true)
+          .reply(200, { data: { orderId: 'order-abc-123' } });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.createOrder('quote-123', '0x1234', 'credit_debit_card'),
+        );
+
+        expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`);
+      });
+
+      it('reads payment details from an order response without a wallet address', async () => {
+        nock(STAGING_ORDERS_BASE)
+          .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+          .query(true)
+          .reply(200, { ...MOCK_DEPOSIT_ORDER, paymentDetails: [] });
+        nock(STAGING_TRANSAK_BASE)
+          .get('/api/v2/orders/order-abc-123')
+          .query(true)
+          .reply(200, {
+            data: {
+              orderId: 'order-abc-123',
+              paymentDetails: MOCK_TRANSAK_ORDER.paymentDetails,
+            },
+          });
+        const { service } = getService();
+        authenticateService(service);
+
+        const result = await settle(
+          service.getOrder(
+            `${STAGING_PROVIDER_PATH}/orders/order-abc-123`,
+            '0x1234',
+          ),
+        );
+
+        expect(result.paymentDetails).toStrictEqual(
+          MOCK_TRANSAK_ORDER.paymentDetails,
+        );
+      });
+    });
+
+    it('refetches on sequential reads', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS })
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: { ...MOCK_USER_DETAILS, firstName: 'Second' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      const first = await settle(service.getUserDetails());
+      const second = await settle(service.getUserDetails());
+
+      expect(first.firstName).toBe('Test');
+      expect(second.firstName).toBe('Second');
+    });
+
+    it('retries reads that fail', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(500)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS });
+      const { service } = getService({
+        options: { policyOptions: { maxRetries: 1 } },
+      });
+      authenticateService(service);
+
+      expect(await settle(service.getUserDetails())).toStrictEqual(
+        MOCK_USER_DETAILS,
+      );
+    });
+
+    it.each([
+      ['sendUserOtp', 'post', '/api/v2/auth/login', ['a@b.com']],
+      ['patchUser', 'patch', '/api/v2/kyc/user', [{}]],
+      ['cancelOrder', 'delete', '/api/v2/orders/order-1', ['order-1']],
+      ['logout', 'post', '/api/v1/auth/logout', []],
+      ['requestOtt', 'post', '/api/v2/auth/request-ott', []],
+      ['submitSsnDetails', 'post', '/api/v2/kyc/ssn', ['123', 'quote-1']],
+    ] as const)(
+      'does not retry the %s write when it fails',
+      async (method, verb, path, args) => {
+        nock(STAGING_TRANSAK_BASE).intercept(path, verb).query(true).reply(500);
+        const secondRequest = nock(STAGING_TRANSAK_BASE)
+          .intercept(path, verb)
+          .query(true)
+          .reply(200, { data: {} });
+        const { service } = getService({
+          options: { policyOptions: { maxRetries: 3 } },
+        });
+        authenticateService(service);
+
+        await expect(
+          settle(
+            (service[method] as (...a: unknown[]) => Promise<unknown>)(...args),
+          ),
+        ).rejects.toThrow("failed with status '500'");
+        expect(secondRequest.isDone()).toBe(false);
+      },
+    );
+
+    it('shares one circuit breaker between reads and writes', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .times(2)
+        .reply(500);
+      const loginRequest = nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, {
+          data: {
+            isTncAccepted: true,
+            stateToken: 'st',
+            email: 'a@b.com',
+            expiresIn: 300,
+          },
+        });
+      const { service } = getService({
+        options: {
+          policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
+        },
+      });
+      authenticateService(service);
+
+      await expect(settle(service.getActiveOrders())).rejects.toThrow(
+        "failed with status '500'",
+      );
+      await expect(settle(service.getActiveOrders())).rejects.toThrow(
+        "failed with status '500'",
+      );
+      await expect(settle(service.sendUserOtp('a@b.com'))).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
+      expect(loginRequest.isDone()).toBe(false);
+    });
+
+    it('throws a descriptive error when a read response is malformed', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/requirement')
+        .query(true)
+        .reply(200, { data: { status: 'APPROVED' } });
+      const { service } = getService();
+      authenticateService(service);
+
+      await expect(
+        settle(service.getKycRequirement('quote-1')),
+      ).rejects.toThrow(
+        'Query function for "TransakService:getKycRequirement" returned an unexpected response',
+      );
+    });
+
+    it('throws a descriptive error when a write response is malformed', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(200, { data: { stateToken: 'st' } });
+      const { service } = getService();
+
+      await expect(settle(service.sendUserOtp('a@b.com'))).rejects.toThrow(
+        'Mutation function for "TransakService:sendUserOtp" returned an unexpected response',
+      );
+    });
+
+    it('does not store an access token when verification returns a malformed response', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/verify')
+        .reply(200, { data: { ttl: 3600 } });
+      const { service } = getService();
+
+      await expect(
+        settle(service.verifyUserOtp('a@b.com', '000000', 'st')),
+      ).rejects.toThrow('returned an unexpected response');
+      expect(service.getAccessToken()).toBeNull();
     });
   });
 

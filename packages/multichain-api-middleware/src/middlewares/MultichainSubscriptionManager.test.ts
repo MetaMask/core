@@ -1,4 +1,4 @@
-import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
+import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager.js';
 import type SafeEventEmitter from '@metamask/safe-event-emitter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
@@ -6,7 +6,7 @@ import type { Mocked } from 'vitest';
 import { MultichainApiNotifications } from '../handlers/types.js';
 import { MultichainSubscriptionManager } from './MultichainSubscriptionManager.js';
 
-vi.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () => ({
+vi.mock('@metamask/eth-json-rpc-filters/subscriptionManager.js', () => ({
   default: vi.fn(),
 }));
 const MockCreateSubscriptionManager = vi.mocked(createSubscriptionManager);

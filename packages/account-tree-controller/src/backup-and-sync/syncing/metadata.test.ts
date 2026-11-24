@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
@@ -22,10 +22,6 @@ describe('BackupAndSync - Syncing - Metadata', () => {
         setLocalWrite: mockSetLocalWrite,
       },
     } as unknown as BackupAndSyncContext;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('compareAndSyncMetadata', () => {

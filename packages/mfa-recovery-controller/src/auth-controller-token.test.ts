@@ -28,7 +28,7 @@ const VALID_CLAIMS = {
 };
 
 describe('decodeAuthControllerToken', () => {
-  it('decodes all claims when optional step-up bindings are present', () => {
+  it('decodes approval claims', () => {
     expect(
       decodeAuthControllerToken(tokenWithPayload(JSON.stringify(VALID_CLAIMS))),
     ).toStrictEqual({
@@ -42,14 +42,14 @@ describe('decodeAuthControllerToken', () => {
     });
   });
 
-  it('decodes a token without optional aal or identifiers hash', () => {
+  it('decodes an approval without an identifiers hash', () => {
     expect(
       decodeAuthControllerToken(
         tokenWithPayload(
           JSON.stringify({
             sub: 'profile-1',
             exp: 1,
-            ext: { request_hash: '0xrequest' },
+            ext: { request_hash: '0xrequest', aal: 1 },
           }),
         ),
       ),
@@ -58,7 +58,7 @@ describe('decodeAuthControllerToken', () => {
       exp: 1,
       ext: {
         requestHash: '0xrequest',
-        aal: undefined,
+        aal: 1,
         identifiersHash: undefined,
       },
     });
@@ -105,32 +105,23 @@ describe('decodeAuthControllerToken', () => {
   });
 
   it.each([
-    ['sub is missing', { exp: 1, ext: { request_hash: '0x' } }],
-    ['sub is not a string', { sub: 1, exp: 1, ext: { request_hash: '0x' } }],
-    [
-      'exp is not a number',
-      { sub: 'profile-1', exp: '1', ext: { request_hash: '0x' } },
-    ],
-    ['request_hash is missing', { sub: 'profile-1', exp: 1, ext: {} }],
-    [
-      'aal is not a number',
-      {
-        sub: 'profile-1',
-        exp: 1,
-        ext: { request_hash: '0x', aal: '2' },
-      },
-    ],
+    ['sub is missing', { sub: undefined }],
+    ['sub is not a string', { sub: 1 }],
+    ['exp is not a number', { exp: '1' }],
+    ['request_hash is missing', { ext: { aal: 1 } }],
+    ['aal is missing', { ext: { request_hash: '0x' } }],
+    ['aal is not a number', { ext: { request_hash: '0x', aal: '2' } }],
     [
       'identifiers_hash is not a string',
       {
-        sub: 'profile-1',
-        exp: 1,
-        ext: { request_hash: '0x', identifiers_hash: 1 },
+        ext: { request_hash: '0x', aal: 1, identifiers_hash: 1 },
       },
     ],
   ])('returns undefined when %s', (_name, claims) => {
     expect(
-      decodeAuthControllerToken(tokenWithPayload(JSON.stringify(claims))),
+      decodeAuthControllerToken(
+        tokenWithPayload(JSON.stringify({ ...VALID_CLAIMS, ...claims })),
+      ),
     ).toBeUndefined();
   });
 });

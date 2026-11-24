@@ -7,6 +7,9 @@ export type {
   GetBalanceResponse,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
+  PolymarketCallbacks,
+  QuoteErrorInfo,
+  QuoteErrorReason,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -19,11 +22,9 @@ export type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
-  PolymarketCallbacks,
-  QuoteErrorInfo,
-  QuoteErrorReason,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
+  PayStrategyResumeRequest,
   TransactionPayQuote,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
@@ -33,6 +34,7 @@ export type {
 } from './types.js';
 export type {
   TransactionPayControllerGetAmountDataAction,
+  TransactionPayControllerGetClientIdAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetStrategyAction,
@@ -42,6 +44,13 @@ export type {
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
 } from './TransactionPayController-method-action-types.js';
-export { PaymentOverride, TransactionPayStrategy } from './constants.js';
+export {
+  PaymentOverride,
+  TransactionPayClientId,
+  TransactionPayStrategy,
+} from './constants.js';
 export { TransactionPayController } from './TransactionPayController.js';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';
+export { getPayTransactionType } from './utils/transaction-type.js';
+export { isResumeEnabled } from './utils/feature-flags.js';
+export { isPayTransactionResumable } from './helpers/resume-pay-transactions.js';

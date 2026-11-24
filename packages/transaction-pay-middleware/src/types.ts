@@ -1,3 +1,8 @@
+import type { AccountTreeControllerSetSelectedAccountGroupByAccountIdAction } from '@metamask/account-tree-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type {
@@ -25,6 +30,9 @@ import { HexChecksumAddressStruct } from '@metamask/utils';
 import type { RemoteFeatureFlags } from './utils/feature-flags.js';
 
 type AllowedActions =
+  | AccountTreeControllerSetSelectedAccountGroupByAccountIdAction
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerGetSelectedAccountAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | PerpsControllerGetStateAction
   | PerpsControllerRefreshEligibilityAction
@@ -36,8 +44,11 @@ export type TransactionPayMiddlewareMessenger = Messenger<
   AllowedActions
 >;
 
-/** A positive decimal string with up to 6 decimals. */
-const AmountStruct = pattern(string(), /^(?!0+(\.0+)?$)\d+(\.\d{1,6})?$/u);
+/**
+ * A non-negative decimal string with up to 6 decimals. Zero is allowed only for
+ * types whose flow sets `allowZeroAmount`.
+ */
+const AmountStruct = pattern(string(), /^\d+(\.\d{1,6})?$/u);
 
 export const WalletPayParamsStruct = tuple([
   object({
@@ -64,6 +75,11 @@ export type WalletPayTransaction = {
 
 /** How one `wallet_pay` type is enabled, checked and built. */
 export type WalletPayFlow = {
+  /**
+   * Whether a zero `amount` is accepted, for flows where the user enters the
+   * amount on the confirmation. Treated the same as no `amount`.
+   */
+  allowZeroAmount?: boolean;
   /** Flag checks beyond `confirmations_pay_rpc`, if the type needs any. */
   isEnabled?: (remoteFeatureFlags: RemoteFeatureFlags) => boolean;
   assertPreconditions?: (

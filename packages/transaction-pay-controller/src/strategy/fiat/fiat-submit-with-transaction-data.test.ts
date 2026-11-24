@@ -15,16 +15,16 @@ import {
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags.js';
 import { getTransaction, updateTransaction } from '../../utils/transaction.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
 import type { FiatQuote } from './types.js';
 
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/transaction.js'));
-vi.mock(import('../relay/relay-quotes.js'));
-vi.mock(import('../relay/relay-submit.js'));
+vi.mock(import('../server/server-quotes.js'));
+vi.mock(import('../server/server-submit.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -41,9 +41,9 @@ const TRANSACTION_MOCK = {
 
 const BASE_QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: WALLET_ADDRESS_MOCK,
+  sourceAccountId: `eip155:137:${WALLET_ADDRESS_MOCK}`,
+  sourceAssetId: 'eip155:137/slip44:966',
   sourceBalanceRaw: '1000000000000000000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: '0x0000000000000000000000000000000000001010',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '12000000',
   targetChainId: '0x89',
@@ -63,33 +63,36 @@ const RELAY_QUOTE_MOCK = {
     targetNetwork: { fiat: '0', usd: '0' },
   },
   original: {
-    details: {
-      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
-      currencyOut: {
-        amount: '12000000',
-        amountUsd: '4.85',
-        minimumAmount: '11900000',
-      },
-      totalImpact: { usd: '-0.15' },
-    },
-  } as unknown as RelayQuote,
+    input: { raw: '1000000000000000000' },
+    output: { raw: '11900000' },
+  } as ServerQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
-  sourceAmount: { fiat: '0', human: '0', raw: '0', usd: '0' },
+  sourceAmount: {
+    fiat: '5.00',
+    human: '1',
+    raw: '1000000000000000000',
+    usd: '5.00',
+  },
   strategy: TransactionPayStrategy.Relay,
-  targetAmount: { fiat: '0', usd: '0' },
-} as TransactionPayQuote<RelayQuote>;
+  targetAmount: { fiat: '4.85', usd: '4.85' },
+} as TransactionPayQuote<ServerQuote>;
 
-function buildFiatQuote(
-  relayQuoteOverride?: Partial<RelayQuote>,
-): TransactionPayQuote<FiatQuote> {
-  const relayQuote = {
-    ...RELAY_QUOTE_MOCK.original,
-    ...relayQuoteOverride,
-  };
+function buildFiatQuote({
+  sourceUsd = '5.00',
+  targetUsd = '4.85',
+}: {
+  sourceUsd?: string;
+  targetUsd?: string;
+} = {}): TransactionPayQuote<FiatQuote> {
   return {
     ...RELAY_QUOTE_MOCK,
-    original: { rampsQuote: {} as never, relayQuote },
+    original: {
+      rampsQuote: {} as never,
+      relayQuote: RELAY_QUOTE_MOCK.original,
+    },
+    sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: sourceUsd },
     strategy: TransactionPayStrategy.Fiat,
+    targetAmount: { fiat: targetUsd, usd: targetUsd },
   };
 }
 
@@ -133,8 +136,8 @@ function buildRequest({
 }
 
 describe('submitWithCalldataReEncoding', () => {
-  const getRelayQuotesMock = vi.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
+  const getRelayQuotesMock = vi.mocked(getServerQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitServerQuotes);
   const getTransactionMock = vi.mocked(getTransaction);
   const updateTransactionMock = vi.mocked(updateTransaction);
   const getFiatFeeReserveMultiplierMock = vi.mocked(
@@ -233,17 +236,7 @@ describe('submitWithCalldataReEncoding', () => {
   });
 
   it('skips fee reserve when original relay quote has zero source USD', async () => {
-    const fiatQuote = buildFiatQuote({
-      details: {
-        currencyIn: { amount: '1000000000000000000', amountUsd: '0' },
-        currencyOut: {
-          amount: '12000000',
-          amountUsd: '0',
-          minimumAmount: '11900000',
-        },
-        totalImpact: { usd: '0' },
-      },
-    } as unknown as Partial<RelayQuote>);
+    const fiatQuote = buildFiatQuote({ sourceUsd: '0', targetUsd: '0' });
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
@@ -260,17 +253,7 @@ describe('submitWithCalldataReEncoding', () => {
   });
 
   it('skips fee reserve when original relay fee is not positive', async () => {
-    const fiatQuote = buildFiatQuote({
-      details: {
-        currencyIn: { amount: '1000000000000000000', amountUsd: '4.85' },
-        currencyOut: {
-          amount: '12000000',
-          amountUsd: '5.00',
-          minimumAmount: '11900000',
-        },
-        totalImpact: { usd: '0.15' },
-      },
-    } as unknown as Partial<RelayQuote>);
+    const fiatQuote = buildFiatQuote({ sourceUsd: '4.85', targetUsd: '5.00' });
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
@@ -295,7 +278,7 @@ describe('submitWithCalldataReEncoding', () => {
       transaction: TRANSACTION_MOCK,
     });
 
-    // Discovery returns minimumAmount=11900000 with sourceUsd=5.00, targetUsd=4.85
+    // Discovery returns output.raw=11900000 with sourceUsd=5.00, targetUsd=4.85
     // discoveryFeeUsd=0.15, usdPerTargetRaw=4.85/11900000
     // discoveryFeeInTargetRaw=0.15/(4.85/11900000)=368041
     // adjustedTarget=11900000+368041=12268041
@@ -433,16 +416,8 @@ describe('submitWithCalldataReEncoding', () => {
     getRelayQuotesMock.mockResolvedValue([
       {
         ...RELAY_QUOTE_MOCK,
-        original: {
-          details: {
-            currencyIn: { amount: '1000000000000000000', amountUsd: '0' },
-            currencyOut: {
-              amount: '12000000',
-              amountUsd: '0',
-              minimumAmount: '11900000',
-            },
-          },
-        } as unknown as RelayQuote,
+        sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: '0' },
+        targetAmount: { fiat: '0', usd: '0' },
       },
     ]);
 
@@ -466,16 +441,8 @@ describe('submitWithCalldataReEncoding', () => {
     getRelayQuotesMock.mockResolvedValue([
       {
         ...RELAY_QUOTE_MOCK,
-        original: {
-          details: {
-            currencyIn: { amount: '1000000000000000000', amountUsd: '4.85' },
-            currencyOut: {
-              amount: '12000000',
-              amountUsd: '5.00',
-              minimumAmount: '11900000',
-            },
-          },
-        } as unknown as RelayQuote,
+        sourceAmount: { ...RELAY_QUOTE_MOCK.sourceAmount, usd: '4.85' },
+        targetAmount: { fiat: '5.00', usd: '5.00' },
       },
     ]);
 

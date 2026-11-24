@@ -165,14 +165,8 @@ export type {
 } from './data-sources/index.js';
 
 // Middlewares
-export {
-  CustomAssetGraduationMiddleware,
-  RpcFallbackMiddleware,
-} from './middlewares/index.js';
-export type {
-  CustomAssetGraduationMiddlewareOptions,
-  RpcFallbackMiddlewareOptions,
-} from './middlewares/index.js';
+export { RpcFallbackMiddleware } from './middlewares/index.js';
+export type { RpcFallbackMiddlewareOptions } from './middlewares/index.js';
 
 // Utilities
 export {
@@ -199,9 +193,14 @@ export {
 } from './selectors/balance.js';
 
 export {
+  getAccountBackgroundLoadingStatus,
+  getAccountGroupBackgroundLoadingStatus,
   getAccountGroupLoadingStatus,
   getAccountLoadingStatus,
+  getIsAssetsBackgroundLoadingForSelectedAccountGroup,
   getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountBackgroundLoading,
+  isAccountGroupBackgroundLoading,
   isAccountGroupLoading,
   isAccountLoading,
 } from './selectors/loading.js';

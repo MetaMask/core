@@ -41,6 +41,15 @@ const NESTED_MONEY_ACCOUNT_DEPOSIT = {
   type: TransactionType.batch,
 } as unknown as TransactionMeta;
 
+const NESTED_MEMBERSHIP_SUBSCRIPTION = {
+  ...MONEY_ACCOUNT_DEPOSIT,
+  nestedTransactions: [
+    { type: TransactionType.tokenMethodApprove },
+    { type: TransactionType.membershipSubscription },
+  ],
+  type: TransactionType.batch,
+} as unknown as TransactionMeta;
+
 const OTHER_TRANSACTION = {
   ...MONEY_ACCOUNT_DEPOSIT,
   type: TransactionType.contractInteraction,
@@ -82,10 +91,6 @@ function buildMessenger(): TransactionPayControllerMessenger {
 
 describe('chomp', () => {
   const rpcRequestMock = vi.mocked(rpcRequest);
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   describe('findRecentChompVaultDeposit', () => {
     it('returns the CHOMP tx hash when a Transfer log with sufficient amount is found', async () => {
@@ -282,6 +287,17 @@ describe('chomp', () => {
         const result = await run({ transaction: NESTED_MONEY_ACCOUNT_DEPOSIT });
 
         expect(result).toStrictEqual({ transactionHash: CHOMP_TX_HASH });
+      });
+
+      it('detects a membership subscription nested in a batch', async () => {
+        rpcRequestMock.mockResolvedValue([buildMusdTransferLog()]);
+
+        const result = await run({
+          transaction: NESTED_MEMBERSHIP_SUBSCRIPTION,
+        });
+
+        expect(result).toStrictEqual({ transactionHash: CHOMP_TX_HASH });
+        expect(submitMock).not.toHaveBeenCalled();
       });
 
       it('submits when CHOMP has not vaulted the funds', async () => {

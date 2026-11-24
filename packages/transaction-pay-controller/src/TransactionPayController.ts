@@ -11,7 +11,10 @@ import {
   isTransactionPayStrategy,
   TransactionPayStrategy,
 } from './constants.js';
+import type { TransactionPayClientId } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { resumePayTransactions } from './helpers/resume-pay-transactions.js';
+import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,
@@ -31,6 +34,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
+import { getEvmPaymentToken } from './utils/token.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
@@ -38,6 +42,7 @@ import {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
+  'getClientId',
   'getDelegationTransaction',
   'getFiatOptions',
   'getPaymentOverrideData',
@@ -48,6 +53,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
+
+const log = createModuleLogger(projectLogger, 'TransactionPayController');
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   transactionData: {
@@ -67,6 +74,8 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #clientId?: TransactionPayClientId;
+
   readonly #fiatOptions?: TransactionPayFiatOptions;
 
   readonly #getAmountData?: GetAmountDataCallback;
@@ -88,6 +97,7 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    clientId,
     fiatOptions,
     getAmountData,
     getBalance,
@@ -106,6 +116,7 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#clientId = clientId;
     this.#fiatOptions = fiatOptions;
     this.#getAmountData = getAmountData;
     this.#getBalance = getBalance;
@@ -134,9 +145,19 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getBalance: this.#getBalance,
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+
+    // Fire-and-forget: errors are caught and logged inside.
+    this.#scheduleResume();
+  }
+
+  #scheduleResume(): void {
+    resumePayTransactions(this.messenger).catch((error) => {
+      log('Resume error', error);
     });
   }
 
@@ -213,6 +234,19 @@ export class TransactionPayController extends BaseController<
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
+  }
+
+  /**
+   * Returns the configured client identifier.
+   *
+   * Used to set the `X-Client-Id` header on intents API requests so the
+   * server can distinguish Mobile from Extension traffic. This is
+   * intentionally not stored in controller state.
+   *
+   * @returns The client identifier, if configured.
+   */
+  getClientId(): TransactionPayClientId | undefined {
+    return this.#clientId;
   }
 
   /**
@@ -352,9 +386,7 @@ export class TransactionPayController extends BaseController<
       fn(current);
 
       const isPaymentTokenUpdated =
-        current.paymentToken?.address?.toLowerCase() !==
-          originalPaymentToken?.address?.toLowerCase() ||
-        current.paymentToken?.chainId !== originalPaymentToken?.chainId;
+        current.paymentToken?.assetId !== originalPaymentToken?.assetId;
 
       const isPaymentTokenBalanceUpdated =
         current.paymentToken?.balanceRaw !== originalPaymentToken?.balanceRaw;
@@ -441,12 +473,12 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const paymentToken = transactionData?.paymentToken;
+    const evmPaymentToken = getEvmPaymentToken(transactionData?.paymentToken);
 
     return getStrategyOrder(
       this.messenger,
-      paymentToken?.chainId,
-      paymentToken?.address,
+      evmPaymentToken?.chainId,
+      evmPaymentToken?.address,
       transaction.type,
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );

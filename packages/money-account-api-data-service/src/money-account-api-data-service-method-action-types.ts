@@ -80,6 +80,38 @@ export type MoneyAccountApiDataServiceFetchVaultRateAction = {
 };
 
 /**
+ * Fetches the environment's vault catalog, including each vault's current
+ * APY.
+ *
+ * @returns The vault catalog response.
+ */
+export type MoneyAccountApiDataServiceFetchVaultsAction = {
+  type: `MoneyAccountApiDataService:fetchVaults`;
+  handler: MoneyAccountApiDataService['fetchVaults'];
+};
+
+/**
+ * Batch-values vault share movements in past transactions. Each result
+ * reports the shares moved and what they were worth in the vault's
+ * underlying asset at that block. Unknown transactions come back with
+ * `found: false` instead of failing the batch.
+ *
+ * @param address - The user's Ethereum address.
+ * @param options - Transaction hashes to value and an optional chain ID.
+ * @param options.txHashes - Transaction hashes. At most 50 distinct hashes
+ * after lowercasing and de-duplication.
+ * @param options.chainId - Chain ID of the transactions. Omitted requests use
+ * the API default (Monad, 143).
+ * @returns One result per requested hash, in request order.
+ * @throws An `Error` before any request when `txHashes` is empty or contains
+ * more than 50 distinct hashes.
+ */
+export type MoneyAccountApiDataServiceFetchVaultShareValuationsAction = {
+  type: `MoneyAccountApiDataService:fetchVaultShareValuations`;
+  handler: MoneyAccountApiDataService['fetchVaultShareValuations'];
+};
+
+/**
  * Fetches current VBA transfers for the wallet authenticated via SIWE.
  *
  * @param options - Fetch options, including the wallet address to authenticate.
@@ -99,4 +131,6 @@ export type MoneyAccountApiDataServiceMethodActions =
   | MoneyAccountApiDataServiceFetchHistoryAction
   | MoneyAccountApiDataServiceFetchRateHistoryAction
   | MoneyAccountApiDataServiceFetchVaultRateAction
+  | MoneyAccountApiDataServiceFetchVaultsAction
+  | MoneyAccountApiDataServiceFetchVaultShareValuationsAction
   | MoneyAccountApiDataServiceFetchVbaTransfersAction;

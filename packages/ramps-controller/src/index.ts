@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerAutorampStatusChangedEvent,
+  AutorampTransactionStatusChangedPayload,
   RampsControllerOptions,
   PaymentMethodsForContextResponse,
   UserRegion,
@@ -20,7 +21,10 @@ export type {
   VbaKycStatus,
   VbaOnboardingSnapshot,
   VbaProviderFlowStatus,
+  SelectProviderForAssetOptions,
 } from './RampsController.js';
+export type { RampsProviderHistoryEntry } from './providerHistory.js';
+export { getPreviouslyUsedProviders } from './providerHistory.js';
 export type {
   RampsControllerExecuteRequestAction,
   RampsControllerAbortRequestAction,
@@ -28,6 +32,7 @@ export type {
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
   RampsControllerSetSelectedProviderForAssetAction,
+  RampsControllerSelectProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,
@@ -49,6 +54,8 @@ export type {
   RampsControllerApplyAutorampStatusFromPushAction,
   RampsControllerRefreshAutorampAction,
   RampsControllerRefreshAutorampsAction,
+  RampsControllerRefreshAutorampTransactionsAction,
+  RampsControllerRefreshCustomerAbilitiesAction,
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
@@ -82,6 +89,9 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerTransakSubmitMicaConsentAction,
+  RampsControllerTransakSubmitSourceOfIncomeAction,
+  RampsControllerTransakSubmitAdditionalDetailsNationalityAction,
   RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types.js';
 export {
@@ -98,6 +108,9 @@ export type {
   RampsServiceActions,
   RampsServiceEvents,
   RampsServiceMessenger,
+  RampsServiceInvalidateQueriesAction,
+  RampsServiceCacheUpdatedEvent,
+  RampsServiceGranularCacheUpdatedEvent,
   Country,
   State,
   SupportedActions,
@@ -234,7 +247,10 @@ export {
 } from './order-syncing/index.js';
 export type {
   TransakServiceActions,
+  TransakServiceCacheUpdatedEvent,
   TransakServiceEvents,
+  TransakServiceGranularCacheUpdatedEvent,
+  TransakServiceInvalidateQueriesAction,
   TransakServiceMessenger,
   TransakAccessToken,
   TransakUserDetails,
@@ -257,6 +273,12 @@ export type {
   TransakUserLimits,
   TransakIdProofStatus,
   PatchUserRequestBody as TransakPatchUserRequestBody,
+  SubmitMicaConsentRequest,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeRequest,
+  SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityRequest,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 export {
   TransakApiError,
@@ -285,6 +307,7 @@ export type {
   AutorampAccount,
   ApplyAutorampRemoteStatusResult,
   CreateAutorampRequest,
+  MusdAutorampDepositRailReadiness,
 } from './autorampAccount.js';
 export {
   AutorampStatus,
@@ -297,22 +320,39 @@ export {
   markAutorampNotified,
   buildMusdAutorampRequest,
   buildBrazilMusdAutorampRequest,
+  getMusdAutorampDepositRailReadiness,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
+export type {
+  AutorampTransactionRecord,
+  AutorampTransactionRecords,
+  AutorampTransactionChange,
+} from './diffAutorampTransactions.js';
+export { diffAutorampTransactions } from './diffAutorampTransactions.js';
 export type {
   AutorampDepositInstructions,
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  SepaDepositInstructions,
   UsBankDepositInstructions,
   UsBankDepositRail,
 } from './autoramp-types.js';
 export type {
   NeoBankServiceActions,
+  NeoBankServiceCacheUpdatedEvent,
   NeoBankServiceEvents,
+  NeoBankServiceGranularCacheUpdatedEvent,
+  NeoBankServiceInvalidateQueriesAction,
   NeoBankServiceMessenger,
   NeoBankAutorampResponse,
+  NeoBankMicrodeposit,
+  NeoBankAbilityCurrency,
+  NeoBankAbilityStatus,
+  NeoBankCurrencyAbility,
+  NeoBankCustomerAbilities,
+  NeoBankFiatAbilities,
   NeoBankRequestOptions,
   NeoBankQueryParams,
   GetWalletRegistrationStatusParams,
@@ -331,6 +371,8 @@ export type {
   NeoBankServiceAttachAutorampQuoteAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetMoonpayCustomerIdAction,
+  NeoBankServiceGetMicrodepositsAction,
+  NeoBankServiceGetCustomerAbilitiesAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
@@ -339,6 +381,7 @@ export {
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
   extractPixDepositInstructions,
+  extractSepaDepositInstructions,
   extractUsBankDepositInstructions,
 } from './NeoBankService.js';
 export type {

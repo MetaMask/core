@@ -48,6 +48,24 @@ export type ChompApiServiceAssociateAddressV2Action = {
 };
 
 /**
+ * Removes an address association from the authenticated profile.
+ * When called with an addresses that is linked as successors it will only succeed
+ * if the chomp migration has not yet created a funds-transfer request. Otherwise
+ * CHOMP will reject the request with `LINK_COMPLETE`
+ *
+ * DELETE /v1/auth/address
+ *
+ * Executed as a mutation so it is never retried: a retry after a lost
+ * response would hit an already-removed address and fail with a 404.
+ *
+ * @param address - The address to disassociate.
+ */
+export type ChompApiServiceDisassociateAddressAction = {
+  type: `ChompApiService:disassociateAddress`;
+  handler: ChompApiService['disassociateAddress'];
+};
+
+/**
  * Fetches the addresses associated with the authenticated profile.
  *
  * GET /v1/auth/address
@@ -124,6 +142,23 @@ export type ChompApiServiceCreateIntentsAction = {
 };
 
 /**
+ * Submits one or more intents to the CHOMP API, including the Money Account
+ * migration intents that `POST /v1/intent` rejects.
+ *
+ * POST /v2/intent
+ *
+ * CHOMP accepts at most 10 intents per request. Their delegations must
+ * already be saved to the authenticated user storage.
+ *
+ * @param intents - The array of intents to submit.
+ * @returns The array of intent responses.
+ */
+export type ChompApiServiceCreateIntentsV2Action = {
+  type: `ChompApiService:createIntentsV2`;
+  handler: ChompApiService['createIntentsV2'];
+};
+
+/**
  * Fetches intents associated with a given address.
  *
  * GET /v1/intent/account/:address
@@ -170,16 +205,78 @@ export type ChompApiServiceGetServiceDetailsAction = {
 };
 
 /**
+ * Fetches the Money Account identities of the authenticated profile, including
+ * status and migration steps information. Calling this will start migrations.
+ *
+ * GET /v1/money-account/identities
+ *
+ * Profile-scoped and used to drive migrations, so it is always fetched
+ * fresh and keyed by a digest of the bearer token, like
+ * {@link ChompApiService.getAssociatedAddresses}.
+ *
+ * @returns The identities; empty when the profile has no Money Account.
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentitiesAction = {
+  type: `ChompApiService:getDerivedIdentities`;
+  handler: ChompApiService['getDerivedIdentities'];
+};
+
+/**
+ * Fetches the identity containing an address, along with where the address
+ * sits in it.
+ *
+ * GET /v1/money-account/identities/address/:address
+ *
+ * Always fetched fresh and keyed by a digest of the bearer token.
+ *
+ * @param address - The address to look up.
+ * @returns The identity and address details, or `null` when CHOMP responds
+ * with `ADDRESS_NOT_ASSOCIATED`
+ *
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentityByAddressAction = {
+  type: `ChompApiService:getDerivedIdentityByAddress`;
+  handler: ChompApiService['getDerivedIdentityByAddress'];
+};
+
+/**
+ * Starts moving the funds of a migrating Money Account to its successor.
+ *
+ * POST /v1/money-account/identities/address/:address/funds-transfer
+ *
+ * CHOMP starts the transfer for the predecessor of the migrating identity
+ * that contains `address`, once every other migration step is complete,
+ * and rejects the request with `MIGRATION_STEPS_INCOMPLETE` otherwise. Once
+ * the transfer exists, the migration can no longer be cancelled. Repeating
+ * the request returns the existing transfer requests, so it is retried like
+ * a read.
+ *
+ * @param address - Any address of the migrating identity.
+ * @returns The funds-transfer requests. Addresses are lowercased.
+ */
+export type ChompApiServiceStartFundsTransferAction = {
+  type: `ChompApiService:startFundsTransfer`;
+  handler: ChompApiService['startFundsTransfer'];
+};
+
+/**
  * Union of all ChompApiService action types.
  */
 export type ChompApiServiceMethodActions =
   | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceAssociateAddressV2Action
+  | ChompApiServiceDisassociateAddressAction
   | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetUpgradesAction
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
+  | ChompApiServiceCreateIntentsV2Action
   | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceCreateWithdrawalAction
-  | ChompApiServiceGetServiceDetailsAction;
+  | ChompApiServiceGetServiceDetailsAction
+  | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetDerivedIdentityByAddressAction
+  | ChompApiServiceStartFundsTransferAction;

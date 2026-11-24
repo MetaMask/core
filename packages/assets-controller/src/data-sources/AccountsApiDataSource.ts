@@ -1,4 +1,4 @@
-import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
+import type { V6BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
@@ -21,7 +21,6 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-  AssetsControllerState,
 } from '../types.js';
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
@@ -83,12 +82,6 @@ export type AccountsApiDataSourceConfig = {
   /** Polling interval in ms (default: 30000) */
   pollInterval?: number;
   /**
-   * Function returning whether token detection is enabled (default: () => true).
-   * When it returns false, balances are only returned for tokens already in state.
-   * Using a getter avoids stale values when the user toggles the preference at runtime.
-   */
-  tokenDetectionEnabled?: () => boolean;
-  /**
    * Timeout in ms for a single balances fetch call (default: 15000).
    * When it fires, every requested chain is marked as errored so the
    * middleware hands them off to the next data source (e.g. RPC fallback).
@@ -111,17 +104,9 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
     previousChains: ChainId[],
   ) => void;
   /**
-   * Whether to use the Accounts API v6 balances endpoint (and `includeAssetIds`).
-   * Injected by AssetsController so the flag is read in one place. Defaults to
-   * `false` (v5). Read on demand, not cached.
+   * Returns shared visible/hidden assets for an account/chain scope.
+   * Those IDs are sent as `includeAssetIds` / `excludeAssetIds`.
    */
-  isBalanceV6Enabled?: () => boolean;
-  /**
-   * Current AssetsController state. Used for v6 include/exclude asset IDs and
-   * for filtering when token detection is off.
-   */
-  getAssetsState: () => AssetsControllerState;
-  /** Returns shared visible/hidden assets for an account/chain scope. */
   getAssetVisibility: GetAssetVisibility;
   state?: Partial<AccountsApiDataSourceState>;
 };
@@ -188,56 +173,6 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
   return toCaipChainId(KnownCaipNamespace.Eip155, chainIdStr);
 }
 
-/**
- * Filter a response to only include balances for assets already in state.
- * Used when tokenDetectionEnabled is false to prevent adding new tokens.
- *
- * @param response - The fetch response to filter.
- * @param assetsState - Current assets controller state to check existing balances against.
- * @returns A new response with only known asset balances.
- */
-export function filterResponseToKnownAssets(
-  response: DataResponse,
-  assetsState: AssetsControllerState,
-): DataResponse {
-  if (!response.assetsBalance) {
-    return response;
-  }
-
-  const filteredBalance: Record<
-    string,
-    Record<Caip19AssetId, AssetBalance>
-  > = {};
-
-  for (const [accountId, accountBalances] of Object.entries(
-    response.assetsBalance,
-  )) {
-    const existingBalances = assetsState.assetsBalance[accountId];
-    if (!existingBalances) {
-      // Account has no balances in state yet — skip all its tokens
-      continue;
-    }
-
-    const filtered: Record<Caip19AssetId, AssetBalance> = {};
-    for (const [assetId, balance] of Object.entries(accountBalances)) {
-      // Only include assets already tracked in state
-      if (assetId in existingBalances) {
-        filtered[assetId as Caip19AssetId] = balance;
-      }
-    }
-
-    if (Object.keys(filtered).length > 0) {
-      filteredBalance[accountId] = filtered;
-    }
-  }
-
-  return {
-    ...response,
-    assetsBalance:
-      Object.keys(filteredBalance).length > 0 ? filteredBalance : undefined,
-  };
-}
-
 // ============================================================================
 // ACCOUNTS API DATA SOURCE
 // ============================================================================
@@ -262,16 +197,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #fetchTimeoutMs: number;
 
-  /** Getter avoids stale value when user toggles token detection at runtime. */
-  readonly #tokenDetectionEnabled: () => boolean;
-
   /** Shared AssetsController messenger, used to read remote feature flags. */
   readonly #messenger: AssetsControllerMessenger;
-
-  /** Injected by AssetsController; `true` when the v6 balances endpoint should be used. */
-  readonly #isBalanceV6Enabled: () => boolean;
-
-  readonly #getAssetsState: () => AssetsControllerState;
 
   readonly #getAssetVisibility: GetAssetVisibility;
 
@@ -290,12 +217,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-    this.#tokenDetectionEnabled =
-      options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#messenger = options.messenger;
-    this.#isBalanceV6Enabled =
-      options.isBalanceV6Enabled ?? ((): boolean => false);
-    this.#getAssetsState = options.getAssetsState;
     this.#getAssetVisibility = options.getAssetVisibility;
     this.#apiClient = options.queryApiClient;
 
@@ -417,71 +339,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async fetch(request: DataRequest): Promise<DataResponse> {
-    if (this.#isBalanceV6Enabled()) {
-      return this.#fetchV6(request);
-    }
-
-    return this.#fetchV5(request);
-  }
-
-  /**
-   * v5 fetch. Unchanged from the pre-v6 handler; delete the v6 sibling first
-   * if `assetsAccountsApiV6` is rolled back.
-   *
-   * @param request - The data request.
-   * @returns Balances stamped `merge`, plus errors for chains the API could
-   * not process.
-   */
-  async #fetchV5(request: DataRequest): Promise<DataResponse> {
-    let response: DataResponse = {};
-    const chainsToFetch = this.#getChainsToFetch(request);
-
-    if (chainsToFetch.length === 0) {
-      this.#markUnsupportedChains(response, request);
-      return response;
-    }
-
-    try {
-      const accountIds = this.#buildAccountIds(request, chainsToFetch);
-
-      // Skip API call if no valid account-chain combinations
-      if (accountIds.length === 0) {
-        return response;
-      }
-
-      const { unprocessedNetworks, assetsBalance } =
-        await this.#fetchV5Balances(
-          accountIds,
-          this.#buildFetchOptions(request),
-          request,
-        );
-
-      // Handle unprocessed networks - these will be passed to next middleware
-      if (unprocessedNetworks.length > 0) {
-        const unprocessedChainIds =
-          unprocessedNetworks.map(caipChainIdToChainId);
-
-        // Add unprocessed chains to errors so middleware passes them to next data source
-        response.errors = response.errors ?? {};
-        for (const chainId of unprocessedChainIds) {
-          response.errors[chainId] = 'Unprocessed by Accounts API';
-        }
-      }
-
-      response.assetsBalance = assetsBalance;
-      response.updateMode = 'merge';
-    } catch (error) {
-      this.#markFetchFailure(response, chainsToFetch, error);
-    }
-
-    this.#markUnsupportedChains(response, request);
-
-    // When token detection is disabled, filter out tokens not already in state
-    if (!this.#tokenDetectionEnabled()) {
-      response = filterResponseToKnownAssets(response, this.#getAssetsState());
-    }
-
-    return response;
+    return this.#fetchV6(request);
   }
 
   /**
@@ -659,48 +517,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
-   * Fetch balances from the legacy v5 endpoint and process them.
-   *
-   * @param accountIds - CAIP-10 account IDs to fetch balances for.
-   * @param fetchOptions - Cache/fetch options (e.g. force update settings).
-   * @param request - The original data request containing accounts to map.
-   * @returns Unprocessed networks and processed asset balances by account.
-   */
-  async #fetchV5Balances(
-    accountIds: string[],
-    fetchOptions:
-      | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
-      | undefined,
-    request: DataRequest,
-  ): Promise<{
-    unprocessedNetworks: string[];
-    unprocessedIncludeAssetIds: string[];
-    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
-  }> {
-    const apiResponse = await fetchWithTimeout(
-      () =>
-        this.#apiClient.accounts.fetchV5MultiAccountBalances(
-          accountIds,
-          undefined,
-          fetchOptions,
-        ),
-      this.#fetchTimeoutMs,
-    );
-
-    const { assetsBalance } = this.#processV5Balances(
-      apiResponse.balances,
-      request,
-    );
-
-    return {
-      unprocessedNetworks: apiResponse.unprocessedNetworks,
-      // v5 has no `includeAssetIds` support.
-      unprocessedIncludeAssetIds: [],
-      assetsBalance,
-    };
-  }
-
-  /**
    * Fetch balances from the v6 endpoint and process them.
    *
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
@@ -768,69 +584,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
     }
     return addressToAccountId;
-  }
-
-  /**
-   * Process V5 API balances response.
-   * V5 returns a flat array of balance items, each with accountId and assetId.
-   *
-   * @param balances - Array of balance items from the V5 API response.
-   * @param request - The original data request containing accounts to map.
-   * @returns Object containing processed asset balances by account.
-   */
-  #processV5Balances(
-    balances: V5BalanceItem[],
-    request: DataRequest,
-  ): {
-    assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
-  } {
-    const assetsBalance: Record<
-      string,
-      Record<Caip19AssetId, AssetBalance>
-    > = {};
-
-    // Build a map of lowercase addresses to account IDs for efficient lookup
-    const addressToAccountId = this.#buildAddressToAccountIdMap(request);
-
-    // V5 response: array of { accountId, assetId, balance, ... }
-    for (const item of balances) {
-      // Extract address from CAIP-10 account ID (e.g., "eip155:1:0x1234..." -> "0x1234...")
-      const addressParts = item.accountId.split(':');
-      if (addressParts.length < 3) {
-        continue;
-      }
-      const address = addressParts[2].toLowerCase();
-
-      // Find the matching account ID from request
-      const accountId = addressToAccountId.get(address);
-      if (!accountId) {
-        // This is normal - API returns balances for all chains, but request may only have one account
-        continue;
-      }
-
-      if (!assetsBalance[accountId]) {
-        assetsBalance[accountId] = {};
-      }
-
-      // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
-      const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
-
-      // Staked balances are owned by StakedBalanceDataSource. Accounts API may
-      // return the vault share token as a normal ERC-20 (often 0 or stale),
-      // which would overwrite or wipe the on-chain staked amount on merge.
-      if (isStakingContractAssetId(normalizedAssetId)) {
-        continue;
-      }
-
-      // Store balance as returned by API, along with any network-specific
-      // metadata (e.g. Stellar trustline / native reserve fields).
-      assetsBalance[accountId][normalizedAssetId] = {
-        amount: item.balance,
-        ...(item.metadata ? { metadata: item.metadata } : {}),
-      };
-    }
-
-    return { assetsBalance };
   }
 
   /**
@@ -921,63 +674,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
-    if (this.#isBalanceV6Enabled()) {
-      return this.#assetsMiddlewareV6;
-    }
-
-    return this.#assetsMiddlewareV5;
+    return this.#assetsMiddlewareV6;
   }
-
-  readonly #assetsMiddlewareV5: Middleware = async (context, next) => {
-    const { request } = context;
-
-    // Price/metadata-only requests must not hit the Accounts API.
-    if (!request.dataTypes.includes('balance')) {
-      return next(context);
-    }
-
-    // If no chains requested, skip to next middleware
-    if (request.chainIds.length === 0) {
-      return next(context);
-    }
-
-    const chainsToFetch = this.#getChainsToFetch(request);
-    if (chainsToFetch.length === 0) {
-      return next(context);
-    }
-
-    try {
-      const response = await this.fetch({
-        ...request,
-        chainIds: chainsToFetch,
-      });
-
-      // Merge response into context. The caller's chain list stays intact:
-      // the RPC fallback re-reads omitted tokens on chains this fetch answered.
-      if (response.assetsBalance) {
-        context.response.assetsBalance ??= {};
-        for (const [accountId, accountBalances] of Object.entries(
-          response.assetsBalance,
-        )) {
-          context.response.assetsBalance[accountId] = {
-            ...context.response.assetsBalance[accountId],
-            ...accountBalances,
-          };
-        }
-      }
-
-      if (response.errors && Object.keys(response.errors).length > 0) {
-        context.response.errors = {
-          ...context.response.errors,
-          ...response.errors,
-        };
-      }
-    } catch (error) {
-      log('Middleware fetch failed', { error });
-    }
-
-    return next(context);
-  };
 
   readonly #assetsMiddlewareV6: Middleware = async (context, next) => {
     const { request } = context;

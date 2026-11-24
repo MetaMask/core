@@ -1,7 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger.js';
@@ -55,10 +55,6 @@ describe('NotificationServicesPushController', () => {
   };
 
   describe('subscribeToPushNotifications', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should unsubscribe to old listeners and subscribe to new listeners if called multiple times', async () => {
       const mockUnsubscribe = vi.fn();
       const mockSubscribe = vi.fn().mockReturnValue(mockUnsubscribe);
@@ -81,10 +77,6 @@ describe('NotificationServicesPushController', () => {
   });
 
   describe('enablePushNotifications', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should update the state with the fcmToken', async () => {
       arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger();
@@ -193,10 +185,6 @@ describe('NotificationServicesPushController', () => {
   });
 
   describe('disablePushNotifications', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should update the state removing the fcmToken', async () => {
       arrangeServicesMocks();
       const { controller } = arrangeMockMessenger();
@@ -239,10 +227,6 @@ describe('NotificationServicesPushController', () => {
   });
 
   describe('updateTriggerPushNotifications', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should call activatePushNotifications with the correct parameters and update state', async () => {
       const mocks = arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger();
@@ -336,10 +320,6 @@ describe('NotificationServicesPushController', () => {
   });
 
   describe('deletePushNotificationLinks', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should call deleteLinksAPI with addresses and platform', async () => {
       const mocks = arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger({
@@ -397,10 +377,6 @@ describe('NotificationServicesPushController', () => {
   });
 
   describe('addPushNotificationLinks', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should call updateLinksAPI with addresses and the existing token', async () => {
       const mocks = arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger({

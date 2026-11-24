@@ -12,6 +12,7 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
+  toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -35,13 +36,19 @@ import type {
   NftControllerState,
   NftMetadata,
 } from './NftController.js';
+import type { NftDetectionControllerMethodActions } from './NftDetectionController-method-action-types.js';
 
 const controllerName = 'NftDetectionController';
 
+const MESSENGER_EXPOSED_METHODS = ['detectNfts'] as const;
+
 export type NFTDetectionControllerState = Record<never, never>;
 
-export type AllowedActions =
+export type NftDetectionControllerActions =
   | ControllerGetStateAction<typeof controllerName, NFTDetectionControllerState>
+  | NftDetectionControllerMethodActions;
+
+export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -59,7 +66,7 @@ export type AllowedEvents =
 
 export type NftDetectionControllerMessenger = Messenger<
   typeof controllerName,
-  AllowedActions,
+  NftDetectionControllerActions | AllowedActions,
   AllowedEvents
 >;
 
@@ -423,6 +430,8 @@ export class NftDetectionController extends BaseController<
 
   readonly #addNfts: NftController['addNfts'];
 
+  readonly #removeNft: NftController['removeNft'];
+
   readonly #getNftState: () => NftControllerState;
 
   #inProcessNftFetchingUpdates: Record<`${string}:${string}`, Promise<void>>;
@@ -434,17 +443,20 @@ export class NftDetectionController extends BaseController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
    * @param options.addNfts - Add multiple NFTs.
+   * @param options.removeNft - Remove a single NFT.
    * @param options.getNftState - Gets the current state of the Assets controller.
    */
   constructor({
     messenger,
     disabled = false,
     addNfts,
+    removeNft,
     getNftState,
   }: {
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
     addNfts: NftController['addNfts'];
+    removeNft: NftController['removeNft'];
     getNftState: () => NftControllerState;
   }) {
     super({
@@ -458,6 +470,12 @@ export class NftDetectionController extends BaseController<
 
     this.#getNftState = getNftState;
     this.#addNfts = addNfts;
+    this.#removeNft = removeNft;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',
@@ -614,6 +632,45 @@ export class NftDetectionController extends BaseController<
               ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
               : true),
         );
+
+        // Remove NFTs that the API now marks as spam but are still in state
+        const spamNfts = resultNftApi.tokens.filter(
+          (elm) => elm.token.isSpam === true,
+        );
+        for (const { token } of spamNfts) {
+          const { contract, tokenId, chainId } = token;
+          if (!chainId) {
+            continue;
+          }
+          const hexChainId = toHex(chainId);
+          const { allNfts } = this.#getNftState();
+          const nftsForChain = allNfts[userAddress]?.[hexChainId] ?? [];
+          const checksumAddress = toChecksumHexAddress(contract);
+          const existingNft = nftsForChain.find(
+            (nft) =>
+              nft.address.toLowerCase() === checksumAddress.toLowerCase() &&
+              nft.tokenId === tokenId,
+          );
+          // NFTs the user added (manually or by approving a dapp suggestion)
+          // are never auto-removed. NFTs without a stored source were added
+          // before sources were recorded and can still be removed.
+          if (
+            existingNft &&
+            (!existingNft.source || existingNft.source === Source.Detected)
+          ) {
+            try {
+              const networkClientId = this.messenger.call(
+                'NetworkController:findNetworkClientIdByChainId',
+                hexChainId,
+              );
+              this.#removeNft(contract, tokenId, networkClientId, {
+                userAddress,
+              });
+            } catch {
+              // Network may not be configured; skip this NFT
+            }
+          }
+        }
 
         // Proceed to add NFTs
         const nftsToAdd = apiNfts

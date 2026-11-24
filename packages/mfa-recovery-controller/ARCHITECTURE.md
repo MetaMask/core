@@ -2,22 +2,23 @@
 
 Orchestration layer for MFA recovery. The controller never stores the recovery
 secret in controller state. It replicates a full copy of that secret to every
-configured escrow, and persists only an **encrypted** pending mutation so a
-crash can finish the same write.
+configured escrow, and persists the pending mutation **without** its recovery
+secret so a crash can finish the same write. The secret stays in memory; after
+a restart, `resume` reads it back from an escrow that applied the mutation.
 
 ## Architecture
 
-The controller is a coordinator. Auth, identifier proofs, escrow I/O, and
-encryption are injected. OTP collection is not wired yet.
+The controller is a coordinator. Identifier proofs and escrow I/O are
+injected; Auth approvals come from `AuthenticationController` through the
+controller's messenger. OTP collection is not wired yet.
 
 ```mermaid
 flowchart LR
   Client["Client / UI"]
   Messenger["Messenger"]
   Ctrl["MfaRecoveryController"]
-  Auth["RecoveryAuthProvider"]
+  Auth["AuthenticationController"]
   IdP["RecoveryIdentifierAuthProvider"]
-  Enc["PendingOperationEncryptor"]
   EA["Escrow A"]
   EB["Escrow B"]
 
@@ -25,28 +26,27 @@ flowchart LR
   Messenger --> Ctrl
   Ctrl --> Auth
   Ctrl --> IdP
-  Ctrl --> Enc
   Ctrl --> EA
   Ctrl --> EB
 ```
 
-| Piece                       | Role                                                                        |
-| --------------------------- | --------------------------------------------------------------------------- |
-| `pendingOperation`          | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`   |
-| `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
-| `authProvider`              | Profile id + request-bound AuthController token (Hydra JWT)                 |
-| `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
-| `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
-| `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
-| `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
+| Piece                    | Role                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `pendingOperation`       | Persisted `authorizing` / `writing` mutation without its recovery secret, or `null`  |
+| `lockId`                 | Persisted lease ID, reused on retry and restart, or `null`                           |
+| `escrows[]`              | Build-time replica set; non-empty, unique `id`s; mutations require **all**           |
+| `lockProvider`           | Per-profile lease, acquired before every approval                                    |
+| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                      |
+| `now`                    | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow`          |
+| `#withLock`              | Serializes every public method except `authenticateIdentifier`                       |
+| `#keptRecoverySecret`    | In-memory recovery secret of the pending `register` / `updateRecoverySecret`, if any |
 
-Each escrow has two identities: `id` is the replica id used in mutation
-`audiences` and receipts; `authAudience` is the audience the AuthController
-token must carry for that escrow. They are independent (Cubist uses `"cubist"`
-for both).
+`id` identifies the replica in mutations and receipts; `authAudience` identifies
+the approval audience. Cubist uses `id: "cubist"` and an `authAudience` matching
+`AUTH_CONTROLLER_AUDIENCE`.
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
-`passkey` / `oidc` / `siwe` → key-bound. Any other type is rejected with
+`passkey` / `social` / `siwe` → key-bound. Any other type is rejected with
 `unknown_identifier_type`. `emailOtp` / `smsOtp` escrow-challenge is not wired
 yet (MFA-605 / MFA-606 / MFA-568).
 
@@ -58,8 +58,9 @@ salt, info `escrow-wrap-v1`), and AES-256-GCM. The ciphertext is the raw bytes
 `iv || ciphertext+tag`. Wrap keys and `pkE` are raw 32-byte X25519 public keys,
 and `wrapKeyId` is the SHA-256 of the raw 32-byte public key. Proof keys and
 receipt keys are raw 32-byte Ed25519 public keys, and `receiptKeyId` is the
-SHA-256 of the raw 32-byte Ed25519 public key. Pending state stores the secret
-as 0x-hex; `payloadHash` is the hash of that pending payload. At apply, each
+SHA-256 of the raw 32-byte Ed25519 public key. `payloadHash` is the hash of the
+pending payload plus, for `register` and `updateRecoverySecret`, the secret as
+0x-hex under `recoverySecret`; pending state omits that field. At apply, each
 escrow gets `{ pkE, ciphertext }` wrapped to its own `wrapPublicKey` with a
 fresh ephemeral key. Reads bind the client's ephemeral `pkE` into the
 `getSecret` request hash, and the escrow wraps its response to `pkE`. On the
@@ -68,11 +69,20 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
+`acquireLock`, `releaseLock` (see
+[Recovery Lock](README.md#recovery-lock)).
+
+`getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
+and their escrow version as `epoch`, plus Auth's identifiers. A new device
+builds the `updateIdentifiers` set and `expectedEpoch` from it. Like a
+mutation, it requires every escrow and the same version on each
+(`replica_lagging`), so lagging escrows are repaired before Auth changes:
+repair copies identifiers that Auth must still approve.
 
 ## State machine
 
-Persisted phase is derived from decrypted pending state: no pending → `idle`.
+Persisted phase is derived from pending state: no pending → `idle`.
 
 ```mermaid
 stateDiagram-v2
@@ -81,15 +91,18 @@ stateDiagram-v2
   authorizing --> idle: abort()
   authorizing --> writing: identifier auth succeeds, before first apply
   writing --> writing: more receipts, still missing replicas
-  writing --> idle: every configured escrow has a valid receipt
-  writing --> idle: every escrow rejects and none has a receipt
+  writing --> idle: every target escrow has a valid receipt
+  writing --> idle: every remaining escrow rejects
   writing --> writing: resume() retries only missing receipts
   authorizing --> writing: resume() authorizes then writes
 ```
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`
+- **`abort()`** drops `authorizing`, or `writing` once its approval expired
+  more than 5 minutes ago (device clock skew) and every target escrow is still
+  below `newVersion`; `resume()` then does the same and throws
+  `MutationRejectedError`. Otherwise `writing` must `resume()`
   (`abort_not_allowed`).
 - `writing` is persisted before the **first escrow apply**, after the
   AuthController token is issued, every target escrow has accepted identifier
@@ -97,26 +110,49 @@ Rules:
   failure remains resumable, while pre-write failures stay abortable.
 - `register` / `updateRecoverySecret` / `updateIdentifiers` require idle
   pending state (`pending_mutation`). `resume()` finishes a persisted
-  mutation and is a no-op when idle.
+  mutation. When idle it is a no-op, or repairs lagging replicas if given an
+  identifier.
+
+### Recovery secret after a restart
+
+The recovery secret of a pending `register` / `updateRecoverySecret` is kept
+only in memory, so a restarted controller no longer has it:
+
+- `authorizing` reached no escrow. `resume()` clears it without any request and
+  throws `MutationRejectedError`; the caller starts the mutation again.
+- `writing` that an escrow applied: once `resume()` has the receipts, it logs
+  in with the update's identifier (or, for `register`, the one passed to
+  `resume(identifier)`, else `identifier_required`) and reads the secret from
+  those escrows only. The secret must match `payloadHash`
+  (`payload_mismatch`). It is kept in memory, and the same mutation is written
+  to the remaining escrows.
+- `writing` that no escrow applied: `resume()` throws
+  `recovery_secret_unavailable` before any 2FA prompt. Once the approval
+  expired more than 5 minutes ago, `resume()` or `abort()` clears it.
 
 ### Pending state validation
 
-The decrypted blob is validated on every load and before every persist.
-Anything that fails is rejected rather than acted on:
+Pending state is validated on every load and before every persist. Anything
+that fails is rejected rather than acted on:
 
 - Shape: phase, mutation fields, `newVersion = expectedVersion + 1`, payload
-  keys for the operation, hex secret, at least two distinct identifiers, known
-  identifier types.
-- `audiences` must equal the configured escrow ids, in order
+  keys for the operation (never a `recoverySecret`), at least two distinct
+  identifiers, known identifier types.
+- `audiences` must be configured escrow ids, in configured order
   (`audience_mismatch`).
-- `payloadHash` must match the payload (`payload_mismatch`) and `requestHash`
-  must match the mutation fields.
+- `payloadHash` must match the payload, plus the in-memory recovery secret for
+  `register` / `updateRecoverySecret` (`payload_mismatch`). Without that
+  secret, the check waits until the secret is read back. `requestHash` must
+  match the mutation fields.
 - `register` has `expectedVersion` `0` and `identifier: null`; updates carry
   an identifier.
-- `writing` only: the AuthController token's `sub` is the mutation
-  `profileId`, its `ext.request_hash` is the mutation `requestHash`, updates
-  have `aal >= 2`, `register` / `updateIdentifiers` carry `identifiers_hash`,
-  and receipts are well-formed with at most one per escrow.
+- `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
+  to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also need
+  `identifiers_hash` to match `approvedIdentifiers`, and every non-SIWE
+  payload identifier to equal one of them exactly. This runs before `writing` is
+  persisted: an escrow rejection is not a `Deny`, so a mismatch found there
+  would leave an unabortable write. Receipts must be well-formed with at most
+  one per escrow.
 
 ## Mutation sequence (`register` / updates)
 
@@ -126,30 +162,41 @@ Mutations are all-or-nothing across the configured escrow set. Reads are not.
 sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
-  participant A as AuthProvider
+  participant A as AuthenticationController
   participant I as IdentifierAuthProvider
   participant E as Escrows
 
   C->>M: register / updateRecoverySecret / updateIdentifiers
   M->>M: lock, reject if a mutation is already pending
   M->>E: isAvailable (every escrow required)
-  M->>A: getAuthenticatedProfileId
+  M->>E: getIdentifiers (AAL1); differing versions → replica_lagging
+  M->>M: update identifier not enrolled everywhere → identifier_not_enrolled
+  M->>A: refreshCanonicalProfileId
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: build mutation, requestHash = hash(mutation fields)
   M->>M: persist pending = authorizing
-  M->>A: authorizeRecoveryRequest (AuthController token)
+  M->>A: requestMfaApproval (AuthController token)
   M->>M: skip escrows with a stored receipt, re-verify stored receipts
   M->>E: isAvailable (remaining escrows)
+  M->>E: getIdentifiers (remaining escrows, live token or read-only approval)
+  M->>M: approval for another profile → invalid_pending_operation
+  opt some escrow off expectedVersion
+    M->>E: getMutationReceipt(mutation) on those escrows
+    M->>M: any receipt missing or not ours → clear, mutation_superseded
+    M->>M: keep the receipts, then reread the rest
+  end
+  M->>M: no receipts and exp + 5 min <= now() → clear, MutationRejectedError
+  M->>M: update identifier missing at expectedVersion → identifier_not_enrolled
   M->>M: reuse token, or re-issue it if exp <= now()
-  alt not register
-    M->>I: getKeyBoundIdentifierToken
-    M->>E: generateChallenge + PoP per remaining escrow (all required)
+  opt update identifier, or SIWE identifiers not yet enrolled
+    M->>I: getKeyBoundIdentifierLogin per identifier (uses token, ignores seedlessAuthData)
+    M->>E: generateChallenge + PoPs per remaining escrow (all required)
   end
   M->>M: wrap secret per escrow, persist writing
   par write every remaining replica
     M->>E: applyMutation
   end
-  alt every escrow rejects and none has a receipt
+  alt every remaining escrow rejects
     M->>M: clear pending → idle
     M-->>C: MutationRejectedError (start a new mutation)
   else
@@ -164,15 +211,28 @@ sequenceDiagram
   end
 ```
 
-AuthController token request:
+Auth approvals:
 
-- `requestHash` is the mutation `requestHash`; `audiences` is every escrow's
-  `authAudience`.
-- Updates set `requireTwoFactor`. `register` and `updateIdentifiers` pass the
-  payload `identifiers` so the token is bound to them.
-- The token is a compact Hydra JWT. The controller decodes its claims without
-  verifying the signature (escrows verify it) and only uses them for
-  pending-state checks and the `exp` refresh.
+- The controller calls `AuthenticationController:requestMfaApproval` with the
+  operation's `requestHash` and each target escrow's `authAudience`, always
+  with `includeIdentifiers: true` and `reason: { operation: 'mfa_recovery' }`.
+  All writes and reads set `requireVerification` for AAL2.
+- The profile id comes from `AuthenticationController:refreshCanonicalProfileId`
+  on each mutation.
+- The issuer controls approval lifetime. AAL2 requires recent MFA.
+- The approval's `identifiers` are persisted with its token as
+  `approvedIdentifiers` and refreshed with it. `register` and
+  `updateIdentifiers` send them to every escrow, which checks them against
+  `identifiers_hash` and rejects non-SIWE payload identifiers outside them.
+  Hashing sorts object keys, not arrays.
+- Auth does not vouch for SIWE wallets. Each SIWE identifier an escrow has not
+  enrolled needs its own proof in `identifierAuthorizations`; updates add one
+  proof for the `identifier` argument. Escrows past `expectedVersion` are only
+  asked for their receipt, so they get no proofs.
+- Missing or stale MFA rejects with `AuthenticationController`'s
+  `StepUpRequiredError`.
+- Escrows verify signatures. The controller decodes claims only for pending-state
+  validation and expiry-based refresh.
 
 Receipts:
 
@@ -180,9 +240,9 @@ Receipts:
   target, and `escrow.verifyReceipt` accepts it (pinned receipt key).
 - Stored receipts are re-verified before every retry. A receipt for an
   escrow that is no longer configured fails with `unknown_receipt_escrow`.
-- `MutationRejectedError` is only surfaced when **every** remaining escrow
-  threw `MutationRejectedError` and no receipt exists yet; anything else may
-  have been applied and stays `writing`.
+- When **every** remaining escrow throws `MutationRejectedError`, the pending
+  mutation is cleared and that error is surfaced. Anything else may have been
+  applied and stays `writing`.
 
 Versioning:
 
@@ -193,83 +253,66 @@ Versioning:
 - updates take the caller-supplied `epoch` (a non-negative integer, else
   `invalid_epoch`) as `expectedVersion`, then `n → n+1`. Escrows reject a
   mismatch.
-- Mutation `audiences` is the full configured replica-id list, in that order.
-  Each replica should require an exact match to its configured set (a
-  cubist-only deploy is `["cubist"]`; adding another escrow means every replica
-  is rebuilt with the expanded list).
+- Mutation `audiences` is the configured replica-id list, in that order, or
+  the lagging subset for a repair. Each escrow requires its own id exactly
+  once (a cubist-only deploy is `["cubist"]`).
+- An escrow with no record reports version `0`. New mutations require every
+  escrow at the same version (`replica_lagging`).
+- That check runs before the lease, so another device may write first. Each
+  write rereads versions under the lease. For each escrow off
+  `expectedVersion`, the controller reads its receipt at `newVersion`. If any
+  escrow has no receipt for this mutation, another write got there first: the
+  mutation is cleared with `mutation_superseded` and nothing is sent. So it
+  never forks the rest, and it clears without identifier proofs, even if its
+  identifier or SIWE wallet is gone. A `writing` mutation also clears without
+  2FA. Escrows keep only recent receipts, so a very old receipt also reads as
+  missing.
+- A `writing` mutation that no escrow applied is cleared with
+  `MutationRejectedError`, without 2FA, once its approval expired more than 5
+  minutes ago by the device clock. No write with it can still land.
+- An update's `identifier` must be enrolled on every target escrow
+  (`identifier_not_enrolled`), checked before approval and before each write:
+  escrows fail, rather than reject, an unknown one.
+- `resume(identifier)` with a pending update authorizes it with `identifier`
+  instead. Escrows accept any enrolled identifier, and `requestHash` does not
+  cover it.
+
+`resume(identifier)` with no pending mutation reads every escrow's version and
+identifiers. Escrows one version behind the highest get one mutation
+addressed only to them: `register` if they have no record,
+`updateIdentifiers` if their identifiers differ, otherwise
+`updateRecoverySecret` with the secret read from the highest escrow. Escrows
+further behind fail with `replica_corruption`.
 
 `resume()` is the same write path without creating a new mutation:
 authorizing pending gets a fresh token then replicates; writing pending
-retries only escrows that do not already have a stored receipt. Updates
-re-run identifier auth (a new key-bound token and PoP) for those escrows on
+retries only escrows that do not already have a stored receipt. Updates and
+mutations adding SIWE wallets re-run identifier auth (a new key-bound token and PoP) for those escrows on
 every attempt, so the identifier provider must be able to authenticate again.
 
-## Cubist store sequence
+## Cubist integration
 
 The controller does not call CubeSigner, the registration API, or
-`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`
-(`id` and `authAudience`: `"cubist"`). The caller proves OIDC, calls
+`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`.
+The caller proves OIDC, calls
 `ensure-user`, opens the session, and constructs the provider with the
 authenticated `CubeSignerClient` and the pinned wrap and receipt public keys
 before `register`.
 
 `CubistEscrowProvider` sends every command with `policyInvoke` on the C2F
 (default `cubist_secret_escrow`, version `latest`) as `{ cmd, ...fields }`:
-`ping` (`isAvailable`), `generateChallenge`, `getSecret`, and
-`applyMutation`. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
-`applyMutation` becomes `MutationRejectedError`; any other failure is
+`ping` (`isAvailable`), `generateChallenge`, `getIdentifiers`,
+`getMutationReceipt`, `getSecret`, and `applyMutation`. `generateChallenge`,
+`getIdentifiers`, and `getMutationReceipt` take the operation's
+`authControllerToken`; the escrow keys the challenge to its profile. Escrow
+JSON is parsed from C2F stdout. A policy `Deny` on `applyMutation` becomes
+`MutationRejectedError`; any other failure is
 `escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.
 
-`register(recoverySecret, identifiers)` takes an identifier **array** of at
-least two distinct key-bound identifiers. One `siwe` identifier is rejected.
-`applyMutation` is the store: the controller wraps the secret to the escrow
-wrap key, and the Cubist C2F persists that payload.
-
-`authenticateIdentifier` asks the injected identifier provider for a key-bound
-token. A SIWE provider signs with `KeyringController.signPersonalMessage`.
-The controller does not. `getRecoverySecret` then challenges the escrow, signs
-the proof of possession locally, calls `getSecret`, and unwraps. `epoch` is
-the replica `version`.
-
-```mermaid
-sequenceDiagram
-  participant Caller as Caller
-  participant Auth as RecoveryAuthProvider
-  participant IdP as SIWE identifier provider
-  participant Ctrl as MfaRecoveryController
-  participant Escrow as Cubist escrow
-
-  Note over Caller,Escrow: proveOidcIdentity, ensure-user, createOidcSession, then new CubistEscrowProvider
-
-  Caller->>Ctrl: register(secret, identifiers)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Auth: getAuthenticatedProfileId
-  Ctrl->>Ctrl: persist authorizing
-  Ctrl->>Auth: authorizeRecoveryRequest
-  Auth-->>Ctrl: AuthController token (Hydra JWT)
-  Ctrl->>Ctrl: wrap secret, persist writing
-  Ctrl->>Escrow: applyMutation
-  Escrow-->>Ctrl: receipt
-  Ctrl->>Ctrl: verify receipt, clear pending
-
-  Caller->>Ctrl: authenticateIdentifier(siwe)
-  Ctrl->>IdP: getKeyBoundIdentifierToken
-  Note over IdP: signPersonalMessage
-  IdP-->>Ctrl: token
-  Ctrl-->>Caller: identifierSession
-
-  Caller->>Ctrl: getRecoverySecret(identifierSession)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Escrow: generateChallenge
-  Ctrl->>Ctrl: sign proof of possession
-  Ctrl->>Escrow: getSecret
-  Escrow-->>Ctrl: wrapped secret + version + wrapKeyId
-  Ctrl->>Ctrl: check wrapKeyId, unwrap
-  Ctrl-->>Caller: secret bytes + epoch
-```
+For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE.md).
 
 ## Read sequence (`getRecoverySecret`)
 
@@ -283,22 +326,25 @@ sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
   participant I as IdentifierAuthProvider
+  participant A as AuthenticationController
   participant E as Available escrows
 
   C->>M: authenticateIdentifier(identifier)
   M->>M: generate requestId, proof key, and ephemeral pkE
   M->>M: requestHash = hash(getRecoverySecret, requestId, pkE)
-  M->>I: getKeyBoundIdentifierToken
-  M-->>C: IdentifierSession
+  M->>I: getKeyBoundIdentifierLogin
+  M-->>C: IdentifierSession with seedlessAuthData if returned
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
   M->>E: isAvailable (failures skipped)
   alt none available
     M-->>C: no_available_escrow
   end
+  M->>A: requestMfaApproval (read hash, AAL2)
+  A-->>M: request-bound approval
   M->>E: generateChallenge + PoP (partial OK)
   par read
-    M->>E: getSecret
+    M->>E: getSecret(approval, authorization, requestId, pkE)
     M->>M: check wrapKeyId, unwrap with ephemeral key
   end
   M->>M: selectHighestConsistentVersion
@@ -312,14 +358,16 @@ sequenceDiagram
 ```
 
 `IdentifierSession` contains the key-bound token, its proof private key, the
-`requestId`, and the ephemeral `pkE` key pair needed for the read. The
-controller does not persist or store the session; callers must keep it in
-memory and must not log it.
+`requestId`, and the ephemeral `pkE` key pair needed for the read. For seedless
+social logins it may also include `seedlessAuthData`; callers should drop that
+before holding the session for a later read. The controller does not persist or
+store the session; callers must keep it in memory and must not log it.
 
 A replica whose `wrapKeyId` does not match its configured `wrapPublicKey`, or
 whose ciphertext fails to unwrap, counts as a failed read. Among successful
 reads, the highest `version` wins; every replica at that version must agree
-on `lastMutationId` and the secret bytes.
+on the secret bytes. `lastMutationId` is not compared, since a repaired
+replica holds the same secret under the repair's mutation.
 
 `getRecoverySecret` runs under the controller lock but does not check pending
 state. During `writing`, replicas may hold different versions; the read takes
@@ -330,33 +378,14 @@ the highest one. The next mutation still requires `resume()` first.
 ```mermaid
 flowchart TD
   Start[identifier + requestHash] --> Mode{trusted type?}
-  Mode -->|passkey / oidc / siwe| KB[fresh proof key, IdP key-bound token]
-  KB --> Chal[each escrow generateChallenge]
-  Chal --> PoP[sign PoP over hash of token + challengeId + requestHash]
+  Mode -->|passkey / social / siwe| KB[fresh proof key, IdP key-bound token]
+  KB --> Chal[each escrow generateChallenge, one per escrow]
+  Chal --> PoP[each proof key signs hash of token + challengeId + requestHash]
   Mode -->|emailOtp / smsOtp| Todo[TODO MFA-605 / MFA-606 / MFA-568]
   Mode -->|anything else| Reject[unknown_identifier_type]
 ```
 
 On **mutation**, every remaining target escrow must authorize or the write
 does not start (`identifier_auth_failed`). On **read**, escrows whose
-challenge fails are skipped. `register` sends no identifier authorization
-(`null`).
-
-## Crash / repair
-
-```mermaid
-flowchart TD
-  Crash[crash or partial apply] --> Phase{pending phase?}
-  Phase -->|none| Idle[idle]
-  Phase -->|authorizing| AbortOrResume{client choice}
-  AbortOrResume -->|abort| Idle
-  AbortOrResume -->|resume| Auth[re-issue AuthController token]
-  Auth --> Write[replicate]
-  Phase -->|writing| ResumeOnly[resume only]
-  ResumeOnly --> Skip[skip escrows that already have verified receipts]
-  Skip --> Refresh[re-issue token only if expired]
-  Refresh --> Write
-  Write --> All{receipts for every configured escrow?}
-  All -->|yes| Clear[clear pending]
-  All -->|no| PendingErr[IncompleteMutationError]
-```
+challenge fails are skipped. A `register` without SIWE identifiers sends no
+identifier authorizations (`[]`).

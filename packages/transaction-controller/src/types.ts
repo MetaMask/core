@@ -230,6 +230,12 @@ export type TransactionMeta = {
   isGasFeeSponsored?: boolean;
 
   /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when `isGasFeeSponsored` is true and the simulation names a sponsor.
+   */
+  gasFeeSponsor?: string;
+
+  /**
    * Whether the transaction has no lifecycle and is not signed or published.
    */
   isStateOnly?: boolean;
@@ -835,6 +841,21 @@ export enum TransactionType {
    * Supports paying with any token, not just native assets.
    */
   perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
+   * Deposit funds to be available for trading via Perps on Lighter.
+   */
+  perpsLighterDeposit = 'perpsLighterDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps on Lighter.
+   */
+  perpsLighterDepositAndOrder = 'perpsLighterDepositAndOrder',
+
+  /**
+   * Withdraw funds from Perps on Lighter.
+   */
+  perpsLighterWithdraw = 'perpsLighterWithdraw',
 
   /**
    * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
@@ -2113,6 +2134,13 @@ export type GasFeeToken = {
   /** Account address to send the token to. */
   recipient: Hex;
 
+  /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when the simulation reports the gas fee as sponsored.
+   * Prefer `TransactionMeta.gasFeeSponsor`, which also respects a caller-provided `isGasFeeSponsored`.
+   */
+  sponsor?: string;
+
   /** Symbol of the token. */
   symbol: string;
 
@@ -2190,6 +2218,12 @@ export type AssetsFiatValues = {
 
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
+  /**
+   * ID of an `InternalAccount` overriding the default account for the transaction.
+   * Output recipient when `isPostQuote` is true, funding payer when false.
+   */
+  accountOverride?: string;
+
   /** Total fee from any bridge transactions, in fiat currency. */
   bridgeFeeFiat?: string;
 
@@ -2198,6 +2232,11 @@ export type MetamaskPayMetadata = {
 
   /** Fiat on-ramp metadata (order ID and provider). */
   fiat?: {
+    /**
+     * Whether the order on-ramps mUSD directly into the Money Account, rather
+     * than an intermediate asset bridged by another strategy.
+     */
+    isDirectMusd?: boolean;
     /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
     orderId: string;
     /** Provider code (e.g. "transak-native"). */
@@ -2212,6 +2251,14 @@ export type MetamaskPayMetadata = {
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
+
+  /**
+   * Timestamp (ms since epoch) set by the pay controller when it first starts
+   * resuming this transaction after a restart. Later restarts keep resuming
+   * until the pay controller's resume timeout has passed since this time.
+   * TC does not read this field.
+   */
+  resumeAttemptedAt?: number;
 
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
@@ -2231,6 +2278,9 @@ export type MetamaskPayMetadata = {
 
 /**
  * Parameters for the transaction simulation API.
+ *
+ * Lets consumers rewrite the simulation request URL (for example to route
+ * through the MetaMask Shield proxy) via the returned `newUrl`.
  */
 export type GetSimulationConfig = (
   url: string,
@@ -2239,7 +2289,6 @@ export type GetSimulationConfig = (
   },
 ) => Promise<{
   newUrl?: string;
-  authorization?: string;
 }>;
 
 /**

@@ -112,16 +112,25 @@ export const handleMockSocialLogin = (
   onRequest?: (request: { body: unknown; authorization: string }) => void,
 ): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SOCIAL_LOGIN_RESPONSE };
-  return nock(MOCK_SOCIAL_LOGIN_URL)
+  // Body and header matchers record the request for the reply callback.
+  let requestBody: unknown;
+  let authorization: string | null | undefined;
+  const interceptor = nock(MOCK_SOCIAL_LOGIN_URL)
     .persist()
-    .post('')
-    .reply(function (_uri, body) {
-      onRequest?.({
-        body,
-        authorization: String(this.req.headers.authorization),
-      });
-      return [reply.status, reply.body];
+    .post('', (body) => {
+      requestBody = body;
+      return true;
     });
+  if (onRequest) {
+    interceptor.matchHeader('authorization', (value) => {
+      authorization = value;
+      return true;
+    });
+  }
+  return interceptor.reply(() => {
+    onRequest?.({ body: requestBody, authorization: String(authorization) });
+    return [reply.status, reply.body];
+  });
 };
 
 export const handleMockSrpLogin = (
@@ -129,13 +138,17 @@ export const handleMockSrpLogin = (
   onBody?: (body: unknown) => void,
 ): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
+  // Nock may run body matchers more than once per request, so the body is
+  // read from the `Request` in the reply callback.
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
     .persist()
-    .post('', (body) => {
-      onBody?.(body);
-      return true;
-    })
-    .reply(reply.status, reply.body);
+    .post('')
+    .reply(async (request: Request) => {
+      if (onBody) {
+        onBody(await request.clone().text());
+      }
+      return [reply.status, reply.body];
+    });
 
   return mockLoginEndpoint;
 };

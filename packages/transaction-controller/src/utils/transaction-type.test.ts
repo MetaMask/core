@@ -7,7 +7,7 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
@@ -28,6 +28,10 @@ const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
+const Permit2Interface = new Interface([
+  'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+  'function transferFrom(address from, address to, uint160 amount, address token)',
+]);
 
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';
@@ -38,10 +42,6 @@ describe('determineTransactionType', () => {
     data: '0xa9059cbb0000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C970000000000000000000000000000000000000000000000000000000000000000a',
     from: FROM_MOCK,
   };
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
     vi.mocked(rpcRequest).mockResolvedValue('0xab');
@@ -164,6 +164,48 @@ describe('determineTransactionType', () => {
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
+      getCodeResponse: '0xab',
+    });
+  });
+
+  it('returns a token approve type for a Permit2 approve', async () => {
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        data: Permit2Interface.encodeFunctionData('approve', [
+          '0x1234567890123456789012345678901234567890',
+          '0x2234567890123456789012345678901234567890',
+          '1000000',
+          1700000000,
+        ]),
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result).toMatchObject({
+      type: TransactionType.tokenMethodApprove,
+      getCodeResponse: '0xab',
+    });
+  });
+
+  it('returns a contract interaction type for a Permit2 transferFrom', async () => {
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        data: Permit2Interface.encodeFunctionData('transferFrom', [
+          '0x1234567890123456789012345678901234567890',
+          '0x2234567890123456789012345678901234567890',
+          '1000000',
+          '0x3234567890123456789012345678901234567890',
+        ]),
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result).toMatchObject({
+      type: TransactionType.contractInteraction,
       getCodeResponse: '0xab',
     });
   });
@@ -397,6 +439,29 @@ describe('decodeTransactionData', () => {
     expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[0].toLowerCase()).toBe(to.toLowerCase());
     expect(result?.args[1].toString()).toBe(amount);
+  });
+
+  it('parses Permit2 approve data correctly', () => {
+    const token = '0x1234567890123456789012345678901234567890';
+    const spender = '0x2234567890123456789012345678901234567890';
+    const amount = '1000000';
+    const expiration = 1700000000;
+    const approveData = Permit2Interface.encodeFunctionData('approve', [
+      token,
+      spender,
+      amount,
+      expiration,
+    ]);
+
+    const result = decodeTransactionData(approveData) as TransactionDescription;
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('approve');
+    expect(result?.sighash).toBe('0x87517c45');
+    expect(result?.args.token).toBe(token);
+    expect(result?.args.spender).toBe(spender);
+    expect(String(result?.args.amount)).toBe(amount);
+    expect(result?.args.expiration).toBe(expiration);
   });
 });
 

@@ -44,6 +44,7 @@ import {
 import { SolAccountProvider } from './SolAccountProvider.js';
 import { TrxAccountProvider } from './TrxAccountProvider.js';
 import { TimeoutError } from './utils.js';
+import { XlmAccountProvider } from './XlmAccountProvider.js';
 
 vi.mock(import('../analytics/index.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -368,6 +369,18 @@ describe('SnapAccountProvider', () => {
 
       expect(trxProvider).toBeDefined();
       expect(isSnapAccountProvider(trxProvider)).toBe(true);
+    });
+
+    it('creates XlmAccountProvider with default trace', () => {
+      const { messenger } = setup();
+
+      const xlmProvider = new XlmAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
+
+      expect(xlmProvider).toBeDefined();
+      expect(isSnapAccountProvider(xlmProvider)).toBe(true);
+      expect(xlmProvider.snapId).toBe(XlmAccountProvider.XLM_SNAP_ID);
     });
 
     it('creates provider without trace parameter', () => {

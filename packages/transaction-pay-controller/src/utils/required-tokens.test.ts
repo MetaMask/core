@@ -1,6 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { toHex } from '../../../controller-utils/src/index.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
@@ -30,10 +30,6 @@ describe('Required Tokens Utils', () => {
   const getTokenBalanceMock = vi.mocked(getTokenBalance);
   const getTokenInfoMock = vi.mocked(getTokenInfo);
   const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   describe('parseRequiredTokens', () => {
     describe('with requiredAssets', () => {

@@ -1,5 +1,5 @@
 import { SDK } from '@metamask/profile-sync-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
@@ -89,10 +89,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
     // Default mock implementation that just calls the operation
     mockExecuteWithRetry.mockImplementation(async (operation) => operation());
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('getWalletFromUserStorage', () => {

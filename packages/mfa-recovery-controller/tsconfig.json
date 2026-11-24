@@ -11,6 +11,12 @@
       "path": "../messenger"
     },
     {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../seedless-onboarding-controller"
+    },
+    {
       "path": "../utils"
     }
   ],

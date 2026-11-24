@@ -41,15 +41,25 @@ describe('AcrossStrategy', () => {
     },
   } as TransactionMeta;
 
+  const PERPS_DEPOSIT_TRANSACTION_MOCK = {
+    ...TRANSACTION_META_MOCK,
+    txParams: {
+      from: '0xabc',
+      to: ARBITRUM_USDC_ADDRESS,
+      // transfer(HL bridge, 1000000)
+      data: '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240',
+    },
+  } as TransactionMeta;
+
   const baseRequest = {
     messenger,
     transaction: TRANSACTION_META_MOCK,
     requests: [
       {
         from: '0xabc',
+        sourceAccountId: 'eip155:1:0xabc',
+        sourceAssetId: 'eip155:1/erc20:0xabc',
         sourceBalanceRaw: '100',
-        sourceChainId: '0x1',
-        sourceTokenAddress: '0xabc',
         sourceTokenAmount: '100',
         targetAmountMinimum: '100',
         targetChainId: '0x2',
@@ -94,6 +104,24 @@ describe('AcrossStrategy', () => {
     });
   });
 
+  it('returns false when a request has a non-EVM source asset', () => {
+    const strategy = new AcrossStrategy();
+
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            ...baseRequest.requests[0],
+            sourceAccountId:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+            sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it('returns false when across is disabled', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
@@ -118,16 +146,13 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
+            sourceAccountId: 'eip155:42161:0xabc',
+            sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
             sourceBalanceRaw: '100',
-            sourceChainId: CHAIN_ID_ARBITRUM,
-            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
             sourceTokenAmount: '100',
             targetAmountMinimum: '100',
             targetChainId: CHAIN_ID_ARBITRUM,
@@ -143,16 +168,13 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
+            sourceAccountId: 'eip155:42161:0xabc',
+            sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
             sourceBalanceRaw: '100',
-            sourceChainId: CHAIN_ID_ARBITRUM,
-            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
             sourceTokenAmount: '100',
             targetAmountMinimum: '100',
             targetChainId: CHAIN_ID_ARBITRUM,
@@ -160,9 +182,9 @@ describe('AcrossStrategy', () => {
           },
           {
             from: '0xabc',
+            sourceAccountId: 'eip155:42161:0xabc',
+            sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
             sourceBalanceRaw: '100',
-            sourceChainId: CHAIN_ID_ARBITRUM,
-            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
             sourceTokenAmount: '100',
             targetAmountMinimum: '0',
             targetChainId: CHAIN_ID_ARBITRUM,
@@ -181,9 +203,9 @@ describe('AcrossStrategy', () => {
         requests: [
           {
             from: '0xabc',
+            sourceAccountId: 'eip155:42161:0xabc',
+            sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
             sourceBalanceRaw: '100',
-            sourceChainId: CHAIN_ID_ARBITRUM,
-            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
             sourceTokenAmount: '100',
             targetAmountMinimum: '0',
             targetChainId: CHAIN_ID_ARBITRUM,
@@ -203,9 +225,9 @@ describe('AcrossStrategy', () => {
           {
             from: '0xabc',
             isMaxAmount: true,
+            sourceAccountId: 'eip155:1:0xabc',
+            sourceAssetId: 'eip155:1/erc20:0xabc',
             sourceBalanceRaw: '100',
-            sourceChainId: '0x1',
-            sourceTokenAddress: '0xabc',
             sourceTokenAmount: '100',
             targetAmountMinimum: '0',
             targetChainId: '0x2',
@@ -235,9 +257,9 @@ describe('AcrossStrategy', () => {
           {
             from: '0xabc',
             isPostQuote: true,
+            sourceAccountId: 'eip155:1:0xabc',
+            sourceAssetId: 'eip155:1/erc20:0xabc',
             sourceBalanceRaw: '100',
-            sourceChainId: '0x1',
-            sourceTokenAddress: '0xabc',
             sourceTokenAmount: '100',
             targetAmountMinimum: '0',
             targetChainId: '0x2',
@@ -257,9 +279,9 @@ describe('AcrossStrategy', () => {
           {
             from: '0xabc',
             isPostQuote: true,
+            sourceAccountId: 'eip155:1:0xabc',
+            sourceAssetId: 'eip155:1/erc20:0xabc',
             sourceBalanceRaw: '100',
-            sourceChainId: '0x1',
-            sourceTokenAddress: '0xabc',
             sourceTokenAmount: '100',
             targetAmountMinimum: '0',
             targetChainId: '0x2',
@@ -275,10 +297,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
       }),
     ).toBe(false);
   });
@@ -304,9 +323,9 @@ describe('AcrossStrategy', () => {
         requests: [
           {
             from: '0xabc',
+            sourceAccountId: 'eip155:1:0xabc',
+            sourceAssetId: 'eip155:1/erc20:0xabc',
             sourceBalanceRaw: '100',
-            sourceChainId: '0x1',
-            sourceTokenAddress: '0xabc',
             sourceTokenAmount: '100',
             targetAmountMinimum: '100',
             targetChainId: '0x1',

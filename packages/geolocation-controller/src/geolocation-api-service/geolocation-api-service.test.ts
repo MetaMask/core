@@ -1,4 +1,3 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -626,13 +625,11 @@ describe('GeolocationApiService', () => {
           ),
         );
       const { service } = getService({ options: { fetch: mockFetch } });
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      const result = await service.fetchGeolocation();
+      const promise = service.fetchGeolocation();
+      await vi.runAllTimersAsync();
 
-      expect(result).toBe('US');
+      expect(await promise).toBe('US');
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
@@ -641,62 +638,79 @@ describe('GeolocationApiService', () => {
         .fn()
         .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({ options: { fetch: mockFetch } });
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      await expect(service.fetchGeolocation()).rejects.toThrow(
-        'Geolocation fetch failed: 500',
-      );
+      await Promise.all([
+        expect(service.fetchGeolocation()).rejects.toThrow(
+          'Geolocation fetch failed: 500',
+        ),
+        vi.runAllTimersAsync(),
+      ]);
 
       expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+  });
 
-    it('fires onDegraded when the request exceeds the degraded threshold', async () => {
-      const mockFetch = vi.fn().mockImplementation(
-        () =>
-          new Promise<Response>((resolve) => {
-            setTimeout(() => {
-              resolve(
-                createMockResponse(JSON.stringify({ country: 'US' }), 200),
-              );
-            }, 6000);
-          }),
-      );
-      const { service } = getService({ options: { fetch: mockFetch } });
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
+  describe('BaseDataService integration', () => {
+    const payload = {
+      country: 'US',
+      region: 'NY',
+      timezone: 'America/New_York',
+    };
 
-      const fetchPromise = service.fetchGeolocation();
-      await vi.advanceTimersByTimeAsync(6000);
-      await fetchPromise;
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('fires onBreak after repeated failures trip the circuit breaker', async () => {
+    it('registers the invalidateQueries action, which forces a refetch', async () => {
       const mockFetch = vi
         .fn()
-        .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
-      const { service } = getService({
+        .mockResolvedValue(createMockResponse(JSON.stringify(payload), 200));
+      const { service, rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
+
+      await service.fetchGeolocationData();
+      await rootMessenger.call('GeolocationApiService:invalidateQueries');
+      await service.fetchGeolocationData();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('publishes cacheUpdated after a fetch', async () => {
+      const { service, messenger } = getService({
         options: {
-          fetch: mockFetch,
-          policyOptions: { maxConsecutiveFailures: 4 },
+          fetch: vi
+            .fn()
+            .mockResolvedValue(
+              createMockResponse(JSON.stringify(payload), 200),
+            ),
         },
       });
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onBreakListener = vi.fn();
-      service.onBreak(onBreakListener);
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
-      await expect(service.fetchGeolocation()).rejects.toThrow(
-        'Geolocation fetch failed: 500',
+      await service.fetchGeolocationData();
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'GeolocationApiService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
       );
+    });
 
-      expect(onBreakListener).toHaveBeenCalledWith({
-        error: expect.any(HttpError),
+    it('refetches on the next call after a failed bypassCache refresh', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(createMockResponse(JSON.stringify(payload), 200))
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce(
+          createMockResponse(JSON.stringify(payload), 200),
+        );
+      const { service } = getService({
+        options: { fetch: mockFetch, policyOptions: { maxRetries: 0 } },
       });
+
+      await service.fetchGeolocationData();
+      await expect(
+        service.fetchGeolocationData({ bypassCache: true }),
+      ).rejects.toThrow('offline');
+      await service.fetchGeolocationData();
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 

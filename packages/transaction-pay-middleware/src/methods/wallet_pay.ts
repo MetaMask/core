@@ -1,6 +1,7 @@
 import type { StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex, PendingJsonRpcResponse } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { walletPayErrors } from '../errors.js';
 import { getWalletPayFlow } from '../flows/index.js';
@@ -21,8 +22,8 @@ const FALLBACK_TRANSACTION_HASH = '0x0';
 
 /**
  * The RPC method handler for `wallet_pay`: validates the request, checks the
- * flags and the account, then adds the transaction for the requesting dapp and
- * waits for its hash.
+ * flags and the account, selects the requested account, then adds the
+ * transaction for the requesting dapp and waits for its hash.
  *
  * @param req - The JSON-RPC request.
  * @param res - The pending JSON-RPC response.
@@ -38,10 +39,22 @@ export async function walletPay(
   const request = validateRequest(req.params);
   const flow = getAllowedFlow(messenger, req.origin, request.type);
 
+  assertAmountAllowed(flow, request.amount);
+
   await assertPermittedAccount(hooks, request.from);
   await flow.assertPreconditions?.(messenger);
 
-  const hash = await addTransaction(messenger, flow.build(request), req);
+  const transaction = flow.build(request);
+  const networkClientId = getNetworkClientId(messenger, transaction.chainId);
+
+  selectAccount(messenger, request.from);
+
+  const hash = await addTransaction(
+    messenger,
+    transaction,
+    networkClientId,
+    req,
+  );
 
   const result: WalletPayResult =
     hash && hash !== FALLBACK_TRANSACTION_HASH
@@ -59,6 +72,19 @@ function validateRequest(params: unknown): WalletPayRequest {
   }
 
   return validated[0];
+}
+
+function assertAmountAllowed(
+  flow: WalletPayFlow,
+  amount: string | undefined,
+): void {
+  if (
+    amount !== undefined &&
+    !flow.allowZeroAmount &&
+    new BigNumber(amount).isZero()
+  ) {
+    throw walletPayErrors.invalidParams('amount - Expected a positive amount');
+  }
 }
 
 function getAllowedFlow(
@@ -96,21 +122,52 @@ async function assertPermittedAccount(
   }
 }
 
+/**
+ * Selects the requested account, so the confirmation shows the balances and
+ * data of the account the transaction is sent from. Runs only once every other
+ * check has passed, so an invalid request never changes the selected account.
+ *
+ * @param messenger - The middleware messenger.
+ * @param from - The requested account.
+ */
+function selectAccount(
+  messenger: TransactionPayMiddlewareMessenger,
+  from: Hex,
+): void {
+  const account = messenger.call(
+    'AccountsController:getAccountByAddress',
+    from,
+  );
+
+  if (!account) {
+    throw walletPayErrors.unauthorizedAccount();
+  }
+
+  const selectedAccount = messenger.call(
+    'AccountsController:getSelectedAccount',
+  );
+
+  if (account.id === selectedAccount.id) {
+    return;
+  }
+
+  messenger.call(
+    'AccountTreeController:setSelectedAccountGroupByAccountId',
+    account.id,
+  );
+}
+
 async function addTransaction(
   messenger: TransactionPayMiddlewareMessenger,
-  {
-    chainId,
-    transactionParams,
-    type,
-    skipInitialGasEstimate,
-  }: WalletPayTransaction,
+  { transactionParams, type, skipInitialGasEstimate }: WalletPayTransaction,
+  networkClientId: string,
   req: WalletPayJsonRpcRequest,
 ): Promise<string> {
   const { result } = await messenger.call(
     'TransactionController:addTransaction',
     transactionParams,
     {
-      networkClientId: getNetworkClientId(messenger, chainId),
+      networkClientId,
       origin: req.origin,
       requestId: String(req.id),
       method: req.method,

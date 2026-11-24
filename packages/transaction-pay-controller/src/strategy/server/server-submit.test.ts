@@ -17,20 +17,32 @@ import type {
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
+  getSlippage,
+  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
+import { rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
-import { getLiveTokenBalance } from '../../utils/token.js';
+import {
+  buildCaipAssetType,
+  getLiveTokenBalanceOrUndefined,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
-import { submitServerQuotes } from './server-submit.js';
+import {
+  fetchServerQuote,
+  getServerStatus,
+  ServerApiError,
+  submitServerIntent,
+} from './server-api.js';
+import { getServerQuotes } from './server-quotes.js';
+import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
@@ -40,10 +52,15 @@ vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
 }));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/polymarket/withdraw.js'));
+vi.mock(import('../../utils/provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  rpcRequest: vi.fn(),
+}));
 vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
-  getLiveTokenBalance: vi.fn(),
+  getLiveTokenBalanceOrUndefined: vi.fn(),
+  getTokenFiatRate: vi.fn(),
 }));
 vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -51,13 +68,20 @@ vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   getTransaction: vi.fn(),
   waitForTransactionConfirmed: vi.fn(),
 }));
-vi.mock(import('./server-api.js'));
+vi.mock(import('./server-api.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchServerQuote: vi.fn(),
+  getServerStatus: vi.fn(),
+  submitServerIntent: vi.fn(),
+}));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
 const ORIGINAL_FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const QUOTE_FROM_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SOURCE_CHAIN_ID_MOCK = '0x89' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK =
+  '0x5555555555555555555555555555555555555555' as Hex;
 const TARGET_HASH_MOCK = '0xtarget' as Hex;
 const SOURCE_HASH_MOCK = '0xsource' as Hex;
 
@@ -87,18 +111,16 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   gasless: true,
   id: 'server-intent-id',
   input: {
-    chainId: 137,
+    asset: 'eip155:137/erc20:0x5555555555555555555555555555555555555555',
     decimals: 6,
     formatted: '1.23',
     raw: '1230000',
-    token: '0x5555555555555555555555555555555555555555',
   },
   output: {
-    chainId: 1,
+    asset: 'eip155:1/erc20:0x6666666666666666666666666666666666666666',
     decimals: 6,
     formatted: '1',
     raw: '1000000',
-    token: '0x6666666666666666666666666666666666666666',
   },
   provider: 'relay',
   steps: [
@@ -127,9 +149,9 @@ const QUOTE_MOCK = {
   original: ORIGINAL_QUOTE_MOCK,
   request: {
     from: QUOTE_FROM_MOCK,
+    sourceAccountId: `eip155:137:${QUOTE_FROM_MOCK}`,
+    sourceAssetId: `eip155:137/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}`,
     sourceBalanceRaw: '10000000',
-    sourceChainId: SOURCE_CHAIN_ID_MOCK,
-    sourceTokenAddress: '0x5555555555555555555555555555555555555555',
     sourceTokenAmount: '1230000',
     targetAmountMinimum: '1000000',
     targetChainId: '0x1',
@@ -157,7 +179,7 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
-  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const getServerPollingIntervalMock = vi.mocked(getServerPollingInterval);
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
@@ -358,6 +380,62 @@ describe('submitServerQuotes', () => {
 
       expect(submitSecondLegMock).toHaveBeenCalledWith(
         expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('funds and submits deferred calls from the execution account when payer and payout differ', async () => {
+      vi.mocked(isEIP7702Chain).mockReturnValue(true);
+      vi.mocked(getSlippage).mockReturnValue(0.005);
+      vi.mocked(fetchServerQuote).mockResolvedValue({
+        results: [
+          {
+            provider: ORIGINAL_QUOTE_MOCK.provider,
+            quote: { ...ORIGINAL_QUOTE_MOCK, callsDeferred: true },
+          },
+        ],
+      });
+
+      const transaction: TransactionMeta = {
+        ...request.transaction,
+        isGasFeeSponsored: true,
+        nestedTransactions: [{ data: '0x1234', to: ORIGINAL_FROM_MOCK }],
+      };
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: QUOTE_FROM_MOCK,
+        messenger: request.messenger,
+        requests: [
+          {
+            ...QUOTE_MOCK.request,
+            atomic: true,
+            recipient: RECIPIENT_MOCK,
+          },
+        ],
+        transaction,
+      });
+
+      expect(fetchServerQuote).toHaveBeenCalledTimes(1);
+      expect(fetchServerQuote).toHaveBeenCalledWith(
+        request.messenger,
+        expect.objectContaining({
+          recipient: ORIGINAL_FROM_MOCK,
+          sender: QUOTE_FROM_MOCK,
+          supportsDeferredCalls: true,
+        }),
+        undefined,
+      );
+      expect(quotes).toHaveLength(1);
+      expect(quotes[0].request.recipient).toBe(ORIGINAL_FROM_MOCK);
+      expect(quotes[0].requiresSecondLeg).toBe(true);
+
+      await submitServerQuotes({ ...request, quotes, transaction });
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: ORIGINAL_FROM_MOCK,
+          settlementHash: TARGET_HASH_MOCK,
+          transaction,
+        }),
       );
     });
 
@@ -606,6 +684,178 @@ describe('submitServerQuotes', () => {
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
+  it('stops polling and throws when getServerStatus returns a client error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(400, '400 - Missing logs'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      '400 - Missing logs',
+    );
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([408, 429])(
+    'continues polling when getServerStatus returns retryable client error %s',
+    async (status) => {
+      getServerStatusMock
+        .mockRejectedValueOnce(new ServerApiError(status, String(status)))
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('continues polling when getServerStatus returns a server error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new ServerApiError(500, '500 - Internal error'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('status logs', () => {
+    const getTransactionMock = vi.mocked(getTransaction);
+    const rpcRequestMock = vi.mocked(rpcRequest);
+
+    const LOG_MOCK = {
+      address: '0x9999999999999999999999999999999999999999',
+      data: '0xlogdata' as Hex,
+      topics: ['0xtopic1', '0xtopic2'],
+    };
+
+    beforeEach(() => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        metamaskPay: { sourceHash: SOURCE_HASH_MOCK },
+      });
+    });
+
+    it('sends trimmed receipt logs from the transaction matching the source hash', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK.toUpperCase(),
+        txReceipt: {
+          logs: [
+            {
+              ...LOG_MOCK,
+              blockNumber: '0x1',
+              logIndex: '0x0',
+              transactionHash: SOURCE_HASH_MOCK,
+            } as never,
+          ],
+        },
+      };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: [LOG_MOCK],
+        provider: 'relay',
+      });
+    });
+
+    it('omits logs when no transaction matches the source hash', async () => {
+      currentTransaction = { ...currentTransaction, hash: '0xother' };
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: SOURCE_HASH_MOCK,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+
+    it('fetches receipt logs from the network when the matching transaction has none', async () => {
+      currentTransaction = {
+        ...currentTransaction,
+        hash: SOURCE_HASH_MOCK,
+        txReceipt: {},
+      };
+
+      rpcRequestMock.mockResolvedValue({
+        logs: [{ ...LOG_MOCK, logIndex: '0x0' }],
+      });
+
+      await submitServerQuotes(request);
+
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger,
+        chainId: currentTransaction.chainId,
+        method: 'eth_getTransactionReceipt',
+        params: [SOURCE_HASH_MOCK],
+      });
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: [LOG_MOCK] }),
+      );
+    });
+
+    it('reuses fetched logs across polls', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue({ logs: [LOG_MOCK] });
+
+      getServerStatusMock
+        .mockResolvedValueOnce({ status: ServerStatus.Pending })
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits logs when the network receipt is unavailable', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue(null);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when fetching the network receipt fails', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockRejectedValue(new Error('rpc error'));
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when there is no source hash', async () => {
+      getTransactionMock.mockReturnValue(undefined);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(messenger, {
+        hash: undefined,
+        id: ORIGINAL_QUOTE_MOCK.id,
+        logs: undefined,
+        provider: 'relay',
+      });
+    });
+  });
+
   describe('Polymarket deposit wallet', () => {
     const DEPOSIT_DATA_MOCK =
       `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex;
@@ -801,6 +1051,133 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).not.toHaveBeenCalled();
     });
 
+    describe('authorization list', () => {
+      const AUTHORIZATION_MOCK = {
+        address: '0x7777777777777777777777777777777777777777' as Hex,
+        chainId: 137,
+        nonce: 2,
+        r: '0xr' as Hex,
+        s: '0xs' as Hex,
+        yParity: 1,
+      };
+
+      const SAME_CHAIN_OVERRIDES: Partial<ServerQuote> = {
+        authorizationList: [AUTHORIZATION_MOCK],
+        output: {
+          ...ORIGINAL_QUOTE_MOCK.output,
+          asset: 'eip155:137/erc20:0x6666666666666666666666666666666666666666',
+        },
+      };
+
+      const BATCH_STEPS: ServerQuote['steps'] = [
+        ORIGINAL_QUOTE_MOCK.steps[0],
+        {
+          type: 'transaction' as const,
+          chainId: 137,
+          data: '0xseconddata',
+          to: '0x9999999999999999999999999999999999999999',
+          value: '0x20',
+        },
+      ];
+
+      function withoutAccountOverride(
+        executeRequest: PayStrategyExecuteRequest<ServerQuote>,
+      ): PayStrategyExecuteRequest<ServerQuote> {
+        executeRequest.transaction.txParams.from = QUOTE_FROM_MOCK;
+        return executeRequest;
+      }
+
+      it('passes the address and chain ID to a same-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(buildNonGaslessRequest(SAME_CHAIN_OVERRIDES)),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              { address: AUTHORIZATION_MOCK.address, chainId: '0x89' },
+            ],
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it from a cross-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              authorizationList: [AUTHORIZATION_MOCK],
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it when the quote has no authorizations', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              output: SAME_CHAIN_OVERRIDES.output,
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('passes the signed authorizations to a same-chain batch with an account override', async () => {
+        await submitServerQuotes(
+          buildNonGaslessRequest({
+            ...SAME_CHAIN_OVERRIDES,
+            steps: BATCH_STEPS,
+          }),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              {
+                address: AUTHORIZATION_MOCK.address,
+                chainId: '0x89',
+                nonce: '0x2',
+                r: '0xr',
+                s: '0xs',
+                yParity: '0x1',
+              },
+            ],
+          }),
+        );
+      });
+
+      it('omits it from a same-chain batch without an account override', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              ...SAME_CHAIN_OVERRIDES,
+              steps: BATCH_STEPS,
+            }),
+          ),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+        );
+      });
+    });
+
     it('passes gasFeeToken when fees.isSourceGasFeeToken is true', async () => {
       const reqWithGasFeeToken = buildNonGaslessRequest();
       reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
@@ -811,7 +1188,7 @@ describe('submitServerQuotes', () => {
         expect.anything(),
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -838,7 +1215,7 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -851,7 +1228,10 @@ describe('submitServerQuotes', () => {
 
       // Sponsorship only applies when the quote never leaves the parent
       // transaction's chain.
-      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
+      sponsoredRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        chainId,
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
       sponsoredRequest.quotes[0].request.targetChainId = chainId;
       sponsoredRequest.transaction.isGasFeeSponsored = true;
 
@@ -928,7 +1308,10 @@ describe('submitServerQuotes', () => {
 
     it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
       const crossChainRequest = buildSponsoredRequest();
-      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
+      crossChainRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        '0x89',
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
 
       await submitServerQuotes(crossChainRequest);
 
@@ -1081,7 +1464,15 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: false,
-          gasLimit7702: expect.any(String),
+          gasLimit7702: '0x5208',
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: undefined }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: undefined }),
+            }),
+          ],
         }),
       );
     });
@@ -1232,8 +1623,23 @@ describe('submitServerQuotes', () => {
   });
 
   describe('validateSourceBalance', () => {
+    beforeEach(() => {
+      // Needed by the cases that get past the balance check and go on to
+      // submit.
+      vi.mocked(collectTransactionIds).mockImplementation(
+        (_chainId, _from, _messenger, onTransactionId) => {
+          onTransactionId('submitted-tx-id');
+          return { end: vi.fn() };
+        },
+      );
+      vi.mocked(getTransaction).mockReturnValue({
+        hash: '0xsubmitted' as Hex,
+      } as TransactionMeta);
+      vi.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
+    });
+
     it('throws when source balance is insufficient', async () => {
-      vi.mocked(getLiveTokenBalance).mockResolvedValue('0');
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue('0');
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1250,10 +1656,10 @@ describe('submitServerQuotes', () => {
       );
     });
 
-    it('wraps getLiveTokenBalance errors with context message', async () => {
-      vi.mocked(getLiveTokenBalance).mockRejectedValue(
-        new Error('RPC timeout'),
-      );
+    it('submits anyway when the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so submission
+      // proceeds and the server and the chain reject if truly underfunded.
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue(undefined);
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1265,9 +1671,9 @@ describe('submitServerQuotes', () => {
         transaction: cloneDeep(TRANSACTION_META_MOCK),
       };
 
-      await expect(submitServerQuotes(req)).rejects.toThrow(
-        'Cannot validate payment token balance - RPC timeout',
-      );
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalled();
     });
   });
 
@@ -1569,5 +1975,29 @@ describe('submitServerQuotes', () => {
 
       expect(addTxMock).toHaveBeenCalled();
     });
+  });
+});
+
+describe('getServerSubmitParams', () => {
+  const { messenger } = getMessengerMock();
+
+  it('returns the params for the quote transaction steps', async () => {
+    const params = await getServerSubmitParams(
+      QUOTE_MOCK,
+      messenger,
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(params).toStrictEqual([
+      {
+        data: '0xstepdata',
+        from: QUOTE_FROM_MOCK,
+        gas: '0x61a8',
+        maxFeePerGas: '0x3b9aca00',
+        maxPriorityFeePerGas: '0x1dcd6500',
+        to: '0x4444444444444444444444444444444444444444',
+        value: '0x10',
+      },
+    ]);
   });
 });

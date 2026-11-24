@@ -142,6 +142,14 @@ export type ProfileControllerDisconnectXAction = {
 };
 
 /**
+ * Clears the controller state, including the profile and X profile.
+ */
+export type ProfileControllerClearStateAction = {
+  type: `ProfileController:clearState`;
+  handler: ProfileController['clearState'];
+};
+
+/**
  * Union of all ProfileController action types.
  */
 export type ProfileControllerMethodActions =
@@ -156,4 +164,5 @@ export type ProfileControllerMethodActions =
   | ProfileControllerFetchAndUpdateXAccountAction
   | ProfileControllerFetchAndUpdateProfileAction
   | ProfileControllerGetXAuthorizationUrlAction
-  | ProfileControllerDisconnectXAction;
+  | ProfileControllerDisconnectXAction
+  | ProfileControllerClearStateAction;

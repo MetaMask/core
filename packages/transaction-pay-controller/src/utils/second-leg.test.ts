@@ -8,7 +8,7 @@ import type { Mock } from 'vitest';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { withChompRecovery } from './chomp.js';
 import { getNetworkClientId } from './provider.js';
-import { resolveNonAtomicRecipient, submitSecondLeg } from './second-leg.js';
+import { submitSecondLeg } from './second-leg.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -29,9 +29,6 @@ const TOKEN_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SETTLEMENT_HASH_MOCK = '0xsettlement' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
 const AMOUNT_MOCK = '5000000';
-const PAYER_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
-const OVERRIDE_RECIPIENT_MOCK =
-  '0x4444444444444444444444444444444444444444' as Hex;
 
 const TRANSACTION_MOCK = {
   id: TRANSACTION_ID_MOCK,
@@ -118,93 +115,6 @@ describe('second-leg', () => {
     });
 
     waitForTransactionConfirmedMock.mockResolvedValue();
-  });
-
-  describe('resolveNonAtomicRecipient', () => {
-    it('returns undefined for atomic flows', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { atomic: true, from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined when the request does not specify atomicity', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBeUndefined();
-    });
-
-    it('settles on the transaction account rather than the payer for non-post-quote flows', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { atomic: false, from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBe(FROM_MOCK);
-    });
-
-    it('asks the client for the recipient on post-quote flows', async () => {
-      const callMock = vi.fn((action: string) => {
-        if (action === 'TransactionPayController:getState') {
-          return {
-            transactionData: {
-              [TRANSACTION_ID_MOCK]: { tokens: [{ amountHuman: '1.5' }] },
-            },
-          };
-        }
-
-        if (action === 'TransactionPayController:getPaymentOverrideData') {
-          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
-        }
-
-        throw new Error(`Unexpected action: ${action}`);
-      });
-
-      const result = await resolveNonAtomicRecipient(
-        TRANSACTION_MOCK,
-        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
-        buildMessenger(callMock),
-      );
-
-      expect(result).toBe(OVERRIDE_RECIPIENT_MOCK);
-      expect(callMock).toHaveBeenCalledWith(
-        'TransactionPayController:getPaymentOverrideData',
-        expect.objectContaining({ amount: '1.5' }),
-      );
-    });
-
-    it('defaults the post-quote amount to zero when no token amount is known', async () => {
-      const callMock = vi.fn((action: string) => {
-        if (action === 'TransactionPayController:getState') {
-          return { transactionData: {} };
-        }
-
-        if (action === 'TransactionPayController:getPaymentOverrideData') {
-          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
-        }
-
-        throw new Error(`Unexpected action: ${action}`);
-      });
-
-      await resolveNonAtomicRecipient(
-        TRANSACTION_MOCK,
-        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
-        buildMessenger(callMock),
-      );
-
-      expect(callMock).toHaveBeenCalledWith(
-        'TransactionPayController:getPaymentOverrideData',
-        expect.objectContaining({ amount: '0' }),
-      );
-    });
   });
 
   describe('submitSecondLeg', () => {

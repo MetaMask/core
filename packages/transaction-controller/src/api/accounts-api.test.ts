@@ -1,6 +1,6 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { MockedFunction } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { FirstTimeInteractionError } from '../errors.js';
 import type { GetAccountAddressRelationshipRequest } from './accounts-api.js';
@@ -38,10 +38,6 @@ describe('Accounts API', () => {
       json: async () => responseJson,
     } as Response);
   }
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   describe('getAccountAddressRelationship', () => {
     const EXISTING_RELATIONSHIP_RESPONSE_MOCK = {

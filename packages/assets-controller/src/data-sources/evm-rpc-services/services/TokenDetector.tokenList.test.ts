@@ -1,6 +1,6 @@
 import { TokenApiClient } from '@metamask/core-backend';
 import type { ApiPlatformClientOptions } from '@metamask/core-backend';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mocked, MockedFunction } from 'vitest';
 
 import { waitFor } from '../../../__fixtures__/test-utils.js';
@@ -182,10 +182,6 @@ function buildClient(config?: TestClientConfig): {
 // =============================================================================
 
 describe('TokenDetector token list', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe('constructor', () => {
     it('uses globalThis.fetch by default', async () => {
       // The global spy returns `createMockResponse([])` for every URL.

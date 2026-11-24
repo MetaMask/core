@@ -11,11 +11,15 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  isPerpsDepositRequest,
+  isPerpsDepositTransaction,
+} from '../../utils/perps.js';
+import { getEvmQuoteSource, isEvmQuoteRequest } from '../../utils/token.js';
 import { getAcrossDestination } from './across-actions.js';
 import { getAcrossQuotes } from './across-quotes.js';
 import { submitAcrossQuotes } from './across-submit.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
-import { isSupportedAcrossPerpsDepositRequest } from './perps.js';
 import { isAcrossQuoteRequest } from './requests.js';
 import type { AcrossQuote } from './types.js';
 
@@ -27,18 +31,19 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
+    if (!request.requests.every(isEvmQuoteRequest)) {
+      return false;
+    }
+
     const actionableRequests = request.requests.filter(isAcrossQuoteRequest);
 
     if (actionableRequests.length === 0) {
       return false;
     }
 
-    if (request.transaction?.type === TransactionType.perpsDeposit) {
+    if (isPerpsDepositTransaction(request.transaction)) {
       const supportsPerpsDeposit = actionableRequests.every((singleRequest) =>
-        isSupportedAcrossPerpsDepositRequest(
-          singleRequest,
-          request.transaction?.type,
-        ),
+        isPerpsDepositRequest(singleRequest, request.transaction),
       );
 
       if (!supportsPerpsDeposit) {
@@ -48,7 +53,8 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       // Across doesn't support same-chain swaps (e.g. mUSD conversions).
       const hasSameChainRequest = actionableRequests.some(
         (singleRequest) =>
-          singleRequest.sourceChainId === singleRequest.targetChainId,
+          getEvmQuoteSource(singleRequest).chainId ===
+          singleRequest.targetChainId,
       );
 
       if (hasSameChainRequest) {

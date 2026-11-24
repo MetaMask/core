@@ -1,7 +1,10 @@
 export type {
   ComplianceServiceActions,
+  ComplianceServiceCacheUpdatedEvent,
   ComplianceServiceEnvironment,
   ComplianceServiceEvents,
+  ComplianceServiceGranularCacheUpdatedEvent,
+  ComplianceServiceInvalidateQueriesAction,
   ComplianceServiceMessenger,
   ComplianceServiceOptions,
 } from './ComplianceService.js';

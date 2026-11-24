@@ -2,7 +2,7 @@ import { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
 import { setImmediate as realSetImmediate } from 'node:timers';
 import type { Mock } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger.js';
 import {
@@ -385,10 +385,6 @@ async function enrollWithPostRegistrationAuth(
 // ---------------------------------------------------------------------------
 
 describe('PasskeyController', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('getDefaultPasskeyControllerState', () => {
     it('returns null passkeyRecord', () => {
       expect(getDefaultPasskeyControllerState()).toStrictEqual({

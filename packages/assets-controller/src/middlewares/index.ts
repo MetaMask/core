@@ -1,5 +1,3 @@
-export { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware.js';
-export type { CustomAssetGraduationMiddlewareOptions } from './CustomAssetGraduationMiddleware.js';
 export { RpcFallbackMiddleware } from './RpcFallbackMiddleware.js';
 export type { RpcFallbackMiddlewareOptions } from './RpcFallbackMiddleware.js';
 export {

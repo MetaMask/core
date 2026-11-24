@@ -340,9 +340,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -1810,6 +1814,31 @@ describe('PerpsController', () => {
       expect(controller.testGetInitialized()).toBe(false);
     });
 
+    it('clears per-venue balances when the provider selection changes', async () => {
+      await controller.init();
+      // Entries left by a previous aggregated session covering both venues.
+      controller.testUpdate((state) => {
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '100',
+          unrealizedPnl: '1',
+          lastUpdated: 1,
+        };
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+
+      await expect(
+        controller.switchProvider('aggregated'),
+      ).resolves.toStrictEqual({ success: true, providerId: 'aggregated' });
+
+      // The new selection streams different venues: the old entries must not
+      // keep looking live until the new stream happens to report.
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
     it('disconnects the provider created by an in-flight provider switch', async () => {
       await controller.init();
       const replacementProvider = createMockHyperLiquidProvider();
@@ -2193,7 +2222,11 @@ describe('PerpsController', () => {
       expect(controller.testGetProviders().has('hyperliquid')).toBe(true);
       expect(mockMessenger.registerMethodActionHandlers).toHaveBeenCalledWith(
         controller,
-        expect.arrayContaining(['getOrderCapabilities', 'getMarginModeLock']),
+        expect.arrayContaining([
+          'getOrderCapabilities',
+          'getMarginModeLock',
+          'replacePositionTPSLLeg',
+        ]),
       );
     });
 

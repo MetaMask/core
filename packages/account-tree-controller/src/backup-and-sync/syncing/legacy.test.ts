@@ -1,6 +1,6 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
@@ -51,10 +51,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         setLocalWrite: mockSetLocalWrite,
       },
     } as unknown as BackupAndSyncContext;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('performLegacyAccountSyncing', () => {

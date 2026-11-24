@@ -13,9 +13,12 @@ import { assertPerpsEligible, toUsdcAmountRaw } from './shared.js';
  * `perpsWithdraw`: the same placeholder USDC transfer to `from` the in-wallet
  * withdraw uses; the confirmation and Pay turn it into the Hyperliquid
  * withdraw. Gas isn't estimated upfront: the funds are on Hyperliquid, so the
- * placeholder transfer would fail to estimate.
+ * placeholder transfer would fail to estimate. A zero or missing `amount`
+ * opens the confirmation without a prefilled amount, like the in-wallet
+ * withdraw.
  */
 export const perpsWithdrawFlow: WalletPayFlow = {
+  allowZeroAmount: true,
   // Reuses the in-wallet withdraw flow, so it also needs that flow's flag.
   isEnabled: (remoteFeatureFlags) =>
     isPayFlowEnabled(remoteFeatureFlags, TransactionType.perpsWithdraw),

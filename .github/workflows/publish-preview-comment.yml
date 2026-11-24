@@ -1,0 +1,36 @@
+name: Notify about new "Publish preview" workflow
+
+on:
+  issue_comment:
+    types: created
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Notify about new "Publish preview" workflow
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    permissions:
+      pull-requests: write
+    environment: default-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const workflowUrl = `https://github.com/${owner}/${repo}/actions/workflows/publish-preview.yml`;
+
+            const commentBody = [
+              'The "Publish preview" workflow has been updated to a new version that uses OIDC for authentication. Please use the new workflow instead of this one.',
+              '',
+              `To trigger the new workflow, go to the [Publish a preview build](${workflowUrl}) workflow, click "Run workflow", and enter \`${context.issue.number}\` as the pull request number.`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: context.issue.number,
+              body: commentBody,
+            });

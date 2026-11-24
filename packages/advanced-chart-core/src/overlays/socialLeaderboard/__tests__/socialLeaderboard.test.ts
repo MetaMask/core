@@ -281,9 +281,6 @@ describe('slbScheduleInitialCentering', () => {
     _resetSocialLeaderboardForTests();
     setOhlcvData(bars);
   });
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
 
   it('no-ops when slbMode is off', () => {
     setSlbMode(false);
