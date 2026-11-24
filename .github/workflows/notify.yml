@@ -13,7 +13,7 @@ jobs:
   notify:
     name: Notify
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
+      contains(fromJSON('["failure", "timed_out"]'), github.event.workflow_run.conclusion) &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
@@ -33,6 +33,8 @@ jobs:
             const escape = (text) =>
               text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
             const link = (url, text) => `<${url}|${text}>`;
+
+            const isFailure = ({ conclusion }) => conclusion === 'failure' || conclusion === 'timed_out';
 
             async function getRunDetails(run) {
               const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
@@ -66,13 +68,12 @@ jobs:
                   url: pullRequest.html_url,
                 },
                 failedJobs: jobs
-                  .filter((job) => job.conclusion === 'failure' && job.name !== 'All jobs pass')
+                  .filter((job) => isFailure(job) && job.name !== 'All jobs pass')
                   .map((job) => ({
                     name: job.name,
                     url: job.html_url,
-                    failedSteps: (job.steps ?? [])
-                      .filter((step) => step.conclusion === 'failure')
-                      .map((step) => step.name),
+                    timedOut: job.conclusion === 'timed_out',
+                    failedSteps: (job.steps ?? []).filter(isFailure).map((step) => step.name),
                   })),
               };
             }
@@ -81,7 +82,7 @@ jobs:
               const title = `${details.workflow} workflow failed`;
 
               const failedJobs = details.failedJobs.map((job) => {
-                const line = `• ${link(job.url, escape(job.name))}`;
+                const line = `• ${link(job.url, escape(job.name))}${job.timedOut ? ' (timed out)' : ''}`;
                 const steps = job.failedSteps.map((step) => `_${escape(step)}_`);
                 return steps.length > 0 ? `${line}: ${steps.join(', ')}` : line;
               });
