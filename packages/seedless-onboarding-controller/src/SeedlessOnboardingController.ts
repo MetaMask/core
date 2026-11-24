@@ -64,11 +64,7 @@ import {
   SeedlessOnboardingError,
 } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
-import {
-  decodeAal2Token,
-  getValidRecoverySession,
-} from './mfa-recovery/recovery-session.js';
-import type { RecoveryRequest } from './mfa-recovery/recovery-session.js';
+import { RecoverySessionManager } from './mfa-recovery/recovery-session.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import type {
   SeedlessOnboardingControllerMessenger,
@@ -275,6 +271,8 @@ export class SeedlessOnboardingController<
 
   readonly #envelopeStore: EnvelopeStore;
 
+  readonly #recoverySession: RecoverySessionManager;
+
   readonly #refreshJWTToken: RefreshJWTToken;
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
@@ -356,6 +354,20 @@ export class SeedlessOnboardingController<
     });
     this.#envelopeStore = new EnvelopeStore({
       getToprfClient: (): ToprfSecureBackup => this.toprfClient,
+    });
+    this.#recoverySession = new RecoverySessionManager({
+      getToprfClient: (): ToprfSecureBackup => this.toprfClient,
+      getSession: (): RecoverySession | undefined => this.state.recoverySession,
+      setSession: (session): void => {
+        this.update((draft) => {
+          draft.recoverySession = session;
+        });
+      },
+      clearSession: (): void => {
+        this.update((draft) => {
+          delete draft.recoverySession;
+        });
+      },
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
@@ -2799,50 +2811,13 @@ export class SeedlessOnboardingController<
     authConnectionId: string;
     groupedAuthConnectionId: string;
   }): Promise<void> {
-    if (
-      typeof authConnectionId !== 'string' ||
-      !authConnectionId ||
-      typeof groupedAuthConnectionId !== 'string' ||
-      !groupedAuthConnectionId
-    ) {
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
-
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
-
-      const { exp, sub } = decodeAal2Token(
+      await this.#recoverySession.authenticate({
         aal2Token,
-        Math.floor(Date.now() / 1000),
-      );
-
-      try {
-        const { nodeAuthTokens, isNewUser } =
-          await this.toprfClient.authenticate({
-            authConnectionId,
-            groupedAuthConnectionId,
-            userId: sub,
-            idTokens: [aal2Token],
-          });
-        this.update((state) => {
-          state.recoverySession = {
-            nodeAuthTokens,
-            expiresAt: exp,
-            userId: sub,
-            authConnectionId,
-            groupedAuthConnectionId,
-            hasRecoveryShare: !isNewUser,
-          };
-        });
-      } catch (error) {
-        log('Error authenticating at aal2', error);
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
-          { cause: error },
-        );
-      }
+        authConnectionId,
+        groupedAuthConnectionId,
+      });
     });
   }
 
@@ -2991,7 +2966,7 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);
-        if (!this.#requireRecoverySession().hasRecoveryShare) {
+        if (!this.#recoverySession.require().hasRecoveryShare) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
           );
@@ -3091,7 +3066,7 @@ export class SeedlessOnboardingController<
             SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
           );
         }
-        this.#requireRecoverySession();
+        this.#recoverySession.require();
 
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
@@ -3126,8 +3101,8 @@ export class SeedlessOnboardingController<
    */
   async #fetchRecoveryAuthPubKey(): Promise<SEC1EncodedPublicKey | undefined> {
     try {
-      const { authPubKey } = await this.#withRecoverySession(async (session) =>
-        this.toprfClient.fetchAuthPubKey(session),
+      const { authPubKey } = await this.#recoverySession.withSession(
+        async (session) => this.toprfClient.fetchAuthPubKey(session),
       );
       return authPubKey;
     } catch (error) {
@@ -3275,7 +3250,7 @@ export class SeedlessOnboardingController<
   ): Promise<boolean> {
     let isConfirmed = true;
     try {
-      await this.#withRecoverySession(async (session) =>
+      await this.#recoverySession.withSession(async (session) =>
         this.toprfClient.persistLocalKey({ ...session, oprfKey, authPubKey }),
       );
     } catch (error) {
@@ -3284,21 +3259,8 @@ export class SeedlessOnboardingController<
       }
       isConfirmed = false;
     }
-    this.#markRecoveryShareExists();
+    this.#recoverySession.markRecoveryShareExists();
     return isConfirmed;
-  }
-
-  /**
-   * Mark `recoverySession.hasRecoveryShare` as `true` once a Recovery Secret
-   * OPRF key is confirmed to exist on the recovery verifier.
-   */
-  #markRecoveryShareExists(): void {
-    const recoverySession = this.#requireRecoverySession();
-    if (!recoverySession.hasRecoveryShare) {
-      this.update((state) => {
-        state.recoverySession = { ...recoverySession, hasRecoveryShare: true };
-      });
-    }
   }
 
   /**
@@ -3318,7 +3280,7 @@ export class SeedlessOnboardingController<
     const { envelopeKeys } = await this.#recoverRecoverySecretEnvelopeKeys(
       bytesToHex(recoverySecret),
     );
-    this.#markRecoveryShareExists();
+    this.#recoverySession.markRecoveryShareExists();
     let sealed: VaultKeySet | undefined;
     try {
       sealed = await this.#openNewestEnvelope(envelopeKeys, 'recovery-secret');
@@ -3383,7 +3345,7 @@ export class SeedlessOnboardingController<
     recoverySecretHex: string,
   ): Promise<{ envelopeKeys: EnvelopeKeys; authKeyPair: KeyPair }> {
     const { envelopeKeys, authKeyPair, rateLimitResetResult } =
-      await this.#withRecoverySession(async (session) =>
+      await this.#recoverySession.withSession(async (session) =>
         this.toprfClient
           .recoverEncKey({ ...session, password: recoverySecretHex })
           .catch((error) => {
@@ -3618,73 +3580,6 @@ export class SeedlessOnboardingController<
   ): void {
     this.update((state) => {
       state.envelope = createEnvelopeState(vaultKeySet, passwordAuthPubKey);
-    });
-  }
-
-  /**
-   * @returns The recovery session, or undefined when it is missing or expired.
-   */
-  #getRecoverySession(): RecoverySession | undefined {
-    return getValidRecoverySession(
-      this.state.recoverySession,
-      Math.floor(Date.now() / 1000),
-    );
-  }
-
-  /**
-   * @returns The recovery session.
-   * @throws `Aal2Required`, after clearing the session, if it is missing or
-   * expired. It is never refreshed, because that needs a new aal2 token.
-   */
-  #requireRecoverySession(): RecoverySession {
-    const session = this.#getRecoverySession();
-    if (!session) {
-      this.#clearRecoverySession();
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.Aal2Required,
-      );
-    }
-    return session;
-  }
-
-  /**
-   * Run a recovery verifier TOPRF call with the aal2 set. A missing, expired
-   * or rejected set is cleared and surfaces as `Aal2Required`.
-   *
-   * @param operation - The TOPRF call, given the request params.
-   * @returns The operation result.
-   */
-  async #withRecoverySession<Result>(
-    operation: (request: RecoveryRequest) => Promise<Result>,
-  ): Promise<Result> {
-    const {
-      nodeAuthTokens,
-      userId,
-      authConnectionId,
-      groupedAuthConnectionId,
-    } = this.#requireRecoverySession();
-    try {
-      return await operation({
-        nodeAuthTokens,
-        authConnectionId,
-        groupedAuthConnectionId,
-        userId,
-      });
-    } catch (error) {
-      if (isAuthTokenError(error)) {
-        this.#clearRecoverySession();
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.Aal2Required,
-          { cause: error },
-        );
-      }
-      throw error;
-    }
-  }
-
-  #clearRecoverySession(): void {
-    this.update((state) => {
-      delete state.recoverySession;
     });
   }
 
