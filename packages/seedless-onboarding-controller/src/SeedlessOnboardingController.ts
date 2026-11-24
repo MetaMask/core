@@ -106,16 +106,18 @@ import {
   assertIdTokenMismatchAndTrackEvent,
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
-  isCouldNotDeriveEncryptionKeyError,
-  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
   parseAndValidateSecretMetadataBackup,
   serializeVaultData,
-  splitVaultItems,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
+import { splitVaultItems } from './utils/secret-data-utils.js';
+import {
+  isCouldNotDeriveEncryptionKeyError,
+  isCouldNotDeriveThresholdAuthPubKeyError,
+} from './utils/utils.js';
 
 export type {
   SeedlessOnboardingControllerActions,

@@ -15,13 +15,9 @@ export {
 } from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
-  getCreatedAtMs,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
-  isSecretDataType,
   parseAndValidateSecretMetadataBackup,
-  sortNewestFirst,
-  splitVaultItems,
 } from './secret-data-utils.js';
 export {
   convertUrlSafeBase64StringToBase64String,
@@ -37,8 +33,6 @@ export {
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
   isAuthTokenError,
-  isCouldNotDeriveEncryptionKeyError,
-  isCouldNotDeriveThresholdAuthPubKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,

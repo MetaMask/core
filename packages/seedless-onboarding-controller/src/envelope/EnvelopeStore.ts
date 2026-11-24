@@ -12,11 +12,11 @@ import {
 } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
+import { isAuthTokenError } from '../utils/index.js';
 import {
-  isAuthTokenError,
   sortNewestFirst,
   splitVaultItems,
-} from '../utils/index.js';
+} from '../utils/secret-data-utils.js';
 import {
   parseEnvelope,
   serializeControlRecord,
