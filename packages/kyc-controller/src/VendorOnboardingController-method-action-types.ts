@@ -77,6 +77,9 @@ export type VendorOnboardingControllerSubmitTermsAction = {
  * on the phone are posted to it. A Kalshi email given while resuming sends
  * a code to that address.
  *
+ * The MFA flag is cleared once the session exists, because kyc-api reads
+ * MFA from the session from then on.
+ *
  * This does not create a vendor customer. A vendor that needs one before
  * its session (Iron) adds that when it moves to this controller.
  *
@@ -87,9 +90,13 @@ export type VendorOnboardingControllerSubmitTermsAction = {
  * in memory by the caller and never saved here.
  * @param params.email - The Kalshi email the phone signs into `users/link`.
  * Required when creating a Kalshi session, and when resuming one to send a
- * code to a new address. kyc-api does not receive it: the relay is given the
- * verified email from the partner identity token, so this must be that
- * address.
+ * code. kyc-api does not receive it: the relay is given the verified email
+ * from the partner identity token, so this must be that address. Any other
+ * is refused with `kalshi_signed_request_email_mismatch` before anything is
+ * signed.
+ * @param params.intentOpen - Whether the user already has an open Kalshi
+ * enrollment intent. The phone then signs `users/link` alone, where a new
+ * session signs `enrollment/intents` first.
  * @returns The step the user is on once the session exists.
  */
 export type VendorOnboardingControllerStartSessionAction = {
@@ -102,9 +109,13 @@ export type VendorOnboardingControllerStartSessionAction = {
  * address a screen should start its email field with. Reads it from a
  * partner identity token minted for the vendor.
  *
+ * It records no identity-sharing consent. Before the user has granted it,
+ * MetaMask Auth refuses the token and this returns `undefined`.
+ *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
- * @returns The email, or `undefined` when the token carries none.
+ * @returns The email, or `undefined` when no token can be minted yet or it
+ * carries none.
  */
 export type VendorOnboardingControllerGetPartnerEmailAction = {
   type: `VendorOnboardingController:getPartnerEmail`;
@@ -221,7 +232,9 @@ export type VendorOnboardingControllerSendEmailOtpAction = {
 
 /**
  * Forgets what the phone saved, for one vendor or all of them. kyc-api
- * keeps its own record, so the next refresh brings the step back.
+ * keeps the session and what it holds, so the next refresh brings that
+ * step back. What only the phone knew is gone: MFA done before a session,
+ * the accepted terms, and any consents still waiting for a session.
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor to forget. Omit to forget all.

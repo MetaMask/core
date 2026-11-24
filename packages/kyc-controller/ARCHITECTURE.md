@@ -175,7 +175,7 @@ touches `KycController` state.
 - **kyc-api decides the step.** Each action sends its change to kyc-api, then
   reads `GET /vendors/{vendor}/step` and saves the answer. The client maps each
   `KycStep` to a screen; it never works out where the user is.
-- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted, acceptedDisclaimerIds, pendingConsents }`. Every step read saves `step`, `status` and `sessionId`, and `sessionId` is the vendor's session id from the relay (`null` when there is none), so session calls never look the session up themselves. The phone holds what kyc-api cannot see: MFA done before a session exists, the Kalshi terms accepted, and the idOS and identity provider consents until a session exists. The MFA flag and the terms ids are sent with each step read. The consents are posted when the session is created and forgotten only after kyc-api has them. The terms ids stay on the phone, because they are the only record of which Kalshi terms were accepted, so a reinstall or a second device accepts the Kalshi terms again. Consents and account link state stay on the server.
+- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted, acceptedDisclaimerIds, pendingConsents }`. Every step read saves `step`, `status` and `sessionId`, and `sessionId` is the vendor's session id from the relay (`null` when there is none), so session calls never look the session up themselves. The phone holds what kyc-api cannot see: MFA done before a session exists, the Kalshi terms accepted, and the idOS and identity provider consents until a session exists. The MFA flag and the terms ids are sent with each step read. The consents are posted when the session is created, and before any later session call if that post failed, and forgotten only after kyc-api has them. A post kyc-api rejects with `400` or `422` forgets them and the terms, so the terms are asked for again. The terms ids stay on the phone, because they are the only record of which Kalshi terms were accepted, so a reinstall or a second device accepts the Kalshi terms again. Consents and account link state stay on the server.
 - **Step reads are ordered.** A plain `refreshStep` joins a read already in
   flight; an action always starts its own. An answer that arrives after a newer
   read started (or after `reset`) is dropped.
@@ -191,14 +191,17 @@ touches `KycController` state.
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
   key into `{ path, headers, body }` objects, where `body` is the exact signed
   string. The controller sends them as `signedRequests` on session creation
-  (`[intents, link]`), and as `signedRequest` on the email calls on
+  (`[intents, link]`, or `[link]` when `intentOpen` says the intent is
+  already open), and as `signedRequest` on the email calls on
   `kalshi_email_link` (`sendEmailOtp` signs a fresh `users/link`,
   `verifyEmailOtp` signs `users/link/verify` with the code in its body and
   sends no `otp`). It signs right before each call, because a signature lasts
   60 seconds, and it checks each answer against the route and kyc-api's
   limits (16 string headers, 4 KB body). A Kalshi session also sends a
   partner identity token minted for the `kalshi` audience; kyc-api registers
-  that token's verified `ext.email`. `kalshi_phone_link` is the phone and its code, and it is
+  that token's verified `ext.email`, and every signed `users/link` must carry
+  that address: any other is refused with `kalshi_signed_request_email_mismatch`
+  before it is signed. `kalshi_phone_link` is the phone and its code, and it is
   not signed here. kyc-api forwards the signed calls to the relay, which is
   the only Kalshi client. Relay errors reach the client as a `KycApiError`
   whose `code` `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`,

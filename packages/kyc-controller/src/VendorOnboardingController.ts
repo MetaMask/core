@@ -13,6 +13,7 @@ import type {
 } from '@metamask/profile-sync-controller/user-storage';
 import { base64ToBytes, bytesToString, stringToBytes } from '@metamask/utils';
 
+import { KycApiError } from './KycApiError.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import {
   isSumSubFlowFailed,
@@ -408,6 +409,9 @@ export class VendorOnboardingController extends BaseController<
    * on the phone are posted to it. A Kalshi email given while resuming sends
    * a code to that address.
    *
+   * The MFA flag is cleared once the session exists, because kyc-api reads
+   * MFA from the session from then on.
+   *
    * This does not create a vendor customer. A vendor that needs one before
    * its session (Iron) adds that when it moves to this controller.
    *
@@ -418,15 +422,20 @@ export class VendorOnboardingController extends BaseController<
    * in memory by the caller and never saved here.
    * @param params.email - The Kalshi email the phone signs into `users/link`.
    * Required when creating a Kalshi session, and when resuming one to send a
-   * code to a new address. kyc-api does not receive it: the relay is given the
-   * verified email from the partner identity token, so this must be that
-   * address.
+   * code. kyc-api does not receive it: the relay is given the verified email
+   * from the partner identity token, so this must be that address. Any other
+   * is refused with `kalshi_signed_request_email_mismatch` before anything is
+   * signed.
+   * @param params.intentOpen - Whether the user already has an open Kalshi
+   * enrollment intent. The phone then signs `users/link` alone, where a new
+   * session signs `enrollment/intents` first.
    * @returns The step the user is on once the session exists.
    */
   async startSession(params: {
     vendor: OnboardingVendor;
     aal2Token?: string;
     email?: string;
+    intentOpen?: boolean;
   }): Promise<KycStep> {
     const { vendor } = params;
     // A saved id, or the one the step reports when the phone has none (a
@@ -472,8 +481,10 @@ export class VendorOnboardingController extends BaseController<
       email === undefined
         ? undefined
         : await this.#signKalshiRequests([
-            { operation: 'enrollment/intents' },
-            { operation: 'users/link', email },
+            ...(params.intentOpen
+              ? []
+              : [{ operation: 'enrollment/intents' as const }]),
+            { operation: 'users/link' as const, email },
           ]);
     const session = await createUkycSession({
       messenger: this.messenger,
@@ -486,7 +497,7 @@ export class VendorOnboardingController extends BaseController<
     });
     // Saved before the consents are posted, so a failed post can be retried
     // against this session instead of opening a second one.
-    this.#write(vendor, { sessionId: session.id });
+    this.#write(vendor, { sessionId: session.id, mfaCompleted: false });
     await this.#postPendingConsents(vendor, session.id);
     return this.#readStep(vendor, { supersede: true });
   }
@@ -496,22 +507,35 @@ export class VendorOnboardingController extends BaseController<
    * address a screen should start its email field with. Reads it from a
    * partner identity token minted for the vendor.
    *
+   * It records no identity-sharing consent. Before the user has granted it,
+   * MetaMask Auth refuses the token and this returns `undefined`.
+   *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
-   * @returns The email, or `undefined` when the token carries none.
+   * @returns The email, or `undefined` when no token can be minted yet or it
+   * carries none.
    */
   async getPartnerEmail({
     vendor,
   }: {
     vendor: OnboardingVendor;
   }): Promise<string | undefined> {
-    return verifiedEmailOf(await this.#mintPartnerIdentityToken(vendor));
+    try {
+      return verifiedEmailOf(
+        await this.messenger.call(
+          'AuthenticationController:getPartnerIdentityToken',
+          ['email'],
+          vendor,
+        ),
+      );
+    } catch {
+      return undefined;
+    }
   }
 
   /**
    * Picks up a session kyc-api already has. Posts any consents still waiting
-   * on the phone. When an email is given and no consents were waiting, sends
-   * a code to that address.
+   * on the phone. When an email is given, sends a code to that address.
    *
    * @param vendor - The vendor.
    * @param sessionId - The existing session's id.
@@ -524,21 +548,39 @@ export class VendorOnboardingController extends BaseController<
     email: string | undefined,
   ): Promise<KycStep> {
     this.#write(vendor, { sessionId });
-    if (this.state.vendors[vendor]?.pendingConsents) {
-      await this.#postPendingConsents(vendor, sessionId);
-    } else if (vendor === 'kalshi' && email !== undefined) {
-      const [signedRequest] = await this.#signKalshiRequests([
-        {
-          operation: 'users/link',
-          email: this.#requireKalshiEmail(email.trim()),
-        },
-      ]);
+    await this.#postPendingConsents(vendor, sessionId);
+    if (vendor === 'kalshi' && email !== undefined) {
       await this.messenger.call('KycService:sendEmailOtp', {
         sessionId,
-        signedRequest,
+        signedRequest: await this.#signKalshiLink(vendor, email),
       });
     }
     return this.#readStep(vendor, { supersede: true });
+  }
+
+  /**
+   * Signs `users/link` for the Kalshi email, after checking it is the
+   * verified MetaMask email the relay will compare it with.
+   *
+   * @param vendor - The vendor whose partner identity token holds the email.
+   * @param email - The address the user gave.
+   * @returns The signed call.
+   */
+  async #signKalshiLink(
+    vendor: OnboardingVendor,
+    email: string | undefined,
+  ): Promise<KycSignedRequest> {
+    const typed = this.#requireKalshiEmail(email?.trim());
+    const verified = this.#matchVerifiedEmail(
+      typed,
+      await this.#mintPartnerIdentityToken(vendor),
+    );
+    // A signature lasts 60 seconds, so this is the last thing before the
+    // call that carries it.
+    const [signedRequest] = await this.#signKalshiRequests([
+      { operation: 'users/link', email: verified },
+    ]);
+    return signedRequest;
   }
 
   /**
@@ -547,7 +589,10 @@ export class VendorOnboardingController extends BaseController<
    * they are the only record of the vendor's terms the user accepted.
    *
    * Forgetting the consents only after kyc-api has them means a failed post
-   * is tried again.
+   * is tried again. A post the relay rejects as invalid (`400` or `422`, for
+   * example a document version that is no longer current) would fail the
+   * same way every time, so the consents and the accepted terms are
+   * forgotten and the step is read again, which asks for the terms.
    *
    * @param vendor - The vendor.
    * @param sessionId - The session to post the consents to.
@@ -560,13 +605,30 @@ export class VendorOnboardingController extends BaseController<
     if (!pending) {
       return;
     }
-    await this.messenger.call('KycService:submitSessionDisclaimers', {
-      sessionId,
-      idOS: pending.idOS,
-      kycProvider: pending.kycProvider,
-      credentialReusabilityConsentGiven:
-        pending.credentialReusabilityConsentGiven,
-    });
+    try {
+      await this.messenger.call('KycService:submitSessionDisclaimers', {
+        sessionId,
+        idOS: pending.idOS,
+        kycProvider: pending.kycProvider,
+        credentialReusabilityConsentGiven:
+          pending.credentialReusabilityConsentGiven,
+      });
+    } catch (error) {
+      if (
+        error instanceof KycApiError &&
+        (error.httpStatus === 400 || error.httpStatus === 422)
+      ) {
+        this.#write(vendor, {
+          acceptedDisclaimerIds: [],
+          pendingConsents: null,
+        });
+        // The rejection is what the caller needs to see, not a failed read.
+        await this.#readStep(vendor, { supersede: true }).catch(
+          () => undefined,
+        );
+      }
+      throw error;
+    }
     this.#write(vendor, { pendingConsents: null });
   }
 
@@ -652,6 +714,9 @@ export class VendorOnboardingController extends BaseController<
     }
     try {
       const sessionId = await this.#getSessionId(params.vendor);
+      // The identity provider must not open without the idOS and identity
+      // provider consents, so any still on the phone go first.
+      await this.#postPendingConsents(params.vendor, sessionId);
       const { applicantAccessToken } = await this.messenger.call(
         'KycService:createJourney',
         sessionId,
@@ -716,6 +781,7 @@ export class VendorOnboardingController extends BaseController<
     phoneNumber: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
+    await this.#postPendingConsents(params.vendor, sessionId);
     await this.messenger.call('KycService:sendPhoneOtp', {
       sessionId,
       phoneNumber: params.phoneNumber,
@@ -736,6 +802,7 @@ export class VendorOnboardingController extends BaseController<
     code: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
+    await this.#postPendingConsents(params.vendor, sessionId);
     await this.messenger.call('KycService:verifyPhoneOtp', {
       sessionId,
       otp: params.code,
@@ -755,18 +822,20 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.#postPendingConsents(params.vendor, sessionId);
     if (params.vendor !== 'kalshi') {
-      const sessionId = await this.#getSessionId(params.vendor);
       await this.messenger.call('KycService:verifyEmailOtp', {
         sessionId,
         otp: params.code,
       });
       return this.#readStep(params.vendor, { supersede: true });
     }
+    // A signature lasts 60 seconds, so this is the last thing before the
+    // call that carries it.
     const [signedRequest] = await this.#signKalshiRequests([
       { operation: 'users/link/verify', code: params.code },
     ]);
-    const sessionId = await this.#getSessionId(params.vendor);
     await this.messenger.call('KycService:verifyEmailOtp', {
       sessionId,
       signedRequest,
@@ -787,28 +856,24 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     email?: string;
   }): Promise<KycStep> {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.#postPendingConsents(params.vendor, sessionId);
     if (params.vendor !== 'kalshi') {
-      const sessionId = await this.#getSessionId(params.vendor);
       await this.messenger.call('KycService:sendEmailOtp', { sessionId });
       return this.#readStep(params.vendor, { supersede: true });
     }
-    const [signedRequest] = await this.#signKalshiRequests([
-      {
-        operation: 'users/link',
-        email: this.#requireKalshiEmail(params.email?.trim()),
-      },
-    ]);
-    const sessionId = await this.#getSessionId(params.vendor);
     await this.messenger.call('KycService:sendEmailOtp', {
       sessionId,
-      signedRequest,
+      signedRequest: await this.#signKalshiLink(params.vendor, params.email),
     });
     return this.#readStep(params.vendor, { supersede: true });
   }
 
   /**
    * Forgets what the phone saved, for one vendor or all of them. kyc-api
-   * keeps its own record, so the next refresh brings the step back.
+   * keeps the session and what it holds, so the next refresh brings that
+   * step back. What only the phone knew is gone: MFA done before a session,
+   * the accepted terms, and any consents still waiting for a session.
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor to forget. Omit to forget all.
@@ -858,8 +923,9 @@ export class VendorOnboardingController extends BaseController<
    * address (`kalshi_signed_request_email_mismatch`). The address signed to
    * open a session is therefore the token's, matched to what the user typed
    * without regard to letter case, and a different address is refused here
-   * with the right one named instead of at the relay. A token whose email
-   * cannot be read is left to the relay.
+   * with the relay's code, before anything is signed. The error does not name
+   * the address, so it can be logged. A token whose email cannot be read is
+   * left to the relay.
    *
    * @param typed - The address the user typed.
    * @param partnerIdentityToken - The token the session is created with.
@@ -872,7 +938,7 @@ export class VendorOnboardingController extends BaseController<
     }
     if (verified.toLowerCase() !== typed.toLowerCase()) {
       throw new Error(
-        `Kalshi has to be linked to your MetaMask email, ${verified}.`,
+        'VendorOnboardingController: the Kalshi email has to be the verified MetaMask email (kalshi_signed_request_email_mismatch).',
       );
     }
     return verified;

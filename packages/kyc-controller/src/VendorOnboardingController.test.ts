@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import { KycApiError } from './KycApiError.js';
 import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import { KYC_SIGNED_REQUEST_LIMITS, KYC_VENDOR_SIGN_PATHS } from './types.js';
@@ -1145,6 +1146,41 @@ describe('VendorOnboardingController', () => {
       });
     });
 
+    it('signs users/link alone when the Kalshi intent is already open', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
+          intentOpen: true,
+        });
+
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.signedRequests).toStrictEqual([SIGNED_LINK]);
+      });
+    });
+
+    it('forgets that MFA was done once the session exists', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.recordMfaCompleted({ vendor: 'kalshi' });
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_email_link',
+          status: 'none',
+          sessionId: null,
+        });
+
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
+        });
+
+        expect(controller.state.vendors.kalshi?.mfaCompleted).toBe(false);
+      });
+    });
+
     it('signs the identity token address when the user typed it in another letter case', async () => {
       const signer: KalshiRequestSigner = vi
         .fn()
@@ -1172,7 +1208,7 @@ describe('VendorOnboardingController', () => {
       );
     });
 
-    it('names the identity token address and signs nothing when the user typed another one', async () => {
+    it('refuses an address other than the verified one with the relay code, without naming it, and signs nothing', async () => {
       const signer: KalshiRequestSigner = vi.fn();
       await withController(
         { options: { kalshiRequestSigner: signer } },
@@ -1188,7 +1224,7 @@ describe('VendorOnboardingController', () => {
               email: 'other@example.com',
             }),
           ).rejects.toThrow(
-            'Kalshi has to be linked to your MetaMask email, ann@example.com.',
+            'VendorOnboardingController: the Kalshi email has to be the verified MetaMask email (kalshi_signed_request_email_mismatch).',
           );
 
           expect(signer).not.toHaveBeenCalled();
@@ -1462,7 +1498,7 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('getPartnerEmail', () => {
-    it('reads the verified email from a token minted for the vendor', async () => {
+    it('reads the verified email from a token for the vendor without recording consent', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getPartnerIdentityToken.mockResolvedValue(
           partnerTokenFor('ann@example.com'),
@@ -1471,10 +1507,7 @@ describe('VendorOnboardingController', () => {
         const email = await controller.getPartnerEmail({ vendor: 'kalshi' });
 
         expect(email).toBe('ann@example.com');
-        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
-          audience: 'kalshi',
-          granted: true,
-        });
+        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
         expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
           ['email'],
           'kalshi',
@@ -1482,8 +1515,26 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('has no email for a token it cannot read', async () => {
-      await withController(async ({ controller }) => {
+    it('has no email before the user has granted identity sharing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue(
+          new Error('consent_required'),
+        );
+
+        expect(
+          await controller.getPartnerEmail({ vendor: 'kalshi' }),
+        ).toBeUndefined();
+      });
+    });
+
+    it.each([
+      ['is not a JWT', 'partner-token'],
+      ['has a payload that is not JSON', 'header.bm90IGpzb24.sig'],
+      ['has an empty email', partnerTokenFor('')],
+    ])('has no email for a token that %s', async (_, token) => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockResolvedValue(token);
+
         expect(
           await controller.getPartnerEmail({ vendor: 'kalshi' }),
         ).toBeUndefined();
@@ -1587,6 +1638,190 @@ describe('VendorOnboardingController', () => {
           sessionId: 'sid-1',
           signedRequest: SIGNED_LINK,
         });
+      });
+    });
+
+    it('posts the waiting consents and still sends the code when it resumes with an email', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.submitTerms(KALSHI_TERMS);
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_email_link',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
+        handlers.submitSessionDisclaimers.mockClear();
+
+        await controller.startSession({
+          vendor: 'kalshi',
+          email: KALSHI_EMAIL,
+        });
+
+        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledTimes(1);
+        expect(handlers.sendEmailOtp).toHaveBeenCalledWith({
+          sessionId: 'sid-1',
+          signedRequest: SIGNED_LINK,
+        });
+      });
+    });
+
+    it('refuses to resume with an address other than the verified one', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_email_link',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
+        handlers.getPartnerIdentityToken.mockResolvedValue(
+          partnerTokenFor('ann@example.com'),
+        );
+
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            email: 'other@example.com',
+          }),
+        ).rejects.toThrow('kalshi_signed_request_email_mismatch');
+
+        expect(handlers.sendEmailOtp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('looks the session up before signing a new email code', async () => {
+      const order: string[] = [];
+      const signer: KalshiRequestSigner = async ({ requests }) => {
+        order.push('sign');
+        return requests.map(() => SIGNED_LINK);
+      };
+      await withController(
+        { options: { kalshiRequestSigner: signer } },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockImplementation(async () => {
+            order.push('step');
+            return {
+              step: 'kalshi_email_link',
+              status: 'none',
+              sessionId: 'sid-1',
+            };
+          });
+
+          await controller.sendEmailOtp({
+            vendor: 'kalshi',
+            email: KALSHI_EMAIL,
+          });
+
+          expect(order.slice(0, 2)).toStrictEqual(['step', 'sign']);
+        },
+      );
+    });
+
+    it('posts consents a failed create left behind before the next email code', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.submitTerms(KALSHI_TERMS);
+        handlers.submitSessionDisclaimers.mockRejectedValueOnce(
+          new Error('offline'),
+        );
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
+          }),
+        ).rejects.toThrow('offline');
+
+        await controller.sendEmailOtp({
+          vendor: 'kalshi',
+          email: KALSHI_EMAIL,
+        });
+
+        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledTimes(2);
+        expect(
+          handlers.submitSessionDisclaimers.mock.invocationCallOrder[1],
+        ).toBeLessThan(handlers.sendEmailOtp.mock.invocationCallOrder[0]);
+        expect(controller.state.vendors.kalshi?.pendingConsents).toBeNull();
+      });
+    });
+
+    it.each([400, 422])(
+      'forgets the consents and the terms and asks for the terms again when kyc-api rejects them with %i',
+      async (status) => {
+        await withController(async ({ controller, handlers }) => {
+          await controller.submitTerms(KALSHI_TERMS);
+          const rejection = new KycApiError(status, 'stale catalog');
+          handlers.submitSessionDisclaimers.mockRejectedValueOnce(rejection);
+          handlers.getStep
+            .mockResolvedValueOnce({
+              step: 'kalshi_email_link',
+              status: 'none',
+              sessionId: null,
+            })
+            .mockResolvedValue({
+              step: 'terms',
+              status: 'none',
+              sessionId: 'sid-1',
+            });
+
+          await expect(
+            controller.startSession({
+              vendor: 'kalshi',
+              aal2Token: AAL2_TOKEN,
+              email: KALSHI_EMAIL,
+            }),
+          ).rejects.toBe(rejection);
+
+          expect(controller.state.vendors.kalshi).toStrictEqual({
+            ...VENDOR_DEFAULTS,
+            step: 'terms',
+            status: 'none',
+            sessionId: 'sid-1',
+          });
+        });
+      },
+    );
+
+    it('still reports the rejection when the step read after it fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.submitTerms(KALSHI_TERMS);
+        const rejection = new KycApiError(400, 'stale catalog');
+        handlers.submitSessionDisclaimers.mockRejectedValueOnce(rejection);
+        handlers.getStep
+          .mockResolvedValueOnce({
+            step: 'kalshi_email_link',
+            status: 'none',
+            sessionId: null,
+          })
+          .mockRejectedValue(new Error('offline'));
+
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
+          }),
+        ).rejects.toBe(rejection);
+
+        expect(controller.state.vendors.kalshi?.pendingConsents).toBeNull();
+      });
+    });
+
+    it('keeps the consents for a rejection that is not about what they say', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.submitTerms(KALSHI_TERMS);
+        handlers.submitSessionDisclaimers.mockRejectedValueOnce(
+          new KycApiError(503, 'relay down'),
+        );
+
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
+          }),
+        ).rejects.toThrow('relay down');
+
+        expect(controller.state.vendors.kalshi?.pendingConsents).not.toBeNull();
+        expect(
+          controller.state.vendors.kalshi?.acceptedDisclaimerIds,
+        ).toStrictEqual(['tos-v1']);
       });
     });
   });
@@ -1756,6 +1991,75 @@ describe('VendorOnboardingController', () => {
     ): Launcher & { launch: Mock } => ({
       isAvailable: () => isAvailable,
       launch,
+    });
+
+    it('posts consents still on the phone before SumSub opens', async () => {
+      const launcher = getLauncher();
+      const pendingConsents = {
+        idOS: [{ key: 'idos-tos', version: '1' }],
+        kycProvider: [{ key: 'sumsub-tos', version: '2' }],
+        credentialReusabilityConsentGiven: false,
+      };
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: { ...saved.state.vendors.kalshi, pendingConsents },
+              },
+            },
+            sumsubLauncher: launcher,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createJourney.mockResolvedValue({
+            applicantAccessToken: 'token-1',
+          });
+
+          await controller.launchProviderFlow({ vendor: 'kalshi' });
+
+          expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            ...pendingConsents,
+          });
+          expect(
+            handlers.submitSessionDisclaimers.mock.invocationCallOrder[0],
+          ).toBeLessThan(handlers.createJourney.mock.invocationCallOrder[0]);
+        },
+      );
+    });
+
+    it('does not open SumSub when the consents cannot be posted', async () => {
+      const launcher = getLauncher();
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  ...saved.state.vendors.kalshi,
+                  pendingConsents: {
+                    idOS: [],
+                    kycProvider: [],
+                    credentialReusabilityConsentGiven: false,
+                  },
+                },
+              },
+            },
+            sumsubLauncher: launcher,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.submitSessionDisclaimers.mockRejectedValue(
+            new Error('offline'),
+          );
+
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('launches SumSub for the session, then tells kyc-api it was submitted', async () => {
