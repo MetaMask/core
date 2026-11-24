@@ -136,9 +136,6 @@ export type BackendWebSocketServiceOptions = {
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
 
-  /** Optional callback to determine if connection should be enabled (default: always enabled) */
-  isEnabled?: () => boolean;
-
   /**
    * Getter for basic functionality (matches the "Basic functionality" setting).
    * When it returns true, the backend WebSocket may connect. When false, the
@@ -289,7 +286,6 @@ export type BackendWebSocketServiceMessenger = Messenger<
  * Platform Responsibilities:
  * - Call connect() when app opens/foregrounds
  * - Call disconnect() when app closes/backgrounds
- * - Provide isEnabled() callback (feature flag)
  * - Provide isBasicFunctionality() when Basic Functionality can be turned off
  * - Call destroy() on app termination
  *
@@ -318,8 +314,6 @@ export class BackendWebSocketService {
       | 'requestTimeout'
     >
   >;
-
-  readonly #isEnabled: (() => boolean) | undefined;
 
   readonly #isBasicFunctionality: () => boolean;
 
@@ -377,7 +371,6 @@ export class BackendWebSocketService {
    */
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
-    this.#isEnabled = options.isEnabled;
     this.#isBasicFunctionality =
       options.isBasicFunctionality ?? ((): boolean => true);
     // Default to no-op trace function to keep core platform-agnostic
@@ -414,21 +407,6 @@ export class BackendWebSocketService {
         this.#unsubscribeBasicFunctionality = unsubscribe;
       }
     }
-  }
-
-  /**
-   * Whether a connection attempt is allowed.
-   *
-   * Both gates are required when provided: the product feature flag and the
-   * user's Basic Functionality setting.
-   *
-   * @returns True when the socket may connect.
-   */
-  #isConnectionAllowed(): boolean {
-    if (this.#isEnabled && !this.#isEnabled()) {
-      return false;
-    }
-    return this.#isBasicFunctionality();
   }
 
   /**
@@ -493,10 +471,9 @@ export class BackendWebSocketService {
    * Establishes WebSocket connection with smart reconnection behavior
    *
    * Connection Requirements (all must be true):
-   * 1. Feature enabled (isEnabled() = true)
-   * 2. Basic functionality enabled (isBasicFunctionality() = true)
-   * 3. Wallet unlocked (checked by getBearerToken)
-   * 4. User signed in (checked by getBearerToken)
+   * 1. Basic functionality enabled (isBasicFunctionality() = true)
+   * 2. Wallet unlocked (checked by getBearerToken)
+   * 3. User signed in (checked by getBearerToken)
    *
    * Platform code should call this when app opens/foregrounds.
    * Automatically called on KeyringController:unlock event.
@@ -504,10 +481,10 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Feature flag and Basic Functionality must both allow the socket.
-    // A closed gate does not open a socket. Closing an open socket is
-    // disconnect(), which Basic Functionality off calls directly.
-    if (!this.#isConnectionAllowed()) {
+    // Basic Functionality must allow the socket. A closed gate does not open
+    // a socket. Closing an open socket is disconnect(), which Basic
+    // Functionality off calls directly.
+    if (!this.#isBasicFunctionality()) {
       return;
     }
 
@@ -546,8 +523,8 @@ export class BackendWebSocketService {
         throw error;
       }
 
-      // A gate may have closed while awaiting the token
-      if (!this.#isConnectionAllowed()) {
+      // Basic Functionality may have been turned off while awaiting the token
+      if (!this.#isBasicFunctionality()) {
         return;
       }
 

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove the `isEnabled` option from `BackendWebSocketServiceOptions` ([#11700](https://github.com/MetaMask/core/pull/11700))
+  - `BackendWebSocketService` no longer consults a feature-flag callback before connecting or reconnecting; it now connects whenever `isBasicFunctionality()` allows it, the user is signed in, and the wallet is unlocked.
+  - Clients that passed `isEnabled` should remove it. Clients that still need to gate the service should avoid calling `connect()` instead.
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))

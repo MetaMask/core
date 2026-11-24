@@ -1189,52 +1189,6 @@ describe('BackendWebSocketService', () => {
 
     // Temporarily disabled due to intermittent failures
     // eslint-disable-next-line vitest/no-disabled-tests
-    it.skip('should clear reconnect timer when feature is disabled', async () => {
-      let isEnabled = true;
-      await withService(
-        {
-          options: {
-            isEnabled: () => isEnabled,
-          },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // Mock Math.random to make Cockatiel's jitter deterministic
-          vi.spyOn(Math, 'random').mockReturnValue(0);
-
-          // Trigger a connection failure to schedule a reconnect
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
-          await completeAsyncOperations(10);
-
-          const mockWs = getMockWebSocket();
-          // Simulate connection failure to trigger reconnect timer
-          mockWs.simulateClose(1006, 'Connection failed');
-          await completeAsyncOperations(0);
-
-          // Verify reconnect timer is scheduled
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
-
-          // Now disable the feature
-          isEnabled = false;
-
-          // Try to connect again with feature disabled
-          await service.connect();
-
-          // Reconnect attempts should be reset to 0 (timers cleared)
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-
-          // Advance time to ensure the old reconnect timer doesn't fire
-          await completeAsyncOperations(10000);
-
-          // Should still be 0, confirming timer was cleared
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    // Temporarily disabled due to intermittent failures
-    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('should include connectionDuration_ms in trace when connection was established', async () => {
       const mockTraceFn = vi.fn((_request, fn) => fn?.());
       await withService(
@@ -2116,79 +2070,6 @@ describe('BackendWebSocketService', () => {
   });
 
   // =====================================================
-  // ENABLED CALLBACK TESTS
-  // =====================================================
-  describe('enabledCallback functionality', () => {
-    it('should respect enabledCallback returning false during connection by rejecting with disabled error', async () => {
-      const mockEnabledCallback = vi.fn().mockReturnValue(false);
-      await withService(
-        {
-          options: {
-            isEnabled: mockEnabledCallback,
-          },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service }) => {
-          // Attempt to connect when disabled - should return early
-          await service.connect();
-
-          // Verify enabledCallback was consulted
-          expect(mockEnabledCallback).toHaveBeenCalled();
-
-          // Should remain disconnected when callback returns false
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-
-          // Reconnection attempts should be cleared (reset to 0)
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    it('should stop reconnection when isEnabled returns false during scheduled reconnect', async () => {
-      const mockEnabledCallback = vi.fn().mockReturnValue(true);
-      await withService(
-        {
-          options: {
-            isEnabled: mockEnabledCallback,
-            reconnectDelay: 50,
-          },
-        },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          // Mock Math.random to make Cockatiel's jitter deterministic
-          vi.spyOn(Math, 'random').mockReturnValue(0);
-
-          await service.connect();
-          const mockWs = getMockWebSocket();
-
-          mockEnabledCallback.mockClear();
-
-          // Simulate connection loss
-          mockWs.simulateClose(1006, 'Connection lost');
-          await completeAsyncOperations(0);
-
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
-
-          // Disable the service
-          mockEnabledCallback.mockReturnValue(false);
-
-          // Advance time to trigger reconnection check
-          await completeAsyncOperations(70);
-
-          // The timer calls connect(), which returns without opening a socket.
-          // The failed attempt stays counted.
-          expect(mockEnabledCallback).toHaveBeenCalled();
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-        },
-      );
-    });
-  });
-
-  // =====================================================
   // BASIC FUNCTIONALITY TESTS
   // =====================================================
   describe('isBasicFunctionality', () => {
@@ -2199,34 +2080,15 @@ describe('BackendWebSocketService', () => {
           options: { isBasicFunctionality },
           mockWebSocketOptions: { autoConnect: false },
         },
-        async ({ service }) => {
+        async ({ service, mocks }) => {
           await service.connect();
 
           expect(isBasicFunctionality).toHaveBeenCalled();
+          expect(mocks.getBearerToken).not.toHaveBeenCalled();
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
           expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    it('does not connect when the feature flag is on but basic functionality is off', async () => {
-      await withService(
-        {
-          options: {
-            isEnabled: () => true,
-            isBasicFunctionality: () => false,
-          },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, mocks }) => {
-          await service.connect();
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-          expect(mocks.getBearerToken).not.toHaveBeenCalled();
         },
       );
     });
@@ -2359,22 +2221,6 @@ describe('BackendWebSocketService', () => {
             WebSocketState.DISCONNECTED,
           );
           expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
-        },
-      );
-    });
-
-    it('keeps an open socket when only the feature flag turns off', async () => {
-      let isEnabled = true;
-      await withService(
-        { options: { isEnabled: () => isEnabled } },
-        async ({ service }) => {
-          await service.connect();
-          isEnabled = false;
-          await service.connect();
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTED,
-          );
         },
       );
     });
