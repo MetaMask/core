@@ -1782,18 +1782,24 @@ export class SeedlessOnboardingController<
    * @param params.password - The optional password to encrypt the vault. If not provided, the vault will be encrypted with the encryption key in the state.
    * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
+   * @param params.skipLock - Whether the caller already holds the vault lock.
+   * Use it when the vault data is read from the cache and written back in one
+   * critical section, so that a concurrent vault rewrite cannot be overwritten
+   * with stale data.
    * @returns A promise that resolves to the updated vault.
    */
   async #updateVault({
     password,
     vaultData,
     pwEncKey,
+    skipLock = false,
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array<ArrayBuffer>;
+    skipLock?: boolean;
   }): Promise<void> {
-    await this.#withVaultLock(async () => {
+    const doUpdateVault = async (): Promise<void> => {
       const updatedState = await this.#createUpdatedVaultState({
         password,
         vaultData,
@@ -1811,7 +1817,14 @@ export class SeedlessOnboardingController<
 
       // cache the vault data to avoid decrypting the vault data multiple times
       this.#cachedDecryptedVaultData = vaultData;
-    });
+    };
+
+    if (skipLock) {
+      await doUpdateVault();
+      return;
+    }
+
+    await this.#withVaultLock(doUpdateVault);
   }
 
   /**
@@ -2526,19 +2539,24 @@ export class SeedlessOnboardingController<
         metadataAccessToken,
       });
 
-      // update the vault with new access token if wallet is unlocked
-      if (this.#isUnlocked && this.#cachedDecryptedVaultData) {
-        const updatedVaultData = {
-          ...this.#cachedDecryptedVaultData,
-          accessToken,
-        };
-        const pwEncKey = this.#cachedDecryptedVaultData.toprfPwEncryptionKey;
+      // Update the vault with the new access token if wallet is unlocked. The
+      // cached vault data is read and written under the vault lock, so a vault
+      // rewrite (for example by a password change) cannot happen in between.
+      const isVaultUpdated = await this.#withVaultLock(async () => {
+        const latestVaultData = this.#cachedDecryptedVaultData;
+        if (!this.#isUnlocked || !latestVaultData) {
+          return false;
+        }
 
         await this.#updateVault({
-          vaultData: updatedVaultData,
-          pwEncKey,
+          vaultData: { ...latestVaultData, accessToken },
+          pwEncKey: latestVaultData.toprfPwEncryptionKey,
+          skipLock: true,
         });
+        return true;
+      });
 
+      if (isVaultUpdated) {
         // Side-effect guard: the identity may have changed while the vault
         // update was in flight. Aborting here prevents the refresh-token
         // rotation from mixing the previous identity's tokens into the
@@ -2742,24 +2760,27 @@ export class SeedlessOnboardingController<
       );
 
       // The renewal can take a while, and the vault may have been rewritten in
-      // the meantime (for example by a password change). Merge into the latest
-      // vault data instead of the copy taken before the renewal, otherwise the
-      // old TOPRF keys would be written back.
-      const latestVaultData = this.#cachedDecryptedVaultData;
-      if (!this.#isUnlocked || !latestVaultData) {
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.VaultLocked,
-        );
-      }
-
+      // the meantime (for example by a password change). Read the latest vault
+      // data and write it back under the vault lock, otherwise the old TOPRF
+      // keys could be written back.
       // Persist the new revoke token to the vault first. Only update state after
       // the vault write succeeds, so state and vault stay in sync if the write fails.
-      await this.#updateVault({
-        vaultData: {
-          ...latestVaultData,
-          revokeToken: newRevokeToken,
-        },
-        pwEncKey: latestVaultData.toprfPwEncryptionKey,
+      await this.#withVaultLock(async () => {
+        const latestVaultData = this.#cachedDecryptedVaultData;
+        if (!this.#isUnlocked || !latestVaultData) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.VaultLocked,
+          );
+        }
+
+        await this.#updateVault({
+          vaultData: {
+            ...latestVaultData,
+            revokeToken: newRevokeToken,
+          },
+          pwEncKey: latestVaultData.toprfPwEncryptionKey,
+          skipLock: true,
+        });
       });
 
       // Re-check immediately before the state write. There is no `await`

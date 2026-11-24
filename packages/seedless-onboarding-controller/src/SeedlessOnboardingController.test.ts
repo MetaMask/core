@@ -10223,6 +10223,155 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      /**
+       * Pauses the next vault encryption with a password, which is what the
+       * password change commit does while it holds the vault lock.
+       *
+       * @param encryptor - The vault encryptor of the controller.
+       * @returns The spy and a function that resumes the encryption.
+       */
+      function pauseNextPasswordVaultEncryption(
+        encryptor: MockVaultEncryptor,
+      ): {
+        encryptionSpy: MockInstance;
+        resumeEncryption: () => void;
+      } {
+        const originalEncryptWithDetail =
+          encryptor.encryptWithDetail.bind(encryptor);
+        let resumeEncryption!: () => void;
+        const encryptionSpy = vi
+          .spyOn(encryptor, 'encryptWithDetail')
+          .mockImplementationOnce(async (...args) => {
+            await new Promise<void>((resolve) => {
+              resumeEncryption = resolve;
+            });
+            return await originalEncryptWithDetail(...args);
+          });
+
+        return { encryptionSpy, resumeEncryption: () => resumeEncryption() };
+      }
+
+      it('keeps the new TOPRF keys when the rotation reaches the vault while the password change holds the vault lock', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+            }),
+          },
+          async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+            await mockCreateToprfKeyAndBackupSeedPhrase(
+              toprfClient,
+              controller,
+              baseMessenger,
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            );
+            await mockChangePassword(
+              controller,
+              toprfClient,
+              MOCK_PASSWORD,
+              NEW_MOCK_PASSWORD,
+            );
+            const mockToprfEncryptor = createMockToprfEncryptor();
+            const newEncKey =
+              mockToprfEncryptor.deriveEncKey(NEW_MOCK_PASSWORD);
+            const newAuthKeyPair =
+              mockToprfEncryptor.deriveAuthKeyPair(NEW_MOCK_PASSWORD);
+
+            const { encryptionSpy, resumeEncryption } =
+              pauseNextPasswordVaultEncryption(encryptor);
+            const changePasswordPromise = controller.changePassword(
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            );
+            await vi.waitFor(() => {
+              expect(encryptionSpy).toHaveBeenCalled();
+            });
+
+            // The renewal resolves immediately, so the rotation reaches the
+            // vault while the password change still holds the vault lock and
+            // has not updated the cached vault data yet.
+            const rotatePromise = controller.rotateRefreshToken();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            resumeEncryption();
+            await Promise.all([changePasswordPromise, rotatePromise]);
+
+            const vault = controller.state.vault as string;
+            const { toprfEncryptionKey, toprfAuthKeyPair } = await decryptVault(
+              vault,
+              NEW_MOCK_PASSWORD,
+            );
+            expect(toprfEncryptionKey).toStrictEqual(newEncKey);
+            expect(toprfAuthKeyPair.pk).toStrictEqual(newAuthKeyPair.pk);
+            expect(
+              await decryptVaultRevokeToken(vault, NEW_MOCK_PASSWORD),
+            ).toBe('newRevokeToken');
+          },
+        );
+      });
+
+      it('keeps the new TOPRF keys when the token refresh reaches the vault while the password change holds the vault lock', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+            }),
+          },
+          async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+            await mockCreateToprfKeyAndBackupSeedPhrase(
+              toprfClient,
+              controller,
+              baseMessenger,
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            );
+            await mockChangePassword(
+              controller,
+              toprfClient,
+              MOCK_PASSWORD,
+              NEW_MOCK_PASSWORD,
+            );
+            const mockToprfEncryptor = createMockToprfEncryptor();
+            const newEncKey =
+              mockToprfEncryptor.deriveEncKey(NEW_MOCK_PASSWORD);
+            const newAuthKeyPair =
+              mockToprfEncryptor.deriveAuthKeyPair(NEW_MOCK_PASSWORD);
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            const { encryptionSpy, resumeEncryption } =
+              pauseNextPasswordVaultEncryption(encryptor);
+            const changePasswordPromise = controller.changePassword(
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            );
+            await vi.waitFor(() => {
+              expect(encryptionSpy).toHaveBeenCalled();
+            });
+
+            // The refresh reaches the vault while the password change still
+            // holds the vault lock and has not updated the cached vault data.
+            const refreshPromise = controller.refreshAuthTokens();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            resumeEncryption();
+            await Promise.all([changePasswordPromise, refreshPromise]);
+
+            const { toprfEncryptionKey, toprfAuthKeyPair } = await decryptVault(
+              controller.state.vault as string,
+              NEW_MOCK_PASSWORD,
+            );
+            expect(toprfEncryptionKey).toStrictEqual(newEncKey);
+            expect(toprfAuthKeyPair.pk).toStrictEqual(newAuthKeyPair.pk);
+          },
+        );
+      });
     });
   });
 
