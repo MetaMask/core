@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `notifyPerpsApi.baseUrl` platform dependency and enroll the Lighter account index with notify-perps after every Lighter `placeOrder` and `closePosition` ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Calls `POST ${baseUrl}/api/v1/lighter/accounts` with `{ account_index }` and the bearer token, retrying like the Hyperliquid order report; skipped on testnet and when `baseUrl` is not provided
+  - The account index comes from the provider that executed the order, read when the order succeeds
+  - New optional `PerpsProvider.getNotificationAccountIndex` method, implemented by the Lighter provider and the aggregated provider
+- Add `NOTIFY_PERPS_API_CONFIG` with `LighterNotificationAccountsPath`, `MaxRetries` and `RetryDelayMs` ([#11690](https://github.com/MetaMask/core/pull/11690))
+
+### Changed
+
+- Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
+  - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
+
 ## [26.0.0]
 
 ### Added

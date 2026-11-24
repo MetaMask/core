@@ -44,6 +44,7 @@ import * as tradingServiceModule from '../../src/services/TradingService.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 import type {
   PerpsMarketData,
+  PerpsProvider,
   SubscribeAccountParams,
 } from '../../src/types/index.js';
 
@@ -280,8 +281,8 @@ class TestablePerpsController extends PerpsController {
     this.refreshEligibilityOnFeatureFlagChange(remoteFlags);
   }
 
-  testReportOrderToDataLake(data) {
-    return this.reportOrderToDataLake(data);
+  testReportOrderToDataLake(data, provider: PerpsProvider) {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   testHasStandaloneProvider() {

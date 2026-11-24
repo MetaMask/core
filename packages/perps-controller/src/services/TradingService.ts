@@ -569,15 +569,17 @@ export class TradingService {
    */
   async #handleOrderSuccess(options: {
     params: OrderParams;
+    providerId?: PerpsProviderType;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
       slPrice?: number;
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
   }): Promise<void> {
-    const { params, context, reportOrderToDataLake } = options;
+    const { params, providerId, context, reportOrderToDataLake } = options;
 
     // Update state on success
     if (context.stateManager) {
@@ -600,6 +602,7 @@ export class TradingService {
     reportOrderToDataLake({
       action: 'open',
       symbol: params.symbol,
+      ...(providerId === undefined ? {} : { providerId }),
       slPrice: params.stopLossPrice
         ? parseFloat(params.stopLossPrice)
         : undefined,
@@ -742,6 +745,7 @@ export class TradingService {
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
       slPrice?: number;
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
@@ -909,8 +913,13 @@ export class TradingService {
 
       if (result.success) {
         // Handle success: state updates, data lake reporting
+        const executedVenue =
+          result.providerId ?? params.providerId ?? provider.protocolId;
         await this.#handleOrderSuccess({
           params,
+          providerId: isPerpsProviderType(executedVenue)
+            ? executedVenue
+            : undefined,
           context,
           reportOrderToDataLake,
         });
@@ -1362,18 +1371,22 @@ export class TradingService {
    * @param reportOrderToDataLake - The report order to data lake value.
    * @param symbol - The trading pair symbol.
    * @param context - The service context for dependencies.
+   * @param providerId - The venue that executed the order, when known.
    */
   #handleDataLakeReporting(
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
     }) => Promise<{ success: boolean; error?: string }>,
     symbol: string,
     context: ServiceContext,
+    providerId?: PerpsProviderType,
   ): void {
     reportOrderToDataLake({
       action: 'close',
       symbol,
+      ...(providerId === undefined ? {} : { providerId }),
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleDataLakeReporting'),
@@ -2461,6 +2474,7 @@ export class TradingService {
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
       symbol: string;
+      providerId?: PerpsProviderType;
     }) => Promise<{ success: boolean; error?: string }>;
     bulkActionId?: string;
   }): Promise<OrderResult> {
@@ -2548,10 +2562,13 @@ export class TradingService {
         }
 
         // Report to data lake (fire-and-forget)
+        const executedVenue =
+          result.providerId ?? params.providerId ?? provider.protocolId;
         this.#handleDataLakeReporting(
           reportOrderToDataLake,
           params.symbol,
           context,
+          isPerpsProviderType(executedVenue) ? executedVenue : undefined,
         );
 
         traceData = { success: true, filledSize: result.filledSize ?? '' };

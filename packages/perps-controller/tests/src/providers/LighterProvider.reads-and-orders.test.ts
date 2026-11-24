@@ -1214,6 +1214,26 @@ describe('LighterProvider', () => {
         );
       });
 
+      it('exposes the configured account index for enrollment', async () => {
+        const { provider } = buildProvider();
+        expect(await provider.getNotificationAccountIndex()).toBe(28);
+      });
+
+      it('exposes the master (lowest) account index for enrollment', async () => {
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+        });
+        clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          l1Address: ACCOUNT.l1Address,
+          subAccounts: [
+            { ...ACCOUNT, index: 7 },
+            { ...ACCOUNT, index: 3 },
+          ],
+        });
+        expect(await provider.getNotificationAccountIndex()).toBe(3);
+      });
+
       it('still reads a wallet without a Lighter account as empty', async () => {
         const { provider, clientInstance } = buildProvider({
           configuredAccountIndex: null,
