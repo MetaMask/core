@@ -2797,6 +2797,29 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should not refresh auth tokens when the controller is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+            true,
+          );
+          const refreshSpy = vi
+            .spyOn(controller, 'refreshAuthTokens')
+            .mockResolvedValue();
+
+          await expect(controller.fetchAllSecretData()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
+          expect(refreshSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('restoreVaultWithPassword', () => {

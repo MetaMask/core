@@ -2931,6 +2931,54 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it.each([
+        [
+          'locked',
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          async (args: ControllerArgs): Promise<void> => {
+            await args.baseMessenger.call(
+              'SeedlessOnboardingController:setLocked',
+            );
+          },
+        ],
+        [
+          'before data type migration',
+          SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationRequiresDataTypes,
+          async (args: ControllerArgs): Promise<void> => {
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            args.controller.setMigrationVersion(
+              0 as SeedlessOnboardingMigrationVersion,
+            );
+          },
+        ],
+        [
+          'without a recovery session',
+          SeedlessOnboardingControllerErrorMessage.Aal2Required,
+          async (): Promise<void> => {
+            // no recovery session authenticated
+          },
+        ],
+      ])(
+        'does not refresh auth tokens when failing preconditions (%s)',
+        async (_reason, expectedError, prepare) => {
+          await withUnlockedController(async (args) => {
+            const { controller } = args;
+            await prepare(args);
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+              true,
+            );
+            const refreshSpy = vi
+              .spyOn(controller, 'refreshAuthTokens')
+              .mockResolvedValue();
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              expectedError,
+            );
+            expect(refreshSpy).not.toHaveBeenCalled();
+          });
+        },
+      );
+
       it('persists the envelope state and keeps no migration checkpoint', async () => {
         await withController(
           {
@@ -4739,10 +4787,16 @@ describe('SeedlessOnboardingController', () => {
 
       it('throws Aal2Required without a recovery session', async () => {
         await withNewDeviceController(
-          async ({ toprfClient, baseMessenger }) => {
+          async ({ controller, toprfClient, baseMessenger }) => {
             const network = mockNetwork(toprfClient, {
               recoverySecret: RECOVERY_SECRET_HEX,
             });
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+              true,
+            );
+            const refreshSpy = vi
+              .spyOn(controller, 'refreshAuthTokens')
+              .mockResolvedValue();
 
             await expect(
               baseMessenger.call(
@@ -4755,6 +4809,7 @@ describe('SeedlessOnboardingController', () => {
             ).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.Aal2Required,
             );
+            expect(refreshSpy).not.toHaveBeenCalled();
             expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
           },
         );
@@ -5758,6 +5813,62 @@ describe('SeedlessOnboardingController', () => {
           );
         });
       });
+
+      it.each([
+        [
+          'locked',
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          async (args: ControllerArgs): Promise<void> => {
+            await args.baseMessenger.call(
+              'SeedlessOnboardingController:setLocked',
+            );
+          },
+        ],
+        [
+          'not recovered with local password',
+          SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
+          async (args: ControllerArgs): Promise<void> => {
+            await authenticateAal2(args, { hasRecoveryShare: true });
+          },
+        ],
+        [
+          'expired recovery session',
+          SeedlessOnboardingControllerErrorMessage.Aal2Required,
+          async (args: ControllerArgs): Promise<void> => {
+            const store = await createMigratedAccount();
+            mockNetwork(args.toprfClient, {
+              store,
+              globalPassword: NEW_PASSWORD,
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await recover(args);
+            const now = Date.now();
+            vi.spyOn(Date, 'now').mockReturnValue(now + 2 * 60 * 60 * 1000);
+          },
+        ],
+      ])(
+        'does not refresh auth tokens when failing preconditions (%s)',
+        async (_reason, expectedError, prepare) => {
+          await withUnlockedController(async (args) => {
+            const { controller, baseMessenger } = args;
+            await prepare(args);
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+              true,
+            );
+            const refreshSpy = vi
+              .spyOn(controller, 'refreshAuthTokens')
+              .mockResolvedValue();
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:resetPasswordWithVaultKeys',
+                { newPassword: NEW_PASSWORD },
+              ),
+            ).rejects.toThrow(expectedError);
+            expect(refreshSpy).not.toHaveBeenCalled();
+          });
+        },
+      );
 
       it.each([
         [

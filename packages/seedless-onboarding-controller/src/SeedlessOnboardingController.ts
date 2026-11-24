@@ -784,10 +784,10 @@ export class SeedlessOnboardingController<
    */
   async fetchAllSecretData(): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
-      return await this.#executeWithTokenRefresh(async () => {
-        this.#assertIsAuthenticatedUser(this.state);
-        this.#assertIsUnlocked();
+      this.#assertIsAuthenticatedUser(this.state);
+      this.#assertIsUnlocked();
 
+      return await this.#executeWithTokenRefresh(async () => {
         const keysFromVault = await this.#unlockVaultAndGetVaultData();
         const { secrets } = await this.#fetchAllSecretDataFromMetadataStore(
           keysFromVault.toprfEncryptionKey,
@@ -819,9 +819,9 @@ export class SeedlessOnboardingController<
   }): Promise<SecretMetadata[]> {
     assertIsValidPassword(password);
     return await this.#withControllerLock(async () => {
-      return await this.#executeWithTokenRefresh(async () => {
-        this.#assertIsAuthenticatedUser(this.state);
+      this.#assertIsAuthenticatedUser(this.state);
 
+      return await this.#executeWithTokenRefresh(async () => {
         let encKey: Uint8Array;
         let pwEncKey: Uint8Array;
         let authKeyPair: KeyPair;
@@ -2878,17 +2878,16 @@ export class SeedlessOnboardingController<
     }
 
     assertIsRecoverySecret(recoverySecret);
-    return await this.#withControllerLock(async () =>
-      this.#executeWithTokenRefresh(async () => {
-        this.#assertIsUnlocked();
-        if (
-          this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1
-        ) {
-          throw new SeedlessOnboardingError(
-            SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationRequiresDataTypes,
-          );
-        }
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationRequiresDataTypes,
+        );
+      }
+      this.#recoverySession.require();
 
+      return await this.#executeWithTokenRefresh(async () => {
         const vaultKeySet = toVaultKeySet(
           await this.#unlockVaultAndGetVaultData(),
         );
@@ -2923,8 +2922,8 @@ export class SeedlessOnboardingController<
           await this.#writeEnvelopeMigrationControlRecord(vaultKeySet);
         this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
         this.#trackEnvelopeMigrationCheckpoint('COMPLETED', partial);
-      }, 'migrateToEnvelope'),
-    );
+      }, 'migrateToEnvelope');
+    });
   }
 
   /**
@@ -2971,9 +2970,11 @@ export class SeedlessOnboardingController<
   }): Promise<SecretMetadata[]> {
     assertIsRecoverySecret(recoverySecret);
     assertIsValidPassword(password);
-    return await this.#withControllerLock(async () =>
-      this.#executeWithTokenRefresh(async () => {
-        this.#assertIsAuthenticatedUser(this.state);
+    return await this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+      this.#recoverySession.require();
+
+      return await this.#executeWithTokenRefresh(async () => {
         if (!this.#recoverySession.require().hasRecoveryShare) {
           if (!(await this.#fetchRecoveryAuthPubKey())) {
             throw new SeedlessOnboardingError(
@@ -3035,8 +3036,8 @@ export class SeedlessOnboardingController<
           },
         });
         return secrets;
-      }, 'recoverWithRecoverySecret'),
-    );
+      }, 'recoverWithRecoverySecret');
+    });
   }
 
   /**
@@ -3068,17 +3069,17 @@ export class SeedlessOnboardingController<
     newPassword: string;
   }): Promise<void> {
     assertIsValidPassword(newPassword);
-    return await this.#withControllerLock(async () =>
-      this.#executeWithTokenRefresh(async () => {
-        this.#assertIsUnlocked();
-        const status = getEnvelopeStatus(this.state);
-        if (!status.isEnvelopeManaged || !status.isLocalPassword) {
-          throw new SeedlessOnboardingError(
-            SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
-          );
-        }
-        this.#recoverySession.require();
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      const status = getEnvelopeStatus(this.state);
+      if (!status.isEnvelopeManaged || !status.isLocalPassword) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
+        );
+      }
+      this.#recoverySession.require();
 
+      return await this.#executeWithTokenRefresh(async () => {
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
           keyringEncryptionKey = await this.loadKeyringEncryptionKey();
@@ -3098,8 +3099,8 @@ export class SeedlessOnboardingController<
         if (keyringEncryptionKey) {
           await this.storeKeyringEncryptionKey(keyringEncryptionKey);
         }
-      }, 'resetPasswordWithVaultKeys'),
-    );
+      }, 'resetPasswordWithVaultKeys');
+    });
   }
 
   /**
