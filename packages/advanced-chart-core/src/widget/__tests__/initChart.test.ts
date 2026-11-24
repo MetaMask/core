@@ -14,6 +14,8 @@ import type {
   ChartConfig,
   ChartTheme,
   TVChartingLibraryWidget,
+  TVVisibilityType,
+  TVWatchedValue,
 } from '../../core/types.js';
 import * as externalLinkBridgeModule from '../externalLinkBridge.js';
 import {
@@ -76,11 +78,18 @@ const baseConfig: ChartConfig = {
 
 function makeMockWidget(): TVChartingLibraryWidget & {
   _onChartReadyCb: (() => void) | null;
+  paneButtonsVisibility: () => TVWatchedValue<TVVisibilityType>;
 } {
   const mock = {
     _onChartReadyCb: null as (() => void) | null,
     onChartReady(callback: () => void): void {
       mock._onChartReadyCb = callback;
+    },
+    paneButtonsVisibility(): TVWatchedValue<TVVisibilityType> {
+      return {
+        value: (): TVVisibilityType => 'visibleOnMouseOver',
+        setValue: (): void => undefined,
+      };
     },
     activeChart: vi.fn(),
     applyOverrides: vi.fn(),
@@ -335,10 +344,10 @@ describe('createChartWidget onChartReady', () => {
 
     beforeEach(() => {
       setValue = vi.fn();
-      mockWidgetInstance.paneButtonsVisibility = vi.fn(() => ({
+      vi.spyOn(mockWidgetInstance, 'paneButtonsVisibility').mockReturnValue({
         value: vi.fn(),
         setValue,
-      }));
+      });
     });
 
     it('hides pane buttons by default', () => {
@@ -377,7 +386,8 @@ describe('createChartWidget onChartReady', () => {
     });
 
     it('does not throw when the widget lacks paneButtonsVisibility', () => {
-      delete mockWidgetInstance.paneButtonsVisibility;
+      delete (mockWidgetInstance as TVChartingLibraryWidget)
+        .paneButtonsVisibility;
       createChartWidget(baseConfig, { datafeed: {} });
       expect(() => mockWidgetInstance._onChartReadyCb?.()).not.toThrow();
       expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
