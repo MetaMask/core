@@ -354,7 +354,7 @@ export type PermissionControllerRejectPermissionsRequestAction = {
  * valid permission target name.
  * @param requestData - Additional data associated with the request, if any.
  * Forwarded to the endowment getter function for the permission.
- * @returns The endowments, otherwise null.
+ * @returns The endowments, if any.
  */
 export type PermissionControllerGetEndowmentsAction = {
   type: `PermissionController:getEndowments`;
