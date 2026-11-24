@@ -2195,13 +2195,13 @@ describe('TransakService', () => {
           wallet: '0x1234',
           action: 'deposit',
           context: MOCK_CONTEXT,
-          clientBuild: 'ga',
+          clientBuild: 'prod',
         })
         .reply(200, MOCK_DEPOSIT_ORDER);
 
       const { service } = getService({
         options: {
-          clientBuild: RampsClientBuild.GeneralAvailability,
+          clientBuild: RampsClientBuild.Production,
         },
       });
 

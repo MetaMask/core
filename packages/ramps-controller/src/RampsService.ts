@@ -1028,7 +1028,7 @@ export class RampsService extends BaseDataService<
    * @param args.baseUrlOverride - Optional base URL override for local development.
    * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
    * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
-   * @param args.clientBuild - Optional build channel (`rc` or `ga`).
+   * @param args.clientBuild - Optional build channel (`rc` or `prod`).
    */
   constructor({
     messenger,

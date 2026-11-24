@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#11672](https://github.com/MetaMask/core/pull/11672))
 - Add `SubmitMicaConsentRequest`, `SubmitMicaConsentResponse`, `SubmitSourceOfIncomeRequest`, `SubmitSourceOfIncomeResponse`, `SubmitAdditionalDetailsNationalityRequest`, and `SubmitAdditionalDetailsNationalityResponse` types for MiCA/EEA KYC submission payloads and responses ([#11672](https://github.com/MetaMask/core/pull/11672))
 - Add `ADDITIONAL_DETAILS_NATIONALITY` form type to `TransakAdditionalRequirement`, with metadata containing `employmentStatusOptions` and `countryOfCitizenshipOptions` (both arrays of `TransakAdditionalRequirementOption`) ([#11672](https://github.com/MetaMask/core/pull/11672))
-- Add an optional `clientBuild` option to `RampsService` and `TransakService`, sent as the `clientBuild` query param on on-ramp API requests so the API can tell release-candidate builds from generally available builds of the same version ([#11726](https://github.com/MetaMask/core/pull/11726))
-  - Add the `RampsClientBuild` enum (`rc`, `ga`), the `isRampsClientBuild` type guard and the `RAMPS_CLIENT_BUILD_PARAM` constant.
-  - Only `rc` and `ga` are sent. A missing or unknown value is left out, so the API evaluates the request as a production build, as it does for clients that do not send the param.
+- Add an optional `clientBuild` option to `RampsService` and `TransakService`, sent as the `clientBuild` query param on on-ramp API requests so the API can tell release-candidate builds from production builds of the same version ([#11726](https://github.com/MetaMask/core/pull/11726))
+  - Add the `RampsClientBuild` enum (`rc`, `prod`), the `isRampsClientBuild` type guard and the `RAMPS_CLIENT_BUILD_PARAM` constant.
+  - Only `rc` and `prod` are sent. A missing or unknown value is left out, so the API evaluates the request as a production build, as it does for clients that do not send the param.
 
 ### Changed
 

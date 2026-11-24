@@ -1,12 +1,12 @@
 /**
  * Build channel of the MetaMask client. The on-ramp API reads it to evaluate
  * release-candidate builds against release-candidate flag configuration, so
- * flags turned on for RC testing don't reach generally available builds of the
+ * flags turned on for RC testing don't reach production builds of the
  * same version.
  */
 export enum RampsClientBuild {
   ReleaseCandidate = 'rc',
-  GeneralAvailability = 'ga',
+  Production = 'prod',
 }
 
 /** Host-supplied MetaMask client identity. All fields optional. */
@@ -15,7 +15,7 @@ export type RampsClientIdentity = {
   clientProduct?: string;
   /** App SemVer, e.g. `8.9.0` (not the ramps-controller package version). */
   clientVersion?: string;
-  /** Build channel, `rc` or `ga`. Any other value is not sent. */
+  /** Build channel, `rc` or `prod`. Any other value is not sent. */
   clientBuild?: RampsClientBuild;
 };
 
@@ -35,7 +35,7 @@ const RAMPS_CLIENT_BUILDS: readonly string[] = Object.values(RampsClientBuild);
  * Checks whether a value is a known {@link RampsClientBuild}.
  *
  * @param value - Value to check.
- * @returns Whether the value is `rc` or `ga`.
+ * @returns Whether the value is `rc` or `prod`.
  */
 export function isRampsClientBuild(value: unknown): value is RampsClientBuild {
   return typeof value === 'string' && RAMPS_CLIENT_BUILDS.includes(value);

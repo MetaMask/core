@@ -44,14 +44,14 @@ describe('addRampsClientIdentityParams', () => {
     expect(url.searchParams.get('clientVersion')).toBe('8.9.0');
   });
 
-  it('sends ga for a generally available build', () => {
+  it('sends prod for a production build', () => {
     const url = new URL(BASE_URL);
 
     addRampsClientIdentityParams(url, {
-      clientBuild: RampsClientBuild.GeneralAvailability,
+      clientBuild: RampsClientBuild.Production,
     });
 
-    expect(url.searchParams.get('clientBuild')).toBe('ga');
+    expect(url.searchParams.get('clientBuild')).toBe('prod');
   });
 
   it.each(['', 'RC', 'beta', 'production', 'rc '])(
@@ -71,11 +71,11 @@ describe('addRampsClientIdentityParams', () => {
 });
 
 describe('isRampsClientBuild', () => {
-  it.each(['rc', 'ga'])('accepts %j', (value) => {
+  it.each(['rc', 'prod'])('accepts %j', (value) => {
     expect(isRampsClientBuild(value)).toBe(true);
   });
 
-  it.each([undefined, null, 1, '', 'RC', 'prod'])('rejects %j', (value) => {
+  it.each([undefined, null, 1, '', 'RC', 'ga'])('rejects %j', (value) => {
     expect(isRampsClientBuild(value)).toBe(false);
   });
 });
