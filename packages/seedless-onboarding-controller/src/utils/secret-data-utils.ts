@@ -41,17 +41,72 @@ export function isSecretDataType(
   );
 }
 
+// 100-nanosecond intervals between the UUIDv1 Gregorian epoch (1582-10-15)
+// and the Unix epoch (1970-01-01): 141,427 days * 86,400 s * 10,000,000 ticks/s.
+const GREGORIAN_TO_UNIX_EPOCH_TICKS = 122_192_928_000_000_000n;
+const TICKS_PER_MS = 10_000n;
+
+// RFC 4122 version 1 UUID (Cassandra TIMEUUID): xxxxxxxx-xxxx-1xxx-[89ab]xxx-xxxxxxxxxxxx
+const TIMEUUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+/**
+ * Extract the 60-bit Gregorian 100-nanosecond timestamp from a UUIDv1
+ * (Cassandra TIMEUUID) string.
+ *
+ * @param value - A candidate TIMEUUID string.
+ * @returns The 60-bit timestamp, or `undefined` if `value` is not a TIMEUUID.
+ */
+function parseTimeuuidTicks(value: string): bigint | undefined {
+  if (!TIMEUUID_REGEX.test(value)) {
+    return undefined;
+  }
+  const timeLow = value.slice(0, 8);
+  const timeMid = value.slice(9, 13);
+  // Skip the version nibble ('1') at index 14 to get the 12 most significant bits.
+  const timeHi = value.slice(15, 18);
+  return BigInt(`0x${timeHi}${timeMid}${timeLow}`);
+}
+
+/**
+ * Parse a `createdAt` string (Cassandra TIMEUUID, numeric milliseconds, or ISO
+ * date string) onto a shared 100-nanosecond Gregorian timeline so comparisons
+ * preserve full 60-bit TIMEUUID precision.
+ *
+ * @param createdAt - The raw `createdAt` value.
+ * @returns 100-nanosecond ticks since 1582-10-15T00:00:00Z, or `undefined` when unknown.
+ */
+function parseCreatedAtTicks(
+  createdAt: string | undefined,
+): bigint | undefined {
+  if (createdAt === undefined) {
+    return undefined;
+  }
+  const timeuuidTicks = parseTimeuuidTicks(createdAt);
+  if (timeuuidTicks !== undefined) {
+    return timeuuidTicks;
+  }
+  if (createdAt.trim() === '') {
+    return undefined;
+  }
+  const asNumber = Number(createdAt);
+  const ms = Number.isFinite(asNumber) ? asNumber : Date.parse(createdAt);
+  if (!Number.isFinite(ms)) {
+    return undefined;
+  }
+  return BigInt(Math.trunc(ms)) * TICKS_PER_MS + GREGORIAN_TO_UNIX_EPOCH_TICKS;
+}
+
 /**
  * @param item - A fetched item.
- * @returns The item's creation time in milliseconds, or 0 when unknown.
+ * @returns The item's creation time in milliseconds since the Unix epoch, or 0 when unknown.
  */
 export function getCreatedAtMs(item: FetchedSecretDataItem): number {
-  if (item.createdAt === undefined) {
+  const ticks = parseCreatedAtTicks(item.createdAt);
+  if (ticks === undefined) {
     return 0;
   }
-  const asNumber = Number(item.createdAt);
-  const ms = Number.isNaN(asNumber) ? Date.parse(item.createdAt) : asNumber;
-  return Number.isNaN(ms) ? 0 : ms;
+  return Number((ticks - GREGORIAN_TO_UNIX_EPOCH_TICKS) / TICKS_PER_MS);
 }
 
 /**
@@ -65,11 +120,23 @@ export function sortNewestFirst(
   items: FetchedSecretDataItem[],
 ): FetchedSecretDataItem[] {
   return items
-    .map((item, index) => ({ item, index }))
-    .sort(
-      (a, b) =>
-        getCreatedAtMs(b.item) - getCreatedAtMs(a.item) || b.index - a.index,
-    )
+    .map((item, index) => ({
+      item,
+      index,
+      createdAtTicks: parseCreatedAtTicks(item.createdAt),
+    }))
+    .sort((a, b) => {
+      if (a.createdAtTicks !== b.createdAtTicks) {
+        if (a.createdAtTicks === undefined) {
+          return 1;
+        }
+        if (b.createdAtTicks === undefined) {
+          return -1;
+        }
+        return b.createdAtTicks > a.createdAtTicks ? 1 : -1;
+      }
+      return b.index - a.index;
+    })
     .map(({ item }) => item);
 }
 

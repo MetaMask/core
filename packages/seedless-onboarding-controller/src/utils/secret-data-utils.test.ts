@@ -274,6 +274,34 @@ describe('secret data utilities', () => {
       ).toBe(Date.parse('2026-01-01T00:00:00.000Z'));
     });
 
+    it('parses a Cassandra TIMEUUID (UUIDv1) string as milliseconds', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({
+            itemId: 'a',
+            createdAt: 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0',
+          }),
+        ),
+      ).toBe(Date.parse('2025-12-05T11:30:09.002Z'));
+    });
+
+    it('returns 0 for a non-v1 UUID', () => {
+      expect(
+        getCreatedAtMs(
+          createVaultItem({
+            itemId: 'a',
+            createdAt: '550e8400-e29b-41d4-a716-446655440000',
+          }),
+        ),
+      ).toBe(0);
+    });
+
+    it('returns 0 for an empty or whitespace-only creation time', () => {
+      expect(
+        getCreatedAtMs(createVaultItem({ itemId: 'a', createdAt: '   ' })),
+      ).toBe(0);
+    });
+
     it('returns 0 for an unparseable creation time', () => {
       expect(
         getCreatedAtMs(createVaultItem({ itemId: 'a', createdAt: 'garbage' })),
@@ -301,6 +329,50 @@ describe('secret data utilities', () => {
       ]);
       expect(sorted).not.toBe(items);
       expect(items).toStrictEqual(original);
+    });
+
+    it('sorts Cassandra TIMEUUIDs by 60-bit timestamp descending rather than input or lexicographical order', () => {
+      // Chronological order: t1 < t1Plus100ns < t2 < t3 (note t1 > t2 lexicographically).
+      const t1 = 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0';
+      const t1Plus100ns = 'c14cc4a1-d1cd-11f0-9878-3be4d8d3a8a0';
+      const t2 = '04e72250-d1ce-11f0-9878-3be4d8d3a8a0';
+      const t3 = 'B2649610-D1CE-11F0-9878-3BE4D8D3A8A0';
+
+      const sorted = sortNewestFirst([
+        createVaultItem({ itemId: 't2', createdAt: t2 }),
+        createVaultItem({ itemId: 'unknown' }),
+        createVaultItem({ itemId: 't3', createdAt: t3 }),
+        createVaultItem({ itemId: 't1', createdAt: t1 }),
+        createVaultItem({ itemId: 't1-plus-100ns', createdAt: t1Plus100ns }),
+      ]);
+
+      expect(sorted.map((item) => item.itemId)).toStrictEqual([
+        't3',
+        't2',
+        't1-plus-100ns',
+        't1',
+        'unknown',
+      ]);
+    });
+
+    it('sorts synthetic pre-1970 TIMEUUIDs ahead of unknown creation times', () => {
+      const sorted = sortNewestFirst([
+        createVaultItem({
+          itemId: 'older',
+          createdAt: '00000001-0000-1000-8000-000000000001',
+        }),
+        createVaultItem({ itemId: 'unknown' }),
+        createVaultItem({
+          itemId: 'newer',
+          createdAt: '00000002-0000-1000-8000-000000000002',
+        }),
+      ]);
+
+      expect(sorted.map((item) => item.itemId)).toStrictEqual([
+        'newer',
+        'older',
+        'unknown',
+      ]);
     });
   });
 

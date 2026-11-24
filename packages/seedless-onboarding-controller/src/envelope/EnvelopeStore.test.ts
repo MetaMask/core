@@ -136,6 +136,28 @@ describe('EnvelopeStore', () => {
       });
     });
 
+    it('orders envelopes by Cassandra TIMEUUID creation time newest first regardless of input order', async () => {
+      const { store, toprfClient } = createStore();
+      const oldest = packEnvelope('password', createVaultKeySet(1));
+      const middle = packEnvelope('password', createVaultKeySet(4));
+      const newest = packEnvelope('password', createVaultKeySet(7));
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        createItem(serializeEnvelope(newest), {
+          createdAt: 'b2649610-d1ce-11f0-9878-3be4d8d3a8a0',
+        }),
+        createItem(serializeEnvelope(oldest), {
+          createdAt: 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0',
+        }),
+        createItem(serializeEnvelope(middle), {
+          createdAt: '04e72250-d1ce-11f0-9878-3be4d8d3a8a0',
+        }),
+      ]);
+
+      expect(
+        await store.fetchEnvelopes(envelopeKeys, 'password'),
+      ).toStrictEqual([newest, middle, oldest]);
+    });
+
     it('orders items by ISO creation time, then by later position', async () => {
       const { store, toprfClient } = createStore();
       const [first, second, third] = [1, 4, 7].map((fill) =>
