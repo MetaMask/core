@@ -3,11 +3,16 @@
  * Handles account selection and EVM account filtering
  */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { isCaipAccountId, parseCaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import { CROSS_MARGIN_RATIO_THRESHOLDS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import {
+  hyperLiquidModeFoldsSpot,
+  isHyperLiquidStandardMode,
+} from '../types/hyperliquid-types.js';
 import type {
   HyperLiquidAbstractionMode,
   SpotClearinghouseStateResponse,
@@ -17,8 +22,27 @@ import type {
   CrossMarginSummary,
   PerpsInternalAccount,
 } from '../types/index.js';
+import { aggregateAccountTotals } from './accountAggregation.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
+
+/**
+ * Read the account address from a CAIP-10 account id.
+ *
+ * The value is validated, not split: a bare address or an id with extra
+ * segments names no account, so it can never be mistaken for the selected
+ * wallet because its last segment happens to match.
+ *
+ * @param accountId - Account id from a caller; may be malformed at runtime.
+ * @returns The lowercased address, or undefined when the id is not CAIP-10.
+ */
+export function getCaipAccountAddress(accountId: string): string | undefined {
+  if (!isCaipAccountId(accountId)) {
+    return undefined;
+  }
+  return parseCaipAccountId(accountId).address.toLowerCase();
+}
 
 function isEvmAccountType(type: string): boolean {
   return EVM_ACCOUNT_TYPES.has(type);
@@ -64,6 +88,7 @@ function isAccountLike(
     typeof value === 'object' &&
     value !== null &&
     typeof account?.address === 'string' &&
+    account.address.length > 0 &&
     typeof account.type === 'string'
   );
 }
@@ -71,31 +96,43 @@ function isAccountLike(
 export function getSelectedEvmAccountDetailsFromMessenger(
   messenger: SelectedEvmAccountMessenger,
 ): InternalAccount | PerpsInternalAccount | undefined {
+  let legacyEvmAccount: InternalAccount | PerpsInternalAccount | undefined;
   try {
     const selectedAccount = messenger.call(
       'AccountsController:getSelectedAccount',
     );
     if (isAccountLike(selectedAccount)) {
-      const evmAccount = findEvmAccount([selectedAccount]);
-      if (evmAccount) {
-        return evmAccount;
-      }
+      legacyEvmAccount = findEvmAccount([selectedAccount]) ?? undefined;
     }
   } catch {
-    // Fall back to the selected account group if the direct lookup is unavailable.
+    // Some clients expose only the account tree action.
   }
 
   try {
     const selectedAccountGroup = messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
-    return Array.isArray(selectedAccountGroup)
-      ? (findEvmAccount(selectedAccountGroup.filter(isAccountLike)) ??
-          undefined)
-      : undefined;
+    if (Array.isArray(selectedAccountGroup)) {
+      const groupAccounts = selectedAccountGroup.filter(isAccountLike);
+      if (groupAccounts.length > 0) {
+        // The legacy action can return the last EVM wallet when a different
+        // account group is selected. Keep it only if it belongs to this group.
+        const legacyAddress = legacyEvmAccount?.address.toLowerCase();
+        if (
+          legacyAddress &&
+          groupAccounts.some(
+            ({ address }) => address.toLowerCase() === legacyAddress,
+          )
+        ) {
+          return legacyEvmAccount;
+        }
+        return findEvmAccount(groupAccounts) ?? undefined;
+      }
+    }
   } catch {
-    return undefined;
+    // Older clients and startup can use the legacy selection.
   }
+  return legacyEvmAccount;
 }
 
 export function getSelectedEvmAccountFromMessenger(
@@ -109,6 +146,12 @@ export function getSelectedEvmAccountFromMessenger(
 export type ReturnOnEquityInput = {
   unrealizedPnl: string | number;
   returnOnEquity: string | number;
+  /**
+   * Margin the account uses. When given, it is the account's weight, so an
+   * account with an RoE of 0 still counts. Without it the weight is derived
+   * from PnL / RoE, which an RoE of 0 cannot give.
+   */
+  marginUsed?: string | number;
 };
 
 export function calculateWeightedReturnOnEquity(
@@ -118,8 +161,8 @@ export function calculateWeightedReturnOnEquity(
     return '0';
   }
 
-  let totalWeightedROE = 0;
-  let totalMarginUsed = 0;
+  let totalWeightedROE = new BigNumber(0);
+  let totalMarginUsed = new BigNumber(0);
 
   for (const account of accounts) {
     const unrealizedPnl =
@@ -131,32 +174,42 @@ export function calculateWeightedReturnOnEquity(
         ? Number.parseFloat(account.returnOnEquity)
         : account.returnOnEquity;
 
-    if (Number.isNaN(unrealizedPnl) || Number.isNaN(returnOnEquity)) {
+    if (!Number.isFinite(unrealizedPnl) || !Number.isFinite(returnOnEquity)) {
       continue;
     }
 
-    if (returnOnEquity === 0) {
+    let marginUsed: number | null;
+    if (account.marginUsed === undefined) {
+      if (returnOnEquity === 0) {
+        continue;
+      }
+      marginUsed = (unrealizedPnl / returnOnEquity) * 100;
+    } else {
+      marginUsed =
+        typeof account.marginUsed === 'string'
+          ? parseFiniteDecimal(account.marginUsed)
+          : account.marginUsed;
+    }
+
+    if (
+      marginUsed === null ||
+      !Number.isFinite(marginUsed) ||
+      marginUsed <= 0
+    ) {
       continue;
     }
 
-    const marginUsed = (unrealizedPnl / returnOnEquity) * 100;
-
-    if (Number.isNaN(marginUsed) || marginUsed <= 0) {
-      continue;
-    }
-
-    const roeDecimal = returnOnEquity / 100;
-
-    totalWeightedROE += roeDecimal * marginUsed;
-    totalMarginUsed += marginUsed;
+    totalWeightedROE = totalWeightedROE.plus(
+      new BigNumber(returnOnEquity).times(marginUsed),
+    );
+    totalMarginUsed = totalMarginUsed.plus(marginUsed);
   }
 
-  if (totalMarginUsed <= 0) {
+  if (totalMarginUsed.isZero()) {
     return '0';
   }
 
-  const weightedROE = (totalWeightedROE / totalMarginUsed) * 100;
-  return weightedROE.toString();
+  return totalWeightedROE.dividedBy(totalMarginUsed).toString();
 }
 
 // The release-branch balance bridge is USDC-only. Non-USDC spot assets must
@@ -318,11 +371,12 @@ export function getCrossMarginSpotCollateral(
  */
 export type AddSpotBalanceOptions = {
   /**
-   * When `true`, free spot USDC contributes to both `spendableBalance` and
-   * `withdrawableBalance` in addition to `totalBalance` — appropriate for
-   * venues where spot is automatically used as perps collateral (e.g.
-   * HyperLiquid Unified/Portfolio mode, where `withdraw3` draws from the
-   * unified ledger).
+   * When `true`, spot is the account's single USDC ledger (HyperLiquid
+   * Unified/Portfolio mode, where `withdraw3` draws from it): its USDC
+   * `total` already includes every perps DEX's account value, so it becomes
+   * `totalBalance`, and free spot USDC (`total − hold`) becomes
+   * `spendableBalance` and `withdrawableBalance`. A spot read with no USDC
+   * entry keeps the perps figures.
    *
    * When `false`, free spot contributes to `totalBalance` only; spendable
    * and withdrawable stay perps-only — appropriate for venues where spot
@@ -344,6 +398,13 @@ export type AddSpotBalanceOptions = {
    * unknown: folding stays off, and `spotCollateral` stays unset.
    */
   abstractionMode?: HyperLiquidAbstractionMode | null;
+  /**
+   * When folding, throw `ACCOUNT_STATE_FAILED` for a USDC entry whose
+   * `total` or `hold` is missing or invalid, instead of keeping the perps
+   * figures. On a Unified account the perps figures are not the balance, so
+   * a strict read reports the account as unavailable.
+   */
+  rejectMalformedLedger?: boolean;
 };
 
 /**
@@ -354,7 +415,7 @@ export type AddSpotBalanceOptions = {
  * @param accountState - Base AccountState produced by a provider adapter.
  * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the balances are returned unchanged.
  * @param options - See {@link AddSpotBalanceOptions}.
- * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true. When `abstractionMode` is passed, `spotCollateral` is the spot USDC that counts as cross collateral.
+ * @returns AccountState with spot added to `totalBalance` (Standard), or with all three balances taken from the spot ledger when `foldIntoCollateral` is true. When `abstractionMode` is passed, `spotCollateral` is the spot USDC that counts as cross collateral.
  */
 export function addSpotBalanceToAccountState(
   accountState: AccountState,
@@ -385,13 +446,7 @@ export function addSpotBalanceToAccountState(
     return { ...state, spotCollateral };
   };
 
-  const spotBalance = getSpotCollateralAmount(spotState, 'total');
-  const spotHold = getSpotCollateralAmount(spotState, 'hold');
-  const freeSpot = getFreeSpotUsdc(spotState);
-
   const currentTotal = new BigNumber(accountState.totalBalance);
-  const currentSpendable = new BigNumber(accountState.spendableBalance);
-  const currentWithdrawable = new BigNumber(accountState.withdrawableBalance);
 
   // Preserve sentinel totals (e.g. PERPS_CONSTANTS.FallbackDataDisplay '--')
   // rather than coercing them to NaN.
@@ -399,33 +454,56 @@ export function addSpotBalanceToAccountState(
     return withSpotCollateral(accountState);
   }
 
-  // Folding is gated strictly on the resolved abstraction mode (see callers'
-  // `foldIntoCollateral` argument). Standard / DEX-abstraction users keep
-  // perps and spot independent, so spot must NOT surface as a perps-
-  // withdrawable balance for them — withdraw3 only draws from the perps
-  // ledger in those modes. Unified / portfolio-margin users get the fold;
-  // live callers fail-CLOSED via `hyperLiquidModeFoldsSpot` when mode is
-  // unresolved.
+  // Unified / portfolio margin keep one USDC ledger. Its spot `total` already
+  // contains the account value of every perps DEX, cross and isolated, and
+  // `hold` is every DEX's margin: on testnet the spot total equals both
+  // `raw spot + Σ accountValue` and the account value hyperliquid.xyz shows.
+  // So the ledger replaces the perps figures; adding them would count
+  // unrealized PnL twice. Folding is gated strictly on the resolved
+  // abstraction mode (callers' `foldIntoCollateral`). A read that lists no
+  // USDC, or a missing or invalid USDC `total` or `hold`, keeps the perps
+  // figures rather than reporting 0 or an unheld total; those figures are
+  // perps-only, so a strict caller (`rejectMalformedLedger`) gets a throw
+  // for a malformed entry instead.
+  //
+  // Standard / DEX-abstraction keep perps and spot apart: withdraw3 draws
+  // only from the perps ledger, so spot adds to the total alone, net of the
+  // USDC its open spot orders hold.
+  let nextTotalValue = currentTotal;
+  let freeSpot: BigNumber | undefined;
+  if (foldIntoCollateral) {
+    const ledgerTotal = getSpotCollateralAmount(spotState, 'total', {
+      strict: true,
+    });
+    freeSpot = getFreeSpotUsdc(spotState, { strict: true });
+    if (
+      hasSpotCollateralBalance(spotState) &&
+      ledgerTotal !== undefined &&
+      freeSpot !== undefined
+    ) {
+      nextTotalValue = ledgerTotal;
+    } else if (
+      options?.rejectMalformedLedger === true &&
+      hasSpotCollateralBalance(spotState)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+    } else {
+      freeSpot = undefined;
+    }
+  } else {
+    nextTotalValue = currentTotal
+      .plus(getSpotCollateralAmount(spotState, 'total'))
+      .minus(getSpotCollateralAmount(spotState, 'hold'));
+  }
   const nextSpendable = resolveFoldedBalance(
-    currentSpendable,
     accountState.spendableBalance,
     freeSpot,
-    foldIntoCollateral,
   );
   const nextWithdrawable = resolveFoldedBalance(
-    currentWithdrawable,
     accountState.withdrawableBalance,
     freeSpot,
-    foldIntoCollateral,
   );
-
-  // Total always reflects combined wealth: subtract spotHold to avoid
-  // double-counting on Unified/PM accounts where marginSummary.accountValue
-  // already includes the margin that HL surfaces via spot.hold. Standard
-  // mode has spotHold = 0 by construction, so the subtraction is a no-op.
-  const nextTotal = canonicalizeUsdc(
-    currentTotal.plus(spotBalance).minus(spotHold),
-  );
+  const nextTotal = canonicalizeUsdc(nextTotalValue);
 
   if (
     nextTotal === accountState.totalBalance &&
@@ -443,12 +521,28 @@ export function addSpotBalanceToAccountState(
   });
 }
 
+/**
+ * Whether a spot read lists a USDC balance.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @returns True when `balances` holds a collateral coin entry.
+ */
+function hasSpotCollateralBalance(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+): boolean {
+  return (
+    Array.isArray(spotState?.balances) &&
+    spotState.balances.some((balance) =>
+      SPOT_COLLATERAL_COINS.has(balance?.coin),
+    )
+  );
+}
+
 function resolveFoldedBalance(
-  currentNumeric: BigNumber,
   currentRaw: string,
-  freeSpot: BigNumber,
-  foldIntoCollateral: boolean,
+  freeSpot: BigNumber | undefined,
 ): string {
+  const currentNumeric = new BigNumber(currentRaw);
   if (!currentNumeric.isFinite()) {
     // Non-finite currentNumeric means the adapter passed a sentinel like
     // `PERPS_CONSTANTS.FallbackDataDisplay` ("--") during loading. Preserve
@@ -458,8 +552,7 @@ function resolveFoldedBalance(
     return currentRaw;
   }
 
-  const spotAmount = foldIntoCollateral ? freeSpot : new BigNumber(0);
-  return canonicalizeUsdc(currentNumeric.plus(spotAmount));
+  return canonicalizeUsdc(freeSpot ?? currentNumeric);
 }
 
 function canonicalizeUsdc(value: BigNumber): string {
@@ -514,7 +607,10 @@ export type PerpsAccountSummary = {
    * positions are liquidated when it reaches 1.
    */
   accountRatio: number | undefined;
-  /** Cross notional as a multiple of total account equity. */
+  /**
+   * Cross notional as a multiple of total account equity, or of the cross
+   * account value on a Standard account.
+   */
   accountLeverage: number | undefined;
   /** Cross margin used over cross collateral (0.25 = 25%). */
   crossMarginUsage: number | undefined;
@@ -536,6 +632,13 @@ export type CalculateAccountSummaryParams = {
    * undefined until read.
    */
   spotCollateral: number | string | undefined;
+  /**
+   * The venue account mode (`AccountState.accountMode`). Standard
+   * (`disabled`, `default`) divides account leverage by the cross account
+   * value, as Hyperliquid's Cross Account Leverage does; any other or an
+   * unknown mode divides by total equity.
+   */
+  accountMode?: AccountState['accountMode'];
 };
 
 function toFiniteNumber(
@@ -579,13 +682,16 @@ export function getCrossCollateral(
 /**
  * Derive the account summary from the venue's cross margin figures, matching
  * Hyperliquid: account leverage divides cross notional by total account
- * equity, isolated margin included; account ratio and cross margin usage
- * divide the cross maintenance margin and margin used by cross collateral.
+ * equity, isolated margin included (Unified, Portfolio Margin), or by the
+ * cross account value on a Standard account; account ratio and cross margin
+ * usage divide the cross maintenance margin and margin used by cross
+ * collateral.
  *
  * @param params - The account inputs.
  * @param params.totalEquity - Total account equity in USD.
  * @param params.crossMarginSummary - The venue's cross margin figures.
  * @param params.spotCollateral - Spot USDC counted as cross collateral.
+ * @param params.accountMode - The venue account mode, when known.
  * @returns The summary; a ratio is undefined while its inputs are unknown or
  * its denominator is not positive.
  */
@@ -593,7 +699,9 @@ export function calculateAccountSummary({
   totalEquity,
   crossMarginSummary,
   spotCollateral,
+  accountMode,
 }: CalculateAccountSummaryParams): PerpsAccountSummary {
+  const isStandard = isHyperLiquidStandardMode(accountMode);
   const collateral = getCrossCollateral(crossMarginSummary, spotCollateral);
   const maintenanceMargin = toFiniteNumber(
     crossMarginSummary?.maintenanceMargin,
@@ -603,7 +711,9 @@ export function calculateAccountSummary({
     accountRatio: share(maintenanceMargin, collateral),
     accountLeverage: share(
       toFiniteNumber(crossMarginSummary?.notional),
-      toFiniteNumber(totalEquity),
+      isStandard
+        ? toFiniteNumber(crossMarginSummary?.accountValue)
+        : toFiniteNumber(totalEquity),
     ),
     crossMarginUsage: share(
       toFiniteNumber(crossMarginSummary?.marginUsed),
@@ -620,65 +730,19 @@ export function calculateAccountSummary({
  *
  * @param states - The array of per-DEX account states to aggregate.
  * @returns The combined account state with summed balances and recalculated ROE.
+ * @throws `ACCOUNT_STATE_FAILED` when `states` is empty.
  */
 export function aggregateAccountStates(states: AccountState[]): AccountState {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
-
   if (states.length === 0) {
-    return fallback;
+    // No account answered: the state is unknown. A '--' placeholder in
+    // numeric fields parses as NaN downstream.
+    throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
   }
 
-  const aggregated = states.reduce<AccountState>((acc, state, index) => {
-    if (index === 0) {
-      return { ...state };
-    }
-
-    return {
-      spendableBalance: addDecimalValues(
-        acc.spendableBalance,
-        state.spendableBalance,
-      ),
-      withdrawableBalance: addDecimalValues(
-        acc.withdrawableBalance,
-        state.withdrawableBalance,
-      ),
-      totalBalance: addDecimalValues(acc.totalBalance, state.totalBalance),
-      marginUsed: (
-        parseFloat(acc.marginUsed) + parseFloat(state.marginUsed)
-      ).toString(),
-      unrealizedPnl: (
-        parseFloat(acc.unrealizedPnl) + parseFloat(state.unrealizedPnl)
-      ).toString(),
-      returnOnEquity: '0',
-    };
-  }, fallback);
-
-  aggregated.spendableBalance = normalizeDecimalString(
-    aggregated.spendableBalance,
-  );
-  aggregated.withdrawableBalance = normalizeDecimalString(
-    aggregated.withdrawableBalance,
-  );
-  aggregated.totalBalance = normalizeDecimalString(aggregated.totalBalance);
-
-  // Recalculate ROE across all DEXs
-  const totalMarginUsed = parseFloat(aggregated.marginUsed);
-  const totalUnrealizedPnl = parseFloat(aggregated.unrealizedPnl);
-  if (totalMarginUsed > 0) {
-    aggregated.returnOnEquity = (
-      (totalUnrealizedPnl / totalMarginUsed) *
-      100
-    ).toString();
-  } else {
-    aggregated.returnOnEquity = '0';
-  }
+  const aggregated: AccountState = {
+    ...(states.length === 1 ? states[0] : {}),
+    ...aggregateAccountTotals(states),
+  };
 
   const crossMarginSummary = sumCrossMarginSummaries(states);
   if (crossMarginSummary) {
@@ -688,11 +752,24 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
   return aggregated;
 }
 
-function addDecimalValues(left: string, right: string): string {
-  return new BigNumber(left).plus(right).toFixed();
-}
+/** Severity of a cross-margin ratio. */
+export type CrossMarginRatioTone = 'safe' | 'warning' | 'danger';
 
-function normalizeDecimalString(value: string): string {
-  const amount = new BigNumber(value);
-  return amount.isFinite() ? amount.toFixed() : value;
+/**
+ * Severity of a cross-margin ratio against `CROSS_MARGIN_RATIO_THRESHOLDS`.
+ *
+ * @param ratio - `PerpsAccountSummary.accountRatio` (0.5 = 50%).
+ * @returns `safe` below the warning level, `warning` up to and including the
+ * danger level, `danger` above it, or undefined for a missing ratio.
+ */
+export function getCrossMarginRatioTone(
+  ratio: number | undefined,
+): CrossMarginRatioTone | undefined {
+  if (ratio === undefined || !Number.isFinite(ratio)) {
+    return undefined;
+  }
+  if (ratio < CROSS_MARGIN_RATIO_THRESHOLDS.Warning) {
+    return 'safe';
+  }
+  return ratio <= CROSS_MARGIN_RATIO_THRESHOLDS.Danger ? 'warning' : 'danger';
 }

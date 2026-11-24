@@ -240,6 +240,9 @@ const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
 
 const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: true,
+  benefitPeriodId: 'bp_2026_08_15',
+  benefitPeriodStart: '2026-08-15T00:00:00.000Z',
+  benefitPeriodEnd: '2026-09-15T00:00:00.000Z',
   billingPeriodId: 'bp_2026_08_15',
   products: {
     swaps: {
@@ -268,6 +271,9 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: false,
+  benefitPeriodId: null,
+  benefitPeriodStart: null,
+  benefitPeriodEnd: null,
   billingPeriodId: null,
   products: {
     swaps: {
@@ -290,6 +296,9 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_BENEFITS_STATE: SubscriptionBenefitsState = {
   billingPeriodId: MOCK_BENEFITS_RESPONSE.billingPeriodId,
+  benefitPeriodId: MOCK_BENEFITS_RESPONSE.benefitPeriodId,
+  benefitPeriodStart: MOCK_BENEFITS_RESPONSE.benefitPeriodStart,
+  benefitPeriodEnd: MOCK_BENEFITS_RESPONSE.benefitPeriodEnd,
   ...MOCK_BENEFITS_RESPONSE.products,
 };
 
@@ -1986,6 +1995,9 @@ describe('SubscriptionController', () => {
       };
       const nextPeriodBenefits: SubscriptionBenefitsResponse = {
         ...MOCK_BENEFITS_RESPONSE,
+        benefitPeriodId: 'bp_2024_02_01',
+        benefitPeriodStart: '2024-02-01T00:00:00.000Z',
+        benefitPeriodEnd: '2024-03-01T00:00:00.000Z',
         billingPeriodId: 'bp_2024_02_01',
       };
 
@@ -2011,6 +2023,9 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual({
             billingPeriodId: nextPeriodBenefits.billingPeriodId,
+            benefitPeriodId: nextPeriodBenefits.benefitPeriodId,
+            benefitPeriodStart: nextPeriodBenefits.benefitPeriodStart,
+            benefitPeriodEnd: nextPeriodBenefits.benefitPeriodEnd,
             ...nextPeriodBenefits.products,
           });
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);

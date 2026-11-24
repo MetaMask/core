@@ -552,7 +552,12 @@ export function toKycStepStatus(value: string): KycStepStatus {
 }
 
 /** Where the user is, and how their verification is going. */
-export type KycStepInfo = { step: KycStep; status: KycStepStatus };
+export type KycStepInfo = {
+  step: KycStep;
+  status: KycStepStatus;
+  /** The vendor's session id from the relay, or `null` when there is none. */
+  sessionId: string | null;
+};
 
 /**
  * What only the device knows, sent with a step request.

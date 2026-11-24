@@ -131,6 +131,11 @@ export type ServerQuoteClient = {
 
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
+  /**
+   * Signed EIP-7702 authorizations sent with the quote request, kept when the
+   * quote embeds the calls, so a non-gasless submit can upgrade the account.
+   */
+  authorizationList?: ServerAuthorization[];
   id: string;
   provider: string;
   input: ServerQuoteAmount;
@@ -142,7 +147,14 @@ export type ServerQuote = {
   gasless: boolean;
 };
 
-/** Status values returned by GET /status. */
+/** Log from the source transaction receipt sent to POST /status. */
+export type ServerStatusLog = {
+  address: Hex;
+  data: Hex;
+  topics: Hex[];
+};
+
+/** Status values returned by POST /status. */
 export enum ServerStatus {
   Pending = 'PENDING',
   Submitted = 'SUBMITTED',
@@ -152,7 +164,7 @@ export enum ServerStatus {
   Unknown = 'UNKNOWN',
 }
 
-/** Response body from GET /status. */
+/** Response body from POST /status. */
 export type ServerStatusResponse = {
   status: ServerStatus;
   sourceHash?: Hex;

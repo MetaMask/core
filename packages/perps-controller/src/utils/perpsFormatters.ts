@@ -1267,6 +1267,64 @@ export const formatLiquidationDistance = (
   });
 };
 
+/**
+ * Options for `formatLeverage`.
+ */
+export type PerpsLeverageFormatOptions = Pick<
+  PerpsDisplayFormatOptions,
+  'formatters'
+> & {
+  /** Fraction digits always shown (default 0). */
+  minimumFractionDigits?: number;
+  /**
+   * Fraction digits at most shown (default
+   * `PERPS_DISPLAY_PRECISION.Leverage`, 2). Raised to `minimumFractionDigits`
+   * when lower.
+   */
+  maximumFractionDigits?: number;
+};
+
+/**
+ * Formats a leverage multiplier, such as account or position leverage, with
+ * an `x` suffix and locale separators.
+ *
+ * @param value - The leverage multiplier (`0.2` for 0.2x).
+ * @param options - `formatters` (default `en-US`), `minimumFractionDigits`
+ * (default 0) and `maximumFractionDigits` (default
+ * `PERPS_DISPLAY_PRECISION.Leverage`, 2).
+ * @returns Format: "X.XXx", or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`)
+ * for a missing or negative value.
+ * @example formatLeverage(0.2) => "0.2x"
+ * @example formatLeverage(0.2, { minimumFractionDigits: 2 }) => "0.20x"
+ * @example formatLeverage(1.2149) => "1.21x"
+ * @example formatLeverage(2.5, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) => "2.5x"
+ * @example formatLeverage(1.2149, { formatters: createFormatters({ locale: 'de' }) }) => "1,21x"
+ * @example formatLeverage(undefined) => "--"
+ */
+export const formatLeverage = (
+  value: string | number | null | undefined,
+  options: PerpsLeverageFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    minimumFractionDigits = 0,
+    maximumFractionDigits = PERPS_DISPLAY_PRECISION.Leverage,
+  } = options;
+  const parsed = _parseDisplayNumber(value);
+  if (parsed === undefined || parsed < 0) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+
+  const maximum = Math.max(minimumFractionDigits, maximumFractionDigits);
+  return `${_formatDecimal(
+    formatters,
+    _roundedMagnitude(parsed, maximum),
+    minimumFractionDigits,
+    maximum,
+    true,
+  )}x`;
+};
+
 /** Each magnitude scale is this many times the next smaller one. */
 const SCALE_STEP = 1000;
 
@@ -1788,4 +1846,67 @@ export const formatPerpsUsdInput = (
       maximumFractionDigits: 0,
     })}${hasDecimal ? `${symbols.decimal}${localizedFraction}` : ''}`,
   };
+};
+
+/**
+ * Options for `formatPerpsDuration`.
+ */
+export type PerpsDurationFormatOptions = Pick<
+  PerpsDisplayFormatOptions,
+  'formatters'
+> & {
+  /** `Intl.NumberFormat` unit style. Default: `short` ("1 hr 30 min"). */
+  unitDisplay?: 'short' | 'long' | 'narrow';
+};
+
+const DURATION_UNITS = [
+  { unit: 'day', seconds: 86_400 },
+  { unit: 'hour', seconds: 3_600 },
+  { unit: 'minute', seconds: 60 },
+  { unit: 'second', seconds: 1 },
+] as const;
+
+/**
+ * Formats a duration as its non-zero days, hours, minutes and seconds, in the
+ * client's locale: TWAP running time and elapsed time, slice intervals, chase
+ * windows and poll intervals.
+ *
+ * @param durationMs - Duration in milliseconds, rounded to whole seconds.
+ * @param options - `formatters` (default `en-US`) and `unitDisplay` (default
+ * `short`).
+ * @returns The duration, or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`) for a
+ * missing or negative value.
+ * @example formatPerpsDuration(90 * 60_000) => "1 hr 30 min"
+ * @example formatPerpsDuration(1440 * 60_000) => "1 day"
+ * @example formatPerpsDuration(30_000) => "30 sec"
+ * @example formatPerpsDuration(0) => "0 sec"
+ * @example formatPerpsDuration(5 * 60_000, { unitDisplay: 'long' }) => "5 minutes"
+ */
+export const formatPerpsDuration = (
+  durationMs: string | number | null | undefined,
+  options: PerpsDurationFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, unitDisplay = 'short' } = options;
+  const value = _parseDisplayNumber(durationMs);
+  if (value === undefined || value < 0) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+  let remaining = Math.round(value / 1000);
+  const parts: string[] = [];
+  for (const { unit, seconds } of DURATION_UNITS) {
+    const count = Math.floor(remaining / seconds);
+    remaining -= count * seconds;
+    if (count > 0) {
+      parts.push(
+        formatters.formatNumber(count, { style: 'unit', unit, unitDisplay }),
+      );
+    }
+  }
+  return parts.length > 0
+    ? parts.join(' ')
+    : formatters.formatNumber(0, {
+        style: 'unit',
+        unit: 'second',
+        unitDisplay,
+      });
 };

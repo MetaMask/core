@@ -16,6 +16,8 @@ export type {
   KycControllerStateChangeEvent,
   FetchSessionDisclaimersParams,
   KycProviderFlowStatus,
+  KycTraceCallback,
+  KycTraceRequest,
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,

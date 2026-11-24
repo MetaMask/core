@@ -33,6 +33,7 @@ import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
 import { createGuardedHyperLiquidClient } from '../utils/guardedHyperLiquidClient.js';
+import type { GuardedExchangeHooks } from '../utils/guardedHyperLiquidClient.js';
 import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
@@ -352,8 +353,7 @@ export class HyperLiquidClientService {
   }
 
   /**
-   * Create all SDK clients using the current transports.
-   * Shared by initialize() and #handleConnectionDrop() to avoid drift.
+   * Ensure SDK clients use the current transports and signing wallet.
    *
    * @param wallet - Optional wallet params. Uses stored #walletParams when omitted (reconnection path).
    */
@@ -362,8 +362,10 @@ export class HyperLiquidClientService {
       throw new Error('Transports must be created before clients');
     }
 
-    this.#infoClient = new InfoClient({ transport: this.#wsTransport });
-    this.#subscriptionClient = new SubscriptionClient({
+    this.#infoClient ??= new InfoClient({ transport: this.#wsTransport });
+    // A stream can initialize before the first provider read. Keep its
+    // client on the same transport so its listeners remain current.
+    this.#subscriptionClient ??= new SubscriptionClient({
       transport: this.#wsTransport,
     });
     this.#createHttpClients(wallet);
@@ -512,10 +514,12 @@ export class HyperLiquidClientService {
    * Get the exchange client
    *
    * @param beforeDispatch - Optional operation-local fence after SDK signing.
+   * @param hooks - Optional signer fence and venue result observer.
    * @returns The initialized client, or an isolated guarded client.
    */
   public getExchangeClient(
     beforeDispatch?: () => Promise<void>,
+    hooks?: GuardedExchangeHooks,
   ): ExchangeClient {
     if (!this.#exchangeClient) {
       this.ensureInitialized();
@@ -534,6 +538,7 @@ export class HyperLiquidClientService {
           onExchangeRequest?.(payload, undefined, wallet);
         }
       },
+      hooks,
     );
   }
 
@@ -811,7 +816,7 @@ export class HyperLiquidClientService {
    * @param userAddress - The user's 0x address to query.
    * @param options - Optional cache-control options.
    * @param options.forceRefresh - When true, bypasses the coalesce cache.
-   * @returns Array of historical orders, empty array on SDK null.
+   * @returns The historical orders, including an explicit empty list.
    */
   public async fetchHistoricalOrders(
     userAddress: Hex,
@@ -837,7 +842,10 @@ export class HyperLiquidClientService {
   ): Promise<HistoricalOrdersResponse> {
     const infoClient = this.getInfoClient();
     const result = await infoClient.historicalOrders({ user: userAddress });
-    return result ?? [];
+    if (!Array.isArray(result)) {
+      throw new Error('Hyperliquid returned no historical order list');
+    }
+    return result;
   }
 
   /**

@@ -9,6 +9,7 @@ These docs describe the shared Perps logic in `@metamask/perps-controller`. Each
 | [architecture.md](./architecture.md)                       | Layers, providers, services, platform dependencies, state and caches, connection, errors |
 | [formatting.md](./formatting.md)                           | Precision and display formatting rules                                                   |
 | [tpsl.md](./tpsl.md)                                       | Order-linked and position-linked TP/SL                                                   |
+| [client-contract.md](./client-contract.md)                 | Capability limits, order-book grouping, cross liquidation, error copy, batch status      |
 | [contracts/events.md](./contracts/events.md)               | The fixed analytics event set and its property constants                                 |
 | [contracts/traces.md](./contracts/traces.md)               | Sentry trace and measurement names                                                       |
 | [contracts/feature-flags.md](./contracts/feature-flags.md) | Flags the controller reads                                                               |

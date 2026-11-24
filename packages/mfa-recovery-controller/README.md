@@ -1,8 +1,11 @@
 # `@metamask/mfa-recovery-controller`
 
-Coordinates MFA recovery through injected auth and escrow providers.
+Coordinates MFA recovery through `AuthenticationController` and injected identifier and escrow providers.
 
-Pending mutations are encrypted in controller state. `resume()` completes them;
+Pending mutations are persisted in controller state without their recovery
+secret, which is held only in memory. `resume()` completes them; after a
+restart it reads the secret back from an escrow that applied the mutation
+(pass an enrolled identifier to `resume(identifier)` for a pending `register`).
 `abort()` is allowed before writing, or once the write approval expired more
 than 5 minutes ago and no escrow applied the mutation. If the identifier an update started with can no
 longer authenticate, pass another enrolled one to `resume(identifier)`. See
@@ -31,30 +34,18 @@ The controller acquires the 6-minute lease before every 5-minute approval, and
 escrows reject expired approvals. So once another operation can take the lease,
 this operation's approvals are dead.
 
-## Recovery Lock
-
-Configure `RecoveryRegistrationLockProvider` with the registration service URL,
-`fetch`, and a messenger that can call
-`AuthenticationController:getBearerToken` and
-`AuthenticationController:refreshCanonicalProfileId`.
-
-Call `acquireLock()` before reading identifiers, hold it while changing Auth
-identifiers and mutating, then call `releaseLock()`. Call `acquireLock()` again
-after long user interaction to extend the lease.
-
-The controller acquires the 6-minute lease before every 5-minute approval, and
-escrows reject expired approvals. So once another operation can take the lease,
-this operation's approvals are dead.
-
 ## Auth API Integration
 
-Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
-`AuthenticationController:refreshCanonicalProfileId` and
-`AuthenticationController:requestMfaApproval`. It resolves the current canonical
-profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
+The controller's messenger must delegate `AuthenticationController:refreshCanonicalProfileId` and `AuthenticationController:requestMfaApproval`. It resolves the current canonical profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
 request-bound AAL2 approval; updates and reads also require an identifier proof.
 Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.
+
+Before signing any Auth API passkey challenge (MFA verification), call
+`isEscrowPasskeyChallenge(challenge)` and refuse if it returns `true` or
+throws. Otherwise a compromised Auth API can send an escrow passkey challenge
+and replay the signature at the escrow. Escrow passkey logins use
+`getEscrowPasskeyChallenge(request)` as their challenge.
 
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
 escrow as `approvedIdentifiers`; the escrow rejects non-SIWE payload
@@ -68,6 +59,29 @@ through `identifierAuthProvider` instead, including at `register`. Set
 Before `updateIdentifiers`, call `getIdentifiers()` (AAL1) for the enrolled
 identifiers, their `epoch` (pass as `expectedEpoch`), and Auth's identifiers;
 build the new set from Auth's entries.
+
+## Trusted Identifiers
+
+`register` and `updateIdentifiers` reject, with `untrusted_identifier`, any
+passkey no user device recorded and any social identifier other than the
+device's seedless login (the email for Google, `sub` for Apple, read through
+`SeedlessOnboardingController:getState`), so a compromised Auth API cannot add
+its own or swap a passkey's public key. After creating a passkey, record it with
+`trustIdentifier({ type: 'passkey', attestationObject })`. Auth's verifier must
+carry the same `rpId`, `credentialId` and `publicKey.cose`.
+
+Before removing a passkey from Auth, call `untrustPasskey(credentialId)` so a
+later approval cannot add it back.
+
+Auth may also return identifiers another client never recorded. Pick from
+Auth's identifiers with `isTrusted(identifier)`.
+
+`UserStorageTrustedIdentifierStore` keeps one entry per passkey in user
+storage encrypted from the seed phrase, so Auth can delete entries but not
+write them. Its messenger needs
+`UserStorageController:performGetStorageAllFeatureEntries`,
+`UserStorageController:performSetStorage` and
+`UserStorageController:performDeleteStorage`.
 
 ## Seedless password unlock
 

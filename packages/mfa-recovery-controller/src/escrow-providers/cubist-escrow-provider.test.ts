@@ -75,6 +75,7 @@ const AUTHORIZATION: IdentifierAuthorization = {
     },
     proofPublicKey: new Uint8Array(32).fill(1),
     requestHash: '0x1',
+    notAfter: 1,
     providerAssertion: {},
   },
   proof: {
@@ -246,6 +247,7 @@ describe('CubistEscrowProvider', () => {
         identifier: AUTHORIZATION.token.identifier,
         proofPublicKey: bytesToHex(new Uint8Array(32).fill(1)),
         requestHash: '0x1',
+        notAfter: 1,
         providerAssertion: {},
       });
     });

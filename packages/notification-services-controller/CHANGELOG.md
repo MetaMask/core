@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.1]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
-- Bump `uuid` from `^11.1.1` to `^14.0.2` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
-- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.3.1` ([#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `uuid` from `^11.1.1` to `^14.0.3` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305), [#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.4.0` ([#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447), [#11469](https://github.com/MetaMask/core/pull/11469), [#11691](https://github.com/MetaMask/core/pull/11691))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `semver` from `^7.8.5` to `^7.8.6` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `firebase` from `^12.19.0` to `^13.4.0` ([#11685](https://github.com/MetaMask/core/pull/11685))
 
 ## [30.1.0]
 
@@ -1018,7 +1022,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.1...HEAD
+[30.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...@metamask/notification-services-controller@30.1.1
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...@metamask/notification-services-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...@metamask/notification-services-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...@metamask/notification-services-controller@30.0.0

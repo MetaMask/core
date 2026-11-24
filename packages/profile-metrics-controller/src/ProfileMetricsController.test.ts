@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -12,9 +13,13 @@ import type { Mock } from 'vitest';
 
 import {
   DEFAULT_INITIAL_DELAY_DURATION,
+  getDefaultProfileMetricsControllerState,
   ProfileMetricsController,
 } from './ProfileMetricsController.js';
-import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController.js';
+import type {
+  ProfileMetricsControllerMessenger,
+  ProfileMetricsControllerState,
+} from './ProfileMetricsController.js';
 import type {
   AccountOwnershipProof,
   AccountWithScopes,
@@ -30,12 +35,14 @@ import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
  * @param address - The address of the mock account.
  * @param withEntropy - Whether to include entropy information in the account options. Defaults to true.
  * @param keyringType - The keyring type for the account.
+ * @param entropyId - The entropy source ID of the account. Defaults to one derived from the address.
  * @returns A mock InternalAccount object.
  */
 function createMockAccount(
   address: string,
   withEntropy = true,
   keyringType: string = 'Test Keyring',
+  entropyId = `entropy-${address}`,
 ): InternalAccount {
   return {
     id: `id-${address}`,
@@ -43,7 +50,7 @@ function createMockAccount(
     options: withEntropy
       ? {
           entropy: {
-            id: `entropy-${address}`,
+            id: entropyId,
             type: 'mnemonic',
             derivationPath: '',
             groupIndex: 0,
@@ -850,6 +857,69 @@ describe('ProfileMetricsController', () => {
     });
   });
 
+  describe('clearState', () => {
+    const populatedState: ProfileMetricsControllerState = {
+      initialDelayEndTimestamp: 0,
+      initialEnqueueCompleted: true,
+      proofBackfillEnqueued: true,
+      accountSourceBackfillEnqueued: true,
+      reportedAccounts: ['0xReported'],
+      syncQueue: {
+        id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+      },
+    };
+
+    it('resets the state to its defaults', async () => {
+      await withController(
+        { options: { state: populatedState } },
+        async ({ controller }) => {
+          await controller.clearState();
+
+          expect(controller.state).toStrictEqual(
+            getDefaultProfileMetricsControllerState(),
+          );
+        },
+      );
+    });
+
+    it('is exposed as a messenger action', async () => {
+      await withController(
+        { options: { state: populatedState } },
+        async ({ controller, rootMessenger }) => {
+          await rootMessenger.call('ProfileMetricsController:clearState');
+
+          expect(controller.state).toStrictEqual(
+            getDefaultProfileMetricsControllerState(),
+          );
+        },
+      );
+    });
+
+    it('waits for an in-flight poll so it cannot write back to the cleared state', async () => {
+      await withController(
+        { options: { state: populatedState } },
+        async ({ controller, mockSubmitMetrics }) => {
+          let finishSubmit: () => void = () => undefined;
+          mockSubmitMetrics.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+              finishSubmit = resolve;
+            }),
+          );
+          const poll = controller._executePoll();
+          await vi.waitFor(() => expect(mockSubmitMetrics).toHaveBeenCalled());
+
+          const clear = controller.clearState();
+          finishSubmit();
+          await Promise.all([poll, clear]);
+
+          expect(controller.state).toStrictEqual(
+            getDefaultProfileMetricsControllerState(),
+          );
+        },
+      );
+    });
+  });
+
   describe('_executePoll', () => {
     describe('when the user has not opted in to profile metrics', () => {
       it('does not process the sync queue', async () => {
@@ -1072,7 +1142,93 @@ describe('ProfileMetricsController', () => {
           );
         });
 
+        it('stops processing the remaining batches when the circuit breaker is open', async () => {
+          const accounts: Record<string, AccountWithScopes[]> = {
+            id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            id2: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+            id3: [{ address: '0xAccount3', scopes: ['eip155:1'] }],
+          };
+          await withController(
+            {
+              options: {
+                state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, mockSubmitMetrics }) => {
+              const consoleErrorSpy = vi.spyOn(console, 'error');
+              mockSubmitMetrics.mockRejectedValue(new BrokenCircuitError());
+
+              await controller._executePoll();
+
+              expect(mockSubmitMetrics).toHaveBeenCalledTimes(1);
+              expect(controller.state.syncQueue).toStrictEqual(accounts);
+              expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
+        describe('when a batch belongs to an entropy source that no longer has accounts', () => {
+          it('drops the batch without submitting it and keeps the other batches', async () => {
+            const liveAccount = createMockAccount('0xLive');
+            const accounts: Record<string, AccountWithScopes[]> = {
+              'entropy-0xLive': [{ address: '0xLive', scopes: ['eip155:1'] }],
+              'stale-entropy': [{ address: '0xStale', scopes: ['eip155:1'] }],
+              null: [{ address: '0xImported', scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({ controller, mockSubmitMetrics, registerAccounts }) => {
+                registerAccounts([liveAccount]);
+
+                await controller._executePoll();
+
+                expect(mockSubmitMetrics).toHaveBeenCalledTimes(2);
+                expect(mockSubmitMetrics).not.toHaveBeenCalledWith(
+                  expect.objectContaining({ entropySourceId: 'stale-entropy' }),
+                );
+                expect(controller.state.syncQueue).toStrictEqual({});
+                expect(controller.state.reportedAccounts).toStrictEqual([
+                  '0xLive',
+                  '0xImported',
+                ]);
+              },
+            );
+          });
+
+          it('does not drop the batch when no accounts are loaded yet', async () => {
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({ controller, mockSubmitMetrics }) => {
+                mockSubmitMetrics.mockRejectedValue(new Error('Network error'));
+
+                await controller._executePoll();
+
+                expect(mockSubmitMetrics).toHaveBeenCalledTimes(1);
+                expect(controller.state.syncQueue).toStrictEqual(accounts);
+              },
+            );
+          });
+        });
+
         describe('proof of ownership wiring', () => {
+          const createProofAccount = (
+            address: string,
+            withEntropy = true,
+            keyringType = 'Test Keyring',
+          ): InternalAccount =>
+            createMockAccount(address, withEntropy, keyringType, 'id1');
+
           it('fetches nonces and signs proofs for queued accounts, matching them against live accounts by canonical address', async () => {
             const checksummedAddress =
               '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
@@ -1094,7 +1250,7 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                registerAccounts([createMockAccount(lowercased)]);
+                registerAccounts([createProofAccount(lowercased)]);
                 mockFetchNonces.mockResolvedValueOnce({
                   [checksummedAddress]: 'nonce-1',
                 });
@@ -1163,7 +1319,7 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 registerAccounts([
-                  createMockAccount(address, false, KeyringTypes.ledger),
+                  createProofAccount(address, false, KeyringTypes.ledger),
                 ]);
 
                 await controller._executePoll();
@@ -1234,7 +1390,7 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 const btcAccount: InternalAccount = {
-                  ...createMockAccount(mixedCase),
+                  ...createProofAccount(mixedCase),
                   scopes: ['bip122:000000000019d6689c085ae165831e93'],
                 };
                 registerAccounts([btcAccount]);
@@ -1282,7 +1438,7 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                registerAccounts([createMockAccount(lowercased)]);
+                registerAccounts([createProofAccount(lowercased)]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
                 mockSignProof.mockResolvedValue({
                   nonce: 'n',
@@ -1320,7 +1476,7 @@ describe('ProfileMetricsController', () => {
               }) => {
                 registerAccounts([
                   {
-                    ...createMockAccount(cosmosAddress),
+                    ...createProofAccount(cosmosAddress),
                     scopes: ['cosmos:cosmoshub-4'],
                   },
                 ]);
@@ -1370,7 +1526,7 @@ describe('ProfileMetricsController', () => {
                   .mockImplementation(() => undefined);
                 registerAccounts([
                   {
-                    ...createMockAccount(address),
+                    ...createProofAccount(address),
                     scopes: ['garbage' as `${string}:${string}`],
                   },
                 ]);
@@ -1455,7 +1611,7 @@ describe('ProfileMetricsController', () => {
                 const consoleErrorSpy = vi
                   .spyOn(console, 'error')
                   .mockImplementation(() => undefined);
-                registerAccounts([createMockAccount(address.toLowerCase())]);
+                registerAccounts([createProofAccount(address.toLowerCase())]);
                 mockFetchNonces.mockRejectedValueOnce(
                   new Error('auth API 503'),
                 );
@@ -1497,7 +1653,7 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                registerAccounts([createMockAccount(address.toLowerCase())]);
+                registerAccounts([createProofAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({});
 
                 await controller._executePoll();
@@ -1540,8 +1696,8 @@ describe('ProfileMetricsController', () => {
                   .spyOn(console, 'error')
                   .mockImplementation(() => undefined);
                 registerAccounts([
-                  createMockAccount(goodLower),
-                  createMockAccount(badLower),
+                  createProofAccount(goodLower),
+                  createProofAccount(badLower),
                 ]);
                 mockFetchNonces.mockResolvedValueOnce({
                   [goodAddress]: 'n-good',
@@ -1595,7 +1751,7 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 vi.spyOn(console, 'error').mockImplementation(() => undefined);
-                registerAccounts([createMockAccount(address.toLowerCase())]);
+                registerAccounts([createProofAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
                 mockSignProof.mockResolvedValueOnce({
                   nonce: 'n',
@@ -1630,8 +1786,13 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 registerAccounts([
-                  createMockAccount(address1.toLowerCase()),
-                  createMockAccount(address2.toLowerCase()),
+                  createProofAccount(address1.toLowerCase()),
+                  createMockAccount(
+                    address2.toLowerCase(),
+                    true,
+                    'Test Keyring',
+                    'id2',
+                  ),
                 ]);
                 mockFetchNonces.mockImplementation(async ({ identifiers }) =>
                   Object.fromEntries(identifiers.map((id) => [id, `n-${id}`])),
@@ -1679,9 +1840,9 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 registerAccounts([
-                  createMockAccount(evmAddress.toLowerCase()),
+                  createProofAccount(evmAddress.toLowerCase()),
                   {
-                    ...createMockAccount(cosmosAddress),
+                    ...createProofAccount(cosmosAddress),
                     scopes: ['cosmos:cosmoshub-4'],
                   },
                 ]);
@@ -1741,7 +1902,7 @@ describe('ProfileMetricsController', () => {
                   .mockImplementation(() => undefined);
                 registerAccounts([
                   {
-                    ...createMockAccount(address),
+                    ...createProofAccount(address),
                     scopes: [],
                   },
                 ]);
@@ -1784,7 +1945,7 @@ describe('ProfileMetricsController', () => {
                   .mockImplementation(() => undefined);
                 registerAccounts([
                   {
-                    ...createMockAccount(cosmosAddress),
+                    ...createProofAccount(cosmosAddress),
                     scopes: ['cosmos:cosmoshub-4'],
                   },
                 ]);

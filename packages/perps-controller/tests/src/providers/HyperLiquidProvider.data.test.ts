@@ -36,7 +36,9 @@ import {
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
+import { calculateMaxRemovableMargin } from '../../../src/utils/marginAdjustment.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -79,11 +81,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -352,6 +350,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -441,6 +443,9 @@ describe('HyperLiquidProvider', () => {
       // Per-DEX position slices. Default to "nothing published", so these tests
       // keep the aggregate behaviour they were written against.
       getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
       getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
       getCachedPositions: vi.fn().mockReturnValue([]),
       updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
@@ -492,11 +497,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -524,21 +525,37 @@ describe('HyperLiquidProvider', () => {
     });
   });
   describe('Data Retrieval', () => {
-    it('gets positions successfully', async () => {
-      const positions = await provider.getPositions();
+    it('carries scaled display margin on cross positions read via REST', async () => {
+      const info = mockClientService.getInfoClient();
+      const user = await mockWalletService.getUserAddressWithDefault();
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          crossMarginSummary: {
+            accountValue: '95',
+            totalMarginUsed: '950',
+            totalNtlPos: '9500',
+            totalRawUsd: '0',
+          },
+        });
 
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBeGreaterThan(0);
-      expect(
-        mockClientService.getInfoClient().clearinghouseState,
-      ).toHaveBeenCalled();
+      const positions = await provider.getPositions({ skipCache: true });
+
+      expect(positions).toMatchObject([
+        { symbol: 'BTC', marginUsed: '500', displayMarginUsed: '50' },
+        { symbol: 'ETH', marginUsed: '450', displayMarginUsed: '45' },
+      ]);
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
     });
 
     it('gets account state successfully', async () => {
       const accountState = await provider.getAccountState();
 
       expect(accountState).toBeDefined();
-      expect(accountState.totalBalance).toBe('19500'); // 10500 (perps) + 10000 (spot.total) - 1000 (spot.hold, double-counted in accountValue)
+      // Unified: the spot USDC total already holds the perps account value.
+      expect(accountState.totalBalance).toBe('10000');
       expect(accountState.spotCollateral).toBe('9000');
       expect(
         mockClientService.getInfoClient().clearinghouseState,
@@ -642,7 +659,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState.spendableBalance).toBe('90');
       expect(accountState.withdrawableBalance).toBe('90');
-      expect(accountState.totalBalance).toBe('90');
+      expect(accountState.totalBalance).toBe('100');
       expect(accountState.spotCollateral).toBe('90');
     });
 
@@ -691,15 +708,319 @@ describe('HyperLiquidProvider', () => {
 
       const accountState = await hip3Provider.getAccountState();
 
-      expect(accountState.spendableBalance).toBe('1.775183');
-      expect(accountState.withdrawableBalance).toBe('1.775183');
-      expect(accountState.totalBalance).toBe('1.775183');
+      // Unified: the spot ledger already holds both DEXs' account values.
+      expect(accountState.spendableBalance).toBe('1.475183');
+      expect(accountState.withdrawableBalance).toBe('1.475183');
+      expect(accountState.totalBalance).toBe('4.000004');
       expect(accountState.spotCollateral).toBe('1.475183');
       expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
       expect(clearinghouseState).toHaveBeenCalledWith({
         user: '0x123',
         dex: 'xyz',
       });
+    });
+
+    describe('getMarginAdjustmentLimits', () => {
+      // dev1 testnet (Unified), 23 Nov: BTC Cross + ETH Isolated, plus an
+      // isolated HIP-3 position whose margin only shows in the spot hold.
+      const venuePosition = (
+        coin: string,
+        type: 'cross' | 'isolated',
+        values: { szi: string; positionValue: string; marginUsed: string },
+      ): Record<string, unknown> => ({
+        position: {
+          coin,
+          ...values,
+          entryPx: '1723.34',
+          unrealizedPnl: '0.03357',
+          returnOnEquity: '0.011',
+          liquidationPx: type === 'isolated' ? '1377.08' : null,
+          leverage: { type, value: 5 },
+          maxLeverage: 25,
+          cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        },
+        type: 'oneWay',
+      });
+      const mainState = {
+        marginSummary: { accountValue: '13.37', totalMarginUsed: '13.35623' },
+        crossMarginSummary: {
+          accountValue: '10.08',
+          totalMarginUsed: '10.070584',
+        },
+        withdrawable: '0.019288',
+        assetPositions: [
+          venuePosition('BTC', 'cross', {
+            szi: '0.00082',
+            positionValue: '50.35292',
+            marginUsed: '10.070584',
+          }),
+          venuePosition('ETH', 'isolated', {
+            szi: '0.0087',
+            positionValue: '15.02664',
+            marginUsed: '3.285646',
+          }),
+        ],
+      };
+      // Truncated to micro-USDC, the unit margin moves in.
+      const ethMaxRemove = (
+        Math.floor(
+          calculateMaxRemovableMargin({
+            currentMargin: 3.285646,
+            positionLeverage: 5,
+            notionalValue: 15.02664,
+          }) * 1e6,
+        ) / 1e6
+      ).toString();
+      const useVenue = (
+        overrides: Record<string, Mock> = {},
+      ): Record<string, Mock> => {
+        const infoClient = createMockInfoClient({
+          clearinghouseState: vi.fn().mockResolvedValue(mainState),
+          spotClearinghouseState: vi.fn().mockResolvedValue({
+            balances: [
+              { coin: 'USDC', hold: '51.653539', total: '323.080997' },
+            ],
+          }),
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+              { name: 'ETH', szDecimals: 4, maxLeverage: 25 },
+            ],
+            marginTables: [],
+          }),
+          ...overrides,
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+        return infoClient;
+      };
+
+      it('on Unified, allows adding the free spot USDC (Cross margin reserved) and removing the calculated margin', async () => {
+        useVenue();
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({
+          status: 'available',
+          // 323.080997 total − 51.653539 hold (Cross, Isolated and HIP-3).
+          maxAdd: '271.427458',
+          maxRemove: ethMaxRemove,
+        });
+      });
+
+      it.each(['default', 'disabled'] as const)(
+        'in %s (Standard) mode, allows adding the perps withdrawable of the position DEX',
+        async (mode) => {
+          const infoClient = useVenue({
+            userAbstraction: vi.fn().mockResolvedValue(mode),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({
+            status: 'available',
+            maxAdd: '0.019288',
+            maxRemove: ethMaxRemove,
+          });
+          expect(infoClient.spotClearinghouseState).not.toHaveBeenCalled();
+        },
+      );
+
+      it('reports no_isolated_position for a Cross position or a flat market', async () => {
+        useVenue();
+
+        for (const symbol of ['BTC', 'SOL']) {
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol }),
+          ).toStrictEqual({
+            status: 'unavailable',
+            reason: 'no_isolated_position',
+          });
+        }
+      });
+
+      it('allows no removal on a strict isolated market', async () => {
+        useVenue({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 25,
+                marginMode: 'strictIsolated',
+              },
+            ],
+            marginTables: [],
+          }),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toMatchObject({ status: 'available', maxRemove: '0' });
+      });
+
+      it.each([
+        ['an unknown margin mode', { marginMode: 'futureMode' }],
+        ['onlyIsolated without a margin mode', { onlyIsolated: true }],
+      ])(
+        'reports account_unknown on %s instead of a zero maxRemove',
+        async (_label, ethFields) => {
+          useVenue({
+            meta: vi.fn().mockResolvedValue({
+              universe: [
+                { name: 'BTC', szDecimals: 5, maxLeverage: 40 },
+                { name: 'ETH', szDecimals: 4, maxLeverage: 25, ...ethFields },
+              ],
+              marginTables: [],
+            }),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        },
+      );
+
+      it('reports account_unknown when the market is missing from meta', async () => {
+        useVenue({
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 5, maxLeverage: 40 }],
+            marginTables: [],
+          }),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+
+      it.each([
+        ['a missing leverage value', { leverage: { type: 'isolated' } }],
+        ['a non-finite marginUsed', { marginUsed: 'NaN' }],
+        ['a non-finite positionValue', { positionValue: 'abc' }],
+      ])(
+        'reports account_unknown on %s instead of a zero maxRemove',
+        async (_label, positionFields) => {
+          const [btc, eth] = mainState.assetPositions;
+          useVenue({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              ...mainState,
+              assetPositions: [
+                btc,
+                {
+                  ...eth,
+                  position: {
+                    ...(eth.position as Record<string, unknown>),
+                    ...positionFields,
+                  },
+                },
+              ],
+            }),
+          });
+
+          expect(
+            await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+          ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        },
+      );
+
+      it('reports account_unknown when the account mode changes during the read', async () => {
+        useVenue({
+          userAbstraction: vi
+            .fn()
+            .mockResolvedValueOnce('unifiedAccount')
+            .mockResolvedValue('disabled'),
+        });
+
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+
+      it('rejects a strict Unified read with a malformed USDC ledger and keeps the lenient perps figures', async () => {
+        useVenue({
+          spotClearinghouseState: vi.fn().mockResolvedValue({
+            balances: [{ coin: 'USDC', total: '323.080997' }],
+          }),
+        });
+
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+        // Lenient: perps-only figures.
+        expect((await provider.getAccountState()).totalBalance).toBe('13.37');
+      });
+
+      it('reports provider for an unsupported account mode', async () => {
+        useVenue({
+          userAbstraction: vi.fn().mockResolvedValue('dexAbstraction'),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      });
+
+      it('reports account_unknown, to retry, when a venue read fails', async () => {
+        useVenue({
+          userAbstraction: vi.fn().mockRejectedValue(new Error('offline')),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+
+        useVenue({
+          clearinghouseState: vi.fn().mockRejectedValue(new Error('offline')),
+        });
+        expect(
+          await provider.getMarginAdjustmentLimits({ symbol: 'ETH' }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+      });
+    });
+
+    it('serves the market lists behind getMarketMeta from one meta request', async () => {
+      const meta = {
+        universe: [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 40, marginTableId: 56 },
+          { name: 'OLD', szDecimals: 0, maxLeverage: 3, isDelisted: true },
+        ],
+        marginTables: [
+          [
+            56,
+            {
+              description: 'tiered 40x',
+              marginTiers: [
+                { lowerBound: '0.0', maxLeverage: 40 },
+                { lowerBound: '10000.0', maxLeverage: 25 },
+              ],
+            },
+          ],
+        ],
+      };
+      const infoClient = createMockInfoClient({
+        meta: vi.fn().mockResolvedValue(meta),
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([meta, []]),
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+      const freshProvider = createTestProvider();
+
+      const [btc] = await freshProvider.getMarkets({ symbols: ['BTC'] });
+      const all = await freshProvider.getMarkets();
+
+      expect(btc.marginTiers).toStrictEqual([
+        { lowerBound: 0, maxLeverage: 40 },
+        { lowerBound: 10000, maxLeverage: 25 },
+      ]);
+      expect(all.find((market) => market.name === 'OLD')?.isDelisted).toBe(
+        true,
+      );
+      // The session cache is filled once, from either meta read.
+      expect(
+        infoClient.meta.mock.calls.length +
+          infoClient.metaAndAssetCtxs.mock.calls.length,
+      ).toBe(1);
     });
 
     it.each(['default', 'disabled'] as const)(
@@ -742,6 +1063,7 @@ describe('HyperLiquidProvider', () => {
         expect(accountState.withdrawableBalance).toBe('0');
         expect(accountState.totalBalance).toBe('90');
         expect(accountState.spotCollateral).toBe('0');
+        expect(accountState.accountMode).toBe(abstractionMode);
       },
     );
 
@@ -848,6 +1170,53 @@ describe('HyperLiquidProvider', () => {
 
       expect(markets.length).toBe(1);
       expect(markets[0].name).toBe('xyz:STOCK1');
+    });
+
+    it('drops the venue normal margin mode so market info carries only restrictions', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const xyzMeta = {
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'normal',
+          },
+          {
+            name: 'xyz:HOOD',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'noCross',
+          },
+        ],
+        collateralToken: 0,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: vi.fn().mockResolvedValue(xyzMeta),
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([xyzMeta, []]),
+        spotMeta: vi.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets.map(({ name, marginMode }) => [name, marginMode])).toEqual(
+        [
+          ['xyz:TSLA', undefined],
+          ['xyz:HOOD', 'noCross'],
+        ],
+      );
+      expect(markets[0]).not.toHaveProperty('marginMode');
     });
 
     it('filters out a HIP-3 DEX from market discovery when its collateral token index cannot be resolved against spot metadata', async () => {
@@ -979,15 +1348,61 @@ describe('HyperLiquidProvider', () => {
       ]);
     });
 
-    it('handles data retrieval errors gracefully', async () => {
+    it('reads close pricing positions without relying on the order feed', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValue(
+        new Error('TP/SL orders unavailable'),
+      );
+      const positions = await provider.getPositions({
+        throwOnUnavailable: true,
+        includeProtection: false,
+      });
+      expect(positions).toEqual([
+        expect.objectContaining({
+          symbol: 'BTC',
+          positionValue: '5000',
+        }),
+        expect.objectContaining({
+          symbol: 'ETH',
+          positionValue: '4500',
+        }),
+      ]);
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
+    });
+
+    it('checks TP/SL orders before using a nonempty position cache', async () => {
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockImplementation(
+        (requireProtection) =>
+          requireProtection ? null : [createMockPosition()],
+      );
+      const infoClient = mockClientService.getInfoClient();
+      const cause = new Error('TP/SL orders unavailable');
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValueOnce(cause);
+
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
+      expect(
+        mockSubscriptionService.getFreshPositionsForAllDexs,
+      ).toHaveBeenCalledWith(
+        true,
+        await mockWalletService.getUserAddressWithDefault(),
+      );
+    });
+
+    it('rejects when the position request fails', async () => {
+      const cause = new Error('API Error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('API Error'));
+      ).mockRejectedValueOnce(cause);
 
-      const positions = await provider.getPositions();
-
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
   });
 
@@ -1301,8 +1716,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.disconnect();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Disconnect failed');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Disconnect failed');
     });
 
     describe('ping() health check', () => {
@@ -1432,7 +1855,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid order parameters');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles validation errors in withdrawals', async () => {
@@ -1450,19 +1873,25 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.withdraw(withdrawParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid withdrawal parameters');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('Invalid withdrawal parameters');
     });
 
-    it('handles unknown errors gracefully', async () => {
+    it('retains the underlying error when positions are unavailable', async () => {
+      const cause = new Error('Unknown error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('Unknown error'));
+      ).mockRejectedValueOnce(cause);
 
-      const result = await provider.getPositions();
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
 
     describe('error mapping integration', () => {
@@ -1556,7 +1985,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe('ORDER_LEVERAGE_REDUCTION_FAILED');
       });
 
-      it('preserves original error message for unmapped errors', async () => {
+      it('hides the original error message for unmapped errors', async () => {
         // Mock with an unmapped error
         const originalError = new Error('Some other HyperLiquid API error');
         mockClientService.getExchangeClient = vi.fn().mockReturnValue({
@@ -1578,7 +2007,7 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('Some other HyperLiquid API error');
+        expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
       });
     });
   });
@@ -1600,7 +2029,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Asset UNKNOWN not found');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing price data', async () => {
@@ -1621,7 +2050,7 @@ describe('HyperLiquidProvider', () => {
       // allMids returns {} so #getOrFetchPrice parses price as 0, which is
       // invalid. The error surfaces from #getAssetInfo before validation runs.
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC: 0');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing position in close operation', async () => {

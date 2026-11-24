@@ -188,6 +188,7 @@ describe('VendorOnboardingController', () => {
         handlers.getStep.mockResolvedValue({
           step: 'mfa',
           status: 'none',
+          sessionId: null,
         });
 
         const step = await controller.refreshStep({ vendor: 'kalshi' });
@@ -204,28 +205,33 @@ describe('VendorOnboardingController', () => {
     });
 
     it('leaves the step unknown while only a session id is saved', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue({
-          ...SESSION_STATUS,
-          id: 'sid-1',
-        });
-        handlers.getStep.mockRejectedValue(new Error('step unavailable'));
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: { step: null, status: null, sessionId: 'sid-1' },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockRejectedValue(new Error('step unavailable'));
 
-        await controller.fetchSessionDisclaimers({ vendor: 'kalshi' });
-        await expect(
-          controller.refreshStep({ vendor: 'kalshi' }),
-        ).rejects.toThrow('step unavailable');
+          await expect(
+            controller.refreshStep({ vendor: 'kalshi' }),
+          ).rejects.toThrow('step unavailable');
 
-        expect(controller.state.vendors.kalshi).toStrictEqual({
-          ...VENDOR_DEFAULTS,
-          step: null,
-          status: null,
-          sessionId: 'sid-1',
-        });
-      });
+          expect(controller.state.vendors.kalshi).toStrictEqual({
+            step: null,
+            status: null,
+            sessionId: 'sid-1',
+          });
+        },
+      );
     });
 
-    it('replaces a step saved earlier, and keeps the session id', async () => {
+    it('replaces the step and session id saved earlier', async () => {
       await withController(
         {
           options: {
@@ -245,6 +251,7 @@ describe('VendorOnboardingController', () => {
           handlers.getStep.mockResolvedValue({
             step: 'decision',
             status: 'none',
+            sessionId: 'sid-2',
           });
 
           await controller.refreshStep({ vendor: 'kalshi' });
@@ -253,7 +260,7 @@ describe('VendorOnboardingController', () => {
             ...VENDOR_DEFAULTS,
             step: 'decision',
             status: 'none',
-            sessionId: 'sid-1',
+            sessionId: 'sid-2',
           });
         },
       );
@@ -285,7 +292,7 @@ describe('VendorOnboardingController', () => {
 
         const first = controller.refreshStep({ vendor: 'kalshi' });
         const second = controller.refreshStep({ vendor: 'kalshi' });
-        answer({ step: 'mfa', status: 'none' });
+        answer({ step: 'mfa', status: 'none', sessionId: null });
 
         expect(await Promise.all([first, second])).toStrictEqual([
           'mfa',
@@ -363,7 +370,7 @@ describe('VendorOnboardingController', () => {
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
           });
-          answerOld({ step: 'mfa', status: 'none' });
+          answerOld({ step: 'mfa', status: 'none', sessionId: null });
           await old;
 
           expect(step).toBe('mfa');
@@ -391,7 +398,7 @@ describe('VendorOnboardingController', () => {
           });
           await flushPromises();
           const plain = controller.refreshStep({ vendor: 'kalshi' });
-          answer({ step: 'mfa', status: 'none' });
+          answer({ step: 'mfa', status: 'none', sessionId: null });
 
           expect(await Promise.all([action, plain])).toStrictEqual([
             'mfa',
@@ -425,7 +432,7 @@ describe('VendorOnboardingController', () => {
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
           });
-          answerOld({ step: 'terms', status: 'none' });
+          answerOld({ step: 'terms', status: 'none', sessionId: null });
           await old;
 
           expect(controller.state.vendors.kalshi?.step).toBe('mfa');
@@ -457,7 +464,7 @@ describe('VendorOnboardingController', () => {
             credentialReusabilityConsentGiven: false,
           });
           const fresh = await controller.refreshStep({ vendor: 'kalshi' });
-          answerOld({ step: 'terms', status: 'none' });
+          answerOld({ step: 'terms', status: 'none', sessionId: null });
           await old;
 
           expect(fresh).toBe('mfa');
@@ -564,10 +571,10 @@ describe('VendorOnboardingController', () => {
 
     it('posts the consents to a session that already exists, then forgets them', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
         handlers.getStep.mockResolvedValue({
           step: 'kalshi_email_link',
           status: 'none',
+          sessionId: 'sid-1',
         });
 
         await controller.submitTerms(KALSHI_TERMS);
@@ -589,7 +596,11 @@ describe('VendorOnboardingController', () => {
 
     it('keeps the terms on the phone when posting them to an existing session fails', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_email_link',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
         handlers.submitSessionDisclaimers.mockRejectedValueOnce(
           new Error('offline'),
         );
@@ -686,7 +697,6 @@ describe('VendorOnboardingController', () => {
           ).rejects.toThrow('sign failed');
 
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-          expect(handlers.getStep).not.toHaveBeenCalled();
         },
       );
     });
@@ -999,7 +1009,7 @@ describe('VendorOnboardingController', () => {
               ...body,
             });
             expect(next).toBe('sumsub');
-            expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+            expect(handlers.getStep).toHaveBeenCalledTimes(1);
           },
         );
       },
@@ -1040,19 +1050,17 @@ describe('VendorOnboardingController', () => {
       );
     });
 
-    it('asks kyc-api for the session when the phone has none, and keeps it', async () => {
+    it('takes the session from the step kyc-api answers with when the phone has none, and keeps it', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
         handlers.getStep.mockResolvedValue({
           step: 'sumsub',
           status: 'none',
+          sessionId: 'sid-1',
         });
 
         await controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' });
 
-        expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith(
-          'kalshi',
-        );
+        expect(handlers.getStep).toHaveBeenCalledWith('kalshi', {});
         expect(handlers.verifyEmailOtp).toHaveBeenCalledWith({
           sessionId: 'sid-1',
           signedRequest: SIGNED_VERIFY,
@@ -1063,8 +1071,6 @@ describe('VendorOnboardingController', () => {
 
     it('throws when there is no session to continue', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(null);
-
         await expect(
           controller.sendPhoneOtp({
             vendor: 'kalshi',
@@ -1079,10 +1085,17 @@ describe('VendorOnboardingController', () => {
   describe('startSession', () => {
     it('creates and authorizes a session, then reads the step', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getStep.mockResolvedValue({
-          step: 'sumsub',
-          status: 'none',
-        });
+        handlers.getStep
+          .mockResolvedValueOnce({
+            step: 'terms',
+            status: 'none',
+            sessionId: null,
+          })
+          .mockResolvedValueOnce({
+            step: 'sumsub',
+            status: 'none',
+            sessionId: 'sid-1',
+          });
 
         const step = await controller.startSession({
           vendor: 'kalshi',
@@ -1181,7 +1194,12 @@ describe('VendorOnboardingController', () => {
 
           expect(signer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-          expect(controller.state.vendors).toStrictEqual({});
+          expect(controller.state.vendors.kalshi).toStrictEqual({
+            ...VENDOR_DEFAULTS,
+            step: 'terms',
+            status: 'none',
+            sessionId: null,
+          });
         },
       );
     });
@@ -1305,40 +1323,87 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('does not create a session when kyc-api already has one', async () => {
+    it('resumes the saved session from state with fresh authorizations', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: { step: 'terms', status: 'none', sessionId: 'sid-1' },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: 'decision',
+            status: 'none',
+            sessionId: 'sid-1',
+          });
+
+          const step = await controller.startSession({ vendor: 'kalshi' });
+
+          expect(step).toBe('decision');
+          expect(handlers.getStep).toHaveBeenCalledTimes(1);
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            sessionClientPublicKey: expect.any(String),
+          });
+          expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
+          expect(
+            handlers.resetWrappingKeys.mock.invocationCallOrder[0],
+          ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
+          expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
+        },
+      );
+    });
+
+    it('takes an existing session from the step when state has none', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
         handlers.getStep.mockResolvedValue({
           step: 'decision',
           status: 'none',
+          sessionId: 'sid-1',
         });
 
         const step = await controller.startSession({ vendor: 'kalshi' });
 
         expect(step).toBe('decision');
+        expect(handlers.getStep).toHaveBeenCalledTimes(2);
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+        expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+          sessionId: 'sid-1',
+          sessionClientPublicKey: expect.any(String),
+        });
+        expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
       });
     });
 
-    it.each(['new', 'expired', 'stored'])(
-      'does not refresh authorizations when the session says they are %s',
-      async (capabilityAuthorizationStatus) => {
-        await withController(async ({ controller, handlers }) => {
-          handlers.getSessionStatusForVendor.mockResolvedValue({
-            ...SESSION_STATUS,
-            capabilityAuthorizationStatus,
-          });
+    it('does not read the step when refreshing the authorizations fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: { step: 'terms', status: 'none', sessionId: 'sid-1' },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.resetWrappingKeys.mockRejectedValue(new Error('refused'));
 
-          await controller.startSession({ vendor: 'kalshi' });
+          await expect(
+            controller.startSession({ vendor: 'kalshi' }),
+          ).rejects.toThrow('refused');
 
-          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-          expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        });
-      },
-    );
+          expect(handlers.getStep).not.toHaveBeenCalled();
+        },
+      );
+    });
 
     it('needs an AAL2 token to create a session', async () => {
       await withController(async ({ controller, handlers }) => {
@@ -1347,7 +1412,7 @@ describe('VendorOnboardingController', () => {
         ).rejects.toThrow('aal2Token is required');
 
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(controller.state.vendors).toStrictEqual({});
+        expect(controller.state.vendors.kalshi?.sessionId).toBeNull();
       });
     });
 
@@ -1366,7 +1431,7 @@ describe('VendorOnboardingController', () => {
         ).rejects.toThrow('Failed to verify the wrapping keys');
 
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-        expect(controller.state.vendors).toStrictEqual({});
+        expect(controller.state.vendors.kalshi?.sessionId).toBeNull();
       });
     });
 
@@ -1430,10 +1495,17 @@ describe('VendorOnboardingController', () => {
     it('posts the consents to the new session after it is created, then forgets them', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.submitTerms(KALSHI_TERMS);
-        handlers.getStep.mockResolvedValue({
-          step: 'kalshi_email_link',
-          status: 'none',
-        });
+        handlers.getStep
+          .mockResolvedValueOnce({
+            step: 'kalshi_email_link',
+            status: 'none',
+            sessionId: null,
+          })
+          .mockResolvedValue({
+            step: 'kalshi_email_link',
+            status: 'none',
+            sessionId: 'sid-1',
+          });
 
         await controller.startSession({
           vendor: 'kalshi',
@@ -1479,7 +1551,6 @@ describe('VendorOnboardingController', () => {
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
         expect(controller.state.vendors.kalshi?.pendingConsents).not.toBeNull();
 
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
         await controller.startSession({ vendor: 'kalshi' });
 
         expect(handlers.createUkycSession).toHaveBeenCalledTimes(1);
@@ -1491,7 +1562,11 @@ describe('VendorOnboardingController', () => {
 
     it('sends a code to a new address when it resumes a session with an email', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_email_link',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
 
         await controller.startSession({
           vendor: 'kalshi',
@@ -1559,9 +1634,13 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('asks kyc-api for the session when the phone has none', async () => {
+    it('takes the session from the step when the phone has none', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
+        handlers.getStep.mockResolvedValue({
+          step: 'sumsub',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
         handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
           SESSION_DISCLAIMERS,
         );
@@ -2050,7 +2129,11 @@ describe('VendorOnboardingController', () => {
 
             const pending = controller.refreshStep({ vendor: 'kalshi' });
             controller.reset(params);
-            answer({ step: 'kalshi_phone_link', status: 'none' });
+            answer({
+              step: 'kalshi_phone_link',
+              status: 'none',
+              sessionId: null,
+            });
             await pending;
 
             expect(controller.state.vendors.kalshi).toBeUndefined();
@@ -2093,7 +2176,6 @@ type ServiceHandlers = {
   verifyEmailOtp: Mock;
   sendPhoneOtp: Mock;
   verifyPhoneOtp: Mock;
-  getSessionStatusForVendor: Mock;
   createJourney: Mock;
   fetchSessionDisclaimersBySessionId: Mock;
   submitSessionDisclaimers: Mock;
@@ -2148,7 +2230,6 @@ function withController<ReturnValue>(
       'KycService:verifyEmailOtp',
       'KycService:sendPhoneOtp',
       'KycService:verifyPhoneOtp',
-      'KycService:getSessionStatusForVendor',
       'KycService:createJourney',
       'KycService:fetchSessionDisclaimersBySessionId',
       'KycService:submitSessionDisclaimers',
@@ -2168,13 +2249,14 @@ function withController<ReturnValue>(
   });
 
   const handlers: ServiceHandlers = {
-    getStep: vi.fn().mockResolvedValue({ step: 'terms', status: 'none' }),
+    getStep: vi
+      .fn()
+      .mockResolvedValue({ step: 'terms', status: 'none', sessionId: null }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
     sendEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     verifyEmailOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     sendPhoneOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
     verifyPhoneOtp: vi.fn().mockResolvedValue(SESSION_STATUS),
-    getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
     createJourney: vi
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
@@ -2227,10 +2309,6 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:verifyPhoneOtp',
     handlers.verifyPhoneOtp,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:getSessionStatusForVendor',
-    handlers.getSessionStatusForVendor,
   );
   rootMessenger.registerActionHandler(
     'KycService:createJourney',

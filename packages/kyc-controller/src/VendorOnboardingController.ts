@@ -30,10 +30,14 @@ import type {
   OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
+  KycStepInfo,
   KycStepStatus,
 } from './types.js';
 import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
-import { createUkycSession } from './ukyc/sessionAuthorization.js';
+import {
+  createUkycSession,
+  refreshAuthorizations,
+} from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 
 // === GENERAL ===
@@ -270,7 +274,7 @@ export class VendorOnboardingController extends BaseController<
    * `reset` wins over a slow response.
    */
   readonly #readStepPromises: Partial<
-    Record<OnboardingVendor, Promise<KycStep>>
+    Record<OnboardingVendor, Promise<KycStepInfo>>
   > = {};
 
   /**
@@ -378,15 +382,12 @@ export class VendorOnboardingController extends BaseController<
             params.credentialReusabilityConsentGiven,
         },
       });
-      const existing = await this.messenger.call(
-        'KycService:getSessionStatusForVendor',
-        'kalshi',
-      );
-      if (existing) {
-        this.#write('kalshi', { sessionId: existing.id });
-        await this.#postPendingConsents('kalshi', existing.id);
+      const info = await this.#readStepInfo('kalshi', { supersede: true });
+      if (info.sessionId) {
+        await this.#postPendingConsents('kalshi', info.sessionId);
+        return this.#readStep('kalshi', { supersede: true });
       }
-      return this.#readStep('kalshi', { supersede: true });
+      return info.step;
     }
     await this.messenger.call('KycService:acceptVendorTerms', {
       vendor: params.vendor,
@@ -404,8 +405,11 @@ export class VendorOnboardingController extends BaseController<
    * A new session creates the user's `local_user_secret` when it is missing,
    * then wraps the encryption key and a capability token for idOS. The
    * consents the user gave on the terms pages are posted to the new session,
-   * then cleared from the phone. An existing session is picked up as it is:
-   * its authorizations are left alone.
+   * then cleared from the phone. An existing session gets fresh
+   * authorizations every time, because the step does not say whether its
+   * capability authorization is still valid, and any consents still waiting
+   * on the phone are posted to it. A Kalshi email given while resuming sends
+   * a code to that address.
    *
    * This does not create a vendor customer. A vendor that needs one before
    * its session (Iron) adds that when it moves to this controller.
@@ -428,13 +432,21 @@ export class VendorOnboardingController extends BaseController<
     email?: string;
   }): Promise<KycStep> {
     const { vendor } = params;
-    const existing = await this.messenger.call(
-      'KycService:getSessionStatusForVendor',
-      vendor,
-    );
+    // A saved id, or the one the step reports when the phone has none (a
+    // reinstall). Either way the session already exists, so it is resumed.
+    const sessionId =
+      this.state.vendors[vendor]?.sessionId ??
+      (await this.#readStepInfo(vendor)).sessionId;
 
-    if (existing) {
-      return this.#resumeSession(vendor, existing.id, params.email);
+    if (sessionId) {
+      // The step does not say whether the capability authorization is still
+      // valid, so a reinstall or a second device refreshes it every time.
+      await refreshAuthorizations({
+        messenger: this.messenger,
+        localUserSecretStore: this.#localUserSecretStore,
+        sessionId,
+      });
+      return this.#resumeSession(vendor, sessionId, params.email);
     }
 
     if (!params.aal2Token) {
@@ -827,8 +839,8 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Gets the vendor's session id from what the phone saved, or from kyc-api
-   * when the phone has none (a reinstall).
+   * Gets the vendor's session id from what the phone saved, or from the step
+   * kyc-api answers with when the phone has none (a reinstall).
    *
    * @param vendor - The vendor.
    * @returns The session id.
@@ -838,17 +850,13 @@ export class VendorOnboardingController extends BaseController<
     if (saved) {
       return saved;
     }
-    const status = await this.messenger.call(
-      'KycService:getSessionStatusForVendor',
-      vendor,
-    );
-    if (!status) {
+    const { sessionId } = await this.#readStepInfo(vendor);
+    if (!sessionId) {
       throw new Error(
         `VendorOnboardingController: no ${vendor} session to continue.`,
       );
     }
-    this.#write(vendor, { sessionId: status.id });
-    return status.id;
+    return sessionId;
   }
 
   /**
@@ -985,8 +993,26 @@ export class VendorOnboardingController extends BaseController<
    */
   async #readStep(
     vendor: OnboardingVendor,
-    { supersede = false }: { supersede?: boolean } = {},
+    options: { supersede?: boolean } = {},
   ): Promise<KycStep> {
+    return (await this.#readStepInfo(vendor, options)).step;
+  }
+
+  /**
+   * Asks kyc-api for the step, how verification is going and the vendor's
+   * session id, and saves all three. A read joins one already in flight
+   * unless it supersedes it, as described for `#readStep`.
+   *
+   * @param vendor - The vendor.
+   * @param options - The options.
+   * @param options.supersede - Whether to start a new read instead of joining
+   * one already in flight. Defaults to `false`.
+   * @returns What kyc-api answered with.
+   */
+  async #readStepInfo(
+    vendor: OnboardingVendor,
+    { supersede = false }: { supersede?: boolean } = {},
+  ): Promise<KycStepInfo> {
     const inflight = this.#readStepPromises[vendor];
     if (!supersede && inflight) {
       return inflight;
@@ -994,8 +1020,8 @@ export class VendorOnboardingController extends BaseController<
     // `let` so the closure can see the promise it is assigning. The binding
     // is written once, before the first await resumes.
     // oxlint-disable-next-line prefer-const
-    let read!: Promise<KycStep>;
-    read = (async (): Promise<KycStep> => {
+    let read!: Promise<KycStepInfo>;
+    read = (async (): Promise<KycStepInfo> => {
       try {
         const info = await this.messenger.call(
           'KycService:getStep',
@@ -1004,9 +1030,13 @@ export class VendorOnboardingController extends BaseController<
         );
         // A later read, or a reset, has taken this slot.
         if (this.#readStepPromises[vendor] === read) {
-          this.#write(vendor, { step: info.step, status: info.status });
+          this.#write(vendor, {
+            step: info.step,
+            status: info.status,
+            sessionId: info.sessionId ?? null,
+          });
         }
-        return info.step;
+        return info;
       } finally {
         if (this.#readStepPromises[vendor] === read) {
           delete this.#readStepPromises[vendor];

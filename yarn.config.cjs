@@ -228,6 +228,12 @@ module.exports = defineConfig({
           expectTestScripts(workspace);
         }
 
+        // Vitest has `vite` as a peer dependency, so any package that uses
+        // Vitest must list it as well.
+        if (get(workspace.manifest, 'devDependencies.vitest')) {
+          expectWorkspaceField(workspace, 'devDependencies.vite');
+        }
+
         // All non-root packages must have scripts that lint-check tsconfig
         // project references for this package.
         expectWorkspaceField(

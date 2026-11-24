@@ -175,21 +175,18 @@ touches `KycController` state.
 - **kyc-api decides the step.** Each action sends its change to kyc-api, then
   reads `GET /vendors/{vendor}/step` and saves the answer. The client maps each
   `KycStep` to a screen; it never works out where the user is.
-- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted,
-  acceptedDisclaimerIds, termsCountry, pendingConsents }`. Once a session exists,
-  its terms, consents and account link state stay on the server, so a reinstall or
-  a second device picks up where the user left off. Before a session exists, the
-  phone holds what kyc-api cannot see yet: MFA done, the Kalshi terms and the idOS
-  and identity provider consents. They are sent with each step read or posted when
-  the session is created, and forgotten only after kyc-api has them.
+- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted, acceptedDisclaimerIds, termsCountry, pendingConsents }`. Every step read saves `step`, `status` and `sessionId`, and `sessionId` is the vendor's session id from the relay (`null` when there is none), so session calls never look the session up themselves. Before a session exists, the phone holds what kyc-api cannot see yet: MFA done, the Kalshi terms and the idOS and identity provider consents. They are sent with each step read or posted when the session is created, and forgotten only after kyc-api has them. After that, terms, consents and account link state stay on the server, so a reinstall or a second device picks up where the user left off.
 - **Step reads are ordered.** A plain `refreshStep` joins a read already in
   flight; an action always starts its own. An answer that arrives after a newer
   read started (or after `reset`) is dropped.
 - **Session authorization** lives in `src/ukyc/sessionAuthorization.ts`:
-  a new session opened by `startSession` wraps the `data_encryption_key` and a
-  `ukyc_capability_token` for idOS after verifying both encryption schemas'
-  `jwtChain`. A session kyc-api already has is picked up as it is. It does not
-  create a vendor customer.
+  `startSession` opens or resumes the UKYC session, then wraps the
+  `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
+  both encryption schemas' `jwtChain`. A session that already exists (the id
+  saved in state, or the `sessionId` the step reports when state has none)
+  gets fresh authorizations every time, because the step does not say whether
+  its capability authorization is still valid. It does not create a vendor
+  customer.
 - **Injected adapters.** `kalshiRequestSigner` signs Kalshi calls
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
   key into `{ path, headers, body }` objects, where `body` is the exact signed
@@ -210,14 +207,15 @@ touches `KycController` state.
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `refreshStep`, `recordMfaCompleted`, `submitTerms`, `startSession`,
-`fetchSessionDisclaimers`, `recordSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
-`verifyPhoneOtp`, `verifyEmailOtp`, `sendEmailOtp`, `reset`.
+`getPartnerEmail`, `fetchSessionDisclaimers`, `recordSessionDisclaimers`,
+`launchProviderFlow`, `sendPhoneOtp`, `verifyPhoneOtp`, `verifyEmailOtp`,
+`sendEmailOtp`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
 
 | Method                     | HTTP   | Endpoint                                     | Purpose                                    |
 | -------------------------- | ------ | -------------------------------------------- | ------------------------------------------ |
-| `getStep`                  | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status       |
+| `getStep`                  | `GET`  | `/vendors/{vendor}/step`                     | The vendor's step, status and session id   |
 | `acceptVendorTerms`        | `POST` | `/vendors/{vendor}/disclaimers`              | Iron terms acceptance (no session)         |
 | `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record idOS and identity provider consents |
 | `sendEmailOtp`             | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again         |

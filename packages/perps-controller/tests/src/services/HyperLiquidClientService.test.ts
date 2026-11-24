@@ -203,6 +203,17 @@ describe('HyperLiquidClientService', () => {
   });
 
   describe('Client Initialization', () => {
+    it('keeps the subscription client when provider initialization reuses the stream transport', async () => {
+      await service.ensureSubscriptionClient(mockWallet);
+      const subscriptionClient = service.getSubscriptionClient();
+
+      await service.initialize(mockWallet);
+
+      expect(subscriptionClient).toBeDefined();
+      expect(service.getSubscriptionClient()).toBe(subscriptionClient);
+      expect(hyperliquidModule.SubscriptionClient).toHaveBeenCalledOnce();
+    });
+
     it('initializes clients successfully with dual transports', async () => {
       await service.initialize(mockWallet);
 
@@ -995,12 +1006,17 @@ describe('HyperLiquidClientService', () => {
       expect(mockInfoClientWs.historicalOrders).toHaveBeenCalledTimes(2);
     });
 
-    it('returns empty array when SDK returns null', async () => {
-      mockInfoClientWs.historicalOrders.mockResolvedValue(null);
+    it('distinguishes missing history from an explicit empty list', async () => {
+      mockInfoClientWs.historicalOrders
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce([]);
 
-      const result = await service.fetchHistoricalOrders(userAddress);
-
-      expect(result).toEqual([]);
+      await expect(service.fetchHistoricalOrders(userAddress)).rejects.toThrow(
+        'Hyperliquid returned no historical order list',
+      );
+      expect(await service.fetchHistoricalOrders(userAddress)).toStrictEqual(
+        [],
+      );
     });
   });
 

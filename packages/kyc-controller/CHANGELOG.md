@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `submitTerms` for Kalshi keeps the accepted catalog ids, the country and the idOS and identity provider consents on the phone, and sends nothing to kyc-api. The ids are sent with every step read, and the consents go to the session when `startSession` creates it, or at once when a session already exists. Nothing is forgotten until kyc-api has the consents, so a failed post is retried. `submitTerms` for Iron sends the acceptance to kyc-api right away, as before
   - `recordSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted
   - `launchProviderFlow` presents SumSub through the `sumsubLauncher` option, then reads the next step. It reports `submitted`, `abandoned` or `failed` and keeps nothing on the phone. A review decision the SDK opens on counts as `submitted` only after `Pending`, `Completed` or `ActionCompleted` in the same launch, and a later `Ready`, `Initial` or `Incomplete` clears an earlier `Pending`. kyc-api works out from the relay whether the applicant still has something to do, so nothing records that they submitted
-  - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has. A new session sends the wrapped encryption key and capability token. A session kyc-api already has is picked up as it is. It does not create a vendor customer
+  - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. An existing session gets fresh authorizations every time. It does not create a vendor customer ([#11725](https://github.com/MetaMask/core/pull/11725))
   - `reset` drops any step read still in flight, so a late answer cannot bring back a forgotten vendor
   - It shares `KycService` with `KycController` and does not touch `KycController` state
 - Add `KycService.getStep`, `acceptVendorTerms`, `sendEmailOtp`, `verifyEmailOtp`, `sendPhoneOtp` and `verifyPhoneOtp`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
@@ -27,15 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the `KYC_STEPS` list, the `KycStep` and `OnboardingVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))
   - Reported next to the step, because a user asked to redo the identity provider is on the same step as one doing it the first time. `OnboardingVendorState` carries both
+- `KycStepInfo` carries `sessionId`, the vendor's session id from the relay, or `null` when there is none ([#11725](https://github.com/MetaMask/core/pull/11725))
+  - `KycService.getStep` returns it, and `VendorOnboardingController` saves it with the step and uses it for its session calls, so it no longer looks the session up with `KycService:getSessionStatusForVendor`. `startSession` picks up the saved session id from state, or the one the step carries when state has none, and creates a session only when neither has one
 - Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
-
 - Add `KycApiError`, which `KycService` throws for a failed kyc-api call with the `code` from the response body, and `getKycKalshiErrorCode`, which finds a code kyc-api answers with (`KYC_KALSHI_ERROR_CODES`: the relay's `kalshi_*` codes, `invalid_or_expired_code`, `session_not_in_email_verification`, `kalshi_account_exists`, `not_found` and `idos_relay_unavailable`) on a failure ([#11634](https://github.com/MetaMask/core/pull/11634))
   - The code is written into the error message when the body's message does not already contain it, so a wrapped failure, which keeps only the message, still names the code
   - A client uses it to keep a wrong email code on the code screen and to ask for a retry after `kalshi_signed_request_rejected`
 - Add `KYC_VENDOR_SIGN_PATHS` and `KYC_SIGNED_REQUEST_LIMITS`, which the controller checks a signer's answer against: the route for each call, at most 16 string headers, and a body of at most 4 KB ([#11634](https://github.com/MetaMask/core/pull/11634))
+- `KycController` accepts an optional `trace` callback and records one `KYC Provider Flow` span per `launchProviderFlow` attempt (`result`: `submitted`, `abandoned`, or `failed`). A failure to emit the span is logged and does not change the launch outcome ([#11627](https://github.com/MetaMask/core/pull/11627))
 
 ### Changed
 
+- `VendorOnboardingController.startSession` refreshes the wrapped encryption key and capability token for an existing session as well as a new one ([#11725](https://github.com/MetaMask/core/pull/11725))
+  - The step does not say whether that session's capability authorization is still valid, so an existing session gets fresh authorizations every time
 - Onboarding steps are `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`, `sumsub`, and `decision`. Kalshi uses all of them. Iron uses `terms`, `mfa`, `sumsub`, and `decision`. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
 - Kalshi session creation and the email steps send phone-signed `KycSignedRequest` objects. `kalshiRequestSigner` replaces `kalshiAccountLinkAdapter`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
@@ -44,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
 
 ### Fixed
 
