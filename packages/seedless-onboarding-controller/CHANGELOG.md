@@ -13,10 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Takes `authConnectionId` and `groupedAuthConnectionId`, and throws `MissingAuthUserInfo` if `authenticate` has not succeeded first.
   - Authenticating as a different user or verifier clears the recovery session, envelope state, local password flag, and password outdated cache for the previous user.
 - Add non-persisted `recoverySession` state and the `RecoverySession` type, cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
-- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable key set for the account ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Takes a 32-byte `recoverySecret` and requires an unlocked vault in sync with the global password, an aal2 session, and `migrationVersion` `V1` or later.
+- Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable key set for the account ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
+  - Takes a 32-byte `recoverySecret` and requires `mfaFlag` to be `true`, an unlocked vault in sync with the global password, an aal2 session, and `migrationVersion` `V1` or later.
   - Completes when the vault has an `EnvelopeControl` record. Retries are safe and reuse the Recovery Secret OPRF key if one was already registered.
   - Emits `Seedless Onboarding Envelope Migration Checkpoint` events with `phase` `STARTED` or `COMPLETED`, and `partial` set when a key from an earlier attempt exists.
+- Add optional `mfaFlag` option to `SeedlessOnboardingControllerOptions` (default `false`) to gate `migrateToEnvelope` until the feature is enabled ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add `recoverWithRecoverySecret` and the `SeedlessOnboardingController:recoverWithRecoverySecret` messenger action, which recover an envelope-managed vault with the Recovery Secret and create a local vault under `password` ([#11220](https://github.com/MetaMask/core/pull/11220))
   - Requires the social login session and an aal2 session, and returns the secret data.
   - Replaces any existing local vault. Sets `isLocalPassword` and `envelope.passwordAuthPubKey`.
@@ -30,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `passwordAuthPubKey` is the password OPRF auth public key the local password is synced with.
 - Add persisted `isLocalPassword` state, set by `recoverWithRecoverySecret` and cleared once the global password is set again ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Add `getEnvelopeStatus` and the `SeedlessOnboardingEnvelopeStatus` type, which report whether the vault is envelope-managed and whether the password is local ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType` error messages ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
 
 ### Changed
 

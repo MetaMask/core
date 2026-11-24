@@ -283,6 +283,11 @@ export class SeedlessOnboardingController<
   readonly #passwordOutdatedCacheTTL: number;
 
   /**
+   * Whether MFA recovery / envelope migration is enabled.
+   */
+  readonly #mfaFlag: boolean;
+
+  /**
    * Controller lock state.
    *
    * The controller lock is synchronized with the keyring lock.
@@ -308,7 +313,8 @@ export class SeedlessOnboardingController<
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
    * @param options.renewRefreshToken - A function to renew the refresh token and get new revoke token.
-   * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
+   * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.
+   * @param options.mfaFlag - Whether MFA recovery / envelope migration is enabled. Defaults to `false`.
    */
   constructor({
     messenger,
@@ -320,6 +326,7 @@ export class SeedlessOnboardingController<
     revokeRefreshToken,
     renewRefreshToken,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
+    mfaFlag = false,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
     SupportedKeyDerivationOptions,
@@ -334,6 +341,7 @@ export class SeedlessOnboardingController<
 
     assertIsPasswordOutdatedCacheValid(passwordOutdatedCacheTTL);
     this.#passwordOutdatedCacheTTL = passwordOutdatedCacheTTL;
+    this.#mfaFlag = mfaFlag;
 
     this.#vaultEncryptor = encryptor;
 
@@ -2791,6 +2799,7 @@ export class SeedlessOnboardingController<
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
    * @returns A promise that resolves once the vault is envelope-managed.
+   * @throws `EnvelopeMigrationDisabled` if `mfaFlag` is not enabled.
    * @throws `InvalidRecoverySecret` if `recoverySecret` is not a 32-byte
    * `Uint8Array`.
    * @throws `OutdatedPassword` if the vault is behind the global password.
@@ -2810,6 +2819,12 @@ export class SeedlessOnboardingController<
   }: {
     recoverySecret: Uint8Array;
   }): Promise<void> {
+    if (!this.#mfaFlag) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationDisabled,
+      );
+    }
+
     assertIsRecoverySecret(recoverySecret);
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {

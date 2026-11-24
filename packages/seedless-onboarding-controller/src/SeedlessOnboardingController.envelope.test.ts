@@ -50,6 +50,7 @@ import {
 } from './envelope/envelope-keys.js';
 import type { ControlRecord, VaultKeySet } from './envelope/envelope-keys.js';
 import { EnvelopeStore } from './envelope/EnvelopeStore.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import { getEnvelopeStatus } from './state.js';
 import type {
@@ -629,6 +630,7 @@ describe('SeedlessOnboardingController', () => {
      * @param fn - The callback.
      * @param options - The options.
      * @param options.password - The password to create the vault with.
+     * @param options.mfaFlag - Whether the MFA recovery feature flag is enabled.
      * @param options.groupedAuthConnectionId - Overrides the grouped auth
      * connection ID of the authenticated user.
      * @returns Whatever the callback returns.
@@ -637,11 +639,17 @@ describe('SeedlessOnboardingController', () => {
       fn: (args: UnlockedControllerArgs) => Promise<ReturnValue>,
       {
         password = MOCK_PASSWORD,
+        mfaFlag = true,
         ...overrides
-      }: { password?: string; groupedAuthConnectionId?: undefined } = {},
+      }: {
+        password?: string;
+        mfaFlag?: boolean;
+        groupedAuthConnectionId?: undefined;
+      } = {},
     ): Promise<ReturnValue> {
       return await withController(
         {
+          mfaFlag,
           state: {
             ...getMockInitialControllerState({
               withMockAuthenticatedUser: true,
@@ -836,13 +844,17 @@ describe('SeedlessOnboardingController', () => {
      * Runs the callback with an authenticated controller that has no vault.
      *
      * @param fn - The callback.
+     * @param options - The options.
+     * @param options.mfaFlag - Whether the MFA recovery feature flag is enabled.
      * @returns Whatever the callback returns.
      */
     async function withNewDeviceController<ReturnValue>(
       fn: (args: ControllerArgs) => Promise<ReturnValue>,
+      { mfaFlag }: { mfaFlag?: boolean } = {},
     ): Promise<ReturnValue> {
       return await withController(
         {
+          ...(mfaFlag === undefined ? {} : { mfaFlag }),
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
           }),
@@ -2825,6 +2837,64 @@ describe('SeedlessOnboardingController', () => {
         },
       );
 
+      it('throws EnvelopeMigrationDisabled by default when mfaFlag is omitted', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async (args) => {
+            await mockCreateToprfKeyAndBackupSeedPhrase(
+              args.toprfClient,
+              args.controller,
+              args.baseMessenger,
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            );
+            args.controller.setMigrationVersion(
+              SeedlessOnboardingMigrationVersion.V1,
+            );
+            vi.clearAllMocks();
+            const network = mockNetwork(args.toprfClient);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              new SeedlessOnboardingError(
+                SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationDisabled,
+              ),
+            );
+            expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+            expectNoMigrationWrites(network);
+            expect(args.controller.state.envelope).toBeUndefined();
+          },
+        );
+      });
+
+      it('throws EnvelopeMigrationDisabled when mfaFlag is false before validating inputs or lock state', async () => {
+        await withUnlockedController(
+          async (args) => {
+            const network = mockNetwork(args.toprfClient);
+            await args.baseMessenger.call(
+              'SeedlessOnboardingController:setLocked',
+            );
+
+            await expect(
+              migrateToEnvelope(args, new Uint8Array(0)),
+            ).rejects.toThrow(
+              new SeedlessOnboardingError(
+                SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationDisabled,
+              ),
+            );
+            expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+            expectNoMigrationWrites(network);
+            expect(args.controller.state.envelope).toBeUndefined();
+          },
+          { mfaFlag: false },
+        );
+      });
+
       it('throws ControllerLocked when locked', async () => {
         await withUnlockedController(async (args) => {
           await args.baseMessenger.call(
@@ -3841,37 +3911,40 @@ describe('SeedlessOnboardingController', () => {
           });
           storeSeedPhrase(store, vaultKeySetFor());
 
-          await withNewDeviceController(async (args) => {
-            const { controller, baseMessenger, toprfClient } = args;
-            const network = mockNetwork(toprfClient, {
-              store,
-              recoverySecret: recoveryKey?.password,
-              recoverySeed: recoveryKey?.seed,
-            });
+          await withNewDeviceController(
+            async (args) => {
+              const { controller, baseMessenger, toprfClient } = args;
+              const network = mockNetwork(toprfClient, {
+                store,
+                recoverySecret: recoveryKey?.password,
+                recoverySeed: recoveryKey?.seed,
+              });
 
-            await controller.restoreVaultWithPassword({
-              password: MOCK_PASSWORD,
-            });
+              await controller.restoreVaultWithPassword({
+                password: MOCK_PASSWORD,
+              });
 
-            expect(getEnvelopeStatus(controller.state)).toStrictEqual({
-              isEnvelopeManaged: false,
-              isLocalPassword: false,
-            });
-            controller.setMigrationVersion(
-              SeedlessOnboardingMigrationVersion.V1,
-            );
-            await authenticateAal2(args, {
-              hasRecoveryShare: recoveryKey !== undefined,
-            });
-            await baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            );
-            expect(getEnvelopeStatus(controller.state).isEnvelopeManaged).toBe(
-              true,
-            );
-            recoveryKey = network.getRecoveryKey();
-          });
+              expect(getEnvelopeStatus(controller.state)).toStrictEqual({
+                isEnvelopeManaged: false,
+                isLocalPassword: false,
+              });
+              controller.setMigrationVersion(
+                SeedlessOnboardingMigrationVersion.V1,
+              );
+              await authenticateAal2(args, {
+                hasRecoveryShare: recoveryKey !== undefined,
+              });
+              await baseMessenger.call(
+                'SeedlessOnboardingController:migrateToEnvelope',
+                { recoverySecret: RECOVERY_SECRET },
+              );
+              expect(
+                getEnvelopeStatus(controller.state).isEnvelopeManaged,
+              ).toBe(true);
+              recoveryKey = network.getRecoveryKey();
+            },
+            { mfaFlag: true },
+          );
 
           await withNewDeviceController(async (args) => {
             mockNetwork(args.toprfClient, {

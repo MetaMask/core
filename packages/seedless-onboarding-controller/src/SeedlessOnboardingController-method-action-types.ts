@@ -375,6 +375,7 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
  * @returns A promise that resolves once the vault is envelope-managed.
+ * @throws `EnvelopeMigrationDisabled` if `mfaFlag` is not enabled.
  * @throws `InvalidRecoverySecret` if `recoverySecret` is not a 32-byte
  * `Uint8Array`.
  * @throws `OutdatedPassword` if the vault is behind the global password.
