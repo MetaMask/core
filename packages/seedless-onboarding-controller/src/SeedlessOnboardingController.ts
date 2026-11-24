@@ -2955,7 +2955,8 @@ export class SeedlessOnboardingController<
    * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
    * Recovery Secret, they are not the vault keys named by the `envelope`
    * state, or the vault they open has no control record, as its migration is
-   * not committed, `EnvelopeControlRecordNotFound` if no control
+   * not committed, `NoSecretDataFound` if a committed vault holds no secret
+   * items, `EnvelopeControlRecordNotFound` if no control
    * record matches the live password OPRF key, since the password could never
    * be reset, `RecoveryKeyShareConflict` if the nodes hold the key of another
    * Recovery Secret, or `Aal2Required` without a valid aal2 session. No local
@@ -3444,15 +3445,16 @@ export class SeedlessOnboardingController<
 
   /**
    * Find the first candidate vault key set whose partition holds committed
-   * control records. Skips uncommitted partitions (no control records or empty
-   * partition after a legacy password change) while propagating real fetch
-   * errors.
+   * control records. Skips uncommitted partitions (no control records,
+   * including partitions emptied by a legacy password change) while
+   * propagating real fetch errors.
    *
    * @param candidates - Candidate vault key sets, newest first.
    * @returns The committed vault key set, its secrets, and its control
    * records, or undefined if no candidate is committed.
-   * @throws `NoSecretDataFound` if no candidate is committed and at least one
-   * candidate partition held no secret data, or any metadata fetch error.
+   * @throws `NoSecretDataFound` if a committed candidate partition holds no
+   * secret items and no other committed candidate has secrets, or any metadata
+   * fetch error.
    */
   async #findCommittedRecoveryVault(candidates: VaultKeySet[]): Promise<
     | {
@@ -3464,27 +3466,23 @@ export class SeedlessOnboardingController<
   > {
     let noSecretDataError: Error | undefined;
     for (const vaultKeySet of candidates) {
-      try {
-        const { secrets, controlRecords } =
-          await this.#fetchAllSecretDataFromMetadataStore(
-            vaultKeySet.encKey,
-            vaultKeySet.authKeyPair,
-          );
-        // the migration that sealed these keys is not committed yet
-        if (controlRecords.length > 0) {
-          return { vaultKeySet, secrets, controlRecords };
-        }
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message ===
-            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
-        ) {
-          noSecretDataError ??= error;
-          continue;
-        }
-        throw error;
+      const { secretItems, controlRecords } =
+        await this.#envelopeStore.fetchVaultItems(vaultKeySet);
+      // the migration that sealed these keys is not committed yet
+      if (controlRecords.length === 0) {
+        continue;
       }
+      if (secretItems.length === 0) {
+        noSecretDataError ??= new Error(
+          SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
+        );
+        continue;
+      }
+      return {
+        vaultKeySet,
+        secrets: parseAndValidateSecretMetadataBackup(secretItems),
+        controlRecords,
+      };
     }
     if (noSecretDataError) {
       throw noSecretDataError;

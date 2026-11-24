@@ -4785,9 +4785,38 @@ describe('SeedlessOnboardingController', () => {
         },
       );
 
-      it('does not create a vault when the vault holds no secret data', async () => {
+      it('throws RecoveryEnvelopeNotFound without creating a vault when the candidate partition is empty and has no control record', async () => {
         const store = await createMigratedAccount();
         store.delete(bytesToHex(vaultKeySetFor().authKeyPair.pk));
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            store,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+
+          await expect(recover(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
+          );
+          expect(controller.state.vault).toBeUndefined();
+          expect(controller.state.envelope).toBeUndefined();
+        });
+      });
+
+      it('does not create a vault when a committed vault holds no secret data', async () => {
+        const store = await createMigratedAccount();
+        const vaultPk = bytesToHex(vaultKeySetFor().authKeyPair.pk);
+        const partition = store.get(vaultPk) as Map<string, StoredItem>;
+        store.set(
+          vaultPk,
+          new Map(
+            [...partition.entries()].filter(
+              ([, item]) =>
+                item.dataType === EncAccountDataType.EnvelopeControl,
+            ),
+          ),
+        );
 
         await withNewDeviceController(async (args) => {
           const { controller, toprfClient } = args;

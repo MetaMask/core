@@ -423,7 +423,8 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
  * Recovery Secret, they are not the vault keys named by the `envelope`
  * state, or the vault they open has no control record, as its migration is
- * not committed, `EnvelopeControlRecordNotFound` if no control
+ * not committed, `NoSecretDataFound` if a committed vault holds no secret
+ * items, `EnvelopeControlRecordNotFound` if no control
  * record matches the live password OPRF key, since the password could never
  * be reset, `RecoveryKeyShareConflict` if the nodes hold the key of another
  * Recovery Secret, or `Aal2Required` without a valid aal2 session. No local
