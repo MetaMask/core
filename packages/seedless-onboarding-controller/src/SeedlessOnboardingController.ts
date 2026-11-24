@@ -285,9 +285,9 @@ export class SeedlessOnboardingController<
   readonly #passwordOutdatedCacheTTL: number;
 
   /**
-   * Whether MFA recovery / envelope migration is enabled.
+   * Callback returning whether MFA recovery / envelope migration is enabled.
    */
-  readonly #mfaFlag: boolean;
+  readonly #mfaFlag: () => boolean;
 
   /**
    * Controller lock state.
@@ -316,7 +316,7 @@ export class SeedlessOnboardingController<
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
    * @param options.renewRefreshToken - A function to renew the refresh token and get new revoke token.
    * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.
-   * @param options.mfaFlag - Whether MFA recovery / envelope migration is enabled. Defaults to `false`.
+   * @param options.mfaFlag - Callback returning whether MFA recovery / envelope migration is enabled. Defaults to `() => false`.
    */
   constructor({
     messenger,
@@ -328,7 +328,7 @@ export class SeedlessOnboardingController<
     revokeRefreshToken,
     renewRefreshToken,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
-    mfaFlag = false,
+    mfaFlag = (): boolean => false,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
     SupportedKeyDerivationOptions,
@@ -2864,7 +2864,7 @@ export class SeedlessOnboardingController<
   }: {
     recoverySecret: Uint8Array;
   }): Promise<void> {
-    if (!this.#mfaFlag) {
+    if (!this.#mfaFlag()) {
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationDisabled,
       );

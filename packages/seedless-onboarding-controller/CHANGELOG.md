@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add password envelope migration and MFA recovery methods and messenger actions: `authenticateForRecovery`, `migrateToEnvelope`, `recoverWithRecoverySecret`, `resetPasswordWithVaultKeys`, and `restoreVaultWithPassword` ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Add optional `mfaFlag` option (default `false`) to `SeedlessOnboardingControllerOptions` to gate `migrateToEnvelope` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Add optional `mfaFlag` callback option (default `() => false`) to `SeedlessOnboardingControllerOptions` to gate `migrateToEnvelope` ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add `envelope`, `isLocalPassword`, and non-persisted `recoverySession` controller state fields along with `EnvelopeState`, `RecoverySession`, `SeedlessOnboardingEnvelopeStatus`, and `getEnvelopeStatus` ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add envelope and MFA recovery error messages to `SeedlessOnboardingControllerErrorMessage` (`Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType`) ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add dependency `@metamask/superstruct` (`^3.4.1`) ([#11346](https://github.com/MetaMask/core/pull/11346))
