@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TransakAdditionalRequirement.metadata.options` is now typed as `string[] | TransakAdditionalRequirementOption[]` instead of `string[]`. Existing forms (e.g. `id-proof`) still return `string[]`, while the `SOURCE_OF_INCOME` form returns `TransakAdditionalRequirementOption[]`, matching the structure of other MiCA/EEA option fields. Clients that handle `getAdditionalRequirements` responses must handle both shapes. All `metadata` fields are also now optional ([#11672](https://github.com/MetaMask/core/pull/11672))
 - `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#11672](https://github.com/MetaMask/core/pull/11672))
 - `SOURCE_OF_INCOME` additional requirement metadata now contains only `options` (array of `TransakAdditionalRequirementOption`); employment status and citizenship options are in the separate `ADDITIONAL_DETAILS_NATIONALITY` form ([#11672](https://github.com/MetaMask/core/pull/11672))
+- Bump `bignumber.js` from `^9.1.2` to `^9.3.1` ([#10529](https://github.com/MetaMask/core/pull/10529))
 
 ## [30.1.0]
 
