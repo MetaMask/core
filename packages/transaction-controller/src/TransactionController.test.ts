@@ -33,6 +33,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import {
+  NetworkClientType,
   NetworkStatus,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
@@ -103,6 +104,7 @@ import { getBalanceChanges } from './utils/balance-changes.js';
 import { addTransactionBatch } from './utils/batch.js';
 import { getDelegationAddress } from './utils/eip7702.js';
 import {
+  getGasEstimateBuffer,
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
 } from './utils/feature-flags.js';
@@ -114,6 +116,7 @@ import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
+  isUpgradeWithDataTransaction,
   updateGas,
 } from './utils/gas.js';
 import {
@@ -193,6 +196,9 @@ vi.mock(import('./utils/eip7702.js'), async (importOriginal) => ({
   getDelegationAddress: vi.fn(),
   doesChainSupportEIP7702: vi.fn(),
 }));
+
+const { isUpgradeWithDataTransaction: isUpgradeWithDataTransactionActual } =
+  await vi.importActual<typeof import('./utils/gas.js')>('./utils/gas.js');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -548,6 +554,7 @@ describe('TransactionController', () => {
       actionHandlerMock: Mock;
     };
     mockGetSelectedAccount: Mock;
+    remoteFeatureFlagControllerGetStateMock: Mock;
     changeNetwork: (params: {
       selectedNetworkClientId: NetworkClientId;
     }) => void;
@@ -709,6 +716,7 @@ describe('TransactionController', () => {
       rootMessenger,
       mockTransactionApprovalRequest,
       mockGetSelectedAccount,
+      remoteFeatureFlagControllerGetStateMock,
       changeNetwork,
     };
   }
@@ -1721,6 +1729,115 @@ describe('TransactionController', () => {
 
       expect(gas).toBe(expectedEstimatedGas);
       expect(simulationFails).toBe(simulationFailsMock);
+    });
+  });
+
+  describe('getGasEstimateBuffer', () => {
+    const getGasEstimateBufferMock = vi.mocked(getGasEstimateBuffer);
+    const isUpgradeWithDataTransactionMock = vi.mocked(
+      isUpgradeWithDataTransaction,
+    );
+
+    const transactionMock: TransactionParams = {
+      chainId: '0x1',
+      from: ACCOUNT_MOCK,
+      to: ACCOUNT_2_MOCK,
+    };
+
+    const upgradeTransactionMock: TransactionParams = {
+      ...transactionMock,
+      authorizationList: [{ address: ACCOUNT_2_MOCK }],
+      data: DATA_MOCK,
+      type: TransactionEnvelopeType.setCode,
+    };
+
+    /**
+     * Sets up a controller whose network client has the given configuration.
+     *
+     * @param options - The network client options.
+     * @param options.chainId - The chain id returned by the network client.
+     * @param options.networkClientType - The type of the network client.
+     * @returns The controller and its messenger.
+     */
+    function setupWithNetworkClient({
+      chainId = CHAIN_ID_MOCK,
+      networkClientType = NetworkClientType.Infura,
+    }: {
+      chainId?: Hex;
+      networkClientType?: NetworkClientType;
+    } = {}): {
+      controller: TransactionController;
+      messenger: ReturnType<typeof setupController>['messenger'];
+    } {
+      const { controller, messenger } = setupController();
+
+      multichainTrackingHelperMock.getNetworkClient.mockReturnValue({
+        configuration: { chainId, type: networkClientType },
+        id: NETWORK_CLIENT_ID_MOCK,
+      } as unknown as ReturnType<MultichainTrackingHelper['getNetworkClient']>);
+
+      getGasEstimateBufferMock.mockReturnValue(1.5);
+      isUpgradeWithDataTransactionMock.mockImplementation(
+        isUpgradeWithDataTransactionActual,
+      );
+
+      return { controller, messenger };
+    }
+
+    it('uses the chain id from the network client, not the transaction', () => {
+      const { controller } = setupWithNetworkClient({ chainId: '0x89' });
+
+      controller.getGasEstimateBuffer(transactionMock, NETWORK_CLIENT_ID_MOCK);
+
+      expect(getGasEstimateBufferMock).toHaveBeenCalledWith({
+        chainId: '0x89',
+        isCustomRPC: false,
+        isUpgradeWithData: false,
+        messenger: expect.anything(),
+      });
+    });
+
+    it('passes a custom network client as isCustomRPC', () => {
+      const { controller } = setupWithNetworkClient({
+        networkClientType: NetworkClientType.Custom,
+      });
+
+      controller.getGasEstimateBuffer(transactionMock, NETWORK_CLIENT_ID_MOCK);
+
+      expect(getGasEstimateBufferMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isCustomRPC: true,
+          isUpgradeWithData: false,
+        }),
+      );
+    });
+
+    it('passes a setCode transaction with data as isUpgradeWithData', () => {
+      const { controller } = setupWithNetworkClient();
+
+      controller.getGasEstimateBuffer(
+        upgradeTransactionMock,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(getGasEstimateBufferMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isCustomRPC: false,
+          isUpgradeWithData: true,
+        }),
+      );
+    });
+
+    it('is exposed as a messenger action', () => {
+      const { messenger } = setupWithNetworkClient();
+
+      expect(
+        messenger.call(
+          'TransactionController:getGasEstimateBuffer',
+          transactionMock,
+          NETWORK_CLIENT_ID_MOCK,
+        ),
+      ).toBe(1.5);
     });
   });
 

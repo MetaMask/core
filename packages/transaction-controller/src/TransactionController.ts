@@ -30,6 +30,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
+  NetworkClient,
   NetworkClientId,
   NetworkController,
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -142,7 +143,10 @@ import {
   updateEIP7702BatchData,
 } from './utils/eip7702.js';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions.js';
-import { getSubmitHistoryLimit } from './utils/feature-flags.js';
+import {
+  getGasEstimateBuffer as getGasEstimateBufferFromFlags,
+  getSubmitHistoryLimit,
+} from './utils/feature-flags.js';
 import { getGasFeeTokens } from './utils/gas-fee-tokens.js';
 import { getGasFeeFlow } from './utils/gas-flow.js';
 import type { EstimateGasBatchResult } from './utils/gas.js';
@@ -150,6 +154,7 @@ import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
+  isUpgradeWithDataTransaction,
   updateGas,
 } from './utils/gas.js';
 import {
@@ -718,6 +723,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'estimateGasFee',
   'failTransaction',
   'finalizeResumedTransaction',
+  'getGasEstimateBuffer',
   'getGasFeeTokens',
   'getLayer1GasFee',
   'getNonceLock',
@@ -1314,6 +1320,34 @@ export class TransactionController extends BaseController<
       gas,
       simulationFails,
     };
+  }
+
+  /**
+   * Returns the gas estimate buffer used by this controller's own gas
+   * estimation for the given transaction and network.
+   *
+   * The controller applies this buffer only when estimation succeeds. It
+   * applies no buffer when the estimate is unavailable (`simulationFails`) or
+   * the transaction has `disableGasBuffer`.
+   *
+   * @param transaction - The transaction parameters.
+   * @param networkClientId - The ID of the network client used for the estimate.
+   * @returns The gas estimate buffer.
+   */
+  getGasEstimateBuffer(
+    transaction: TransactionParams,
+    networkClientId: NetworkClientId,
+  ): number {
+    const networkClient = this.#multichainTrackingHelper.getNetworkClient({
+      networkClientId,
+    });
+
+    return getGasEstimateBufferFromFlags({
+      chainId: networkClient.configuration.chainId,
+      isCustomRPC: this.#isCustomNetwork(networkClient),
+      isUpgradeWithData: isUpgradeWithDataTransaction(transaction),
+      messenger: this.messenger,
+    });
   }
 
   /**
@@ -3432,12 +3466,23 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Check whether a network client uses a custom RPC endpoint.
+   *
+   * @param networkClient - The network client.
+   * @returns Whether the network client is custom.
+   */
+  #isCustomNetwork(networkClient: NetworkClient): boolean {
+    return networkClient.configuration.type === NetworkClientType.Custom;
+  }
+
   async #updateGasEstimate(transactionMeta: TransactionMeta): Promise<void> {
     const { networkClientId } = transactionMeta;
 
-    const isCustomNetwork =
-      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
-        .configuration.type === NetworkClientType.Custom;
+    const networkClient = this.#multichainTrackingHelper.getNetworkClient({
+      networkClientId,
+    });
+    const isCustomNetwork = this.#isCustomNetwork(networkClient);
 
     const {
       getSimulationConfig = DEFAULT_GET_SIMULATION_CONFIG,

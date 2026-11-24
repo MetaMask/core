@@ -124,6 +124,23 @@ export type TransactionControllerEstimateGasBufferedAction = {
 };
 
 /**
+ * Returns the gas estimate buffer used by this controller's own gas
+ * estimation for the given transaction and network.
+ *
+ * The controller applies this buffer only when estimation succeeds. It
+ * applies no buffer when the estimate is unavailable (`simulationFails`) or
+ * the transaction has `disableGasBuffer`.
+ *
+ * @param transaction - The transaction parameters.
+ * @param networkClientId - The ID of the network client used for the estimate.
+ * @returns The gas estimate buffer.
+ */
+export type TransactionControllerGetGasEstimateBufferAction = {
+  type: `TransactionController:getGasEstimateBuffer`;
+  handler: TransactionController['getGasEstimateBuffer'];
+};
+
+/**
  * Updates an existing transaction in state.
  *
  * @param transactionMeta - The new transaction to store in state.
@@ -480,6 +497,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
+  | TransactionControllerGetGasEstimateBufferAction
   | TransactionControllerUpdateTransactionAction
   | TransactionControllerUpdateTransactionMetadataAction
   | TransactionControllerFailTransactionAction

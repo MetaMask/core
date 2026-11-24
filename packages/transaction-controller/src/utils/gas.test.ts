@@ -33,6 +33,7 @@ import {
   estimateGas,
   estimateGasBatch,
   getProvidedBatchGasLimits,
+  isUpgradeWithDataTransaction,
   updateGas,
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
@@ -640,6 +641,52 @@ describe('gas', () => {
           data,
         });
       });
+    });
+  });
+
+  describe('isUpgradeWithDataTransaction', () => {
+    const transactionMock: TransactionParams = {
+      authorizationList: AUTHORIZATION_LIST_MOCK,
+      data: DATA_MOCK,
+      from: FROM_MOCK,
+      type: TransactionEnvelopeType.setCode,
+    };
+
+    it('returns true for a setCode transaction with authorization and data', () => {
+      expect(isUpgradeWithDataTransaction(transactionMock)).toBe(true);
+    });
+
+    it('returns false for a non-setCode transaction', () => {
+      expect(
+        isUpgradeWithDataTransaction({
+          ...transactionMock,
+          type: TransactionEnvelopeType.legacy,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false without an authorization list', () => {
+      expect(
+        isUpgradeWithDataTransaction({
+          ...transactionMock,
+          authorizationList: undefined,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false with an empty authorization list', () => {
+      expect(
+        isUpgradeWithDataTransaction({
+          ...transactionMock,
+          authorizationList: [],
+        }),
+      ).toBe(false);
+    });
+
+    it.each(['', '0x'])('returns false with data %s', (data) => {
+      expect(isUpgradeWithDataTransaction({ ...transactionMock, data })).toBe(
+        false,
+      );
     });
   });
 

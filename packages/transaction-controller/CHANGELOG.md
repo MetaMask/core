@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add public `getGasEstimateBuffer` method and the `TransactionController:getGasEstimateBuffer` messenger action, exposing the gas estimate buffer used by the controller's own gas estimation
+
 ## [74.4.0]
 
 ### Added

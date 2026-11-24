@@ -141,6 +141,24 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
 }
 
 /**
+ * Check whether a transaction upgrades the sender with EIP-7702 and also
+ * includes data to execute.
+ *
+ * @param txParams - The transaction parameters to check.
+ * @returns Whether the transaction is an upgrade with data.
+ */
+export function isUpgradeWithDataTransaction(
+  txParams: TransactionParams,
+): boolean {
+  return (
+    txParams.type === TransactionEnvelopeType.setCode &&
+    Boolean(txParams.authorizationList?.length) &&
+    Boolean(txParams.data) &&
+    txParams.data !== '0x'
+  );
+}
+
+/**
  * Estimate the gas for the provided transaction parameters.
  * If the gas estimate fails, the fallback value is returned.
  *
@@ -228,11 +246,7 @@ export async function estimateGas({
   let simulationFails: TransactionMeta['simulationFails'];
   let gasRevert: Revert | undefined;
 
-  const isUpgradeWithData =
-    txParams.type === TransactionEnvelopeType.setCode &&
-    Boolean(authorizationList?.length) &&
-    Boolean(data) &&
-    data !== '0x';
+  const isUpgradeWithData = isUpgradeWithDataTransaction(txParams);
 
   const type4AuthorizationList =
     txParams.type === TransactionEnvelopeType.setCode &&
