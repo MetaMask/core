@@ -7,14 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [2.3.0]
+
+### Changed
+
+- Stop caching `getNetwork` (`staleTime: 0`) so live liveness and killswitch flags from `GET /network` propagate immediately ([#11505](https://github.com/MetaMask/core/pull/11505))
+
+## [2.2.0]
+
 ### Added
 
+- Add optional `trace` constructor option to `SentinelApiService` for tracing `simulateTransactions`. Tracing is best-effort and does not affect the simulation result if it fails ([#11505](https://github.com/MetaMask/core/pull/11505))
+  - Add optional `traceContext` option to `simulateTransactions` to nest the simulation trace under a caller-provided parent context.
+- Add optional `accountHardwareType` to `SentinelMeta` for relay transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
+- Add `getFees`, `submitTransactions`, `cancel`, and `getBatchStatus` methods, with matching `SentinelApiService:*` actions, for smart-transaction fee quotes, submission, cancellation, and status lookup ([#11272](https://github.com/MetaMask/core/pull/11272))
+  - `getFees` quotes gas fees via `POST /v1/networks/{chainId}/getFees`. Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`. Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.
+  - `submitTransactions` submits signed smart transactions via `POST /v1/networks/{chainId}/submitTransactions`. Accepts a `SentinelSubmitTransactionsRequest` (`rawTxs`, optional `rawCancelTxs`, optional `rawTxsWithMetadata`) and returns a `SentinelSubmitTransactionsResponse` (`uuid`).
+  - `cancel` cancels a smart transaction via `POST /v1/networks/{chainId}/cancel`. Accepts a `SentinelCancelRequest` (`chainId`, `uuid`) and returns a `SentinelCancelResponse` (`uuid`, `affected`, `cancelled`).
+  - `getBatchStatus` looks up the status of several smart transactions via `GET /v1/networks/{chainId}/batchStatus`. Accepts a `SentinelBatchStatusRequest` (`chainId`, `uuids`) and returns a `SentinelBatchStatusResponse`, a record keyed by UUID whose values are `SentinelBatchedTransactionStatus`. Adds the `SentinelCancellationReason`, `SentinelMinedTxStatus`, and `SentinelOriginalTransactionStatus` enums for the closed-set status fields.
+  - None of these methods are cached. Each throws `SentinelChainNotSupportedError` when the chain is missing from the registry or does not enable `confirmations`. A non-2xx response throws `HttpError` with the response body on `data` when it is JSON.
 - Add optional `suggestFees.withRedeemerEnforcer` property to `SentinelSimulationRequest`, optional `balance` property to `SentinelStateOverrides`, and optional `sponsorship.sponsor` property to `SentinelSimulationResponse` ([#9476](https://github.com/MetaMask/core/pull/9476))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- `SentinelMeta.feature` now also accepts `SentinelProductFeature`, a new enum of product names (`Bridge`, `Card`, `dAppTransaction`, `Earn`, `Perp`, `Prediction`, `Ramp`, `Staking`, `Swap`) ([#11272](https://github.com/MetaMask/core/pull/11272))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Deprecated
+
+- Deprecate the `SentinelKind` enum and the `SentinelMeta.kind` and `SentinelMeta.wallet` properties, which Sentinel no longer takes in its metadata ([#11272](https://github.com/MetaMask/core/pull/11272))
+  - They will be removed in a future major version.
 
 ## [2.1.0]
 
@@ -60,7 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit ([#9466](https://github.com/MetaMask/core/pull/9466))
   - Supports `getNetworks`, `simulateTransactions`, `submitRelayTransaction`, and `getSmartTransaction`
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.3.0...HEAD
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.2.0...@metamask/sentinel-api-service@2.3.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...@metamask/sentinel-api-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.0.0...@metamask/sentinel-api-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.1...@metamask/sentinel-api-service@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.0...@metamask/sentinel-api-service@1.0.1
