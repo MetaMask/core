@@ -5,11 +5,11 @@ import type {
 
 import {
   SeedlessIdentityMismatchReason,
- 
   SeedlessOnboardingControllerErrorMessage,
-} from '../constants.js';
-import type { SeedlessIdentityMismatchSource,
   SeedlessOnboardingOperation,
+} from '../constants.js';
+import type {
+  SeedlessIdentityMismatchSource,
   SeedlessOperationLifecycle,
 } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';

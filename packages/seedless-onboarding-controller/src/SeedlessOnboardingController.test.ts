@@ -80,11 +80,7 @@ import {
   SeedlessOnboardingCheckpoint,
   PasswordSyncInstruction,
 } from './constants.js';
-import {
- 
-  RecoveryError,
-  SeedlessOnboardingError,
-} from './errors.js';
+import { RecoveryError, SeedlessOnboardingError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
   SeedlessOnboardingController,
@@ -7864,8 +7860,7 @@ describe('SeedlessOnboardingController', () => {
 
             // Simulate an identity change (e.g. clearState or a new
             // authenticate call) while the re-auth request is pending.
-            // `clearState` is synchronous, so no `await` is needed.
-            baseMessenger.call('SeedlessOnboardingController:clearState');
+            await baseMessenger.call('SeedlessOnboardingController:clearState');
             expect(controller.state.userId).toBeUndefined();
 
             resolveAuthenticate({
@@ -7913,7 +7908,7 @@ describe('SeedlessOnboardingController', () => {
 
             await expect(
               baseMessenger.call(
-                'SeedlessOnboardingController:checkIsPasswordOutdated',
+                'SeedlessOnboardingController:resolvePasswordSyncState',
                 { skipCache: true },
               ),
             ).rejects.toThrow(
@@ -8350,7 +8345,7 @@ describe('SeedlessOnboardingController', () => {
               // by the nested call's finally handler.
               nestedRefreshPromise = controller.refreshAuthTokens();
               return Promise.resolve({
-                idTokens: ['newIdToken'],
+                idTokens,
                 metadataAccessToken: 'mock-metadata-access-token',
                 accessToken,
               });
