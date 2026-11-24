@@ -237,6 +237,7 @@ export function createChartWidget(
       }
     }
 
+    applyPaneButtonsVisibility(widget, features);
     hideLoadingOverlay();
     installTradingViewExternalOpenBridge();
     postToRN('CHART_READY', {});
@@ -251,6 +252,28 @@ export function createChartWidget(
   });
 
   return widget;
+}
+
+/**
+ * Hides TradingView's per-pane toolbar (delete / maximize / move) unless the
+ * host opts out with `features.hidePaneButtons: false`. There is no featureset
+ * for these buttons; `paneButtonsVisibility()` is the documented API.
+ *
+ * @param widget - The TradingView widget instance.
+ * @param features - Host-supplied chart features config.
+ */
+function applyPaneButtonsVisibility(
+  widget: TVChartingLibraryWidget,
+  features: ChartFeaturesConfig,
+): void {
+  if (features.hidePaneButtons === false) {
+    return;
+  }
+  try {
+    widget.paneButtonsVisibility?.().setValue('alwaysOff');
+  } catch (error) {
+    reportErrorToRN(error);
+  }
 }
 
 function hideLoadingOverlay(): void {
