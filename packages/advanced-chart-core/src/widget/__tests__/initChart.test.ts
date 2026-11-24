@@ -329,6 +329,60 @@ describe('createChartWidget onChartReady', () => {
     mockWidgetInstance._onChartReadyCb?.();
     expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
   });
+
+  describe('pane buttons visibility', () => {
+    let setValue: Mock;
+
+    beforeEach(() => {
+      setValue = vi.fn();
+      mockWidgetInstance.paneButtonsVisibility = vi.fn(() => ({
+        value: vi.fn(),
+        setValue,
+      }));
+    });
+
+    it('hides pane buttons by default', () => {
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('hides pane buttons when hidePaneButtons is true', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: true } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('leaves pane buttons untouched when hidePaneButtons is false', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: false } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(mockWidgetInstance.paneButtonsVisibility).not.toHaveBeenCalled();
+      expect(setValue).not.toHaveBeenCalled();
+    });
+
+    it('reports errors from paneButtonsVisibility and still posts CHART_READY', () => {
+      setValue.mockImplementation(() => {
+        throw new Error('pane boom');
+      });
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
+
+    it('does not throw when the widget lacks paneButtonsVisibility', () => {
+      delete mockWidgetInstance.paneButtonsVisibility;
+      createChartWidget(baseConfig, { datafeed: {} });
+      expect(() => mockWidgetInstance._onChartReadyCb?.()).not.toThrow();
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
+  });
 });
 
 describe('scheduleChartLayoutSettledNotify', () => {
