@@ -5201,6 +5201,61 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('is a no-op when there is no lifecycle', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+
+      it.each([
+        SeedlessOnboardingCheckpoint.RemotePasswordPending,
+        SeedlessOnboardingCheckpoint.LocalStatePending,
+      ])('is a no-op when the checkpoint is %s', async (checkpoint) => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              passwordChangePhase: checkpoint,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(getLifecyclePhase(controller.state)).toBe(checkpoint);
+          },
+        );
+      });
+
+      it('is a no-op when LOCAL_PASSWORD_PENDING belongs to another operation', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.CreateNewAccount,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            });
+          },
+        );
+      });
+
       it('preserves a password-sync lifecycle operation', async () => {
         await withController(
           {

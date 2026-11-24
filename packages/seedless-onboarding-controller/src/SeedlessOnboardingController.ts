@@ -2132,26 +2132,26 @@ export class SeedlessOnboardingController<
    * Keyring encryption key to Seedless. The controller only records the
    * boundary; it does not perform or verify synchronization.
    *
+   * This only advances a lifecycle that is at `LOCAL_PASSWORD_PENDING`; in any
+   * other state it is a no-op.
+   *
    * @returns A promise that resolves once the checkpoint has been persisted.
    */
   async markPasswordChangeKeySyncPending(): Promise<void> {
     await this.#withControllerLock(async () => {
       const { seedlessOperationLifecycle } = this.state;
+      // Only advance from `LOCAL_PASSWORD_PENDING`. Any other lifecycle (or
+      // none) is a no-op, so a stray call cannot skip earlier checkpoints.
       if (
-        seedlessOperationLifecycle &&
+        seedlessOperationLifecycle?.checkpoint !==
+          SeedlessOnboardingCheckpoint.LocalPasswordPending ||
         !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
-      ) {
-        return;
-      }
-      if (
-        seedlessOperationLifecycle?.checkpoint ===
-        SeedlessOnboardingCheckpoint.KeySyncPending
       ) {
         return;
       }
       this.#writeSeedlessOperationLifecycle(
         SeedlessOnboardingCheckpoint.KeySyncPending,
-        seedlessOperationLifecycle?.operation,
+        seedlessOperationLifecycle.operation,
       );
     });
   }
