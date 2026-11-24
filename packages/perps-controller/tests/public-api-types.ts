@@ -1480,6 +1480,7 @@ export type CrossLiquidationContracts = [
         size: string;
         entryPrice: string;
         leverage: number;
+        feeAmountUsd?: number;
         providerId?: ImportedPerpsProviderType;
       }
     >

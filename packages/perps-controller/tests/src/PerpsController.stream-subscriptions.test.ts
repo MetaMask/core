@@ -99,10 +99,11 @@ describe('PerpsController stream subscriptions', () => {
    */
   const switchAccount = (address: string): void => {
     const base = messenger.call.getMockImplementation();
+    type CallArgs = Parameters<NonNullable<typeof base>>;
     messenger.call.mockImplementation(((action: string, ...args: unknown[]) =>
       action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
         ? [{ ...createMockEvmAccount(), address }]
-        : base?.(action as never, ...(args as never[]))) as NonNullable<
+        : base?.(...([action, ...args] as CallArgs))) as NonNullable<
       typeof base
     >);
     publish('AccountsController:selectedAccountChange');

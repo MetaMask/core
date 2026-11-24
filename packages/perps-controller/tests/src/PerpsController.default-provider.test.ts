@@ -51,6 +51,8 @@ import type {
   PerpsProvider,
   PerpsProviderHealth,
   PerpsProviderType,
+  SubscribeAvailableToTradeParams,
+  SubscribeTwapOrdersParams,
 } from '../../src/types/index.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
@@ -2350,8 +2352,13 @@ describe('PerpsController default provider', () => {
       it('does not reinterpret an explicit available-to-trade route on the replacement venue', async () => {
         const oldCleanup = vi.fn();
         lighterProvider.subscribeToAvailableToTrade = vi.fn(
-          ({ callback }: { callback: (value: unknown) => void }) => {
-            callback({ providerId: 'lighter', symbol: 'BTC', long: '1' });
+          ({ callback }: SubscribeAvailableToTradeParams) => {
+            callback({
+              providerId: 'lighter',
+              symbol: 'BTC',
+              long: '1',
+              short: '1',
+            });
             return oldCleanup;
           },
         );
@@ -2397,7 +2404,7 @@ describe('PerpsController default provider', () => {
       it('resets TWAP readers even when the replacement has no native stream', async () => {
         const oldCleanup = vi.fn();
         mockProvider.subscribeToTwapOrders = vi.fn(
-          ({ callback }: { callback: (orders: unknown[]) => void }) => {
+          ({ callback }: SubscribeTwapOrdersParams) => {
             callback([]);
             return oldCleanup;
           },
