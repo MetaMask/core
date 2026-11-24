@@ -84,6 +84,30 @@ function getPriceScale(): number {
 }
 
 /**
+ * Upper bound on the `countBack` we will honor for an RN-backed (Strategy B)
+ * backward pagination request.
+ *
+ * On a coarse→fine resolution switch (e.g. 1W→1m) TradingView inherits the
+ * previous interval's wide visible TIME range and sizes the first backward
+ * `getBars` `countBack` to fill that range at the new resolution — e.g. a
+ * ~1-year span at 1m resolves to ~550,000 bars. It then auto-fires successive
+ * `firstDataRequest:false` calls, each decremented by the bars we return,
+ * walking history back years and firing hundreds of host fetches (the
+ * "pagination storm"). The in-place resolution switch releases the visible-range
+ * pin before switching so TradingView preserves the visible bar count rather
+ * than the inherited span, which prevents this upstream; this clamp is a final
+ * backstop in case an over-large `countBack` still reaches the datafeed.
+ *
+ * A genuine user scroll-back only ever asks for roughly a viewport's worth of
+ * bars plus a buffer — orders of magnitude below this bound — so clamping here
+ * stops the inherited-range artifact without affecting real scroll-back. This
+ * is deliberately NOT applied to the first request (which returns in-memory
+ * bars above). Requests above this bound are clamped (not halted) so
+ * scroll-back still works but each individual RN fetch stays bounded.
+ */
+const MAX_RNBACKED_PAGINATION_COUNTBACK = 5_000;
+
+/**
  * Strips internal fields from an OHLCVBar to the shape TV expects.
  *
  * @param bar - The internal OHLCV bar.
@@ -180,16 +204,14 @@ export const customDatafeed: TVDatafeed = {
     try {
       const fromMs = periodParams.from * 1000;
       const toMs = periodParams.to * 1000;
-      const { countBack, firstDataRequest } = periodParams;
-
-      const bars = filterBarsForRange(fromMs, toMs, countBack);
+      const bars = filterBarsForRange(fromMs, toMs, periodParams.countBack);
       if (bars.length > 0) {
         onResult(bars, { noData: false });
         return;
       }
 
       const all = getOhlcvData();
-      if (firstDataRequest || all.length === 0) {
+      if (periodParams.firstDataRequest || all.length === 0) {
         onResult([], { noData: true });
         return;
       }
@@ -215,11 +237,19 @@ export const customDatafeed: TVDatafeed = {
           });
         // Strategy B (RN-backed / Perps):
       } else if (getRnBackedPagination().enabled) {
+        // Clamp the inherited-range pagination storm (see
+        // MAX_RNBACKED_PAGINATION_COUNTBACK). An over-threshold countBack is the
+        // post-resolution-switch artifact, never a real scroll-back, so clamp it
+        // to keep scroll-back functional while bounding each individual RN fetch.
+        const effectiveCountBack = Math.min(
+          periodParams.countBack,
+          MAX_RNBACKED_PAGINATION_COUNTBACK,
+        );
         requestOlderBarsFromRN({
           resolution,
           fromSec: periodParams.from,
           toSec: periodParams.to,
-          countBack: periodParams.countBack,
+          countBack: effectiveCountBack,
           onResult,
         });
       } else {
