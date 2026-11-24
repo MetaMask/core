@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "79.0.0",
+  "version": "79.0.1",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
