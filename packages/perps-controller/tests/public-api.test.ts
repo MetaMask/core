@@ -65,6 +65,9 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
+  PerpsControllerGetExchangeAccountStatusAction,
+  GetExchangeAccountStatusParams,
+  ExchangeAccountStatus,
   UpdatePositionTPSLParams,
   ReplacePositionTPSLLegParams,
   MarketInfo,
@@ -157,6 +160,17 @@ describe('@metamask/perps-controller public API', () => {
       reason: 'multi_sig_account',
     });
     expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the exchange account status method and messenger contract', () => {
+    const action: PerpsControllerGetExchangeAccountStatusAction['type'] =
+      'PerpsController:getExchangeAccountStatus';
+    const handler: (
+      params: GetExchangeAccountStatusParams,
+    ) => Promise<ExchangeAccountStatus> =
+      PerpsController.prototype.getExchangeAccountStatus;
+    expect(typeof handler).toBe('function');
+    expect(action).toBe('PerpsController:getExchangeAccountStatus');
   });
 
   it('exports the withdrawal route resolution method and action', () => {

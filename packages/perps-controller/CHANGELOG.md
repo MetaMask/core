@@ -10,10 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `PERPS_EVENT_VALUE.INTERACTION_TYPE.TRADE_ON_SHEET_OPENED` and `TRADE_ON_VENUE_CHANGED` for the Lite market page's per-order venue selector ([#11778](https://github.com/MetaMask/core/pull/11778))
+- Add `PerpsController:getExchangeAccountStatus` for read-only registration checks on an explicit venue. Export `GetExchangeAccountStatusParams`, `ExchangeAccountStatus`, `PerpsControllerGetExchangeAccountStatusAction`, and an optional provider hook. Lighter returns the master account index when registered; venues without a registration step return `{ registered: true }`. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ### Changed
 
 - Add the partner's permissioned `ignp` HIP-3 dex to `TESTNET_HIP3_CONFIG.EnabledDexs`, so testnet loads and trades `ignp:*` markets alongside `xyz` ([#11701](https://github.com/MetaMask/core/pull/11701))
+
+### Fixed
+
+- Resume existing Lighter account, position, fill and order subscriptions when a lookup discovers the account created by a first deposit, without reconnecting or prompting for a trading key. ([#11746](https://github.com/MetaMask/core/pull/11746))
 
 ## [26.2.0]
 

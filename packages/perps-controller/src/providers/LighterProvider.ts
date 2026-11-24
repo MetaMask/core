@@ -170,6 +170,8 @@ import type {
   PerpsOrderLimits,
   PerpsPricePrecision,
   GetAccountStateParams,
+  ExchangeAccountStatus,
+  GetExchangeAccountStatusParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarginModeLockParams,
@@ -238,7 +240,6 @@ import type {
   LighterRestTrade,
   LighterApiPosition,
   LighterSubAccount,
-  LighterAccountsByL1AddressResponse,
   LighterAccountSummary,
   LighterAuthConfig,
   LighterTxLookupResponse,
@@ -1934,7 +1935,8 @@ export class LighterProvider implements PerpsProvider {
   readonly #webSocketCtor: LighterWebSocketCtor | null;
 
   /** Channels the shared socket should be subscribed to (subscribe payloads). */
-  readonly #wsWantedChannels: Map<string, { auth?: string }> = new Map();
+  readonly #wsWantedChannels: Map<string, (() => Promise<string>) | undefined> =
+    new Map();
 
   #wsKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -2046,6 +2048,9 @@ export class LighterProvider implements PerpsProvider {
 
   /** Dedup for the async account-channel setup. */
   #accountChannelsPromise: Promise<void> | null = null;
+
+  // Only a settled absence (not a transport failure) is retried on discovery.
+  #accountChannelsAwaiting: 'account' | 'tradingKey' | null = null;
 
   /** Derived venue public key hex, set after the signer client is created. */
   #venuePublicKey: string | null = null;
@@ -2633,7 +2638,7 @@ export class LighterProvider implements PerpsProvider {
     if (this.#hasAccountSubscriber()) {
       // The promise was cleared by the teardown, so this re-resolves the
       // account channels against the newly bound address.
-      this.#ensureAccountChannels();
+      this.#ensureAccountChannels({ existingKeysOnly: true });
     }
     this.#ensureStream();
   };
@@ -2651,53 +2656,85 @@ export class LighterProvider implements PerpsProvider {
     if (this.#accountIndex !== null) {
       return this.#accountIndex;
     }
-    if (this.#configuredAccountIndex !== undefined) {
-      // A configured index must be a Standard (0-fee) account AND owned by
-      // the bound wallet address: a signed-in wallet must never read or
-      // trade another owner's account just because an env var names it.
-      const generationAtCheck = this.#sessionGeneration;
-      const configured = await this.#clientService.getAccountByIndex(
-        this.#configuredAccountIndex,
-      );
-      this.#ensureSessionBinding();
-      if (generationAtCheck !== this.#sessionGeneration) {
-        return await this.#ensureAccountIndex();
-      }
-      const configuredAccount = configured.accounts[0];
-      this.#assertStandardAccount(configuredAccount?.accountType);
-      this.#assertAccountOwnership(configuredAccount);
-      this.#accountIndex = this.#configuredAccountIndex;
-      return this.#accountIndex;
-    }
     const generation = this.#sessionGeneration;
     const address = this.#walletService.getUserAddress();
-    let response: LighterAccountsByL1AddressResponse;
+    const master = await this.#lookupMasterAccount(address);
+    this.#ensureSessionBinding();
+    if (generation !== this.#sessionGeneration) {
+      return await this.#ensureAccountIndex();
+    }
+    if (master === undefined && this.#configuredAccountIndex === undefined) {
+      throw new LighterAccountNotFoundError(address);
+    }
+    this.#assertStandardAccount(master?.accountType);
+    this.#assertAccountOwnership(master);
+    return this.#recordAccountIndex(master.index);
+  };
+
+  async #lookupMasterAccount(
+    address: string,
+  ): Promise<LighterAccountSummary | undefined> {
     try {
-      response = await this.#clientService.getAccountsByL1Address(address);
+      if (this.#configuredAccountIndex !== undefined) {
+        const response = await this.#clientService.getAccountByIndex(
+          this.#configuredAccountIndex,
+        );
+        return response.accounts[0];
+      }
+      const { subAccounts } =
+        await this.#clientService.getAccountsByL1Address(address);
+      if (subAccounts.length === 0) {
+        return undefined;
+      }
+      return subAccounts.reduce((master, account) =>
+        account.index < master.index ? account : master,
+      );
     } catch (error) {
       if (error instanceof LighterApiError && error.code === 21100) {
         throw new LighterAccountNotFoundError(address);
       }
       throw error;
     }
-    // Re-run the binding so an EXTERNAL switch nothing else observed also
-    // advances the generation, then compare: caching after any switch
-    // would poison the new session with the old account. Retry instead.
+  }
+
+  #recordAccountIndex(index: number): number {
+    this.#accountIndex = index;
+    this.#resumeAccountChannels();
+    return index;
+  }
+
+  /**
+   * Read-only registration check; never requests a wallet signature. After a
+   * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
+   * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
+   * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
+   *
+   * @param params - Lighter provider route.
+   * @returns Registration status and the registered wallet's master index.
+   */
+  async getExchangeAccountStatus(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    let accountIndex: number | null;
+    try {
+      accountIndex = await this.#ensureAccountIndex();
+    } catch (error) {
+      if (!(error instanceof LighterAccountNotFoundError)) {
+        throw error;
+      }
+      accountIndex = this.#accountIndex;
+    }
+    // Even a cached index or a delayed 21100 can belong to a wallet just left.
     this.#ensureSessionBinding();
     if (generation !== this.#sessionGeneration) {
-      return await this.#ensureAccountIndex();
+      return this.getExchangeAccountStatus(params);
     }
-    if (!response.subAccounts?.length) {
-      throw new LighterAccountNotFoundError(address);
-    }
-    const master = response.subAccounts.reduce((min, account) =>
-      account.index < min.index ? account : min,
-    );
-    this.#assertStandardAccount(master.accountType);
-    this.#assertAccountOwnership(master);
-    this.#accountIndex = master.index;
-    return this.#accountIndex;
-  };
+    return accountIndex === null
+      ? { registered: false }
+      : { registered: true, accountIndex };
+  }
 
   /**
    * Account index notify-perps watches for this wallet: the master (lowest)
@@ -2714,9 +2751,9 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param account - Venue account returned for the bound wallet.
    */
-  readonly #assertAccountOwnership = (
+  #assertAccountOwnership(
     account: LighterAccountSummary | undefined,
-  ): void => {
+  ): asserts account is LighterAccountSummary {
     if (
       account === undefined ||
       !Number.isSafeInteger(account.index) ||
@@ -2739,7 +2776,7 @@ export class LighterProvider implements PerpsProvider {
         `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} account is not owned by the selected wallet address`,
       );
     }
-  };
+  }
 
   /**
    * Local account identities recorded before any venue mutation.
@@ -2871,28 +2908,12 @@ export class LighterProvider implements PerpsProvider {
     }
     let account: LighterAccountSummary | undefined;
     try {
-      if (this.#configuredAccountIndex === undefined) {
-        const response = await this.#clientService.getAccountsByL1Address(
-          this.#walletService.getUserAddress(),
-        );
-        account = response.subAccounts.reduce<
-          LighterAccountSummary | undefined
-        >(
-          (selected, next) =>
-            selected === undefined || next.index < selected.index
-              ? next
-              : selected,
-          undefined,
-        );
-      } else {
-        const response = await this.#clientService.getAccountByIndex(
-          this.#configuredAccountIndex,
-        );
-        account = response.accounts[0];
-      }
+      account = await this.#lookupMasterAccount(
+        this.#walletService.getUserAddress(),
+      );
     } catch (error) {
       this.#assertSession(generation);
-      if (error instanceof LighterApiError && error.code === 21100) {
+      if (error instanceof LighterAccountNotFoundError) {
         return absent();
       }
       throw error;
@@ -2908,7 +2929,7 @@ export class LighterProvider implements PerpsProvider {
       );
     }
     if (account.accountType === 0) {
-      this.#accountIndex = account.index;
+      this.#recordAccountIndex(account.index);
     }
     return {
       accounts: [account.index],
@@ -4329,14 +4350,15 @@ export class LighterProvider implements PerpsProvider {
         const discover =
           bridge.getRecoverableKeyIndices?.bind(bridge) ??
           bridge.getStoredKeyIndices?.bind(bridge);
-        const discovered = discover
-          ? await discover({
-              chainId: getLighterChainId(this.#clientService.network),
-              accountIndex,
-              apiKeyIndices: requested,
-              walletAddress: address ?? undefined,
-            })
-          : [this.#preferredApiKeyIndex];
+        const discovered =
+          discover && requested.length > 0
+            ? await discover({
+                chainId: getLighterChainId(this.#clientService.network),
+                accountIndex,
+                apiKeyIndices: requested,
+                walletAddress: address ?? undefined,
+              })
+            : requested.filter((slot) => slot === this.#preferredApiKeyIndex);
         const local =
           requiredSlot === undefined
             ? [...new Set([this.#preferredApiKeyIndex, ...discovered])].filter(
@@ -7745,6 +7767,7 @@ export class LighterProvider implements PerpsProvider {
       if (ready) {
         this.#assertSession(generation);
         this.#readyApiKeyIndex = apiKeyIndex;
+        this.#resumeAccountChannels();
         this.#kickTpslRecovery();
         return;
       }
@@ -12370,7 +12393,7 @@ export class LighterProvider implements PerpsProvider {
     if (records.length === 0) {
       return [];
     }
-    const authority = await this.#getNativeProbeReadToken(
+    const authority = await this.#getRegisteredReadToken(
       accountIndex,
       generation,
     );
@@ -12422,7 +12445,7 @@ export class LighterProvider implements PerpsProvider {
     );
   }
 
-  async #getNativeProbeReadToken(
+  async #getRegisteredReadToken(
     accountIndex: number,
     generation: number,
   ): Promise<{ token: string; apiKeyIndex: number; publicKey: string }> {
@@ -12779,7 +12802,7 @@ export class LighterProvider implements PerpsProvider {
         ) {
           return;
         }
-        const { token } = await this.#getNativeProbeReadToken(
+        const { token } = await this.#getRegisteredReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -12882,7 +12905,7 @@ export class LighterProvider implements PerpsProvider {
         ) {
           throw new Error('Lighter Chase native market constraints changed');
         }
-        const { token } = await this.#getNativeProbeReadToken(
+        const { token } = await this.#getRegisteredReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -12970,7 +12993,7 @@ export class LighterProvider implements PerpsProvider {
       },
       cancel: async (child, hooks) => {
         assertSigning();
-        const { token } = await this.#getNativeProbeReadToken(
+        const { token } = await this.#getRegisteredReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -13052,7 +13075,7 @@ export class LighterProvider implements PerpsProvider {
           await reconcileDispatch(cancel, child, recordEvidence);
         }
 
-        const { token } = await this.#getNativeProbeReadToken(
+        const { token } = await this.#getRegisteredReadToken(
           intent.owner.accountIndex,
           generation,
         );
@@ -13938,7 +13961,7 @@ export class LighterProvider implements PerpsProvider {
       );
     }
     const record = owned[0];
-    const authority = await this.#getNativeProbeReadToken(
+    const authority = await this.#getRegisteredReadToken(
       accountIndex,
       generation,
     );
@@ -18859,12 +18882,31 @@ export class LighterProvider implements PerpsProvider {
     }
   };
 
+  #resumeAccountChannels(): void {
+    if (
+      !this.#isDisconnected &&
+      this.#hasAccountSubscriber() &&
+      !this.#accountChannelsPromise &&
+      ((this.#accountChannelsAwaiting === 'account' &&
+        this.#accountIndex !== null) ||
+        (this.#accountChannelsAwaiting === 'tradingKey' &&
+          this.#readyApiKeyIndex !== null))
+    ) {
+      this.#ensureAccountChannels({ existingKeysOnly: true });
+    }
+  }
+
   /**
    * Resolve the Lighter account index and request the account-scoped
    * channels. When the venue definitively reports no Lighter account,
    * account-scoped subscribers receive an empty emission.
+   *
+   * @param options - Automatic rebuilds must not initiate key registration.
+   * @param options.existingKeysOnly - Authenticate only with an existing key.
    */
-  readonly #ensureAccountChannels = (): void => {
+  readonly #ensureAccountChannels = (options?: {
+    existingKeysOnly: boolean;
+  }): void => {
     if (this.#isDisconnected) {
       return;
     }
@@ -18874,6 +18916,9 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     const generation = this.#sessionGeneration;
+    const existingKeysOnly =
+      options?.existingKeysOnly ?? this.#accountChannelsAwaiting !== null;
+    this.#accountChannelsAwaiting = null;
     let channelsRequested = false;
     // Auth setup crosses awaits before consulting this promise identity.
     let setupPromise: Promise<void> | undefined = undefined;
@@ -18897,14 +18942,40 @@ export class LighterProvider implements PerpsProvider {
         this.#requestChannel(`account_all_positions/${accountIndex}`);
         this.#requestChannel(`account_all_trades/${accountIndex}`);
         channelsRequested = true;
+        if (
+          existingKeysOnly &&
+          this.#orderSubscribers.size === 0 &&
+          this.#fillSubscribers.size === 0 &&
+          this.#readyApiKeyIndex === null
+        ) {
+          // A deposit screen needs only public frames. Leave authentication to
+          // a private listener or separately authorized trading session.
+          this.#accountChannelsAwaiting = 'tradingKey';
+          this.#accountChannelsPromise = null;
+          return;
+        }
         const channelAddress = this.#boundAddress;
         try {
-          const auth = await this.#getAuthToken();
+          // A deposit/status read must not turn an automatic stream rebuild
+          // into a wallet signature. Only explicit trading setup can create a key.
+          const getToken = existingKeysOnly
+            ? async (): Promise<string> =>
+                (
+                  await this.#getRegisteredReadToken(
+                    accountIndex,
+                    this.#sessionGeneration,
+                  )
+                ).token
+            : this.#getAuthToken;
+          const auth = await getToken();
           this.#assertSession(generation);
           if (this.#accountChannelsPromise !== setupPromise) {
             return;
           }
-          this.#requestChannel(`account_all_orders/${accountIndex}`, auth);
+          this.#requestChannel(`account_all_orders/${accountIndex}`, {
+            token: auth,
+            refresh: getToken,
+          });
         } catch (error) {
           this.#deps.debugLogger.log(
             '[LighterProvider] orders channel skipped (no auth token)',
@@ -18919,6 +18990,13 @@ export class LighterProvider implements PerpsProvider {
             channelAddress === this.#boundAddress &&
             this.#accountChannelsPromise === setupPromise
           ) {
+            if (
+              existingKeysOnly &&
+              error instanceof LighterRecoveryReadAuthorityError &&
+              this.#readyApiKeyIndex === null
+            ) {
+              this.#accountChannelsAwaiting = 'tradingKey';
+            }
             this.#notifySubscriptionError(ensureError(error));
           }
           // Setup failures are not authoritative empty order state. Account
@@ -18938,9 +19016,13 @@ export class LighterProvider implements PerpsProvider {
         this.#ensureSessionBinding();
         if (
           error instanceof LighterAccountNotFoundError &&
-          generation === this.#sessionGeneration
+          generation === this.#sessionGeneration &&
+          this.#accountChannelsPromise === setupPromise
         ) {
-          this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
+          this.#accountChannelsAwaiting = 'account';
+          if (this.#accountIndex === null) {
+            this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
+          }
         } else if (
           !this.#isDisconnected &&
           this.#boundAddress !== null &&
@@ -18967,6 +19049,8 @@ export class LighterProvider implements PerpsProvider {
           this.#accountChannelsPromise === setupPromise
         ) {
           this.#accountChannelsPromise = null;
+          // A concurrent lookup may have resolved before this setup settled.
+          this.#resumeAccountChannels();
         }
       })
       .catch(() => undefined);
@@ -19024,7 +19108,10 @@ export class LighterProvider implements PerpsProvider {
     return (subscribers?.size ?? 0) > 0;
   };
 
-  readonly #requestChannel = (channel: string, auth?: string): void => {
+  readonly #requestChannel = (
+    channel: string,
+    auth?: { token: string; refresh: () => Promise<string> },
+  ): void => {
     if (this.#isDisconnected) {
       return;
     }
@@ -19032,9 +19119,9 @@ export class LighterProvider implements PerpsProvider {
     if (this.#wsWantedChannels.has(channel)) {
       return;
     }
-    this.#wsWantedChannels.set(channel, { auth });
+    this.#wsWantedChannels.set(channel, auth?.refresh);
     if (this.#priceWs?.readyState === 1) {
-      this.#sendSubscribe(channel, auth);
+      this.#sendSubscribe(channel, auth?.token);
     }
     this.#logChannelCount('subscribed', channel);
   };
@@ -19168,6 +19255,7 @@ export class LighterProvider implements PerpsProvider {
   /** Forget the account channel setup and the account data it streamed. */
   readonly #resetAccountStreamState = (): void => {
     this.#accountChannelsPromise = null;
+    this.#accountChannelsAwaiting = null;
     this.#wsPositions.clear();
     this.#hasOrdersSnapshot = false;
     this.#wsFills = null;
@@ -19289,12 +19377,9 @@ export class LighterProvider implements PerpsProvider {
       this.#clearSocketDown();
       this.#setConnectionState(WebSocketConnectionState.Connected);
       this.#pruneUnwatchedChannels();
-      for (const [channel, meta] of this.#wsWantedChannels) {
-        if (meta.auth) {
-          // Auth tokens are short-lived; a reconnect after the deadline must
-          // re-mint instead of replaying the token captured at subscribe
-          // time. #getAuthToken reuses the cached token while it is fresh.
-          this.#getAuthToken()
+      for (const [channel, getToken] of this.#wsWantedChannels) {
+        if (getToken) {
+          getToken()
             .then((freshToken) => {
               // The async continuation may resolve after an account switch
               // replaced the socket or the channel set: never reinsert a
@@ -19302,11 +19387,10 @@ export class LighterProvider implements PerpsProvider {
               if (
                 this.#priceWs !== ws ||
                 generationAtOpen !== this.#sessionGeneration ||
-                !this.#wsWantedChannels.has(channel)
+                this.#wsWantedChannels.get(channel) !== getToken
               ) {
                 return;
               }
-              this.#wsWantedChannels.set(channel, { auth: freshToken });
               this.#sendSubscribe(channel, freshToken);
             })
             .catch((error) => {
@@ -19316,7 +19400,7 @@ export class LighterProvider implements PerpsProvider {
               );
             });
         } else {
-          this.#sendSubscribe(channel, meta.auth);
+          this.#sendSubscribe(channel);
         }
       }
       // The server closes idle sockets; any frame under 2 minutes keeps it up.

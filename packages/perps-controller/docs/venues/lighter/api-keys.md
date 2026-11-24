@@ -18,6 +18,12 @@ Key derivation, key storage and Mobile's env variables are in [metamask-mobile/d
 
 Code: `src/constants/lighterConfig.ts` `LIGHTER_DEFAULT_API_KEY_INDEX`, `LIGHTER_MIN_TRADING_API_KEY_INDEX`, `LIGHTER_MAX_TRADING_API_KEY_INDEX`; `src/types/index.ts` `LighterCredentials`; `src/providers/LighterProvider.ts` `#ensureAccountIndex`, `#assertStandardAccount`, `#assertAccountOwnership`.
 
+## Checking registration after a first deposit
+
+Call `PerpsController:getExchangeAccountStatus` with `{ providerId: 'lighter' }` to check the selected wallet without a signature. A first deposit can take 2–3 minutes to create the account: poll every few seconds during that window and stop once `registered` is true. A timeout does not confirm a failed deposit. A missing account is not cached; a venue or network error rejects rather than reporting an unregistered wallet. The returned `accountIndex` identifies the master account, not a trading-key slot.
+
+Keep the existing `subscribeToAccount` subscription for the balance, or read the Lighter entry in `getAccountState().providerStates` or `perpsBalances`. Discovery resumes account channels for existing listeners. The private orders channel requires a registered key; stream recovery never registers one on the user's behalf.
+
 ## Slot selection
 
 `#signerCandidates` builds the ordered list of slots to try.

@@ -87,6 +87,20 @@ export type PerpsControllerGetAccountSupportAction = {
 };
 
 /**
+ * Read-only registration check; never requests a wallet signature. After a
+ * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
+ * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
+ * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
+ *
+ * @param params - Explicit provider route.
+ * @returns Registration status and the account index when the venue has one.
+ */
+export type PerpsControllerGetExchangeAccountStatusAction = {
+  type: `PerpsController:getExchangeAccountStatus`;
+  handler: PerpsController['getExchangeAccountStatus'];
+};
+
+/**
  * Report the venue a withdrawal will sign on, using the same provider
  * resolution and the same refusal as `withdraw`.
  *
@@ -1897,6 +1911,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetAccountSupportAction
+  | PerpsControllerGetExchangeAccountStatusAction
   | PerpsControllerResolveWithdrawalRouteAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction

@@ -52,6 +52,8 @@ import type {
   Funding,
   GetAccountStateParams,
   GetAccountSupportParams,
+  GetExchangeAccountStatusParams,
+  ExchangeAccountStatus,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -572,6 +574,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return provider.getAccountSupport
       ? provider.getAccountSupport(params)
       : { isSupported: true };
+  }
+
+  /**
+   * @param params - Explicit venue to check, independent of the default route.
+   * @returns The venue's registration status.
+   */
+  async getExchangeAccountStatus(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus> {
+    const provider = this.#providers.get(params?.providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return provider.getExchangeAccountStatus
+      ? provider.getExchangeAccountStatus(params)
+      : { registered: true };
   }
 
   /**

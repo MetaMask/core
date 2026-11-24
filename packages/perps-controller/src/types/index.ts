@@ -3448,6 +3448,15 @@ export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Selects the venue whose registration should be checked. */
+export type GetExchangeAccountStatusParams = { providerId: PerpsProviderType };
+
+/** The selected wallet's venue registration and, when applicable, master index. */
+export type ExchangeAccountStatus = {
+  registered: boolean;
+  accountIndex?: number;
+};
+
 /**
  * Selects the provider route whose withdrawal destination should be resolved.
  * Accepts the same optional route `withdraw` accepts.
@@ -3487,6 +3496,17 @@ export type PerpsProvider = {
   getAccountSupport?(
     params?: GetAccountSupportParams,
   ): Promise<PerpsAccountSupport>;
+
+  /**
+   * Read-only registration check; never requests a wallet signature. After a
+   * first Lighter deposit, poll every few seconds for up to about 2–3 minutes,
+   * stopping once `registered` is true. Read the balance from `subscribeToAccount`,
+   * `getAccountState().providerStates.lighter`, or per-venue `perpsBalances`.
+   * Omit this hook for venues with no registration step.
+   */
+  getExchangeAccountStatus?(
+    params: GetExchangeAccountStatusParams,
+  ): Promise<ExchangeAccountStatus>;
 
   /**
    * Return order capabilities for the provider/market route. Providers may

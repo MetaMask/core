@@ -881,6 +881,18 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  it('defaults to registered for a venue without a registration hook, but rejects unknown venues', async () => {
+    await expect(
+      aggregatedProvider.getExchangeAccountStatus({
+        providerId: 'hyperliquid',
+      }),
+    ).resolves.toStrictEqual({ registered: true });
+    aggregatedProvider.removeProvider('lighter');
+    await expect(
+      aggregatedProvider.getExchangeAccountStatus({ providerId: 'lighter' }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+  });
+
   describe('Read Operations - getAccountSupport', () => {
     it('routes to the default provider', async () => {
       const unsupportedResult = {

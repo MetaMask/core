@@ -163,7 +163,7 @@ Code: `src/types/index.ts` `PerpsPlatformDependencies`, `PerpsCacheInvalidator`,
 
 ## Messenger surface
 
-- 139 method actions named `PerpsController:<method>`, generated into `PerpsController-method-action-types.ts` from `MESSENGER_EXPOSED_METHODS`, plus `PerpsController:getState`. Handlers are registered on the first `init()`, not in the constructor.
+- Method actions named `PerpsController:<method>` are generated into `PerpsController-method-action-types.ts` from `MESSENGER_EXPOSED_METHODS`, plus `PerpsController:getState`. Handlers are registered on the first `init()`, not in the constructor.
 - 3 own events: `stateChange`, `stateChanged` and `chaseOrderMaxDistanceReached`.
 - 16 allowed external actions and 3 allowed external events (`RemoteFeatureFlagController:stateChange`, `AccountsController:selectedAccountChange`, `AccountTreeController:selectedAccountGroupChange`).
 
