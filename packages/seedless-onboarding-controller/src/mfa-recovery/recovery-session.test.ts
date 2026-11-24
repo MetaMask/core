@@ -456,13 +456,32 @@ describe('recovery-session', () => {
         expect(setSession).not.toHaveBeenCalled();
       });
 
-      it('throws Aal2Required when there is no valid session', () => {
-        const { manager, clearSession } = createManager();
+      it('does nothing when there is no session', () => {
+        const { manager, setSession, clearSession, getSession } =
+          createManager();
 
-        expect(() => manager.markRecoveryShareExists()).toThrow(
-          SeedlessOnboardingControllerErrorMessage.Aal2Required,
+        manager.markRecoveryShareExists();
+
+        expect(setSession).not.toHaveBeenCalled();
+        expect(clearSession).not.toHaveBeenCalled();
+        expect(getSession()).toBeUndefined();
+      });
+
+      it('updates hasRecoveryShare without throwing when the session has expired', () => {
+        const { manager, setSession, clearSession, getSession } = createManager(
+          {
+            initialSession: createSession({
+              hasRecoveryShare: false,
+              expiresAt: NOW_SECONDS,
+            }),
+          },
         );
-        expect(clearSession).toHaveBeenCalledTimes(1);
+
+        manager.markRecoveryShareExists();
+
+        expect(clearSession).not.toHaveBeenCalled();
+        expect(setSession).toHaveBeenCalledTimes(1);
+        expect(getSession()?.hasRecoveryShare).toBe(true);
       });
     });
   });

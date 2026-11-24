@@ -244,8 +244,8 @@ export class RecoverySessionManager {
    * OPRF key is confirmed to exist on the recovery verifier.
    */
   markRecoveryShareExists(): void {
-    const recoverySession = this.require();
-    if (!recoverySession.hasRecoveryShare) {
+    const recoverySession = this.#getSession();
+    if (recoverySession && !recoverySession.hasRecoveryShare) {
       this.#setSession({ ...recoverySession, hasRecoveryShare: true });
     }
   }
