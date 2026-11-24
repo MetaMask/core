@@ -3,10 +3,23 @@ import type { Hex } from '@metamask/utils';
 /** The default `maxMessageAge` of the whitelist config: five minutes. */
 export const DEFAULT_MAX_MESSAGE_AGE = 5 * 60 * 1000;
 
+/**
+ * How far past `maxMessageAge` a Rewards claim proof's expiry may be, for
+ * clock skew between the Rewards backend, which sets the expiry, and the
+ * signer: one minute.
+ */
+export const CLAIM_PROOF_CLOCK_SKEW = 60 * 1000;
+
 export const ZERO_ADDRESS: Hex = '0x0000000000000000000000000000000000000000';
 
 /** `approve(address,uint256)` */
 export const ERC20_APPROVE_SELECTOR: Hex = '0x095ea7b3';
+
+/**
+ * `receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)`
+ * from EIP-3009, the overload Mobile's Rewards claim calls on mUSD.
+ */
+export const RECEIVE_WITH_AUTHORIZATION_SELECTOR: Hex = '0x88b7ab63';
 
 /** `deposit(address,uint256,uint256,address)` on the vault teller. */
 export const TELLER_DEPOSIT_SELECTOR: Hex = '0x8b6099db';

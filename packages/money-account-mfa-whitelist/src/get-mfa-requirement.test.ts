@@ -26,6 +26,7 @@ import {
   RECIPIENT,
   VAULT,
   buildApproveCall,
+  buildClaimCalls,
   buildDepositCalls,
   buildSingleUseDelegation,
   buildStandingDelegation,
@@ -753,6 +754,135 @@ describe('getMfaRequirement', () => {
         expect(
           evaluateMessage(buildCardSignInMessage(overrides)),
         ).toStrictEqual(mfaRequired('Sign-in message is expired or not fresh'));
+      });
+    });
+
+    describe('Rewards claim proof', () => {
+      /**
+       * Builds a claim proof challenge, as the Rewards backend's
+       * `buildChallengeMessage` does.
+       *
+       * @param overrides - Fields to override.
+       * @returns The message text.
+       */
+      function buildClaimProofMessage(
+        overrides: Partial<{
+          earningAddress: string;
+          amount: string;
+          payTo: string;
+          expires: string;
+        }> = {},
+      ): string {
+        const {
+          earningAddress = `eip155:${MONEY_ACCOUNT.toLowerCase()}`,
+          amount = '25000000',
+          payTo = MONEY_ACCOUNT,
+          expires = new Date(NOW + 5 * MINUTE).toISOString(),
+        } = overrides;
+        return [
+          'MetaMask Rewards - authorize a claim of mUSD earnings',
+          `Earning address: ${earningAddress}`,
+          `Amount: ${amount} mUSD base units`,
+          `Pay to: ${payTo}`,
+          'Claim intent: 2f2e7c4e-0d2e-4a6a-9a2e-1f0c9a6b7d31',
+          `Expires: ${expires}`,
+        ].join('\n');
+      }
+
+      it.each([
+        ['expires in five minutes', NOW + 5 * MINUTE],
+        ['expires within the clock skew allowance', NOW + 6 * MINUTE],
+        ['expires right now', NOW],
+      ])('whitelists a proof for the Money Account that %s', (_case, time) => {
+        expect(
+          evaluateMessage(
+            buildClaimProofMessage({ expires: new Date(time).toISOString() }),
+          ),
+        ).toStrictEqual(whitelistedAs('rewards-claim-proof'));
+      });
+
+      it('compares the addresses case-insensitively', () => {
+        expect(
+          evaluateMessage(
+            buildClaimProofMessage({
+              earningAddress: `eip155:${MONEY_ACCOUNT.toUpperCase().replace('0X', '0x')}`,
+              payTo: MONEY_ACCOUNT.toLowerCase(),
+            }),
+          ),
+        ).toStrictEqual(whitelistedAs('rewards-claim-proof'));
+      });
+
+      it.each([
+        [
+          'earned by another address',
+          { earningAddress: `eip155:${RECIPIENT}` },
+        ],
+        ['paying another address', { payTo: RECIPIENT }],
+      ])('requires MFA for a proof %s', (_case, overrides) => {
+        expect(
+          evaluateMessage(buildClaimProofMessage(overrides)),
+        ).toStrictEqual(
+          mfaRequired('Rewards claim proof is not for the Money Account'),
+        );
+      });
+
+      it.each([
+        ['already expired', NOW - 1],
+        ['expiring past the clock skew allowance', NOW + 6 * MINUTE + 1],
+      ])('requires MFA for a proof %s', (_case, time) => {
+        expect(
+          evaluateMessage(
+            buildClaimProofMessage({ expires: new Date(time).toISOString() }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Rewards claim proof is expired or expires too late'),
+        );
+      });
+
+      it('honours a configured maximum message age', () => {
+        expect(
+          evaluateMessage(buildClaimProofMessage(), {
+            ...CONFIG,
+            maxMessageAge: MINUTE,
+          }),
+        ).toStrictEqual(
+          mfaRequired('Rewards claim proof is expired or expires too late'),
+        );
+      });
+
+      it('requires MFA when the expiry is not an ISO timestamp', () => {
+        expect(
+          evaluateMessage(
+            buildClaimProofMessage({ expires: String(NOW + MINUTE) }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Rewards claim proof is expired or expires too late'),
+        );
+      });
+
+      it.each([
+        ['without the eip155 prefix', MONEY_ACCOUNT],
+        ['as a CAIP-10 account with a chain', `eip155:143:${MONEY_ACCOUNT}`],
+        ['in another namespace', `solana:${MONEY_ACCOUNT}`],
+      ])('requires MFA for an earning address %s', (_case, earningAddress) => {
+        expect(
+          evaluateMessage(buildClaimProofMessage({ earningAddress })),
+        ).toStrictEqual(
+          mfaRequired('Message does not match a whitelisted format'),
+        );
+      });
+
+      it.each([
+        ['a negative amount', buildClaimProofMessage({ amount: '-1' })],
+        ['extra content', `${buildClaimProofMessage()}\nand more`],
+        [
+          'a reordered field',
+          buildClaimProofMessage().split('\n').reverse().join('\n'),
+        ],
+      ])('requires MFA for a proof with %s', (_case, message) => {
+        expect(evaluateMessage(message)).toStrictEqual(
+          mfaRequired('Message does not match a whitelisted format'),
+        );
       });
     });
   });
@@ -1646,6 +1776,147 @@ describe('getMfaRequirement', () => {
 
         expect(await evaluateDelegation(delegation)).toStrictEqual(
           whitelistedAs('vault-deposit-delegation'),
+        );
+      });
+    });
+
+    describe('single-use Rewards claim delegations', () => {
+      it.each([
+        ['as individual calls', buildClaimCalls()],
+        ['as the account execute()', [wrapInExecute(buildClaimCalls())]],
+      ])('whitelists a claim pinned %s', async (_case, executions) => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(executions, {
+              mobileOrder: true,
+              deadline: 1_800_000_000,
+              redeemers: [RECIPIENT],
+            }),
+          ),
+        ).toStrictEqual(whitelistedAs('rewards-claim-delegation'));
+      });
+
+      it('whitelists a claim into the premium vault', async () => {
+        const [receive] = buildClaimCalls();
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation([
+              receive,
+              ...buildDepositCalls({ vault: PREMIUM_VAULT }),
+            ]),
+          ),
+        ).toStrictEqual(whitelistedAs('rewards-claim-delegation'));
+      });
+
+      it('compares the voucher recipient case-insensitively', async () => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(
+              buildClaimCalls({ to: MONEY_ACCOUNT.toLowerCase() as Hex }),
+            ),
+          ),
+        ).toStrictEqual(whitelistedAs('rewards-claim-delegation'));
+      });
+
+      it.each<[string, (calls: Execution[]) => Execution[]]>([
+        [
+          'the voucher pays another address',
+          (): Execution[] => buildClaimCalls({ to: RECIPIENT }),
+        ],
+        [
+          'the voucher is for less than the deposit',
+          (calls): Execution[] => [
+            buildClaimCalls({ amount: 999_999n })[0],
+            ...calls.slice(1),
+          ],
+        ],
+        [
+          'the voucher is for more than the deposit',
+          (calls): Execution[] => [
+            buildClaimCalls({ amount: 1_000_001n })[0],
+            ...calls.slice(1),
+          ],
+        ],
+        [
+          'the approval differs from the voucher and deposit',
+          (calls): Execution[] => [
+            calls[0],
+            buildDepositCalls({ amount: 2_000_000n })[0],
+            calls[2],
+          ],
+        ],
+        [
+          'the voucher is on another token',
+          (calls): Execution[] => [
+            { ...calls[0], target: VAULT.boringVault },
+            ...calls.slice(1),
+          ],
+        ],
+        [
+          'the voucher sends native value',
+          (calls): Execution[] => [
+            { ...calls[0], value: 1n },
+            ...calls.slice(1),
+          ],
+        ],
+        [
+          'the first call is not a voucher',
+          (calls): Execution[] => [buildWithdrawCalls()[1], ...calls.slice(1)],
+        ],
+        [
+          'the voucher calldata has trailing bytes',
+          (calls): Execution[] => [
+            { ...calls[0], callData: `${calls[0].callData}00` },
+            ...calls.slice(1),
+          ],
+        ],
+        [
+          'the voucher uses the v, r, s overload',
+          (calls): Execution[] => [
+            {
+              ...calls[0],
+              callData: `0xef55bec6${calls[0].callData.slice(10)}`,
+            },
+            ...calls.slice(1),
+          ],
+        ],
+        ['the deposit is missing', (calls): Execution[] => [calls[0]]],
+        [
+          'the approval is missing',
+          (calls): Execution[] => [calls[0], calls[2]],
+        ],
+        [
+          'the voucher comes after the deposit',
+          (calls): Execution[] => [calls[1], calls[2], calls[0]],
+        ],
+        [
+          'the voucher is repeated',
+          (calls): Execution[] => [calls[0], ...calls],
+        ],
+        [
+          'a transfer follows the deposit',
+          (calls): Execution[] => [...calls, buildWithdrawCalls()[1]],
+        ],
+        [
+          'the deposit is replaced by a withdrawal',
+          (calls): Execution[] => [calls[0], ...buildWithdrawCalls()],
+        ],
+      ])('requires MFA when %s', async (_case, modify) => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(modify(buildClaimCalls())),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Delegation executions are not a vault deposit'),
+        );
+      });
+
+      it('requires MFA for a claim the delegation allows more than once', async () => {
+        const delegation = buildSingleUseDelegation(buildClaimCalls());
+        delegation.caveats[0].terms = createLimitedCallsTerms({ limit: 2 });
+
+        expect(await evaluateDelegation(delegation)).toStrictEqual(
+          mfaRequired('Delegation is not limited to a single call'),
         );
       });
     });

@@ -1,6 +1,7 @@
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { CLAIM_PROOF_CLOCK_SKEW } from './constants.js';
 import type { MfaRequirement, MfaWhitelistConfig } from './types.js';
 import {
   decodeUtf8,
@@ -55,6 +56,22 @@ const CHOMP_SUCCESSOR_PATTERN = new RegExp(
     '- urn:chomp:profile:\\S+',
     '- urn:chomp:purpose:ASSOCIATE_SUCCESSOR',
     '- urn:chomp:predecessor:(?<resourcePredecessor>0x[0-9a-fA-F]{40})$',
+  ].join('\n'),
+  'u',
+);
+
+/**
+ * The Rewards backend's claim proof challenge, signed by the address that
+ * earned the rewards. The earning address is its `namespace:address` key.
+ */
+const REWARDS_CLAIM_PROOF_PATTERN = new RegExp(
+  [
+    '^MetaMask Rewards - authorize a claim of mUSD earnings',
+    'Earning address: eip155:(?<earningAddress>0x[0-9a-fA-F]{40})',
+    'Amount: \\d+ mUSD base units',
+    'Pay to: (?<payTo>0x[0-9a-fA-F]{40})',
+    'Claim intent: \\S+',
+    'Expires: (?<expires>\\S+)$',
   ].join('\n'),
   'u',
 );
@@ -188,11 +205,46 @@ function getChompSuccessorRequirement(
 }
 
 /**
+ * Checks the Rewards claim proof. It only proves the Money Account earned the
+ * rewards and asks for them to be paid to itself, so it can't move funds
+ * elsewhere.
+ *
+ * @param groups - The named groups of {@link REWARDS_CLAIM_PROOF_PATTERN}.
+ * @param context - The request context.
+ * @param context.address - The Money Account address.
+ * @param context.maxMessageAge - The maximum message age in milliseconds.
+ * @param context.now - The current time in milliseconds.
+ * @returns Whether MFA is required.
+ */
+function getRewardsClaimProofRequirement(
+  groups: Record<string, string>,
+  { address, maxMessageAge, now }: PersonalMessageContext,
+): MfaRequirement {
+  if (
+    !isSameHex(groups.earningAddress, address) ||
+    !isSameHex(groups.payTo, address)
+  ) {
+    return requireMfa('Rewards claim proof is not for the Money Account');
+  }
+
+  const expires = parseIsoTimestamp(groups.expires);
+  if (
+    expires === undefined ||
+    now > expires ||
+    expires - now > maxMessageAge + CLAIM_PROOF_CLOCK_SKEW
+  ) {
+    return requireMfa('Rewards claim proof is expired or expires too late');
+  }
+
+  return whitelisted('rewards-claim-proof');
+}
+
+/**
  * Determines whether a personal message requires MFA.
  *
  * Whitelisted are the CHOMP authentication message, the CHOMP successor
- * association message, the card provider sign-in message and the Rewards
- * binding message, each with a fresh timestamp. At worst, signing them without MFA lets someone tie the Money
+ * association message, the card provider sign-in message, the Rewards
+ * binding message and the Rewards claim proof, each with a fresh timestamp. At worst, signing them without MFA lets someone tie the Money
  * Account to another CHOMP profile or Rewards subscription, which can deny
  * service but not move funds.
  *
@@ -226,6 +278,11 @@ export function getPersonalMessageMfaRequirement(
     return isFresh(Number(rewards.timestamp), now, maxMessageAge)
       ? whitelisted('rewards-binding')
       : requireMfa('Rewards binding timestamp is not fresh');
+  }
+
+  const claimProof = REWARDS_CLAIM_PROOF_PATTERN.exec(text)?.groups;
+  if (claimProof) {
+    return getRewardsClaimProofRequirement(claimProof, context);
   }
 
   const chompSuccessor = CHOMP_SUCCESSOR_PATTERN.exec(text)?.groups;
