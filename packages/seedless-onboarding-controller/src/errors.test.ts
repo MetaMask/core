@@ -7,6 +7,7 @@ import { SecretType } from './constants.js';
 import {
   getErrorMessageFromTOPRFErrorCode,
   InvalidPrimarySecretDataTypeError,
+  isIdentityMismatchError,
   RecoveryError,
   SeedlessOnboardingError,
 } from './errors.js';
@@ -349,5 +350,26 @@ describe('SeedlessOnboardingError', () => {
       expect(error.stack).toBeDefined();
       expect(error.stack).toContain('SeedlessOnboardingControllerError');
     });
+  });
+});
+
+describe('isIdentityMismatchError', () => {
+  it('matches an identity mismatch error', () => {
+    const error = new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+    );
+
+    expect(isIdentityMismatchError(error)).toBe(true);
+  });
+
+  it('rejects other errors', () => {
+    expect(isIdentityMismatchError(new Error('other'))).toBe(false);
+    expect(
+      isIdentityMismatchError(
+        new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        ),
+      ),
+    ).toBe(false);
   });
 });

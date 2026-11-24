@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.23.0]
+
+### Added
+
+- Add optional `verified` to `ProfileIdentity` and `ProfileIdentityStruct` ([#11670](https://github.com/MetaMask/core/pull/11670))
+  - Every profile shape that carries the Profile API identity gets it: `ProfileSummary`, `FeedActorSummary`, `LeaderboardEntry` and `TraderProfile`, including realtime feed actors.
+  - Responses without it still validate. Treat a missing or `null` value as not verified.
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
@@ -454,7 +462,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.23.0...HEAD
+[3.23.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...@metamask/social-controllers@3.23.0
 [3.22.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...@metamask/social-controllers@3.22.0
 [3.21.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.20.0...@metamask/social-controllers@3.21.0
 [3.20.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...@metamask/social-controllers@3.20.0

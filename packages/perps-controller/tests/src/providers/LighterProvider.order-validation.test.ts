@@ -9,6 +9,7 @@ import type {
   Position,
 } from '../../../src/types/index.js';
 import type { LighterWasmCall } from '../../../src/types/lighter-types.js';
+import { calculateOrderBookSpread } from '../../../src/utils/orderBookGrouping.js';
 import {
   ACCOUNT,
   BTC_MARKET,
@@ -2418,6 +2419,17 @@ describe('LighterProvider', () => {
       expect(parseFloat(book.bids[1].totalNotional)).toBeCloseTo(
         45000 + 89990 * 1.5,
       );
+      // Spread fields come from the shared helper.
+      const top = calculateOrderBookSpread({
+        bestBid: '90000',
+        bestAsk: '90010',
+      });
+      expect(book).toMatchObject({
+        spread: String(top?.spread),
+        spreadPercentage: String(top?.spreadPercentage),
+        midPrice: String(top?.midPrice),
+      });
+      expect(book.spread).toBe('10');
       // Book-level scaling fields the UI depends on.
       expect(parseFloat(book.maxTotal)).toBeCloseTo(2.4);
       expect(typeof book.lastUpdated).toBe('number');
@@ -3748,6 +3760,15 @@ describe('LighterProvider', () => {
       ).rejects.toMatchObject({
         errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
       });
+      expect(
+        await provider.estimateCrossLiquidation({
+          symbol: 'BTC',
+          direction: 'long',
+          size: '1',
+          entryPrice: '100',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

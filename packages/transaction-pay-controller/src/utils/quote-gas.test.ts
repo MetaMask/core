@@ -13,7 +13,11 @@ import type {
 } from '../types.js';
 import { getFeatureFlags, getGasBuffer } from './feature-flags.js';
 import { estimateGasLimit } from './gas.js';
-import { estimateQuoteGasLimits, estimateSourceGas } from './quote-gas.js';
+import {
+  estimateQuoteGasLimits,
+  estimateSourceGas,
+  getSourceTransactions,
+} from './quote-gas.js';
 import type { QuoteGasTransaction } from './quote-gas.js';
 
 vi.mock(import('./feature-flags.js'), async (importOriginal) => ({
@@ -676,6 +680,65 @@ describe('quote gas estimation', () => {
       expect(batchMock.mock.calls[0][0].transactions[0]).toStrictEqual(
         expect.objectContaining({ data: '0x', gas: undefined, value: '0x0' }),
       );
+    });
+  });
+
+  describe('getSourceTransactions', () => {
+    const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+
+    const QUOTE_TRANSACTION_MOCK: QuoteGasTransaction = {
+      chainId: '0x89',
+      data: '0xbbbb',
+      from: FROM_MOCK,
+      to: '0x4444444444444444444444444444444444444444',
+      value: '0',
+    };
+
+    const TRANSACTION_MOCK = {
+      chainId: '0x89',
+      txParams: {
+        data: '0xaaaa',
+        from: FROM_MOCK,
+        gas: '0x5208',
+        to: '0x5555555555555555555555555555555555555555',
+        value: '0x1',
+      },
+    } as unknown as TransactionMeta;
+
+    const REQUEST_MOCK = {
+      from: FROM_MOCK,
+    } as unknown as QuoteRequest;
+
+    it('prepends the original transaction for post-quote flows', () => {
+      expect(
+        getSourceTransactions({
+          request: { ...REQUEST_MOCK, isPostQuote: true },
+          transaction: TRANSACTION_MOCK,
+          transactions: [QUOTE_TRANSACTION_MOCK],
+        }),
+      ).toStrictEqual([
+        {
+          chainId: '0x89',
+          data: '0xaaaa',
+          from: FROM_MOCK,
+          gas: '0x5208',
+          to: '0x5555555555555555555555555555555555555555',
+          value: '0x1',
+        },
+        QUOTE_TRANSACTION_MOCK,
+      ]);
+    });
+
+    it('returns only the quote transactions when not post-quote', () => {
+      const transactions = [QUOTE_TRANSACTION_MOCK];
+
+      expect(
+        getSourceTransactions({
+          request: REQUEST_MOCK,
+          transaction: TRANSACTION_MOCK,
+          transactions,
+        }),
+      ).toBe(transactions);
     });
   });
 });

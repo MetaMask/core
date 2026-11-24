@@ -58,6 +58,7 @@ Code: `src/utils/perpsFormatters.ts` `PRICE_RANGES_MINIMAL_VIEW`.
 | `formatFeeBps`                                  | `--`                                        | `0 bps`            |
 | `formatLiquidationDistance`                     | `--%`                                       |                    |
 | `formatCrossMarginRatio`                        | `--%`                                       | `0%`               |
+| `formatLeverage`                                | `--` (also for a negative value)            | `0x`               |
 | `formatPerpsCompact`                            | `$---` (`--` for `orderBookSize`)           | `$0.00` (`volume`) |
 | `formatPerpsOrderBookPrice`                     | `$---` (`--` with `symbol: false`)          |                    |
 | `formatPositionFunding`, `formatFundingPayment` | `$---`                                      |                    |
@@ -71,6 +72,7 @@ Code: `src/utils/perpsFormatters.ts` `_parseDisplayNumber`, `_signPrefix`, `Perp
 
 - Non-price values take `decimals` from `PERPS_DISPLAY_PRECISION`, for example `Pnl` 2, `RoePercent` 1, `FundingRatePercent` 4, `CrossMarginRatioPercent` 1.
 - `formatCrossMarginRatio` takes a ratio (`0.174` renders `17.4%`) and renders it with the locale's percent style; `decimals` is the most decimals shown, and trailing zeros are dropped (`0.63` renders `63%`), so the `%` placement follows the locale. `formatPercentage`, `formatFundingRate` and `formatLiquidationDistance` append a bare `%` to a fixed-decimal number.
+- `formatLeverage` shows at most `PERPS_DISPLAY_PRECISION.Leverage` (2) decimals and drops trailing zeros (`0.2x`, `1.21x`); `minimumFractionDigits` and `maximumFractionDigits` override that (`{ minimumFractionDigits: 2 }` renders `0.20x`).
 - Locale separators come from the `formatters` option, built by the client with `createFormatters({ locale })` from `@metamask/client-utils`. Without it the formatters use `en-US`.
 
 Code: `src/constants/perpsConfig.ts` `PERPS_DISPLAY_PRECISION`; `src/utils/perpsFormatters.ts` `PerpsIntlFormatters`, `PerpsDisplayFormatOptions`.

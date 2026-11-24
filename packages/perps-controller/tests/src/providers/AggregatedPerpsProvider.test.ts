@@ -138,6 +138,9 @@ const createMockProvider = (
     getMaxLeverage: vi.fn().mockResolvedValue(50),
     calculateFees: vi.fn().mockResolvedValue({ feeRate: 0.001 }),
     previewPositionModify: vi.fn().mockResolvedValue({ status: 'none' }),
+    estimateCrossLiquidation: vi
+      .fn()
+      .mockResolvedValue({ status: 'price', price: '45000' }),
 
     // Subscriptions
     subscribeToPrices: vi.fn().mockReturnValue(() => undefined),
@@ -3153,6 +3156,66 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.previewPositionModify).not.toHaveBeenCalled();
     });
 
+    describe('estimateCrossLiquidation', () => {
+      const order = {
+        symbol: 'BTC',
+        direction: 'long' as const,
+        size: '0.1',
+        entryPrice: '50000',
+        leverage: 10,
+      };
+
+      it('delegates to the default provider', async () => {
+        expect(
+          await aggregatedProvider.estimateCrossLiquidation(order),
+        ).toStrictEqual({ status: 'price', price: '45000' });
+        expect(mockHLProvider.estimateCrossLiquidation).toHaveBeenCalledWith(
+          order,
+        );
+      });
+
+      it('routes to an explicit provider', async () => {
+        const lighterEstimate = vi
+          .fn()
+          .mockResolvedValue({ status: 'unavailable', reason: 'provider' });
+        Object.assign(mockLighterProvider, {
+          estimateCrossLiquidation: lighterEstimate,
+        });
+        const params = { ...order, providerId: 'lighter' as const };
+
+        expect(
+          await aggregatedProvider.estimateCrossLiquidation(params),
+        ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+        expect(lighterEstimate).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.estimateCrossLiquidation).not.toHaveBeenCalled();
+      });
+
+      it('is unavailable for an unregistered route', async () => {
+        aggregatedProvider.removeProvider('lighter');
+
+        expect(
+          await aggregatedProvider.estimateCrossLiquidation({
+            ...order,
+            providerId: 'lighter',
+          }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      });
+
+      it('is unavailable for a provider without the estimate', async () => {
+        const { estimateCrossLiquidation: _omitted, ...withoutEstimate } =
+          mockHLProvider;
+        aggregatedProvider = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', withoutEstimate]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+
+        expect(
+          await aggregatedProvider.estimateCrossLiquidation(order),
+        ).toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      });
+    });
+
     it('accepts an ordinary fee request held as the routed parameter type', async () => {
       const params: FeeCalculationParams = {
         orderType: 'market',
@@ -3482,6 +3545,54 @@ describe('AggregatedPerpsProvider', () => {
       });
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
         '[AggregatedPerpsProvider] Margin mode lock unavailable',
+        { providerId: 'hyperliquid', error: 'offline' },
+      );
+    });
+  });
+
+  describe('Margin adjustment limits', () => {
+    it('gets the limits from the routed provider', async () => {
+      mockLighterProvider.getMarginAdjustmentLimits = vi
+        .fn()
+        .mockResolvedValue({
+          status: 'available',
+          maxAdd: '12.5',
+          maxRemove: '1',
+        });
+
+      await expect(
+        aggregatedProvider.getMarginAdjustmentLimits({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'available',
+        maxAdd: '12.5',
+        maxRemove: '1',
+      });
+      expect(
+        mockLighterProvider.getMarginAdjustmentLimits,
+      ).toHaveBeenCalledWith({ symbol: 'BTC', providerId: 'lighter' });
+    });
+
+    it('reports provider when the route has no limits hook', async () => {
+      mockHLProvider.getMarginAdjustmentLimits = undefined;
+
+      await expect(
+        aggregatedProvider.getMarginAdjustmentLimits({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({ status: 'unavailable', reason: 'provider' });
+    });
+
+    it('reports provider when the routed read throws', async () => {
+      mockHLProvider.getMarginAdjustmentLimits = vi
+        .fn()
+        .mockRejectedValue(new Error('offline'));
+
+      await expect(
+        aggregatedProvider.getMarginAdjustmentLimits({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({ status: 'unavailable', reason: 'provider' });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        '[AggregatedPerpsProvider] Margin adjustment limits unavailable',
         { providerId: 'hyperliquid', error: 'offline' },
       );
     });
@@ -4873,6 +4984,39 @@ describe('AggregatedPerpsProvider', () => {
 
       // Act & Assert
       await expect(testProvider.reconnect()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('getNotificationAccountIndex', () => {
+    it('delegates to the lighter provider', async () => {
+      const lighter = {
+        ...createMockProvider('lighter'),
+        getNotificationAccountIndex: vi.fn().mockResolvedValue(9828),
+      };
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', createMockProvider('hyperliquid')],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(provider.getNotificationAccountIndex()).resolves.toBe(9828);
+    });
+
+    it('throws when the lighter provider cannot enroll', async () => {
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', createMockProvider('hyperliquid')],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(provider.getNotificationAccountIndex()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
     });
   });
 });
