@@ -5488,6 +5488,24 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('setChargeRetryInProgress', () => {
+    it('sets and clears the charge retry in-progress flag', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call(
+          'SubscriptionController:setChargeRetryInProgress',
+          true,
+        );
+        expect(controller.state.isChargeRetryInProgress).toBe(true);
+
+        rootMessenger.call(
+          'SubscriptionController:setChargeRetryInProgress',
+          false,
+        );
+        expect(controller.state.isChargeRetryInProgress).toBe(false);
+      });
+    });
+  });
+
   describe('clearLastSelectedPaymentMethod', () => {
     it('should clear last selected payment method successfully', async () => {
       await withController(

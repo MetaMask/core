@@ -104,6 +104,11 @@ export type SubscriptionControllerState = {
   lastSelectedPaymentMethod?: Partial<
     Record<ProductType, CachedLastSelectedPaymentMethod>
   >;
+  /**
+   * Whether `SubscriptionDelegationService` is sending a stuck Money Account
+   * Plus charge and refreshing subscriptions afterwards.
+   */
+  isChargeRetryInProgress?: boolean;
 };
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
@@ -245,6 +250,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
+    isChargeRetryInProgress: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: true,
+      usedInUi: true,
+    },
   };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -267,6 +278,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getBillingPortalUrl',
   'cacheLastSelectedPaymentMethod',
   'clearLastSelectedPaymentMethod',
+  'setChargeRetryInProgress',
   'submitSponsorshipIntents',
   'submitUserEvent',
   'assignUserToCohort',
@@ -947,6 +959,18 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
         state.lastSelectedPaymentMethod = rest;
       }
+    });
+  }
+
+  /**
+   * Sets whether `SubscriptionDelegationService` is retrying a stuck Money
+   * Account Plus charge.
+   *
+   * @param isChargeRetryInProgress - Whether the charge retry is in progress.
+   */
+  setChargeRetryInProgress(isChargeRetryInProgress: boolean): void {
+    this.update((state) => {
+      state.isChargeRetryInProgress = isChargeRetryInProgress;
     });
   }
 

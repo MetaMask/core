@@ -24,6 +24,7 @@ export type {
   SubscriptionControllerGetBillingPortalUrlAction,
   SubscriptionControllerCacheLastSelectedPaymentMethodAction,
   SubscriptionControllerClearLastSelectedPaymentMethodAction,
+  SubscriptionControllerSetChargeRetryInProgressAction,
   SubscriptionControllerSubmitSponsorshipIntentsAction,
   SubscriptionControllerSubmitUserEventAction,
   SubscriptionControllerAssignUserToCohortAction,
@@ -141,6 +142,8 @@ export {
   selectPaymentFailureReason,
   selectIsRenewalNeeded,
   selectIsDelegationExhausted,
+  selectIsChargeRetryPending,
+  selectIsChargeRetryInProgress,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {

@@ -210,6 +210,17 @@ export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
 };
 
 /**
+ * Sets whether `SubscriptionDelegationService` is retrying a stuck Money
+ * Account Plus charge.
+ *
+ * @param isChargeRetryInProgress - Whether the charge retry is in progress.
+ */
+export type SubscriptionControllerSetChargeRetryInProgressAction = {
+  type: `SubscriptionController:setChargeRetryInProgress`;
+  handler: SubscriptionController['setChargeRetryInProgress'];
+};
+
+/**
  * Submit sponsorship intents to the Subscription Service backend.
  *
  * This is intended to be used together with the crypto subscription flow.
@@ -341,6 +352,7 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerCacheLastSelectedPaymentMethodAction
   | SubscriptionControllerClearLastSelectedPaymentMethodAction
+  | SubscriptionControllerSetChargeRetryInProgressAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
   | SubscriptionControllerSubmitUserEventAction
   | SubscriptionControllerAssignUserToCohortAction

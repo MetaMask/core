@@ -18,11 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/wallet` calls it through `Wallet.init()`. Clients that construct the service themselves must call it after all controllers and services exist, so a wallet that is already unlocked is still checked
 - Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `isSubscriptionChargeRetryable`, which reports whether a crypto subscription is stuck on a charge a funded Money Account can unblock ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add `selectIsChargeRetryPending` selector, which reports from `SubscriptionController` state whether `SubscriptionDelegationService` will retry a stuck Money Account Plus charge ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add optional, non-persisted `isChargeRetryInProgress` to `SubscriptionControllerState`, set through the new `SubscriptionController:setChargeRetryInProgress` action ([#11612](https://github.com/MetaMask/core/pull/11612))
+  - `SubscriptionDelegationService` sets it to `true` while it sends a stuck Money Account Plus charge and refreshes subscriptions, then back to `false`
+- Add `selectIsChargeRetryInProgress` selector, which returns `true` while `isChargeRetryInProgress` is set or the Money Account Plus crypto invoice is `PROCESSING` ([#11612](https://github.com/MetaMask/core/pull/11612))
 
 ### Changed
 
 - **BREAKING:** `SubscriptionDelegationServiceMessenger` requires new actions and events ([#11612](https://github.com/MetaMask/core/pull/11612))
-  - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod` actions
+  - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn`, `SubscriptionController:updatePaymentMethod` and `SubscriptionController:setChargeRetryInProgress` actions
   - Delegate the `AuthenticationController:stateChanged`, `KeyringController:unlock`, `SubscriptionController:stateChanged` and `TransactionController:transactionConfirmed` events
 - Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))

@@ -291,6 +291,7 @@ type Mocks = {
   getKeyringState: Mock;
   isSignedIn: Mock<() => boolean>;
   updatePaymentMethod: Mock;
+  setChargeRetryInProgress: Mock<(isInProgress: boolean) => void>;
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -374,6 +375,7 @@ function setup(
       .fn<() => boolean>()
       .mockReturnValue(options.isSignedIn ?? true),
     updatePaymentMethod: vi.fn().mockResolvedValue([]),
+    setChargeRetryInProgress: vi.fn<(isInProgress: boolean) => void>(),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
     if (options.intents !== undefined) {
@@ -451,6 +453,10 @@ function setup(
     | {
         type: 'SubscriptionController:updatePaymentMethod';
         handler: Mocks['updatePaymentMethod'];
+      }
+    | {
+        type: 'SubscriptionController:setChargeRetryInProgress';
+        handler: Mocks['setChargeRetryInProgress'];
       };
 
   const rootMessenger = new Messenger<
@@ -548,6 +554,10 @@ function setup(
     'SubscriptionController:updatePaymentMethod',
     mocks.updatePaymentMethod,
   );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:setChargeRetryInProgress',
+    mocks.setChargeRetryInProgress,
+  );
 
   const messenger: SubscriptionDelegationServiceMessenger = new Messenger({
     namespace: serviceName,
@@ -574,6 +584,7 @@ function setup(
       'KeyringController:getState',
       'AuthenticationController:isSignedIn',
       'SubscriptionController:updatePaymentMethod',
+      'SubscriptionController:setChargeRetryInProgress',
     ],
     events: [
       'AuthenticationController:stateChanged',
@@ -2418,6 +2429,55 @@ describe('SubscriptionDelegationService charge retry', () => {
   });
 
   describe('charge', () => {
+    it('flags the charge retry as in progress only while the charge is sent', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.updatePaymentMethod.mockImplementationOnce(async () => {
+        expect(mocks.setChargeRetryInProgress.mock.calls).toStrictEqual([
+          [true],
+        ]);
+        return [];
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.setChargeRetryInProgress.mock.calls).toStrictEqual([
+        [true],
+        [false],
+      ]);
+    });
+
+    it('clears the in-progress flag after a failed charge and its refresh', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+      mocks.updatePaymentMethod.mockRejectedValueOnce(new Error('400'));
+      mocks.getSubscriptions.mockImplementationOnce(async () => {
+        expect(mocks.setChargeRetryInProgress).toHaveBeenLastCalledWith(true);
+        return [];
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
+      expect(mocks.setChargeRetryInProgress).toHaveBeenLastCalledWith(false);
+    });
+
+    it('does not flag a retry while the balance is short', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(mocks.setChargeRetryInProgress).not.toHaveBeenCalled();
+    });
+
     it('logs a failed charge, refreshes subscriptions, and does not throw', async () => {
       const { rootMessenger, mocks } = setup({
         cachedSubscriptions: [buildStuckSubscription()],

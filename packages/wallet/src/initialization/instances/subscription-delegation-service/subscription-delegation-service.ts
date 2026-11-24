@@ -39,6 +39,7 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'KeyringController:getState',
         'AuthenticationController:isSignedIn',
         'SubscriptionController:updatePaymentMethod',
+        'SubscriptionController:setChargeRetryInProgress',
       ],
       events: [
         'TransactionController:transactionConfirmed',

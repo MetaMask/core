@@ -46,6 +46,7 @@ import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerIsUserEligibleForTrialAction,
+  SubscriptionControllerSetChargeRetryInProgressAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
   SubscriptionControllerUpdatePaymentMethodAction,
 } from '../SubscriptionController-method-action-types.js';
@@ -251,6 +252,7 @@ type AllowedActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
   | SubscriptionControllerIsUserEligibleForTrialAction
+  | SubscriptionControllerSetChargeRetryInProgressAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
   | SubscriptionControllerUpdatePaymentMethodAction;
 
@@ -499,6 +501,10 @@ export class SubscriptionDelegationService {
     }
 
     this.#clearChargeRetryTimer();
+    this.#messenger.call(
+      'SubscriptionController:setChargeRetryInProgress',
+      true,
+    );
     try {
       await this.#messenger.call('SubscriptionController:updatePaymentMethod', {
         paymentType: PAYMENT_TYPES.byCrypto,
@@ -519,6 +525,11 @@ export class SubscriptionDelegationService {
             refreshError,
           ),
         );
+    } finally {
+      this.#messenger.call(
+        'SubscriptionController:setChargeRetryInProgress',
+        false,
+      );
     }
     // Triggers queued during the charge, including its own refresh, saw
     // pre-charge state and would send the charge again.

@@ -1,9 +1,11 @@
 import { ACTIVE_SUBSCRIPTION_STATUSES } from './constants.js';
+import { isSubscriptionChargeRetryable } from './subscription-delegation/SubscriptionDelegationService.js';
 import type { SubscriptionControllerState } from './SubscriptionController.js';
 import {
   CRYPTO_PAYMENT_ERRORS,
   INVOICE_PAYMENT_STATUSES,
   PAYMENT_TYPES,
+  PRODUCT_TYPES,
 } from './types.js';
 import type {
   CryptoPaymentError,
@@ -175,5 +177,54 @@ export function selectIsDelegationExhausted(
   return (
     getPaymentExecutionError(state, productType) ===
     CRYPTO_PAYMENT_ERRORS.EXCEEDS_DELEGATION_ALLOWANCE
+  );
+}
+
+/**
+ * Returns whether `SubscriptionDelegationService` will retry the stuck Money
+ * Account Plus charge once the Money Account covers it.
+ *
+ * The retry only runs while the wallet is unlocked and signed in. Once the
+ * charge is sent, the latest invoice becomes `PROCESSING` and this returns
+ * `false`.
+ *
+ * @param state - The subscription controller state.
+ * @returns Whether a Money Account Plus charge retry is pending.
+ */
+export function selectIsChargeRetryPending(
+  state: SubscriptionControllerState,
+): boolean {
+  const subscription = getSubscriptionByProduct(
+    state,
+    PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+  );
+
+  return Boolean(
+    subscription &&
+    isSubscriptionChargeRetryable(subscription) &&
+    subscription.billingCycles !== undefined,
+  );
+}
+
+/**
+ * Returns whether a Money Account Plus charge is being retried: either
+ * `SubscriptionDelegationService` is sending the charge, or the Subscription
+ * API is collecting it (latest invoice `PROCESSING`).
+ *
+ * @param state - The subscription controller state.
+ * @returns Whether a Money Account Plus charge retry is in progress.
+ */
+export function selectIsChargeRetryInProgress(
+  state: SubscriptionControllerState,
+): boolean {
+  const subscription = getSubscriptionByProduct(
+    state,
+    PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+  );
+
+  return Boolean(
+    state.isChargeRetryInProgress ||
+    (subscription?.paymentMethod.type === PAYMENT_TYPES.byCrypto &&
+      subscription.lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING),
   );
 }

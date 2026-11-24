@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   selectHasEntitlement,
   selectIsActiveSubscriber,
+  selectIsChargeRetryInProgress,
+  selectIsChargeRetryPending,
   selectIsDelegationExhausted,
   selectIsPaymentFailed,
   selectIsRenewalNeeded,
@@ -473,6 +475,101 @@ describe('subscription selectors', () => {
       ).toBe(false);
       expect(
         selectIsDelegationExhausted(state, PRODUCT_TYPES.MONEY_ACCOUNT_PLUS),
+      ).toBe(false);
+    });
+  });
+
+  describe('selectIsChargeRetryPending', () => {
+    const stateWith = (
+      subscription: Subscription,
+    ): SubscriptionControllerState => ({
+      ...getDefaultSubscriptionControllerState(),
+      subscriptions: [MOCK_SHIELD_SUBSCRIPTION, subscription],
+    });
+
+    it('returns true for a Money Account Plus charge stuck on balance', () => {
+      expect(
+        selectIsChargeRetryPending(
+          stateWith({ ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION, billingCycles: 12 }),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false once the charge is processing', () => {
+      expect(
+        selectIsChargeRetryPending(
+          stateWith({
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            billingCycles: 12,
+            lastInvoice: {
+              id: 'in_money_account',
+              status: 'PROCESSING',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          }),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false without billing cycles or a Money Account Plus subscription', () => {
+      expect(
+        selectIsChargeRetryPending(stateWith(MOCK_MONEY_ACCOUNT_SUBSCRIPTION)),
+      ).toBe(false);
+      expect(
+        selectIsChargeRetryPending({
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [MOCK_SHIELD_SUBSCRIPTION],
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('selectIsChargeRetryInProgress', () => {
+    const processingSubscription: Subscription = {
+      ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+      lastInvoice: {
+        id: 'in_money_account',
+        status: 'PROCESSING',
+        updatedAt: '2026-09-20T12:00:00.000Z',
+      },
+    };
+
+    it('returns true while the service is sending the charge', () => {
+      expect(
+        selectIsChargeRetryInProgress({
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+          isChargeRetryInProgress: true,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns true while the Money Account Plus invoice is processing', () => {
+      expect(
+        selectIsChargeRetryInProgress({
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [processingSubscription],
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for a failed invoice or a processing card payment', () => {
+      expect(
+        selectIsChargeRetryInProgress({
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        }),
+      ).toBe(false);
+      expect(
+        selectIsChargeRetryInProgress({
+          ...getDefaultSubscriptionControllerState(),
+          subscriptions: [
+            {
+              ...processingSubscription,
+              paymentMethod: MOCK_SHIELD_SUBSCRIPTION.paymentMethod,
+            },
+          ],
+        }),
       ).toBe(false);
     });
   });

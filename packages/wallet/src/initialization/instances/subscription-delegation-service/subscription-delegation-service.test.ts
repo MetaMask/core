@@ -65,6 +65,7 @@ describe('subscriptionDelegationService', () => {
         'KeyringController:getState',
         'AuthenticationController:isSignedIn',
         'SubscriptionController:updatePaymentMethod',
+        'SubscriptionController:setChargeRetryInProgress',
       ],
       events: [
         'TransactionController:transactionConfirmed',
