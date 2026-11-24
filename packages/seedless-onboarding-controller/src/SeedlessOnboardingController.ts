@@ -2975,9 +2975,12 @@ export class SeedlessOnboardingController<
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);
         if (!this.#recoverySession.require().hasRecoveryShare) {
-          throw new SeedlessOnboardingError(
-            SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
-          );
+          if (!(await this.#fetchRecoveryAuthPubKey())) {
+            throw new SeedlessOnboardingError(
+              SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
+            );
+          }
+          this.#recoverySession.markRecoveryShareExists();
         }
 
         const { envelopeKeys } = await this.#recoverRecoverySecretEnvelopeKeys(

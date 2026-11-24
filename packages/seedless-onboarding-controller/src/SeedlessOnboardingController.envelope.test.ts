@@ -4579,8 +4579,49 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
           );
+          expect(network.spies.fetchAuthPubKey).toHaveBeenCalledWith(
+            RECOVERY_REQUEST,
+          );
           expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+          expect(controller.state.recoverySession?.hasRecoveryShare).toBe(
+            false,
+          );
           expect(controller.state.vault).toBeUndefined();
+        });
+      });
+
+      it('recovers and sets recoverySession.hasRecoveryShare to true when authenticateForRecovery returned false before another device migrated', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          expect(controller.state.recoverySession?.hasRecoveryShare).toBe(
+            false,
+          );
+
+          const secrets = await baseMessenger.call(
+            'SeedlessOnboardingController:recoverWithRecoverySecret',
+            { recoverySecret: RECOVERY_SECRET, password: RECOVERED_PASSWORD },
+          );
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(network.spies.fetchAuthPubKey).toHaveBeenCalledWith(
+            RECOVERY_REQUEST,
+          );
+          expect(controller.state.recoverySession?.hasRecoveryShare).toBe(true);
+          expect(controller.state.envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
         });
       });
 
