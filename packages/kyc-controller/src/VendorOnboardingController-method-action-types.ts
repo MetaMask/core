@@ -115,7 +115,7 @@ export type VendorOnboardingControllerStartSessionAction = {
  * @param params - The parameters.
  * @param params.vendor - The vendor.
  * @returns The email, or `undefined` when no token can be minted yet or it
- * carries none.
+ * carries no verified email.
  */
 export type VendorOnboardingControllerGetPartnerEmailAction = {
   type: `VendorOnboardingController:getPartnerEmail`;
