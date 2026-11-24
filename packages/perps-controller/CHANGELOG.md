@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Lighter orders are no longer reported to `https://perps.api.cx.metamask.io/api/v1/orders`, which only holds Hyperliquid orders ([#11690](https://github.com/MetaMask/core/pull/11690))
   - Clients must pass `notifyPerpsApi.baseUrl` to enroll Lighter accounts instead; until they do, Lighter orders make no notify-perps call
+- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#11706](https://github.com/MetaMask/core/pull/11706))
+  - Applies to attached TP/SL, standalone stop and take profit orders (market and limit), and `updatePositionTPSL`
+  - Bits 47 to 32 are `0xA5C3`, bit 31 is 0 for stop loss and 1 for take profit, and bits 30 to 0 are random
+  - Every other Lighter order redraws its random index when it would carry the `0xA5C3` prefix
 
 ## [26.0.0]
 
@@ -146,13 +150,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - Deprecate `ServiceContext.globalSnapshot` in favor of `globalSnapshots`, with one `GlobalSnapshotContext` per provider ([#11698](https://github.com/MetaMask/core/pull/11698))
-
-### Changed
-
-- Tag the client order index of Lighter stop loss and take profit orders so notify-perps can recognize their fills ([#11706](https://github.com/MetaMask/core/pull/11706))
-  - Applies to attached TP/SL, standalone stop and take profit orders (market and limit), and `updatePositionTPSL`
-  - Bits 47 to 32 are `0xA5C3`, bit 31 is 0 for stop loss and 1 for take profit, and bits 30 to 0 are random
-  - Every other Lighter order redraws its random index when it would carry the `0xA5C3` prefix
 
 ### Fixed
 
