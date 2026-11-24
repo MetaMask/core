@@ -322,7 +322,8 @@ export class VendorOnboardingController extends BaseController<
   }: {
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
-    return this.#readStep(vendor);
+    const { step } = await this.#readStepInfo(vendor);
+    return step;
   }
 
   /**
@@ -339,7 +340,10 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
     this.#write(params.vendor, { mfaCompleted: true });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -379,19 +383,27 @@ export class VendorOnboardingController extends BaseController<
             params.credentialReusabilityConsentGiven,
         },
       });
-      const info = await this.#readStepInfo('kalshi', { supersede: true });
-      if (info.sessionId) {
-        await this.#postPendingConsents('kalshi', info.sessionId);
-        return this.#readStep('kalshi', { supersede: true });
+      const { sessionId, step } = await this.#readStepInfo('kalshi', {
+        supersede: true,
+      });
+      if (sessionId) {
+        await this.#postPendingConsents('kalshi', sessionId);
+        const { step: refreshedStep } = await this.#readStepInfo('kalshi', {
+          supersede: true,
+        });
+        return refreshedStep;
       }
-      return info.step;
+      return step;
     }
     await this.messenger.call('KycService:acceptVendorTerms', {
       vendor: params.vendor,
       disclaimerIds: params.disclaimerIds,
       ...(params.country ? { country: params.country } : {}),
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -497,7 +509,8 @@ export class VendorOnboardingController extends BaseController<
     // opening a second one.
     this.#write(vendor, { mfaCompleted: false });
     await this.#postPendingConsents(vendor, session.id);
-    return this.#readStep(vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(vendor, { supersede: true });
+    return step;
   }
 
   /**
@@ -552,7 +565,8 @@ export class VendorOnboardingController extends BaseController<
         signedRequest: await this.#signKalshiLink(vendor, email),
       });
     }
-    return this.#readStep(vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(vendor, { supersede: true });
+    return step;
   }
 
   /**
@@ -620,7 +634,7 @@ export class VendorOnboardingController extends BaseController<
           pendingConsents: null,
         });
         // The rejection is what the caller needs to see, not a failed read.
-        await this.#readStep(vendor, { supersede: true }).catch(
+        await this.#readStepInfo(vendor, { supersede: true }).catch(
           () => undefined,
         );
       }
@@ -680,7 +694,10 @@ export class VendorOnboardingController extends BaseController<
       credentialReusabilityConsentGiven:
         params.credentialReusabilityConsentGiven,
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -758,7 +775,7 @@ export class VendorOnboardingController extends BaseController<
       }
       // The SDK result is not the decision. kyc-api and the relay decide, so
       // ask where the user is now rather than assuming.
-      await this.#readStep(params.vendor, { supersede: true });
+      await this.#readStepInfo(params.vendor, { supersede: true });
       return 'submitted';
     } catch {
       return 'failed';
@@ -783,7 +800,10 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       phoneNumber: params.phoneNumber,
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -804,7 +824,10 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       otp: params.code,
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -826,7 +849,10 @@ export class VendorOnboardingController extends BaseController<
         sessionId,
         otp: params.code,
       });
-      return this.#readStep(params.vendor, { supersede: true });
+      const { step } = await this.#readStepInfo(params.vendor, {
+        supersede: true,
+      });
+      return step;
     }
     // A signature lasts 60 seconds, so this is the last thing before the
     // call that carries it.
@@ -837,7 +863,10 @@ export class VendorOnboardingController extends BaseController<
       sessionId,
       signedRequest,
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -857,13 +886,19 @@ export class VendorOnboardingController extends BaseController<
     await this.#postPendingConsents(params.vendor, sessionId);
     if (params.vendor !== 'kalshi') {
       await this.messenger.call('KycService:sendEmailOtp', { sessionId });
-      return this.#readStep(params.vendor, { supersede: true });
+      const { step } = await this.#readStepInfo(params.vendor, {
+        supersede: true,
+      });
+      return step;
     }
     await this.messenger.call('KycService:sendEmailOtp', {
       sessionId,
       signedRequest: await this.#signKalshiLink(params.vendor, params.email),
     });
-    return this.#readStep(params.vendor, { supersede: true });
+    const { step } = await this.#readStepInfo(params.vendor, {
+      supersede: true,
+    });
+    return step;
   }
 
   /**
@@ -1034,31 +1069,14 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Asks kyc-api for the step and saves it.
+   * Asks kyc-api for the step, how verification is going and the vendor's
+   * session id, and saves the step and status. The session id is returned
+   * but not saved.
    *
    * A caller that only wants the current step (a screen opening, a poll)
    * joins a read already in flight. A caller that has just changed something
    * at kyc-api supersedes it: that read may have started before the change
    * and would answer with the old step.
-   *
-   * @param vendor - The vendor.
-   * @param options - The options.
-   * @param options.supersede - Whether to start a new read instead of joining
-   * one already in flight. Defaults to `false`.
-   * @returns The step.
-   */
-  async #readStep(
-    vendor: OnboardingVendor,
-    options: { supersede?: boolean } = {},
-  ): Promise<KycStep> {
-    return (await this.#readStepInfo(vendor, options)).step;
-  }
-
-  /**
-   * Asks kyc-api for the step, how verification is going and the vendor's
-   * session id, and saves the step and status. The session id is returned
-   * but not saved. A read joins one already in flight
-   * unless it supersedes it, as described for `#readStep`.
    *
    * @param vendor - The vendor.
    * @param options - The options.
