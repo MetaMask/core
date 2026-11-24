@@ -1,6 +1,15 @@
 # Guidance for AI agents
 
-See @README.md for information about this monorepo and how to work with it.
+Before making changes to code:
+
+- Always read the following:
+  - [Recommended development workflow](./getting-started/general-development-workflow.md)
+  - [General guidelines for all packages](./code-guidelines/package-guidelines.md)
+  - [Updating changelogs](./processes/updating-changelogs.md)
+- Read the following if it makes sense for your task:
+  - [Guidelines for writing controllers](./code-guidelines/controller-guidelines.md)
+  - [Guidelines for writing data services](./code-guidelines/data-services.md)
+- Lastly, look through `./docs/README.md` to look for other topics that are relevant to your task, and read them too.
 
 ## Cursor Cloud specific instructions
 
