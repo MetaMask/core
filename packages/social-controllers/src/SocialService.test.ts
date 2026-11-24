@@ -3762,6 +3762,24 @@ describe('SocialService', () => {
       );
     });
 
+    it('throws when a network is not a CAIP-2 chain id', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockSupportedNetworks,
+            partialSupport: ['not-a-chain-id'],
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchSupportedNetworks()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_SUPPORTED_NETWORKS_INVALID_RESPONSE,
+      );
+    });
+
     it('is callable via messenger action', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

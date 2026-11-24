@@ -13,6 +13,7 @@ import {
   type as structType,
   union,
 } from '@metamask/superstruct';
+import { CaipChainIdStruct } from '@metamask/utils';
 
 import {
   AuthorCommentStruct,
@@ -356,8 +357,8 @@ export const QuoteTokensResponseStruct = structType({
 });
 
 export const SupportedNetworksResponseStruct = structType({
-  fullSupport: array(string()),
-  partialSupport: array(string()),
+  fullSupport: array(CaipChainIdStruct),
+  partialSupport: array(CaipChainIdStruct),
 });
 
 /**
