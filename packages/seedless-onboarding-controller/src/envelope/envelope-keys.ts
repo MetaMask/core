@@ -61,7 +61,7 @@ export type Envelope = {
 };
 
 /** An envelope and the keys of the partition it is written to. */
-export type SealedEnvelope = {
+export type PackedEnvelope = {
   keys: EnvelopeKeys;
   envelope: Envelope;
 };
@@ -145,7 +145,7 @@ export function pubKeysEqual(
  * @param vaultKeySet - The vault key set to pack.
  * @returns The envelope.
  */
-export function sealEnvelope(
+export function packEnvelope(
   path: EnvelopePath,
   vaultKeySet: VaultKeySet,
 ): Envelope {
@@ -160,7 +160,7 @@ export function sealEnvelope(
 }
 
 /**
- * Open and validate an envelope: check the path, verify that the auth private
+ * Unpack and validate an envelope: check the path, verify that the auth private
  * key derives `vaultAuthPubKey`, and validate symmetric key byte lengths.
  *
  * @param envelope - The envelope.
@@ -168,7 +168,7 @@ export function sealEnvelope(
  * @returns The vault key set.
  * @throws `InvalidEnvelope` if the envelope is malformed or does not match.
  */
-export function openEnvelope(
+export function unpackEnvelope(
   envelope: Envelope,
   path: EnvelopePath,
 ): VaultKeySet {

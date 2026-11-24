@@ -17,7 +17,7 @@ import {
 } from '../../tests/mocks/envelopeKeys.js';
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import {
-  sealEnvelope,
+  packEnvelope,
   serializeControlRecord,
   serializeEnvelope,
 } from './envelope-keys.js';
@@ -104,7 +104,7 @@ describe('EnvelopeStore', () => {
   describe('envelopes', () => {
     it('adds an envelope to its partition', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = sealEnvelope('recovery-secret', vaultKeySet);
+      const envelope = packEnvelope('recovery-secret', vaultKeySet);
 
       await store.writeEnvelope(envelopeKeys, envelope);
 
@@ -118,9 +118,9 @@ describe('EnvelopeStore', () => {
 
     it('fetches the envelopes of a path, newest first', async () => {
       const { store, toprfClient } = createStore();
-      const older = sealEnvelope('password', createVaultKeySet(1));
-      const newer = sealEnvelope('password', createVaultKeySet(4));
-      const otherPath = sealEnvelope('recovery-secret', createVaultKeySet(7));
+      const older = packEnvelope('password', createVaultKeySet(1));
+      const newer = packEnvelope('password', createVaultKeySet(4));
+      const otherPath = packEnvelope('recovery-secret', createVaultKeySet(7));
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(newer), { createdAt: '2000' }),
         createItem(serializeEnvelope(older), { createdAt: '1000' }),
@@ -139,7 +139,7 @@ describe('EnvelopeStore', () => {
     it('orders items by ISO creation time, then by later position', async () => {
       const { store, toprfClient } = createStore();
       const [first, second, third] = [1, 4, 7].map((fill) =>
-        sealEnvelope('password', createVaultKeySet(fill)),
+        packEnvelope('password', createVaultKeySet(fill)),
       );
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(first)),
@@ -157,7 +157,7 @@ describe('EnvelopeStore', () => {
     it('treats an unparseable creation time as unknown', async () => {
       const { store, toprfClient } = createStore();
       const [first, second] = [1, 4].map((fill) =>
-        sealEnvelope('password', createVaultKeySet(fill)),
+        packEnvelope('password', createVaultKeySet(fill)),
       );
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(serializeEnvelope(first), { createdAt: 'not-a-date' }),
@@ -171,7 +171,7 @@ describe('EnvelopeStore', () => {
 
     it('skips items of other types and malformed envelopes', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = sealEnvelope('password', vaultKeySet);
+      const envelope = packEnvelope('password', vaultKeySet);
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(stringToBytes('x'), {
           dataType: EncAccountDataType.PrimarySrp,
@@ -191,7 +191,7 @@ describe('EnvelopeStore', () => {
         createItem(stringToBytes('garbage')),
         createItem(
           stringToBytes(
-            JSON.stringify({ ...sealEnvelope('password', vaultKeySet), v: 2 }),
+            JSON.stringify({ ...packEnvelope('password', vaultKeySet), v: 2 }),
           ),
         ),
       ]);
@@ -271,7 +271,7 @@ describe('EnvelopeStore', () => {
 
     it('fetches control records from the vault partition, ignoring secret and envelope items', async () => {
       const { store, toprfClient } = createStore();
-      const envelope = sealEnvelope('password', vaultKeySet);
+      const envelope = packEnvelope('password', vaultKeySet);
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         createItem(stringToBytes('srp'), {
           dataType: EncAccountDataType.PrimarySrp,
@@ -326,7 +326,7 @@ describe('EnvelopeStore', () => {
       const legacyItem = createItem(stringToBytes('legacy'), {
         dataType: undefined,
       });
-      const envelope = sealEnvelope('password', vaultKeySet);
+      const envelope = packEnvelope('password', vaultKeySet);
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([
         secretItem,
         createItem(serializeControlRecord(createRecord(1)), {

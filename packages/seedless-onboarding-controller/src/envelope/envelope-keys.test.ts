@@ -13,15 +13,15 @@ import {
   derivePubKey,
   getPasswordNamespaceAuthKeyPair,
   nextControlSeq,
-  openEnvelope,
+  packEnvelope,
   parseControlRecord,
   parseEnvelope,
   pubKeysEqual,
-  sealEnvelope,
   selectControlRecord,
   serializeControlRecord,
   serializeEnvelope,
   toControlRecord,
+  unpackEnvelope,
 } from './envelope-keys.js';
 import type { ControlRecord, VaultKeySet } from './envelope-keys.js';
 
@@ -62,11 +62,11 @@ const INVALID_ENVELOPE =
   SeedlessOnboardingControllerErrorMessage.InvalidEnvelope;
 
 describe('envelope keys', () => {
-  describe('sealEnvelope / openEnvelope', () => {
+  describe('packEnvelope / unpackEnvelope', () => {
     it('round-trips the vault key set', () => {
       const vaultKeySet = createVaultKeySet();
 
-      const envelope = sealEnvelope('password', vaultKeySet);
+      const envelope = packEnvelope('password', vaultKeySet);
 
       expect(envelope).toStrictEqual({
         v: 1,
@@ -76,22 +76,22 @@ describe('envelope keys', () => {
         encKey: bytesToBase64(vaultKeySet.encKey),
         localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
       });
-      expect(openEnvelope(envelope, 'password')).toStrictEqual(vaultKeySet);
+      expect(unpackEnvelope(envelope, 'password')).toStrictEqual(vaultKeySet);
     });
 
     it('rejects an envelope opened on the other path', () => {
-      const envelope = sealEnvelope('recovery-secret', createVaultKeySet());
+      const envelope = packEnvelope('recovery-secret', createVaultKeySet());
 
-      expect(() => openEnvelope(envelope, 'password')).toThrow(
+      expect(() => unpackEnvelope(envelope, 'password')).toThrow(
         INVALID_ENVELOPE,
       );
     });
 
     it('rejects an envelope whose vaultAuthPubKey does not match authSk', () => {
-      const envelope = sealEnvelope('password', createVaultKeySet());
+      const envelope = packEnvelope('password', createVaultKeySet());
 
       expect(() =>
-        openEnvelope(
+        unpackEnvelope(
           {
             ...envelope,
             vaultAuthPubKey: bytesToHex(createVaultKeySet(7).authKeyPair.pk),
@@ -103,7 +103,7 @@ describe('envelope keys', () => {
 
     it('rejects a forged key set whose pk does not match sk', () => {
       const other = createVaultKeySet(7);
-      const forged = sealEnvelope('password', {
+      const forged = packEnvelope('password', {
         ...other,
         authKeyPair: {
           sk: other.authKeyPair.sk,
@@ -111,7 +111,9 @@ describe('envelope keys', () => {
         },
       });
 
-      expect(() => openEnvelope(forged, 'password')).toThrow(INVALID_ENVELOPE);
+      expect(() => unpackEnvelope(forged, 'password')).toThrow(
+        INVALID_ENVELOPE,
+      );
     });
 
     it.each([
@@ -128,17 +130,17 @@ describe('envelope keys', () => {
       ],
       ['invalid base64 in encKey', { encKey: 'not!base64!' }],
     ])('rejects an envelope with %s', (_name, overrides) => {
-      const envelope = sealEnvelope('password', createVaultKeySet());
+      const envelope = packEnvelope('password', createVaultKeySet());
 
       expect(() =>
-        openEnvelope({ ...envelope, ...overrides }, 'password'),
+        unpackEnvelope({ ...envelope, ...overrides }, 'password'),
       ).toThrow(INVALID_ENVELOPE);
     });
   });
 
   describe('serializeEnvelope / parseEnvelope', () => {
     it('round-trips an envelope', () => {
-      const envelope = sealEnvelope('recovery-secret', createVaultKeySet());
+      const envelope = packEnvelope('recovery-secret', createVaultKeySet());
 
       expect(parseEnvelope(serializeEnvelope(envelope))).toStrictEqual(
         envelope,

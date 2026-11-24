@@ -45,15 +45,15 @@ import {
 import {
   getPasswordNamespaceAuthKeyPair,
   nextControlSeq,
-  openEnvelope,
+  packEnvelope,
   pubKeysEqual,
-  sealEnvelope,
   selectControlRecord,
+  unpackEnvelope,
 } from './envelope/envelope-keys.js';
 import type {
   ControlRecord,
   Envelope,
-  SealedEnvelope,
+  PackedEnvelope,
   VaultKeySet,
 } from './envelope/envelope-keys.js';
 import { EnvelopeStore } from './envelope/EnvelopeStore.js';
@@ -167,21 +167,21 @@ function createEnvelopeState(
 }
 
 /**
- * Seal the vault key set for an envelope partition.
+ * Pack the vault key set for an envelope partition.
  *
  * @param keys - The envelope keys of the partition.
  * @param path - The path the keys were derived on.
  * @param vaultKeySet - The vault key set.
  * @returns The envelope and its partition keys.
  */
-function sealFor(
+function packFor(
   keys: EnvelopeKeys,
   path: Envelope['path'],
   vaultKeySet: VaultKeySet,
-): SealedEnvelope {
+): PackedEnvelope {
   return {
     keys,
-    envelope: sealEnvelope(path, vaultKeySet),
+    envelope: packEnvelope(path, vaultKeySet),
   };
 }
 
@@ -1023,7 +1023,7 @@ export class SeedlessOnboardingController<
       await this.toprfClient.createLocalKey({ password: newPassword });
     // the controller only needs the envelope keys, so the seed is not kept
     seed.fill(0);
-    const sealed = sealFor(envelopeKeys, 'password', vaultKeySet);
+    const packed = packFor(envelopeKeys, 'password', vaultKeySet);
 
     await this.#withMetadataLock(vaultKeySet.authKeyPair, async (lockId) => {
       await this.#assertGlobalAuthPubKeyUnchanged(globalAuthPubKey);
@@ -1049,7 +1049,7 @@ export class SeedlessOnboardingController<
         },
       };
 
-      await this.#writeAndVerifyEnvelope(sealed);
+      await this.#writeAndVerifyEnvelope(packed);
       await this.#envelopeStore.writeControlRecord(
         vaultKeySet,
         nextControlRecord,
@@ -3338,7 +3338,7 @@ export class SeedlessOnboardingController<
       return;
     }
     await this.#writeAndVerifyEnvelope(
-      sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+      packFor(envelopeKeys, 'recovery-secret', vaultKeySet),
     );
   }
 
@@ -3363,7 +3363,7 @@ export class SeedlessOnboardingController<
     // the controller only needs the envelope keys, so the seed is not kept
     seed.fill(0);
     await this.#writeAndVerifyEnvelope(
-      sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+      packFor(envelopeKeys, 'recovery-secret', vaultKeySet),
     );
     if (!(await this.#registerRecoverySecretKey(oprfKey, authKeyPair.pk))) {
       await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
@@ -3437,7 +3437,7 @@ export class SeedlessOnboardingController<
     }
     for (const envelope of envelopes) {
       try {
-        return openEnvelope(envelope, path);
+        return unpackEnvelope(envelope, path);
       } catch (error) {
         log('Ignoring envelope that does not open', error);
       }
@@ -3470,7 +3470,7 @@ export class SeedlessOnboardingController<
     const vaultKeySets: VaultKeySet[] = [];
     for (const envelope of envelopes) {
       try {
-        const vaultKeySet = openEnvelope(envelope, path);
+        const vaultKeySet = unpackEnvelope(envelope, path);
         const keyId = bytesToHex(vaultKeySet.authKeyPair.pk);
         if (!seen.has(keyId)) {
           seen.add(keyId);
@@ -3539,13 +3539,13 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Write an envelope, then read it back and check that it opens (I1).
+   * Write an envelope, then read it back and check that it unpacks (I1).
    *
-   * @param sealed - The envelope and its partition keys.
+   * @param packed - The envelope and its partition keys.
    * @throws `InvalidEnvelope` if the envelope does not read back.
    */
-  async #writeAndVerifyEnvelope(sealed: SealedEnvelope): Promise<void> {
-    const { keys, envelope } = sealed;
+  async #writeAndVerifyEnvelope(packed: PackedEnvelope): Promise<void> {
+    const { keys, envelope } = packed;
     await this.#envelopeStore.writeEnvelope(keys, envelope);
     const stored = (
       await this.#envelopeStore.fetchEnvelopes(keys, envelope.path)
@@ -3561,7 +3561,7 @@ export class SeedlessOnboardingController<
         SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
       );
     }
-    openEnvelope(stored, envelope.path);
+    unpackEnvelope(stored, envelope.path);
   }
 
   /**
