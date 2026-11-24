@@ -80,20 +80,23 @@ const SIGNED_VERIFY = signedRequest(
 const AAL2_TOKEN = 'aal2-token';
 
 /**
- * A partner identity token that carries a verified email, as MetaMask Auth
- * mints one.
+ * A partner identity token that carries an email, as MetaMask Auth mints one.
  *
  * @param email - The `ext.email` claim.
+ * @param emailVerified - The `ext.email_verified` claim. Defaults to `true`.
  * @returns The token.
  */
-function partnerTokenFor(email: string): string {
+function partnerTokenFor(email: string, emailVerified = true): string {
   const encode = (value: object): string =>
     Buffer.from(JSON.stringify(value)).toString('base64url');
   return `${encode({ alg: 'RS256' })}.${encode({
     aud: ['kalshi'],
-    ext: { email, email_verified: true },
+    ext: { email, email_verified: emailVerified },
   })}.signature`;
 }
+
+/** The partner identity token minted for the Kalshi email by default. */
+const PARTNER_TOKEN = partnerTokenFor(KALSHI_EMAIL);
 
 /**
  * What kyc-api answers with for a Kalshi user whose session already exists.
@@ -1018,7 +1021,7 @@ describe('VendorOnboardingController', () => {
           residenceCountry: 'USA',
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          partnerIdentityToken: 'partner-token',
+          partnerIdentityToken: PARTNER_TOKEN,
           signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
         expect(handlers.setAuthorizations).toHaveBeenCalledWith({
@@ -1145,6 +1148,59 @@ describe('VendorOnboardingController', () => {
       );
     });
 
+    it.each([
+      ['is not a JWT', 'partner-token'],
+      ['has no email', partnerTokenFor('')],
+      [
+        'has an email that is not verified',
+        partnerTokenFor(KALSHI_EMAIL, false),
+      ],
+    ])(
+      'refuses to open a Kalshi session when the token %s, and signs nothing',
+      async (_label, token) => {
+        const signer: KalshiRequestSigner = vi.fn();
+        await withController(
+          { options: { kalshiRequestSigner: signer } },
+          async ({ controller, handlers }) => {
+            handlers.getPartnerIdentityToken.mockResolvedValue(token);
+
+            await expect(
+              controller.startSession({
+                vendor: 'kalshi',
+                aal2Token: AAL2_TOKEN,
+                email: KALSHI_EMAIL,
+              }),
+            ).rejects.toThrow(
+              'VendorOnboardingController: the partner identity token has no verified MetaMask email.',
+            );
+
+            expect(signer).not.toHaveBeenCalled();
+            expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('refuses to send a code when the token has no verified email, and signs nothing', async () => {
+      const signer: KalshiRequestSigner = vi.fn();
+      await withController(
+        { options: { kalshiRequestSigner: signer } },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue(KALSHI_SESSION_STEP);
+          handlers.getPartnerIdentityToken.mockResolvedValue(
+            partnerTokenFor(KALSHI_EMAIL, false),
+          );
+
+          await expect(
+            controller.sendEmailOtp({ vendor: 'kalshi', email: KALSHI_EMAIL }),
+          ).rejects.toThrow('has no verified MetaMask email');
+
+          expect(signer).not.toHaveBeenCalled();
+          expect(handlers.sendEmailOtp).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('signs after every other call that comes before session creation', async () => {
       const order: string[] = [];
       const signer: KalshiRequestSigner = async ({ requests }) => {
@@ -1220,7 +1276,7 @@ describe('VendorOnboardingController', () => {
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             vendor: 'kalshi',
-            partnerIdentityToken: 'partner-token',
+            partnerIdentityToken: PARTNER_TOKEN,
           }),
         );
       });
@@ -1259,7 +1315,7 @@ describe('VendorOnboardingController', () => {
           'iron',
         );
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
-          expect.objectContaining({ partnerIdentityToken: 'partner-token' }),
+          expect.objectContaining({ partnerIdentityToken: PARTNER_TOKEN }),
         );
       });
     });
@@ -1388,6 +1444,10 @@ describe('VendorOnboardingController', () => {
       ['is not a JWT', 'partner-token'],
       ['has a payload that is not JSON', 'header.bm90IGpzb24.sig'],
       ['has an empty email', partnerTokenFor('')],
+      [
+        'has an email that is not verified',
+        partnerTokenFor(KALSHI_EMAIL, false),
+      ],
     ])('has no email for a token that %s', async (_, token) => {
       await withController(async ({ controller, handlers }) => {
         handlers.getPartnerIdentityToken.mockResolvedValue(token);
@@ -2453,7 +2513,7 @@ function withController<ReturnValue>(
     performGetStorage: vi.fn().mockResolvedValue(null),
     performSetStorage: vi.fn().mockResolvedValue(undefined),
     putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
-    getPartnerIdentityToken: vi.fn().mockResolvedValue('partner-token'),
+    getPartnerIdentityToken: vi.fn().mockResolvedValue(PARTNER_TOKEN),
   };
   rootMessenger.registerActionHandler(
     'AuthenticatedUserStorageService:putIdentitySharingConsent',

@@ -11,10 +11,11 @@ import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
-import { base64ToBytes, bytesToString, stringToBytes } from '@metamask/utils';
+import { stringToBytes } from '@metamask/utils';
 
 import { KycApiError } from './KycApiError.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import { getEmailFromPartnerIdentityToken } from './partnerIdentityToken.js';
 import {
   isSumSubFlowFailed,
   isSumSubPreSubmissionStatus,
@@ -510,7 +511,7 @@ export class VendorOnboardingController extends BaseController<
    * @param params - The parameters.
    * @param params.vendor - The vendor.
    * @returns The email, or `undefined` when no token can be minted yet or it
-   * carries none.
+   * carries no verified email.
    */
   async getPartnerEmail({
     vendor,
@@ -518,7 +519,7 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
   }): Promise<string | undefined> {
     try {
-      return verifiedEmailOf(
+      return getEmailFromPartnerIdentityToken(
         await this.messenger.call(
           'AuthenticationController:getPartnerIdentityToken',
           ['email'],
@@ -916,17 +917,22 @@ export class VendorOnboardingController extends BaseController<
    * open a session is therefore the token's, matched to what the user typed
    * without regard to letter case, and a different address is refused here
    * with the relay's code, before anything is signed. The error does not name
-   * the address, so it can be logged. A token whose email cannot be read is
-   * left to the relay.
+   * the address, so it can be logged. A token without a verified email is
+   * refused the same way, before anything is signed.
    *
    * @param typed - The address the user typed.
    * @param partnerIdentityToken - The token the session is created with.
    * @returns The address to sign.
    */
   #matchVerifiedEmail(typed: string, partnerIdentityToken: string): string {
-    const verified = verifiedEmailOf(partnerIdentityToken);
-    if (verified === undefined) {
-      return typed;
+    let verified: string;
+    try {
+      verified = getEmailFromPartnerIdentityToken(partnerIdentityToken);
+    } catch (error) {
+      throw new Error(
+        'VendorOnboardingController: the partner identity token has no verified MetaMask email.',
+        { cause: error },
+      );
     }
     if (verified.toLowerCase() !== typed.toLowerCase()) {
       throw new Error(
@@ -1109,32 +1115,6 @@ export class VendorOnboardingController extends BaseController<
         ...patch,
       };
     });
-  }
-}
-
-/**
- * The verified email a partner identity token carries in `ext.email`. The
- * signature is not checked here: kyc-api verifies the token, and this only
- * tells the screen which address the session will be opened with.
- *
- * @param token - The partner identity token (a JWT).
- * @returns The email, or `undefined` when the token has none or is not a JWT.
- */
-function verifiedEmailOf(token: string): string | undefined {
-  const payload = token.split('.')[1];
-  if (!payload) {
-    return undefined;
-  }
-  try {
-    const base64 = payload.replace(/-/gu, '+').replace(/_/gu, '/');
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-    const claims = JSON.parse(bytesToString(base64ToBytes(padded))) as {
-      ext?: { email?: unknown };
-    };
-    const email = claims.ext?.email;
-    return typeof email === 'string' && email.length > 0 ? email : undefined;
-  } catch {
-    return undefined;
   }
 }
 
