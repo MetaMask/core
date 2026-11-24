@@ -2,7 +2,7 @@ import {
   PasswordSyncInstruction,
   SeedlessOnboardingCheckpoint,
   SeedlessOnboardingControllerErrorMessage,
-} from './constants.js';
+} from '../constants.js';
 import { SeedlessOnboardingError } from './errors.js';
 
 /**

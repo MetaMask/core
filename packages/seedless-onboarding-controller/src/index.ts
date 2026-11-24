@@ -67,10 +67,10 @@ export {
   InvalidPrimarySecretDataTypeError,
   RecoveryError,
   SeedlessOnboardingError,
-} from './errors.js';
+} from './utils/errors.js';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';
-export { parseSeedlessAuthData } from './seedless-auth-data.js';
+export { parseSeedlessAuthData } from './utils/seedless-auth-data.js';
 export {
   convertUrlSafeBase64StringToBase64String,
   decodeBase64WithSafeUrlReplacements,

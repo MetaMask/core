@@ -21,7 +21,6 @@ import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import { getPasswordSyncInstruction } from './checkpoint.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
@@ -36,12 +35,6 @@ import {
   PasswordSyncInstruction,
   Web3AuthNetwork,
 } from './constants.js';
-import {
-  isIdentityMismatchError,
-  PasswordSyncError,
-  RecoveryError,
-  SeedlessOnboardingError,
-} from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
@@ -64,6 +57,13 @@ import type {
   VaultData,
   DeserializedVaultData,
 } from './types.js';
+import { getPasswordSyncInstruction } from './utils/checkpoint.js';
+import {
+  isIdentityMismatchError,
+  PasswordSyncError,
+  RecoveryError,
+  SeedlessOnboardingError,
+} from './utils/errors.js';
 import {
   assertCanChangePassword,
   assertIsEncryptedKeyringEncryptionKeySet,

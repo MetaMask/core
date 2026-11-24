@@ -12,9 +12,9 @@ import type {
   SeedlessIdentityMismatchSource,
   SeedlessOperationLifecycle,
 } from '../constants.js';
-import { SeedlessOnboardingError } from '../errors.js';
 import type { AuthenticatedUserDetails, VaultData } from '../types.js';
 import { trackIdentityMismatchEvent } from './analytics.js';
+import { SeedlessOnboardingError } from './errors.js';
 import { decodeIdToken } from './token.js';
 
 /**

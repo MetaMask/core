@@ -14,7 +14,7 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
+import { InvalidPrimarySecretDataTypeError } from './errors.js';
 import {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,

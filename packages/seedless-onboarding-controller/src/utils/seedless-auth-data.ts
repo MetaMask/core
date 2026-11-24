@@ -1,5 +1,5 @@
-import { AuthConnection } from './constants.js';
-import type { SeedlessAuthData } from './types.js';
+import { AuthConnection } from '../constants.js';
+import type { SeedlessAuthData } from '../types.js';
 
 const AUTH_CONNECTION_VALUES: ReadonlySet<string> = new Set(
   Object.values(AuthConnection),

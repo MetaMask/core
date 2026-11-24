@@ -80,7 +80,6 @@ import {
   SeedlessOnboardingCheckpoint,
   PasswordSyncInstruction,
 } from './constants.js';
-import { RecoveryError, SeedlessOnboardingError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
   SeedlessOnboardingController,
@@ -91,6 +90,7 @@ import type {
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
 import type { SeedlessOnboardingControllerState } from './types.js';
+import { RecoveryError, SeedlessOnboardingError } from './utils/errors.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';

@@ -273,6 +273,9 @@ export type SeedlessOnboardingControllerCompletePasswordChangeAction = {
  * Keyring encryption key to Seedless. The controller only records the
  * boundary; it does not perform or verify synchronization.
  *
+ * This only advances a lifecycle that is at `LOCAL_PASSWORD_PENDING`; in any
+ * other state it is a no-op.
+ *
  * @returns A promise that resolves once the checkpoint has been persisted.
  */
 export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =

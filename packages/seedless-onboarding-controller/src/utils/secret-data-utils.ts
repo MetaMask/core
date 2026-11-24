@@ -3,9 +3,9 @@ import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 
 import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import type { SocialBackupsMetadata } from '../types.js';
+import { InvalidPrimarySecretDataTypeError } from './errors.js';
 
 export type SecretDataTypeMigrationUpdate = {
   itemId: string;

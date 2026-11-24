@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getPasswordSyncInstruction } from './checkpoint.js';
 import {
   PasswordSyncInstruction,
   SeedlessOnboardingCheckpoint,
   SeedlessOnboardingControllerErrorMessage,
-} from './constants.js';
+} from '../constants.js';
+import { getPasswordSyncInstruction } from './checkpoint.js';
 
 describe('getPasswordSyncInstruction', () => {
   it.each([
