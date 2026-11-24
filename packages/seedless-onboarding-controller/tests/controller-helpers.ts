@@ -34,13 +34,14 @@ import { mockSeedlessOnboardingMessenger } from './__fixtures__/mockMessenger.js
 import { handleMockSecretDataAdd } from './__fixtures__/topfClient.js';
 import { deriveTestEnvelopeKeys } from './mocks/envelopeKeys.js';
 import { MockToprfEncryptorDecryptor } from './mocks/toprfEncryptor.js';
+import { createMockJWTToken } from './mocks/utils.js';
 import MockVaultEncryptor from './mocks/vaultEncryptor.js';
 
 export const authConnection = AuthConnection.Google;
 export const authConnectionId = 'seedless-onboarding';
 export const groupedAuthConnectionId = 'auth-server';
 export const userId = 'user-test@gmail.com';
-export const idTokens = ['idToken'];
+export const idTokens = [createMockJWTToken({ sub: userId })];
 export const refreshToken = 'refreshToken';
 export const revokeToken = 'revokeToken';
 export const accessToken = 'accessToken';
@@ -136,7 +137,7 @@ export async function withController<ReturnValue>(
     mockSeedlessOnboardingMessenger();
 
   const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-    idTokens: ['newIdToken'],
+    idTokens,
     metadataAccessToken: 'mock-metadata-access-token',
     accessToken,
   });

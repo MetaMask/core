@@ -468,6 +468,13 @@ export type SeedlessOnboardingControllerResetPasswordWithVaultKeysAction = {
  *
  * This method should be called after a successful JWT refresh.
  *
+ * When `idTokens` are provided, their `sub` claim is checked against
+ * `state.userId` before the renewal request. A mismatch throws
+ * {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch} and the
+ * vault revoke token is not renewed.
+ *
+ * @param idTokens - Id tokens from the JWT refresh. Only the first token is
+ * validated. Omit when the caller has no id token to check.
  * @returns A Promise that resolves to void.
  */
 export type SeedlessOnboardingControllerRotateRefreshTokenAction = {

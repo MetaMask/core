@@ -83,7 +83,7 @@ function makeQuote({
     original: {
       gasLimits,
       gasStationTransactions: withTransactions
-        ? { firstStepData: STEP_DATA_MOCK, totalItemCount: 2 }
+        ? [STEP_DATA_MOCK, STEP_DATA_MOCK]
         : undefined,
       isGasless,
     },
@@ -293,7 +293,6 @@ describe('getMaxGasStationQuote', () => {
 
     expect(await run(quote, requote)).toBe(adjustedQuote);
     expect(resolveGasStationCostMock).toHaveBeenCalledWith({
-      firstStepData: STEP_DATA_MOCK,
       messenger: MESSENGER_MOCK,
       request: {
         from: REQUEST_MOCK.from,
@@ -301,7 +300,7 @@ describe('getMaxGasStationQuote', () => {
         sourceTokenAddress: '0xabc',
       },
       totalGasEstimate: 3000,
-      totalItemCount: 2,
+      transactions: [STEP_DATA_MOCK, STEP_DATA_MOCK],
     });
     expect(requote).toHaveBeenLastCalledWith(
       expect.objectContaining({ sourceTokenAmount: '99700' }),

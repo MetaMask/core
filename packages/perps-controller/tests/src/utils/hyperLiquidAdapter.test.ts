@@ -214,6 +214,61 @@ describe('adaptMarketFromSDK margin capability', () => {
   );
 });
 
+describe('adaptMarketFromSDK margin tiers', () => {
+  const marginTables: [
+    number,
+    {
+      description: string;
+      marginTiers: { lowerBound: string; maxLeverage: number }[];
+    },
+  ][] = [
+    [
+      56,
+      {
+        description: 'tiered 40x',
+        marginTiers: [
+          { lowerBound: '0.0', maxLeverage: 40 },
+          { lowerBound: '150000000.0', maxLeverage: 20 },
+        ],
+      },
+    ],
+  ];
+
+  it('resolves a tiered table from meta.marginTables', () => {
+    const result = adaptMarketFromSDK(
+      { name: 'BTC', szDecimals: 5, maxLeverage: 40, marginTableId: 56 },
+      marginTables,
+    );
+
+    expect(result.marginTiers).toStrictEqual([
+      { lowerBound: 0, maxLeverage: 40 },
+      { lowerBound: 150000000, maxLeverage: 20 },
+    ]);
+  });
+
+  it('resolves a single-tier table id from max leverage', () => {
+    const result = adaptMarketFromSDK({
+      name: 'ETH',
+      szDecimals: 4,
+      maxLeverage: 25,
+      marginTableId: 25,
+    });
+
+    expect(result.marginTiers).toStrictEqual([
+      { lowerBound: 0, maxLeverage: 25 },
+    ]);
+  });
+
+  it('omits tiers when the tiered table is missing', () => {
+    const result = adaptMarketFromSDK(
+      { name: 'SOL', szDecimals: 2, maxLeverage: 20, marginTableId: 57 },
+      marginTables,
+    );
+
+    expect(result).not.toHaveProperty('marginTiers');
+  });
+});
+
 describe('buildHyperLiquidFillId', () => {
   const fill = { coin: 'BTC', time: 1699999999999, tid: 111111111111111 };
 

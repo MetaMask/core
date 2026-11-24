@@ -73,6 +73,11 @@ export {
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';
 export { parseSeedlessAuthData } from './seedless-auth-data.js';
-
 export { getEnvelopeStatus } from './state.js';
 export type { SeedlessOnboardingEnvelopeStatus } from './state.js';
+export {
+  convertUrlSafeBase64StringToBase64String,
+  decodeBase64WithSafeUrlReplacements,
+  decodeIdToken,
+  padBase64String,
+} from './utils/token.js';

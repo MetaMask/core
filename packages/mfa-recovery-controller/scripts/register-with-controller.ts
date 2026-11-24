@@ -24,7 +24,6 @@ import {
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
   StubTrustedIdentifierStore,
-  passthroughEncryptor,
 } from '../tests/stubs.js';
 
 /**
@@ -183,7 +182,6 @@ async function main(flags: Record<string, string>): Promise<void> {
       },
     ]),
     escrows: [escrow],
-    pendingOperationEncryptor: passthroughEncryptor,
   });
 
   const recoverySecret = new Uint8Array(randomBytes(32));

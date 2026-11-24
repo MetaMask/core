@@ -1216,7 +1216,7 @@ describe('SeedlessOnboardingController', () => {
             await baseMessenger.call(
               'SeedlessOnboardingController:authenticate',
               {
-                idTokens: ['user-b-id-token'],
+                idTokens: [createMockJWTToken({ sub: 'user-b@example.com' })],
                 accessToken: 'user-b-access-token',
                 metadataAccessToken: 'user-b-metadata-access-token',
                 ...socialLogin,
@@ -5128,7 +5128,7 @@ describe('SeedlessOnboardingController', () => {
           await baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
-              idTokens: ['same-user-id-token'],
+              idTokens: [createMockJWTToken({ sub: MOCK_USER_ID })],
               accessToken: 'same-user-access-token',
               metadataAccessToken: 'same-user-metadata-access-token',
               ...socialLoginOf(controller.state),
@@ -5162,7 +5162,7 @@ describe('SeedlessOnboardingController', () => {
           await baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
-              idTokens: ['same-grouped-user-id-token'],
+              idTokens: [createMockJWTToken({ sub: MOCK_USER_ID })],
               accessToken: 'same-grouped-user-access-token',
               metadataAccessToken: 'same-grouped-user-metadata-access-token',
               ...socialLoginOf(controller.state),
@@ -5215,14 +5215,17 @@ describe('SeedlessOnboardingController', () => {
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
+            const nextSocialLogin = {
+              ...socialLoginOf(controller.state),
+              ...overrides,
+            };
             await baseMessenger.call(
               'SeedlessOnboardingController:authenticate',
               {
-                idTokens: ['other-user-id-token'],
+                idTokens: [createMockJWTToken({ sub: nextSocialLogin.userId })],
                 accessToken: 'other-user-access-token',
                 metadataAccessToken: 'other-user-metadata-access-token',
-                ...socialLoginOf(controller.state),
-                ...overrides,
+                ...nextSocialLogin,
                 refreshToken: 'other-user-refresh-token',
               },
             );
@@ -5263,7 +5266,7 @@ describe('SeedlessOnboardingController', () => {
           await baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
-              idTokens: ['new-user-id-token'],
+              idTokens: [createMockJWTToken({ sub: MOCK_USER_ID })],
               accessToken: 'new-user-access-token',
               metadataAccessToken: 'new-user-metadata-access-token',
               ...socialLoginOf(controller.state),

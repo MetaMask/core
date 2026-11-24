@@ -12,6 +12,7 @@ import {
   formatFeeBps,
   formatFundingPayment,
   formatFundingRate,
+  formatLeverage,
   formatLiquidationDistance,
   formatPercentage,
   formatPerpsCompact,
@@ -408,6 +409,7 @@ describe('display formatter options', () => {
         MaxPriceDecimals: 6,
         FeeBps: 2,
         LiquidationDistancePercent: 2,
+        Leverage: 2,
         TwapProgressPercent: 2,
         UsdInput: 2,
         UsdInputMaxDigits: 9,
@@ -432,6 +434,7 @@ describe('display formatter options', () => {
       expect(PackageEntry.formatLiquidationDistance).toBe(
         formatLiquidationDistance,
       );
+      expect(PackageEntry.formatLeverage).toBe(formatLeverage);
       expect(PackageEntry.formatPerpsCompact).toBe(formatPerpsCompact);
       expect(PackageEntry.getPerpsOrderBookPriceFormat).toBe(
         getPerpsOrderBookPriceFormat,
@@ -1099,6 +1102,44 @@ describe('TAT-4574 display formatters', () => {
       expect(formatLiquidationDistance(100, 70, { sign: 'always' })).toBe(
         '+30.00%',
       );
+    });
+  });
+
+  describe('formatLeverage', () => {
+    it.each([
+      [0.2, '0.2x'],
+      [1.2149, '1.21x'],
+      [1.216, '1.22x'],
+      [10, '10x'],
+      [0, '0x'],
+      ['0.31', '0.31x'],
+      [1234.5, '1,234.5x'],
+    ])('formats %s as %s', (value, expected) => {
+      expect(formatLeverage(value)).toBe(expected);
+    });
+
+    it.each([...missingInputs, -0.2, '-1'])(
+      'renders the placeholder for %s',
+      (value) => {
+        expect(formatLeverage(value)).toBe(PERPS_CONSTANTS.FallbackDataDisplay);
+      },
+    );
+
+    it('defaults to PERPS_DISPLAY_PRECISION.Leverage decimals at most', () => {
+      expect(PERPS_DISPLAY_PRECISION.Leverage).toBe(2);
+    });
+
+    it('takes the fraction digit and locale options', () => {
+      expect(formatLeverage(0.2, { minimumFractionDigits: 2 })).toBe('0.20x');
+      expect(formatLeverage(2.5, { minimumFractionDigits: 1 })).toBe('2.5x');
+      expect(
+        formatLeverage(0.25, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }),
+      ).toBe('0.3x');
+      expect(formatLeverage(3, { minimumFractionDigits: 3 })).toBe('3.000x');
+      expect(formatLeverage(1.2149, { formatters: de })).toBe('1,21x');
     });
   });
 

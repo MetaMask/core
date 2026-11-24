@@ -9,11 +9,13 @@ import {
   is,
   literal,
   min,
+  optional,
   string,
   type,
   unknown,
 } from '@metamask/superstruct';
 import {
+  JsonStruct,
   bytesToHex,
   bytesToString,
   hexToBytes,
@@ -322,7 +324,7 @@ const IdentifiersStruct = type({
       type: string(),
       namespace: string(),
       value: string(),
-      verifier: unknown(),
+      verifier: optional(JsonStruct),
     }),
   ),
   version: min(integer(), 0),

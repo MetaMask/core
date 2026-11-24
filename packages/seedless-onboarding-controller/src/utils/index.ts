@@ -1,11 +1,18 @@
 export {
+  assertIdTokenMatchesUserId,
+  assertIdTokenMismatchAndTrackEvent,
+  assertIdentityUnchanged,
+  assertIdentityUnchangedAndTrackEvent,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
 } from './assertions.js';
-export { trackIncompleteMetadataBackupEvents } from './analytics.js';
+export {
+  trackIdentityMismatchEvent,
+  trackIncompleteMetadataBackupEvents,
+} from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
   getCreatedAtMs,
@@ -16,6 +23,12 @@ export {
   sortNewestFirst,
   splitVaultItems,
 } from './secret-data-utils.js';
+export {
+  convertUrlSafeBase64StringToBase64String,
+  decodeBase64WithSafeUrlReplacements,
+  decodeIdToken,
+  padBase64String,
+} from './token.js';
 export {
   compareAndGetLatestToken,
   decodeJWTToken,

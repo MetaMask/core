@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `envelope`, `isLocalPassword`, and non-persisted `recoverySession` controller state fields along with `EnvelopeState`, `RecoverySession`, `SeedlessOnboardingEnvelopeStatus`, and `getEnvelopeStatus` ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add envelope and MFA recovery error messages to `SeedlessOnboardingControllerErrorMessage` (`Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeVaultRequiresEnvelopePasswordChange`, `EnvelopeMigrationRequiresDataTypes`, `EnvelopeMigrationInconsistent`, `EnvelopeMigrationDisabled`, `RecoveryEnvelopeNotFound`, `PasswordEnvelopeNotFound`, `InvalidRecoverySecret`, `PasswordResetRequiresRecovery`, and `InvalidSecretDataType`) ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Add dependency `@metamask/superstruct` (`^3.4.1`) ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Emit a `Seedless Onboarding Identity Mismatch` analytics event when an identity mismatch is detected during TOPRF `authenticate`, token refresh, or refresh-token rotation ([#11531](https://github.com/MetaMask/core/pull/11531))
+  - Properties are `source` (`toprf_authenticate`, `token_refresh`, or `rotate_refresh_token`), `reason` (`missing_user_id`, `missing_id_token`, `id_token_undecodable`, `user_id_mismatch`, `identity_changed_in_flight`, or `unknown`), `expected_user_id`, `actual_user_id`, and `metadata_schema_version`
+  - `metadata_schema_version` is `v2` when `state.migrationVersion` is at least 1, and `v1` otherwise
+  - `expected_user_id` is the user id the flow expected. `actual_user_id` is the id token subject, or the current controller user id when the identity changed in flight
+  - A present user id is an HMAC-SHA256 hex digest keyed with a fixed salt. A missing user id is `NONE`. The raw user id is not included. Tokens and other credentials are not included
+  - A failure to send the event does not change the `IdentityMismatch` error returned to the caller
+- Export the OAuth idToken decode helpers `padBase64String`, `convertUrlSafeBase64StringToBase64String`, `decodeBase64WithSafeUrlReplacements`, and `decodeIdToken`, so clients can decode base64url JWTs the same way ([#11531](https://github.com/MetaMask/core/pull/11531))
+- Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))
+  - `authenticate` validates that the first idToken belongs to the provided `userId` before making any network request. The token user id is derived the same way clients derive it: `sub`, then Telegram `user_id` when `sub` is nullish, then `email`
+  - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
+  - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub`, `user_id`, or `email` claim throws `IdentityMismatch` instead of being sent to the nodes
 
 ### Changed
 
@@ -26,9 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Reject in-flight `refreshAuthTokens` calls with `AuthenticationError` if `clearState` runs before the refresh completes, preventing stale tokens from overwriting the current session ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Guard vault encryption and refresh-token rotation against `clearState` running in flight (including when the same user re-authenticates) and update rotated token state atomically with the vault write ([#11346](https://github.com/MetaMask/core/pull/11346))
 - Treat invalid or expired auth token errors wrapped in `SomeError` (for example from `fetchAuthPubKey`) as auth token errors in `isAuthTokenError`, allowing token refresh and error handling to trigger ([#11346](https://github.com/MetaMask/core/pull/11346))
-- Support base64url-encoded JWT payloads in `decodeJWTToken` ([#11346](https://github.com/MetaMask/core/pull/11346))
+- Decode JWT idToken payloads that use base64url (`-` and `_`), so a spec-compliant OAuth idToken is checked locally and can still be sent to the nodes ([#11531](https://github.com/MetaMask/core/pull/11531))
+- Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
+  - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped
+  - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
+  - `rotateRefreshToken` throws `IdentityMismatch` and does not renew the vault revoke token when the idToken `sub` does not match `state.userId`
+  - A refresh-token rotation that observes an identity change does not persist the new revoke token to the vault
 
 ### Security
 

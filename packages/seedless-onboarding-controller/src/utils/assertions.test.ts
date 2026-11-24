@@ -1,8 +1,29 @@
-import { describe, expect, it } from 'vitest';
-
-import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
-import { VaultData } from '../types.js';
 import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToHex,
+  bytesToString,
+  stringToBytes,
+} from '@metamask/utils';
+import { utf8ToBytes } from '@noble/ciphers/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
+import { describe, expect, it, vi } from 'vitest';
+
+import { createMockJWTToken } from '../../tests/mocks/utils.js';
+import {
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+  SeedlessIdentityMismatchSource,
+  SeedlessIdentityUserIdSalt,
+  SeedlessOnboardingControllerErrorMessage,
+} from '../constants.js';
+import { DecodedBaseJWTToken, VaultData } from '../types.js';
+import {
+  assertIdTokenMatchesUserId,
+  assertIdTokenMismatchAndTrackEvent,
+  assertIdentityUnchanged,
+  assertIdentityUnchangedAndTrackEvent,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -233,5 +254,378 @@ describe('encrypted key assertions', () => {
     }).toThrow(
       SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
     );
+  });
+});
+
+describe('assertIdTokenMatchesUserId', () => {
+  /**
+   * Creates a mock JWT idToken with the given payload claims.
+   *
+   * @param params - The payload claims for the token.
+   * @returns The encoded JWT token (header.payload.signature).
+   */
+  const createMockIdToken = (
+    params: Partial<DecodedBaseJWTToken> & {
+      sub?: string;
+      email?: string;
+      // eslint-disable-next-line @typescript-eslint/naming-convention -- JWT claim name
+      user_id?: string;
+    } = {},
+  ): string => {
+    const defaultPayload: DecodedBaseJWTToken = {
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      aud: 'mock_audience',
+      iss: 'mock_issuer',
+      sub: 'mock_user_id',
+    };
+    const payload = { ...defaultPayload, ...params };
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)));
+    return `${encode(header)}.${encode(payload)}.${'mock_signature'}`;
+  };
+
+  /**
+   * Creates a spec-compliant base64url JWT. The `nonce` claim is chosen so
+   * the payload segment contains both `-` and `_`.
+   *
+   * @param params - The payload claims for the token.
+   * @returns The encoded JWT token (header.payload.signature).
+   */
+  const createBase64UrlIdToken = (
+    params: Partial<DecodedBaseJWTToken> = {},
+  ): string => {
+    const payload = {
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      aud: 'mock_audience',
+      iss: 'mock_issuer',
+      sub: 'mock_user_id',
+      nonce: '~~~?',
+      ...params,
+    };
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)))
+        .replace(/\+/gu, '-')
+        .replace(/\//gu, '_')
+        .replace(/=+$/u, '');
+    const encodedPayload = encode(payload);
+    if (!encodedPayload.includes('-') || !encodedPayload.includes('_')) {
+      throw new Error(
+        'Test payload did not produce base64url characters (- and _).',
+      );
+    }
+    return `${encode(header)}.${encodedPayload}.mock_signature`;
+  };
+
+  it('should not throw when idToken sub matches the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' })],
+        'user-1',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when a base64url idToken sub matches the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createBase64UrlIdToken({ sub: 'user-1' })],
+        'user-1',
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when a base64url idToken sub does not match the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createBase64UrlIdToken({ sub: 'user-A' })],
+        'user-B',
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when idToken sub does not match the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-A' })],
+        'user-B',
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should only validate the first idToken', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [
+          createMockIdToken({ sub: 'user-1' }),
+          createMockIdToken({ sub: 'other' }),
+        ],
+        'user-1',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when sub is missing and userId matches the email claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: undefined, email: 'user@email.com' })],
+        'user@email.com',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when sub is empty and userId matches the email claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: '', email: 'user@email.com' })],
+        'user@email.com',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when sub is missing and userId matches the Telegram user_id claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: undefined, user_id: 'telegram-user' })],
+        'telegram-user',
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when sub does not match even if email does', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [
+          createMockIdToken({
+            sub: 'opaque-subject',
+            email: 'user@email.com',
+          }),
+        ],
+        'user@email.com',
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the idToken has no sub claim', () => {
+    const tokenWithoutSub = createMockIdToken();
+    // Rebuild payload without sub
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)));
+    const payload = JSON.parse(
+      bytesToString(base64ToBytes(tokenWithoutSub.split('.')[1])),
+    ) as Record<string, unknown>;
+    delete payload.sub;
+    const token = `${encode(header)}.${encode(payload)}.${'mock_signature'}`;
+
+    expect(() => {
+      assertIdTokenMatchesUserId([token], 'any-user');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the idToken cannot be decoded', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(['not-a-jwt'], 'user-1');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when no idToken is provided', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId([], 'user-1');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when userId is null', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-1' })], null);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when userId is undefined', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' })],
+        undefined,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+});
+
+describe('assertIdentityUnchanged', () => {
+  const identity = {
+    userId: 'user-1',
+    authConnectionId: 'auth-connection-1',
+  };
+
+  it('should not throw when the identity is unchanged', () => {
+    expect(() => {
+      assertIdentityUnchanged({ ...identity }, { ...identity });
+    }).not.toThrow();
+  });
+
+  it('should not throw when both identities are fully cleared', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { userId: undefined, authConnectionId: undefined },
+        { userId: undefined, authConnectionId: undefined },
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when the userId changed', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { ...identity, userId: 'user-2' },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the identity was cleared', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { userId: undefined, authConnectionId: undefined },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the authConnectionId changed', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { ...identity, authConnectionId: 'auth-connection-2' },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+});
+
+function hashUserId(userId: string): string {
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
+describe('assertIdTokenMismatchAndTrackEvent', () => {
+  it('does not track when the id token belongs to the user', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent(
+        [createMockJWTToken({ sub: 'user-1' })],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      );
+    }).not.toThrow();
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('tracks the mismatch and rethrows it', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent(
+        [createMockJWTToken({ sub: 'other-user' })],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        reason: SeedlessIdentityMismatchReason.UserIdMismatch,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: hashUserId('other-user'),
+        metadata_schema_version: 'v1',
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+
+  it('tracks NONE as the actual user id when no id token is provided', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdTokenMismatchAndTrackEvent(
+        [],
+        'user-1',
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        trackEvent,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.ToprfAuthenticate,
+        reason: SeedlessIdentityMismatchReason.MissingIdToken,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: 'NONE',
+        metadata_schema_version: 'v1',
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+  });
+});
+
+describe('assertIdentityUnchangedAndTrackEvent', () => {
+  const identity = { userId: 'user-1', authConnectionId: 'google' };
+
+  it('does not track when the identity is unchanged', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdentityUnchangedAndTrackEvent({
+        currentState: identity,
+        expectedIdentity: identity,
+        source: SeedlessIdentityMismatchSource.TokenRefresh,
+        trackEvent,
+      });
+    }).not.toThrow();
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it('tracks an in-flight identity change and rethrows it', () => {
+    const trackEvent = vi.fn();
+
+    expect(() => {
+      assertIdentityUnchangedAndTrackEvent({
+        currentState: { ...identity, userId: 'user-2' },
+        expectedIdentity: identity,
+        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
+        trackEvent,
+      });
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+
+    expect(trackEvent).toHaveBeenCalledWith({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source: SeedlessIdentityMismatchSource.RotateRefreshToken,
+        reason: SeedlessIdentityMismatchReason.IdentityChangedInFlight,
+        expected_user_id: hashUserId('user-1'),
+        actual_user_id: hashUserId('user-2'),
+        metadata_schema_version: 'v1',
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
   });
 });
