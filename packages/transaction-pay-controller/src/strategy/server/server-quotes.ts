@@ -11,6 +11,7 @@ import { BigNumber } from 'bignumber.js';
 import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
+  FiatRates,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
@@ -46,7 +47,12 @@ import {
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
+  isSolanaQuoteRequest,
+  isSolanaNativeRequest,
+} from '../../utils/solana.js';
+import {
   buildCaipAssetType,
+  getAssetFiatRate,
   getEvmQuoteSource,
   getTokenFiatRate,
 } from '../../utils/token.js';
@@ -64,12 +70,19 @@ import {
 } from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
+import {
+  getServerSolanaNetworkCost,
+  getServerSolanaSender,
+  requoteServerSolanaMax,
+  validateServerSolanaBalance,
+} from './server-solana.js';
 import { validateServerQuotes } from './server-validation.js';
 import type {
   ServerQuote,
   ServerQuotePayload,
   ServerQuoteRequest,
   ServerQuoteResult,
+  ServerSolanaQuote,
   ServerTransactionStep,
 } from './types.js';
 
@@ -136,7 +149,9 @@ export async function getServerQuotes(
     )
   ).flat();
 
-  if (quotes.length) {
+  if (quoteRequests.some(isSolanaQuoteRequest)) {
+    validateServerSolanaBalance(request.messenger, quotes);
+  } else if (quotes.length) {
     await validateServerQuotes({
       messenger: request.messenger,
       quotes,
@@ -153,6 +168,10 @@ async function getQuotesForRequest(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   try {
+    if (isSolanaQuoteRequest(quoteRequest)) {
+      return await getSolanaQuotes(quoteRequest, fullRequest);
+    }
+
     if (quoteRequest.isMaxAmount) {
       return await getMaxQuotes({
         fullRequest,
@@ -190,6 +209,37 @@ async function getQuotesForRequest(
     log('Error fetching quotes', { error });
     return [];
   }
+}
+
+/**
+ * Fetch quotes for a Solana source. A native SOL max quote is re-quoted with
+ * the network fee and rent reserve withheld, as Solana gas is paid in SOL.
+ *
+ * @param quoteRequest - Solana quote request.
+ * @param fullRequest - Full quotes request.
+ * @returns Normalized server quotes.
+ */
+async function getSolanaQuotes(
+  quoteRequest: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<ServerQuote>[]> {
+  const quotes = await fetchQuotes(quoteRequest, fullRequest);
+
+  if (!quoteRequest.isMaxAmount || !isSolanaNativeRequest(quoteRequest)) {
+    return quotes;
+  }
+
+  return await Promise.all(
+    quotes.map((quote) =>
+      requoteServerSolanaMax(quote, (sourceTokenAmount) =>
+        requoteProvider(
+          { ...quoteRequest, sourceTokenAmount },
+          fullRequest,
+          quote.original,
+        ),
+      ),
+    ),
+  );
 }
 
 async function requoteProvider(
@@ -297,8 +347,6 @@ async function buildServerQuoteRequest(
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
-  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
-    getEvmQuoteSource(normalizedRequest);
 
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
@@ -337,41 +385,29 @@ async function buildServerQuoteRequest(
         transaction,
       });
 
-  const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
-
-  // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
-  // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
-  const supportsGasless =
-    isServerGaslessEnabled(messenger) &&
-    !isHypercoreSource &&
-    !isPolymarketDepositWallet &&
-    accountSupports7702 &&
-    isEIP7702Chain(messenger, sourceChainId);
-
   const body: ServerQuoteRequestDraft = {
-    sourceAsset: buildServerAsset(
-      sourceChainId,
-      sourceTokenAddress,
+    ...buildServerQuoteSource(
       normalizedRequest,
+      messenger,
+      accountSupports7702,
     ),
     targetAsset: buildServerAsset(
       targetChainId,
       targetTokenAddress,
       normalizedRequest,
     ),
-    sender: from,
     recipient,
-    slippage: Math.round(
-      getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
-    ),
-    supportsGasless,
   };
+
+  const isHypercoreSource =
+    body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+  const isSolanaSource = isSolanaQuoteRequest(normalizedRequest);
 
   if (isPolymarketDepositWallet) {
     await applyDepositWalletOverrides(
       body,
       from,
-      sourceChainId,
+      getEvmQuoteSource(normalizedRequest).chainId,
       messenger,
       normalizedRequest,
     );
@@ -390,13 +426,15 @@ async function buildServerQuoteRequest(
     atomic === false ||
     (isPostQuote ?? false) ||
     // Max requests only embed calls when quoted atomically, as the calls must
-    // be re-encoded for the amount the max quote delivers.
+    // be re-encoded for the amount the max quote delivers. Solana max quotes
+    // are never atomic, as the fee and rent reserve are withheld afterwards.
     (isMaxAmount === true &&
-      !isAtomicMaxSupported({
-        messenger,
-        request: normalizedRequest,
-        transaction,
-      })) ||
+      (isSolanaSource ||
+        !isAtomicMaxSupported({
+          messenger,
+          request: normalizedRequest,
+          transaction,
+        }))) ||
     // The deposit wallet funds the quote with a plain token transfer, so there
     // are no calls to embed.
     (isPolymarketDepositWallet ?? false);
@@ -454,7 +492,8 @@ async function buildServerQuoteRequest(
   } else if (isPostQuote || atomic === false) {
     // Honour the caller's refund address so a failed quote refunds the account
     // the funds came from, such as the Predict Safe, rather than the payer. A
-    // deposit wallet refund address is kept, as the sweep reads refunds there.
+    // deposit wallet or Solana refund address is kept, as refunds must land on
+    // the source chain.
     body.refundTo ??= refundTo;
   }
 
@@ -476,6 +515,58 @@ async function buildServerQuoteRequest(
     // calls consume, so it wins over the derived amount.
     amount: body.amount ?? pricing.amount,
     tradeType: pricing.tradeType,
+  };
+}
+
+/**
+ * Build the source fields of a server quote request.
+ *
+ * A Solana source is sent and refunded from the Solana account holding the
+ * source asset, and never quotes gasless.
+ *
+ * @param request - Normalized quote request.
+ * @param messenger - Controller messenger.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
+ * @returns The source fields of the request.
+ */
+function buildServerQuoteSource(
+  request: QuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+  accountSupports7702: boolean,
+): Pick<
+  ServerQuoteRequestDraft,
+  'refundTo' | 'sender' | 'slippage' | 'sourceAsset' | 'supportsGasless'
+> {
+  if (isSolanaQuoteRequest(request)) {
+    const sender = getServerSolanaSender(messenger, request);
+
+    return {
+      refundTo: sender,
+      sender,
+      sourceAsset: request.sourceAssetId,
+      supportsGasless: false,
+    };
+  }
+
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
+
+  // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
+  // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
+  const supportsGasless =
+    isServerGaslessEnabled(messenger) &&
+    sourceChainId !== CHAIN_ID_HYPERCORE &&
+    !request.isPolymarketDepositWallet &&
+    accountSupports7702 &&
+    isEIP7702Chain(messenger, sourceChainId);
+
+  return {
+    sender: request.from,
+    slippage: Math.round(
+      getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
+    ),
+    sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress, request),
+    supportsGasless,
   };
 }
 
@@ -699,25 +790,17 @@ async function normalizeQuote(
   const { quote } = result;
   const { gasless } = quote;
   const isInputBased = body.tradeType === TradeType.ExactInput;
-  const transactionSteps = quote.steps.filter(isTransactionStep);
-  const isSignatureOnly = transactionSteps.length === 0;
-  const sourceNetwork = await calculateSourceNetworkCost({
+  const { solana, sourceNetwork } = await getSourceNetworkCost({
     accountSupports7702,
-    gasless: gasless || isSignatureOnly,
+    body,
+    gasless,
     messenger,
     quoteRequest,
-    sender: body.sender,
-    steps: transactionSteps,
+    steps: quote.steps,
     transaction,
   });
 
-  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
-    getEvmQuoteSource(quoteRequest);
-  const sourceFiatRate = getTokenFiatRate(
-    messenger,
-    sourceTokenAddress,
-    sourceChainId,
-  );
+  const sourceFiatRate = getSourceFiatRate(messenger, quoteRequest);
 
   const usdToFiatRate = sourceFiatRate
     ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
@@ -777,6 +860,7 @@ async function normalizeQuote(
       output: quote.output,
       provider: result.provider,
       ...(quote.signature ? { signature: quote.signature } : {}),
+      ...(solana ? { solana } : {}),
       steps: quote.steps,
     },
     request: quoteRequest,
@@ -808,6 +892,72 @@ async function normalizeQuote(
             .toString(10)
         : '0',
     },
+  };
+}
+
+/**
+ * Get the source network cost of a quote. A Solana source pays the network
+ * fee of its Solana transaction step, priced through the account Snap.
+ *
+ * @param options - Options bag.
+ * @param options.accountSupports7702 - Whether the account supports EIP-7702.
+ * @param options.body - The built server quote request.
+ * @param options.gasless - Whether the quote is gasless.
+ * @param options.messenger - Controller messenger.
+ * @param options.quoteRequest - Quote request.
+ * @param options.steps - Steps of the server quote.
+ * @param options.transaction - Original transaction meta.
+ * @returns The source network cost, and the Solana details of a Solana source.
+ */
+async function getSourceNetworkCost({
+  accountSupports7702,
+  body,
+  gasless,
+  messenger,
+  quoteRequest,
+  steps,
+  transaction,
+}: {
+  accountSupports7702: boolean;
+  body: ServerQuoteRequest;
+  gasless: boolean;
+  messenger: TransactionPayControllerMessenger;
+  quoteRequest: QuoteRequest;
+  steps: ServerQuote['steps'];
+  transaction: TransactionMeta;
+}): Promise<{ solana?: ServerSolanaQuote; sourceNetwork: SourceNetworkCost }> {
+  if (isSolanaQuoteRequest(quoteRequest)) {
+    const { fee, solana } = await getServerSolanaNetworkCost({
+      messenger,
+      quoteRequest,
+      steps,
+    });
+
+    return {
+      solana,
+      sourceNetwork: {
+        estimate: fee,
+        gasLimits: [],
+        is7702: false,
+        max: fee,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      },
+    };
+  }
+
+  const transactionSteps = steps.filter(isTransactionStep);
+
+  return {
+    sourceNetwork: await calculateSourceNetworkCost({
+      accountSupports7702,
+      gasless: gasless || transactionSteps.length === 0,
+      messenger,
+      quoteRequest,
+      sender: body.sender as Hex,
+      steps: transactionSteps,
+      transaction,
+    }),
   };
 }
 
@@ -985,6 +1135,19 @@ function getServerMaxQuoteDetails({
     isSubsidized: original.fees.subsidized,
     targetAmountRaw: original.output.raw,
   };
+}
+
+function getSourceFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  quoteRequest: QuoteRequest,
+): FiatRates | undefined {
+  if (isSolanaQuoteRequest(quoteRequest)) {
+    return getAssetFiatRate(messenger, quoteRequest.sourceAssetId);
+  }
+
+  const { chainId, tokenAddress } = getEvmQuoteSource(quoteRequest);
+
+  return getTokenFiatRate(messenger, tokenAddress, chainId);
 }
 
 function stepToGasTransaction(

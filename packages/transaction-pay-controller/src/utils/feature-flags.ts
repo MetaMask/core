@@ -238,6 +238,7 @@ type FeatureFlagsExtendedRaw = {
       baseUrl?: string;
       gaslessEnabled?: boolean;
       pollingInterval?: number;
+      solanaEnabled?: boolean;
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
@@ -760,6 +761,29 @@ export function isRelayValidationEnabled(
     featureFlags.payStrategies?.relay?.validationEnabled,
     transaction,
   );
+}
+
+/**
+ * Whether the server strategy may quote Solana source assets.
+ *
+ * Fails closed, configured via the
+ * `confirmations_pay_extended.payStrategies.server.solanaEnabled` flag. Only
+ * `true` enables Solana sources, so they can be rolled out and rolled back
+ * independently of the transaction types enabled for the server strategy.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if Solana source quotes are enabled.
+ */
+export function isServerSolanaEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return featureFlags.payStrategies?.server?.solanaEnabled === true;
 }
 
 /**

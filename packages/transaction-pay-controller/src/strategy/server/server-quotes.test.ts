@@ -35,6 +35,7 @@ import {
 } from '../../utils/quote-gas.js';
 import {
   buildCaipAssetType,
+  getAssetFiatRate,
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
@@ -47,6 +48,12 @@ import {
 import { getLighterAccountIndex } from './lighter.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
+import {
+  getServerSolanaNetworkCost,
+  getServerSolanaSender,
+  requoteServerSolanaMax,
+  validateServerSolanaBalance,
+} from './server-solana.js';
 import { validateServerQuotes } from './server-validation.js';
 import type { ServerQuote } from './types.js';
 
@@ -62,6 +69,7 @@ vi.mock(import('./lighter.js'), async (importOriginal) => ({
   getLighterAccountIndex: vi.fn(),
 }));
 vi.mock(import('./server-api.js'));
+vi.mock(import('./server-solana.js'));
 vi.mock(import('./server-validation.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
 // only stub the gas station lookup that performs network work. This lets the
@@ -2865,6 +2873,203 @@ describe('server-quotes', () => {
         fiat: '0.25',
         usd: '0.25',
       });
+    });
+  });
+
+  describe('Solana source', () => {
+    const SOLANA_SCOPE = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const SOLANA_ADDRESS = '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z';
+    const SOLANA_NATIVE_ASSET = `${SOLANA_SCOPE}/slip44:501` as const;
+    const SOLANA_USDC_ASSET =
+      `${SOLANA_SCOPE}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as const;
+
+    const SOLANA_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      sourceAccountId: `${SOLANA_SCOPE}:${SOLANA_ADDRESS}`,
+      sourceAssetId: SOLANA_USDC_ASSET,
+    };
+
+    const SOLANA_STEP_MOCK = {
+      addressLookupTableAddresses: [],
+      instructions: [],
+      type: 'solanaTransaction' as const,
+    };
+
+    const SOLANA_FEE_MOCK = {
+      fiat: '0.9',
+      human: '0.000005',
+      raw: '5000',
+      usd: '1',
+    };
+
+    const SOLANA_QUOTE_MOCK = { feeRaw: '5000', rentReserveRaw: '890880' };
+
+    beforeEach(() => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: {
+              ...FULFILLED_RESULT_MOCK.quote,
+              gasless: false,
+              input: {
+                ...FULFILLED_RESULT_MOCK.quote.input,
+                asset: SOLANA_USDC_ASSET,
+                formatted: '2',
+              },
+              steps: [SOLANA_STEP_MOCK],
+            },
+          },
+        ],
+      });
+      vi.mocked(getServerSolanaSender).mockReturnValue(SOLANA_ADDRESS);
+      vi.mocked(getServerSolanaNetworkCost).mockResolvedValue({
+        fee: SOLANA_FEE_MOCK,
+        solana: SOLANA_QUOTE_MOCK,
+      });
+      vi.mocked(getAssetFiatRate).mockReturnValue({
+        fiatRate: '0.9',
+        usdRate: '1',
+      });
+    });
+
+    it('sends the Solana asset with the Solana sender and refund address', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        {
+          amount: SOLANA_REQUEST_MOCK.sourceTokenAmount,
+          recipient: FROM_MOCK,
+          refundTo: SOLANA_ADDRESS,
+          sender: SOLANA_ADDRESS,
+          sourceAsset: SOLANA_USDC_ASSET,
+          supportsGasless: false,
+          targetAsset: TARGET_ASSET_MOCK,
+          tradeType: TradeType.ExactInput,
+        },
+        undefined,
+      );
+    });
+
+    it('embeds the delegation calls of a contract call', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(fetchServerQuoteMock.mock.calls[0][1]).toStrictEqual(
+        expect.objectContaining({
+          calls: expect.any(Array),
+          sender: SOLANA_ADDRESS,
+          tradeType: TradeType.ExactOutput,
+        }),
+      );
+    });
+
+    it('prices the Snap network fee and the source amount by asset ID', async () => {
+      const [quote] = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getServerSolanaNetworkCost).toHaveBeenCalledWith({
+        messenger,
+        quoteRequest: expect.objectContaining({
+          sourceAssetId: SOLANA_USDC_ASSET,
+        }),
+        steps: [SOLANA_STEP_MOCK],
+      });
+      expect(getAssetFiatRate).toHaveBeenCalledWith(
+        messenger,
+        SOLANA_USDC_ASSET,
+      );
+      expect(quote.fees.sourceNetwork).toStrictEqual({
+        estimate: SOLANA_FEE_MOCK,
+        max: SOLANA_FEE_MOCK,
+      });
+      expect(quote.original.solana).toStrictEqual(SOLANA_QUOTE_MOCK);
+      expect(quote.original.client).toStrictEqual({
+        gasLimits: [],
+        is7702: false,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
+      expect(quote.sourceAmount).toStrictEqual(
+        expect.objectContaining({ fiat: '1.8', usd: '2' }),
+      );
+    });
+
+    it('validates the Solana balance instead of simulating', async () => {
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(validateServerSolanaBalance).toHaveBeenCalledWith(
+        messenger,
+        quotes,
+      );
+      expect(validateServerQuotes).not.toHaveBeenCalled();
+    });
+
+    it('re-quotes a native SOL max quote with the fee and reserve withheld', async () => {
+      const maxQuote = { id: 'max' } as never;
+      vi.mocked(requoteServerSolanaMax).mockResolvedValue(maxQuote);
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...SOLANA_REQUEST_MOCK,
+            isMaxAmount: true,
+            sourceAssetId: SOLANA_NATIVE_ASSET,
+          },
+        ],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(result).toStrictEqual([maxQuote]);
+      expect(getMaxQuotes).not.toHaveBeenCalled();
+      expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
+
+      const [, requote] = vi.mocked(requoteServerSolanaMax).mock.calls[0];
+      await requote('123');
+
+      expect(fetchServerQuoteMock).toHaveBeenLastCalledWith(
+        messenger,
+        expect.objectContaining({ amount: '123', providers: ['relay'] }),
+        undefined,
+      );
+    });
+
+    it('does not re-quote an SPL token max quote', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...SOLANA_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(requoteServerSolanaMax).not.toHaveBeenCalled();
     });
   });
 });

@@ -32,11 +32,13 @@ const DEPENDENCY_ACTIONS: {
   AccountTreeController: 'AccountTreeController:getState',
   AccountsController: 'AccountsController:getState',
   AssetsController: 'AssetsController:getState',
+  ConfigRegistryController: 'ConfigRegistryController:getState',
   GasFeeController: 'GasFeeController:getState',
   KeyringController: 'KeyringController:getState',
   NetworkController: 'NetworkController:getState',
   RampsController: 'RampsController:getState',
   RemoteFeatureFlagController: 'RemoteFeatureFlagController:getState',
+  SnapController: 'SnapController:getState',
   TransactionController: 'TransactionController:getState',
 };
 

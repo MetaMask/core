@@ -18,6 +18,9 @@
       "path": "../base-controller/tsconfig.lint.json"
     },
     {
+      "path": "../config-registry-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../controller-utils/tsconfig.lint.json"
     },
     {

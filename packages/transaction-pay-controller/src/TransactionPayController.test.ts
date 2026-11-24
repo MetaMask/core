@@ -698,6 +698,18 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getInfuraProjectId', () => {
+    it('returns the configured Infura project ID', () => {
+      createController({ infuraProjectId: 'test-project-id' });
+
+      const result = messenger.call(
+        'TransactionPayController:getInfuraProjectId',
+      );
+
+      expect(result).toBe('test-project-id');
+    });
+  });
+
   describe('getClientId', () => {
     it('returns the configured client ID', () => {
       createController({ clientId: TransactionPayClientId.Mobile });

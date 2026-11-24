@@ -2216,6 +2216,9 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
+/** A base58 encoded string, such as a Solana transaction signature. */
+export type Base58 = string;
+
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
   /**
@@ -2260,8 +2263,11 @@ export type MetamaskPayMetadata = {
    */
   resumeAttemptedAt?: number;
 
-  /** Source chain transaction hash if no local transaction. */
-  sourceHash?: Hex;
+  /**
+   * Source chain transaction hash if no local transaction. A base58
+   * transaction signature for a non-EVM source chain such as Solana.
+   */
+  sourceHash?: Hex | Base58;
 
   /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
   strategy?: string;

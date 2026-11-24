@@ -155,6 +155,14 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
     (): Record<string, never> => ({}),
   );
   unrestrictedMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
+    'SnapController:getState',
+    (): Record<string, never> => ({}),
+  );
+  unrestrictedMessenger.registerActionHandler(
     'ApprovalController:addRequest',
     async (): Promise<Record<string, never>> => ({}),
   );
@@ -205,6 +213,7 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
       'AccountTreeController:getState',
       'AccountsController:getState',
       'AssetsController:getState',
+      'ConfigRegistryController:getState',
       'GasFeeController:getState',
       'KeyringController:getState',
       'NetworkController:findNetworkClientIdByChainId',
@@ -215,6 +224,7 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
       'RampsController:getQuoteWithFees',
       'RampsController:getState',
       'SentinelApiService:simulateTransactions',
+      'SnapController:getState',
       'TransactionController:addTransaction',
       'TransactionController:addTransactionBatch',
       'TransactionController:estimateGas',

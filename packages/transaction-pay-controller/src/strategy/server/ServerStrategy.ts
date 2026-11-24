@@ -8,8 +8,12 @@ import type {
   PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  getPayStrategiesConfig,
+  isServerSolanaEnabled,
+} from '../../utils/feature-flags.js';
 import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
+import { isSolanaQuoteRequest } from '../../utils/solana.js';
 import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
@@ -33,7 +37,7 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
       return false;
     }
 
-    if (!request.requests.every(isEvmQuoteRequest)) {
+    if (!isSupportedSource(request)) {
       return false;
     }
 
@@ -81,4 +85,22 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
       throw new Error(`Server submit: ${message}`);
     }
   }
+}
+
+/**
+ * Whether every quote request is paid from a supported source. A Solana source
+ * is gated by the `solanaEnabled` flag, and is signed with a single Snap
+ * request, so it is only supported alone.
+ *
+ * @param request - Quotes request.
+ * @returns True if the sources are supported.
+ */
+function isSupportedSource(request: PayStrategyGetQuotesRequest): boolean {
+  const { messenger, requests } = request;
+
+  if (requests.some(isSolanaQuoteRequest)) {
+    return requests.length === 1 && isServerSolanaEnabled(messenger);
+  }
+
+  return requests.every(isEvmQuoteRequest);
 }
