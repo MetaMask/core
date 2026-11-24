@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      pull-requests: read
     environment: default-branch
     steps:
       - name: Generate notification
@@ -34,13 +35,19 @@ jobs:
             const link = (url, text) => `<${url}|${text}>`;
 
             async function getRunDetails(run) {
-              const subject = (run.head_commit?.message ?? '').split('\n')[0];
-              const pullRequest = subject.match(/\(#(\d+)\)$/u)?.[1];
-
               const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
                 ...context.repo,
                 run_id: run.id,
               });
+
+              const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                ...context.repo,
+                commit_sha: run.head_sha,
+              });
+
+              const pullRequest =
+                pullRequests.find((pr) => pr.merged_at && pr.base.ref === run.head_branch) ??
+                pullRequests[0];
 
               return {
                 workflow: run.name,
@@ -50,12 +57,13 @@ jobs:
                 commit: {
                   sha: run.head_sha,
                   url: `${run.repository.html_url}/commit/${run.head_sha}`,
-                  subject: subject.replace(/ \(#\d+\)$/u, ''),
+                  subject: (run.head_commit?.message ?? '').split('\n')[0],
                   author: run.head_commit?.author?.name ?? 'Unknown',
                 },
                 pullRequest: pullRequest && {
-                  number: pullRequest,
-                  url: `${run.repository.html_url}/pull/${pullRequest}`,
+                  number: pullRequest.number,
+                  title: pullRequest.title,
+                  url: pullRequest.html_url,
                 },
                 failedJobs: jobs
                   .filter((job) => job.conclusion === 'failure' && job.name !== 'All jobs pass')
@@ -115,7 +123,7 @@ jobs:
                     type: 'section',
                     text: {
                       type: 'mrkdwn',
-                      text: `> ${escape(details.commit.subject)}`,
+                      text: `> ${escape(details.pullRequest?.title ?? details.commit.subject)}`,
                     },
                   },
                   {
