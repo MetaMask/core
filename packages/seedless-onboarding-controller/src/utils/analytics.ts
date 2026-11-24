@@ -3,21 +3,36 @@ import type {
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { areUint8ArraysEqual } from '@metamask/utils';
+import {
+  areUint8ArraysEqual,
+  bytesToHex,
+  stringToBytes,
+} from '@metamask/utils';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha256';
 
-import { SecretType } from '../constants.js';
-import { InvalidPrimarySecretDataTypeError } from '../errors.js';
+import {
+  controllerName,
+  SecretType,
+  SeedlessIdentityMismatchEventName,
+  SeedlessIdentityMismatchReason,
+  SeedlessIdentityUserIdSalt,
+  SeedlessOnboardingMigrationVersion,
+  SeedlessPrimarySrpMismatchEventName,
+  SeedlessPrimarySrpMissingEventName,
+} from '../constants.js';
+import type { SeedlessIdentityMismatchSource } from '../constants.js';
+import {
+  InvalidPrimarySecretDataTypeError,
+  isIdentityMismatchError,
+} from '../errors.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import {
   isPrimarySecretCandidate,
   parseSecretMetadata,
   validateSecretMetadataBackup,
 } from './secret-data-utils.js';
-
-export const SeedlessPrimarySrpMissingEventName =
-  'Seedless Onboarding Primary SRP Missing';
-export const SeedlessPrimarySrpMismatchEventName =
-  'Seedless Onboarding Primary SRP Mismatch';
 
 export type IncompleteMetadataBackupEventProperties = {
   metadata_schema_version: 'v1' | 'v2' | 'mixed' | 'none';
@@ -91,6 +106,22 @@ function getMetadataSchemaVersion(
 }
 
 /**
+ * Map the controller migration version to the analytics schema version.
+ *
+ * @param migrationVersion - `state.migrationVersion`.
+ * @returns `v2` once the v1 migration has run, otherwise `v1`.
+ */
+function getMetadataSchemaVersionFromMigration(
+  migrationVersion: number,
+): 'v1' | 'v2' {
+  return migrationVersion >= SeedlessOnboardingMigrationVersion.V1
+    ? 'v2'
+    : 'v1';
+}
+
+const log = createModuleLogger(projectLogger, controllerName);
+
+/**
  * Identify whether the local primary SRP is missing from or differs from the
  * remote TOPRF metadata backup.
  *
@@ -104,13 +135,12 @@ function getMetadataSchemaVersion(
  * failures are logged and are not classified as affected users.
  *
  * @param params - Functions used to read the remote metadata and local primary
- * SRP, emit telemetry, and log inconclusive failures.
+ * SRP, and emit telemetry.
  * @param params.fetchAllSecretDataFn - Fetches the decrypted remote secret
  * metadata items.
  * @param params.getPrimaryKeyringSeedPhraseFn - Returns the local primary SRP
  * bytes from the keyring.
  * @param params.trackEvent - Emits a non-sensitive analytics event.
- * @param params.logFn - Records failures that prevent identification.
  * @returns A promise that resolves after identification and best-effort
  * telemetry have completed.
  */
@@ -118,15 +148,10 @@ export async function trackIncompleteMetadataBackupEvents({
   fetchAllSecretDataFn,
   getPrimaryKeyringSeedPhraseFn,
   trackEvent,
-  logFn,
 }: {
   fetchAllSecretDataFn: () => Promise<FetchedSecretDataItem[]>;
-  trackEvent: (
-    event: AnalyticsTrackingEvent,
-    context?: AnalyticsContext,
-  ) => void | Promise<void>;
+  trackEvent: TrackEvent;
   getPrimaryKeyringSeedPhraseFn: () => Promise<Uint8Array>;
-  logFn: (message: string, error?: unknown) => void;
 }): Promise<void> {
   const trackEventSafely = async (
     event: AnalyticsTrackingEvent,
@@ -134,7 +159,7 @@ export async function trackIncompleteMetadataBackupEvents({
     try {
       await trackEvent(event);
     } catch (error) {
-      logFn('Error tracking incomplete metadata backup event', error);
+      log('Error tracking incomplete metadata backup event', error);
     }
   };
 
@@ -175,6 +200,95 @@ export async function trackIncompleteMetadataBackupEvents({
       return;
     }
 
-    logFn('Error identifying incomplete metadata backup', error);
+    log('Error identifying incomplete metadata backup', error);
+  }
+}
+
+type TrackEvent = (
+  event: AnalyticsTrackingEvent,
+  context?: AnalyticsContext,
+) => void | Promise<void>;
+
+/**
+ * HMAC-SHA256 hex of a user id. A missing id is reported as `NONE`.
+ *
+ * @param userId - The user id to mask.
+ * @returns The salted hash, or `NONE` when there is no user id.
+ */
+function hashUserId(userId?: string | null): string {
+  if (!userId) {
+    return 'NONE';
+  }
+
+  return bytesToHex(
+    hmac(
+      sha256,
+      stringToBytes(SeedlessIdentityUserIdSalt),
+      stringToBytes(userId),
+    ),
+  );
+}
+
+/**
+ * Report an identity mismatch. Tracking failures are logged and do not
+ * replace the original error.
+ *
+ * User ids are included only as salted HMAC-SHA256 hashes.
+ *
+ * @param params - The mismatch and the analytics callbacks.
+ * @param params.source - The flow that detected the mismatch.
+ * @param params.error - The caught identity mismatch.
+ * @param params.trackEvent - Emits a non-sensitive analytics event.
+ * @param params.expectedUserId - The user id the flow expected.
+ * @param params.actualUserId - The user id it was compared with.
+ * @param params.migrationVersion - Controller migration version from state.
+ */
+export function trackIdentityMismatchEvent({
+  source,
+  error,
+  trackEvent,
+  expectedUserId,
+  actualUserId,
+  migrationVersion = 0,
+}: {
+  source: SeedlessIdentityMismatchSource;
+  error: unknown;
+  trackEvent: TrackEvent;
+  expectedUserId?: string | null;
+  actualUserId?: string | null;
+  migrationVersion?: number;
+}): void {
+  if (!isIdentityMismatchError(error)) {
+    return;
+  }
+
+  const expectedUserIdHash = hashUserId(expectedUserId);
+  const actualUserIdHash = hashUserId(actualUserId);
+
+  try {
+    const tracked = trackEvent({
+      name: SeedlessIdentityMismatchEventName,
+      properties: {
+        source,
+        reason:
+          Object.values(SeedlessIdentityMismatchReason).find(
+            (reason) => reason === error.details,
+          ) ?? SeedlessIdentityMismatchReason.Unknown,
+        expected_user_id: expectedUserIdHash,
+        actual_user_id: actualUserIdHash,
+        metadata_schema_version:
+          getMetadataSchemaVersionFromMigration(migrationVersion),
+      },
+      sensitiveProperties: {},
+      saveDataRecording: false,
+      hasProperties: true,
+    });
+    if (tracked instanceof Promise) {
+      tracked.catch((trackError: unknown) => {
+        log('Error tracking identity mismatch event', trackError);
+      });
+    }
+  } catch (trackError) {
+    log('Error tracking identity mismatch event', trackError);
   }
 }

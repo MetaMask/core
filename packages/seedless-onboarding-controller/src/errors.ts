@@ -262,3 +262,19 @@ export class SeedlessOnboardingError extends Error {
     };
   }
 }
+
+/**
+ * Whether `error` is an identity mismatch.
+ *
+ * @param error - The caught value.
+ * @returns True when `error` is a {@link SeedlessOnboardingError} with
+ * {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch}.
+ */
+export function isIdentityMismatchError(
+  error: unknown,
+): error is SeedlessOnboardingError {
+  return (
+    error instanceof SeedlessOnboardingError &&
+    error.message === SeedlessOnboardingControllerErrorMessage.IdentityMismatch
+  );
+}
