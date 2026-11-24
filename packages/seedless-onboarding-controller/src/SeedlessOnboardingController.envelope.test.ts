@@ -2127,8 +2127,8 @@ describe('SeedlessOnboardingController', () => {
         });
 
         /**
-         * Stores a Recovery Secret envelope under the registered key that is
-         * sealed with another wrap key, so it does not open.
+         * Stores a Recovery Secret envelope under the registered key with a
+         * malformed `authSk`, so it fails to unpack.
          *
          * @param network - The mock network.
          */
@@ -2146,9 +2146,7 @@ describe('SeedlessOnboardingController', () => {
                   dataType: EncAccountDataType.KeyEnvelope,
                   data: serializeEnvelope({
                     ...packEnvelope('recovery-secret', vaultKeySetFor()),
-                    vaultAuthPubKey: bytesToHex(
-                      vaultKeySetFor('other-password').authKeyPair.pk,
-                    ),
+                    authSk: 'not-hex',
                   }),
                 },
               ],
@@ -4603,9 +4601,7 @@ describe('SeedlessOnboardingController', () => {
             deriveTestEnvelopeKeys(stringToBytes(RECOVERY_SECRET_HEX)),
             {
               ...packEnvelope('recovery-secret', vaultKeySetFor()),
-              vaultAuthPubKey: bytesToHex(
-                vaultKeySetFor('other-password').authKeyPair.pk,
-              ),
+              authSk: 'not-hex',
             },
           );
 

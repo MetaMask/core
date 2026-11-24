@@ -17,10 +17,8 @@ import {
   base64ToBytes,
   bigIntToHex,
   bytesToBase64,
-  bytesToHex,
   bytesToString,
   hexToBigInt,
-  hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -50,8 +48,6 @@ export type EnvelopePath = 'password' | 'recovery-secret';
 export type Envelope = {
   v: 1;
   path: EnvelopePath;
-  /** Hex encoded uncompressed SEC1 public key of `K_v.authKeyPair`. */
-  vaultAuthPubKey: string;
   /** Hex encoded secp256k1 private key of `K_v.authKeyPair`. */
   authSk: string;
   /** base64 encoded `K_v.encKey` (32 bytes). */
@@ -83,7 +79,6 @@ export type ControlRecord = {
 const EnvelopeStruct = type({
   v: literal(1),
   path: enums(['password', 'recovery-secret'] as const),
-  vaultAuthPubKey: string(),
   authSk: string(),
   encKey: string(),
   localWrapKey: string(),
@@ -152,7 +147,6 @@ export function packEnvelope(
   return {
     v: 1,
     path,
-    vaultAuthPubKey: bytesToHex(vaultKeySet.authKeyPair.pk),
     authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
     encKey: bytesToBase64(vaultKeySet.encKey),
     localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
@@ -160,8 +154,8 @@ export function packEnvelope(
 }
 
 /**
- * Unpack and validate an envelope: check the path, verify that the auth private
- * key derives `vaultAuthPubKey`, and validate symmetric key byte lengths.
+ * Unpack and validate an envelope: check the path, derive the auth public key
+ * from `authSk`, and validate symmetric key byte lengths.
  *
  * @param envelope - The envelope.
  * @param path - The expected path of the envelope.
@@ -178,9 +172,6 @@ export function unpackEnvelope(
   try {
     const sk = hexToBigInt(envelope.authSk);
     const pk = derivePubKey(sk);
-    if (!pubKeysEqual(pk, hexToBytes(envelope.vaultAuthPubKey))) {
-      throw createInvalidEnvelopeError();
-    }
     const encKey = base64ToBytes(envelope.encKey);
     const localWrapKey = base64ToBytes(envelope.localWrapKey);
     if (
@@ -223,7 +214,6 @@ export function parseEnvelope(data: Uint8Array): Envelope {
   return {
     v: 1,
     path: value.path,
-    vaultAuthPubKey: value.vaultAuthPubKey,
     authSk: value.authSk,
     encKey: value.encKey,
     localWrapKey: value.localWrapKey,

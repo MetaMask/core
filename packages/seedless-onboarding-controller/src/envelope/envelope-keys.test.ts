@@ -1,9 +1,4 @@
-import {
-  bigIntToHex,
-  bytesToBase64,
-  bytesToHex,
-  stringToBytes,
-} from '@metamask/utils';
+import { bigIntToHex, bytesToBase64, stringToBytes } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { describe, expect, it } from 'vitest';
 
@@ -71,7 +66,6 @@ describe('envelope keys', () => {
       expect(envelope).toStrictEqual({
         v: 1,
         path: 'password',
-        vaultAuthPubKey: bytesToHex(vaultKeySet.authKeyPair.pk),
         authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
         encKey: bytesToBase64(vaultKeySet.encKey),
         localWrapKey: bytesToBase64(vaultKeySet.localWrapKey),
@@ -87,39 +81,9 @@ describe('envelope keys', () => {
       );
     });
 
-    it('rejects an envelope whose vaultAuthPubKey does not match authSk', () => {
-      const envelope = packEnvelope('password', createVaultKeySet());
-
-      expect(() =>
-        unpackEnvelope(
-          {
-            ...envelope,
-            vaultAuthPubKey: bytesToHex(createVaultKeySet(7).authKeyPair.pk),
-          },
-          'password',
-        ),
-      ).toThrow(INVALID_ENVELOPE);
-    });
-
-    it('rejects a forged key set whose pk does not match sk', () => {
-      const other = createVaultKeySet(7);
-      const forged = packEnvelope('password', {
-        ...other,
-        authKeyPair: {
-          sk: other.authKeyPair.sk,
-          pk: createVaultKeySet().authKeyPair.pk,
-        },
-      });
-
-      expect(() => unpackEnvelope(forged, 'password')).toThrow(
-        INVALID_ENVELOPE,
-      );
-    });
-
     it.each([
       ['an invalid authSk hex', { authSk: 'not-hex' }],
       ['an out-of-range authSk', { authSk: '0x0' }],
-      ['an invalid vaultAuthPubKey hex', { vaultAuthPubKey: 'not-hex' }],
       [
         'an encKey that is not 32 bytes',
         { encKey: bytesToBase64(new Uint8Array(16).fill(1)) },
@@ -151,23 +115,23 @@ describe('envelope keys', () => {
       ['not JSON', 'nope'],
       [
         'an unknown version',
-        '{"v":2,"path":"password","vaultAuthPubKey":"","authSk":"","encKey":"","localWrapKey":""}',
+        '{"v":2,"path":"password","authSk":"","encKey":"","localWrapKey":""}',
       ],
       [
         'an unknown path',
-        '{"v":1,"path":"x","vaultAuthPubKey":"","authSk":"","encKey":"","localWrapKey":""}',
+        '{"v":1,"path":"x","authSk":"","encKey":"","localWrapKey":""}',
       ],
       [
         'a missing authSk',
-        '{"v":1,"path":"password","vaultAuthPubKey":"","encKey":"","localWrapKey":""}',
+        '{"v":1,"path":"password","encKey":"","localWrapKey":""}',
       ],
       [
         'a missing encKey',
-        '{"v":1,"path":"password","vaultAuthPubKey":"","authSk":"","localWrapKey":""}',
+        '{"v":1,"path":"password","authSk":"","localWrapKey":""}',
       ],
       [
         'a missing localWrapKey',
-        '{"v":1,"path":"password","vaultAuthPubKey":"","authSk":"","encKey":""}',
+        '{"v":1,"path":"password","authSk":"","encKey":""}',
       ],
       ['an array', '[]'],
     ])('rejects %s', (_name, data) => {

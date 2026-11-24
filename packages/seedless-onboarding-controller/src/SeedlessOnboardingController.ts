@@ -3551,7 +3551,6 @@ export class SeedlessOnboardingController<
       await this.#envelopeStore.fetchEnvelopes(keys, envelope.path)
     ).find(
       (item) =>
-        item.vaultAuthPubKey === envelope.vaultAuthPubKey &&
         item.authSk === envelope.authSk &&
         item.encKey === envelope.encKey &&
         item.localWrapKey === envelope.localWrapKey,
