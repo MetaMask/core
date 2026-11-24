@@ -5135,7 +5135,7 @@ describe('SeedlessOnboardingController', () => {
             state: {
               seedlessOperationLifecycle: {
                 operation: SeedlessOnboardingOperation.PasswordSync,
-                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
               },
             },
           },
@@ -5143,6 +5143,47 @@ describe('SeedlessOnboardingController', () => {
             await controller.completePasswordChange();
 
             expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+
+      it.each([
+        SeedlessOnboardingCheckpoint.RemotePasswordPending,
+        SeedlessOnboardingCheckpoint.LocalStatePending,
+        SeedlessOnboardingCheckpoint.LocalPasswordPending,
+      ])('is a no-op when the checkpoint is %s', async (checkpoint) => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              passwordChangePhase: checkpoint,
+            }),
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(getLifecyclePhase(controller.state)).toBe(checkpoint);
+          },
+        );
+      });
+
+      it('is a no-op for a lifecycle that is not a password operation', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.CreateNewAccount,
+                checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+            });
           },
         );
       });

@@ -67,8 +67,8 @@ Password change is interrupted while the lifecycle is `KEY_SYNC_PENDING`, after 
 #### Expected Behavior
 
 - User device should be locked after the failure.
-- User enters the _old password_, wallet should show `Your password is outdated.`
-- In mobile, unlocking with the existing biometrics (keychain) should fail and see error, `Your password is outdated.`
+- User enters the _old password_, wallet should show `Your password is incorrect.` (Both the Seedless vault and the Keyring are already on the new password, so the old password cannot be told apart from a mistyped one and must not be reported as outdated.)
+- In mobile, unlocking with the existing biometrics (keychain) should fail and see the same incorrect password error.
 - User submits the _global password_ and able to unlock the wallet.
 
 ## Password Sync (Happy Path)

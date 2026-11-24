@@ -259,6 +259,9 @@ export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
  * and all required local writes have succeeded. The controller clears the
  * lifecycle so the next unlock is normal.
  *
+ * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
+ * state it is a no-op.
+ *
  * @returns A promise that resolves once recovery has been completed.
  */
 export type SeedlessOnboardingControllerCompletePasswordChangeAction = {
@@ -330,7 +333,7 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
  * or new-Keyring branch), because this controller does not depend on
  * `KeyringController`. See
- * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
+ * [the password sync flow](../docs/0002-seedless-password-sync-flow.md).
  *
  * @param params - The reconciliation parameters.
  * @param params.globalPassword - The current global password.

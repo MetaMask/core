@@ -89,7 +89,7 @@ export type SeedlessOperationLifecycle = {
  * password change. The controller owns Seedless-side sequencing; the client
  * owns the Keyring-side steps (it must call `KeyringController` directly)
  * and UI routing based on this instruction. See
- * [the client guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
+ * [the password sync flow](../docs/0002-seedless-password-sync-flow.md).
  */
 export enum PasswordSyncInstruction {
   /**

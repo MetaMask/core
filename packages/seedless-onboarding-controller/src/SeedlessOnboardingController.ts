@@ -2110,13 +2110,19 @@ export class SeedlessOnboardingController<
    * and all required local writes have succeeded. The controller clears the
    * lifecycle so the next unlock is normal.
    *
+   * This only completes a lifecycle that is at `KEY_SYNC_PENDING`; in any other
+   * state it is a no-op.
+   *
    * @returns A promise that resolves once recovery has been completed.
    */
   async completePasswordChange(): Promise<void> {
     await this.#withControllerLock(async () => {
       const lifecycle = this.state.seedlessOperationLifecycle;
+      // Only complete from `KEY_SYNC_PENDING`. Any other lifecycle (or none) is
+      // a no-op, so a stray call cannot discard an unfinished recovery
+      // checkpoint before the key sync has been recorded.
       if (
-        lifecycle === undefined ||
+        lifecycle?.checkpoint !== SeedlessOnboardingCheckpoint.KeySyncPending ||
         !PASSWORD_RECOVERY_OPERATIONS.has(lifecycle.operation)
       ) {
         return;
@@ -2230,7 +2236,7 @@ export class SeedlessOnboardingController<
    * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
    * or new-Keyring branch), because this controller does not depend on
    * `KeyringController`. See
-   * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
+   * [the password sync flow](../docs/0002-seedless-password-sync-flow.md).
    *
    * @param params - The reconciliation parameters.
    * @param params.globalPassword - The current global password.

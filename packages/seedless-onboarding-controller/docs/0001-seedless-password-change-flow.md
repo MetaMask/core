@@ -26,7 +26,6 @@ For more info such as generic state machine, researches and decisions, please re
 - Scope: `@metamask/seedless-onboarding-controller`
 - State-machine contract: [ADR 0002](https://github.com/MetaMask/decisions/pull/280)
 - Password-change architecture: [ADR 0003](https://github.com/MetaMask/decisions/pull/281)
-- Client guide: [Password-change recovery](./0002-seedless-password-change-recovery-client-guide.md)
 
 ## Proposed implementation
 
@@ -87,7 +86,7 @@ export type SeedlessOperationLifecycle = {
 ```
 
 - Added new public methods to commit checkpoints from the client.
-  - `completePasswordChange`: complete the password change flow. Clear the last known checkpoint.
+  - `completePasswordChange`: complete the password change flow. Clear the last known checkpoint (only from `KEY_SYNC_PENDING`; otherwise a no-op).
   - `markPasswordChangeKeySyncPending`: commit `KEY_SYNC_PENDING` checkpoint before syncing Keyring encryption key to Seedless.
 
 ### Client call order
