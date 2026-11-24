@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/analytics-controller` from `^4.3.1` to `^4.4.0` ([#11691](https://github.com/MetaMask/core/pull/11691))
+- Bump `@metamask/auth-network-utils` from `^0.4.0` to `^0.5.0` ([#11710](https://github.com/MetaMask/core/pull/11710))
 
 ### Fixed
 
