@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and retried on each restart until `confirmations_pay_extended.resume[strategy].timeout` (10 minutes by default) has passed since the first attempt ([#11450](https://github.com/MetaMask/core/pull/11450))
 - Add resume support to `FiatStrategy` for fiat to direct mUSD transactions ([#11451](https://github.com/MetaMask/core/pull/11451))
 - Add resume support to `ServerStrategy` so Relay, Across and M0 intents continue polling after a restart, gated by `confirmations_pay_extended.resume.server` ([#11739](https://github.com/MetaMask/core/pull/11739))
-  - Persist the intent `id` and `provider` as `metamaskPay.server` before submitting a single quote. Polymarket deposit wallet withdraws and quotes requiring a second leg are not resumable.
+  - Persist the intent `id` and `provider` as `metamaskPay.server` before submitting a single quote, replacing the `id` with the one returned by the server submit when present. Polymarket deposit wallet withdraws and quotes requiring a second leg are not resumable.
   - Measure the `elapsedMs` sent with status requests from the parent transaction's `submittedTime`, so the server timeout carries over a restart.
 - Add `PaymentOverride.PerpsLighter` (`perpsLighter`) for a later direct Lighter target ([#11640](https://github.com/MetaMask/core/pull/11640))
   - Quote building is unchanged. The first mainnet USDC deposit does not set this override.

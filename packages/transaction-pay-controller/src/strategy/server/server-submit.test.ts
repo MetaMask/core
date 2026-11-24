@@ -544,6 +544,11 @@ describe('submitServerQuotes', () => {
     });
 
     it('does not persist the server intent', async () => {
+      submitServerIntentMock.mockResolvedValue({
+        id: 'submitted-id-mock',
+        success: true,
+      });
+
       await submitServerQuotes(request);
 
       expect(currentTransaction.metamaskPay?.server).toBeUndefined();
