@@ -468,6 +468,7 @@ export type EndowmentSpecificationConstraint =
      * lists the names of the globals that the host should expose.
      */
     endowmentGetter?: EndowmentGetter<Json>;
+
     /**
      * A list of RPC method names this endowment gates access to.
      */

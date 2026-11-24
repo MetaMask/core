@@ -2720,7 +2720,7 @@ export class PermissionController<
    * valid permission target name.
    * @param requestData - Additional data associated with the request, if any.
    * Forwarded to the endowment getter function for the permission.
-   * @returns The endowments, otherwise null.
+   * @returns The endowments, if any.
    */
   async getEndowments(
     origin: string,
@@ -2752,18 +2752,20 @@ export class PermissionController<
   getEndowmentsRpcMethods(origin: string): string[] {
     const permissions = Object.values(this.getPermissions(origin) ?? {});
 
-    return permissions.reduce<string[]>((rpcMethods, permission) => {
+    return permissions.flatMap((permission) => {
       const specification = this.#getPermissionSpecification(
         permission.parentCapability,
       );
+
       if (
         hasSpecificationType(specification, PermissionType.Endowment) &&
         specification.rpcMethods
       ) {
-        return rpcMethods.concat(specification.rpcMethods);
+        return specification.rpcMethods;
       }
-      return rpcMethods;
-    }, []);
+
+      return [];
+    });
   }
 
   /**
