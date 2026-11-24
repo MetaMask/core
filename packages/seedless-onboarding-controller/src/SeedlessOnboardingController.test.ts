@@ -10232,7 +10232,7 @@ describe('SeedlessOnboardingController', () => {
        * @returns The spy and a function that resumes the encryption.
        */
       function pauseNextPasswordVaultEncryption(
-        encryptor: MockVaultEncryptor,
+        encryptor: Pick<MockVaultEncryptor, 'encryptWithDetail'>,
       ): {
         encryptionSpy: MockInstance;
         resumeEncryption: () => void;
