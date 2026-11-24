@@ -9,7 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+
+## [18.3.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11669](https://github.com/MetaMask/core/pull/11669))
+
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the chain-ID-to-scan-name map and `blast` from the token and address scan supported chains, as the network is being terminated ([#11600](https://github.com/MetaMask/core/pull/11600))
+
+## [18.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^74.0.0` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390), [#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [18.3.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Enable Arc (`0x13b2`) token scanning now that the Security Alerts API supports Arc token verdicts ([#11144](https://github.com/MetaMask/core/pull/11144))
+
+### Changed
+
+- Stop publishing the `tests/utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^73.0.0` ([#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [18.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.2.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `ethereum-cryptography` from `^2.2.1` to `^3.2.0` ([#10599](https://github.com/MetaMask/core/pull/10599))
+
+### Fixed
+
+- Fix Node.js 24 compatibility by accessing `toASCII` through the CommonJS `punycode` module default export. ([#10812](https://github.com/MetaMask/core/pull/10812))
 
 ## [18.2.0]
 
@@ -702,7 +742,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.2...HEAD
+[18.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...@metamask/phishing-controller@18.3.2
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...@metamask/phishing-controller@18.3.1
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...@metamask/phishing-controller@18.3.0
+[18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...@metamask/phishing-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0

@@ -7,6 +7,8 @@ import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
@@ -15,19 +17,21 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayQuote,
 } from '../../types.js';
+import { getEvmAccountOverride } from '../../utils/account.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
+  getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
-import { submitFiatQuotes } from './fiat-submit.js';
+import { submitFiatQuotes, waitForOrderCompletion } from './fiat-submit.js';
 import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
 import type { FiatQuote } from './types.js';
 import {
@@ -35,16 +39,17 @@ import {
   resolveSourceAmountRaw,
 } from './utils.js';
 
-jest.mock('./utils', () => ({
-  ...jest.requireActual('./utils'),
-  deriveFiatAssetForFiatPayment: jest.fn(),
-  resolveSourceAmountRaw: jest.fn(),
+vi.mock(import('./utils.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  deriveFiatAssetForFiatPayment: vi.fn(),
+  resolveSourceAmountRaw: vi.fn(),
 }));
-jest.mock('../../utils/token');
-jest.mock('../../utils/transaction');
-jest.mock('../relay/relay-quotes');
-jest.mock('../relay/relay-submit');
-jest.mock('./fiat-test-funding');
+vi.mock(import('../../utils/account.js'));
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/transaction.js'));
+vi.mock(import('../server/server-quotes.js'));
+vi.mock(import('../server/server-submit.js'));
+vi.mock(import('./fiat-test-funding.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -78,9 +83,9 @@ const RAMPS_QUOTE_MOCK: RampsQuote = {
 
 const BASE_QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: WALLET_ADDRESS_MOCK,
+  sourceAccountId: `eip155:137:${WALLET_ADDRESS_MOCK}`,
+  sourceAssetId: 'eip155:137/slip44:966',
   sourceBalanceRaw: '1000000000000000000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: '0x0000000000000000000000000000000000001010',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '12000000',
   targetChainId: '0x89',
@@ -113,65 +118,52 @@ const RELAY_QUOTE_RESULT_MOCK = {
     },
   },
   original: {
-    details: {
-      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
-      currencyOut: {
-        amount: '12000000',
-        amountUsd: '4.85',
-        minimumAmount: '11900000',
-      },
-      totalImpact: { usd: '-0.15' },
-    },
-    metamask: { isExecute: true },
-  } as unknown as RelayQuote,
+    input: { raw: '1000000000000000000' },
+    output: { raw: '11900000' },
+  } as ServerQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
   sourceAmount: {
-    fiat: '0',
-    human: '0',
-    raw: '0',
-    usd: '0',
+    fiat: '5.00',
+    human: '1',
+    raw: '1000000000000000000',
+    usd: '5.00',
   },
   strategy: TransactionPayStrategy.Relay,
   targetAmount: {
-    fiat: '0',
-    usd: '0',
+    fiat: '4.85',
+    usd: '4.85',
   },
-} as TransactionPayQuote<RelayQuote>;
+} as TransactionPayQuote<ServerQuote>;
 
 function getFiatOrderMock({
   cryptoAmount = '1',
   cryptoCurrency,
   status = RampsOrderStatus.Completed,
+  txHash,
 }: {
   cryptoAmount?: RampsOrder['cryptoAmount'];
   cryptoCurrency?: RampsOrderCryptoCurrency;
   status?: RampsOrderStatus;
+  txHash?: RampsOrder['txHash'];
 } = {}): RampsOrder {
   return {
     cryptoAmount,
     cryptoCurrency,
     status,
+    txHash,
   } as RampsOrder;
 }
 
 function getFiatQuoteMock({
   includeRelayQuote = true,
   relayQuote = {
-    details: {
-      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
-      currencyOut: {
-        amount: '12000000',
-        amountUsd: '4.85',
-        minimumAmount: '11900000',
-      },
-      totalImpact: { usd: '-0.15' },
-    },
-    metamask: { isExecute: true },
-  } as unknown as RelayQuote,
+    input: { raw: '1000000000000000000' },
+    output: { raw: '11900000' },
+  } as ServerQuote,
   request = BASE_QUOTE_REQUEST_MOCK,
 }: {
   includeRelayQuote?: boolean;
-  relayQuote?: RelayQuote;
+  relayQuote?: ServerQuote;
   request?: QuoteRequest;
 } = {}): TransactionPayQuote<FiatQuote> {
   return {
@@ -205,20 +197,21 @@ function getFiatQuoteMock({
     },
     request,
     sourceAmount: {
-      fiat: '0',
-      human: '0',
-      raw: '0',
-      usd: '0',
+      fiat: '5.00',
+      human: '1',
+      raw: '1000000000000000000',
+      usd: '5.00',
     },
     strategy: TransactionPayStrategy.Fiat,
     targetAmount: {
-      fiat: '0',
-      usd: '0',
+      fiat: '4.85',
+      usd: '4.85',
     },
   };
 }
 
 function getRequest({
+  accountOverride,
   fiatOptionsError,
   fiatOptions,
   orderId = ORDER_ID_MOCK,
@@ -227,6 +220,7 @@ function getRequest({
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
+  accountOverride?: string;
   fiatOptionsError?: Error;
   fiatOptions?: TransactionPayFiatOptions;
   orderId?: string;
@@ -235,14 +229,15 @@ function getRequest({
   quotes?: TransactionPayQuote<FiatQuote>[];
   transaction?: TransactionMeta;
 } = {}): {
-  callMock: jest.Mock;
+  callMock: Mock;
   request: PayStrategyExecuteRequest<FiatQuote>;
 } {
-  const callMock = jest.fn((action: string) => {
+  const callMock = vi.fn((action: string) => {
     if (action === 'TransactionPayController:getState') {
       return {
         transactionData: {
           [transaction.id]: {
+            accountOverride,
             fiatPayment: {
               orderId,
               rampsQuote,
@@ -308,26 +303,29 @@ function getRequest({
 }
 
 describe('submitFiatQuotes', () => {
-  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
-  const deriveFiatAssetForFiatPaymentMock = jest.mocked(
+  const buildCaipAssetTypeMock = vi.mocked(buildCaipAssetType);
+  const deriveFiatAssetForFiatPaymentMock = vi.mocked(
     deriveFiatAssetForFiatPayment,
   );
-  const resolveSourceAmountRawMock = jest.mocked(resolveSourceAmountRaw);
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
-  const getTransactionMock = jest.mocked(getTransaction);
-  const waitForTransactionConfirmedMock = jest.mocked(
+  const getTransferredAmountFromTxHashMock = vi.mocked(
+    getTransferredAmountFromTxHash,
+  );
+  const resolveSourceAmountRawMock = vi.mocked(resolveSourceAmountRaw);
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
+  const getTransactionMock = vi.mocked(getTransaction);
+  const waitForTransactionConfirmedMock = vi.mocked(
     waitForTransactionConfirmed,
   );
-  const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
-  const fundFiatOrderFromTestSourceMock = jest.mocked(
+  const getRelayQuotesMock = vi.mocked(getServerQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitServerQuotes);
+  const fundFiatOrderFromTestSourceMock = vi.mocked(
     fundFiatOrderFromTestSource,
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.useRealTimers();
+    vi.resetAllMocks();
+    vi.useRealTimers();
 
     buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
     collectTransactionIdsMock.mockImplementation(
@@ -335,7 +333,7 @@ describe('submitFiatQuotes', () => {
         onTransaction('direct-child-1');
         onTransaction('direct-child-2');
 
-        return { end: jest.fn() };
+        return { end: vi.fn() };
       },
     );
     getTransactionMock.mockImplementation((transactionId) =>
@@ -345,10 +343,7 @@ describe('submitFiatQuotes', () => {
     );
     waitForTransactionConfirmedMock.mockResolvedValue();
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-    resolveSourceAmountRawMock.mockResolvedValue({
-      amountRaw: '1000000000000000000',
-      fromBlock: undefined,
-    });
+    resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
     fundFiatOrderFromTestSourceMock.mockResolvedValue(
       getFiatOrderMock({
         cryptoAmount: '1',
@@ -375,10 +370,7 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
-    resolveSourceAmountRawMock.mockResolvedValue({
-      amountRaw: '1234500000000000000',
-      fromBlock: undefined,
-    });
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
     const { callMock, request } = getRequest({ order });
 
     const result = await submitFiatQuotes(request);
@@ -425,12 +417,9 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
-    resolveSourceAmountRawMock.mockResolvedValue({
-      amountRaw: '1234500000000000000',
-      fromBlock: undefined,
-    });
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
 
-    const callMock = jest.fn((action: string) => {
+    const callMock = vi.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -460,11 +449,11 @@ describe('submitFiatQuotes', () => {
       throw new Error(`Unexpected action: ${action}`);
     });
 
-    const subscribeMock = jest.fn((_event: string, handler: () => void) => {
+    const subscribeMock = vi.fn((_event: string, handler: () => void) => {
       unlockHandler = handler;
     });
 
-    const unsubscribeMock = jest.fn();
+    const unsubscribeMock = vi.fn();
 
     const request: PayStrategyExecuteRequest<FiatQuote> = {
       isSmartTransaction: () => false,
@@ -505,6 +494,28 @@ describe('submitFiatQuotes', () => {
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
+  it('uses the EVM account override as the wallet address', async () => {
+    const accountOverride = 'override-account-id';
+    const overrideAddress = '0x2222222222222222222222222222222222222222';
+
+    vi.mocked(getEvmAccountOverride).mockReturnValue(overrideAddress);
+
+    const { callMock, request } = getRequest({ accountOverride });
+
+    await submitFiatQuotes(request);
+
+    expect(getEvmAccountOverride).toHaveBeenCalledWith(
+      request.messenger,
+      accountOverride,
+    );
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      overrideAddress,
+    );
+  });
+
   it('uses fiat test funding source instead of polling ramps order', async () => {
     const fiatOptions = { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK };
     const { callMock, request } = getRequest({ fiatOptions });
@@ -519,7 +530,7 @@ describe('submitFiatQuotes', () => {
     });
     expect(
       callMock.mock.calls.some(
-        ([action]: [string]) => action === 'RampsController:getOrder',
+        ([action]) => action === 'RampsController:getOrder',
       ),
     ).toBe(false);
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
@@ -551,10 +562,7 @@ describe('submitFiatQuotes', () => {
       ],
     } as unknown as TransactionMeta;
 
-    resolveSourceAmountRawMock.mockResolvedValue({
-      amountRaw: '1234500000000000000',
-      fromBlock: undefined,
-    });
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
 
     const { callMock, request } = getRequest({
       transaction: nestedTransaction,
@@ -644,7 +652,11 @@ describe('submitFiatQuotes', () => {
     updateFn(txDraft);
 
     expect(txDraft.metamaskPay).toStrictEqual({
-      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
+      fiat: {
+        isDirectMusd: false,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      },
     });
   });
 
@@ -661,7 +673,11 @@ describe('submitFiatQuotes', () => {
 
     expect(txDraft.metamaskPay).toStrictEqual({
       totalFiat: '20.00',
-      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
+      fiat: {
+        isDirectMusd: false,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      },
     });
   });
 
@@ -685,7 +701,7 @@ describe('submitFiatQuotes', () => {
   });
 
   it('throws if ramps quote is missing from fiat payment state', async () => {
-    const callMock = jest.fn((action: string) => {
+    const callMock = vi.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -785,7 +801,7 @@ describe('submitFiatQuotes', () => {
   });
 
   it('polls pending orders until completed', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
     const completedOrder = getFiatOrderMock({
@@ -794,7 +810,7 @@ describe('submitFiatQuotes', () => {
     });
 
     let getOrderCallCount = 0;
-    const callMock = jest.fn((action: string) => {
+    const callMock = vi.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -843,7 +859,7 @@ describe('submitFiatQuotes', () => {
     };
 
     const promise = submitFiatQuotes(request);
-    await jest.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     const result = await promise;
 
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
@@ -851,7 +867,7 @@ describe('submitFiatQuotes', () => {
   });
 
   it('continues polling after transient getOrder error', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const completedOrder = getFiatOrderMock({
       cryptoAmount: '1',
@@ -859,7 +875,7 @@ describe('submitFiatQuotes', () => {
     });
 
     let getOrderCallCount = 0;
-    const callMock = jest.fn((action: string) => {
+    const callMock = vi.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -911,7 +927,7 @@ describe('submitFiatQuotes', () => {
     };
 
     const promise = submitFiatQuotes(request);
-    await jest.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     const result = await promise;
 
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
@@ -919,7 +935,7 @@ describe('submitFiatQuotes', () => {
   });
 
   it('throws if fiat order polling times out and includes last status', async () => {
-    const dateNowSpy = jest
+    const dateNowSpy = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(0)
       .mockReturnValue(Number.MAX_SAFE_INTEGER);
@@ -937,13 +953,13 @@ describe('submitFiatQuotes', () => {
   it('uses configurable poll timeout from feature flag', async () => {
     const customTimeoutMs = 30000;
 
-    const dateNowSpy = jest
+    const dateNowSpy = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(0)
       .mockReturnValue(customTimeoutMs);
 
     const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
-    const callMock = jest.fn((action: string) => {
+    const callMock = vi.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -1094,13 +1110,23 @@ describe('submitFiatQuotes', () => {
   describe('direct mUSD to money account flow', () => {
     const MONEY_ACCOUNT_ADDRESS =
       '0x3333333333333333333333333333333333333333' as Hex;
+    const MUSD_SETTLEMENT_HASH_MOCK =
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
+    const MUSD_SETTLED_AMOUNT_MOCK = '10000000';
+
+    beforeEach(() => {
+      getTransferredAmountFromTxHashMock.mockResolvedValue({
+        amountRaw: MUSD_SETTLED_AMOUNT_MOCK,
+        blockNumber: undefined,
+      });
+    });
 
     const MUSD_QUOTE_REQUEST: QuoteRequest = {
       from: WALLET_ADDRESS_MOCK,
       isDirectMusdMoneyAccount: true,
+      sourceAccountId: `eip155:143:${WALLET_ADDRESS_MOCK}`,
+      sourceAssetId: `eip155:143/erc20:${MUSD_MONAD_FIAT_ASSET.address}`,
       sourceBalanceRaw: '10000000',
-      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: '10000000',
       targetAmountMinimum: '10000000',
       targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
@@ -1111,7 +1137,11 @@ describe('submitFiatQuotes', () => {
       id: TRANSACTION_ID_MOCK,
       nestedTransactions: [
         { data: '0xoldApprove', to: '0xapprove' },
-        { data: '0xoldDeposit', to: '0xdeposit' },
+        {
+          data: '0xoldDeposit',
+          to: '0xdeposit',
+          type: TransactionType.moneyAccountDeposit,
+        },
       ],
       txParams: { from: MONEY_ACCOUNT_ADDRESS },
       type: 'batch',
@@ -1120,6 +1150,7 @@ describe('submitFiatQuotes', () => {
     it('uses txParams.from as walletAddress when quote is direct mUSD', async () => {
       const order = getFiatOrderMock({
         status: RampsOrderStatus.Completed,
+        txHash: MUSD_SETTLEMENT_HASH_MOCK,
       });
       const { callMock, request } = getRequest({
         order,
@@ -1135,9 +1166,40 @@ describe('submitFiatQuotes', () => {
       await submitFiatQuotes(request);
 
       const getOrderCall = callMock.mock.calls.find(
-        ([action]: [string]) => action === 'RampsController:getOrder',
+        ([action]) => action === 'RampsController:getOrder',
       );
       expect(getOrderCall?.[3]).toBe(MONEY_ACCOUNT_ADDRESS);
+    });
+
+    it('marks the persisted fiat order metadata as direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        status: RampsOrderStatus.Completed,
+        txHash: MUSD_SETTLEMENT_HASH_MOCK,
+      });
+      const { request } = getRequest({
+        order,
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await submitFiatQuotes(request);
+
+      const txDraft = { metamaskPay: undefined } as unknown as TransactionMeta;
+      const updateFn = updateTransactionMock.mock.calls.find(
+        ([{ note }]) => note === 'Persist fiat order metadata',
+      )?.[1];
+      updateFn?.(txDraft);
+
+      expect(txDraft.metamaskPay?.fiat).toStrictEqual({
+        isDirectMusd: true,
+        orderId: ORDER_ID_MOCK,
+        provider: 'transak-native-staging',
+      });
     });
 
     it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {
@@ -1149,6 +1211,7 @@ describe('submitFiatQuotes', () => {
           symbol: 'MUSD',
         },
         status: RampsOrderStatus.Completed,
+        txHash: MUSD_SETTLEMENT_HASH_MOCK,
       });
       buildCaipAssetTypeMock.mockReturnValue(
         'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
@@ -1170,6 +1233,7 @@ describe('submitFiatQuotes', () => {
 
     it('submits a sponsored Money Account vault batch for direct pure-fiat mUSD', async () => {
       const { callMock, request } = getRequest({
+        order: getFiatOrderMock({ txHash: MUSD_SETTLEMENT_HASH_MOCK }),
         quotes: [
           getFiatQuoteMock({
             includeRelayQuote: false,
@@ -1192,13 +1256,13 @@ describe('submitFiatQuotes', () => {
       expect(callMock).toHaveBeenCalledWith(
         'TransactionPayController:getAmountData',
         expect.objectContaining({
-          amount: '1000000000000000000',
+          amount: MUSD_SETTLED_AMOUNT_MOCK,
           transaction: expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
         }),
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Money Account vault deposit: update vault amount',
+          note: 'Second leg: update amount',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1226,7 +1290,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from Money Account vault submission',
+          note: 'Add required transaction ID from second leg submission',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1234,7 +1298,7 @@ describe('submitFiatQuotes', () => {
       expect(result).toStrictEqual({ transactionHash: '0xdirect' });
       expect(
         callMock.mock.calls.some(
-          ([action]: [string]) =>
+          ([action]) =>
             action === 'TransactionPayController:getPaymentOverrideData',
         ),
       ).toBe(false);
@@ -1247,6 +1311,7 @@ describe('submitFiatQuotes', () => {
           : undefined,
       );
       const { request } = getRequest({
+        order: getFiatOrderMock({ txHash: MUSD_SETTLEMENT_HASH_MOCK }),
         quotes: [
           getFiatQuoteMock({
             includeRelayQuote: false,
@@ -1257,7 +1322,7 @@ describe('submitFiatQuotes', () => {
       });
 
       await expect(submitFiatQuotes(request)).rejects.toThrow(
-        'Post-Ramp: Direct mUSD: Missing transaction hash',
+        'Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
       );
     });
 
@@ -1297,7 +1362,7 @@ describe('submitFiatQuotes', () => {
         }
 
         if (action === 'RampsController:getOrder') {
-          return getFiatOrderMock();
+          return getFiatOrderMock({ txHash: MUSD_SETTLEMENT_HASH_MOCK });
         }
 
         if (action === 'TransactionPayController:getAmountData') {
@@ -1322,7 +1387,7 @@ describe('submitFiatQuotes', () => {
       });
 
       await expect(submitFiatQuotes(request)).rejects.toThrow(
-        'Post-Ramp: Direct mUSD: Vault: batch failed',
+        'Post-Ramp: Direct mUSD: Second leg: Vault: batch failed',
       );
     });
 
@@ -1389,7 +1454,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from Money Account vault submission',
+          note: 'Add required transaction ID from second leg submission',
         }),
         expect.any(Function),
       );
@@ -1410,5 +1475,94 @@ describe('submitFiatQuotes', () => {
 
       expect(deriveFiatAssetForFiatPaymentMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('waitForOrderCompletion', () => {
+  const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+  function getMessengerMock(getOrderMock: Mock): {
+    messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'];
+  } {
+    const actions: Record<string, (...args: unknown[]) => unknown> = {
+      'RampsController:getOrder': getOrderMock,
+      'RemoteFeatureFlagController:getState': () => ({
+        remoteFeatureFlags: {},
+      }),
+    };
+
+    return {
+      messenger: {
+        call: vi.fn((action: string, ...args: unknown[]) =>
+          actions[action](...args),
+        ),
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+    };
+  }
+
+  function waitPastTimeout(
+    messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'],
+  ): Promise<RampsOrder> {
+    return waitForOrderCompletion({
+      messenger,
+      orderCode: ORDER_ID_MOCK,
+      providerCode: 'transak-native-staging',
+      startTime: Date.now() - POLL_TIMEOUT_MS - 1,
+      transactionId: TRANSACTION_ID_MOCK,
+      walletAddress: WALLET_ADDRESS_MOCK,
+    });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retries a failed fetch when starting past the timeout', async () => {
+    const completedOrder = getFiatOrderMock({
+      status: RampsOrderStatus.Completed,
+    });
+    const getOrderMock = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('Network error');
+      })
+      .mockReturnValue(completedOrder);
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    const promise = waitPastTimeout(messenger);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(await promise).toBe(completedOrder);
+    expect(getOrderMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('times out after the fetch grace period when every fetch fails past the timeout', async () => {
+    const getOrderMock = vi.fn().mockImplementation(() => {
+      throw new Error('Network error');
+    });
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    const result = waitPastTimeout(messenger).catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(await result).toStrictEqual(
+      new Error('Fiat order polling timed out (last status: undefined)'),
+    );
+  });
+
+  it('times out on the first fetch past the timeout when the order is still pending', async () => {
+    const getOrderMock = vi
+      .fn()
+      .mockReturnValue(getFiatOrderMock({ status: RampsOrderStatus.Pending }));
+    const { messenger } = getMessengerMock(getOrderMock);
+
+    await expect(waitPastTimeout(messenger)).rejects.toThrow(
+      'Fiat order polling timed out (last status: PENDING)',
+    );
+    expect(getOrderMock).toHaveBeenCalledTimes(1);
   });
 });

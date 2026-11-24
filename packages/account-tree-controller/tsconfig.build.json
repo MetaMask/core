@@ -28,5 +28,5 @@
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.test.ts", "**/jest.config.ts", "./src/state/tests"]
+  "exclude": ["**/*.test.ts", "./src/state/tests"]
 }

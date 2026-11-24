@@ -74,6 +74,9 @@ const config = {
     'build-utils': {
       teams: ['@MetaMask/core-platform'],
     },
+    'byte-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'chain-agnostic-permission': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -94,6 +97,7 @@ const config = {
         '@MetaMask/extension-platform',
         '@MetaMask/mobile-platform',
       ],
+      initializationPath: 'client-controller',
     },
     'client-utils': {
       teams: ['@MetaMask/core-extension-ux', '@MetaMask/mobile-core-ux'],
@@ -135,6 +139,9 @@ const config = {
     'eip1193-permission-middleware': {
       teams: ['@MetaMask/core-platform'],
     },
+    'error-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'eth-block-tracker': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -142,6 +149,9 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     'eth-json-rpc-provider': {
+      teams: ['@MetaMask/core-platform'],
+    },
+    'eth-sig-util': {
       teams: ['@MetaMask/core-platform'],
     },
     foundryup: {
@@ -171,6 +181,9 @@ const config = {
     'json-rpc-middleware-stream': {
       teams: ['@MetaMask/core-platform'],
     },
+    'key-tree': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'keyring-controller': {
       teams: ['@MetaMask/accounts-engineers', '@MetaMask/core-platform'],
       initializationPath: 'keyring-controller',
@@ -188,6 +201,10 @@ const config = {
     },
     'logging-controller': {
       teams: ['@MetaMask/confirmations'],
+      initializationPath: 'logging-controller',
+    },
+    'marketing-consent-sync-service': {
+      teams: ['@MetaMask/engagement'],
     },
     'message-manager': {
       teams: ['@MetaMask/confirmations'],
@@ -198,6 +215,9 @@ const config = {
     'messenger-cli': {
       teams: ['@MetaMask/core-platform'],
     },
+    'mfa-recovery-controller': {
+      teams: ['@MetaMask/web3auth'],
+    },
     'money-account-api-data-service': {
       teams: ['@MetaMask/earn'],
     },
@@ -206,6 +226,12 @@ const config = {
     },
     'money-account-controller': {
       teams: ['@MetaMask/accounts-engineers'],
+    },
+    'money-account-lifecycle-controller': {
+      teams: ['@MetaMask/earn'],
+    },
+    'money-account-mfa-whitelist': {
+      teams: ['@MetaMask/earn', '@MetaMask/mfa-team'],
     },
     'money-account-upgrade-controller': {
       teams: ['@MetaMask/earn', '@MetaMask/delegation'],
@@ -236,10 +262,19 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     'network-controller': {
-      teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+      teams: [
+        '@MetaMask/core-platform',
+        '@MetaMask/metamask-assets',
+        '@MetaMask/networks',
+      ],
+      initializationPath: 'network-controller',
     },
     'network-enablement-controller': {
-      teams: ['@MetaMask/metamask-assets'],
+      teams: ['@MetaMask/metamask-assets', '@MetaMask/networks'],
+      initializationPath: 'network-enablement-controller',
+    },
+    'node-utils': {
+      teams: ['@MetaMask/core-platform'],
     },
     'notification-services-controller': {
       teams: ['@MetaMask/engagement'],
@@ -250,6 +285,7 @@ const config = {
     },
     'permission-controller': {
       teams: ['@MetaMask/core-platform'],
+      initializationPath: 'permission-controller',
     },
     'permission-log-controller': {
       teams: ['@MetaMask/core-platform'],
@@ -304,6 +340,7 @@ const config = {
     },
     'selected-network-controller': {
       teams: ['@MetaMask/core-platform'],
+      initializationPath: 'selected-network-controller',
     },
     'sentinel-api-service': {
       teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
@@ -318,6 +355,7 @@ const config = {
     },
     'signature-controller': {
       teams: ['@MetaMask/confirmations'],
+      initializationPath: 'signature-controller',
     },
     'smart-transactions-controller': {
       teams: ['@MetaMask/transactions'],
@@ -367,8 +405,11 @@ const config = {
     'transaction-pay-controller': {
       teams: ['@MetaMask/confirmations'],
     },
-    'user-operation-controller': {
+    'transaction-pay-middleware': {
       teams: ['@MetaMask/confirmations'],
+    },
+    'type-utils': {
+      teams: ['@MetaMask/core-platform'],
     },
     utils: {
       teams: ['@MetaMask/core-platform'],
@@ -376,22 +417,22 @@ const config = {
     wallet: {
       teams: ['@MetaMask/core-platform'],
     },
-    'wallet-cli': {
-      teams: ['@MetaMask/core-platform'],
-    },
     'wallet-framework-docs': {
       teams: ['@MetaMask/core-platform'],
     },
+    'watch-only-account-service': {
+      teams: ['@MetaMask/accounts-engineers'],
+    },
   },
   overrides: [
-    { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+    { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/methods',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
   ],
 } satisfies CodeownersConfig;

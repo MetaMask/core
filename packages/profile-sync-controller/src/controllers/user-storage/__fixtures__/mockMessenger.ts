@@ -6,6 +6,8 @@ import type {
   MessengerEvents,
   NotNamespacedBy,
 } from '@metamask/messenger';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { signMessageWithMessageSigningKey } from '../../../shared/utils/message-signing.js';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks/index.js';
@@ -41,7 +43,7 @@ const typedMockFn = <
     : never,
 >(
   _type: ActionType,
-) => jest.fn<ReturnType<Func>, Parameters<Func>>();
+) => vi.fn<Func>();
 
 type ExternalEvents = NotNamespacedBy<
   typeof controllerName,
@@ -123,7 +125,7 @@ export function mockUserStorageMessenger(
   const { baseMessenger, messenger } =
     overrideMessengers ?? createCustomUserStorageMessenger();
 
-  const mockSignMessage = jest.mocked(signMessageWithMessageSigningKey);
+  const mockSignMessage = vi.mocked(signMessageWithMessageSigningKey);
   mockSignMessage.mockReset().mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
 
   const mockAuthGetBearerToken = typedMockFn(
@@ -146,9 +148,9 @@ export function mockUserStorageMessenger(
     'AuthenticationController:isSignedIn',
   ).mockReturnValue(true);
 
-  const mockKeyringGetAccounts = jest.fn();
-  const mockKeyringAddAccounts = jest.fn();
-  const mockWithKeyringSelector = jest.fn();
+  const mockKeyringGetAccounts: Mock = vi.fn();
+  const mockKeyringAddAccounts: Mock = vi.fn();
+  const mockWithKeyringSelector: Mock = vi.fn();
 
   const mockKeyringGetState = typedMockFn(
     'KeyringController:getState',
@@ -163,7 +165,7 @@ export function mockUserStorageMessenger(
     ],
   });
 
-  const mockWithKeyringV2Unsafe = jest
+  const mockWithKeyringV2Unsafe: Mock = vi
     .fn()
     .mockImplementation(
       async (
@@ -180,9 +182,9 @@ export function mockUserStorageMessenger(
       },
     );
 
-  const mockAccountsListAccounts = jest.fn();
+  const mockAccountsListAccounts: Mock = vi.fn();
 
-  jest.spyOn(messenger, 'call').mockImplementation((...args: unknown[]) => {
+  vi.spyOn(messenger, 'call').mockImplementation((...args: unknown[]) => {
     const typedArgs = args as unknown as CallParams;
     const [actionType] = typedArgs;
 

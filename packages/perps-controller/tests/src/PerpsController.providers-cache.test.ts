@@ -6,6 +6,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass } from 'vitest';
+
 import {
   AGENT_ADDRESS,
   MAIN_SIGNATURE,
@@ -24,7 +27,7 @@ import {
   keyringCalls,
 } from '../helpers/serviceMocks.js';
 
-jest.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -46,11 +49,19 @@ import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import * as AggregatedPerpsProviderModule from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { LighterProvider } from '../../src/providers/LighterProvider.js';
+import * as accountServiceModule from '../../src/services/AccountService.js';
+import * as dataLakeServiceModule from '../../src/services/DataLakeService.js';
+import * as depositServiceModule from '../../src/services/DepositService.js';
+import * as eligibilityServiceModule from '../../src/services/EligibilityService.js';
+import * as featureFlagConfigurationServiceModule from '../../src/services/FeatureFlagConfigurationService.js';
+import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import type { ServiceContext } from '../../src/services/ServiceContext.js';
+import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
   AccountState,
   GetAvailableDexsParams,
   HyperLiquidCredentials,
+  LighterCredentials,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsMarketData,
@@ -59,76 +70,72 @@ import type {
   Position,
   SubscribeAccountParams,
 } from '../../src/types/index.js';
-import { PerpsAnalyticsEvent } from '../../src/types/index.js';
+import {
+  PerpsAnalyticsEvent,
+  WebSocketConnectionState,
+} from '../../src/types/index.js';
+import { groupMarketsByMarketKey } from '../../src/utils/marketUtils.js';
 
-jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/LighterProvider');
+vi.mock('../../src/providers/HyperLiquidProvider');
+vi.mock('../../src/providers/LighterProvider');
 
 // Mock transaction controller utility
-const mockAddTransaction = jest.fn();
-jest.mock(
-  '../../../util/transaction-controller',
-  () => ({
-    addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
-  }),
-  { virtual: true },
-);
+const mockAddTransaction = vi.fn();
+vi.mock('../../../util/transaction-controller', () => ({
+  addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
+}));
 
 // Mock wait utility to speed up retry tests
-jest.mock('../../src/utils/wait', () => ({
-  wait: jest.fn().mockResolvedValue(undefined),
+vi.mock('../../src/utils/wait', () => ({
+  wait: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock stream manager
 const mockStreamManager = {
-  positions: { pause: jest.fn(), resume: jest.fn() },
-  account: { pause: jest.fn(), resume: jest.fn() },
-  orders: { pause: jest.fn(), resume: jest.fn() },
-  prices: { pause: jest.fn(), resume: jest.fn() },
-  orderFills: { pause: jest.fn(), resume: jest.fn() },
+  positions: { pause: vi.fn(), resume: vi.fn() },
+  account: { pause: vi.fn(), resume: vi.fn() },
+  orders: { pause: vi.fn(), resume: vi.fn() },
+  prices: { pause: vi.fn(), resume: vi.fn() },
+  orderFills: { pause: vi.fn(), resume: vi.fn() },
 };
 
-jest.mock(
-  '../../../components/UI/Perps/providers/PerpsStreamManager',
-  () => ({
-    getStreamManagerInstance: jest.fn(() => mockStreamManager),
-  }),
-  { virtual: true },
-);
+vi.mock('../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: vi.fn(() => mockStreamManager),
+}));
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  formatAccountToCaipAccountId: jest
+vi.mock(import('@metamask/utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  formatAccountToCaipAccountId: vi
     .fn()
     .mockReturnValue('eip155:1:0x1234567890123456789012345678901234567890'),
 }));
 
 // Mock EligibilityService as a class with instance methods
 const mockEligibilityServiceInstance = {
-  checkEligibility: jest.fn().mockResolvedValue(true),
+  checkEligibility: vi.fn().mockResolvedValue(true),
 };
-jest.mock('../../src/services/EligibilityService', () => ({
-  EligibilityService: jest
-    .fn()
-    .mockImplementation(() => mockEligibilityServiceInstance),
+vi.mock('../../src/services/EligibilityService', () => ({
+  EligibilityService: vi.fn().mockImplementation(function () {
+    return mockEligibilityServiceInstance;
+  }),
 }));
 
 // Mock DepositService as a class with instance methods
 const mockDepositServiceInstance = {
-  prepareTransaction: jest.fn(),
+  prepareTransaction: vi.fn(),
 };
-jest.mock('../../src/services/DepositService', () => ({
-  DepositService: jest
-    .fn()
-    .mockImplementation(() => mockDepositServiceInstance),
+vi.mock('../../src/services/DepositService', () => ({
+  DepositService: vi.fn().mockImplementation(function () {
+    return mockDepositServiceInstance;
+  }),
 }));
 
 // Mock MarketDataService as a class with instance methods
 const mockMarketDataServiceInstance = {
-  getPositions: jest.fn(),
-  getAccountState: jest.fn(),
-  getMarkets: jest.fn(),
-  getMarketDataWithPrices: jest
+  getPositions: vi.fn(),
+  getAccountState: vi.fn(),
+  getMarkets: vi.fn(),
+  getMarketDataWithPrices: vi
     .fn()
     .mockImplementation(
       ({
@@ -137,69 +144,69 @@ const mockMarketDataServiceInstance = {
         provider: { getMarketDataWithPrices: () => Promise<unknown[]> };
       }) => provider.getMarketDataWithPrices(),
     ),
-  getWithdrawalRoutes: jest.fn().mockReturnValue([]),
-  validateClosePosition: jest.fn().mockResolvedValue({ isValid: true }),
-  validateOrder: jest.fn(),
-  calculateMaintenanceMargin: jest.fn().mockResolvedValue(0),
-  calculateLiquidationPrice: jest.fn(),
-  getMaxLeverage: jest.fn(),
-  calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
-  previewPositionModify: jest.fn(),
-  getAvailableDexs: jest.fn().mockResolvedValue([]),
-  getBlockExplorerUrl: jest.fn(),
-  getOrderFills: jest.fn(),
-  getOrders: jest.fn(),
-  getFunding: jest.fn(),
+  getWithdrawalRoutes: vi.fn().mockReturnValue([]),
+  validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
+  validateOrder: vi.fn(),
+  calculateMaintenanceMargin: vi.fn().mockResolvedValue(0),
+  calculateLiquidationPrice: vi.fn(),
+  getMaxLeverage: vi.fn(),
+  calculateFees: vi.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: vi.fn(),
+  getAvailableDexs: vi.fn().mockResolvedValue([]),
+  getBlockExplorerUrl: vi.fn(),
+  getOrderFills: vi.fn(),
+  getOrders: vi.fn(),
+  getFunding: vi.fn(),
 };
-jest.mock('../../src/services/MarketDataService', () => ({
-  MarketDataService: jest
-    .fn()
-    .mockImplementation(() => mockMarketDataServiceInstance),
+vi.mock('../../src/services/MarketDataService', () => ({
+  MarketDataService: vi.fn().mockImplementation(function () {
+    return mockMarketDataServiceInstance;
+  }),
 }));
 
 // Mock TradingService as a class with instance methods
 const mockTradingServiceInstance = {
-  placeOrder: jest.fn(),
-  editOrder: jest.fn(),
-  cancelOrder: jest.fn(),
-  cancelOrders: jest.fn(),
-  closePosition: jest.fn(),
-  closePositions: jest.fn(),
-  updatePositionTPSL: jest.fn(),
-  updateMargin: jest.fn(),
-  flipPosition: jest.fn(),
-  setControllerDependencies: jest.fn(),
+  placeOrder: vi.fn(),
+  editOrder: vi.fn(),
+  cancelOrder: vi.fn(),
+  cancelOrders: vi.fn(),
+  closePosition: vi.fn(),
+  closePositions: vi.fn(),
+  updatePositionTPSL: vi.fn(),
+  updateMargin: vi.fn(),
+  flipPosition: vi.fn(),
+  setControllerDependencies: vi.fn(),
 };
-jest.mock('../../src/services/TradingService', () => ({
-  TradingService: jest
-    .fn()
-    .mockImplementation(() => mockTradingServiceInstance),
+vi.mock('../../src/services/TradingService', () => ({
+  TradingService: vi.fn().mockImplementation(function () {
+    return mockTradingServiceInstance;
+  }),
 }));
 
 // Mock AccountService as a class with instance methods
 const mockAccountServiceInstance = {
-  withdraw: jest.fn(),
-  validateWithdrawal: jest.fn(),
+  withdraw: vi.fn(),
+  validateWithdrawal: vi.fn(),
 };
-jest.mock('../../src/services/AccountService', () => ({
-  AccountService: jest
-    .fn()
-    .mockImplementation(() => mockAccountServiceInstance),
+vi.mock('../../src/services/AccountService', () => ({
+  AccountService: vi.fn().mockImplementation(function () {
+    return mockAccountServiceInstance;
+  }),
 }));
 
 // Mock DataLakeService as a class with instance methods
 const mockDataLakeServiceInstance = {
-  reportOrder: jest.fn(),
+  reportOrder: vi.fn(),
 };
-jest.mock('../../src/services/DataLakeService', () => ({
-  DataLakeService: jest
-    .fn()
-    .mockImplementation(() => mockDataLakeServiceInstance),
+vi.mock('../../src/services/DataLakeService', () => ({
+  DataLakeService: vi.fn().mockImplementation(function () {
+    return mockDataLakeServiceInstance;
+  }),
 }));
 
 // Mock FeatureFlagConfigurationService as a class with instance methods
 const mockFeatureFlagConfigurationServiceInstance = {
-  refreshEligibility: jest.fn((options: any) => {
+  refreshEligibility: vi.fn((options: any) => {
     // Simulate the service's behavior: extract blocked regions from remote flags
     const remoteFlags =
       options.remoteFeatureFlagControllerState.remoteFeatureFlags;
@@ -231,8 +238,8 @@ const mockFeatureFlagConfigurationServiceInstance = {
       mockFeatureFlagConfigurationServiceInstance.refreshHip3Config(options);
     }
   }),
-  refreshHip3Config: jest.fn(),
-  setBlockedRegions: jest.fn((options: any) => {
+  refreshHip3Config: vi.fn(),
+  setBlockedRegions: vi.fn((options: any) => {
     // Simulate setBlockedRegions behavior
     const { list, source, context } = options;
     if (context.setBlockedRegionList && context.getBlockedRegionList) {
@@ -254,10 +261,10 @@ const mockFeatureFlagConfigurationServiceInstance = {
     }
   }),
 };
-jest.mock('../../src/services/FeatureFlagConfigurationService', () => ({
-  FeatureFlagConfigurationService: jest
-    .fn()
-    .mockImplementation(() => mockFeatureFlagConfigurationServiceInstance),
+vi.mock('../../src/services/FeatureFlagConfigurationService', () => ({
+  FeatureFlagConfigurationService: vi.fn().mockImplementation(function () {
+    return mockFeatureFlagConfigurationServiceInstance;
+  }),
 }));
 
 /**
@@ -372,9 +379,13 @@ class TestablePerpsController extends PerpsController {
    * Test accessor for protected method reportOrderToDataLake.
    * Wrapper is necessary because protected methods can't be called from test code.
    * @param data
+   * @param provider
    */
-  public testReportOrderToDataLake(data: any): Promise<any> {
-    return this.reportOrderToDataLake(data);
+  public testReportOrderToDataLake(
+    data: any,
+    provider: PerpsProvider,
+  ): Promise<any> {
+    return this.reportOrderToDataLake(data, provider);
   }
 
   public testHasStandaloneProvider(): boolean {
@@ -394,8 +405,8 @@ class TestablePerpsController extends PerpsController {
 
 describe('PerpsController', () => {
   let controller: TestablePerpsController;
-  let mockProvider: jest.Mocked<HyperLiquidProvider>;
-  let mockInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+  let mockProvider: Mocked<HyperLiquidProvider>;
+  let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
 
   // Helper to mark controller as initialized for tests
@@ -404,36 +415,50 @@ describe('PerpsController', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     (
-      jest.requireMock('../../src/services/EligibilityService')
-        .EligibilityService as jest.Mock
-    ).mockImplementation(() => mockEligibilityServiceInstance);
+      (eligibilityServiceModule as unknown as Record<string, Mock>)
+        .EligibilityService as Mock
+    ).mockImplementation(function () {
+      return mockEligibilityServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/DepositService')
-        .DepositService as jest.Mock
-    ).mockImplementation(() => mockDepositServiceInstance);
+      (depositServiceModule as unknown as Record<string, Mock>)
+        .DepositService as Mock
+    ).mockImplementation(function () {
+      return mockDepositServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/MarketDataService')
-        .MarketDataService as jest.Mock
-    ).mockImplementation(() => mockMarketDataServiceInstance);
+      (marketDataServiceModule as unknown as Record<string, Mock>)
+        .MarketDataService as Mock
+    ).mockImplementation(function () {
+      return mockMarketDataServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/TradingService')
-        .TradingService as jest.Mock
-    ).mockImplementation(() => mockTradingServiceInstance);
+      (tradingServiceModule as unknown as Record<string, Mock>)
+        .TradingService as Mock
+    ).mockImplementation(function () {
+      return mockTradingServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/AccountService')
-        .AccountService as jest.Mock
-    ).mockImplementation(() => mockAccountServiceInstance);
+      (accountServiceModule as unknown as Record<string, Mock>)
+        .AccountService as Mock
+    ).mockImplementation(function () {
+      return mockAccountServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/DataLakeService')
-        .DataLakeService as jest.Mock
-    ).mockImplementation(() => mockDataLakeServiceInstance);
+      (dataLakeServiceModule as unknown as Record<string, Mock>)
+        .DataLakeService as Mock
+    ).mockImplementation(function () {
+      return mockDataLakeServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/FeatureFlagConfigurationService')
-        .FeatureFlagConfigurationService as jest.Mock
-    ).mockImplementation(() => mockFeatureFlagConfigurationServiceInstance);
+      (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
+        .FeatureFlagConfigurationService as Mock
+    ).mockImplementation(function () {
+      return mockFeatureFlagConfigurationServiceInstance;
+    });
 
     mockEligibilityServiceInstance.checkEligibility.mockResolvedValue(true);
     mockMarketDataServiceInstance.getPositions.mockResolvedValue([]);
@@ -552,10 +577,12 @@ describe('PerpsController', () => {
     mockProvider.getWithdrawalRoutes.mockReturnValue([]);
 
     (
-      HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
-    ).mockImplementation(() => mockProvider);
+      HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+    ).mockImplementation(function () {
+      return mockProvider;
+    });
 
-    const mockCall = jest.fn().mockImplementation((action: string) => {
+    const mockCall = vi.fn().mockImplementation((action: string) => {
       if (action === 'RemoteFeatureFlagController:getState') {
         return {
           remoteFeatureFlags: {
@@ -606,13 +633,13 @@ describe('PerpsController', () => {
           value !== null &&
           'mockClear' in value
         ) {
-          (value as jest.Mock).mockClear();
+          (value as Mock).mockClear();
         }
       });
     }
-    (mockInfrastructure.metrics.trackPerpsEvent as jest.Mock).mockClear();
-    (mockInfrastructure.logger.error as jest.Mock).mockClear();
-    (mockInfrastructure.debugLogger.log as jest.Mock).mockClear();
+    (mockInfrastructure.metrics.trackPerpsEvent as Mock).mockClear();
+    (mockInfrastructure.logger.error as Mock).mockClear();
+    (mockInfrastructure.debugLogger.log as Mock).mockClear();
   });
   describe('resetSelectedPaymentToken', () => {
     it('sets selectedPaymentToken to null', () => {
@@ -661,7 +688,7 @@ describe('PerpsController', () => {
       providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
-      jest.spyOn(controller, 'isCurrentlyReinitializing').mockReturnValue(true);
+      vi.spyOn(controller, 'isCurrentlyReinitializing').mockReturnValue(true);
 
       const result = await controller.switchProvider('lighter');
 
@@ -693,10 +720,10 @@ describe('PerpsController', () => {
       // Create controller with Lighter-enabled mocks
       const lighterInfrastructure = createMockInfrastructure();
       (
-        lighterInfrastructure.featureFlags.validateVersionGated as jest.Mock
+        lighterInfrastructure.featureFlags.validateVersionGated as Mock
       ).mockReturnValue(true);
       // Enable Lighter feature flag via messenger
-      const lighterMockCall = jest.fn().mockImplementation((action: string) => {
+      const lighterMockCall = vi.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return {
             remoteFeatureFlags: {
@@ -737,7 +764,7 @@ describe('PerpsController', () => {
       // so Lighter can't register via #createProviders. Mock init to
       // simulate successful reinitialization while preserving our
       // manually-injected Lighter provider in the map.
-      jest.spyOn(lighterController, 'init').mockImplementationOnce(async () => {
+      vi.spyOn(lighterController, 'init').mockImplementationOnce(async () => {
         lighterController.testUpdate((state) => {
           state.initializationState = InitializationState.Initialized;
         });
@@ -764,7 +791,7 @@ describe('PerpsController', () => {
 
       // Reinitialization now runs through the private serialized lifecycle,
       // so fail provider reconstruction rather than spying on public init().
-      jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+      vi.mocked(HyperLiquidProvider).mockImplementation(function () {
         throw new Error('Lighter init failed');
       });
 
@@ -775,7 +802,7 @@ describe('PerpsController', () => {
       expect(controller.state.activeProvider).toBe('hyperliquid');
 
       // Restore init for further tests
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('clears isReinitializing flag after success', async () => {
@@ -805,7 +832,7 @@ describe('PerpsController', () => {
       providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
+      vi.spyOn(controller, 'init').mockImplementationOnce(async () => {
         controller.testUpdate((state) => {
           state.initializationState = InitializationState.Failed;
           state.initializationError = 'fail';
@@ -816,7 +843,7 @@ describe('PerpsController', () => {
 
       expect(controller.isCurrentlyReinitializing()).toBe(false);
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
   });
 
@@ -855,9 +882,9 @@ describe('PerpsController', () => {
     it.each([true, false])(
       'forwards the public testnet Chase probe setting only on actual testnet=%s',
       (isTestnet) => {
-        const MockLighterConstructor = jest.fn(() =>
-          createMockHyperLiquidProvider(),
-        );
+        const MockLighterConstructor = vi.fn(function () {
+          return createMockHyperLiquidProvider();
+        });
         const lighter = { chaseTestnetProbe: true };
         controller = new TestablePerpsController({
           messenger: createMockMessenger(),
@@ -882,21 +909,25 @@ describe('PerpsController', () => {
       },
     );
 
-    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+    it('registerLighterProvider registers the provider and forwards the signer bridge and idle close from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must
       // forward it (the shared platform surface stays venue-agnostic).
       const mockBridge = {
-        createClient: jest.fn(),
-        execute: jest.fn(),
+        createClient: vi.fn(),
+        execute: vi.fn(),
       };
       const mockLighterInstance = createMockHyperLiquidProvider();
-      const MockLighterConstructor = jest.fn(() => mockLighterInstance);
+      const MockLighterConstructor = vi.fn(function () {
+        return mockLighterInstance;
+      });
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
         clientConfig: {
-          providerCredentials: { lighter: { signerBridge: mockBridge } },
+          providerCredentials: {
+            lighter: { signerBridge: mockBridge, socketIdleCloseMs: 12_000 },
+          },
         },
         infrastructure: mockInfrastructure,
       });
@@ -917,19 +948,20 @@ describe('PerpsController', () => {
           // mainnet writes are blocked inside LighterProvider instead.
           isTestnet: false,
           signerBridge: mockBridge,
+          socketIdleCloseMs: 12_000,
         }),
       );
     });
 
     it('registerLighterProvider builds Lighter on testnet with its testnet account while Lighter is pinned to testnet', () => {
-      jest.replaceProperty(
+      vi.spyOn(
         PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
         'LIGHTER_TESTNET_ONLY',
-        true,
-      );
-      const MockLighterConstructor = jest.fn(() =>
-        createMockHyperLiquidProvider(),
-      );
+        'get',
+      ).mockReturnValue(true);
+      const MockLighterConstructor = vi.fn(function () {
+        return createMockHyperLiquidProvider();
+      });
       const messenger = createMockMessenger();
       controller = new TestablePerpsController({
         messenger,
@@ -966,24 +998,162 @@ describe('PerpsController', () => {
       ]);
     });
 
-    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
-      const moduleError = Object.assign(
-        new Error('Cannot find module ./providers/LighterProvider'),
-        { code: 'MODULE_NOT_FOUND' },
+    it.each(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'])(
+      'handleLighterImportError logs debug for %s errors',
+      (code) => {
+        const moduleError = Object.assign(
+          new Error('Cannot find module ./providers/LighterProvider'),
+          { code },
+        );
+
+        controller.testHandleLighterImportError(moduleError);
+
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          {
+            error:
+              'Lighter provider failed to load (Cannot find module ./providers/LighterProvider). Pass providerCredentials.lighter.loadProvider to load it from @metamask/perps-controller/providers/lighter.',
+          },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('Lighter provider loading', () => {
+    const FETCH_FAILURE =
+      'Failed to fetch dynamically imported module: http://localhost:3000/_next/static/chunks/providers/LighterProvider';
+
+    /**
+     * Build a controller with Lighter enabled through the given credentials.
+     *
+     * @param lighter - The Lighter credentials.
+     * @param messenger - The controller messenger. Defaults to one that
+     * answers the remote feature flags, so nothing else reaches logger.error.
+     * @returns The controller.
+     */
+    function createLighterController(
+      lighter: LighterCredentials,
+      messenger = createMockMessenger({
+        call: vi
+          .fn()
+          .mockImplementation((action: string) =>
+            action === 'RemoteFeatureFlagController:getState'
+              ? { remoteFeatureFlags: {} }
+              : undefined,
+          ),
+      }),
+    ): TestablePerpsController {
+      return new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: { providerCredentials: { lighter } },
+        infrastructure: mockInfrastructure,
+      });
+    }
+
+    it('registers Lighter from the client loadProvider and switches to it', async () => {
+      const loadProvider = vi.fn().mockResolvedValue({ LighterProvider });
+      controller = createLighterController({ enabled: true, loadProvider });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(loadProvider).toHaveBeenCalled();
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
       );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+      expect(controller.state.activeProvider).toBe('lighter');
+    });
 
-      controller.testHandleLighterImportError(moduleError);
+    it.each([
+      [
+        'rejects',
+        async (): Promise<never> =>
+          Promise.reject(new TypeError(FETCH_FAILURE)),
+      ],
+      [
+        'throws',
+        (): never => {
+          throw new TypeError(FETCH_FAILURE);
+        },
+      ],
+    ])(
+      'reports a Lighter load that %s from switchProvider without logging an error',
+      async (_, loadProvider) => {
+        controller = createLighterController({ enabled: true, loadProvider });
 
-      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
-        'PerpsController: Lighter provider module not available, skipping registration',
+        await controller.init();
+        const result = await controller.switchProvider('lighter');
+
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initialized,
+        );
+        expect(result).toStrictEqual({
+          success: false,
+          providerId: 'hyperliquid',
+          error: `Provider lighter not available: Lighter provider failed to load (${FETCH_FAILURE}).`,
+        });
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          { error: `Lighter provider failed to load (${FETCH_FAILURE}).` },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+
+    it('registers Lighter through its own import when the client passes no loader', async () => {
+      controller = createLighterController({ enabled: true });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
+      );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+    });
+
+    it('reports a Lighter load that fails for another reason through logError', async () => {
+      const chunkError = Object.assign(new Error('Loading chunk 273 failed.'), {
+        name: 'ChunkLoadError',
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => Promise.reject(chunkError),
+      });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        chunkError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'createProviders.lighter',
+            }),
+          }),
+        }),
+      );
+      expect(result.error).toBe(
+        'Provider lighter not available: Lighter provider failed to load (Loading chunk 273 failed.).',
       );
     });
 
-    it('handleLighterImportError routes runtime errors to logError', () => {
-      // Act — error without MODULE_NOT_FOUND code goes to Sentry
-      controller.testHandleLighterImportError(new Error('Invalid auth config'));
+    it('logs a Lighter provider that fails to construct as an error', async () => {
+      vi.mocked(LighterProvider).mockImplementationOnce(function () {
+        throw new Error('Invalid auth config');
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => ({ LighterProvider }),
+      });
 
-      // Assert
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
       expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Invalid auth config' }),
         expect.objectContaining({
@@ -994,6 +1164,41 @@ describe('PerpsController', () => {
           }),
         }),
       );
+      expect(result.error).toBe('Provider lighter not available');
+    });
+
+    it('drops a previous load failure once Lighter is no longer enabled', async () => {
+      let isLighterFlagEnabled = true;
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockImplementation(() => isLighterFlagEnabled);
+      const call = vi.fn().mockImplementation((action: string) =>
+        action === 'RemoteFeatureFlagController:getState'
+          ? {
+              remoteFeatureFlags: {
+                perpsLighterProviderEnabled: {
+                  enabled: true,
+                  minimumVersion: '0.0.0',
+                },
+              },
+            }
+          : undefined,
+      );
+      controller = createLighterController(
+        {
+          signerBridge: { createClient: vi.fn(), execute: vi.fn() },
+          loadProvider: async () =>
+            Promise.reject(new TypeError(FETCH_FAILURE)),
+        },
+        createMockMessenger({ call }),
+      );
+      await controller.init();
+
+      isLighterFlagEnabled = false;
+      await controller.switchProvider('aggregated');
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.error).toBe('Provider lighter not available');
     });
   });
 
@@ -1018,8 +1223,8 @@ describe('PerpsController', () => {
         | { address: string }
         | null
         | (() => { address: string } | null);
-    }): jest.Mock {
-      return jest.fn().mockImplementation((action: string) => {
+    }): Mock {
+      return vi.fn().mockImplementation((action: string) => {
         if (action === 'KeyringController:getState') {
           return { isUnlocked };
         }
@@ -1036,8 +1241,8 @@ describe('PerpsController', () => {
 
     it('hands infrastructure.accountSigner to the HyperLiquid and Lighter providers', async () => {
       const accountSigner = {
-        signTypedData: jest.fn(),
-        signPersonalMessage: jest.fn(),
+        signTypedData: vi.fn(),
+        signPersonalMessage: vi.fn(),
       };
       const messenger = createMockMessenger();
       const infrastructure = { ...mockInfrastructure, accountSigner };
@@ -1051,8 +1256,8 @@ describe('PerpsController', () => {
       registerMockLighterProvider(controller);
 
       expect(
-        (HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>)
-          .mock.calls,
+        (HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>).mock
+          .calls,
       ).toStrictEqual([
         [
           {
@@ -1068,14 +1273,14 @@ describe('PerpsController', () => {
             subscriptionBuilderAddressTestnet: undefined,
             subscriptionBuilderAddressMainnet: undefined,
             onChaseOrderMaxDistanceReached: expect.any(Function),
+            getCurrentIsTestnet: expect.any(Function),
             getAgentSigner: expect.any(Function),
             onAgentRejected: expect.any(Function),
           },
         ],
       ]);
       expect(
-        (LighterProvider as jest.MockedClass<typeof LighterProvider>).mock
-          .calls,
+        (LighterProvider as MockedClass<typeof LighterProvider>).mock.calls,
       ).toStrictEqual([
         [
           {
@@ -1095,7 +1300,7 @@ describe('PerpsController', () => {
 
     const agentSigner = {
       address: AGENT_ADDRESS,
-      signTypedData: jest.fn(),
+      signTypedData: vi.fn(),
     } as const;
 
     /**
@@ -1108,7 +1313,7 @@ describe('PerpsController', () => {
       HyperLiquidCredentials['getAgentSigner']
     > {
       const { calls } = (
-        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+        HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
       ).mock;
       const resolver = calls[calls.length - 1][0].getAgentSigner;
       if (!resolver) {
@@ -1140,7 +1345,7 @@ describe('PerpsController', () => {
     });
 
     it('runs the agent and preparation actions called through the messenger after init', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+      const getAgentSigner = vi.fn().mockResolvedValue(agentSigner);
       // A keyring host, unlocked.
       const { messenger, rootMessenger } =
         createKeyringMessenger(MAIN_SIGNATURE);
@@ -1157,7 +1362,7 @@ describe('PerpsController', () => {
         ],
         messenger,
       });
-      mockProvider.prepareTradingWallet = jest
+      mockProvider.prepareTradingWallet = vi
         .fn()
         .mockResolvedValue({ ready: true });
       controller = new TestablePerpsController({
@@ -1191,7 +1396,7 @@ describe('PerpsController', () => {
     });
 
     it('drops resolved agents on every provider in aggregated mode, skipping one without clearAgentSigners', async () => {
-      mockProvider.clearAgentSigners = jest.fn();
+      mockProvider.clearAgentSigners = vi.fn();
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
         state: {
@@ -1216,9 +1421,9 @@ describe('PerpsController', () => {
       const RealAggregatedPerpsProvider =
         AggregatedPerpsProviderModule.AggregatedPerpsProvider;
       let providerIdsAtConstruction: string[] = [];
-      const aggregatedConstructor = jest
+      const aggregatedConstructor = vi
         .spyOn(AggregatedPerpsProviderModule, 'AggregatedPerpsProvider')
-        .mockImplementation((config) => {
+        .mockImplementation(function (config) {
           providerIdsAtConstruction = [...config.providers.keys()];
           return new RealAggregatedPerpsProvider(config);
         });
@@ -1286,8 +1491,8 @@ describe('PerpsController', () => {
             : {
                 ...mockInfrastructure,
                 accountSigner: {
-                  signTypedData: jest.fn(),
-                  signPersonalMessage: jest.fn(),
+                  signTypedData: vi.fn(),
+                  signPersonalMessage: vi.fn(),
                   isReady: (): boolean => canSign,
                 },
               },
@@ -1316,7 +1521,7 @@ describe('PerpsController', () => {
         const call = createHostCall({ isUnlocked: !usesKeyring });
         // For example an aggregated provider whose providers have nothing to
         // prepare, so none of them checked the signer.
-        mockProvider.prepareTradingWallet = jest
+        mockProvider.prepareTradingWallet = vi
           .fn()
           .mockResolvedValue({ ready: true });
         controller = new TestablePerpsController({
@@ -1327,8 +1532,8 @@ describe('PerpsController', () => {
             : {
                 ...mockInfrastructure,
                 accountSigner: {
-                  signTypedData: jest.fn(),
-                  signPersonalMessage: jest.fn(),
+                  signTypedData: vi.fn(),
+                  signPersonalMessage: vi.fn(),
                   isReady: (): boolean => false,
                 },
               },
@@ -1364,7 +1569,7 @@ describe('PerpsController', () => {
       async ({ selectedAccount }) => {
         // For example a provider without deferred setup, which checks no
         // account.
-        mockProvider.prepareTradingWallet = jest
+        mockProvider.prepareTradingWallet = vi
           .fn()
           .mockResolvedValue({ ready: true });
         controller = new TestablePerpsController({
@@ -1428,7 +1633,7 @@ describe('PerpsController', () => {
         });
         // For example an aggregated provider preparing one provider after
         // another.
-        mockProvider.prepareTradingWallet = jest.fn(async () => {
+        mockProvider.prepareTradingWallet = vi.fn(async () => {
           selectedAccount = nextAccount;
           return providerResult;
         });
@@ -1456,7 +1661,7 @@ describe('PerpsController', () => {
         selectedAccount: () => selectedAccount,
       });
       const prepared = { ready: true };
-      mockProvider.prepareTradingWallet = jest.fn(async () => {
+      mockProvider.prepareTradingWallet = vi.fn(async () => {
         selectedAccount = {
           ...selectedAccount,
           address: `0x${address.slice(2).toUpperCase()}`,
@@ -1480,7 +1685,7 @@ describe('PerpsController', () => {
         ready: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       };
-      mockProvider.prepareTradingWallet = jest.fn().mockResolvedValue(notReady);
+      mockProvider.prepareTradingWallet = vi.fn().mockResolvedValue(notReady);
       // A locked keyring and no selected account, which would otherwise be
       // reported instead.
       const call = createHostCall({ isUnlocked: false, selectedAccount: null });
@@ -1505,7 +1710,7 @@ describe('PerpsController', () => {
 
   describe('getOpenOrders with standalone mode', () => {
     const mockUserAddress = '0xabcdef1234567890abcdef1234567890abcdef12';
-    const MockedHyperLiquidProvider = HyperLiquidProvider as jest.MockedClass<
+    const MockedHyperLiquidProvider = HyperLiquidProvider as MockedClass<
       typeof HyperLiquidProvider
     >;
 
@@ -1570,7 +1775,9 @@ describe('PerpsController', () => {
       ];
       const tempMockProvider = createMockHyperLiquidProvider();
       tempMockProvider.getOpenOrders.mockResolvedValue(mockOrders);
-      MockedHyperLiquidProvider.mockImplementation(() => tempMockProvider);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
 
       controller.testUpdate((state) => {
         state.activeProvider = 'aggregated';
@@ -1591,7 +1798,9 @@ describe('PerpsController', () => {
     it('bypasses getActiveProvider check for standalone queries', async () => {
       const tempMockProvider = createMockHyperLiquidProvider();
       tempMockProvider.getOpenOrders.mockResolvedValue([]);
-      MockedHyperLiquidProvider.mockImplementation(() => tempMockProvider);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
 
       controller.testUpdate((state) => {
         state.initializationState = InitializationState.Initializing;
@@ -1608,7 +1817,7 @@ describe('PerpsController', () => {
   });
 
   describe('getMarketDataWithPrices with standalone mode', () => {
-    const MockedHyperLiquidProvider = HyperLiquidProvider as jest.MockedClass<
+    const MockedHyperLiquidProvider = HyperLiquidProvider as MockedClass<
       typeof HyperLiquidProvider
     >;
 
@@ -1644,23 +1853,25 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot?.request).toStrictEqual({
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
         enabledDexes: ['main', 'xyz'],
       });
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:GOLD')).toBe(
-        true,
-      );
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
-        false,
-      );
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:GOLD'),
+      ).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(true);
 
       controller.testUpdate((state) => {
         state.hip3ConfigVersion += 1;
       });
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(
+        false,
+      );
 
       const liveUpdate = {
         symbol: 'BTC',
@@ -1670,15 +1881,170 @@ describe('PerpsController', () => {
       };
       mockProvider.subscribeToPrices.mockImplementation(({ callback }) => {
         callback([liveUpdate]);
-        return jest.fn();
+        return vi.fn();
       });
-      const priceCallback = jest.fn();
+      const priceCallback = vi.fn();
       controller.subscribeToPrices({
         symbols: ['BTC'],
         callback: priceCallback,
       });
       expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
       expect(priceCallback).toHaveBeenCalledWith([liveUpdate]);
+    });
+
+    it('passes one snapshot identity per venue in aggregated mode, each with its own guard', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.isMarketAllowed('NVDA')).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.hip3ConfigVersion += 1;
+      });
+      expect(snapshots?.hyperliquid?.isCurrent()).toBe(false);
+      expect(snapshots?.lighter?.isCurrent()).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+      expect(snapshots?.lighter?.isCurrent()).toBe(false);
+    });
+
+    it('passes only the Lighter identity in direct Lighter mode', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'lighter',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarkets.mock.calls[0]?.[0].context
+          .globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeUndefined();
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'testnet',
+        enabledDexes: ['main'],
+      });
+    });
+
+    it('leaves Lighter out of aggregated snapshots when Lighter is not registered', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeDefined();
+      expect(snapshots?.lighter).toBeUndefined();
+    });
+
+    it('requires a Lighter cache slice only while Lighter can still register', () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      const btc = {
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        price: '50000',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        maxLeverage: '50x',
+        volume: '$1M',
+        providerId: 'hyperliquid' as const,
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+          cachedMarketDataByProvider: {
+            'hyperliquid:mainnet': { data: [btc], timestamp: Date.now() },
+            // A stale disk-hydrated slice from a session where Lighter loaded.
+            'lighter:mainnet': {
+              data: [{ ...btc, providerId: 'lighter' }],
+              timestamp: Date.now() - 24 * 60 * 60 * 1000,
+            },
+          },
+        },
+        clientConfig: {
+          providerCredentials: { lighter: { enabled: true } },
+        } as never,
+        infrastructure: mockInfrastructure,
+      });
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toBeNull();
+
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual([
+        btc,
+      ]);
     });
 
     it('treats a bare allowlist entry as a DEX shorthand', async () => {
@@ -1706,7 +2072,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toStrictEqual(['main', 'xyz']);
     });
 
@@ -1730,16 +2096,16 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toEqual(['main', 'flx', 'xyz']);
     });
 
     it('does not enable snapshots for a legacy-only injected Terminal service', async () => {
       mockInfrastructure.terminalApi = undefined;
       mockInfrastructure.terminalMarketService = {
-        fetchMarkets: jest.fn(),
-        clearCache: jest.fn(),
-        logError: jest.fn(),
+        fetchMarkets: vi.fn(),
+        clearCache: vi.fn(),
+        logError: vi.fn(),
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1753,8 +2119,64 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot,
+          .context.globalSnapshots,
       ).toBeUndefined();
+    });
+
+    it('passes the shared snapshot identity into getMarkets', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz:*'],
+          fallbackHip3BlocklistMarkets: ['xyz:TSLA'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('BTC'),
+      ).toBe(true);
+    });
+
+    it('leaves getMarkets on the legacy path when no snapshot URL is configured', async () => {
+      mockInfrastructure.terminalApi = undefined;
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshots).toBeUndefined();
     });
 
     it('uses existing provider for standalone queries when available', async () => {
@@ -1806,7 +2228,9 @@ describe('PerpsController', () => {
       tempMockProvider.getMarketDataWithPrices.mockResolvedValue(
         mockMarketData,
       );
-      MockedHyperLiquidProvider.mockImplementation(() => tempMockProvider);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
 
       controller.testUpdate((state) => {
         state.activeProvider = 'aggregated';
@@ -1834,7 +2258,9 @@ describe('PerpsController', () => {
           typeof tempMockProvider.getMarketDataWithPrices
         >,
       );
-      MockedHyperLiquidProvider.mockImplementation(() => tempMockProvider);
+      MockedHyperLiquidProvider.mockImplementation(function () {
+        return tempMockProvider;
+      });
 
       const marketRequest = controller.getMarketDataWithPrices({
         standalone: true,
@@ -1864,12 +2290,12 @@ describe('PerpsController', () => {
 
   describe('startMarketDataPreload and stopMarketDataPreload', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
       controller.stopMarketDataPreload();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('is idempotent - calling start twice does not create duplicate timers', () => {
@@ -1881,7 +2307,7 @@ describe('PerpsController', () => {
       controller.startMarketDataPreload();
 
       // Advance timers past the preload interval (5 min) to verify no double calls
-      jest.advanceTimersByTime(5 * 60 * 1000 + 100);
+      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
 
       // performMarketDataPreload calls getMarketDataWithPrices({ standalone: true })
       // The first immediate call happens, then only 1 interval call (not 2)
@@ -1909,7 +2335,7 @@ describe('PerpsController', () => {
       controller.startMarketDataPreload();
 
       // Wait for the async performMarketDataPreload to complete
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
         'PerpsController: Fetching market data in background',
@@ -1927,7 +2353,7 @@ describe('PerpsController', () => {
       // After stop, advancing timers should not trigger more calls
       const callCountBefore =
         mockProvider.getMarketDataWithPrices.mock.calls.length;
-      jest.advanceTimersByTime(10 * 60 * 1000);
+      vi.advanceTimersByTime(10 * 60 * 1000);
       const callCountAfter =
         mockProvider.getMarketDataWithPrices.mock.calls.length;
 
@@ -1946,10 +2372,10 @@ describe('PerpsController', () => {
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(5 * 60 * 1000);
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
       controller.stopMarketDataPreload();
       resolvePreload([]);
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
     });
@@ -1968,14 +2394,24 @@ describe('PerpsController', () => {
             price: '50000',
             change24h: '+100',
             change24hPercent: '+0.2%',
+            change5m: '+$10.00',
+            changePercent5m: '1.50%',
+            change1h: '-$4.00',
+            changePercent1h: '-0.50%',
             maxLeverage: '50x',
             volume: '$1B',
+            numericValues: {
+              price: 50000,
+              change24hPercent: 0.2,
+              volume: 1e9,
+              openInterest: 2e8,
+            },
           },
         ],
         timestamp: Date.now(),
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_MARKETS) {
             return JSON.stringify(diskMarkets);
@@ -1997,10 +2433,27 @@ describe('PerpsController', () => {
       expect(cached?.data[0].symbol).toBe('BTC');
       // Prices are stripped to placeholder values
       expect(cached?.data[0].price).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      // Stale price sort values go with them; volume and OI stay displayed.
+      expect(cached?.data[0].numericValues).toStrictEqual({
+        volume: 1e9,
+        openInterest: 2e8,
+      });
       expect(cached?.data[0].change24h).toBe(
         PERPS_CONSTANTS.FallbackDataDisplay,
       );
       expect(cached?.data[0].change24hPercent).toBe(
+        PERPS_CONSTANTS.FallbackPercentageDisplay,
+      );
+      expect(cached?.data[0].change5m).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(cached?.data[0].changePercent5m).toBe(
+        PERPS_CONSTANTS.FallbackPercentageDisplay,
+      );
+      expect(cached?.data[0].change1h).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(cached?.data[0].changePercent1h).toBe(
         PERPS_CONSTANTS.FallbackPercentageDisplay,
       );
       expect(ctrl.getCachedMarketDataForActiveProvider()).toBeNull();
@@ -2011,8 +2464,8 @@ describe('PerpsController', () => {
 
     it('publishes one construction timestamp after disk hydration and does not write Sentry at construct', () => {
       const infra = createMockInfrastructure();
-      (infra.performance.now as jest.Mock).mockReturnValue(321);
-      const onControllerConstructed = jest.fn();
+      (infra.performance.now as Mock).mockReturnValue(321);
+      const onControllerConstructed = vi.fn();
       infra.performance.onControllerConstructed = onControllerConstructed;
 
       new TestablePerpsController({
@@ -2024,35 +2477,34 @@ describe('PerpsController', () => {
       expect(onControllerConstructed).toHaveBeenCalledTimes(1);
       expect(onControllerConstructed).toHaveBeenCalledWith(321);
       expect(
-        (infra.diskCache.getItemSync as jest.Mock).mock.invocationCallOrder[0],
+        (infra.diskCache.getItemSync as Mock).mock.invocationCallOrder[0],
       ).toBeLessThan(onControllerConstructed.mock.invocationCallOrder[0]);
       expect(infra.tracer.setMeasurement).not.toHaveBeenCalled();
     });
 
     it('does not hydrate expired Terminal trend provenance from disk', () => {
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
-        (key: string) =>
-          key === PERPS_DISK_CACHE_MARKETS
-            ? JSON.stringify({
-                providerNetworkKey: 'hyperliquid:mainnet',
-                data: [
-                  {
-                    symbol: 'BTC',
-                    name: 'Bitcoin',
-                    price: '50000',
-                    change24h: '+100',
-                    change24hPercent: '+0.2%',
-                    maxLeverage: '50x',
-                    volume: '$1B',
-                    dataSource: 'terminal-global-snapshot-mark',
-                    sourceExpiresAt: Date.now() - 1,
-                    trend: [[Date.now() - 3_600_000, '49000']],
-                  },
-                ],
-                timestamp: Date.now(),
-              })
-            : null,
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_MARKETS
+          ? JSON.stringify({
+              providerNetworkKey: 'hyperliquid:mainnet',
+              data: [
+                {
+                  symbol: 'BTC',
+                  name: 'Bitcoin',
+                  price: '50000',
+                  change24h: '+100',
+                  change24hPercent: '+0.2%',
+                  maxLeverage: '50x',
+                  volume: '$1B',
+                  dataSource: 'terminal-global-snapshot-mark',
+                  sourceExpiresAt: Date.now() - 1,
+                  trend: [[Date.now() - 3_600_000, '49000']],
+                },
+              ],
+              timestamp: Date.now(),
+            })
+          : null,
       );
 
       const ctrl = new TestablePerpsController({
@@ -2104,7 +2556,7 @@ describe('PerpsController', () => {
         ],
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_MARKETS) {
             return JSON.stringify(diskMarkets);
@@ -2166,13 +2618,21 @@ describe('PerpsController', () => {
             address: '0x1234567890abcdef1234567890abcdef12345678',
             positions: [createMockPosition({ symbol: 'ETH', size: '2.0' })],
             orders: [],
-            accountState: null,
+            accountState: {
+              totalBalance: '1000.20',
+              spendableBalance: '800.20',
+              withdrawableBalance: '700.20',
+              marginUsed: '200',
+              unrealizedPnl: '60',
+              returnOnEquity: '30',
+              providerId: 'lighter',
+            },
             timestamp,
           },
         ],
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_USER_DATA) {
             return JSON.stringify(diskUserData);
@@ -2201,7 +2661,20 @@ describe('PerpsController', () => {
         skipTTL: true,
       });
       expect(aggregated?.positions).toHaveLength(2);
-      expect(aggregated?.accountState?.providerId).toBe('hyperliquid');
+      expect(aggregated?.accountState).toMatchObject({
+        totalBalance: '6000.2',
+        spendableBalance: '4800.2',
+        withdrawableBalance: '4700.2',
+        marginUsed: '1200',
+        unrealizedPnl: '60',
+        returnOnEquity: '5',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+      expect(aggregated?.accountState?.providerId).toBeUndefined();
     });
 
     it('hydrates user data from disk at construction time', () => {
@@ -2221,7 +2694,7 @@ describe('PerpsController', () => {
         timestamp: Date.now(),
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_USER_DATA) {
             return JSON.stringify(diskUserData);
@@ -2257,11 +2730,10 @@ describe('PerpsController', () => {
         dexes: ['main'],
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
-        (key: string) =>
-          key === PERPS_DISK_CACHE_USER_DATA
-            ? JSON.stringify(diskUserData)
-            : null,
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
       );
       const ctrl = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -2286,11 +2758,10 @@ describe('PerpsController', () => {
         dexes: { length: 1 },
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
-        (key: string) =>
-          key === PERPS_DISK_CACHE_USER_DATA
-            ? JSON.stringify(diskUserData)
-            : null,
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
       );
       const ctrl = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -2317,11 +2788,10 @@ describe('PerpsController', () => {
         dexes: ['main'],
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
-        (key: string) =>
-          key === PERPS_DISK_CACHE_USER_DATA
-            ? JSON.stringify(diskUserData)
-            : null,
+      (infra.diskCache.getItemSync as Mock).mockImplementation((key: string) =>
+        key === PERPS_DISK_CACHE_USER_DATA
+          ? JSON.stringify(diskUserData)
+          : null,
       );
       const ctrl = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -2344,7 +2814,7 @@ describe('PerpsController', () => {
         timestamp: Date.now(),
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_USER_DATA) {
             return JSON.stringify(diskUserData);
@@ -2382,7 +2852,7 @@ describe('PerpsController', () => {
         timestamp: freshTimestamp - 60_000, // older than initial state
       };
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
+      (infra.diskCache.getItemSync as Mock).mockImplementation(
         (key: string) => {
           if (key === PERPS_DISK_CACHE_MARKETS) {
             return JSON.stringify(diskMarkets);
@@ -2414,7 +2884,7 @@ describe('PerpsController', () => {
 
     it('handles corrupt disk JSON gracefully at construction', () => {
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItemSync as jest.Mock).mockReturnValue(
+      (infra.diskCache.getItemSync as Mock).mockReturnValue(
         'not valid json{{{',
       );
 
@@ -2447,12 +2917,12 @@ describe('PerpsController', () => {
 
   describe('performMarketDataPreload', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
       controller.stopMarketDataPreload();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('writes returned global snapshot data into the provider preload cache', async () => {
@@ -2474,7 +2944,7 @@ describe('PerpsController', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       const entry =
         controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
@@ -2503,7 +2973,7 @@ describe('PerpsController', () => {
       );
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices,
@@ -2545,7 +3015,7 @@ describe('PerpsController', () => {
           dataSource: 'terminal-global-snapshot-mark',
         },
       ]);
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(
         controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
@@ -2589,7 +3059,7 @@ describe('PerpsController', () => {
           volume: '$1000000',
         },
       ]);
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(
         controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
@@ -2628,7 +3098,7 @@ describe('PerpsController', () => {
         { op: 'replace', path: ['isTestnet'], value: true },
       ]);
       resolveMainnet([]);
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices,
@@ -2656,7 +3126,7 @@ describe('PerpsController', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(mockInfrastructure.diskCache.setItem).toHaveBeenCalledWith(
         PERPS_DISK_CACHE_MARKETS,
@@ -2664,7 +3134,7 @@ describe('PerpsController', () => {
       );
 
       const persistedPayload = JSON.parse(
-        (mockInfrastructure.diskCache.setItem as jest.Mock).mock.calls.find(
+        (mockInfrastructure.diskCache.setItem as Mock).mock.calls.find(
           ([key]) => key === PERPS_DISK_CACHE_MARKETS,
         )?.[1] as string,
       );
@@ -2692,7 +3162,7 @@ describe('PerpsController', () => {
 
       // First preload
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       const callCount = mockProvider.getMarketDataWithPrices.mock.calls.length;
 
@@ -2706,7 +3176,7 @@ describe('PerpsController', () => {
         };
       });
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       // Should not have called again due to debounce
       // The second immediate call is debounced
@@ -2723,7 +3193,7 @@ describe('PerpsController', () => {
       );
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       // Should log error but not throw
       expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
@@ -2755,7 +3225,7 @@ describe('PerpsController', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(mockInfrastructure.tracer.trace).toHaveBeenCalled();
       expect(mockInfrastructure.tracer.endTrace).toHaveBeenCalled();
@@ -2772,8 +3242,7 @@ describe('PerpsController', () => {
 
   describe('performUserDataPreload', () => {
     // Import actual enum for type compatibility
-    const { WebSocketConnectionState: WSState } =
-      jest.requireActual('../../src/types');
+    const WSState = WebSocketConnectionState;
     const mockEvmAccount = {
       address: '0x1234567890123456789012345678901234567890',
       type: 'eip155:eoa',
@@ -2789,8 +3258,8 @@ describe('PerpsController', () => {
     };
 
     let preloadController: TestablePerpsController;
-    let preloadMockProvider: jest.Mocked<HyperLiquidProvider>;
-    let preloadInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+    let preloadMockProvider: Mocked<HyperLiquidProvider>;
+    let preloadInfrastructure: Mocked<PerpsPlatformDependencies>;
     let preloadMessenger: ReturnType<typeof createMockMessenger>;
 
     const createUserSnapshot = (): PerpsUserDataSnapshot => ({
@@ -2823,9 +3292,9 @@ describe('PerpsController', () => {
     };
 
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       // Create controller with messenger that handles account queries
-      const mockCall = jest.fn().mockImplementation((action: string) => {
+      const mockCall = vi.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return {
             remoteFeatureFlags: {
@@ -2853,7 +3322,7 @@ describe('PerpsController', () => {
       });
       preloadMockProvider.getMarkets.mockResolvedValue([]);
       preloadMockProvider.getOpenOrders.mockResolvedValue([]);
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockImplementation(async ({ userAddress, identity }) => {
           const [positions, orders, accountState] = await Promise.all([
@@ -2883,8 +3352,10 @@ describe('PerpsController', () => {
           };
         });
       (
-        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
-      ).mockImplementation(() => preloadMockProvider);
+        HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(function () {
+        return preloadMockProvider;
+      });
       preloadMessenger = createMockMessenger({ call: mockCall });
       preloadController = new TestablePerpsController({
         messenger: preloadMessenger,
@@ -2896,12 +3367,12 @@ describe('PerpsController', () => {
     afterEach(() => {
       mockEvmAccount.address = '0x1234567890123456789012345678901234567890';
       preloadController.stopMarketDataPreload();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('returns and atomically persists a provider user snapshot', async () => {
       const snapshot = createUserSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(snapshot);
       preloadController.testMarkInitialized();
@@ -2934,7 +3405,7 @@ describe('PerpsController', () => {
           totalBalance: '10',
         },
       };
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(snapshot);
       preloadController.testMarkInitialized();
@@ -2960,7 +3431,7 @@ describe('PerpsController', () => {
 
     it('fetches through the standalone provider before an active instance exists', async () => {
       const snapshot = createUserSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(snapshot);
 
@@ -2981,7 +3452,7 @@ describe('PerpsController', () => {
     it('rejects a snapshot whose DEX identity differs from captured configuration', async () => {
       const snapshot = createUserSnapshot();
       snapshot.identity.dexes = ['main', 'xyz'];
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(snapshot);
       preloadController.testMarkInitialized();
@@ -2999,7 +3470,7 @@ describe('PerpsController', () => {
 
     it('coalesces concurrent requests with the same captured identity', async () => {
       const deferred = createDeferredSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValue(deferred.promise);
       preloadController.testMarkInitialized();
@@ -3028,7 +3499,7 @@ describe('PerpsController', () => {
         },
         infrastructure: preloadInfrastructure,
       });
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockImplementation(async ({ userAddress, identity }) => ({
           ...createUserSnapshot(),
@@ -3048,7 +3519,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -3063,7 +3534,7 @@ describe('PerpsController', () => {
 
     it('does not coalesce requests across provider instances', async () => {
       const deferred = createDeferredSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValue(deferred.promise);
       preloadController.testMarkInitialized();
@@ -3073,7 +3544,7 @@ describe('PerpsController', () => {
 
       const firstRequest = preloadController.getUserDataSnapshot();
       const replacementProvider = createMockHyperLiquidProvider();
-      replacementProvider.getUserDataSnapshot = jest
+      replacementProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(createUserSnapshot());
       preloadController.testSetProviders(
@@ -3098,7 +3569,7 @@ describe('PerpsController', () => {
       preloadInfrastructure.diskCache.setItem
         .mockReturnValueOnce(firstWrite)
         .mockResolvedValue(undefined);
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockImplementation(async () => createUserSnapshot());
       preloadController.testMarkInitialized();
@@ -3112,7 +3583,7 @@ describe('PerpsController', () => {
       expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
 
       resolveFirstWrite();
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(2);
       const lastPayload = JSON.parse(
@@ -3123,7 +3594,7 @@ describe('PerpsController', () => {
 
     it('refreshes user data while WebSocket is connected independently of market preload', async () => {
       const snapshot = createUserSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockResolvedValue(snapshot);
       preloadMockProvider.getMarketDataWithPrices.mockReturnValue(
@@ -3138,7 +3609,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
       expect(
@@ -3151,7 +3622,7 @@ describe('PerpsController', () => {
       const firstSnapshot = createUserSnapshot();
       const firstRequest = createDeferredSnapshot();
       const secondAddress = '0x9999999999999999999999999999999999999999';
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValueOnce(firstRequest.promise)
         .mockImplementationOnce(async () => createUserSnapshot());
@@ -3178,7 +3649,7 @@ describe('PerpsController', () => {
       mockEvmAccount.address = secondAddress;
       accountChangeHandler?.();
       firstRequest.resolve(firstSnapshot);
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(2);
       expect(
@@ -3187,7 +3658,7 @@ describe('PerpsController', () => {
     });
 
     it('does not poll user REST data when WebSocket and a matching cache are available', async () => {
-      preloadMockProvider.getUserDataSnapshot = jest.fn();
+      preloadMockProvider.getUserDataSnapshot = vi.fn();
       preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
       preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
         WSState.Connected,
@@ -3209,13 +3680,13 @@ describe('PerpsController', () => {
       });
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(preloadMockProvider.getUserDataSnapshot).not.toHaveBeenCalled();
     });
 
     it('refreshes once after HIP-3 identity changes while WebSocket is connected', async () => {
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockImplementation(async ({ userAddress, identity }) => ({
           ...createUserSnapshot(),
@@ -3245,14 +3716,14 @@ describe('PerpsController', () => {
         };
       });
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
       preloadMockProvider.getUserDataSnapshot.mockClear();
 
       preloadController.testUpdate((state) => {
         state.hip3ConfigVersion = 1;
       });
-      await jest.advanceTimersByTimeAsync(100);
-      await jest.advanceTimersByTimeAsync(300_000);
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(300_000);
 
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
       expect(
@@ -3275,16 +3746,16 @@ describe('PerpsController', () => {
         new Map([['hyperliquid', preloadMockProvider]]),
       );
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
       preloadMockProvider.getUserDataSnapshot.mockClear();
-      jest.spyOn(preloadController, 'init').mockImplementationOnce(async () => {
+      vi.spyOn(preloadController, 'init').mockImplementationOnce(async () => {
         preloadController.testUpdate((state) => {
           state.initializationState = InitializationState.Initialized;
         });
       });
 
       await preloadController.toggleTestnet();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith(
@@ -3305,7 +3776,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       const userPreloadTrace = preloadInfrastructure.tracer.trace.mock.calls
         .map((call) => call[0])
@@ -3353,7 +3824,7 @@ describe('PerpsController', () => {
       ],
     ])('discards a user snapshot after a %s change', async (_label, mutate) => {
       const deferred = createDeferredSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValue(deferred.promise);
       preloadController.testMarkInitialized();
@@ -3373,7 +3844,7 @@ describe('PerpsController', () => {
 
     it('discards an in-flight user snapshot after disconnect', async () => {
       const deferred = createDeferredSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValue(deferred.promise);
       preloadController.testMarkInitialized();
@@ -3393,7 +3864,7 @@ describe('PerpsController', () => {
 
     it('does not report an expected background preload invalidation as an error', async () => {
       const deferred = createDeferredSnapshot();
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockReturnValue(deferred.promise);
       preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
@@ -3406,12 +3877,12 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
 
       await preloadController.disconnect();
       deferred.resolve(createUserSnapshot());
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(preloadController.state.cachedUserDataByProvider).toEqual({});
       expect(preloadInfrastructure.logger.error).not.toHaveBeenCalled();
@@ -3425,7 +3896,7 @@ describe('PerpsController', () => {
         timestamp: 1,
         address: mockEvmAccount.address,
       };
-      preloadMockProvider.getUserDataSnapshot = jest
+      preloadMockProvider.getUserDataSnapshot = vi
         .fn()
         .mockRejectedValue(new Error('partial snapshot'));
       preloadController.testMarkInitialized();
@@ -3511,7 +3982,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       const userCache = preloadController.state.cachedUserDataByProvider;
       const cacheKey = Object.keys(userCache)[0];
@@ -3537,7 +4008,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       expect(preloadMockProvider.getUserDataSnapshot).not.toHaveBeenCalled();
       expect(preloadMockProvider.getPositions).toHaveBeenCalledTimes(1);
@@ -3556,6 +4027,153 @@ describe('PerpsController', () => {
       ).not.toBeNull();
     });
 
+    it('reconstructs combined cached totals after preloading separate venue snapshots', async () => {
+      const venueAccount = (
+        totalBalance: string,
+        providerId: PerpsProviderType,
+      ): AccountState => ({
+        totalBalance,
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId,
+      });
+      const hlAccount = venueAccount('100', 'hyperliquid');
+      const lighterAccount = venueAccount('200', 'lighter');
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        totalBalance: '300',
+        spendableBalance: '300',
+        withdrawableBalance: '300',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerStates: {
+          hyperliquid: {
+            status: 'available',
+            providerId: 'hyperliquid',
+            state: hlAccount,
+          },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toStrictEqual(
+        hlAccount,
+      );
+      expect(cache['lighter:mainnet'].accountState).toStrictEqual(
+        lighterAccount,
+      );
+      expect(cache['aggregated:mainnet'].accountState).toBeNull();
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '300',
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid', 'lighter'],
+          unavailableProviders: [],
+        },
+      });
+    });
+
+    it('clears a previously cached balance for an unavailable venue during aggregated preload', async () => {
+      const lighterAccount: AccountState = {
+        totalBalance: '200',
+        spendableBalance: '200',
+        withdrawableBalance: '200',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        providerId: 'lighter',
+      };
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', preloadMockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      preloadController.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+          address: mockEvmAccount.address,
+          accountState: { ...lighterAccount, providerId: 'hyperliquid' },
+          timestamp: Date.now(),
+          hip3ConfigVersion: 0,
+          dexes: ['main'],
+          positions: [],
+          orders: [],
+        };
+      });
+      vi.spyOn(preloadController, 'getPositions').mockResolvedValue([
+        lighterPosition,
+      ]);
+      vi.spyOn(preloadController, 'getOpenOrders').mockResolvedValue([]);
+      vi.spyOn(preloadController, 'getAccountState').mockResolvedValue({
+        ...lighterAccount,
+        providerId: undefined,
+        providerStates: {
+          hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+          lighter: {
+            status: 'available',
+            providerId: 'lighter',
+            state: lighterAccount,
+          },
+        },
+      });
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+
+      preloadController.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cache = preloadController.state.cachedUserDataByProvider;
+      expect(cache['hyperliquid:mainnet'].accountState).toBeNull();
+      expect(cache['lighter:mainnet'].positions).toStrictEqual([
+        lighterPosition,
+      ]);
+      expect(
+        preloadController.getCachedUserDataForActiveProvider()?.accountState,
+      ).toMatchObject({
+        totalBalance: '200',
+        aggregate: {
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
+        },
+      });
+    });
+
     it('stamps Hyperliquid identity for aggregated preload before initialization', async () => {
       preloadController.testUpdate((state) => {
         state.activeProvider = 'aggregated';
@@ -3566,7 +4184,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       expect(
         preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
@@ -3626,7 +4244,7 @@ describe('PerpsController', () => {
           providerId: 'hyperliquid',
         }),
       ]);
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       expect(preloadMockProvider.getPositions).toHaveBeenCalledTimes(2);
       expect(
@@ -3689,7 +4307,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledWith(
         PERPS_DISK_CACHE_USER_DATA,
@@ -3697,7 +4315,7 @@ describe('PerpsController', () => {
       );
 
       const persistedPayload = JSON.parse(
-        (preloadInfrastructure.diskCache.setItem as jest.Mock).mock.calls.find(
+        (preloadInfrastructure.diskCache.setItem as Mock).mock.calls.find(
           ([key]) => key === PERPS_DISK_CACHE_USER_DATA,
         )?.[1] as string,
       );
@@ -3733,7 +4351,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       // Two handlers subscribe to this event: the controller's lifetime
       // subscription-registration reset (registered in the constructor) and the
@@ -3748,7 +4366,7 @@ describe('PerpsController', () => {
 
       mockEvmAccount.address = secondAddress;
       accountChangeHandler?.();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
       expect(
         preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet'],
       ).toEqual(
@@ -3776,7 +4394,7 @@ describe('PerpsController', () => {
           skipTTL: true,
         }),
       ).toBeNull();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
       expect(
         preloadController.getCachedUserDataForActiveProvider({
           skipTTL: true,
@@ -3786,7 +4404,7 @@ describe('PerpsController', () => {
       expect(preloadInfrastructure.diskCache.removeItem).not.toHaveBeenCalled();
 
       const userWrites = (
-        preloadInfrastructure.diskCache.setItem as jest.Mock
+        preloadInfrastructure.diskCache.setItem as Mock
       ).mock.calls.filter(([key]) => key === PERPS_DISK_CACHE_USER_DATA);
       const retainedPayload = JSON.parse(
         userWrites[userWrites.length - 1][1] as string,
@@ -3834,7 +4452,7 @@ describe('PerpsController', () => {
       );
 
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       // Should not crash
       expect(
@@ -3864,7 +4482,7 @@ describe('PerpsController', () => {
 
       // First preload — populates the cache
       preloadController.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
 
       const freshCache = preloadController.state.cachedUserDataByProvider;
       const freshKey = Object.keys(freshCache)[0];
@@ -3878,7 +4496,7 @@ describe('PerpsController', () => {
       preloadMockProvider.getAccountState.mockClear();
 
       // Trigger another preload cycle — should skip (cache is fresh, same account)
-      await jest.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
 
       expect(preloadMockProvider.getPositions).not.toHaveBeenCalled();
     });
@@ -3890,7 +4508,7 @@ describe('PerpsController', () => {
 
       const unsub = controller.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -3902,7 +4520,7 @@ describe('PerpsController', () => {
     it('subscribeToOrders returns no-op when provider is null', () => {
       controller.testSetInitialized(false);
 
-      const unsub = controller.subscribeToOrders({ callback: jest.fn() });
+      const unsub = controller.subscribeToOrders({ callback: vi.fn() });
 
       expect(typeof unsub).toBe('function');
       unsub();
@@ -3912,7 +4530,7 @@ describe('PerpsController', () => {
     it('subscribeToTwapOrders returns no-op when provider is null', () => {
       controller.testSetInitialized(false);
 
-      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+      const unsub = controller.subscribeToTwapOrders({ callback: vi.fn() });
 
       expect(typeof unsub).toBe('function');
       unsub();
@@ -3924,7 +4542,7 @@ describe('PerpsController', () => {
         .subscribeToTwapOrders;
 
       // Act
-      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+      const unsub = controller.subscribeToTwapOrders({ callback: vi.fn() });
 
       // Assert
       expect(typeof unsub).toBe('function');
@@ -3935,7 +4553,7 @@ describe('PerpsController', () => {
       controller.testSetInitialized(false);
 
       const unsub = controller.subscribeToPositions({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -3947,7 +4565,7 @@ describe('PerpsController', () => {
       controller.testSetInitialized(false);
 
       const unsub = controller.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -3960,7 +4578,7 @@ describe('PerpsController', () => {
 
       const unsub = controller.subscribeToOrderBook({
         symbol: 'BTC',
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -3973,7 +4591,7 @@ describe('PerpsController', () => {
       const unsub = controller.subscribeToCandles({
         symbol: 'BTC',
         interval: '1h' as never,
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -3984,7 +4602,7 @@ describe('PerpsController', () => {
       controller.testSetInitialized(false);
 
       const unsub = controller.subscribeToOICaps({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       expect(typeof unsub).toBe('function');
@@ -4202,6 +4820,325 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('grouped watchlist', () => {
+    const market = {
+      price: '1',
+      maxLeverage: '20x',
+      change24h: '0',
+      change24hPercent: '0%',
+      volume: '10',
+    };
+
+    it('removes a legacy favorite when its grouped row is unfavorited', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+          {
+            ...market,
+            symbol: 'BTC-PERP',
+            name: 'Bitcoin',
+            providerId: 'lighter',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      const args = [group.symbol, group.marketKey, group.venues] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['BTC', 'ETH'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['ETH']);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'ETH',
+        'market-key:BTC-USD',
+      ]);
+    });
+
+    it('keeps the original favorite when a distinct Lighter group key equals its symbol', async () => {
+      const [legacy, lighter] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'xyz:TSLA',
+            name: 'Tesla',
+            providerId: 'hyperliquid',
+          },
+          {
+            ...market,
+            symbol: 'TSLA',
+            name: 'Tesla',
+            providerId: 'lighter',
+            marketKey: 'xyz:TSLA',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      expect(legacy.rowId).not.toBe(lighter.rowId);
+      const args = [lighter.symbol, lighter.marketKey, lighter.venues] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['xyz:TSLA'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'xyz:TSLA',
+        'market-key:xyz:TSLA',
+      ]);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['xyz:TSLA']);
+    });
+
+    it('removes a legacy Lighter favorite when Lighter is the stated legacy venue', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'NVDA',
+            name: 'Nvidia',
+            providerId: 'lighter',
+            marketKey: 'NVDA-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const args = [
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'lighter',
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['NVDA'];
+      });
+
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+    });
+
+    it('stars only the saved venue for ungrouped rows with the same symbol', async () => {
+      const [hyperliquidEth, lighterEth] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'ETH',
+            name: 'Ether',
+            providerId: 'hyperliquid',
+          },
+          { ...market, symbol: 'ETH', name: 'Ether', providerId: 'lighter' },
+        ],
+        'hyperliquid',
+      );
+      const lighterArgs = [
+        lighterEth.symbol,
+        lighterEth.marketKey,
+        lighterEth.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+
+      await controller.toggleWatchlistMarket(...lighterArgs);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:ETH',
+      ]);
+      expect(controller.isWatchlistMarket(...lighterArgs)).toBe(true);
+      expect(
+        controller.isWatchlistMarket(
+          hyperliquidEth.symbol,
+          hyperliquidEth.marketKey,
+          hyperliquidEth.venues,
+        ),
+      ).toBe(false);
+    });
+
+    it('matches a venue favorite and recent saved before its row grouped', async () => {
+      const lighterBtc = {
+        ...market,
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        providerId: 'lighter' as const,
+      };
+      const [ungrouped] = groupMarketsByMarketKey([lighterBtc], 'hyperliquid');
+      const ungroupedArgs = [
+        ungrouped.symbol,
+        ungrouped.marketKey,
+        ungrouped.venues,
+      ] as const;
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = [];
+      });
+      await controller.toggleWatchlistMarket(...ungroupedArgs);
+      controller.recordMarketViewed(...ungroupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'venue:lighter:BTC',
+      ]);
+
+      const [grouped] = groupMarketsByMarketKey(
+        [{ ...lighterBtc, marketKey: 'BTC-USD', priceScale: 1 }],
+        'hyperliquid',
+      );
+      const groupedArgs = [
+        grouped.symbol,
+        grouped.marketKey,
+        grouped.venues,
+      ] as const;
+
+      expect(controller.isWatchlistMarket(...groupedArgs)).toBe(true);
+      controller.recordMarketViewed(...groupedArgs);
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+      ]);
+      await controller.toggleWatchlistMarket(...groupedArgs);
+      expect(controller.getWatchlistMarkets()).toStrictEqual([]);
+    });
+
+    it('does not restore keyed aliases when a newer toggle took over the market', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const mockCall = mockMessenger.call as Mock;
+      const defaultCall = mockCall.getMockImplementation();
+      let preferenceReads = 0;
+      mockCall.mockImplementation((action: string, ...rest: unknown[]) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          preferenceReads += 1;
+          return preferenceReads === 1
+            ? Promise.reject(new Error('AUS server error'))
+            : Promise.resolve(null);
+        }
+        return defaultCall?.(action, ...rest);
+      });
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = ['market-key:BTC-USD', 'BTC'];
+      });
+
+      await Promise.all([
+        controller.toggleWatchlistMarket(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+        controller.toggleWatchlistMarket('BTC'),
+      ]);
+
+      expect(preferenceReads).toBe(2);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['BTC']);
+    });
+
+    it('restores keyed aliases when the newer toggle that took over also fails', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      const mockCall = mockMessenger.call as Mock;
+      const defaultCall = mockCall.getMockImplementation();
+      mockCall.mockImplementation((action: string, ...rest: unknown[]) => {
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.reject(new Error('AUS server error'));
+        }
+        return defaultCall?.(action, ...rest);
+      });
+      controller.testUpdate((state) => {
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = ['market-key:BTC-USD', 'BTC'];
+      });
+
+      await Promise.all([
+        controller.toggleWatchlistMarket(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+        controller.toggleWatchlistMarket('BTC'),
+      ]);
+
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'BTC',
+      ]);
+    });
+
+    it('replaces a legacy recent with the keyed entry for the same group', () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'hyperliquid',
+      );
+      controller.recordMarketViewed('BTC');
+      controller.recordMarketViewed('ETH');
+
+      controller.recordMarketViewed(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+      );
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'market-key:BTC-USD',
+        'ETH',
+      ]);
+    });
+  });
+
   describe('getCachedUserDataForActiveProvider', () => {
     const mockAddress = '0x1234567890123456789012345678901234567890';
 
@@ -4220,7 +5157,7 @@ describe('PerpsController', () => {
     it('returns null when the selected account cannot be resolved', () => {
       const ctrl = new TestablePerpsController({
         messenger: createMockMessenger({
-          call: jest.fn().mockImplementation((action: string) => {
+          call: vi.fn().mockImplementation((action: string) => {
             if (action === 'RemoteFeatureFlagController:getState') {
               return { remoteFeatureFlags: {} };
             }
@@ -4279,52 +5216,188 @@ describe('PerpsController', () => {
       expect(result?.accountState?.totalBalance).toBe('50000');
     });
 
-    it('assembles user data from multiple providers in aggregated mode', () => {
-      const hlPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
-      const lighterPosition = createMockPosition({
-        symbol: 'ETH',
-        size: '5.0',
-      });
-      const mockLighterProvider = createMockHyperLiquidProvider();
-      markControllerAsInitialized();
-      controller.testSetProviders(
-        new Map([
-          ['hyperliquid', mockProvider],
-          ['lighter', mockLighterProvider],
-        ] as any),
-      );
-      controller.testUpdate((state) => {
-        state.activeProvider = 'aggregated';
-        state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
-          positions: [hlPosition],
-          orders: [],
-          accountState: {
-            totalBalance: '50000',
-            spendableBalance: '45000',
-            withdrawableBalance: '45000',
-            marginUsed: '5000',
-            unrealizedPnl: '1000',
-            returnOnEquity: '20',
+    describe('aggregated account totals', () => {
+      const hlAccount: AccountState = {
+        totalBalance: '50000.10',
+        spendableBalance: '45000.10',
+        withdrawableBalance: '45000.10',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '20',
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '50000.10',
+            spendableBalance: '45000.10',
+            withdrawableBalance: '45000.10',
           },
-          timestamp: Date.now(),
-          address: mockAddress,
-          hip3ConfigVersion: 0,
-          dexes: ['main'],
-        };
-        state.cachedUserDataByProvider['lighter:mainnet'] = {
-          positions: [lighterPosition],
-          orders: [],
-          accountState: null,
-          timestamp: Date.now(),
-          address: mockAddress,
-        };
+        },
+      };
+      const lighterAccount: AccountState = {
+        totalBalance: '1000.20',
+        spendableBalance: '800.20',
+        withdrawableBalance: '700.20',
+        marginUsed: '1000',
+        unrealizedPnl: '-100',
+        returnOnEquity: '-10',
+      };
+
+      beforeEach(() => {
+        markControllerAsInitialized();
+        controller.testSetProviders(
+          new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', mockProvider],
+            ['lighter', createMockHyperLiquidProvider()],
+          ]),
+        );
+        controller.testUpdate((state) => {
+          state.activeProvider = 'aggregated';
+          state.cachedUserDataByProvider['hyperliquid:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'BTC', size: '1.0' })],
+            orders: [],
+            accountState: hlAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          };
+          state.cachedUserDataByProvider['lighter:mainnet'] = {
+            positions: [createMockPosition({ symbol: 'ETH', size: '5.0' })],
+            orders: [],
+            accountState: lighterAccount,
+            timestamp: Date.now(),
+            address: mockAddress,
+          };
+        });
       });
 
-      const result = controller.getCachedUserDataForActiveProvider();
+      it('combines venue totals and retains venue-local details only in providerStates', () => {
+        const result = controller.getCachedUserDataForActiveProvider();
 
-      expect(result).not.toBeNull();
-      expect(result?.positions).toHaveLength(2);
-      expect(result?.accountState?.totalBalance).toBe('50000');
+        expect(result?.positions.map(({ symbol }) => symbol)).toEqual([
+          'BTC',
+          'ETH',
+        ]);
+        expect(result?.accountState).toStrictEqual({
+          totalBalance: '51000.3',
+          spendableBalance: '45800.3',
+          withdrawableBalance: '45700.3',
+          marginUsed: '6000',
+          unrealizedPnl: '900',
+          returnOnEquity: '15',
+          providerStates: {
+            hyperliquid: {
+              status: 'available',
+              providerId: 'hyperliquid',
+              state: { ...hlAccount, providerId: 'hyperliquid' },
+            },
+            lighter: {
+              status: 'available',
+              providerId: 'lighter',
+              state: { ...lighterAccount, providerId: 'lighter' },
+            },
+          },
+          aggregate: {
+            status: 'complete',
+            availableProviders: ['hyperliquid', 'lighter'],
+            unavailableProviders: [],
+          },
+        });
+      });
+
+      it.each([
+        'missing',
+        'expired',
+        'other account',
+        'other network',
+        'HIP-3',
+        'null',
+        'malformed',
+      ])(
+        'returns a Lighter subtotal when the HyperLiquid cache is %s',
+        (invalidity) => {
+          controller.testUpdate((state) => {
+            const key = 'hyperliquid:mainnet';
+            const entry = state.cachedUserDataByProvider[key];
+            switch (invalidity) {
+              case 'missing':
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'expired':
+                entry.timestamp = Date.now() - 60_000;
+                break;
+              case 'other account':
+                entry.address = '0x9999999999999999999999999999999999999999';
+                break;
+              case 'other network':
+                state.cachedUserDataByProvider['hyperliquid:testnet'] = entry;
+                delete state.cachedUserDataByProvider[key];
+                break;
+              case 'HIP-3':
+                entry.hip3ConfigVersion = state.hip3ConfigVersion + 1;
+                break;
+              case 'null':
+                entry.accountState = null;
+                break;
+              case 'malformed':
+                entry.accountState!.totalBalance = 'NaN';
+                break;
+            }
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toMatchObject({
+            totalBalance: '1000.2',
+            aggregate: {
+              status: 'partial',
+              availableProviders: ['lighter'],
+              unavailableProviders: ['hyperliquid'],
+            },
+            providerStates: {
+              hyperliquid: { status: 'unavailable', providerId: 'hyperliquid' },
+              lighter: { status: 'available', providerId: 'lighter' },
+            },
+          });
+          if (invalidity === 'expired') {
+            expect(
+              controller.getCachedUserDataForActiveProvider({ skipTTL: true })
+                ?.accountState?.totalBalance,
+            ).toBe('51000.3');
+          }
+        },
+      );
+
+      it('returns no account total when neither venue has a usable account snapshot', () => {
+        controller.testUpdate((state) => {
+          for (const entry of Object.values(state.cachedUserDataByProvider)) {
+            entry.accountState = null;
+          }
+        });
+
+        const result = controller.getCachedUserDataForActiveProvider();
+
+        expect(result?.positions).toHaveLength(2);
+        expect(result?.accountState).toBeNull();
+      });
+
+      it.each(['hyperliquid', 'lighter'] as const)(
+        'preserves the direct snapshot shape when only %s participates',
+        (providerId) => {
+          controller.testSetProviders(new Map([[providerId, mockProvider]]));
+          controller.testUpdate((state) => {
+            const otherProvider =
+              providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid';
+            delete state.cachedUserDataByProvider[`${otherProvider}:mainnet`];
+          });
+
+          const result = controller.getCachedUserDataForActiveProvider();
+
+          expect(result?.accountState).toStrictEqual({
+            ...(providerId === 'hyperliquid' ? hlAccount : lighterAccount),
+            providerId,
+          });
+        },
+      );
     });
 
     it('returns null in aggregated mode when no valid entries exist', () => {
@@ -4375,12 +5448,12 @@ describe('PerpsController', () => {
 
   describe('performMarketDataPreload aggregated mode', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
       controller.stopMarketDataPreload();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('splits market data by providerId into per-provider cache entries', async () => {
@@ -4421,7 +5494,7 @@ describe('PerpsController', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       // Per-provider entries should be written
       const hlEntry =
@@ -4439,6 +5512,87 @@ describe('PerpsController', () => {
         controller.state.cachedMarketDataByProvider['aggregated:mainnet'];
       expect(sentinel?.data).toHaveLength(0);
       expect(sentinel?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('refreshes an incomplete aggregate when the HyperLiquid snapshot expires first', async () => {
+      const sourceExpiresAt = Date.now() + 20_000;
+      const base = {
+        maxLeverage: '50x',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        volume: '$1M',
+      };
+      const rows: [PerpsMarketData, PerpsMarketData] = [
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50000',
+          providerId: 'hyperliquid',
+          dataSource: 'terminal-global-snapshot-mark',
+          sourceExpiresAt,
+        },
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50010',
+          providerId: 'lighter',
+          categories: ['crypto'],
+        },
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(rows);
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const hlEntry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(hlEntry?.sourceExpiresAt).toBe(sourceExpiresAt);
+      expect(hlEntry?.hip3ConfigVersion).toBe(0);
+      expect(hlEntry?.dexes).toStrictEqual(['main']);
+      const lighterEntry =
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'];
+      expect(lighterEntry?.sourceExpiresAt).toBeUndefined();
+      expect(lighterEntry?.data[0]?.categories).toStrictEqual(['crypto']);
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual(
+        rows,
+      );
+
+      vi.setSystemTime(sourceExpiresAt);
+      expect(
+        controller.getCachedMarketDataForActiveProvider({ skipTTL: true }),
+      ).toBeNull();
+      expect(
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'],
+      ).toStrictEqual(lighterEntry);
+
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          ...rows[0],
+          price: '50020',
+          sourceExpiresAt: sourceExpiresAt + 20_000,
+        },
+        rows[1],
+      ]);
+      controller.stopMarketDataPreload();
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual([
+        expect.objectContaining({ providerId: 'hyperliquid', price: '50020' }),
+        rows[1],
+      ]);
     });
 
     it('assigns items without providerId to hyperliquid fallback', async () => {
@@ -4461,7 +5615,7 @@ describe('PerpsController', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(mockData);
 
       controller.startMarketDataPreload();
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       const hlEntry =
         controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];

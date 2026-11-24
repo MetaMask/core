@@ -10,7 +10,7 @@ import type { ProfileService } from './ProfileService.js';
  *
  * @param profileId - The profile identifier to fetch.
  * @returns The profile data from the API.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceGetProfileAction = {
@@ -23,7 +23,7 @@ export type ProfileServiceGetProfileAction = {
  *
  * @param params - The profile creation parameters.
  * @returns The created profile data.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceCreateProfileAction = {
@@ -37,7 +37,7 @@ export type ProfileServiceCreateProfileAction = {
  * @param profileId - The identifier of the profile to replace.
  * @param params - The replacement profile data.
  * @returns The updated profile data.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceReplaceProfileAction = {
@@ -51,7 +51,7 @@ export type ProfileServiceReplaceProfileAction = {
  * @param profileId - The identifier of the profile to update.
  * @param params - The fields to update.
  * @returns The updated profile data.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response do not match the expected shape.
  */
 export type ProfileServiceUpdateProfileAction = {
@@ -64,7 +64,7 @@ export type ProfileServiceUpdateProfileAction = {
  *
  * @param profileId - The identifier of the profile to delete.
  * @returns The result of the mutation.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  */
 export type ProfileServiceDeleteProfileAction = {
   type: `ProfileService:deleteProfile`;
@@ -76,7 +76,7 @@ export type ProfileServiceDeleteProfileAction = {
  *
  * @param username - The username to check.
  * @returns Availability details including validity and normalized form.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceCheckUsernameAvailabilityAction = {
@@ -85,10 +85,50 @@ export type ProfileServiceCheckUsernameAvailabilityAction = {
 };
 
 /**
+ * Checks whether a display name is valid.
+ *
+ * @param displayName - The display name to validate.
+ * @returns An object with a `valid` boolean.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckDisplayNameValidityAction = {
+  type: `ProfileService:checkDisplayNameValidity`;
+  handler: ProfileService['checkDisplayNameValidity'];
+};
+
+/**
+ * Checks whether a bio is valid.
+ *
+ * @param bio - The bio to validate.
+ * @returns An object with a `valid` boolean.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckBioValidityAction = {
+  type: `ProfileService:checkBioValidity`;
+  handler: ProfileService['checkBioValidity'];
+};
+
+/**
+ * Checks whether the authenticated profile has early access.
+ * The profile is resolved server-side from the verified bearer token.
+ *
+ * @returns An object with a `hasAccess` boolean.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckEarlyAccessAction = {
+  type: `ProfileService:checkEarlyAccess`;
+  handler: ProfileService['checkEarlyAccess'];
+};
+
+/**
  * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @returns An object containing the authorization URL and the state token.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceGetXAuthUrlAction = {
@@ -98,10 +138,11 @@ export type ProfileServiceGetXAuthUrlAction = {
 
 /**
  * Completes the X OAuth PKCE flow and links the X account to the profile.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @param params - The OAuth callback code and state from the X redirect.
  * @returns The linked X account data.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceConnectXAction = {
@@ -111,14 +152,34 @@ export type ProfileServiceConnectXAction = {
 
 /**
  * Fetches the X account currently linked to the authenticated profile.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @returns The linked X account data.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
 export type ProfileServiceGetXAccountAction = {
   type: `ProfileService:getXAccount`;
   handler: ProfileService['getXAccount'];
+};
+
+/**
+ * Disconnects the X account linked to the authenticated profile.
+ * Identity is resolved server-side from the verified bearer token, so the
+ * request targets the shared account endpoint rather than a profile-scoped
+ * path.
+ * A `404` response is treated as success (no X account is linked), making
+ * the operation idempotent.
+ *
+ * @param profileId - The ID of the profile whose cached data should be
+ * invalidated after the disconnection. The API resolves the linked X account
+ * from the bearer token, not from this value.
+ * @returns The result of the mutation.
+ * @throws {ProfileServiceError} If the API returns a non-2xx response other than `404`.
+ */
+export type ProfileServiceDisconnectXAction = {
+  type: `ProfileService:disconnectX`;
+  handler: ProfileService['disconnectX'];
 };
 
 /**
@@ -131,6 +192,10 @@ export type ProfileServiceMethodActions =
   | ProfileServiceUpdateProfileAction
   | ProfileServiceDeleteProfileAction
   | ProfileServiceCheckUsernameAvailabilityAction
+  | ProfileServiceCheckDisplayNameValidityAction
+  | ProfileServiceCheckBioValidityAction
+  | ProfileServiceCheckEarlyAccessAction
   | ProfileServiceGetXAuthUrlAction
   | ProfileServiceConnectXAction
-  | ProfileServiceGetXAccountAction;
+  | ProfileServiceGetXAccountAction
+  | ProfileServiceDisconnectXAction;

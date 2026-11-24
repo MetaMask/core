@@ -5,6 +5,8 @@ import {
 } from '@metamask/shield-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -45,24 +47,24 @@ function registerActionHandler(
 function registerShieldApiServiceMocks(
   rootMessenger: RootMessenger<DefaultActions, DefaultEvents>,
 ): {
-  checkCoverage: jest.Mock;
-  checkSignatureCoverage: jest.Mock;
-  logSignature: jest.Mock;
-  logTransaction: jest.Mock;
+  checkCoverage: Mock;
+  checkSignatureCoverage: Mock;
+  logSignature: Mock;
+  logTransaction: Mock;
 } {
   const handlers = {
-    checkCoverage: jest.fn().mockResolvedValue({
+    checkCoverage: vi.fn().mockResolvedValue({
       coverageId: MOCK_COVERAGE_ID,
       status: 'covered',
       metrics: {},
     }),
-    checkSignatureCoverage: jest.fn().mockResolvedValue({
+    checkSignatureCoverage: vi.fn().mockResolvedValue({
       coverageId: MOCK_COVERAGE_ID,
       status: 'covered',
       metrics: {},
     }),
-    logSignature: jest.fn().mockResolvedValue(undefined),
-    logTransaction: jest.fn().mockResolvedValue(undefined),
+    logSignature: vi.fn().mockResolvedValue(undefined),
+    logTransaction: vi.fn().mockResolvedValue(undefined),
   };
 
   registerActionHandler(
@@ -175,7 +177,7 @@ describe('shieldController', () => {
         data: 'normalized data',
       },
     };
-    const normalizeSignatureRequest = jest
+    const normalizeSignatureRequest = vi
       .fn()
       .mockReturnValue(normalizedSignatureRequest);
 
@@ -197,7 +199,7 @@ describe('shieldController', () => {
 
   it('delegates ShieldApiService actions and controller state-change events', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
     const messenger = shieldController.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({

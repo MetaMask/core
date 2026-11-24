@@ -34,6 +34,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../eth-sig-util/tsconfig.lint.json"
     }
   ]
 }

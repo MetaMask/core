@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { detectResolution, INTERVAL_MS_TO_TV } from '../resolution.js';
 
 const bars = (intervals: number[]): { time: number }[] => {

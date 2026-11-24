@@ -1,4 +1,4 @@
-import { readJsonFile } from '@metamask/utils/node';
+import { readJsonFile } from '@metamask/node-utils';
 import { execa } from 'execa';
 import path from 'path';
 

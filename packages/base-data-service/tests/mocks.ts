@@ -1,4 +1,4 @@
-import nock, { ReplyFnResult } from 'nock';
+import nock from 'nock';
 
 type MockReply = {
   status: nock.StatusCode;
@@ -24,7 +24,7 @@ export function mockAddFollowerRequest({
   replyFn,
 }: {
   mockReply?: MockReply;
-  replyFn?: () => ReplyFnResult | Promise<ReplyFnResult>;
+  replyFn?: () => nock.ReplyFnResult | Promise<nock.ReplyFnResult>;
 } = {}): nock.Scope {
   const interceptor = nock('https://social.api.cx.metamask.io:443').put(
     '/api/v1/users/me/follows',
@@ -80,7 +80,7 @@ export function mockCreateDataDeletionTaskRequest({
   replyFn,
 }: {
   mockReply?: MockReply;
-  replyFn?: () => ReplyFnResult | Promise<ReplyFnResult>;
+  replyFn?: () => nock.ReplyFnResult | Promise<nock.ReplyFnResult>;
 } = {}): nock.Scope {
   const interceptor = nock('https://proxy.example.com/v1beta').post(
     '/regulations/sources/2',

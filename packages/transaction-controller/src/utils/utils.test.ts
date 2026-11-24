@@ -1,5 +1,6 @@
 import { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import { describe, expect, it } from 'vitest';
 
 import type {
   FeeMarketEIP1559Values,

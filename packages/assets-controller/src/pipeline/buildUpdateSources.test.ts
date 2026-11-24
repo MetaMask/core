@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AssetsDataSource } from '../types.js';
 import { buildUpdateSources } from './buildUpdateSources.js';
 import type { UpdateSources } from './buildUpdateSources.js';
@@ -11,11 +13,7 @@ function stubSource(name: string): AssetsDataSource {
 
 function buildSources(): UpdateSources {
   return {
-    customAssetGraduationMiddleware: stubSource(
-      'CustomAssetGraduationMiddleware',
-    ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
-    detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
   };
@@ -24,69 +22,35 @@ function buildSources(): UpdateSources {
 describe('buildUpdateSources', () => {
   it.each([
     {
-      title:
-        'v5 AccountsApi lane: graduation → RPC fallback → detection → enrichment',
-      includeCustomAssetGraduation: true,
+      title: 'RPC fallback → enrichment',
       includeRpcFallback: true,
       isBasicFunctionality: true,
-      expected: [
-        'CustomAssetGraduationMiddleware',
-        'RpcFallbackMiddleware',
-        'DetectionMiddleware',
-        'ParallelMiddleware',
-      ],
+      expected: ['RpcFallbackMiddleware', 'ParallelMiddleware'],
     },
     {
-      title: 'v5 AccountsApi lane: graduation → RPC fallback → detection',
-      includeCustomAssetGraduation: true,
+      title: 'RPC fallback only',
       includeRpcFallback: true,
       isBasicFunctionality: false,
-      expected: [
-        'CustomAssetGraduationMiddleware',
-        'RpcFallbackMiddleware',
-        'DetectionMiddleware',
-      ],
+      expected: ['RpcFallbackMiddleware'],
     },
     {
-      title: 'v5 Snap/RPC lane: detection → enrichment',
-      includeCustomAssetGraduation: false,
+      title: 'enrichment only',
       includeRpcFallback: false,
       isBasicFunctionality: true,
-      expected: ['DetectionMiddleware', 'ParallelMiddleware'],
+      expected: ['ParallelMiddleware'],
     },
     {
-      title: 'v6 lane: RPC fallback → detection → enrichment',
-      includeCustomAssetGraduation: false,
-      includeRpcFallback: true,
-      isBasicFunctionality: true,
-      expected: [
-        'RpcFallbackMiddleware',
-        'DetectionMiddleware',
-        'ParallelMiddleware',
-      ],
-    },
-    {
-      title: 'v6 lane: detection only',
-      includeCustomAssetGraduation: false,
+      title: 'runs nothing when basic functionality is off and RPC is excluded',
       includeRpcFallback: false,
       isBasicFunctionality: false,
-      expected: ['DetectionMiddleware'],
+      expected: [],
     },
-  ])(
-    '$title',
-    ({
-      includeCustomAssetGraduation,
-      includeRpcFallback,
+  ])('$title', ({ includeRpcFallback, isBasicFunctionality, expected }) => {
+    const sources = buildUpdateSources(buildSources(), {
       isBasicFunctionality,
-      expected,
-    }) => {
-      const sources = buildUpdateSources(buildSources(), {
-        isBasicFunctionality,
-        includeCustomAssetGraduation,
-        includeRpcFallback,
-      });
+      includeRpcFallback,
+    });
 
-      expect(sources.map((source) => source.getName())).toStrictEqual(expected);
-    },
-  );
+    expect(sources.map((source) => source.getName())).toStrictEqual(expected);
+  });
 });

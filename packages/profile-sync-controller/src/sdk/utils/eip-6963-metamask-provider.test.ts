@@ -1,4 +1,5 @@
 import type { Eip1193Provider } from 'ethers';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { MockVariable } from '../__fixtures__/test-utils.js';
 import type { AnnounceProviderEvent } from './eip-6963-metamask-provider.js';
@@ -22,7 +23,7 @@ describe('getMetaMaskProviderEIP6963() tests', () => {
    */
   function emitEip6963Event(rdns: string = metamaskClientsRdns.main) {
     const mockProvider: Eip1193Provider = {
-      request: jest.fn(),
+      request: vi.fn(),
     };
 
     // eslint-disable-next-line n/no-unsupported-features/node-builtins

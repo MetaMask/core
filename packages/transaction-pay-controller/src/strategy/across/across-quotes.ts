@@ -27,11 +27,11 @@ import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { getTokenFiatRate } from '../../utils/token.js';
+import { getEvmQuoteSource, getTokenFiatRate } from '../../utils/token.js';
 import type { AcrossDestination } from './across-actions.js';
 import { getAcrossDestination } from './across-actions.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
-import { normalizeAcrossRequest } from './perps.js';
+import { normalizeAcrossRequest, validateAcrossPerpsQuote } from './perps.js';
 import { isAcrossQuoteRequest } from './requests.js';
 import {
   getAcrossOrderedTransactions,
@@ -97,17 +97,17 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, signal, transaction } = fullRequest;
-  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
+  const normalizedRequest = normalizeAcrossRequest(request, transaction);
   const {
     from,
     isMaxAmount,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(normalizedRequest);
 
   const config = getPayStrategiesConfig(messenger);
   const slippageDecimal = getSlippage(
@@ -124,7 +124,7 @@ async function getSingleQuote(
   const destination = getAcrossDestinationForRequest(
     transaction,
     request,
-    from,
+    request.accountOverride ?? from,
   );
 
   const quote = await requestAcrossApproval({
@@ -142,6 +142,8 @@ async function getSingleQuote(
     slippage: slippageDecimal,
     tradeType,
   });
+
+  validateAcrossPerpsQuote(normalizedRequest, quote);
 
   const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,
@@ -564,7 +566,9 @@ async function calculateSourceNetworkCost(
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
-  const { from, sourceChainId, sourceTokenAddress } = request;
+  const { from } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
@@ -685,7 +689,20 @@ async function calculateSourceNetworkCost(
     ? combinePostQuoteGas(result, transaction, swapTx, messenger)
     : result;
 
-  const firstTransaction = orderedTransactions[0];
+  const originalTransactionTo = transaction.txParams.to as Hex | undefined;
+
+  const gasStationTransactions = [
+    ...(request.isPostQuote && originalTransactionTo
+      ? [
+          {
+            data: (transaction.txParams.data as Hex | undefined) ?? '0x',
+            to: originalTransactionTo,
+            value: transaction.txParams.value,
+          },
+        ]
+      : []),
+    ...orderedTransactions.map(({ data, to, value }) => ({ data, to, value })),
+  ];
 
   // Predict withdraws always consult the gas station: the user's source token
   // lives in the Safe, so a healthy native balance does not mean they can
@@ -693,11 +710,6 @@ async function calculateSourceNetworkCost(
   // withdraw is submitted as a 7702 batch.
   const { amount: gasFeeTokenCost, isAvailable } = await resolveGasStationCost({
     accountSupports7702: isPredictWithdraw ? accountSupports7702 : undefined,
-    firstStepData: {
-      data: firstTransaction.data,
-      to: firstTransaction.to,
-      value: firstTransaction.value,
-    },
     messenger,
     nativeGasCostRaw: isPredictWithdraw
       ? undefined
@@ -708,10 +720,7 @@ async function calculateSourceNetworkCost(
       sourceTokenAddress,
     },
     totalGasEstimate: finalResult.totalGasEstimate,
-    totalItemCount: Math.max(
-      orderedTransactions.length + (request.isPostQuote ? 1 : 0),
-      finalResult.gasLimits.length,
-    ),
+    transactions: gasStationTransactions,
   });
 
   let gasFeeTokenNetwork:
@@ -760,10 +769,12 @@ function calculateSourceGasFeeTokenNetworkFallback({
   quote: AcrossSwapApprovalResponse;
   request: QuoteRequest;
 }): TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'] | undefined {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    request.sourceTokenAddress,
-    request.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   if (!sourceFiatRate) {

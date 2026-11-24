@@ -1,9 +1,13 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import type { PerpsControllerState } from '../../../src/PerpsController.js';
 import { AccountService } from '../../../src/services/AccountService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   WithdrawParams,
   WithdrawResult,
   PerpsPlatformDependencies,
@@ -16,13 +20,14 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('uuid', () => ({ v4: () => 'mock-withdrawal-trace-id' }));
-jest.mock('../../../src/constants/eventNames', () => ({
+vi.mock('uuid', () => ({ v4: () => 'mock-withdrawal-trace-id' }));
+vi.mock('../../../src/constants/eventNames', () => ({
   PERPS_EVENT_PROPERTY: {
     STATUS: 'status',
     WITHDRAWAL_AMOUNT: 'withdrawal_amount',
     COMPLETION_DURATION: 'completion_duration',
     ERROR_MESSAGE: 'error_message',
+    ENVIRONMENT_TYPE: 'environment_type',
   },
   PERPS_EVENT_VALUE: {
     STATUS: {
@@ -31,10 +36,10 @@ jest.mock('../../../src/constants/eventNames', () => ({
     },
   },
 }));
-jest.mock('../../../src/constants/hyperLiquidConfig', () => ({
+vi.mock('../../../src/constants/hyperLiquidConfig', () => ({
   USDC_SYMBOL: 'USDC',
 }));
-jest.mock('../../../src/perpsErrorCodes', () => ({
+vi.mock('../../../src/perpsErrorCodes', () => ({
   PERPS_ERROR_CODES: {
     WITHDRAW_FAILED: 'WITHDRAW_FAILED',
   },
@@ -43,9 +48,9 @@ jest.mock('../../../src/perpsErrorCodes', () => ({
 // The mock is set up via createMockMessenger() in serviceMocks.ts
 
 describe('AccountService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
+  let mockProvider: Mocked<PerpsProvider>;
   let mockContext: ServiceContext;
-  let mockRefreshAccountState: jest.Mock;
+  let mockRefreshAccountState: Mock;
   let mockDeps: PerpsPlatformDependencies;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
   let accountService: AccountService;
@@ -58,25 +63,21 @@ describe('AccountService', () => {
 
   beforeEach(() => {
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
     mockContext = createMockServiceContext({
       errorContext: { controller: 'AccountService', method: 'test' },
     });
-    mockRefreshAccountState = jest.fn().mockResolvedValue(undefined);
+    mockRefreshAccountState = vi.fn().mockResolvedValue(undefined);
 
     // Create mock dependencies and service instance
     mockDeps = createMockInfrastructure();
     mockMessenger = createMockMessenger();
     accountService = new AccountService(mockDeps, mockMessenger);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock Date.now() to return a stable timestamp
-    jest.spyOn(Date, 'now').mockReturnValue(1234567890000);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
+    vi.spyOn(Date, 'now').mockReturnValue(1234567890000);
   });
 
   describe('withdraw', () => {
@@ -181,7 +182,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState: Pick<
         PerpsControllerState,
@@ -215,7 +216,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState = {
         withdrawInProgress: false,
@@ -236,6 +237,106 @@ describe('AccountService', () => {
       );
     });
 
+    it('attributes the withdrawal request to the venue the aggregated wrapper resolves', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+      const aggregatedProvider = {
+        getWriteProviderId: vi.fn(() => 'lighter' as const),
+      };
+
+      await accountService.withdraw({
+        provider: aggregatedProvider as unknown as PerpsProvider,
+        params: mockWithdrawParams,
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
+        .calls[0][0];
+      const mockState: Pick<
+        PerpsControllerState,
+        | 'withdrawInProgress'
+        | 'withdrawalRequests'
+        | 'lastError'
+        | 'lastUpdateTimestamp'
+        | 'lastWithdrawResult'
+      > = {
+        withdrawInProgress: false,
+        withdrawalRequests: [],
+        lastError: null,
+        lastUpdateTimestamp: 0,
+        lastWithdrawResult: null,
+      };
+      updateCall(mockState);
+
+      expect(mockState.withdrawalRequests[0].providerId).toBe('lighter');
+    });
+
+    it.each(['hyperliquid', 'unknown'])(
+      'uses the direct provider identity, never tracing metadata (%s)',
+      async (protocolId) => {
+        const provider = { ...mockProvider, protocolId };
+        mockContext.tracingContext.provider = 'lighter';
+        await accountService.withdraw({
+          provider,
+          params: mockWithdrawParams,
+          context: mockContext,
+          refreshAccountState: mockRefreshAccountState,
+        });
+        const updateCall = (mockContext.stateManager?.update as Mock).mock
+          .calls[0][0];
+        const state = {
+          withdrawalRequests: [],
+        } as unknown as PerpsControllerState;
+        updateCall(state);
+        expect(state.withdrawalRequests[0].providerId).toBe(
+          protocolId === 'hyperliquid' ? 'hyperliquid' : undefined,
+        );
+      },
+    );
+
+    it('keeps an explicitly named withdrawal venue on the record', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+      const aggregatedProvider = {
+        // Default is hyperliquid; the caller named lighter.
+        getWriteProviderId: vi.fn(
+          (providerId?: PerpsProviderType) => providerId ?? 'hyperliquid',
+        ),
+      };
+
+      await accountService.withdraw({
+        provider: aggregatedProvider as unknown as PerpsProvider,
+        params: { ...mockWithdrawParams, providerId: 'lighter' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
+        .calls[0][0];
+      const mockState: Pick<
+        PerpsControllerState,
+        | 'withdrawInProgress'
+        | 'withdrawalRequests'
+        | 'lastError'
+        | 'lastUpdateTimestamp'
+        | 'lastWithdrawResult'
+      > = {
+        withdrawInProgress: false,
+        withdrawalRequests: [],
+        lastError: null,
+        lastUpdateTimestamp: 0,
+        lastWithdrawResult: null,
+      };
+      updateCall(mockState);
+
+      expect(mockState.withdrawalRequests[0].providerId).toBe('lighter');
+    });
+
     it('removes withdrawal request from queue when provider returns tx hash', async () => {
       mockProvider.withdraw.mockResolvedValue({
         success: true,
@@ -250,8 +351,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       // Run the first updater to discover the generated withdrawal ID
       const setupUpdater = updateCalls[0][0];
@@ -303,8 +403,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
       expect(updateCalls.length).toBeGreaterThan(1);
     });
 
@@ -345,6 +444,95 @@ describe('AccountService', () => {
       );
     });
 
+    it('includes environment_type on a successful withdrawal', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'sidepanel' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'executed',
+          environment_type: 'sidepanel',
+        }),
+      );
+    });
+
+    it('omits environment_type when withdrawal params omit it', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: mockWithdrawParams,
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const withdrawalCalls = (
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.WithdrawalTransaction,
+      );
+      expect(withdrawalCalls.length).toBeGreaterThan(0);
+      for (const call of withdrawalCalls) {
+        expect(call[1]).not.toHaveProperty('environment_type');
+      }
+    });
+
+    it('includes environment_type on a failed withdrawal result', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: false,
+        error: 'Insufficient balance',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'popup' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'popup',
+        }),
+      );
+    });
+
+    it('includes environment_type when withdrawal throws', async () => {
+      mockProvider.withdraw.mockRejectedValue(new Error('Network error'));
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'notification' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'notification',
+        }),
+      );
+    });
+
     it('handles withdrawal failure from provider', async () => {
       const mockResult: WithdrawResult = {
         success: false,
@@ -377,8 +565,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       const setupUpdater = updateCalls[0][0];
       const setupState = {
@@ -485,7 +672,21 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      expect(mockDeps.logger.error).toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(error, {
+        tags: {
+          feature: 'perps',
+          operation: 'financial_operations',
+          action: 'financial_withdrawal',
+        },
+        context: {
+          name: 'AccountService.withdraw',
+          data: expect.objectContaining({
+            method: 'withdraw',
+            assetId: mockWithdrawParams.assetId,
+            amount: mockWithdrawParams.amount,
+          }),
+        },
+      });
     });
 
     it('updates state with error on exception', async () => {
@@ -498,8 +699,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       const setupUpdater = updateCalls[0][0];
       const setupState = {
@@ -579,7 +779,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState: Pick<
         PerpsControllerState,

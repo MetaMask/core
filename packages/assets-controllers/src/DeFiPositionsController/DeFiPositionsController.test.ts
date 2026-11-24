@@ -6,8 +6,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
 import type {
   InternalAccount,
@@ -68,16 +70,16 @@ type RootMessenger = Messenger<
 function setupController({
   isEnabled,
   mockTrackEvent,
-  mockFetchPositions = jest.fn(),
-  mockGroupDeFiPositions = jest.fn(),
-  mockCalculateDefiMetrics = jest.fn(),
+  mockFetchPositions = vi.fn(),
+  mockGroupDeFiPositions = vi.fn(),
+  mockCalculateDefiMetrics = vi.fn(),
   mockGroupAccounts = GROUP_ACCOUNTS,
 }: {
   isEnabled?: () => boolean;
-  mockFetchPositions?: jest.Mock;
-  mockGroupDeFiPositions?: jest.Mock;
-  mockCalculateDefiMetrics?: jest.Mock;
-  mockTrackEvent?: jest.Mock;
+  mockFetchPositions?: Mock;
+  mockGroupDeFiPositions?: Mock;
+  mockCalculateDefiMetrics?: Mock;
+  mockTrackEvent?: Mock;
   mockGroupAccounts?: InternalAccount[];
 } = {}) {
   const messenger: RootMessenger = new Messenger({
@@ -108,19 +110,19 @@ function setupController({
     ],
   });
 
-  const buildPositionsFetcherSpy = jest.spyOn(
+  const buildPositionsFetcherSpy = vi.spyOn(
     fetchPositions,
     'buildPositionFetcher',
   );
 
   buildPositionsFetcherSpy.mockReturnValue(mockFetchPositions);
 
-  const groupDeFiPositionsSpy = jest.spyOn(
+  const groupDeFiPositionsSpy = vi.spyOn(
     groupDeFiPositions,
     'groupDeFiPositions',
   );
 
-  const calculateDefiMetricsSpy = jest.spyOn(
+  const calculateDefiMetricsSpy = vi.spyOn(
     calculateDefiMetrics,
     'calculateDeFiPositionMetrics',
   );
@@ -134,7 +136,7 @@ function setupController({
     trackEvent: mockTrackEvent,
   });
 
-  const updateSpy = jest.spyOn(controller, 'update' as never);
+  const updateSpy = vi.spyOn(controller, 'update' as never);
 
   const triggerLock = (): void => {
     messenger.publish('KeyringController:lock');
@@ -172,11 +174,11 @@ function setupController({
 
 describe('DeFiPositionsController', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('sets default state', async () => {
@@ -189,7 +191,7 @@ describe('DeFiPositionsController', () => {
 
   it('stops polling if the keyring is locked', async () => {
     const { controller, triggerLock } = setupController();
-    const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
+    const stopAllPollingSpy = vi.spyOn(controller, 'stopAllPolling');
 
     triggerLock();
 
@@ -199,8 +201,8 @@ describe('DeFiPositionsController', () => {
   });
 
   it('fetches positions for the selected account when polling', async () => {
-    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
-    const mockGroupDeFiPositions = jest
+    const mockFetchPositions = vi.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupDeFiPositions = vi
       .fn()
       .mockReturnValue('mock-grouped-data-1');
 
@@ -258,8 +260,8 @@ describe('DeFiPositionsController', () => {
   });
 
   it('fetches positions for an account when a transaction is confirmed', async () => {
-    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
-    const mockGroupDeFiPositions = jest
+    const mockFetchPositions = vi.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupDeFiPositions = vi
       .fn()
       .mockReturnValue('mock-grouped-data-1');
 
@@ -349,8 +351,8 @@ describe('DeFiPositionsController', () => {
   });
 
   it('fetches positions for the selected evm account when the account group changes', async () => {
-    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
-    const mockGroupDeFiPositions = jest
+    const mockFetchPositions = vi.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupDeFiPositions = vi
       .fn()
       .mockReturnValue('mock-grouped-data-1');
 
@@ -414,11 +416,11 @@ describe('DeFiPositionsController', () => {
   });
 
   it('updates defi count and calls metrics', async () => {
-    const mockGroupDeFiPositions = jest
+    const mockGroupDeFiPositions = vi
       .fn()
       .mockReturnValue('mock-grouped-data-1');
 
-    const mockTrackEvent = jest.fn();
+    const mockTrackEvent = vi.fn();
 
     const mockMetric1 = {
       event: 'mock-event',
@@ -429,7 +431,7 @@ describe('DeFiPositionsController', () => {
       },
     };
 
-    const mockCalculateDefiMetrics = jest.fn().mockReturnValueOnce(mockMetric1);
+    const mockCalculateDefiMetrics = vi.fn().mockReturnValueOnce(mockMetric1);
 
     const { controller } = setupController({
       mockGroupDeFiPositions,
@@ -453,10 +455,10 @@ describe('DeFiPositionsController', () => {
   });
 
   it('only calls track metric when position count changes', async () => {
-    const mockGroupDeFiPositions = jest
+    const mockGroupDeFiPositions = vi
       .fn()
       .mockReturnValue('mock-grouped-data-1');
-    const mockTrackEvent = jest.fn();
+    const mockTrackEvent = vi.fn();
 
     const mockMetric1 = {
       event: 'mock-event',
@@ -467,7 +469,7 @@ describe('DeFiPositionsController', () => {
       },
     };
 
-    const mockCalculateDefiMetrics = jest
+    const mockCalculateDefiMetrics = vi
       .fn()
       .mockReturnValueOnce(mockMetric1)
       .mockReturnValueOnce(mockMetric1);

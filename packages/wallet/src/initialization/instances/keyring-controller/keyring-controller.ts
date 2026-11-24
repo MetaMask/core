@@ -14,6 +14,7 @@ export const keyringController: InitializationConfiguration<
   KeyringControllerMessenger
 > = {
   name: 'KeyringController',
+  reference: KeyringController,
   init: ({ state, messenger, options }) =>
     new KeyringController({
       state,

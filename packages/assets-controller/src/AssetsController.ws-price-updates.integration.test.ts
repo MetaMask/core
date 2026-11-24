@@ -1,7 +1,13 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
-import { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  STATE_METADATA_SURFACE,
+  STATE_PRICES_SURFACE,
+  stateBalancesSurface,
+} from './__fixtures__/assetSurfaces.js';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
@@ -31,7 +37,6 @@ import {
   buildEmptyAssetsState,
   buildEthHeldUnpricedState,
   buildUsdcHeldAndPricedState,
-  getIgnoringCase,
   SEEDED_USDC_PRICE,
 } from './__fixtures__/ws-price-updates/wsWallet.js';
 import { AssetsController } from './AssetsController.js';
@@ -48,35 +53,12 @@ import type { AssetsControllerState } from './AssetsController.js';
  * the same pass as the balance update.
  */
 
-type StateSurface = {
-  surface: string;
-  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
-};
+const BALANCES = stateBalancesSurface(WS_ACCOUNT_ID);
+const METADATA = STATE_METADATA_SURFACE;
+const PRICES = STATE_PRICES_SURFACE;
 
-const BALANCES: StateSurface = {
-  surface: 'balances',
-  lookUp: (state, assetId) =>
-    getIgnoringCase(state.assetsBalance[WS_ACCOUNT_ID] ?? {}, assetId),
-};
-
-const METADATA: StateSurface = {
-  surface: 'metadata',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsInfo, assetId),
-};
-
-const PRICES: StateSurface = {
-  surface: 'prices',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsPrice, assetId),
-};
-
-/** The update lanes the remote feature flags switch the controller between. */
-const UPDATE_LANES: { name: string; remoteFeatureFlags?: FeatureFlags }[] = [
-  { name: 'the v5 update lane' },
-  {
-    name: 'the v6 update lane',
-    remoteFeatureFlags: { assetsAccountsApiV6: true },
-  },
-];
+/** The controller applies websocket updates on the Accounts API v6 lane. */
+const UPDATE_LANES: { name: string }[] = [{ name: 'the update lane' }];
 
 /** A settled websocket event run. */
 type WsEventResult = {
@@ -141,25 +123,21 @@ async function withController<ReturnValue>(
  * @param options - The run options.
  * @param options.state - The state to boot with.
  * @param options.event - The websocket event to deliver.
- * @param options.remoteFeatureFlags - Flags to boot with
- * (`assetsAccountsApiV6: true` selects the v6 update lane).
  * @returns The event result.
  */
 async function runWsEvent({
   state,
   event,
-  remoteFeatureFlags,
 }: {
   state: Partial<AssetsControllerState>;
   event: BalanceUpdatedEventPayload;
-  remoteFeatureFlags?: FeatureFlags;
 }): Promise<WsEventResult> {
-  cleanAll();
+  nock.cleanAll();
   const { accountsSupportedNetworks, assets, prices } = mockWsApis();
   const queryApiClient = createTestApiClient();
 
   const controllerState = await withController(
-    { state, queryApiClient, remoteFeatureFlags },
+    { state, queryApiClient },
     async ({ controller, messenger }) => {
       // Wait for boot so the assertions cannot pass on a half-started wallet.
       await waitFor(() =>
@@ -170,10 +148,7 @@ async function runWsEvent({
 
       await waitFor(() => {
         for (const update of event.updates) {
-          const landed = getIgnoringCase(
-            controller.state.assetsBalance[WS_ACCOUNT_ID] ?? {},
-            update.asset.type,
-          );
+          const landed = BALANCES.lookUp(controller.state, update.asset.type);
           if (landed === undefined) {
             throw new Error('Websocket balances have not landed yet');
           }
@@ -197,19 +172,18 @@ async function runWsEvent({
 
 describe('AssetsController: websocket price updates', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(UPDATE_LANES)(
     '$name: brand-new holdings: ETH held and USDC acquired in one websocket event',
-    ({ remoteFeatureFlags }) => {
+    () => {
       let result: WsEventResult;
 
       beforeAll(async () => {
         result = await runWsEvent({
           state: buildEmptyAssetsState(),
           event: buildEthAndUsdcBalanceUpdatedEvent(),
-          remoteFeatureFlags,
         });
       });
 
@@ -276,7 +250,7 @@ describe('AssetsController: websocket price updates', () => {
       event: buildEthAndUsdcBalanceUpdatedEvent(),
     });
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 
@@ -333,7 +307,7 @@ describe('AssetsController: websocket price updates', () => {
 
     it('did not refetch metadata for the enriched token', () => {
       expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
+        new Set(),
       );
     });
   });

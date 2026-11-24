@@ -1,21 +1,16 @@
-import { jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
-jest.unstable_mockModule('./cli.js', () => ({
-  __esModule: true,
-  default: jest.fn(),
+import cli from './cli.ts';
+import { commands } from './commands.ts';
+
+vi.mock(import('./cli.ts'), () => ({
+  default: vi.fn(),
 }));
-
-const { default: cli } = await import('./cli.js');
-const { commands } = await import('./commands.js');
 
 describe('create-package/index', () => {
   let originalProcess: typeof globalThis.process;
   beforeEach(() => {
     originalProcess = globalThis.process;
-    // TODO: Replace with `jest.replaceProperty` after Jest v29 update.
     globalThis.process = { ...globalThis.process };
   });
 
@@ -24,12 +19,12 @@ describe('create-package/index', () => {
   });
 
   it('executes the CLI application', async () => {
-    jest.mocked(cli).mockRejectedValue('foo');
+    vi.mocked(cli).mockRejectedValue('foo');
 
-    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     // Importing the entry point runs it, which is the behaviour under test.
-    await import('./index.js');
+    await import('./index.ts');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(cli).toHaveBeenCalledTimes(1);

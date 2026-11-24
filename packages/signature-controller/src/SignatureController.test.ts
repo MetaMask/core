@@ -4,8 +4,10 @@ import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
@@ -26,13 +28,13 @@ import {
 } from './utils/normalize.js';
 import { validateTypedSignatureRequest } from './utils/validation.js';
 
-jest.mock('uuid');
-jest.mock('./utils/validation');
-jest.mock('./utils/normalize');
+vi.mock(import('uuid'));
+vi.mock(import('./utils/validation.js'));
+vi.mock(import('./utils/normalize.js'));
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  detectSIWE: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  detectSIWE: vi.fn(),
 }));
 
 const ID_MOCK = '123-456';
@@ -116,13 +118,13 @@ const DELEGATION_REQUEST_MOCK = {
  * @returns The mock messenger instance plus individual mock functions for each action.
  */
 function createMessengerMock() {
-  const accountsControllerGetStateMock = jest.fn();
-  const approvalControllerAddRequestMock = jest.fn();
-  const keyringControllerSignPersonalMessageMock = jest.fn();
-  const keyringControllerSignTypedMessageMock = jest.fn();
-  const loggingControllerAddMock = jest.fn();
-  const networkControllerGetNetworkClientByIdMock = jest.fn();
-  const decodePermissionFromPermissionContextForOriginMock = jest.fn();
+  const accountsControllerGetStateMock = vi.fn();
+  const approvalControllerAddRequestMock = vi.fn();
+  const keyringControllerSignPersonalMessageMock = vi.fn();
+  const keyringControllerSignTypedMessageMock = vi.fn();
+  const loggingControllerAddMock = vi.fn();
+  const networkControllerGetNetworkClientByIdMock = vi.fn();
+  const decodePermissionFromPermissionContextForOriginMock = vi.fn();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
@@ -147,12 +149,12 @@ function createMessengerMock() {
   };
 
   const messenger = {
-    registerActionHandler: jest.fn(),
-    registerMethodActionHandlers: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    publish: jest.fn(),
+    registerActionHandler: vi.fn(),
+    registerMethodActionHandlers: vi.fn(),
+    registerInitialEventPayload: vi.fn(),
+    publish: vi.fn(),
     call: callMock,
-  } as unknown as jest.Mocked<SignatureControllerMessenger>;
+  } as unknown as Mocked<SignatureControllerMessenger>;
 
   accountsControllerGetStateMock.mockReturnValue({
     internalAccounts: {
@@ -214,25 +216,25 @@ function createErrorMock(): Error {
 }
 
 describe('SignatureController', () => {
-  const normalizePersonalMessageParamsMock = jest.mocked(
+  const normalizePersonalMessageParamsMock = vi.mocked(
     normalizePersonalMessageParams,
   );
 
-  const normalizeTypedMessageParamsMock = jest.mocked(
+  const normalizeTypedMessageParamsMock = vi.mocked(
     normalizeTypedMessageParams,
   );
 
-  const validateTypedSignatureRequestMock = jest.mocked(
+  const validateTypedSignatureRequestMock = vi.mocked(
     validateTypedSignatureRequest,
   );
 
-  const detectSIWEMock = jest.mocked(detectSIWE);
+  const detectSIWEMock = vi.mocked(detectSIWE);
   // `v1` is overloaded; naming the signature used here avoids resolving to the
   // last overload, which returns a `Uint8Array`.
-  const uuidV1Mock = jest.mocked<() => string>(v1);
+  const uuidV1Mock = vi.mocked<() => string>(v1);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     normalizePersonalMessageParamsMock.mockImplementation((params) => params);
     normalizeTypedMessageParamsMock.mockImplementation((params) => params);
@@ -365,7 +367,7 @@ describe('SignatureController', () => {
         },
       };
 
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const { controller } = createController({
         state: {
@@ -469,7 +471,7 @@ describe('SignatureController', () => {
     });
 
     it('invokes success callback if approved', async () => {
-      const resultCallbackSuccessMock = jest.fn();
+      const resultCallbackSuccessMock = vi.fn();
 
       const {
         controller,
@@ -501,7 +503,7 @@ describe('SignatureController', () => {
     });
 
     it('emits finished event if approved', async () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const { controller } = createController();
 
@@ -516,7 +518,7 @@ describe('SignatureController', () => {
     });
 
     it('emits finished event if rejected', async () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const { controller, approvalControllerAddRequestMock } =
         createController();
@@ -646,7 +648,7 @@ describe('SignatureController', () => {
     });
 
     it('emits unapproved message event', async () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const { controller } = createController();
 
@@ -662,7 +664,7 @@ describe('SignatureController', () => {
     });
 
     it('emits signed event after sign', async () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const {
         controller,
@@ -692,7 +694,7 @@ describe('SignatureController', () => {
     it('emits sign error event if signing fails', async () => {
       const errorMock = createErrorMock();
 
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       const {
         controller,
@@ -716,7 +718,7 @@ describe('SignatureController', () => {
     });
 
     it('invokes error callback if signing fails', async () => {
-      const resultCallbackErrorMock = jest.fn();
+      const resultCallbackErrorMock = vi.fn();
 
       const errorMock = createErrorMock();
 
@@ -1178,9 +1180,9 @@ describe('SignatureController', () => {
           isDecodeSignatureRequestEnabled: () => true,
         });
 
-        jest
-          .spyOn(DecodingDataUtils, 'decodeSignature')
-          .mockResolvedValue(MOCK_STATE_CHANGES);
+        vi.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue(
+          MOCK_STATE_CHANGES,
+        );
 
         await controller.newUnsignedTypedMessage(
           PERMIT_PARAMS_MOCK,
@@ -1266,9 +1268,9 @@ describe('SignatureController', () => {
           isDecodeSignatureRequestEnabled: () => true,
         });
 
-        jest
-          .spyOn(DecodingDataUtils, 'decodeSignature')
-          .mockRejectedValue(new Error('some error'));
+        vi.spyOn(DecodingDataUtils, 'decodeSignature').mockRejectedValue(
+          new Error('some error'),
+        );
 
         await controller.newUnsignedTypedMessage(
           PERMIT_PARAMS_MOCK,
@@ -1293,15 +1295,15 @@ describe('SignatureController', () => {
           isDecodeSignatureRequestEnabled: () => true,
         });
 
-        jest
-          .spyOn(DecodingDataUtils, 'decodeSignature')
-          .mockImplementation(() => {
+        vi.spyOn(DecodingDataUtils, 'decodeSignature').mockImplementation(
+          () => {
             return new Promise((resolve) => {
               setTimeout(() => {
                 resolve({});
               }, 300);
             });
-          });
+          },
+        );
 
         await controller.newUnsignedTypedMessage(
           PERMIT_PARAMS_MOCK,
@@ -1395,7 +1397,7 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let resolved = false;
 
-      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+      vi.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
@@ -1475,7 +1477,7 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let rejectedError;
 
-      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+      vi.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       controller
         .newUnsignedPersonalMessage(

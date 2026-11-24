@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata (Phase 1.5) 1`] = `
+exports[`Bridge Selectors > selectBridgeQuotes > should return sorted quotes with metadata (Phase 1.5) 1`] = `
 {
   "adjustedReturn": {
     "usd": "2.099927",
@@ -157,7 +157,7 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
 }
 `;
 
-exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata (Phase 2) 1`] = `
+exports[`Bridge Selectors > selectBridgeQuotes > should return sorted quotes with metadata (Phase 2) 1`] = `
 {
   "approval": {
     "chainId": 1,
@@ -264,7 +264,7 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
 }
 `;
 
-exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata 1`] = `
+exports[`Bridge Selectors > selectBridgeQuotes > should return sorted quotes with metadata 1`] = `
 {
   "adjustedReturn": {
     "usd": "2.099927",

@@ -50,9 +50,9 @@ type AllDefaultMessengers = ExtractInstanceMessenger<
 >;
 
 export type DefaultInstances = {
-  [Key in keyof DefaultConfigs as ExtractName<
-    DefaultConfigs[Key]
-  >]: ExtractInstance<DefaultConfigs[Key]>;
+  [
+    Key in keyof DefaultConfigs as ExtractName<DefaultConfigs[Key]>
+  ]: ExtractInstance<DefaultConfigs[Key]>;
 };
 
 export type DefaultActions = MessengerActions<AllDefaultMessengers>;

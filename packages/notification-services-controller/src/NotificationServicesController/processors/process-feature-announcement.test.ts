@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { TRIGGER_TYPES } from '../constants/notification-schema.js';
 import type { INotification } from '../index.js';
 import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements.js';

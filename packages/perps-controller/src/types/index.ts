@@ -7,10 +7,16 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
+import type { PerpsErrorDetails } from '../errors.js';
+import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import type { LighterProvider } from '../providers/LighterProvider.js';
+import type { HyperLiquidMarginTier } from '../utils/hyperLiquidPositionPreview.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
+  OrderDirection,
   OrderType,
   StrategyOrderType,
   TpslLinkage,
@@ -29,6 +35,44 @@ export enum WebSocketConnectionState {
   Connected = 'connected',
   Disconnecting = 'disconnecting',
 }
+
+/**
+ * Why a provider reports degraded health.
+ *
+ * - `socket_down`: the venue socket is down or reconnecting while streams need it.
+ * - `server_errors`: repeated 5xx responses from the venue's REST API.
+ * - `rate_limited`: the venue answered 429/405; reads are held until `cooldownUntil`.
+ */
+export type PerpsProviderHealthReason =
+  | 'socket_down'
+  | 'server_errors'
+  | 'rate_limited';
+
+/**
+ * One provider's health. `unavailable` means the provider is not registered,
+ * or is disconnected with no reconnect pending (not started or disconnected).
+ * It describes the provider, not its socket: Lighter closes its socket when
+ * nothing listens and still reports `healthy`.
+ */
+export type PerpsProviderHealth = {
+  providerId: PerpsProviderType;
+  status: 'healthy' | 'degraded' | 'unavailable';
+  /** Empty unless `status` is `degraded`. */
+  reasons: PerpsProviderHealthReason[];
+  connectionState: WebSocketConnectionState;
+  /** Reconnect attempts since the last successful open (0 when connected or idle). */
+  reconnectionAttempt: number;
+  /** Epoch ms when a rate-limit cooldown ends, set only while `rate_limited`. */
+  cooldownUntil?: number;
+  /** Epoch ms when this snapshot was taken. */
+  updatedAt: number;
+};
+
+/** Parameters for `PerpsController.subscribeToProviderHealth`. */
+export type SubscribeProviderHealthParams = {
+  providerId: PerpsProviderType;
+  callback: (health: PerpsProviderHealth) => void;
+};
 
 /** Provider-agnostic raw ledger update. Fields match the common shape across providers. */
 export type RawLedgerUpdate = {
@@ -171,8 +215,8 @@ export type TradeAction =
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
 export type TrackingData = {
   // Common to all operations
-  totalFee: number; // Total fee for the operation (parsed by hooks)
-  marketPrice: number; // Market price at operation time (parsed by hooks)
+  totalFee?: number; // Total fee for the operation (parsed by hooks); omit when unknown
+  marketPrice?: number; // Market price at operation time (parsed by hooks); omit when unknown
   metamaskFee?: number; // MetaMask fee amount (parsed by hooks)
   metamaskFeeRate?: number; // MetaMask fee rate (parsed by hooks)
   feeDiscountPercentage?: number; // Fee discount percentage (parsed by hooks)
@@ -198,9 +242,17 @@ export type TrackingData = {
   discoverySource?: string;
   perpDiscoverySource?: string;
 
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
+
   // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
+
+  // Slippage context for trade and close transaction analytics.
+  maxSlippageBps?: number;
+  maxSlippageSource?: PerpsMaxSlippageSource;
+  estimatedSlippageBps?: number;
 
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
@@ -234,6 +286,9 @@ export type TPSLTrackingData = {
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
+
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
 };
 
 /** Collateral mode requested for a new order. */
@@ -341,6 +396,12 @@ export type OrderParams = {
 
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
+  /**
+   * When true, the provider returns a venue failure without logging it.
+   * The caller reports that failure under its own operation. Not sent to the venue.
+   * Flip sets this so Lighter does not consume the single Sentry event as `place_order`.
+   */
+  deferProviderErrorReport?: boolean;
 
   // Multi-provider routing (optional: defaults to active/default provider).
   providerId?: PerpsProviderType;
@@ -470,6 +531,10 @@ export type OrderResult = {
    */
   orderId?: string;
   error?: string;
+  /** Stable error classification for client-side translation. */
+  errorCode?: PerpsErrorCode;
+  /** Optional structured data for the classified error. */
+  errorDetails?: PerpsErrorDetails;
   filledSize?: string; // Amount filled
   // Full normalized size submitted to the exchange (post precision rounding,
   // USD recalculation, and any $10-minimum retry). Present only when the
@@ -707,6 +772,56 @@ export type ChaseOrder = {
   providerId?: PerpsProviderType;
 };
 
+/** How a TWAP is cut into suborders on the venue's cadence. */
+export type TwapSlicePreview = {
+  /** Suborders over the whole running time. */
+  sliceCount: number;
+  /** Seconds between two suborders. */
+  sliceIntervalSeconds: number;
+  /** Size of one suborder, floored to the venue's size grid. */
+  sizePerSlice: string;
+  /** Size precision `sizePerSlice` is expressed in; pass it to `formatPositionSize`. */
+  sizeDecimals: number;
+  /** Smallest size the grid can express. */
+  minimumSize: string;
+  /** True when one suborder floors below `minimumSize`. */
+  isBelowMinimumSize: boolean;
+  /** Value of one suborder at the reference price, when one was given. */
+  notionalPerSlice?: string;
+};
+
+/** Chase snapshots split for display, newest first. */
+export type ChaseOrderLists = {
+  /** Chases still chasing or waiting for a cancel to settle. */
+  running: ChaseOrder[];
+  /** Ended chases, bounded to `CHASE_ORDER_CONFIG.HistoryLimit`. */
+  history: ChaseOrder[];
+};
+
+/** Whether another chase fits under the venue's cap. */
+export type ChasePlacementCheck = {
+  canPlace: boolean;
+  /** Chases currently chasing, the ones the cap counts. */
+  activeCount: number;
+  /** Venue cap; omitted when the venue has none. */
+  maxActiveSessions?: number;
+  /** `PERPS_ERROR_CODES` reason when `canPlace` is false. */
+  error?: string;
+};
+
+/** Rung sizes of a scale ladder sized by `sizeScaleLadder`. */
+export type ScaleLadderSizing = {
+  sizes: string[];
+  totalSize: string;
+  /** Sum of rung price times rung size, in USD. */
+  totalNotional: string;
+};
+
+/** A warning about where a scale ladder rests relative to the market. */
+export type ScalePriceWarning =
+  | { code: 'crosses_market' | 'partially_crosses_market' }
+  | { code: 'far_from_market'; distancePercent: number };
+
 /** Original durable Chase owner. Observation never grants current cleanup authority. */
 export type PerpsChaseOrderOwner = {
   providerId: PerpsProviderType;
@@ -830,16 +945,26 @@ export type Position = {
   positionValue: string; // Total position value in USD
   unrealizedPnl: string; // Unrealized profit/loss
   marginUsed: string; // Margin currently used for this position
+  /**
+   * Margin the venue shows for a cross position. Hyperliquid scales cross
+   * margin by `accountValue / totalMarginUsed` when cross equity is below
+   * initial margin, so this is `marginUsed` times that ratio (capped at 1).
+   * `marginUsed` keeps the raw venue figure. Absent for isolated positions
+   * and when the provider does not report one.
+   */
+  displayMarginUsed?: string;
   leverage: {
     type: 'isolated' | 'cross'; // Margin type
-    value: number; // Leverage multiplier
+    value?: number; // Leverage multiplier. Undefined when the venue does not report it
     rawUsd?: string; // USD amount (for isolated margin)
   };
   liquidationPrice: string | null; // Liquidation price (null if no risk)
   maxLeverage: number; // Maximum allowed leverage for this asset
   returnOnEquity: string; // ROE percentage
-  cumulativeFunding: {
-    // Funding payments history
+  /**
+   * Funding payments history. Absent when the venue does not report it.
+   */
+  cumulativeFunding?: {
     allTime: string; // Total funding since account opening
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
@@ -885,20 +1010,47 @@ export type PositionTriggerOrder = {
   triggerPrice: string; // Price at which the order activates
   size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
   isPartial: boolean; // true when `size` is smaller than the position size
+  /**
+   * Position coverage cannot be resolved yet. Use the trigger price and order
+   * ID normally, but do not present the size as resolved or use the partial
+   * flag until a fresh position arrives.
+   */
+  coverageUnavailable?: true;
   reduceOnly: boolean; // Whether the trigger can only reduce the position
+};
+
+/**
+ * Provider-agnostic cross-margin summary, in USD decimal strings. Clients
+ * derive account ratio, account leverage and cross margin usage from it.
+ *
+ * HL: crossMarginSummary + crossMaintenanceMarginUsed, summed across DEXs.
+ * Lighter: the bound account's cross positions; accountValue is the total
+ * balance less isolated positions' unrealized PnL.
+ */
+export type CrossMarginSummary = {
+  accountValue: string;
+  maintenanceMargin: string;
+  marginUsed: string;
+  notional: string;
 };
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
   /**
+   * Venue account mode when confirmed by the current account stream or read
+   * (Hyperliquid `userAbstraction`). Pass it to `calculateAccountSummary`.
+   */
+  accountMode?: string;
+  /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
-   * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
+   * HL Unified / Portfolio Margin: spot USDC total
+   * HL Standard: marginSummary.accountValue + spot(USDC) − spot.hold
    */
   totalBalance: string;
   /**
    * Max USD that can immediately collateralize a new position on this venue,
    * with no internal transfer required.
-   * HL Unified: withdrawable + freeSpotUSDC
+   * HL Unified / Portfolio Margin: spot USDC total − hold
    * HL Standard: withdrawable
    */
   spendableBalance: string;
@@ -908,13 +1060,39 @@ export type AccountState = {
    * contract guarantees HL's own abstraction (Unified) or the direct
    * perps-clearinghouse (Standard) is what actually settles the
    * withdraw — no client-side spot→perps sweep is performed.
-   * HL Unified: withdrawable + freeSpotUSDC (USDC only; `freeSpotUSDC = spot.total - spot.hold`, and HL withdraw3 draws from the unified ledger server-side)
+   * HL Unified / Portfolio Margin: spot USDC total − hold (HL withdraw3 draws from the unified ledger server-side)
    * HL Standard: withdrawable (perps-clearinghouse only; spot is a separate ledger)
    */
   withdrawableBalance: string;
   marginUsed: string;
   unrealizedPnl: string;
   returnOnEquity: string;
+  /**
+   * Cross-margin account summary. Absent when the provider does not report
+   * one for this read.
+   */
+  crossMarginSummary?: CrossMarginSummary;
+  /**
+   * Sub-accounts (Hyperliquid DEX names; `''` is the main DEX) whose state is
+   * unavailable: the read failed, or on the live stream it has not arrived.
+   * The totals exclude them, so the state is partial while this is present.
+   */
+  unavailableSubAccounts?: string[];
+  /**
+   * Spot USDC this venue counts as cross collateral, as a decimal string.
+   * Pass it to `calculateAccountSummary` as `spotCollateral`.
+   *
+   * Absent while the spot state or the abstraction mode is still unknown.
+   * `calculateAccountSummary` then leaves `accountRatio` and
+   * `crossMarginUsage` undefined.
+   *
+   * `'0'` when spot is not collateral: Hyperliquid Standard (`disabled` /
+   * `default`), and venues with no separate spot ledger (Lighter).
+   *
+   * Free spot USDC (`max(0, total − hold)`, USDC only) for Hyperliquid
+   * Unified and portfolio margin.
+   */
+  spotCollateral?: string;
   /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
@@ -935,10 +1113,79 @@ export type AccountState = {
       totalBalance: string;
     }
   >;
+  /**
+   * Per-venue account states, keyed by provider id. Present only when the
+   * state was produced by the aggregated provider; direct-provider results
+   * omit it. Venue-local detail (`crossMarginSummary`,
+   * `subAccountBreakdown`) stays inside each entry — the top-level totals are
+   * venue-neutral and never carry venue-local collateral detail.
+   */
+  providerStates?: Partial<
+    Record<PerpsProviderType, PerpsProviderAccountStateEntry>
+  >;
+  /**
+   * Completeness of the top-level totals across every enabled venue.
+   * Present only when the state was produced by the aggregated provider.
+   */
+  aggregate?: AccountAggregateMetadata;
   providerId?: PerpsProviderType; // Multi-provider: which provider this account state is from (injected by aggregator)
 };
 
+/**
+ * One venue's account data inside an aggregated {@link AccountState}.
+ *
+ * A failed read, invalid balance snapshot, or `null` after a venue has reported
+ * a snapshot is `unavailable` — never a zero balance. Before its first snapshot,
+ * a stream venue is `pending`, even if it emits `null`: no verdict about its
+ * balances, so its persisted entry is retained. A confirmed zero or nonexistent
+ * venue account is an `available` entry whose balances are zero.
+ */
+export type PerpsProviderAccountStateEntry =
+  | {
+      status: 'available';
+      /** The venue's own account snapshot, attributed to its provider. */
+      state: AccountState;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'unavailable';
+      /** The venue read failed; its balances contribute nothing to totals. */
+      error?: string;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'pending';
+      /** The venue has not reported on this stream yet; no verdict.
+       * Stream-only: the read path always awaits every venue. */
+      providerId: PerpsProviderType;
+    };
+
+/**
+ * Completeness metadata for an aggregated account read or stream update.
+ *
+ * `status: 'partial'` means the top-level totals are subtotals over
+ * `availableProviders` only: at least one enabled venue contributed no data.
+ * Consumers must not present partial totals as the user's complete portfolio
+ * value. With no metadata at all (absent `aggregate`), the state came from a
+ * single venue or a legacy producer and has no incompleteness claim.
+ */
+export type AccountAggregateMetadata = {
+  status: 'complete' | 'partial';
+  availableProviders: PerpsProviderType[];
+  unavailableProviders: PerpsProviderType[];
+  /** Stream updates only: venues that have not reported yet. They make the
+   * totals partial, but unlike `unavailableProviders` there is no verdict
+   * about their balances. */
+  pendingProviders?: PerpsProviderType[];
+};
+
 export type ClosePositionParams = {
+  /**
+   * Account that supplied a batch close target. A changed account cannot close it.
+   *
+   * @internal
+   */
+  expectedAccountId?: CaipAccountId;
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
   /**
@@ -981,24 +1228,69 @@ export type ClosePositionParams = {
 export type ClosePositionsParams = {
   symbols?: string[]; // Optional: specific symbols to close (omit or empty array to close all)
   closeAll?: boolean; // Explicitly close all positions
+  /**
+   * Explicit provider-tagged close targets. Each target is closed on its
+   * named venue only, so identical symbols on different venues are
+   * independent. Non-empty targets take precedence over `closeAll` and
+   * `symbols`.
+   */
+  targets?: ClosePositionsTarget[];
 };
 
+/** One close target, tagged with the venue that holds the position. */
+export type ClosePositionsTarget = {
+  symbol: string;
+  providerId: PerpsProviderType;
+};
+
+/**
+ * Outcome of a batch cancel or close. `all`: every attempted item succeeded.
+ * `partial`: some succeeded and some failed. `none`: nothing succeeded,
+ * including when nothing matched the request. A cancel target absent from
+ * discovery has no result row. An order that disappears after discovery can
+ * produce an `ORDER_NO_LONGER_OPEN` failure row.
+ */
+export type BatchOperationStatus = 'all' | 'partial' | 'none';
+
+/**
+ * A batch result as `PerpsController` returns it, with its derived `status`.
+ */
+export type WithBatchOperationStatus<
+  Result extends ClosePositionsResult | CancelOrdersResult,
+> = Result & { status: BatchOperationStatus };
+
 export type ClosePositionsResult = {
-  success: boolean; // Overall success (true if at least one position closed)
+  /**
+   * True when at least one position closed, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of positions closed successfully
-  failureCount: number; // Number of positions that failed to close
+  /** Failed positions, or one per failed venue when its positions are unknown. */
+  failureCount: number;
   /**
    * Batch-level operation error.
    *
-   * Set when the close fails as a whole: snapshot/preparation errors with no
-   * per-position outcomes, or a thrown batch submission that also fills
-   * `results` with per-position failures.
+   * Merged multi-venue failures use BATCH_INCOMPLETE, including when another
+   * venue succeeded; venue details live in `failures`. Direct-provider batches
+   * preserve their snapshot/preparation or submission error. Venue text is
+   * replaced with a stable code.
    */
   error?: string;
+  /** Venue-level errors; `error` remains BATCH_INCOMPLETE on a merged batch. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
+  /** Stable classification for the batch-level error. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details for the batch-level error. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   results: {
     symbol: string;
     success: boolean;
     error?: string;
+    errorCode?: PerpsErrorCode;
+    errorDetails?: PerpsErrorDetails;
+    /** Venue that (attempted to) execute this close. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1011,6 +1303,10 @@ export type UpdateMarginParams = {
 export type MarginResult = {
   success: boolean;
   error?: string;
+  /** Stable classification for a failed margin update. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type FlipPositionParams = {
@@ -1024,12 +1320,20 @@ export type FlipPositionParams = {
 export type InitializeResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when initialization fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   chainId?: string;
 };
 
 export type ReadyToTradeResult = {
   ready: boolean;
   error?: string;
+  /** Stable classification when the readiness check fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   walletConnected?: boolean;
   networkSupported?: boolean;
   authenticatedAddress?: string;
@@ -1038,6 +1342,10 @@ export type ReadyToTradeResult = {
 export type DisconnectResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when disconnect fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type MarketInfo = {
@@ -1050,8 +1358,20 @@ export type MarketInfo = {
   marginMode?: 'strictIsolated' | 'noCross'; // HyperLiquid market capability
   onlyIsolated?: true; // HyperLiquid: isolated margin only (optional, only when true)
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
+  /**
+   * HyperLiquid margin tiers for `marginTableId`, lowest notional first, as
+   * `resolveHyperLiquidMarginTiers` resolves them from the venue's `meta`.
+   * Omitted when the table cannot be resolved, and on lists served from the
+   * Terminal market snapshot; `getOrderCapabilities` always reads them from
+   * the venue.
+   */
+  marginTiers?: HyperLiquidMarginTier[];
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)
   providerId?: PerpsProviderType; // Multi-provider: which provider this market comes from (injected by aggregator)
+  /** Cross-venue identity from the Terminal snapshot. */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
 };
 
 /**
@@ -1060,10 +1380,10 @@ export type MarketInfo = {
  */
 export type PerpsMarketData = {
   /**
-   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * Stable backend market identifier supplied by the Terminal global snapshot
    * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
-   * calls. Only present when data originates from the v3 global-snapshot
-   * endpoint; omit checks against this field must guard with `?? undefined`.
+   * calls. Only present when data originates from that endpoint; omit checks
+   * against this field must guard with `?? undefined`.
    */
   id?: string;
   /**
@@ -1096,6 +1416,28 @@ export type PerpsMarketData = {
    * 24h price change percentage as formatted string (e.g., '+2.5%', '-1.8%')
    */
   change24hPercent: string;
+  /**
+   * 5-minute mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change5m?: string;
+  /**
+   * 5-minute percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent5m?: string;
+  /**
+   * 1-hour mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change1h?: string;
+  /**
+   * 1-hour percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent1h?: string;
   /**
    * Trading volume as formatted string (e.g., '$1.2B', '$850M')
    */
@@ -1175,18 +1517,61 @@ export type PerpsMarketData = {
    * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
    */
   listedAt?: number;
+  /** Asset icon URL from the Terminal global snapshot. */
+  iconUrl?: string;
+  /**
+   * Cross-venue market identity from the Terminal global snapshot. Rows from
+   * different providers with the same `marketKey` are the same market.
+   */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
+  /**
+   * Unformatted numbers behind the display strings, which `sortMarkets` sorts
+   * on. A value is absent when the venue did not report it.
+   */
+  numericValues?: PerpsMarketNumericValues;
+};
+
+/**
+ * Unformatted values of a {@link PerpsMarketData} row: `price` and USD
+ * `volume` and `openInterest`, and `change24hPercent` in percent (`2.5` for
+ * 2.5%).
+ */
+export type PerpsMarketNumericValues = {
+  price?: number;
+  change24hPercent?: number;
+  volume?: number;
+  openInterest?: number;
+};
+
+/** One display row with its original venue rows, preferred venue first. */
+export type GroupedPerpsMarket = PerpsMarketData & {
+  /** Stable display identity, distinct for a backend group and a venue row. */
+  rowId: string;
+  venues: PerpsMarketData[];
 };
 
 export type ToggleTestnetResult = {
   success: boolean;
   isTestnet: boolean;
   error?: string;
+  /** Stable classification when the network toggle fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type AssetRoute = {
   assetId: CaipAssetId; // CAIP asset ID (e.g., "eip155:42161/erc20:0xaf88.../default")
   chainId: CaipChainId; // CAIP-2 chain ID where the bridge contract is located
   contractAddress: Hex; // Bridge contract address for deposits/withdrawals
+  /**
+   * Venue this route moves funds to/from. In aggregated mode, routes from
+   * every active venue are listed; identical asset/chain routes belonging
+   * to different venues are distinct entries.
+   */
+  providerId?: PerpsProviderType;
   constraints?: {
     minAmount?: string; // Minimum deposit/withdrawal amount
     maxAmount?: string; // Maximum deposit/withdrawal amount
@@ -1204,6 +1589,56 @@ export type SwitchProviderResult = {
   success: boolean;
   providerId: PerpsActiveProviderMode;
   error?: string;
+};
+
+/**
+ * Result of setting the default provider used by aggregated-mode routing.
+ *
+ * `setDefaultProvider` never re-initializes the controller or reconnects
+ * any stream, so there is no asynchronous work to await.
+ */
+export type SetDefaultProviderResult = {
+  success: boolean;
+  defaultProvider: PerpsProviderType;
+  error?: string;
+};
+
+/**
+ * Temporary trade configuration captured while a placement flow is
+ * interrupted. Expires after `PERPS_CONSTANTS.PendingTradeConfigurationTtlMs`.
+ */
+export type PerpsPendingTradeConfiguration = {
+  amount?: string; // Order size in USD
+  leverage?: number; // Leverage
+  takeProfitPrice?: string; // Take profit price
+  stopLossPrice?: string; // Stop loss price
+  limitPrice?: string; // Limit price (for limit orders)
+  orderType?: OrderType; // Market vs limit
+  reduceOnly?: boolean; // Whether the order may only reduce a position
+  direction?: OrderDirection; // Long vs short
+  /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
+  selectedPaymentToken?: PerpsSelectedPaymentToken | null;
+  timestamp: number; // When the config was saved (for expiration check)
+};
+
+/**
+ * Persisted per-market trade configuration: leverage, order-book grouping,
+ * margin mode and the expiring pending config.
+ */
+export type PerpsTradeConfiguration = {
+  leverage?: number; // Last used leverage for this market
+  orderBookGrouping?: number; // Persisted price grouping for order book
+  marginMode?: MarginMode; // Last Isolated/Cross pick for this market
+  pendingConfig?: PerpsPendingTradeConfiguration;
+};
+
+/**
+ * Trade configurations keyed by provider id and then market symbol, so a
+ * value saved for one venue (for example HyperLiquid BTC) never applies to
+ * the same symbol on another venue.
+ */
+export type PerpsProviderTradeConfigurations = {
+  [providerId: string]: { [marketSymbol: string]: PerpsTradeConfiguration };
 };
 
 export type CancelOrderParams = {
@@ -1237,28 +1672,71 @@ export type CancelOrderResult = {
   orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
+  /**
+   * For a chase cancel whose ending the provider knows, the chase's final
+   * snapshot (canceled, filled, or the ending it had already stopped with).
+   * Absent when the ending is unknown, for example a child the venue reports
+   * gone whose status could not be read.
+   */
+  chaseOrder?: ChaseOrder;
 };
 
 export type BatchCancelOrdersParams = {
   orderId: string;
   symbol: string;
+  /**
+   * Venue that holds this order. Execution identity: the aggregated provider
+   * groups mixed-venue batches by it and never resolves duplicate order IDs
+   * or symbols across venues by falling back to the default provider.
+   */
+  providerId?: PerpsProviderType;
 }[];
 
 export type CancelOrdersParams = {
   symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
-  orderIds?: string[]; // Optional: specific order IDs (omit to cancel all orders for specified coins)
+  /** Legacy single-venue filter. Refused when multiple venues are registered;
+   * use `orders` to identify the venue for each ID. */
+  orderIds?: string[];
+  /** Venue-scoped targets, matched on both fields. Takes precedence over
+   * legacy filters unless `cancelAll` is true. An empty list cancels nothing. */
+  orders?: { orderId: string; providerId: PerpsProviderType }[];
   cancelAll?: boolean; // Explicitly cancel all orders
 };
 
 export type CancelOrdersResult = {
-  success: boolean; // Overall success (true if at least one order cancelled)
+  /**
+   * True when at least one order cancelled, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of orders cancelled successfully
-  failureCount: number; // Number of orders that failed to cancel
+  /** Failed cancellations plus unresolved discovery targets. For an unscoped
+   * discovery failure, counts one failure per unavailable venue (not its unknown order count). */
+  failureCount: number;
+  /**
+   * Batch-level operation error.
+   *
+   * Refused batches retain their code; incomplete discovery or merged venue
+   * batch errors use BATCH_INCOMPLETE, even if other venues succeeded.
+   */
+  error?: string;
+  /** Venue batch errors, matching ClosePositionsResult.failures. Discovery
+   * errors remain separate because their targets have no discovered symbol. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
+  /** Unavailable venues and, for scoped requests, their unresolved order IDs.
+   * These targets have no discovered symbol and are not included in results. */
+  discoveryFailures?: {
+    providerId: PerpsProviderType;
+    error: string;
+    orderIds?: string[];
+  }[];
   results: {
     orderId: string;
     symbol: string;
     success: boolean;
     error?: string;
+    /** Venue that (attempted to) execute this cancel. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1281,6 +1759,12 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
+  /**
+   * Venue the deposit should settle on. In aggregated mode, omitting it uses
+   * the routing default's route. A venue with no deposit route fails closed
+   * instead of funding a different exchange.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type DepositResult = {
@@ -1317,12 +1801,17 @@ export type WithdrawParams = {
   destination?: Hex; // Destination address (optional, defaults to current account)
   assetId?: CaipAssetId; // Asset to withdraw (defaults to USDC)
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  environmentType?: string; // UI surface. Omitted from events when unset.
 };
 
 export type WithdrawResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed withdrawal. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   withdrawalId?: string; // Unique ID for tracking
   estimatedArrivalTime?: number; // Provider-specific arrival time
 };
@@ -1337,6 +1826,10 @@ export type TransferBetweenDexsResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed transfer. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type GetHistoricalPortfolioParams = {
@@ -1446,6 +1939,11 @@ export type HyperLiquidCredentials = {
 export type LighterCredentials = {
   /** Explicit bounded Chase probe on the actual testnet provider; ignored on mainnet. */
   chaseTestnetProbe?: boolean;
+  /**
+   * How long the Lighter socket stays open after its last listener leaves,
+   * in milliseconds (defaults to `LIGHTER_SOCKET_IDLE_CLOSE_MS`, 30 s).
+   */
+  socketIdleCloseMs?: number;
   /** Whether Lighter provider is enabled via local env var. */
   enabled?: boolean;
   /** Lighter account index override (testnet tooling). */
@@ -1469,6 +1967,14 @@ export type LighterCredentials = {
    * platform surface stays venue-agnostic.
    */
   signerBridge?: LighterSignerBridge;
+  /**
+   * Loads the Lighter provider module. Clients whose bundler cannot load the
+   * controller's own bundler-ignored import (for example Next.js) pass
+   * `() => import('@metamask/perps-controller/providers/lighter')`, so only
+   * clients that import that path bundle Lighter. Without it the controller
+   * imports the module itself.
+   */
+  loadProvider?: () => Promise<{ LighterProvider: typeof LighterProvider }>;
 };
 
 export type PerpsProviderCredentials = {
@@ -1485,7 +1991,17 @@ export type PriceUpdate = {
   bestBid?: string; // Best bid price (highest price buyers are willing to pay)
   bestAsk?: string; // Best ask price (lowest price sellers are willing to accept)
   spread?: string; // Ask - Bid spread
-  markPrice?: string; // Mark price from oracle (used for liquidations)
+  /**
+   * The venue's mark price (HyperLiquid `markPx`, Lighter `mark_price`): the
+   * price unrealized PnL, margin and liquidation use. Not the oracle price.
+   */
+  markPrice?: string;
+  /**
+   * The venue's oracle price (HyperLiquid `oraclePx`, Lighter
+   * `index_price`): the reference for the limit-price deviation check
+   * (`isPriceOutsideDeviationBand`) and `isTradable`.
+   */
+  oraclePrice?: string;
   // Market data (only available when includeMarketData is true)
   funding?: number; // Current funding rate
   openInterest?: number; // Open interest in USD
@@ -1564,6 +2080,14 @@ export type CheckEligibilityParams = {
 };
 
 export type GetPositionsParams = {
+  /**
+   * Skip protection lookup for reads that only need position data.
+   *
+   * @internal
+   */
+  includeProtection?: boolean;
+  /** Reject unavailable discovery instead of returning an empty position list. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include historical positions
   skipCache?: boolean; // Optional: bypass WebSocket cache and force API call (default: false)
@@ -1572,10 +2096,26 @@ export type GetPositionsParams = {
 };
 
 export type GetAccountStateParams = {
-  accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Defaults to the selected account. Providers that cannot query another
+   * wallet reject unsupported scopes rather than returning the selected
+   * wallet's balance, even when `throwOnUnavailable` is false.
+   */
+  accountId?: CaipAccountId;
   source?: string; // Optional: source of the call for tracing (e.g., 'health_check', 'initial_connection')
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
-  userAddress?: string; // Optional: required when standalone is true - user address to query account state for
+  /** Required for standalone reads. Unsupported wallet scopes reject as above. */
+  userAddress?: string;
+  /**
+   * Hyperliquid rejects the account read when any DEX or spot clearinghouse
+   * read fails. Without this option it can return partial DEX totals.
+   * Lighter rejects failed balance reads with or without this option.
+   * Ordinary Lighter read failures throw `ACCOUNT_STATE_FAILED` with a cause.
+   * Malformed payloads and capability errors propagate. Superseded sessions
+   * throw `PROVIDER_LIFECYCLE_STALE`. A confirmed absent Lighter account reads
+   * empty. An unavailable cross-margin summary does not invalidate balances.
+   */
+  throwOnUnavailable?: boolean;
 };
 
 export type GetUserDataSnapshotParams = {
@@ -1614,6 +2154,9 @@ export type GetOrFetchFillsParams = {
 };
 
 export type GetOrdersParams = {
+  /** Reject unavailable open-order discovery instead of returning an empty list.
+   * Strict reads throw OrderDiscoveryError carrying any successfully fetched orders. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   startTime?: number; // Optional: start timestamp (Unix milliseconds)
   endTime?: number; // Optional: end timestamp (Unix milliseconds)
@@ -1659,6 +2202,12 @@ export type SortField =
   | 'fundingRate'
   | 'openInterest';
 
+/**
+ * Field `sortMarkets` sorts on: a {@link SortField}, the current price, or the
+ * market name.
+ */
+export type MarketSortField = SortField | 'price' | 'name';
+
 /** Direction for market sorting. */
 export type SortDirection = 'asc' | 'desc';
 
@@ -1679,7 +2228,7 @@ export type GetMarketDataWithPricesParams = {
   standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
   categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
   excludeSymbols?: string[]; // Symbols to exclude from results (e.g. the currently viewed market)
-  sortBy?: SortField; // Sort results by this field
+  sortBy?: MarketSortField; // Sort results by this field (see sortMarkets)
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
   useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
@@ -1694,7 +2243,10 @@ export type SubscribePricesParams = {
 };
 
 export type SubscribePositionsParams = {
-  callback: (positions: Position[]) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (positions: Position[], completeSnapshot?: boolean) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish positions for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Future: include historical data
 };
@@ -1722,7 +2274,14 @@ export type SubscribeOrdersParams = {
    * setup failures through this optional callback.
    */
   onError?: (error: Error, sourceProviderId?: PerpsProviderType) => void;
-  callback: (orders: Order[], sourceProviderId?: PerpsProviderType) => void;
+  /** The completeness flag is true for deliveries from the opt-in Hyperliquid stream. */
+  callback: (
+    orders: Order[],
+    sourceProviderId?: PerpsProviderType,
+    completeSnapshot?: boolean,
+  ) => void;
+  /** Direct Hyperliquid only. Wait for all configured DEXs to publish orders for this wallet and connection. */
+  includeSnapshotStatus?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
@@ -1746,14 +2305,99 @@ export type SubscribeTwapOrdersParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 
+/** Subscription to the merged live TWAP list. */
+export type SubscribeLiveTwapOrdersParams = {
+  /**
+   * Receives every known schedule, newest first, whenever the list changes.
+   * Reads and stream pushes are merged here, with execution totals raised
+   * from slice fills; split the list with `partitionTwapOrders`.
+   */
+  callback: (twapOrders: TwapOrder[]) => void;
+  /** Called when a read fails; the list keeps its last state. */
+  onError?: (error: Error) => void;
+};
+
+/** Subscription to the live chase lists. */
+export type SubscribeChaseOrderListsParams = {
+  /** Receives running and history chase lists whenever they change. */
+  callback: (lists: ChaseOrderLists) => void;
+  /** Called when a read fails; the lists keep their last state. */
+  onError?: (error: Error) => void;
+};
+
+/**
+ * USD amount the venue lets the account commit to a new order on one market,
+ * per side. It is the venue's own figure (Hyperliquid: `activeAssetData`
+ * `availableToTrade`), so it reflects the market's open position, its
+ * unrealized PnL, resting orders and leverage. It differs from the
+ * account-wide `AccountState.spendableBalance` whenever those apply.
+ */
+export type PerpsAvailableToTrade = Readonly<{
+  /** Provider that reported the value. */
+  providerId: PerpsProviderType;
+  /** Market the value applies to, as subscribed. */
+  symbol: string;
+  /** Available to open or increase a long (buy), as a decimal USD string. */
+  long: string;
+  /** Available to open or increase a short (sell), as a decimal USD string. */
+  short: string;
+}>;
+
+/**
+ * Subscription to one market's available to trade.
+ *
+ * The callback receives venue values only. Until the first one arrives the
+ * value is unknown and clients should render a placeholder. A provider that
+ * cannot read the value from its venue never invokes the callback, so the
+ * value stays unknown: no provider computes an estimate.
+ */
+export type SubscribeAvailableToTradeParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /** Optional: defaults to the selected account. */
+  accountId?: CaipAccountId;
+  /** Receives each venue update for the market. */
+  callback: (availableToTrade: PerpsAvailableToTrade) => void;
+  /**
+   * Receives a failure to open the stream, or one that stops it after it
+   * opened (for example a rejected resubscription). Also invalidates the old
+   * venue's value when a default-routed subscription changes providers.
+   * The value is unknown again.
+   * Not terminal: keep the subscription, since the stream reopens when the
+   * WebSocket transport is replaced.
+   */
+  onError?: (error: Error) => void;
+};
+
 export type SubscribeAccountParams = {
-  callback: (account: AccountState | null) => void;
+  /** Aggregated streams include completeness metadata even when account is null,
+   * so consumers can distinguish pending venues from unavailable ones. */
+  callback: (
+    account: AccountState | null,
+    aggregate?: AccountAggregateMetadata,
+  ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional: emit `null` instead of a snapshot that is missing part of the
+   * venue's account, such as a HyperLiquid DEX or the spot balance that has
+   * not loaded. Aggregated account streams set it so an incomplete venue is
+   * pending or unavailable rather than a complete balance. Callers that omit
+   * it keep each venue's lenient default.
+   */
+  requireCompleteAccount?: boolean;
 };
 
 export type SubscribeOICapsParams = {
   callback: (caps: string[]) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type SubscribeCandlesParams = {
@@ -1761,6 +2405,72 @@ export type SubscribeCandlesParams = {
   interval: CandlePeriod;
   duration?: TimeDuration;
   callback: (data: CandleData) => void;
+  onError?: (error: Error) => void;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue — required when two venues
+   * list the same symbol and the data must come from a specific one.
+   */
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * One public trade on a market (any user's), the same shape for every
+ * provider. Prices and sizes are decimal strings, as in `OrderFill`.
+ */
+export type PublicTrade = {
+  /**
+   * Venue trade id, compared for equality only. Unique within a provider and
+   * market, not across providers, so dedupe on `(providerId, symbol, id)`
+   * when trades from several providers share a list.
+   * Sources: Hyperliquid `coin:time:tid`, its documented trade identity
+   * (`tid` alone can repeat across block times), Lighter `trade_id`.
+   */
+  id: string;
+  /** Market symbol the trade belongs to, as the caller requested it. */
+  symbol: string;
+  /** Execution price. */
+  price: string;
+  /** Size in the base asset. */
+  size: string;
+  /** Side of the aggressor (taker): `buy` lifted an ask, `sell` hit a bid. */
+  side: 'buy' | 'sell';
+  /** Execution time, Unix milliseconds. */
+  timestamp: number;
+  /** Transaction hash, when the venue reports one. */
+  txHash?: string;
+  /** Provider whose venue reported the trade. */
+  providerId: PerpsProviderType;
+};
+
+export type GetPublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data reads. */
+  symbol: string;
+  /**
+   * Maximum number of trades, newest first (default 50). Must be a positive
+   * integer. Venues cap the count: Hyperliquid returns its last 10 trades
+   * and Lighter at most 100.
+   */
+  limit?: number;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
+export type SubscribePublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data streams. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /**
+   * Receives each batch of new trades the venue pushes, newest first. Only a
+   * subscription that opens the venue channel may first receive the venue's
+   * recent trades; one that joins a market another subscription already
+   * streams receives only new trades. Seed the list with `getPublicTrades` and
+   * dedupe batches on `id`.
+   */
+  callback: (trades: PublicTrade[]) => void;
+  /** Receives a failure to open the stream. */
   onError?: (error: Error) => void;
 };
 
@@ -1803,6 +2513,12 @@ export type OrderBookData = {
 export type SubscribeOrderBookParams = {
   /** Symbol to subscribe to (e.g., 'BTC', 'ETH') */
   symbol: string;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
   /** Number of levels to return per side (default: 10) */
   levels?: number;
   /** Price aggregation significant figures (2-5, default: 5). Higher = finer granularity */
@@ -1821,6 +2537,38 @@ export type SubscribeOrderBookParams = {
   /** Callback for errors */
   onError?: (error: Error) => void;
 };
+
+/** A Cross order to estimate with `estimateCrossLiquidation`. */
+export type EstimateCrossLiquidationParams = {
+  /** Venue market symbol. */
+  symbol: string;
+  /** Order direction. */
+  direction: 'long' | 'short';
+  /** Order size in base units, positive. */
+  size: string;
+  /** Expected fill or limit price, positive. */
+  entryPrice: string;
+  /** Cross leverage the order sets on the market. */
+  leverage: number;
+  /** Provider that would place the order when calculations are aggregated. */
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Liquidation price of the Cross position an order would leave. Never a
+ * rejection: `none` means no price liquidates it at the account's collateral;
+ * `unavailable` says why there is no estimate (`missing_inputs`: an order or
+ * market input is invalid or unknown, or the order closes the position;
+ * `account_unknown`: the account could not be read or changed during the
+ * read; `provider`: the provider or account mode has no Cross estimate).
+ */
+export type CrossLiquidationEstimate =
+  | { status: 'price'; price: string }
+  | { status: 'none'; reason: 'covered_by_account' }
+  | {
+      status: 'unavailable';
+      reason: 'missing_inputs' | 'account_unknown' | 'provider';
+    };
 
 export type LiquidationPriceParams = {
   entryPrice: number;
@@ -1853,9 +2601,12 @@ export type PositionModifyPreviewSource = Pick<
 /**
  * Proposed order plus the live position it would modify.
  *
- * Isolated-margin previews apply `leverage` to the *whole* resulting
- * position, matching `updateLeverage` before placement. Cross-margin
- * positions are not projected.
+ * Isolated-margin previews model `updateLeverage` before placement: the venue
+ * keeps the existing margin and the order margins its own size at
+ * `leverage`. Hyperliquid Cross previews margin the whole resulting position
+ * at `leverage` and price liquidation against the account's Cross collateral
+ * and the maintenance of every Cross position, starting from the position the
+ * account holds when it can be read.
  */
 export type PositionModifyPreviewParams = {
   position: PositionModifyPreviewSource;
@@ -1871,14 +2622,19 @@ export type PositionModifyPreviewParams = {
    */
   price: string;
   /**
-   * Isolated leverage the provider will set on the asset before placing.
-   * Applied to the entire resulting position, not only the added size.
+   * Leverage the provider will set on the asset before placing. Isolated:
+   * the order is margined at this leverage and the existing margin is kept.
+   * Below the leverage the existing margin can cover, the venue rejects the
+   * change and the resulting margin and liquidation price are unavailable.
+   * Cross: the whole resulting position is margined at this leverage.
    */
   leverage: number;
   reduceOnly?: boolean;
   /**
-   * Estimated trading fees in USD. Deducted from isolated margin on
-   * increases and flips. Omit or pass 0 when unknown.
+   * Estimated trading fees in USD. Deducted from isolated margin, or from
+   * Cross collateral, on increases and flips. Omit when unknown: the resulting margin and
+   * liquidation price of an increase or flip are then unavailable. Pass 0
+   * only for a known zero fee.
    */
   feeAmountUsd?: number;
   /**
@@ -1889,12 +2645,22 @@ export type PositionModifyPreviewParams = {
 };
 
 /**
+ * Why a projected value is unavailable. `covered_by_account`: no price
+ * liquidates the position at the account's collateral. `missing_inputs`: an
+ * input the estimate needs is unknown.
+ */
+export type PositionPreviewUnavailableReason =
+  | 'covered_by_account'
+  | 'missing_inputs';
+
+/**
  * Independently available numeric projection. Margin can be known when
  * liquidation cannot (missing maintenance-tier data, or no liquidation risk).
+ * Hyperliquid Cross liquidation previews set `reason`; other previews omit it.
  */
 export type PositionPreviewValue =
   | { available: true; value: number }
-  | { available: false };
+  | { available: false; reason?: PositionPreviewUnavailableReason };
 
 export type PositionModifyPreviewKind = 'increase' | 'decrease' | 'flip';
 
@@ -1913,8 +2679,10 @@ export type PositionModifyPreviewOpen = {
     size: number;
     entryPrice: number;
     /**
-     * Isolated leverage from mark notional / remaining margin, matching
-     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     * Effective isolated leverage, mark notional / resulting margin. Below the
+     * selected leverage when margin kept from before a leverage rise exceeds
+     * the new initial margin; the selected leverage when margin is
+     * unavailable, and always for a Cross position.
      */
     leverage: number;
     margin: PositionPreviewValue;
@@ -1931,6 +2699,11 @@ export type PositionModifyPreviewFullClose = {
 
 export type PositionModifyPreviewUnsupported = {
   status: 'unsupported';
+  /**
+   * `cross_margin` comes only from `previewHyperLiquidIsolatedPositionModify`
+   * given a Cross position; `previewPositionModify` projects Cross on
+   * Hyperliquid.
+   */
   reason: 'cross_margin' | 'provider';
 };
 
@@ -2006,6 +2779,50 @@ export type PerpsMarginModeLock =
       reason: MarginModeLockUnavailableReason;
     }>;
 
+/** Isolated position whose margin adjustment limits are requested. */
+export type GetMarginAdjustmentLimitsParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Why margin adjustment limits cannot be reported: no isolated position on
+ * the market, an account that changed or could not be read consistently, or
+ * a provider (or account mode) that cannot answer.
+ */
+export type MarginAdjustmentLimitsUnavailableReason =
+  | 'no_isolated_position'
+  | 'account_unknown'
+  | 'provider';
+
+/**
+ * Margin the venue lets an isolated position take in (`maxAdd`) and release
+ * (`maxRemove`), in USD as decimal strings.
+ */
+export type MarginAdjustmentLimits =
+  | { status: 'available'; maxAdd: string; maxRemove: string }
+  | { status: 'unavailable'; reason: MarginAdjustmentLimitsUnavailableReason };
+
+/** Market (or every market, when `symbol` is omitted) whose metadata is requested. */
+export type GetMarketMetaParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol?: string;
+  providerId?: PerpsProviderType;
+};
+
+/** Venue metadata for one market, from the provider's session cache. */
+export type PerpsMarketMeta = {
+  /** Market identifier, including any routing prefix. */
+  symbol: string;
+  /** Hyperliquid margin tiers, ascending; null when the venue has none. */
+  marginTiers: HyperLiquidMarginTier[] | null;
+  isDelisted: boolean;
+  maxLeverage: number;
+  /** Whether the market rejects Cross margin. */
+  onlyIsolated: boolean;
+};
+
 /** Inputs for a provider-normalized Scale price ladder preview. */
 export type GetScalePriceLadderParams = {
   /** Market symbol, including its provider route when applicable. */
@@ -2049,10 +2866,106 @@ export type OrderCapabilitiesUnavailableReason =
   | DirectProviderOrderCapabilitiesUnavailableReason
   | RoutedOrderCapabilitiesUnavailableReason;
 
+/**
+ * Price grid a market accepts. `significant_figures` (HyperLiquid): at most
+ * `maxSignificantFigures` significant figures and `maxDecimals` decimals;
+ * integer prices are always valid. `fixed_decimals` (Lighter): every price is
+ * a multiple of `tickSize`, which is `10^-decimals`.
+ */
+export type PerpsPricePrecision =
+  | Readonly<{
+      type: 'significant_figures';
+      maxSignificantFigures: number;
+      maxDecimals: number;
+    }>
+  | Readonly<{
+      type: 'fixed_decimals';
+      decimals: number;
+      /** Decimal string, e.g. "0.01". */
+      tickSize: string;
+    }>;
+
+/**
+ * Order limits the provider enforces for a market. Each optional field is
+ * omitted when the venue does not report it; clients must not fall back to
+ * another venue's value.
+ */
+export type PerpsOrderLimits = Readonly<{
+  /** Decimals a base-asset size may carry. */
+  sizeDecimals: number;
+  /** Minimum value of one order in USD. */
+  minOrderNotionalUsd?: number;
+  /** Minimum base-asset size of one order, as a decimal string. */
+  minOrderSize?: string;
+  /**
+   * Orders the reported placement minimums apply to. Lighter reports
+   * `resting_limit_orders` even when its maker minimums are unavailable.
+   * Market and IOC orders there can go down to one size step.
+   * A verified full close can qualify for a minimum-order exception.
+   * The venue's size grid still applies.
+   */
+  minimumAppliesTo?: 'all_orders' | 'resting_limit_orders';
+  /** Rung count bounds of a Scale placement; present when Scale is supported. */
+  scaleOrderCount?: Readonly<{ min: number; max: number }>;
+  /** TWAP bounds; present when TWAP is supported. */
+  twap?: Readonly<{
+    minDurationMinutes: number;
+    maxDurationMinutes: number;
+    /** Minimum total TWAP value in USD. */
+    minNotionalUsd: number;
+  }>;
+  /**
+   * Furthest a limit price may sit from the oracle price, as a fraction
+   * (0.95 = 95%): a price `p` is rejected when
+   * `|p - oracle| / oracle > maxOraclePriceDeviation`, the rule
+   * `isMarketTradable` also applies. Check it with
+   * `isPriceOutsideDeviationBand`.
+   */
+  maxOraclePriceDeviation?: number;
+}>;
+
+/**
+ * Venue rules for the strategies a market supports, in venue-neutral units.
+ * Read them with `getStrategyRules`; a strategy absent from
+ * `supportedStrategies` has no rules and is unsupported on that market.
+ */
+export type PerpsStrategyRules = Readonly<{
+  twap?: Readonly<{
+    /** Shortest running time the venue accepts, in whole minutes. */
+    minDurationMinutes: number;
+    /** Longest running time the venue accepts, in whole minutes. */
+    maxDurationMinutes: number;
+    /** Smallest total TWAP value the venue accepts, in USD. */
+    minNotionalUsd: number;
+    /** Seconds between two suborders. */
+    sliceIntervalSeconds: number;
+  }>;
+  chase?: Readonly<{
+    /** Most chases that may run at once; omitted means no venue cap. */
+    maxActiveSessions?: number;
+    /** Poll interval used when the caller sets none, in milliseconds. */
+    defaultIntervalMs: number;
+    /** Shortest poll interval accepted, in milliseconds. */
+    minIntervalMs: number;
+  }>;
+  scale?: Readonly<{
+    /** Fewest rungs a ladder may have. */
+    minOrders: number;
+    /** Most rungs a ladder may have. */
+    maxOrders: number;
+  }>;
+}>;
+
 type ReadyPerpsOrderCapabilities = Readonly<{
   status: 'ready';
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
+  /** Price grid for this market. Omitted means not reported. */
+  pricePrecision?: PerpsPricePrecision;
+  /** Size, value, Scale and TWAP limits. Omitted means not reported. */
+  orderLimits?: PerpsOrderLimits;
+  /** Venue rules for the supported strategies; omitted means unreported. */
+  strategyRules?: PerpsStrategyRules;
   /**
    * Standalone stop/take-profit placements this market's provider executes.
    * Omitted means support is not reported; clients must not infer support
@@ -2092,6 +3005,24 @@ type ReadyPerpsOrderCapabilities = Readonly<{
    * explicit margin mode.
    */
   supportedMarginModes?: readonly MarginMode[];
+  /** Why a market that reports margin modes prohibits Cross. */
+  crossMarginUnavailableReason?: 'noCross' | 'strictIsolated' | 'isolatedOnly';
+  /**
+   * HyperLiquid margin tiers for the market, lowest notional first, read from
+   * the venue's `meta` (`marginTableId` resolved against `marginTables`). Pass
+   * them to the liquidation and margin estimates. Omitted when the venue does
+   * not use tiers (Lighter) or the table cannot be resolved.
+   */
+  marginTiers?: HyperLiquidMarginTier[];
+  /**
+   * Most take-profit and most stop-loss legs one order can attach
+   * (`OrderParams.takeProfitPrice` / `stopLossPrice`). Omitted means not
+   * reported; clients must not assume another venue's limit.
+   */
+  attachedTpslGroupLimit?: Readonly<{
+    takeProfit: number;
+    stopLoss: number;
+  }>;
   attachedTpsl?: Readonly<{
     submission: 'native-oto-otoco';
     childCoverage: 'venue-native-zero-size';
@@ -2168,7 +3099,6 @@ export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
   feeRate?: number; // Total fee rate as decimal (e.g., 0.00145 for 0.145%), undefined when unavailable
   feeAmount?: number; // Total fee amount in USD (when amount is provided)
-
   // Protocol-specific base fees
   protocolFeeRate?: number; // Protocol fee rate (e.g., 0.00045 for HyperLiquid taker), undefined when unavailable
   protocolFeeAmount?: number; // Protocol fee amount in USD
@@ -2325,11 +3255,29 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers both VIP and season discounts: `RewardsController` already
- * returns the better of the two as a single discount, so the perps controller
- * treats them as one source rather than re-deriving the split.
+ * `rewards` covers the account-scoped VIP and season discount. `grant` is an
+ * independent route-scoped trading-fee grant supplied by RewardsController.
  */
-export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+export type PerpsFeeSource = 'default' | 'rewards' | 'grant' | 'subscription';
+
+/**
+ * Provider route for resolving route-specific fee candidates.
+ */
+export type PerpsFeeResolverScope = {
+  providerId: string;
+  isTestnet: boolean;
+};
+
+/**
+ * Independent RewardsController fee candidate for one exact provider route.
+ */
+export type PerpsTradingFeeGrant = PerpsFeeResolverScope & {
+  /** Absolute MetaMask builder fee, in basis points. */
+  feeBips: number;
+
+  /** Expiry as a Unix timestamp in milliseconds. */
+  expiresAt: number;
+};
 
 /**
  * Outcome of the unified fee resolver.
@@ -2386,6 +3334,11 @@ export type UpdatePositionTPSLParams = {
   stopLossSize?: string;
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
+  /**
+   * HyperLiquid: max slippage in basis points for a whole-position market leg. Omit
+   * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -2398,6 +3351,37 @@ export type UpdatePositionTPSLParams = {
    * `PROVIDER_NOT_AVAILABLE`.
    */
   position?: Position;
+};
+
+/** One side of a position's protection: take profit or stop loss. */
+export type PositionTPSLLeg = 'tp' | 'sl';
+
+export type ReplacePositionTPSLLegParams = {
+  /** Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA'). */
+  symbol: string;
+  /** The leg to replace. The other leg is left as it is. */
+  leg: PositionTPSLLeg;
+  /** New trigger price for the leg. */
+  triggerPrice: string;
+  /**
+   * Price the leg fills at once triggered. Omit to execute at market when the
+   * trigger fires.
+   */
+  limitPrice?: string;
+  /**
+   * Max slippage in basis points for a market leg (no `limitPrice`). Omit to
+   * use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
+  /**
+   * Optional mutation precondition, checked against authoritative position data
+   * before setup and again before protection writes. Size is signed base units.
+   */
+  expectedPosition?: { size: string; entryPrice: string };
+  /** Optional tracking data for MetaMetrics events. */
+  trackingData?: TPSLTrackingData;
+  /** Multi-provider: optional provider override for routing. */
+  providerId?: PerpsProviderType;
 };
 
 export type Order = {
@@ -2441,6 +3425,48 @@ export type Funding = {
   transactionHash?: string; // Optional transaction hash
 };
 
+/**
+ * A provider-owned reason that the selected account cannot submit Perps
+ * actions through a route.
+ */
+export type PerpsAccountUnsupportedReason = 'multi_sig_account';
+
+/**
+ * Whether the selected account can submit Perps actions through a provider.
+ */
+export type PerpsAccountSupport =
+  | { isSupported: true }
+  | {
+      isSupported: false;
+      reason: PerpsAccountUnsupportedReason;
+    };
+
+/**
+ * Selects the provider route whose account support should be checked.
+ */
+export type GetAccountSupportParams = {
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Selects the provider route whose withdrawal destination should be resolved.
+ * Accepts the same optional route `withdraw` accepts.
+ */
+export type ResolveWithdrawalRouteParams = {
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * The venue a withdrawal will sign on, or the same refusal `withdraw` returns
+ * when several venues are registered and no route is named.
+ */
+export type WithdrawalRoute =
+  | { status: 'resolved'; providerId: PerpsProviderType }
+  | {
+      status: 'route_required';
+      error: Extract<PerpsErrorCode, 'PROVIDER_ROUTE_REQUIRED'>;
+    };
+
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
   getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;
@@ -2453,6 +3479,14 @@ export type PerpsProvider = {
 
   /** Whether this provider routes individual requests by `providerId`. */
   readonly routesOrdersByProviderId?: boolean;
+
+  /**
+   * Return whether the selected account can submit actions through this
+   * provider. Providers that omit this hook are treated as supported.
+   */
+  getAccountSupport?(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport>;
 
   /**
    * Return order capabilities for the provider/market route. Providers may
@@ -2473,6 +3507,18 @@ export type PerpsProvider = {
   getMarginModeLock?(
     params: GetMarginModeLockParams,
   ): Promise<PerpsMarginModeLock>;
+
+  /**
+   * Return how much margin an isolated position can take in and release.
+   * Providers may omit this hook; the controller then reports the limits as
+   * unavailable.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The limits, or a typed unavailable result.
+   */
+  getMarginAdjustmentLimits?(
+    params: GetMarginAdjustmentLimitsParams,
+  ): Promise<MarginAdjustmentLimits>;
 
   /**
    * Normalize a Scale ladder using the selected provider's venue rules.
@@ -2496,6 +3542,12 @@ export type PerpsProvider = {
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
   /**
+   * Resolve the venue account index the client enrolls for notifications.
+   * Optional: only providers whose notification events are keyed by account
+   * index (Lighter) implement it.
+   */
+  getNotificationAccountIndex?(): Promise<number>;
+  /**
    * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
    * push channel omit it, and clients fall back to polling `getTwapOrders`.
    */
@@ -2512,7 +3564,24 @@ export type PerpsProvider = {
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
+  /**
+   * Discover close targets without requiring display margin.
+   *
+   * @internal
+   */
+  getClosePositionTargets?(): Promise<
+    Pick<ClosePositionParams, 'symbol' | 'expectedAccountId'>[]
+  >;
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
+  /**
+   * Replace one TP/SL leg of a position and leave the other leg untouched. The
+   * new leg protects the whole position. A provider that cannot do this from
+   * its venue rejects with `TPSL_LEG_REPLACE_UNSUPPORTED` before any write;
+   * callers treat a provider without this method the same way.
+   */
+  replacePositionTPSLLeg?(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   // Durable-settlement surfacing (optional: providers with durable local
   // settlement state — Lighter). Read-only listings plus selective,
@@ -2564,6 +3633,12 @@ export type PerpsProvider = {
     params?: GetOrderFillsParams,
     options?: PerpsReadOptions,
   ): Promise<OrderFill[]>;
+
+  /**
+   * A market's most recent public trades (every user's), newest first.
+   * Optional so providers without a public trade feed can omit it.
+   */
+  getPublicTrades?(params: GetPublicTradesParams): Promise<PublicTrade[]>;
 
   /**
    * Get fills using WebSocket cache first, falling back to REST API.
@@ -2652,11 +3727,20 @@ export type PerpsProvider = {
    * Read-only projection of the position that would remain after the proposed
    * order. Isolated-margin venues apply selected leverage to the whole
    * resulting position and use the maintenance tier at liquidation notional.
-   * Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`.
+   * Hyperliquid projects Cross positions too; `reason: 'cross_margin'` is no
+   * longer returned by it.
    */
   previewPositionModify(
     params: PositionModifyPreviewParams,
   ): Promise<PositionModifyPreviewResult>;
+  /**
+   * Liquidation price of the Cross position an order would leave, as a typed
+   * result that never rejects. Optional: a provider without it is treated as
+   * `{ status: 'unavailable', reason: 'provider' }`.
+   */
+  estimateCrossLiquidation?(
+    params: EstimateCrossLiquidationParams,
+  ): Promise<CrossLiquidationEstimate>;
 
   // Live data subscriptions → Direct UI (NO Redux, maximum speed)
   subscribeToPrices(params: SubscribePricesParams): () => void;
@@ -2667,6 +3751,19 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream a market's public trades (every user's). Optional so providers
+   * without a public trade feed can omit it.
+   */
+  subscribeToPublicTrades?(params: SubscribePublicTradesParams): () => void;
+  /**
+   * Stream one market's per-side available to trade as the venue reports it.
+   * Optional: a provider whose venue has no per-market value omits it, and the
+   * value stays unknown (`undefined`) for clients. Never computed locally.
+   */
+  subscribeToAvailableToTrade?(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void;
 
   // Live data configuration
   setLiveDataConfig(config: Partial<LiveDataConfig>): void;
@@ -2697,6 +3794,12 @@ export type PerpsProvider = {
     ) => void,
   ): () => void; // Optional: subscribe to WebSocket connection state changes
   reconnect?(): Promise<void>; // Optional: manually trigger WebSocket reconnection
+  /** Optional: this provider's own health. Others derive it from connection state. */
+  getProviderHealth?(): PerpsProviderHealth;
+  /** Optional: current health immediately, then every change. */
+  subscribeToProviderHealth?(
+    listener: (health: PerpsProviderHealth) => void,
+  ): () => void;
 
   // Block explorer
   getBlockExplorerUrl(address?: string): string;
@@ -2714,9 +3817,37 @@ export type PerpsProvider = {
    */
   getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
 
+  /**
+   * Registered execution venues for an aggregating provider. Unlike position
+   * reads, this includes venues whose balances or positions are unavailable.
+   *
+   * @returns Every venue a close-all operation will reach.
+   */
+  getProviderIds?(): PerpsProviderType[];
+
+  /**
+   * Whether the execution venue consumes fee resolutions or discounts.
+   * Direct providers may omit this; the presence of a fee setter is sufficient.
+   *
+   * @param providerId - Venue to check, or the default route when omitted.
+   * @returns Whether resolving a fee for this venue has an effect.
+   */
+  supportsFeeResolution?(providerId?: PerpsProviderType): boolean;
+
   setUserFeeDiscount?(discountBips: number | undefined): void;
-  // Full fee resolution context, including attribution source.
-  setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
+  /**
+   * Set the full fee resolution context, including attribution source.
+   *
+   * @param resolution - Resolved fee, or undefined to clear it.
+   * @param providerId - Venue the resolution is for. An aggregating provider
+   * applies it to that venue only, so a fan-out write can price each venue on
+   * its own; when omitted it applies to every venue. A single provider is its
+   * only venue and may ignore it.
+   */
+  setUserFeeResolution?(
+    resolution: PerpsFeeResolution | undefined,
+    providerId?: PerpsProviderType,
+  ): void;
   /**
    * Approve the dedicated subscription builder outside order submission.
    *
@@ -2984,13 +4115,19 @@ export const PerpsTraceOperations = {
   Operation: 'perps.operation',
   OrderSubmission: 'perps.order_submission',
   PositionManagement: 'perps.position_management',
-  MarketData: 'perps.market_data',
 } as const;
 
 /**
  * Values allowed in trace data/tags. Matches Sentry's TraceValue type.
  */
 export type PerpsTraceValue = string | number | boolean;
+
+/**
+ * Terminal status of a Perps trace.
+ *
+ * Platform adapters map this value to their tracing SDK's span status.
+ */
+export type PerpsTraceStatus = 'ok' | 'error';
 
 /**
  * Properties allowed in analytics events. More constrained than unknown.
@@ -3106,6 +4243,7 @@ export type PerpsTracer = {
   endTrace(params: {
     name: PerpsTraceName;
     id: string;
+    status?: PerpsTraceStatus;
     data?: Record<string, PerpsTraceValue>;
   }): void;
 
@@ -3296,9 +4434,12 @@ export type PerpsTerminalMarketService = {
   ): Promise<PerpsGlobalSnapshotResult>;
 };
 
-/** Exact identity a client expects from an atomic global Perps snapshot. */
+/**
+ * Exact identity a client expects from an atomic global Perps snapshot.
+ * Lighter has a single DEX, so its `enabledDexes` is `['main']`.
+ */
 export type PerpsGlobalSnapshotRequest = {
-  provider: 'hyperliquid';
+  provider: 'hyperliquid' | 'lighter';
   network: 'mainnet' | 'testnet';
   enabledDexes: string[];
 };
@@ -3306,6 +4447,11 @@ export type PerpsGlobalSnapshotRequest = {
 /** Validated snapshot data and its source-bounded expiry. */
 export type PerpsGlobalSnapshotResult = {
   markets: PerpsMarketData[];
+  /**
+   * Trading-rule rows for `markets`, in the same order. `getMarkets` reads
+   * this instead of mapping the snapshot a second time.
+   */
+  marketInfos: MarketInfo[];
   expiresAt: number;
 };
 
@@ -3364,8 +4510,22 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
+    /**
+     * Full endpoint URL for the schema-v4 atomic global Perps snapshot
+     * (`GET /v4/perpetuals`).
+     */
     globalSnapshotUrl?: string;
+  };
+
+  // === notify-perps API (Lighter account enrollment) ===
+  notifyPerpsApi?: {
+    /**
+     * Base URL of the notify-perps API for the current environment (for
+     * example `https://perps.api.cx.metamask.io`). Lighter accounts are
+     * enrolled at `${baseUrl}/api/v1/lighter/accounts`. When omitted,
+     * enrollment is skipped.
+     */
+    baseUrl?: string;
   };
 
   /** @deprecated Use `terminalApi.marketDataUrl`. */
@@ -3384,10 +4544,10 @@ export type PerpsPlatformDependencies = {
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {
     /**
-     * Get fee discount for an account from the RewardsController.
-     * Returns discount in basis points (e.g., 6500 = 65% discount), or null
-     * when subscription state hasn't hydrated yet — callers should skip
-     * caching null results and retry on the next fee calculation.
+     * Get the VIP and season fee discount for an account.
+     *
+     * Returns a numeric discount in basis points (e.g., 6500 = 65%), or `null`
+     * when rewards state has not hydrated yet.
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
@@ -3396,6 +4556,22 @@ export type PerpsPlatformDependencies = {
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
     ): Promise<number | null>;
+
+    /**
+     * Get the independent trading fee grant for an explicit provider route.
+     *
+     * The client owns grant retrieval, authentication, payload validation, and
+     * deciding which routes it supports. Core calls this only when the resolver
+     * has an explicit scope, validates the returned fee, expiry, and exact scope
+     * match after concurrent candidate work settles, and compares valid
+     * candidates with the other fee sources.
+     *
+     * Optional so clients predating grant support retain their existing
+     * behavior.
+     */
+    getPerpsTradingFeeGrant?(
+      scope: PerpsFeeResolverScope,
+    ): Promise<PerpsTradingFeeGrant | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
@@ -3561,6 +4737,7 @@ export type * from './perps-types.js';
 export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
+  HyperLiquidAbstractionMode,
   AssetPosition,
   SpotBalance,
   PerpsUniverse,

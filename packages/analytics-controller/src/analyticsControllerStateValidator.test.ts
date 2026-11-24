@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AnalyticsControllerState } from './AnalyticsController.js';
 import { validateAnalyticsControllerState } from './analyticsControllerStateValidator.js';
 

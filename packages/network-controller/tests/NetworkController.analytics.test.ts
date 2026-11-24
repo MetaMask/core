@@ -1,4 +1,6 @@
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { NetworkController } from '../src/index.js';
 import type { NetworkControllerAnalyticsOptions } from '../src/rpc-service-analytics.js';
@@ -59,9 +61,9 @@ function buildController({
   networkControllerMessenger: ReturnType<
     typeof buildNetworkControllerMessenger
   >;
-  trackEvent: jest.Mock;
+  trackEvent: Mock;
 } {
-  const trackEvent = jest.fn();
+  const trackEvent = vi.fn();
   const rootMessenger = buildRootMessenger({
     trackEvent,
     ...(analyticsId === undefined ? {} : { analyticsId }),
@@ -215,7 +217,7 @@ describe('NetworkController analytics', () => {
         rpcServiceEventsSampleRate: 1,
       },
     });
-    const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+    const captureExceptionSpy = vi.spyOn(rootMessenger, 'captureException');
 
     expect(() => {
       networkControllerMessenger.publish(

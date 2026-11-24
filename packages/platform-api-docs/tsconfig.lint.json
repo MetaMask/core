@@ -6,7 +6,7 @@
   },
   "references": [
     {
-      "path": "../utils/tsconfig.lint.json"
+      "path": "../node-utils/tsconfig.lint.json"
     }
   ]
 }

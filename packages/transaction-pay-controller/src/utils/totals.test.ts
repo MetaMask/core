@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TransactionPayStrategy } from '../index.js';
 import type { TransactionPayControllerMessenger } from '../index.js';
@@ -10,7 +11,7 @@ import type {
 import { calculateTransactionGasCost } from './gas.js';
 import { calculateTotals } from './totals.js';
 
-jest.mock('./gas');
+vi.mock(import('./gas.js'));
 
 const MESSENGER_MOCK = {} as TransactionPayControllerMessenger;
 
@@ -135,12 +136,12 @@ function getQuote(
 }
 
 describe('Totals Utils', () => {
-  const calculateTransactionGasCostMock = jest.mocked(
+  const calculateTransactionGasCostMock = vi.mocked(
     calculateTransactionGasCost,
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     calculateTransactionGasCostMock.mockReturnValue({
       isGasFeeToken: true,

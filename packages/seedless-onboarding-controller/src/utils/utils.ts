@@ -8,9 +8,9 @@ import {
   base64ToBytes,
   bigIntToHex,
   bytesToBase64,
+  bytesToString,
   hexToBigInt,
 } from '@metamask/utils';
-import { bytesToUtf8 } from '@noble/ciphers/utils';
 
 import {
   SeedlessOnboardingControllerErrorMessage,
@@ -25,6 +25,7 @@ import type {
   VaultData,
 } from '../types.js';
 import { assertIsValidVaultData } from './assertions.js';
+import { decodeIdToken } from './token.js';
 
 /**
  * Decode the node auth token from base64 to json object.
@@ -33,11 +34,16 @@ import { assertIsValidVaultData } from './assertions.js';
  * @returns The decoded node auth token.
  */
 export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-  return JSON.parse(bytesToUtf8(base64ToBytes(token))) as DecodedNodeAuthToken;
+  return JSON.parse(
+    bytesToString(base64ToBytes(token)),
+  ) as DecodedNodeAuthToken;
 }
 
 /**
- * Decode JWT token
+ * Decode JWT token.
+ *
+ * The payload is decoded with the OAuth idToken helpers in {@link decodeIdToken},
+ * which accept base64url (`-` and `_`) and standard base64.
  *
  * @param token - The JWT token to decode.
  * @returns The decoded JWT token.
@@ -49,13 +55,7 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
     throw new Error('Invalid JWT token format');
   }
 
-  // Decode the payload (second part)
-  const payload = parts[1];
-  // Add padding if needed for base64 decoding
-  const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  return JSON.parse(
-    bytesToUtf8(base64ToBytes(paddedPayload)),
-  ) as DecodedBaseJWTToken;
+  return JSON.parse(decodeIdToken(token)) as DecodedBaseJWTToken;
 }
 
 /**

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { createSyncMutationTracker } from './mutation-tracker.js';
 
 describe('BackupAndSync - Utils - createSyncMutationTracker', () => {

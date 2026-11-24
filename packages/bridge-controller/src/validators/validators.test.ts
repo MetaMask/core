@@ -1,4 +1,5 @@
 import { is } from '@metamask/superstruct';
+import { describe, expect, it } from 'vitest';
 
 import { mockBridgeQuotesNativeErc20EthV1 } from '../../tests/mock-quotes-native-erc20-eth.js';
 import { validateFeatureFlagsResponse } from './feature-flags.js';

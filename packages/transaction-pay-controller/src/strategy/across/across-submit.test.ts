@@ -8,18 +8,19 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
 import { submitAcrossQuotes } from './across-submit.js';
 import * as acrossTransactions from './transactions.js';
 import type { AcrossQuote } from './types.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
@@ -31,6 +32,9 @@ const TRANSACTION_META_MOCK = {
     from: FROM_MOCK,
   },
 } as TransactionMeta;
+
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 
 const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   dust: { usd: '0', fiat: '0' },
@@ -86,9 +90,9 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   },
   request: {
     from: FROM_MOCK,
+    sourceAccountId: `eip155:1:${FROM_MOCK}`,
+    sourceAssetId: 'eip155:1/erc20:0xabc',
     sourceBalanceRaw: '100',
-    sourceChainId: '0x1',
-    sourceTokenAddress: '0xabc',
     sourceTokenAmount: '100',
     targetAmountMinimum: '100',
     targetChainId: '0x2',
@@ -100,7 +104,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
 };
 
 describe('Across Submit', () => {
-  const successfulFetchMock = jest.mocked(successfulFetch);
+  const successfulFetchMock = vi.mocked(successfulFetch);
 
   const {
     addTransactionBatchMock,
@@ -117,7 +121,7 @@ describe('Across Submit', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -207,7 +211,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [QUOTE_MOCK],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
@@ -238,13 +242,13 @@ describe('Across Submit', () => {
           },
         ],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -271,7 +275,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [batchGasQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -326,6 +330,8 @@ describe('Across Submit', () => {
       });
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456],
+        mode: 'eip7702',
+        totalGasLimit: 123456,
       });
 
       await submitAcrossQuotes({
@@ -342,11 +348,11 @@ describe('Across Submit', () => {
             data: '0x12345678',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(estimateGasBatchMock).toHaveBeenCalledWith({
-        chainId: QUOTE_MOCK.request.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         from: FROM_MOCK,
         transactions: [
           expect.objectContaining({
@@ -436,7 +442,7 @@ describe('Across Submit', () => {
             gas: '0x5208',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
@@ -489,7 +495,7 @@ describe('Across Submit', () => {
             authorizationList: [{ address: '0xabc' }],
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
@@ -504,6 +510,8 @@ describe('Across Submit', () => {
     it('submits 7702 batches without estimated gas when estimation returns multiple gas limits', async () => {
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456, 234567],
+        mode: 'separate',
+        totalGasLimit: 358023,
       });
 
       await submitAcrossQuotes({
@@ -517,7 +525,7 @@ describe('Across Submit', () => {
             authorizationList: [{ address: '0xabc' }],
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
@@ -525,6 +533,64 @@ describe('Across Submit', () => {
         expect.objectContaining({
           disable7702: false,
           gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when estimation returns a single separate gas limit', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        mode: 'separate',
+        totalGasLimit: 123456,
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('detects an EIP-7702 outer result from the gas limit count if mode is missing', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        totalGasLimit: 123456,
+      } as Awaited<ReturnType<typeof estimateGasBatchMock>>);
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: expect.any(String),
         }),
       );
     });
@@ -546,7 +612,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
@@ -578,14 +644,14 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -608,7 +674,7 @@ describe('Across Submit', () => {
           messenger,
           quotes: [missingBatchGasQuote],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         }),
       ).rejects.toThrow('Missing quote gas limit for Across 7702 batch');
 
@@ -635,7 +701,7 @@ describe('Across Submit', () => {
           ...TRANSACTION_META_MOCK,
           type: TransactionType.predictDeposit,
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
@@ -683,7 +749,7 @@ describe('Across Submit', () => {
             value: '0x1',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -746,7 +812,7 @@ describe('Across Submit', () => {
             value: '0x1',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -813,13 +879,13 @@ describe('Across Submit', () => {
             data: '0x12345678',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -858,7 +924,7 @@ describe('Across Submit', () => {
             data: '0x12345678',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -920,7 +986,7 @@ describe('Across Submit', () => {
             data: '0x12345678',
           },
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -957,13 +1023,44 @@ describe('Across Submit', () => {
           ...TRANSACTION_META_MOCK,
           type: TransactionType.swap,
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           type: TransactionType.swap,
+        }),
+      );
+    });
+
+    it('uses perps across deposit type for perps deposit-and-order transactions', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDepositAndOrder,
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
         }),
       );
     });
@@ -988,7 +1085,7 @@ describe('Across Submit', () => {
           ...TRANSACTION_META_MOCK,
           type: undefined,
         },
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
@@ -1000,7 +1097,7 @@ describe('Across Submit', () => {
     });
 
     it('falls back to the Across deposit type when an ordered swap transaction has no explicit type', async () => {
-      const orderedTransactionsSpy = jest.spyOn(
+      const orderedTransactionsSpy = vi.spyOn(
         acrossTransactions,
         'getAcrossOrderedTransactions',
       );
@@ -1028,7 +1125,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
@@ -1058,7 +1155,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
@@ -1113,7 +1210,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
@@ -1169,7 +1266,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
@@ -1232,7 +1329,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
@@ -1277,7 +1374,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       const [statusUrl, statusOptions] = successfulFetchMock.mock.calls[1];
@@ -1342,13 +1439,13 @@ describe('Across Submit', () => {
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         }),
       ).rejects.toThrow('Across request failed with status: failed');
     });
 
     it('continues polling when Across status request fails transiently', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       try {
         setupConfirmedSubmission();
@@ -1366,16 +1463,16 @@ describe('Across Submit', () => {
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         });
 
-        await jest.runAllTimersAsync();
+        await vi.runAllTimersAsync();
         const result = await resultPromise;
 
         expect(result.transactionHash).toBe('0xtarget');
         expect(successfulFetchMock).toHaveBeenCalledTimes(2);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -1393,7 +1490,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(result.transactionHash).toBe('0xfill');
@@ -1412,7 +1509,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(result.transactionHash).toBe('0xfillref');
@@ -1432,7 +1529,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(result.transactionHash).toBe('0xbridge');
@@ -1451,14 +1548,14 @@ describe('Across Submit', () => {
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(result.transactionHash).toBe('0xconfirmed');
     });
 
     it('keeps polling pending status until success is returned', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       try {
         setupConfirmedSubmission();
@@ -1482,21 +1579,21 @@ describe('Across Submit', () => {
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         });
 
-        await jest.runAllTimersAsync();
+        await vi.runAllTimersAsync();
         const result = await resultPromise;
 
         expect(result.transactionHash).toBe('0xconfirmed');
         expect(successfulFetchMock).toHaveBeenCalledTimes(pendingAttempts + 1);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('keeps retrying failed status requests until success is returned', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       try {
         setupConfirmedSubmission();
@@ -1517,16 +1614,16 @@ describe('Across Submit', () => {
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         });
 
-        await jest.runAllTimersAsync();
+        await vi.runAllTimersAsync();
         const result = await resultPromise;
 
         expect(result.transactionHash).toBe('0xtarget');
         expect(successfulFetchMock).toHaveBeenCalledTimes(failureAttempts + 1);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -1550,7 +1647,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
@@ -1580,7 +1677,7 @@ describe('Across Submit', () => {
           messenger,
           quotes: [missingSwapGasQuote],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         }),
       ).rejects.toThrow('Missing quote gas limit for Across swap transaction');
 
@@ -1604,7 +1701,7 @@ describe('Across Submit', () => {
           messenger,
           quotes: [missingApprovalGasQuote],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         }),
       ).rejects.toThrow(
         'Missing quote gas limit for Across approval transaction at index 0',
@@ -1631,7 +1728,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       const params = addTransactionMock.mock.calls[0][0] as {
@@ -1665,7 +1762,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [decimalGasQuote],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       const params = addTransactionMock.mock.calls[0][0] as {
@@ -1700,7 +1797,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [quoteWithApproval],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionBatchMock).toHaveBeenCalled();
@@ -1732,7 +1829,7 @@ describe('Across Submit', () => {
         messenger,
         quotes: [quoteWithoutValue],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalled();
@@ -1801,14 +1898,14 @@ describe('Across Submit', () => {
         messenger,
         quotes: [quote1, quote2],
         transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
+        isSmartTransaction: vi.fn(),
       });
 
       expect(addTransactionMock).toHaveBeenCalledTimes(2);
     });
 
     it('unsubscribes transaction collector if submission throws', async () => {
-      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+      const unsubscribeSpy = vi.spyOn(messenger, 'unsubscribe');
       const noApprovalQuote = {
         ...QUOTE_MOCK,
         original: {
@@ -1828,7 +1925,7 @@ describe('Across Submit', () => {
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
+          isSmartTransaction: vi.fn(),
         }),
       ).rejects.toThrow('submission failed');
 

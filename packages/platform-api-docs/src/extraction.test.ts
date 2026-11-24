@@ -1,6 +1,7 @@
-import { createSandbox } from '@metamask/utils/node';
+import { createSandbox } from '@metamask/node-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 import { extractFromSourceFile } from './extraction.js';
 import { createProject } from './ts-project.js';
@@ -51,6 +52,7 @@ async function extractFromWrittenFile(
   await fs.promises.writeFile(filePath, content);
   const parentDir = path.dirname(filePath);
   const project = createProject();
+  project.compilerOptions.set({ noLib: true });
   project.addSourceFilesAtPaths([
     path.join(parentDir, '**/*.ts'),
     path.join(parentDir, '**/*.d.cts'),

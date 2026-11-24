@@ -3,6 +3,7 @@ import {
   createAllowedCalldataTerms,
   createERC20TokenPeriodTransferTerms,
 } from '@metamask/delegation-core';
+import { describe, expect, it } from 'vitest';
 
 import {
   encodeTransferToCalldataPrefix,

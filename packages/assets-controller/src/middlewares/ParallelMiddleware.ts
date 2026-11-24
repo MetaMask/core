@@ -53,12 +53,6 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
         ...response.errors,
       };
     }
-    if (response.detectedAssets) {
-      merged.detectedAssets = {
-        ...(merged.detectedAssets ?? {}),
-        ...response.detectedAssets,
-      };
-    }
     if (response.updateMode === 'full') {
       merged.updateMode = 'full';
     } else if (

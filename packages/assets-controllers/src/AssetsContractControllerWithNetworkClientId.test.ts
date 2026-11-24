@@ -1,6 +1,7 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SECONDS } from '../../../tests/constants.js';
 import {
@@ -490,11 +491,9 @@ describe('AssetsContractController with NetworkClientId', () => {
         },
       ],
     });
-    const errorLogSpy = jest
-      .spyOn(console, 'warn')
-      .mockImplementationOnce(() => {
-        /**/
-      });
+    const errorLogSpy = vi.spyOn(console, 'warn').mockImplementationOnce(() => {
+      /**/
+    });
     const uri = await messenger.call(
       `AssetsContractController:getERC721TokenURI`,
       '0x0000000000000000000000000000000000000000',

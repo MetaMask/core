@@ -1,8 +1,10 @@
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type { GasFeeToken } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { GasPayment } from './gas-payment.js';
 import {
   shouldUseGasStation,
@@ -14,20 +16,20 @@ import {
 import { calculateGasFeeTokenCost } from './gas.js';
 import { getTokenBalance } from './token.js';
 
-jest.mock('./gas');
-jest.mock('./token', () => ({
-  ...jest.requireActual('./token'),
-  getTokenBalance: jest.fn(),
+vi.mock(import('./gas.js'));
+vi.mock(import('./token.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenBalance: vi.fn(),
 }));
 
 // `logGasPaymentOutcome` only emits diagnostics, so the log call is the
 // observable behaviour. Capturing it is the only way to assert the outcome it
 // reports rather than merely that it did not throw.
-const logMock = jest.fn();
+const logMock = vi.fn();
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  // Indirected through a closure because `jest.mock` is hoisted above the
+vi.mock('@metamask/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@metamask/utils')>()),
+  // Indirected through a closure because `vi.mock` is hoisted above the
   // `logMock` declaration, so it cannot be read while the module initialises.
   createModuleLogger:
     () =>
@@ -42,10 +44,19 @@ const REQUEST_MOCK = {
 };
 
 const FIRST_STEP_DATA_MOCK = {
-  data: '0x123' as Hex,
-  to: '0x2' as Hex,
-  value: '0x0',
+  data: '0x1234' as Hex,
+  to: '0x0000000000000000000000000000000000000002' as Hex,
+  value: '0x0' as Hex,
 };
+
+const SECOND_STEP_DATA_MOCK = {
+  data: '0x4567' as Hex,
+  to: '0x0000000000000000000000000000000000000003' as Hex,
+  value: '0x5' as Hex,
+};
+
+const FEE_TOKEN_ACCOUNT_MOCK =
+  '0x00000000000000000000000000000000deadbeef' as Hex;
 
 const MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
   amount: '0x64',
@@ -66,13 +77,13 @@ const TRANSACTION_MOCK = {
 };
 
 const SPONSORED_ROUTE_REQUEST_MOCK = {
-  sourceChainId: REQUEST_MOCK.sourceChainId,
+  sourceAssetId: `eip155:1/erc20:${REQUEST_MOCK.sourceTokenAddress}`,
   targetChainId: REQUEST_MOCK.sourceChainId,
-};
+} as const;
 
 describe('gas-payment', () => {
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
 
   const {
     messenger,
@@ -81,7 +92,7 @@ describe('gas-payment', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     calculateGasFeeTokenCostMock.mockReturnValue({
       fiat: '0',
       human: '0',
@@ -363,14 +374,19 @@ describe('gas-payment', () => {
       });
     });
 
-    it.each(['sourceChainId', 'targetChainId'] as const)(
-      'does not sponsor when %s differs from the transaction chain',
-      (chainIdKey) => {
-        expect(
-          resolve({
-            request: { ...SPONSORED_ROUTE_REQUEST_MOCK, [chainIdKey]: '0x2' },
-          }),
-        ).toStrictEqual({
+    it.each([
+      [
+        'source',
+        {
+          ...SPONSORED_ROUTE_REQUEST_MOCK,
+          sourceAssetId: `eip155:2/erc20:${REQUEST_MOCK.sourceTokenAddress}`,
+        },
+      ],
+      ['target', { ...SPONSORED_ROUTE_REQUEST_MOCK, targetChainId: '0x2' }],
+    ] as const)(
+      'does not sponsor when the %s chain differs from the transaction chain',
+      (_title, request) => {
+        expect(resolve({ request })).toStrictEqual({
           isGasFeeSponsored: false,
           mode: GasPaymentMode.Native,
         });
@@ -394,20 +410,93 @@ describe('gas-payment', () => {
 
   describe('resolveGasStationCost', () => {
     const RESOLVE_REQUEST_MOCK = {
-      firstStepData: FIRST_STEP_DATA_MOCK,
       messenger,
       request: REQUEST_MOCK,
       totalGasEstimate: 100,
-      totalItemCount: 1,
+      transactions: [FIRST_STEP_DATA_MOCK],
     };
 
-    it('returns the gas station cost when every gate passes', async () => {
+    it('returns the unscaled gas station cost of a single transaction when every gate passes', async () => {
       getGasFeeTokensMock.mockResolvedValue([MATCHING_GAS_FEE_TOKEN]);
 
-      expect(await resolveGasStationCost(RESOLVE_REQUEST_MOCK)).toStrictEqual({
+      expect(
+        await resolveGasStationCost({
+          ...RESOLVE_REQUEST_MOCK,
+          totalGasEstimate: 300,
+        }),
+      ).toStrictEqual({
         amount: { fiat: '0', human: '0', raw: '100', usd: '0' },
         isAvailable: true,
       });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+        chainId: REQUEST_MOCK.sourceChainId,
+        data: FIRST_STEP_DATA_MOCK.data,
+        from: REQUEST_MOCK.from,
+        to: FIRST_STEP_DATA_MOCK.to,
+        value: '0x0',
+      });
+
+      expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gasFeeToken: MATCHING_GAS_FEE_TOKEN }),
+      );
+    });
+
+    it('simulates multiple transactions as an EIP-7702 batch', async () => {
+      getGasFeeTokensMock.mockResolvedValue([MATCHING_GAS_FEE_TOKEN]);
+
+      await resolveGasStationCost({
+        ...RESOLVE_REQUEST_MOCK,
+        totalGasEstimate: 300,
+        transactions: [
+          FIRST_STEP_DATA_MOCK,
+          { ...SECOND_STEP_DATA_MOCK, value: 5 },
+        ],
+      });
+
+      const batch = generateEIP7702BatchTransaction(REQUEST_MOCK.from, [
+        FIRST_STEP_DATA_MOCK,
+        SECOND_STEP_DATA_MOCK,
+      ]);
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+        chainId: REQUEST_MOCK.sourceChainId,
+        data: batch.data,
+        from: REQUEST_MOCK.from,
+        to: REQUEST_MOCK.from,
+        value: '0x0',
+      });
+
+      expect(batch.to).toBe(REQUEST_MOCK.from);
+
+      expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gasFeeToken: MATCHING_GAS_FEE_TOKEN }),
+      );
+    });
+
+    it('returns no amount when the batch cannot be encoded', async () => {
+      expect(
+        await resolveGasStationCost({
+          ...RESOLVE_REQUEST_MOCK,
+          transactions: [
+            FIRST_STEP_DATA_MOCK,
+            { ...SECOND_STEP_DATA_MOCK, to: '0xinvalid' as Hex },
+          ],
+        }),
+      ).toStrictEqual({ amount: undefined, isAvailable: true });
+
+      expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+    });
+
+    it('returns no amount when there are no transactions', async () => {
+      expect(
+        await resolveGasStationCost({
+          ...RESOLVE_REQUEST_MOCK,
+          transactions: [],
+        }),
+      ).toStrictEqual({ amount: undefined, isAvailable: true });
+
+      expect(getGasFeeTokensMock).not.toHaveBeenCalled();
     });
 
     it('reports availability when no fee token matches the source token', async () => {
@@ -430,13 +519,22 @@ describe('gas-payment', () => {
       });
     });
 
-    it('scales the fee token amount across a multi-item estimate', async () => {
+    it('scales the fee token amount to the total estimate when simulating from a fee token account', async () => {
       getGasFeeTokensMock.mockResolvedValue([MATCHING_GAS_FEE_TOKEN]);
 
       await resolveGasStationCost({
         ...RESOLVE_REQUEST_MOCK,
+        feeTokenAccount: FEE_TOKEN_ACCOUNT_MOCK,
         totalGasEstimate: 300,
-        totalItemCount: 2,
+        transactions: [FIRST_STEP_DATA_MOCK, SECOND_STEP_DATA_MOCK],
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+        chainId: REQUEST_MOCK.sourceChainId,
+        data: FIRST_STEP_DATA_MOCK.data,
+        from: FEE_TOKEN_ACCOUNT_MOCK,
+        to: FIRST_STEP_DATA_MOCK.to,
+        value: '0x0',
       });
 
       expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
@@ -453,7 +551,7 @@ describe('gas-payment', () => {
 
       await resolveGasStationCost({
         ...RESOLVE_REQUEST_MOCK,
-        totalItemCount: 2,
+        feeTokenAccount: FEE_TOKEN_ACCOUNT_MOCK,
       });
 
       expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
@@ -468,7 +566,9 @@ describe('gas-payment', () => {
 
       await resolveGasStationCost({
         ...RESOLVE_REQUEST_MOCK,
-        firstStepData: { data: '0x123' as Hex, to: '0x2' as Hex },
+        transactions: [
+          { data: FIRST_STEP_DATA_MOCK.data, to: FIRST_STEP_DATA_MOCK.to },
+        ],
       });
 
       expect(getGasFeeTokensMock).toHaveBeenCalledWith(
@@ -481,8 +581,8 @@ describe('gas-payment', () => {
 
       await resolveGasStationCost({
         ...RESOLVE_REQUEST_MOCK,
+        feeTokenAccount: FEE_TOKEN_ACCOUNT_MOCK,
         totalGasEstimate: 0,
-        totalItemCount: 2,
       });
 
       expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
@@ -499,7 +599,8 @@ describe('gas-payment', () => {
 
       await resolveGasStationCost({
         ...RESOLVE_REQUEST_MOCK,
-        totalItemCount: 2,
+        feeTokenAccount: FEE_TOKEN_ACCOUNT_MOCK,
+        totalGasEstimate: 300,
       });
 
       expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
@@ -526,20 +627,6 @@ describe('gas-payment', () => {
         amount: undefined,
         isAvailable: true,
       });
-    });
-
-    it('simulates from the fee token account when overridden', async () => {
-      const PROXY_ADDRESS_MOCK = '0xdeadbeef' as Hex;
-      getGasFeeTokensMock.mockResolvedValue([MATCHING_GAS_FEE_TOKEN]);
-
-      await resolveGasStationCost({
-        ...RESOLVE_REQUEST_MOCK,
-        feeTokenAccount: PROXY_ADDRESS_MOCK,
-      });
-
-      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
-        expect.objectContaining({ from: PROXY_ADDRESS_MOCK }),
-      );
     });
 
     it('skips the gas station when the account does not support EIP-7702', async () => {

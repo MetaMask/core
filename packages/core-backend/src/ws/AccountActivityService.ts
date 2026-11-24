@@ -422,7 +422,8 @@ export class AccountActivityService {
     );
 
     try {
-      // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
+      // Drop the previous account's channels without releasing tracked chains.
+      // Chain status is unchanged on an account switch.
       await this.#unsubscribeFromAllAccountActivity();
 
       // Subscribe to the new selected accounts in CAIP-10 format
@@ -536,34 +537,52 @@ export class AccountActivityService {
       // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
     } else if (state === WebSocketState.DISCONNECTED) {
-      if (this.#statusChangeDebouncer.timer) {
-        clearTimeout(this.#statusChangeDebouncer.timer);
-        this.#statusChangeDebouncer.timer = null;
-      }
-
-      const chainsToMarkDown = new Set(this.#chainsUp);
-      for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
-        chainsToMarkDown.add(chainId);
-      }
-      this.#statusChangeDebouncer.pendingChanges.clear();
-
-      if (chainsToMarkDown.size > 0) {
-        const chainIds = Array.from(chainsToMarkDown);
-        this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds,
-          status: 'down',
-          timestamp: Date.now(),
-        });
-
-        log('WebSocket disconnection - Published tracked chains as down', {
-          count: chainIds.length,
-          chains: chainIds,
-        });
-
-        // Clear the tracking set since all chains are now down
-        this.#chainsUp.clear();
-      }
+      this.#publishTrackedChainsDown(
+        'WebSocket disconnection - Published tracked chains as down',
+      );
     }
+  }
+
+  /**
+   * Publish every tracked chain, including any status still buffered, as
+   * `down`, then forget them.
+   *
+   * Used on WebSocket disconnect and when enabled chain prefixes change.
+   * Account switches leave tracked chains alone so AssetsController does not
+   * rebuild active-chain subscriptions. The next system notification restores
+   * chains that are up after resubscribe or reconnect.
+   *
+   * @param reason - Log message describing why the chains were released.
+   */
+  #publishTrackedChainsDown(reason: string): void {
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
+
+    const chainsToMarkDown = new Set(this.#chainsUp);
+    for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
+      chainsToMarkDown.add(chainId);
+    }
+    this.#statusChangeDebouncer.pendingChanges.clear();
+
+    if (chainsToMarkDown.size === 0) {
+      return;
+    }
+
+    const chainIds = Array.from(chainsToMarkDown);
+    this.#messenger.publish(`AccountActivityService:statusChanged`, {
+      chainIds,
+      status: 'down',
+      timestamp: Date.now(),
+    });
+
+    log(reason, {
+      count: chainIds.length,
+      chains: chainIds,
+    });
+
+    this.#chainsUp.clear();
   }
 
   // =============================================================================
@@ -584,8 +603,9 @@ export class AccountActivityService {
   }
 
   /**
-   * Unsubscribe from all account activity subscriptions for this service
-   * Finds all channels matching the service's namespace and unsubscribes from them
+   * Unsubscribe from all account activity subscriptions for this service.
+   * Finds all channels matching the service's namespace and unsubscribes from
+   * them.
    */
   async #unsubscribeFromAllAccountActivity(): Promise<void> {
     const accountActivitySubscriptions = this.#messenger.call(
@@ -593,7 +613,6 @@ export class AccountActivityService {
       this.#options.subscriptionNamespace,
     );
 
-    // Unsubscribe from all matching subscriptions
     for (const subscription of accountActivitySubscriptions) {
       await subscription.unsubscribe();
     }
@@ -660,8 +679,9 @@ export class AccountActivityService {
 
   /**
    * Handle remote feature flag changes: if the set of enabled chain prefixes
-   * changed while connected, resubscribe the selected account so new chains
-   * are picked up and disabled ones are dropped.
+   * changed while connected, release every tracked chain, unsubscribe, then
+   * resubscribe with the new prefixes. The next system notification restores
+   * chains that are up.
    */
   async #handleFeatureFlagsStateChange(): Promise<void> {
     try {
@@ -674,6 +694,9 @@ export class AccountActivityService {
       }
 
       await this.#unsubscribeFromAllAccountActivity();
+      this.#publishTrackedChainsDown(
+        'Feature flag change - Published tracked chains as down',
+      );
       await this.#subscribeToSelectedAccount();
     } catch (error) {
       log('Feature flag change handling failed', { error });

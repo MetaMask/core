@@ -1,6 +1,8 @@
 /* eslint-disable */
 import { toHex } from '@metamask/controller-utils';
 import { parseCaipAssetId } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import { DepositService } from '../../../src/services/DepositService.js';
 import type {
@@ -16,15 +18,16 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/utils/idUtils');
-jest.mock('@metamask/utils');
+vi.mock('../../../src/utils/idUtils');
+vi.mock('@metamask/utils');
 // Mock generateERC20TransferData from portable transferData util
-jest.mock('../../../src/utils/transferData');
-jest.mock('@metamask/controller-utils', () => {
-  const actual = jest.requireActual('@metamask/controller-utils');
+vi.mock('../../../src/utils/transferData');
+vi.mock('@metamask/controller-utils', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@metamask/controller-utils')>();
   return {
     ...actual,
-    toHex: jest.fn((value: string | number) => {
+    toHex: vi.fn((value: string | number) => {
       if (typeof value === 'number') {
         return `0x${value.toString(16)}`;
       }
@@ -37,8 +40,8 @@ jest.mock('@metamask/controller-utils', () => {
 });
 
 describe('DepositService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockProvider: Mocked<PerpsProvider>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
   let service: DepositService;
   const mockEvmAccount = createMockEvmAccount();
@@ -49,7 +52,7 @@ describe('DepositService', () => {
 
   beforeEach(() => {
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
 
     mockDeps = createMockInfrastructure();
     mockMessenger = createMockMessenger();
@@ -64,7 +67,7 @@ describe('DepositService', () => {
     ]);
 
     // Setup mock EVM account via messenger
-    (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
+    (mockMessenger.call as Mock).mockImplementation((action: string) => {
       if (
         action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
       ) {
@@ -72,16 +75,16 @@ describe('DepositService', () => {
       }
       return undefined;
     });
-    (generateDepositId as jest.Mock).mockReturnValue(mockDepositId);
+    (generateDepositId as Mock).mockReturnValue(mockDepositId);
     // Mock generateERC20TransferData to return a valid ERC-20 transfer data
-    (generateERC20TransferData as jest.Mock).mockReturnValue(
+    (generateERC20TransferData as Mock).mockReturnValue(
       '0xa9059cbb000000000000000000000000',
     );
-    (parseCaipAssetId as jest.Mock).mockReturnValue({
+    (parseCaipAssetId as Mock).mockReturnValue({
       chainId: 'eip155:42161',
       assetReference: mockTokenAddress,
     });
-    (toHex as jest.Mock).mockImplementation((value: string | number) => {
+    (toHex as Mock).mockImplementation((value: string | number) => {
       if (typeof value === 'number') {
         return `0x${value.toString(16)}`;
       }
@@ -91,11 +94,7 @@ describe('DepositService', () => {
       return value;
     });
 
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('prepareTransaction', () => {
@@ -114,8 +113,31 @@ describe('DepositService', () => {
         },
         assetChainId: '0xa4b1',
         currentDepositId: mockDepositId,
+        providerId: 'hyperliquid',
       });
     });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'attributes an untagged route to the executing %s provider',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBe(protocolId);
+      },
+    );
+
+    it.each(['aggregated', 'unknown'])(
+      'does not attribute an untagged route to a non-venue provider (%s)',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBeUndefined();
+      },
+    );
 
     it('generates unique deposit ID for tracking', async () => {
       await service.prepareTransaction({
@@ -125,14 +147,88 @@ describe('DepositService', () => {
       expect(generateDepositId).toHaveBeenCalledTimes(1);
     });
 
-    it('retrieves deposit routes from provider', async () => {
+    it('retrieves deposit routes for the provider network', async () => {
       await service.prepareTransaction({
         provider: mockProvider,
       });
 
-      expect(mockProvider.getDepositRoutes).toHaveBeenCalledWith({
-        isTestnet: false,
+      expect(mockProvider.getDepositRoutes).toHaveBeenCalledWith();
+    });
+
+    it('uses the routing default when routes name their venues', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+        {
+          assetId: mockAssetId,
+          contractAddress: mockBridgeAddress,
+          chainId: 'eip155:42161',
+          providerId: 'lighter',
+        },
+      ]);
+
+      const result = await service.prepareTransaction({
+        provider: mockProvider,
       });
+
+      expect(generateERC20TransferData).toHaveBeenCalledWith(
+        mockBridgeAddress,
+        '0x0',
+      );
+      expect(result.providerId).toBe('lighter');
+    });
+
+    it('uses an explicit venue instead of the routing default', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+        {
+          assetId: mockAssetId,
+          contractAddress: mockBridgeAddress,
+          chainId: 'eip155:42161',
+          providerId: 'lighter',
+        },
+      ]);
+
+      const result = await service.prepareTransaction({
+        provider: mockProvider,
+        providerId: 'hyperliquid',
+      });
+
+      expect(generateERC20TransferData).toHaveBeenCalledWith(
+        '0xHyperLiquidBridge',
+        '0x0',
+      );
+      expect(result.providerId).toBe('hyperliquid');
+    });
+
+    it('fails closed when the selected venue has no deposit route', async () => {
+      mockProvider.getWriteProviderId = vi.fn(() => 'lighter' as const);
+      mockProvider.getDepositRoutes.mockReturnValue([
+        {
+          assetId: mockAssetId,
+          contractAddress: '0xHyperLiquidBridge',
+          chainId: 'eip155:42161',
+          providerId: 'hyperliquid',
+        },
+      ]);
+
+      await expect(
+        service.prepareTransaction({ provider: mockProvider }),
+      ).rejects.toThrow(
+        'The lighter perps provider has no deposit route on this network',
+      );
+      expect(generateERC20TransferData).not.toHaveBeenCalled();
     });
 
     it('uses first deposit route from provider', async () => {
@@ -177,7 +273,7 @@ describe('DepositService', () => {
     });
 
     it('throws error when no EVM account is found', async () => {
-      (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
+      (mockMessenger.call as Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
         ) {
@@ -271,7 +367,7 @@ describe('DepositService', () => {
     });
 
     it('handles different chain IDs correctly', async () => {
-      (parseCaipAssetId as jest.Mock).mockReturnValue({
+      (parseCaipAssetId as Mock).mockReturnValue({
         chainId: 'eip155:1',
         assetReference: mockTokenAddress,
       });
@@ -285,7 +381,7 @@ describe('DepositService', () => {
 
     it('handles different token addresses correctly', async () => {
       const differentTokenAddress = '0xDifferentToken';
-      (parseCaipAssetId as jest.Mock).mockReturnValue({
+      (parseCaipAssetId as Mock).mockReturnValue({
         chainId: 'eip155:42161',
         assetReference: differentTokenAddress,
       });

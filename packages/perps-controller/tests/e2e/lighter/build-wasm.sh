@@ -1,108 +1,86 @@
 #!/bin/bash
-# Build the Lighter Go/WASM signer from source (elliottech/lighter-go@web-wasm)
-#
-# Pinned provenance: the signer builds from an exact reviewed commit of the
-# web-wasm branch, never its moving HEAD. Override with LIGHTER_GO_REF only
-# to intentionally evaluate a newer upstream.
-# and stage it, with Go's wasm_exec.js runtime, into a cache directory.
-#
-# Also computes an informational reproducibility check: sha256 of the locally
-# built blob vs the blob committed on the upstream branch. A mismatch is NOT
-# a failure (upstream's Go toolchain version is unknown); byte-equality is
-# reported in manifest.json for the record.
-#
+# Rebuild the official Lighter web signer for the Core E2E driver.
 # Usage: build-wasm.sh [--out DIR]
 # Output: DIR/main.wasm, DIR/wasm_exec.js, DIR/manifest.json
 set -euo pipefail
 
-LIGHTER_GO_REF="${LIGHTER_GO_REF:-05a2bbcbbc3db2de7941313fd6524e5744ee5336}"
-GO_TOOLCHAIN="go1.26.0"
+LIGHTER_GO_SOURCE="https://github.com/elliottech/lighter-go"
+LIGHTER_GO_RELEASE="v1.0.13"
+LIGHTER_GO_COMMIT="e8687faa091ae78de3da78fc338a11c48b4de87e"
+SOURCE_TREE_SHA256="32f6498f45820337f775438cc0694135b64088d17f1ac55edbc72400eb47a096"
+GO_TOOLCHAIN="go1.26.8"
+WASM_SHA256="6caf0765a6f993bff0bd25ff4553ba8ea5657d0a6b85c767aae44ac5dcf17de9"
+RUNTIME_SHA256="0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14"
 
 OUT_DIR="temp/lighter-wasm"
-while [ $# -gt 0 ]; do
+while [ "$#" -gt 0 ]; do
   case "$1" in
-    --out) OUT_DIR="$2"; shift 2 ;;
+    --out)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        echo "FAIL: --out requires a directory" >&2
+        exit 2
+      fi
+      OUT_DIR="$2"
+      shift 2
+      ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
 command -v go >/dev/null || { echo "FAIL: go toolchain not found" >&2; exit 1; }
 
-mkdir -p "$OUT_DIR"
-REPO_DIR="$OUT_DIR/lighter-go"
+mkdir -p -- "$OUT_DIR"
+OUT_DIR="$(cd -- "$OUT_DIR" && pwd -P)"
+STAGING_DIR="$(mktemp -d "$OUT_DIR/.lighter-wasm.XXXXXX")"
+trap 'rm -rf -- "$STAGING_DIR"' EXIT
+SOURCE_DIR="$STAGING_DIR/source"
 
-if [ -d "$REPO_DIR/.git" ]; then
-  git -C "$REPO_DIR" fetch --depth 1 origin "$LIGHTER_GO_REF"
-  git -C "$REPO_DIR" checkout -q FETCH_HEAD
-else
-  git clone https://github.com/elliottech/lighter-go.git "$REPO_DIR"
-  git -C "$REPO_DIR" checkout -q "$LIGHTER_GO_REF"
-fi
-UPSTREAM_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD)"
-
-echo "Building main.wasm from source (commit $UPSTREAM_COMMIT)..."
-# DETERMINISTIC build: GOTOOLCHAIN pins the compiler, -trimpath strips
-# host paths — two clean builds of the same commit produce the same
-# sha256 anywhere. (Upstream's committed blob is NOT reproducible: it
-# was built without -trimpath and embeds the author's laptop paths, so
-# the upstream compare below stays informational by nature.)
-(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -trimpath -ldflags="-s -w" -o main.wasm)
-
-# Upstream's committed blob, for the informational hash-compare.
-UPSTREAM_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
-# Rebuild over the committed blob: build again to a distinct path so both exist.
-(cd "$REPO_DIR/web-wasm" && git checkout -q -- main.wasm 2>/dev/null || true)
-COMMITTED_SHA=""
-if git -C "$REPO_DIR" cat-file -e "HEAD:web-wasm/main.wasm" 2>/dev/null; then
-  git -C "$REPO_DIR" show "HEAD:web-wasm/main.wasm" > "$OUT_DIR/upstream-main.wasm"
-  COMMITTED_SHA="$(shasum -a 256 "$OUT_DIR/upstream-main.wasm" | awk '{print $1}')"
-fi
-# Re-run the build so the artifact we ship is unambiguously source-built,
-# and prove SELF-reproducibility: a forced full recompile must produce
-# the identical hash.
-(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -trimpath -ldflags="-s -w" -o main.wasm)
-FIRST_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
-(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -a -trimpath -ldflags="-s -w" -o main.wasm)
-BUILT_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
-cp "$REPO_DIR/web-wasm/main.wasm" "$OUT_DIR/main.wasm"
-
-# Stage Go's wasm_exec.js runtime (path moved from misc/ to lib/ in Go 1.24).
-GOROOT_DIR="$(env GOTOOLCHAIN="$GO_TOOLCHAIN" go env GOROOT)"
-if [ -f "$GOROOT_DIR/lib/wasm/wasm_exec.js" ]; then
-  cp "$GOROOT_DIR/lib/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js"
-elif [ -f "$GOROOT_DIR/misc/wasm/wasm_exec.js" ]; then
-  cp "$GOROOT_DIR/misc/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js"
-else
-  echo "FAIL: wasm_exec.js not found in GOROOT" >&2
+git init -q "$SOURCE_DIR"
+git -C "$SOURCE_DIR" fetch -q --depth 1 "$LIGHTER_GO_SOURCE.git" "$LIGHTER_GO_COMMIT"
+git -C "$SOURCE_DIR" checkout -q --detach FETCH_HEAD
+if [ "$(git -C "$SOURCE_DIR" rev-parse HEAD)" != "$LIGHTER_GO_COMMIT" ]; then
+  echo "FAIL: fetched signer source does not match $LIGHTER_GO_COMMIT" >&2
   exit 1
 fi
 
-SIZE_BYTES="$(wc -c < "$OUT_DIR/main.wasm" | tr -d ' ')"
-MATCH="false"
-[ -n "$COMMITTED_SHA" ] && [ "$BUILT_SHA" = "$COMMITTED_SHA" ] && MATCH="true"
-if [ "$BUILT_SHA" != "$FIRST_SHA" ]; then
-  echo "FAIL: build is not self-reproducible ($FIRST_SHA vs $BUILT_SHA)" >&2
-  exit 1
-fi
+# Match the upstream web-wasm build and keep its checkout clean.
+GO_ENV=(GOTOOLCHAIN="$GO_TOOLCHAIN" GOFLAGS= GOWORK=off)
+echo "Building main.wasm from lighter-go $LIGHTER_GO_RELEASE ($LIGHTER_GO_COMMIT)..."
+(
+  cd "$SOURCE_DIR"
+  env "${GO_ENV[@]}" GOOS=js GOARCH=wasm CGO_ENABLED=0 GOWASM= GOEXPERIMENT= \
+    go build -mod=readonly -buildvcs=false -trimpath -ldflags="-s -w" \
+    -o "$STAGING_DIR/main.wasm" ./web-wasm
+)
+GOROOT_DIR="$(env "${GO_ENV[@]}" go env GOROOT)"
+cp "$GOROOT_DIR/lib/wasm/wasm_exec.js" "$STAGING_DIR/wasm_exec.js"
 
-cat > "$OUT_DIR/manifest.json" <<EOF
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
+    printf 'FAIL: %s SHA-256 mismatch (expected %s, got %s)\n' "${file##*/}" "$expected" "$actual" >&2
+    exit 1
+  fi
+}
+verify_sha256 "$STAGING_DIR/main.wasm" "$WASM_SHA256"
+verify_sha256 "$STAGING_DIR/wasm_exec.js" "$RUNTIME_SHA256"
+
+SIZE_BYTES="$(wc -c < "$STAGING_DIR/main.wasm" | tr -d ' ')"
+cat > "$STAGING_DIR/manifest.json" <<MANIFEST
 {
-  "source": "https://github.com/elliottech/lighter-go",
-  "branch": "web-wasm",
-  "commit": "$UPSTREAM_COMMIT",
-  "goVersion": "$(env GOTOOLCHAIN="$GO_TOOLCHAIN" go version | awk '{print $3}')",
-  "builtSha256": "$BUILT_SHA",
-  "upstreamCommittedSha256": "$COMMITTED_SHA",
-  "reproducibleMatch": $MATCH,
-  "selfReproducible": true,
-  "toolchain": "$GO_TOOLCHAIN (GOTOOLCHAIN-pinned) + -trimpath",
-  "upstreamBlobNote": "upstream committed blob built without -trimpath; embeds author-machine paths, byte-match impossible by construction",
+  "source": "$LIGHTER_GO_SOURCE",
+  "release": "$LIGHTER_GO_RELEASE",
+  "commit": "$LIGHTER_GO_COMMIT",
+  "sourceTreeSha256": "$SOURCE_TREE_SHA256",
+  "goVersion": "$GO_TOOLCHAIN",
+  "buildFlags": ["-mod=readonly", "-buildvcs=false", "-trimpath", "-ldflags=-s -w"],
+  "builtSha256": "$WASM_SHA256",
+  "runtimeSha256": "$RUNTIME_SHA256",
   "sizeBytes": $SIZE_BYTES
 }
-EOF
+MANIFEST
 
-echo "Built $OUT_DIR/main.wasm ($SIZE_BYTES bytes)"
-echo "builtSha256=$BUILT_SHA"
-echo "upstreamCommittedSha256=$COMMITTED_SHA"
-echo "reproducibleMatch=$MATCH"
+mv -f "$STAGING_DIR/main.wasm" "$STAGING_DIR/wasm_exec.js" "$STAGING_DIR/manifest.json" "$OUT_DIR/"
+echo "Built and verified $OUT_DIR/main.wasm ($SIZE_BYTES bytes)"
 echo "BUILD_WASM_OK"

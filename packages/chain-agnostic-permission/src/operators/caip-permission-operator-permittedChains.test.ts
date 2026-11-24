@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { Caip25CaveatValue } from '../caip25Permission.js';
 import { Caip25CaveatType } from '../caip25Permission.js';
 import {

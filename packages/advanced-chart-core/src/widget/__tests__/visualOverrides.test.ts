@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { _resetStateForTests, setWidget } from '../../core/state.js';
 import type { TVChartingLibraryWidget } from '../../core/types.js';
 import {
@@ -47,7 +49,7 @@ describe('applyVisualOverrides', () => {
   });
 
   it('calls widget.applyOverrides with the built overrides', () => {
-    const applyOverrides = jest.fn();
+    const applyOverrides = vi.fn();
     setWidget({ applyOverrides } as unknown as TVChartingLibraryWidget);
     applyVisualOverrides({ gridLineColor: 'rgb(1,2,3)' });
     expect(applyOverrides).toHaveBeenCalledWith({
@@ -57,7 +59,7 @@ describe('applyVisualOverrides', () => {
   });
 
   it('skips applyOverrides when the built object is empty', () => {
-    const applyOverrides = jest.fn();
+    const applyOverrides = vi.fn();
     setWidget({ applyOverrides } as unknown as TVChartingLibraryWidget);
     applyVisualOverrides(undefined);
     applyVisualOverrides({});
@@ -65,7 +67,7 @@ describe('applyVisualOverrides', () => {
   });
 
   it('reports applyOverrides errors to RN', () => {
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     setWidget({
       applyOverrides: () => {

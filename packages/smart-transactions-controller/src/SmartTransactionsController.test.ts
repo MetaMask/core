@@ -1,9 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  NetworkType,
-  convertHexToDecimal,
-  ChainId,
-} from '@metamask/controller-utils';
+import { NetworkType, ChainId, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -12,6 +8,19 @@ import type {
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import {
+  SentinelCancellationReason,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
+} from '@metamask/sentinel-api-service';
+import type {
+  SentinelApiServiceGetBatchStatusAction,
+  SentinelApiServiceCancelAction,
+  SentinelApiServiceGetFeesAction,
+  SentinelApiServiceGetNetworkAction,
+  SentinelApiServiceSubmitTransactionsAction,
+  SentinelBatchStatusResponse,
+} from '@metamask/sentinel-api-service';
 import {
   TransactionStatus,
   TransactionType,
@@ -23,18 +32,11 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import packageJson from '../package.json';
-import {
-  advanceTime,
-  flushPromises,
-  getFakeProvider,
-} from '../tests/helpers.js';
-import {
-  SENTINEL_API_BASE_URL_MAP,
-  SmartTransactionsTraceName,
-} from './constants.js';
+import { flushPromises, getFakeProvider } from '../tests/helpers.js';
+import { SmartTransactionsTraceName } from './constants.js';
 import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
@@ -43,7 +45,6 @@ import {
 import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController.js';
 import type { SmartTransaction, UnsignedTransaction } from './types.js';
 import { SmartTransactionStatuses, ClientId } from './types.js';
-import * as utils from './utils.js';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
@@ -51,10 +52,10 @@ type AllEvents = MessengerEvents<SmartTransactionsControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-jest.mock('@metamask/eth-query', () => {
-  const EthQuery = jest.requireActual('@metamask/eth-query');
-  return class FakeEthQuery extends EthQuery {
-    sendAsync = jest.fn(({ method, params }, callback) => {
+vi.mock(import('@metamask/eth-query'), async (importOriginal) => {
+  const { default: EthQuery } = await importOriginal();
+  class FakeEthQuery extends EthQuery {
+    sendAsync = vi.fn(({ method, params }, callback) => {
       switch (method) {
         case 'eth_getBalance': {
           return callback(null, '0x1000');
@@ -85,7 +86,8 @@ jest.mock('@metamask/eth-query', () => {
         }
       }
     });
-  };
+  }
+  return { default: FakeEthQuery };
 });
 
 const addressFrom = '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3';
@@ -218,7 +220,7 @@ const createSubmitTransactionsApiResponse = () => {
   return { uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20' };
 };
 
-const createSignedTransaction = () => {
+const createSignedTransaction = (): Hex => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
@@ -240,15 +242,22 @@ const createSignedCanceledTransaction = () => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
-const createPendingBatchStatusApiResponse = () => ({
-  uuid1: {
-    cancellationFeeWei: 0,
-    cancellationReason: 'not_cancelled',
-    deadlineRatio: 0.0006295545895894369,
-    minedTx: 'not_mined',
-    minedHash: '',
-  },
-});
+const createPendingBatchStatusApiResponse =
+  (): SentinelBatchStatusResponse => ({
+    uuid1: {
+      cancellationFeeWei: 0,
+      cancellationReason: SentinelCancellationReason.NotCancelled,
+      deadlineRatio: 0.0006295545895894369,
+      duplicated: false,
+      isSettled: false,
+      minedHash: '',
+      minedTx: SentinelMinedTxStatus.NotMined,
+      originalTransactionStatus: SentinelOriginalTransactionStatus.Pending,
+      proxied: false,
+      timedOut: false,
+      wouldRevertMessage: '',
+    },
+  });
 
 const createStateAfterPending = () => {
   return [
@@ -270,16 +279,23 @@ const createStateAfterPending = () => {
   ];
 };
 
-const createSuccessBatchStatusApiResponse = () => ({
-  uuid2: {
-    cancellationFeeWei: 36777567771000,
-    cancellationReason: 'not_cancelled',
-    deadlineRatio: 0.6400288486480713,
-    minedHash:
-      '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
-    minedTx: 'success',
-  },
-});
+const createSuccessBatchStatusApiResponse =
+  (): SentinelBatchStatusResponse => ({
+    uuid2: {
+      cancellationFeeWei: 36777567771000,
+      cancellationReason: SentinelCancellationReason.NotCancelled,
+      deadlineRatio: 0.6400288486480713,
+      duplicated: false,
+      isSettled: true,
+      minedHash:
+        '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
+      minedTx: SentinelMinedTxStatus.Success,
+      originalTransactionStatus: SentinelOriginalTransactionStatus.Validated,
+      proxied: false,
+      timedOut: false,
+      wouldRevertMessage: '',
+    },
+  });
 
 const createStateAfterSuccess = () => {
   return [
@@ -302,10 +318,6 @@ const createStateAfterSuccess = () => {
   ];
 };
 
-const createSuccessLivenessApiResponse = () => ({
-  smartTransactions: true,
-});
-
 const testHistory = [
   {
     op: 'add',
@@ -317,13 +329,11 @@ const testHistory = [
 const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
 const sepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
-const trackMetaMetricsEventSpy = jest.fn();
+const trackMetaMetricsEventSpy = vi.fn();
 
 describe('SmartTransactionsController', () => {
   afterEach(async () => {
-    jest.clearAllMocks();
-    // eslint-disable-next-line import-x/no-named-as-default-member
-    nock.cleanAll();
+    vi.clearAllMocks();
   });
 
   it('initializes with default state', async () => {
@@ -343,7 +353,7 @@ describe('SmartTransactionsController', () => {
 
   describe('feature flag validation error reporting', () => {
     it('reports error to ErrorReportingService when feature flags are invalid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -351,33 +361,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: 'invalid-data',
           },
@@ -412,8 +422,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -445,7 +455,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not report error when feature flags are valid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -453,33 +463,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: {
               default: { extensionActive: true },
@@ -516,8 +526,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -545,7 +555,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports error when smartTransactionsNetworks flag is missing after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -553,33 +563,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             // smartTransactionsNetworks is undefined (missing from remote config)
           },
@@ -614,8 +624,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -647,14 +657,14 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports error to ErrorReportingService when feature flags become invalid after state change', async () => {
-      const getStateMock = jest.fn().mockReturnValue({
+      const getStateMock = vi.fn().mockReturnValue({
         remoteFeatureFlags: {
           smartTransactionsNetworks: {
             default: { extensionActive: true },
           },
         },
       });
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -662,29 +672,29 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
@@ -719,8 +729,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // Should not be called initially (valid flags)
@@ -758,7 +768,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports multiple errors to ErrorReportingService when multiple chains are invalid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -766,33 +776,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: {
               default: { extensionActive: true },
@@ -832,8 +842,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -867,7 +877,7 @@ describe('SmartTransactionsController', () => {
   describe('onNetworkChange', () => {
     it('calls poll', async () => {
       await withController(({ controller, triggerNetworkStateChange }) => {
-        const checkPollSpy = jest.spyOn(controller, 'checkPoll');
+        const checkPollSpy = vi.spyOn(controller, 'checkPoll');
 
         triggerNetworkStateChange({
           selectedNetworkClientId: NetworkType.sepolia,
@@ -882,7 +892,7 @@ describe('SmartTransactionsController', () => {
 
   describe('checkPoll', () => {
     it('calls poll if there is no pending transaction and pending transactions', async () => {
-      const pollSpy = jest
+      const pollSpy = vi
         .spyOn(SmartTransactionsController.prototype, 'poll')
         .mockImplementation(async () => {
           return new Promise(() => ({}));
@@ -911,7 +921,7 @@ describe('SmartTransactionsController', () => {
 
     it('calls stop if there is a timeoutHandle and no pending transactions', async () => {
       await withController(({ controller }) => {
-        const stopSpy = jest.spyOn(controller, 'stop');
+        const stopSpy = vi.spyOn(controller, 'stop');
         controller.timeoutHandle = setTimeout(() => ({}));
 
         controller.checkPoll(controller.state);
@@ -932,7 +942,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         ({ controller, triggerNetworkStateChange }) => {
-          const updateSmartTransactionsSpy = jest.spyOn(
+          const updateSmartTransactionsSpy = vi.spyOn(
             controller,
             'updateSmartTransactions',
           );
@@ -952,7 +962,7 @@ describe('SmartTransactionsController', () => {
 
     it('calls updateSmartTransactions if there is a timeoutHandle and pending transactions', async () => {
       await withController(({ controller }) => {
-        const updateSmartTransactionsSpy = jest.spyOn(
+        const updateSmartTransactionsSpy = vi.spyOn(
           controller,
           'updateSmartTransactions',
         );
@@ -971,7 +981,7 @@ describe('SmartTransactionsController', () => {
     // TODO rewrite this test... updateSmartTransactions is getting called via the checkPoll method which is called whenever state is updated.
     // this test should be more isolated to the updateSmartTransactions method.
     it('calls fetchSmartTransactionsStatus if there are pending transactions', async () => {
-      const fetchSmartTransactionsStatusSpy = jest
+      const fetchSmartTransactionsStatusSpy = vi
         .spyOn(
           SmartTransactionsController.prototype,
           'fetchSmartTransactionsStatus',
@@ -1098,15 +1108,20 @@ describe('SmartTransactionsController', () => {
 
   describe('clearFees', () => {
     it('clears fees', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
+
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
+        });
 
         expect(fees).toMatchObject({
           approvalTxFees: getFeesApiResponse.txs[0],
@@ -1125,16 +1140,20 @@ describe('SmartTransactionsController', () => {
 
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
 
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
+        });
         expect(fees).toMatchObject({
           approvalTxFees: getFeesApiResponse.txs[0],
           tradeTxFees: getFeesApiResponse.txs[1],
@@ -1143,17 +1162,18 @@ describe('SmartTransactionsController', () => {
     });
 
     it('gets estimates based on an unsigned transaction with an undefined nonce', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx: UnsignedTransaction =
           createUnsignedTransaction(ethereumChainIdDec);
         tradeTx.nonce = undefined;
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx);
 
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [{ ...tradeTx, nonce: '0x2a' }],
+        });
         expect(fees).toMatchObject({
           tradeTxFees: getFeesApiResponse.txs[0],
         });
@@ -1161,13 +1181,10 @@ describe('SmartTransactionsController', () => {
     });
 
     it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
         const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .post(`/v1/networks/${sepoliaChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         expect(
           controller.state.smartTransactionsState.feesByChainId,
@@ -1178,6 +1195,14 @@ describe('SmartTransactionsController', () => {
 
         await controller.getFees(tradeTx, approvalTx, {
           networkClientId: NetworkType.sepolia,
+        });
+
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.sepolia,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
         });
 
         expect(
@@ -1196,40 +1221,44 @@ describe('SmartTransactionsController', () => {
     });
 
     it('rethrows getFees error message when fetch fails', async () => {
-      await withController(async ({ controller }) => {
-        const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(400, createGetFeesApiErrorResponse());
+      const httpError = new HttpError(
+        400,
+        "Sentinel API: Fees request failed with status '400'",
+      );
+      Object.assign(httpError, { data: createGetFeesApiErrorResponse() });
 
-        await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
-          message: 'Fetch error: 400',
-          data: {
-            error: 'insufficient funds',
-          },
-        });
-      });
+      await withController(
+        {
+          getFees: vi
+            .fn<SentinelApiServiceGetFeesAction['handler']>()
+            .mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+
+          await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
+            message: 'Fetch error: 400',
+            data: {
+              error: 'insufficient funds',
+            },
+          });
+        },
+      );
     });
   });
 
   describe('submitSignedTransactions', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('submits a smart transaction with signed transactions', async () => {
       await withController(async ({ controller }) => {
         const signedTransaction = createSignedTransaction();
         const signedCanceledTransaction = createSignedCanceledTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
@@ -1254,10 +1283,10 @@ describe('SmartTransactionsController', () => {
 
     it('should acquire nonce for Swap transactions only', async () => {
       // Create a mock for getNonceLock
-      const mockGetNonceLock = jest.fn().mockResolvedValue({
+      const mockGetNonceLock = vi.fn().mockResolvedValue({
         nextNonce: 42,
         nonceDetails: { test: 'details' },
-        releaseLock: jest.fn(),
+        releaseLock: vi.fn(),
       });
 
       await withController(
@@ -1266,22 +1295,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-
-          // First API mock for the case without nonce
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
-
-          // Second API mock for the case with nonce
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Case 1: Swap transaction without nonce (should call getNonceLock)
           const txParamsWithoutNonce = {
@@ -1321,10 +1334,10 @@ describe('SmartTransactionsController', () => {
 
     it('should properly set nonce on txParams and mark transaction as swap type', async () => {
       // Mock with a specific nextNonce value we can verify
-      const mockGetNonceLock = jest.fn().mockResolvedValue({
+      const mockGetNonceLock = vi.fn().mockResolvedValue({
         nextNonce: 42,
         nonceDetails: { test: 'nonce details' },
-        releaseLock: jest.fn(),
+        releaseLock: vi.fn(),
       });
 
       await withController(
@@ -1333,13 +1346,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Create txParams without nonce
           const txParamsWithoutNonce = {
@@ -1377,10 +1383,12 @@ describe('SmartTransactionsController', () => {
     it('should handle errors when acquiring nonce lock', async () => {
       // Mock getNonceLock to reject with an error
       const mockError = new Error('Failed to acquire nonce');
-      const mockGetNonceLock = jest.fn().mockRejectedValue(mockError);
+      const mockGetNonceLock = vi.fn().mockRejectedValue(mockError);
 
       // Spy on console.error to verify it's called
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       await withController(
         {
@@ -1388,13 +1396,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Create txParams without nonce
           const txParamsWithoutNonce = {
@@ -1427,13 +1428,6 @@ describe('SmartTransactionsController', () => {
       await withController(async ({ controller }) => {
         const signedTransaction1 = createSignedTransaction();
         const signedTransaction2 = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         const txParams = createTxParams();
         const result = await controller.submitSignedTransactions({
@@ -1461,41 +1455,28 @@ describe('SmartTransactionsController', () => {
       });
     });
 
-    it('works with optional signedCanceledTransactions', async () => {
-      await withController(async ({ controller }) => {
+    it('sends signedCanceledTransactions as rawCancelTxs', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        // Verify that the request body has empty rawCancelTxs array when signedCanceledTransactions is omitted
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
+        const signedCanceledTransaction = createSignedCanceledTransaction();
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
+          signedCanceledTransactions: [signedCanceledTransaction],
           txParams: createTxParams(),
-          // No signedCanceledTransactions provided
         });
 
-        // Verify the request was made with an empty rawCancelTxs array
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawCancelTxs).toStrictEqual([]);
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [signedCanceledTransaction],
+        });
       });
     });
 
-    it('includes signedTransactionsWithMetadata in request body as rawTxsWithMetadata', async () => {
-      await withController(async ({ controller }) => {
+    it('includes signedTransactionsWithMetadata in the submit request', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
 
         const signedTransactionsWithMetadata = [
           {
@@ -1506,71 +1487,41 @@ describe('SmartTransactionsController', () => {
           },
         ];
 
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
-
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
           signedTransactionsWithMetadata,
           txParams: createTxParams(),
         });
 
-        // Verify the request includes rawTxsWithMetadata
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawTxsWithMetadata).toStrictEqual(
-          signedTransactionsWithMetadata,
-        );
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [],
+          rawTxsWithMetadata: signedTransactionsWithMetadata,
+        });
       });
     });
 
-    it('omits rawTxsWithMetadata from request body when signedTransactionsWithMetadata is not provided', async () => {
-      await withController(async ({ controller }) => {
+    it('omits rawTxsWithMetadata when signedTransactionsWithMetadata is not provided', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
           txParams: createTxParams(),
-          // signedTransactionsWithMetadata not provided
         });
 
-        // Verify the request does not include rawTxsWithMetadata
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawTxsWithMetadata).toBeUndefined();
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [],
+        });
       });
     });
 
     it('works without txParams', async () => {
       await withController(async ({ controller }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         // This should not throw an error when txParams is missing
         const result = await controller.submitSignedTransactions({
@@ -1590,23 +1541,52 @@ describe('SmartTransactionsController', () => {
         );
       });
     });
+
+    it('rethrows submitTransactions error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        400,
+        "Sentinel API: submitTransactions request failed with status '400'",
+      );
+      Object.assign(httpError, { data: { error: 'invalid raw tx' } });
+
+      await withController(
+        {
+          submitTransactions: vi
+            .fn<SentinelApiServiceSubmitTransactionsAction['handler']>()
+            .mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          const signedTransaction = createSignedTransaction();
+
+          await expect(
+            controller.submitSignedTransactions({
+              signedTransactions: [signedTransaction],
+            }),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 400',
+            data: {
+              error: 'invalid raw tx',
+            },
+          });
+        },
+      );
+    });
   });
 
   describe('fetchSmartTransactionsStatus', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('fetches a pending status for a single smart transaction via batchStatus API', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, batchStatus }) => {
         const uuids = ['uuid1'];
-        const pendingBatchStatusApiResponse =
-          createPendingBatchStatusApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
-          .reply(200, pendingBatchStatusApiResponse);
+        batchStatus.mockResolvedValueOnce(
+          createPendingBatchStatusApiResponse(),
+        );
 
         const params = uuids.map((uuid) => ({
           uuid,
@@ -1614,6 +1594,11 @@ describe('SmartTransactionsController', () => {
         }));
 
         await controller.fetchSmartTransactionsStatus(params);
+
+        expect(batchStatus).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          uuids: ['uuid1'],
+        });
 
         const pendingState = createStateAfterPending()[0];
         const pendingTransaction = { ...pendingState, history: [pendingState] };
@@ -1648,6 +1633,100 @@ describe('SmartTransactionsController', () => {
       });
     });
 
+    it('rethrows batch status error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        404,
+        "Sentinel API: Batch status request failed with status '404'",
+      );
+      Object.assign(httpError, {
+        data: { statusCode: 404, error: 'Not Found' },
+      });
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
+            .mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 404',
+            data: { statusCode: 404, error: 'Not Found' },
+          });
+        },
+      );
+    });
+
+    it('rethrows batch status errors that are not HTTP errors', async () => {
+      const networkError = new Error('Network down');
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
+            .mockRejectedValue(networkError),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toBe(networkError);
+        },
+      );
+    });
+
+    it('rethrows batch status error without data when the HTTP error has no body', async () => {
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
+            .mockRejectedValue(
+              new HttpError(500, 'Sentinel API: Batch status request failed'),
+            ),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toThrow('Fetch error: 500');
+        },
+      );
+    });
+
+    it('ignores statuses for UUIDs that were not requested', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
+            .mockResolvedValue(createPendingBatchStatusApiResponse()),
+        },
+        async ({ controller }) => {
+          await controller.fetchSmartTransactionsStatus([
+            { uuid: 'uuid2', chainId: ChainId.mainnet },
+          ]);
+
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'No matching transaction found for uuid: uuid1',
+          );
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([]);
+        },
+      );
+    });
+
     it('fetches a success status for a single smart transaction via batchStatus API', async () => {
       await withController(
         {
@@ -1664,13 +1743,11 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, batchStatus }) => {
           const uuids = ['uuid2'];
-          const successBatchStatusApiResponse =
-            createSuccessBatchStatusApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
-            .reply(200, successBatchStatusApiResponse);
+          batchStatus.mockResolvedValueOnce(
+            createSuccessBatchStatusApiResponse(),
+          );
 
           const params = uuids.map((uuid) => ({
             uuid,
@@ -1722,50 +1799,46 @@ describe('SmartTransactionsController', () => {
 
   describe('fetchLiveness', () => {
     it('fetches a liveness for Smart Transactions API', async () => {
-      await withController(async ({ controller }) => {
-        const successLivenessApiResponse = createSuccessLivenessApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .get(`/network`)
-          .reply(200, successLivenessApiResponse);
-
+      await withController(async ({ controller, getNetwork }) => {
         const liveness = await controller.fetchLiveness();
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.mainnet);
         expect(liveness).toBe(true);
       });
     });
 
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
-      await withController(async ({ controller }) => {
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .replyWithError('random error');
+      await withController(
+        {
+          getNetwork: vi
+            .fn<SentinelApiServiceGetNetworkAction['handler']>()
+            .mockRejectedValue(new Error('random error')),
+        },
+        async ({ controller, getNetwork }) => {
+          expect(
+            controller.state.smartTransactionsState.livenessByChainId,
+          ).toStrictEqual({
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: true,
+          });
 
-        expect(
-          controller.state.smartTransactionsState.livenessByChainId,
-        ).toStrictEqual({
-          [ChainId.mainnet]: true,
-          [ChainId.sepolia]: true,
-        });
+          await controller.fetchLiveness({
+            networkClientId: NetworkType.sepolia,
+          });
 
-        await controller.fetchLiveness({
-          networkClientId: NetworkType.sepolia,
-        });
-
-        expect(
-          controller.state.smartTransactionsState.livenessByChainId,
-        ).toStrictEqual({
-          [ChainId.mainnet]: true,
-          [ChainId.sepolia]: false,
-        });
-      });
+          expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
+          expect(
+            controller.state.smartTransactionsState.livenessByChainId,
+          ).toStrictEqual({
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: false,
+          });
+        },
+      );
     });
 
     it('fetches liveness using chainId directly when provided', async () => {
-      await withController(async ({ controller }) => {
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .reply(200, createSuccessLivenessApiResponse());
-
+      await withController(async ({ controller, getNetwork }) => {
         expect(
           controller.state.smartTransactionsState.livenessByChainId,
         ).toStrictEqual({
@@ -1777,6 +1850,7 @@ describe('SmartTransactionsController', () => {
           chainId: ChainId.sepolia,
         });
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
         expect(liveness).toBe(true);
         expect(
           controller.state.smartTransactionsState.livenessByChainId,
@@ -1788,19 +1862,15 @@ describe('SmartTransactionsController', () => {
     });
 
     it('prioritizes chainId over networkClientId when both are provided', async () => {
-      await withController(async ({ controller }) => {
-        // Mock sepolia (the chainId we're passing directly)
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .reply(200, createSuccessLivenessApiResponse());
-
+      await withController(async ({ controller, getNetwork }) => {
         const liveness = await controller.fetchLiveness({
           chainId: ChainId.sepolia,
-          networkClientId: NetworkType.mainnet, // This should be ignored
+          networkClientId: NetworkType.mainnet,
         });
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
+        expect(getNetwork).not.toHaveBeenCalledWith(ChainId.mainnet);
         expect(liveness).toBe(true);
-        // Verify it used sepolia (from chainId), not mainnet (from networkClientId)
         expect(
           controller.state.smartTransactionsState.livenessByChainId[
             ChainId.sepolia
@@ -1812,9 +1882,10 @@ describe('SmartTransactionsController', () => {
 
   describe('updateSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('updates smart transaction based on uuid', async () => {
@@ -1860,7 +1931,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('fails the regular transaction when smart transaction is cancelled and returnTxHashAsap is true', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       const defaultState = getDefaultSmartTransactionsControllerState();
       const pendingStx = createStateAfterPending();
       await withController(
@@ -1921,7 +1992,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction when smart transaction is cancelled but returnTxHashAsap is false', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -1960,7 +2031,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction when transaction is not found in regular transactions', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
 
       await withController(
         {
@@ -1989,7 +2060,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction for non-cancelled transactions', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -2170,52 +2241,52 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('cancelSmartTransaction', () => {
-    it('sends POST call to Transactions API', async () => {
-      await withController(async ({ controller }) => {
-        const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-          .reply(200, { message: 'successful' });
-
+    it('cancels the smart transaction on the selected chain', async () => {
+      await withController(async ({ controller, cancel }) => {
         await controller.cancelSmartTransaction('uuid1');
 
-        expect(apiCall.isDone()).toBe(true);
+        expect(cancel).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          uuid: 'uuid1',
+        });
       });
     });
 
-    it('sends Authorization header when getBearerToken is provided', async () => {
-      const bearerToken = 'test-bearer-token-123';
-      await withController(
-        {
-          bearerToken,
-        },
-        async ({ controller }) => {
-          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-            .matchHeader('Authorization', `Bearer ${bearerToken}`)
-            .reply(200, { message: 'successful' });
+    it('cancels on the chain for the given network client', async () => {
+      await withController(async ({ controller, cancel }) => {
+        await controller.cancelSmartTransaction('uuid1', {
+          networkClientId: NetworkType.sepolia,
+        });
 
-          await controller.cancelSmartTransaction('uuid1');
-
-          expect(apiCall.isDone()).toBe(true);
-        },
-      );
+        expect(cancel).toHaveBeenCalledWith({
+          chainId: ChainId.sepolia,
+          uuid: 'uuid1',
+        });
+      });
     });
 
-    it('sends Authorization header to Sentinel /network when getBearerToken is provided', async () => {
-      const bearerToken = 'test-bearer-token-456';
+    it('rethrows cancel error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        500,
+        "Sentinel API: Cancel request failed with status '500'",
+      );
+      Object.assign(httpError, {
+        data: { statusCode: 500, error: 'Internal Server Error' },
+      });
+
       await withController(
         {
-          bearerToken,
+          cancel: vi
+            .fn<SentinelApiServiceCancelAction['handler']>()
+            .mockRejectedValue(httpError),
         },
         async ({ controller }) => {
-          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/network`)
-            .matchHeader('Authorization', `Bearer ${bearerToken}`)
-            .reply(200, createSuccessLivenessApiResponse());
-
-          await controller.fetchLiveness();
-
-          expect(apiCall.isDone()).toBe(true);
+          await expect(
+            controller.cancelSmartTransaction('uuid1'),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 500',
+            data: { statusCode: 500, error: 'Internal Server Error' },
+          });
         },
       );
     });
@@ -2223,9 +2294,10 @@ describe('SmartTransactionsController', () => {
 
   describe('getTransactions', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('retrieves smart transactions by addressFrom and status', async () => {
@@ -2335,9 +2407,10 @@ describe('SmartTransactionsController', () => {
 
   describe('isNewSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('returns true if it is a new STX', async () => {
@@ -2374,18 +2447,19 @@ describe('SmartTransactionsController', () => {
 
   describe('startPolling', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('starts and stops calling smart transactions batch status api endpoint with the correct chainId at the polling interval', async () => {
       // mock this to a noop because it causes an extra fetch call to the API upon state changes
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => undefined);
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => undefined);
       await withController(
         {
           options: {
@@ -2416,96 +2490,86 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const handleFetchSpy = jest
-            .spyOn(utils, 'handleFetch')
-            .mockImplementation(async () => Promise.resolve({}));
-
+        async ({ controller, batchStatus }) => {
           const mainnetPollingToken = controller.startPolling({
             chainIds: [ChainId.mainnet],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
-          const fetchHeaders = {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Client-Id': ClientId.Mobile,
-            },
-          };
+          expect(batchStatus).toHaveBeenNthCalledWith(1, {
+            chainId: ChainId.mainnet,
+            uuids: ['uuid1'],
+          });
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            1,
-            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.mainnet,
-            )}/batchStatus?uuids=uuid1`,
-            fetchHeaders,
-          );
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
-
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            2,
-            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.mainnet,
-            )}/batchStatus?uuids=uuid1`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(2, {
+            chainId: ChainId.mainnet,
+            uuids: ['uuid1'],
+          });
 
           controller.startPolling({ chainIds: [ChainId.sepolia] });
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            3,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(3, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            5,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(5, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
           // stop the mainnet polling
           controller.stopPollingByPollingToken(mainnetPollingToken);
 
           // cycle two polling intervals
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           // check that the mainnet polling has stopped while the sepolia polling continues
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            6,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(6, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            7,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(7, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
         },
       );
     });
 
+    it('runs the status update at the interval set by setStatusRefreshInterval', async () => {
+      await withController(async ({ controller }) => {
+        const updateSmartTransactionsSpy = vi
+          .spyOn(controller, 'updateSmartTransactions')
+          .mockResolvedValue(undefined);
+        await controller.setStatusRefreshInterval(1000);
+
+        await controller.poll();
+        const callsAfterStart = updateSmartTransactionsSpy.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(updateSmartTransactionsSpy.mock.calls).toHaveLength(
+          callsAfterStart + 1,
+        );
+      });
+    });
+
     it('does not poll for chains that are not supported', async () => {
       // mock this to a noop because it causes an extra fetch call to the API upon state changes
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => undefined);
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => undefined);
       await withController(
         {
           options: {
@@ -2536,18 +2600,14 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const handleFetchSpy = jest
-            .spyOn(utils, 'handleFetch')
-            .mockImplementation(async () => Promise.resolve({}));
-
+        async ({ controller, batchStatus }) => {
           controller.startPolling({
             chainIds: ['notSupportedChainId' as Hex],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
-          expect(handleFetchSpy).not.toHaveBeenCalled();
+          expect(batchStatus).not.toHaveBeenCalled();
         },
       );
     });
@@ -2789,9 +2849,10 @@ describe('SmartTransactionsController', () => {
 
   describe('createOrUpdateSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('adds metaMetricsProps to new smart transactions', async () => {
@@ -2816,7 +2877,7 @@ describe('SmartTransactionsController', () => {
                 },
               },
             },
-            getMetaMetricsProps: jest.fn().mockResolvedValue({
+            getMetaMetricsProps: vi.fn().mockResolvedValue({
               accountHardwareType: 'Test Hardware',
               accountType: 'test-account',
               deviceModel: 'test-model',
@@ -2853,7 +2914,9 @@ describe('SmartTransactionsController', () => {
       };
 
       // Mock console.error to verify it's called
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       await withController(
         {
@@ -2867,7 +2930,7 @@ describe('SmartTransactionsController', () => {
               },
             },
             // Mock getting MetaMetricsProps to fail
-            getMetaMetricsProps: jest
+            getMetaMetricsProps: vi
               .fn()
               .mockRejectedValue(new Error('Test metrics error')),
           },
@@ -2905,7 +2968,7 @@ describe('SmartTransactionsController', () => {
 
   describe('Tracing', () => {
     const createTraceCallback = () =>
-      jest.fn().mockImplementation(async (_request, fn) => {
+      vi.fn().mockImplementation(async (_request, fn) => {
         return fn?.();
       });
 
@@ -2918,14 +2981,14 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-            .reply(200, createGetFeesApiResponse());
-
+        async ({ controller, getFees }) => {
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
           await controller.getFees(tradeTx);
 
+          expect(getFees).toHaveBeenCalledWith({
+            chainId: ChainId.mainnet,
+            transactions: [tradeTx],
+          });
           expect(traceCallback).toHaveBeenCalledWith(
             { name: SmartTransactionsTraceName.GetFees },
             expect.any(Function),
@@ -2944,12 +3007,6 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, createSubmitTransactionsApiResponse());
-
           const signedTx = createSignedTransaction();
           const signedCanceledTx = createSignedCanceledTransaction();
           const txParams = createTxParams();
@@ -2978,10 +3035,6 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-            .reply(200, {});
-
           await controller.cancelSmartTransaction('uuid1');
 
           expect(traceCallback).toHaveBeenCalledWith(
@@ -3001,13 +3054,10 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/network`)
-            .reply(200, createSuccessLivenessApiResponse());
-
+        async ({ controller, getNetwork }) => {
           await controller.fetchLiveness();
 
+          expect(getNetwork).toHaveBeenCalledWith(ChainId.mainnet);
           expect(traceCallback).toHaveBeenCalledWith(
             { name: SmartTransactionsTraceName.FetchLiveness },
             expect.any(Function),
@@ -3025,14 +3075,16 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, getFees }) => {
           const expectedResponse = createGetFeesApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-            .reply(200, expectedResponse);
 
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
           const result = await controller.getFees(tradeTx);
+
+          expect(getFees).toHaveBeenCalledWith({
+            chainId: ChainId.mainnet,
+            transactions: [tradeTx],
+          });
 
           expect(traceCallback).toHaveBeenCalled();
           expect(result).toMatchObject({
@@ -3184,9 +3236,21 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  batchStatus,
+  cancel,
+  getFees,
+  getNetwork,
+  submitTransactions,
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
+  batchStatus: Mock<SentinelApiServiceGetBatchStatusAction['handler']>;
+  cancel: Mock<SentinelApiServiceCancelAction['handler']>;
+  getFees: Mock<SentinelApiServiceGetFeesAction['handler']>;
+  getNetwork: Mock<SentinelApiServiceGetNetworkAction['handler']>;
+  submitTransactions: Mock<
+    SentinelApiServiceSubmitTransactionsAction['handler']
+  >;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -3197,10 +3261,16 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
+  batchStatus?: Mock<SentinelApiServiceGetBatchStatusAction['handler']>;
+  cancel?: Mock<SentinelApiServiceCancelAction['handler']>;
+  getFees?: Mock<SentinelApiServiceGetFeesAction['handler']>;
+  getNetwork?: Mock<SentinelApiServiceGetNetworkAction['handler']>;
+  submitTransactions?: Mock<
+    SentinelApiServiceSubmitTransactionsAction['handler']
+  >;
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
-  bearerToken?: string;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -3222,23 +3292,44 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
     options,
-    getNonceLock = jest.fn().mockResolvedValue({
+    getNonceLock = vi.fn().mockResolvedValue({
       nextNonce: 42,
-      releaseLock: jest.fn(),
+      releaseLock: vi.fn(),
     }),
-    getTransactions = jest.fn(),
-    failTransaction = jest.fn(),
+    getTransactions = vi.fn(),
+    failTransaction = vi.fn(),
+    batchStatus = vi
+      .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
+      .mockResolvedValue({}),
+    cancel = vi
+      .fn<SentinelApiServiceCancelAction['handler']>()
+      .mockResolvedValue({
+        uuid: 'uuid1',
+        affected: 1,
+        cancelled: true,
+      }),
+    getFees = vi
+      .fn<SentinelApiServiceGetFeesAction['handler']>()
+      .mockResolvedValue(createGetFeesApiResponse()),
+    submitTransactions = vi
+      .fn<SentinelApiServiceSubmitTransactionsAction['handler']>()
+      .mockResolvedValue(createSubmitTransactionsApiResponse()),
+    getNetwork = vi
+      .fn<SentinelApiServiceGetNetworkAction['handler']>()
+      .mockResolvedValue({
+        smartTransactions: true,
+        network: 'mainnet',
+      }),
     remoteFeatureFlags = {},
-    bearerToken,
   } = rest;
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: jest.fn(),
+    captureException: vi.fn(),
   });
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockImplementation((networkClientId) => {
+    vi.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
         case NetworkType.mainnet:
           return {
@@ -3261,7 +3352,7 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       selectedNetworkClientId: NetworkType.mainnet,
       networkConfigurationsByChainId: {
         '0x1': {
@@ -3311,14 +3402,24 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       remoteFeatureFlags,
     }),
   );
 
   rootMessenger.registerActionHandler(
-    'AuthenticationController:getBearerToken',
-    jest.fn().mockResolvedValue(bearerToken),
+    'SentinelApiService:getBatchStatus',
+    batchStatus,
+  );
+  rootMessenger.registerActionHandler('SentinelApiService:cancel', cancel);
+  rootMessenger.registerActionHandler('SentinelApiService:getFees', getFees);
+  rootMessenger.registerActionHandler(
+    'SentinelApiService:submitTransactions',
+    submitTransactions,
+  );
+  rootMessenger.registerActionHandler(
+    'SentinelApiService:getNetwork',
+    getNetwork,
   );
 
   const messenger = new Messenger<
@@ -3333,13 +3434,17 @@ async function withController<ReturnValue>(
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AuthenticationController:getBearerToken',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'RemoteFeatureFlagController:getState',
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
+      'SentinelApiService:getBatchStatus',
+      'SentinelApiService:cancel',
+      'SentinelApiService:getFees',
+      'SentinelApiService:getNetwork',
+      'SentinelApiService:submitTransactions',
     ],
     events: [
       'NetworkController:stateChange',
@@ -3351,7 +3456,7 @@ async function withController<ReturnValue>(
     messenger,
     clientId: ClientId.Mobile,
     trackMetaMetricsEvent: trackMetaMetricsEventSpy,
-    getMetaMetricsProps: jest.fn(async () => {
+    getMetaMetricsProps: vi.fn(async () => {
       return Promise.resolve({
         accountHardwareType: 'Ledger Hardware',
         accountType: 'hardware',
@@ -3396,6 +3501,11 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      batchStatus,
+      cancel,
+      getFees,
+      getNetwork,
+      submitTransactions,
       triggerNetworkStateChange,
     });
   } finally {

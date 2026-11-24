@@ -7,6 +7,7 @@ import type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
 } from './autoramp-types.js';
+import type { NeoBankCustomerAbilities } from './NeoBankService.js';
 
 export type {
   AutorampDepositRailsSummary,
@@ -72,6 +73,9 @@ export type CreateAutorampRequest = Record<string, unknown>;
  * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
  * The fiat code is required: this helper does not default to BRL.
  *
+ * The body does not set `source_is_third_party`: neobank-proxy overwrites it
+ * on every market create, choosing per customer from the eligible rails.
+ *
  * @param walletAddress - Money Account address that receives mUSD.
  * @param sourceCurrencyCode - Fiat code placed in `source_currencies[0].code`.
  * @returns MoonPay `POST /autoramps` market body.
@@ -92,7 +96,6 @@ export function buildMusdAutorampRequest(
       chain: 'Monad',
       address: walletAddress,
     },
-    source_is_third_party: false,
   };
 }
 
@@ -109,6 +112,66 @@ export function buildBrazilMusdAutorampRequest(
   walletAddress: string,
 ): CreateAutorampRequest {
   return buildMusdAutorampRequest(walletAddress, 'BRL');
+}
+
+/**
+ * Deposit rails MoonPay needs Active before it accepts a
+ * {@link buildMusdAutorampRequest} create, keyed by fiat code. neobank-proxy
+ * normally sends creates as third-party, so that rail is required too. EUR is
+ * the exception: the proxy falls back to a first-party autoramp when
+ * `sepa_thirdparty` is not Active, so only the base rail is required.
+ */
+const MUSD_AUTORAMP_REQUIRED_DEPOSIT_RAILS: Readonly<
+  Record<string, readonly string[]>
+> = {
+  BRL: ['pix', 'pix_thirdparty'],
+  USD: ['ach', 'ach_thirdparty'],
+  EUR: ['sepa'],
+};
+
+const BLOCKED_ABILITY_STATUSES: ReadonlySet<string> = new Set([
+  'Unavailable',
+  'Blocked',
+]);
+
+/**
+ * Whether the deposit rails a fiat → mUSD autoramp needs are usable.
+ *
+ * - `active`: every required rail is Active, or the fiat has none.
+ * - `pending`: a required rail is not Active yet (Pending, Maintenance or
+ * missing), so MoonPay would reject the create for now.
+ * - `blocked`: a required rail is Unavailable or Blocked.
+ */
+export type MusdAutorampDepositRailReadiness = 'active' | 'pending' | 'blocked';
+
+/**
+ * Reads the deposit rail readiness for a fiat → mUSD autoramp from the
+ * customer's abilities.
+ *
+ * @param abilities - Customer abilities, e.g. `vbaCustomerAbilities`.
+ * @param sourceCurrencyCode - Fiat code passed to
+ * {@link buildMusdAutorampRequest}.
+ * @returns The rail readiness.
+ */
+export function getMusdAutorampDepositRailReadiness(
+  abilities: NeoBankCustomerAbilities,
+  sourceCurrencyCode: string,
+): MusdAutorampDepositRailReadiness {
+  const code = sourceCurrencyCode.toUpperCase();
+  const rails = MUSD_AUTORAMP_REQUIRED_DEPOSIT_RAILS[code];
+  if (!rails) {
+    return 'active';
+  }
+  const currencyRails = abilities.fiat_deposit[code.toLowerCase()] ?? {};
+  const statuses = rails.map((rail) => currencyRails[rail]);
+  if (
+    statuses.some(
+      (status) => status !== undefined && BLOCKED_ABILITY_STATUSES.has(status),
+    )
+  ) {
+    return 'blocked';
+  }
+  return statuses.every((status) => status === 'Active') ? 'active' : 'pending';
 }
 
 /**
@@ -200,6 +263,31 @@ export function createAutorampAccount(input: {
 }
 
 /**
+ * Keeps a currency the client already learned when a later snapshot omits it.
+ * Readiness follows the remote snapshot. A remote currency replaces the local one.
+ *
+ * @param local - Currency summary already stored for this autoramp.
+ * @param remote - Currency summary from the latest GET or push.
+ * @returns The summary to store, or undefined when neither side has one.
+ */
+export function mergeDepositRailsSummary(
+  local: AutorampDepositRailsSummary | undefined,
+  remote: AutorampDepositRailsSummary | undefined,
+): AutorampDepositRailsSummary | undefined {
+  if (!remote) {
+    return local;
+  }
+  if (!local) {
+    return remote;
+  }
+  const currency = remote.currency ?? local.currency;
+  return {
+    ready: remote.ready,
+    ...(currency ? { currency } : {}),
+  };
+}
+
+/**
  * Apply a remote autoramp snapshot onto a local account for transition detection.
  * Pure helper — shared by refresh-on-load and websocket push paths.
  *
@@ -253,8 +341,10 @@ export function applyAutorampRemoteStatus(
     status: remoteStatus,
     lastSeenStatus: previousStatus,
     updatedAt: Date.now(),
-    depositRailsSummary:
-      remote.depositRailsSummary ?? local.depositRailsSummary,
+    depositRailsSummary: mergeDepositRailsSummary(
+      local.depositRailsSummary,
+      remote.depositRailsSummary,
+    ),
   };
 
   return {

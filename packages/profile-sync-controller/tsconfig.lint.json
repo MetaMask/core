@@ -28,6 +28,9 @@
     },
     {
       "path": "../cryptography/tsconfig.lint.json"
+    },
+    {
+      "path": "../key-tree/tsconfig.lint.json"
     }
   ]
 }

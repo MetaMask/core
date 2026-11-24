@@ -1,4 +1,5 @@
 import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { hkdfSha256, hkdfSha384, hkdfSha512 } from './hkdf.js';
 

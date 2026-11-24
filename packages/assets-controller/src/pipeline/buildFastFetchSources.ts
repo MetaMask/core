@@ -1,8 +1,4 @@
-import {
-  createParallelBalanceMiddleware,
-  createParallelMiddleware,
-} from '../middlewares/ParallelMiddleware.js';
-import type { BalanceSource } from '../middlewares/ParallelMiddleware.js';
+import { createParallelMiddleware } from '../middlewares/ParallelMiddleware.js';
 import type { AssetsDataSource } from '../types.js';
 
 /**
@@ -13,70 +9,51 @@ import type { AssetsDataSource } from '../types.js';
  * actually run, not which are supplied.
  */
 export type FastFetchSources = {
-  accountsApiDataSource: BalanceSource;
-  stakedBalanceDataSource: BalanceSource;
-  customAssetGraduationMiddleware: AssetsDataSource;
+  accountsApiDataSource: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
-  detectionMiddleware: AssetsDataSource;
   tokenDataSource: AssetsDataSource;
   priceDataSource: AssetsDataSource;
 };
 
 /**
- * Compose the fast fetch lane: balances in parallel → custom-asset graduation →
- * RPC fallback → detection → token metadata and prices in parallel.
+ * Compose the fast fetch lane: balances → RPC fallback → token metadata and
+ * prices in parallel.
  *
  * Snap and RPC balance sources are deliberately absent — the controller runs
  * those in a background lane because of their latency.
  *
- * Ordering carries two invariants:
- * - Graduation runs BEFORE the RPC fallback so it only ever sees Accounts
- *   API / websocket balances. RPC intentionally carries custom assets and must
- *   never trigger graduation.
- * - Detection runs before token and price enrichment, which both read
- *   `response.detectedAssets`.
+ * Pins stay in `customAssets` and travel as `includeAssetIds`. A chain that
+ * comes back without all of them is reported as errored so the RPC fallback
+ * refetches it. Token and price enrichment each choose their own asset sets
+ * from the request and controller state.
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
- * @param options.isBasicFunctionality - When false, only the staking balance and
- * detection run; no network-backed source is used.
- * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
- * lane. The v6 lane never graduates custom assets: it sends the pins to the
- * endpoint as `includeAssetIds`, and a chain that comes back without all of
- * them is reported as errored so the RPC fallback refetches it.
+ * @param options.isBasicFunctionality - When false, the lane is empty. No
+ * balance source runs here, so there is no token or price source to feed.
+ * The RPC background lane fetches balances and then runs token and price.
  * @returns The composed source list, ready for `executeAssetsPipeline`.
  */
 export function buildFastFetchSources(
   sources: FastFetchSources,
   options: {
     isBasicFunctionality: boolean;
-    includeCustomAssetGraduation: boolean;
   },
 ): AssetsDataSource[] {
   const {
     accountsApiDataSource,
-    stakedBalanceDataSource,
-    customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
-    detectionMiddleware,
     tokenDataSource,
     priceDataSource,
   } = sources;
 
   if (!options.isBasicFunctionality) {
-    return [stakedBalanceDataSource, detectionMiddleware];
+    return [];
   }
 
   return [
-    createParallelBalanceMiddleware([
-      accountsApiDataSource,
-      stakedBalanceDataSource,
-    ]),
-    ...(options.includeCustomAssetGraduation
-      ? [customAssetGraduationMiddleware]
-      : []),
+    accountsApiDataSource,
     rpcFallbackMiddleware,
-    detectionMiddleware,
     createParallelMiddleware([tokenDataSource, priceDataSource]),
   ];
 }

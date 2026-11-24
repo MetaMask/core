@@ -5,7 +5,9 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance, MockedFunction } from 'vitest';
 
 import {
   PhishingController,
@@ -19,15 +21,14 @@ import type {
 import { TokenScanResultType } from './types.js';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  safelyExecuteWithTimeout: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  safelyExecuteWithTimeout: vi.fn(),
 }));
 
-const mockSafelyExecuteWithTimeout =
-  safelyExecuteWithTimeout as jest.MockedFunction<
-    typeof safelyExecuteWithTimeout
-  >;
+const mockSafelyExecuteWithTimeout = safelyExecuteWithTimeout as MockedFunction<
+  typeof safelyExecuteWithTimeout
+>;
 
 const controllerName = 'PhishingController';
 
@@ -98,26 +99,32 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 
 describe('PhishingController - Bulk Token Scanning', () => {
   let controller: PhishingController;
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
+  let consoleErrorSpy: MockInstance;
+  let consoleWarnSpy: MockInstance;
 
   beforeEach(() => {
     controller = getPhishingController();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
 
     // Reset the mock to its default behavior (pass through to real implementation)
     mockSafelyExecuteWithTimeout.mockImplementation(
-      (fn, throwOnTimeout, timeout) => {
-        return jest
-          .requireActual('@metamask/controller-utils')
-          .safelyExecuteWithTimeout(fn, throwOnTimeout, timeout);
+      async (fn, throwOnTimeout, timeout) => {
+        return (
+          await vi.importActual<typeof import('@metamask/controller-utils')>(
+            '@metamask/controller-utils',
+          )
+        ).safelyExecuteWithTimeout(fn, throwOnTimeout, timeout);
       },
     );
   });
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
@@ -196,7 +203,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           'Unsupported chain ID: 0x64',
         );
-        cleanAll();
+        nock.cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {
@@ -231,6 +238,38 @@ describe('PhishingController - Bulk Token Scanning', () => {
     });
 
     describe('successful API responses', () => {
+      it('scans tokens on Arc', async () => {
+        const token = '0x1234567890123456789012345678901234567890';
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            [token]: {
+              result_type: TokenScanResultType.Benign,
+            },
+          },
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+            chain: 'arc',
+            tokens: [token],
+          })
+          .reply(200, mockApiResponse);
+
+        const result = await controller.bulkScanTokens({
+          chainId: '0x13b2',
+          tokens: [token],
+        });
+
+        expect(scope.isDone()).toBe(true);
+        expect(result).toStrictEqual({
+          [token]: {
+            result_type: TokenScanResultType.Benign,
+            chain: '0x13b2',
+            address: token,
+          },
+        });
+      });
+
       it('should return scan results for valid tokens', async () => {
         const tokens = [
           '0x1234567890123456789012345678901234567890',

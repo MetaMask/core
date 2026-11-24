@@ -11,6 +11,7 @@ export const transactionController: InitializationConfiguration<
   TransactionControllerMessenger
 > = {
   name: 'TransactionController',
+  reference: TransactionController,
   init: ({ state, messenger, options }) => {
     const { disableSwaps = false, ...rest } = options;
 
@@ -43,6 +44,7 @@ export const transactionController: InitializationConfiguration<
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+        'SentinelApiService:simulateTransactions',
       ],
       events: [
         'AccountActivityService:transactionUpdated',

@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.2]
+
 ### Changed
 
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/money-account-api-data-service` from `^2.4.0` to `^2.5.0` ([#11709](https://github.com/MetaMask/core/pull/11709))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+### Fixed
+
+- Include premium vault holdings in RPC balances via the optional `moneyAccountPremiumVaultConfig` flag ([#11683](https://github.com/MetaMask/core/pull/11683))
+
+## [3.2.1]
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^2.3.1` to `^2.4.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
+
+## [3.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/money-account-api-data-service` from `^2.1.0` to `^2.3.1` ([#10827](https://github.com/MetaMask/core/pull/10827), [#11016](https://github.com/MetaMask/core/pull/11016), [#11146](https://github.com/MetaMask/core/pull/11146))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [3.1.2]
 
@@ -197,7 +224,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.2...HEAD
+[3.2.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.1...@metamask/money-account-balance-service@3.2.2
+[3.2.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.2.0...@metamask/money-account-balance-service@3.2.1
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.2...@metamask/money-account-balance-service@3.2.0
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.1...@metamask/money-account-balance-service@3.1.2
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.1.0...@metamask/money-account-balance-service@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...@metamask/money-account-balance-service@3.1.0

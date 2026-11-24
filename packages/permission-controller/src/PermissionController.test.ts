@@ -15,6 +15,8 @@ import {
   hasProperty,
 } from '@metamask/utils';
 import assert from 'assert';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import * as errors from './errors.js';
 import {
@@ -280,21 +282,21 @@ function getSideEffectHandlerMocks(): Record<
   | typeof PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
   | typeof PermissionKeys.wallet_noopWithPermittedSideEffects,
   {
-    onPermitted: jest.Mock<ReturnType<typeof onPermittedSideEffect>>;
-    onFailure?: jest.Mock<ReturnType<typeof onFailureSideEffect>>;
+    onPermitted: Mock<typeof onPermittedSideEffect>;
+    onFailure?: Mock<typeof onFailureSideEffect>;
   }
 > {
   return {
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
-      onPermitted: jest.fn(onPermittedSideEffect),
-      onFailure: jest.fn(onFailureSideEffect),
+      onPermitted: vi.fn(onPermittedSideEffect),
+      onFailure: vi.fn(onFailureSideEffect),
     },
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
-      onPermitted: jest.fn(onPermittedSideEffect),
-      onFailure: jest.fn(onFailureSideEffect),
+      onPermitted: vi.fn(onPermittedSideEffect),
+      onFailure: vi.fn(onFailureSideEffect),
     },
     [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
-      onPermitted: jest.fn(onPermittedSideEffect),
+      onPermitted: vi.fn(onPermittedSideEffect),
     },
   } as const;
 }
@@ -906,6 +908,7 @@ describe('PermissionController', () => {
             DefaultCaveatSpecifications
           >(
             getPermissionControllerOptions({
+              caveatSpecifications: defaultCaveats,
               permissionSpecifications: {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
@@ -930,6 +933,7 @@ describe('PermissionController', () => {
             DefaultCaveatSpecifications
           >(
             getPermissionControllerOptions({
+              caveatSpecifications: defaultCaveats,
               permissionSpecifications: {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
@@ -2496,7 +2500,7 @@ describe('PermissionController', () => {
       const { messenger } = options;
       const origin = 'npm:@metamask/test-snap-bip44';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => {
           return {
@@ -3189,7 +3193,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3240,7 +3244,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3296,7 +3300,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3367,7 +3371,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3447,7 +3451,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3554,7 +3558,7 @@ describe('PermissionController', () => {
           Promise.reject(new Error('error')),
         );
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3638,7 +3642,7 @@ describe('PermissionController', () => {
           Promise.reject(new Error('error')),
         );
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3703,7 +3707,7 @@ describe('PermissionController', () => {
           Promise.reject(new Error('error')),
         );
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3761,7 +3765,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3817,7 +3821,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3887,7 +3891,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -3966,7 +3970,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4041,7 +4045,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4126,7 +4130,7 @@ describe('PermissionController', () => {
         const origin = 'metamask.io';
         const controller = getDefaultPermissionController(options);
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         for (const invalidInput of [
           // not plain objects
@@ -4157,7 +4161,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         const controller = getDefaultPermissionController(options);
         await expect(
@@ -4167,7 +4171,7 @@ describe('PermissionController', () => {
         ).rejects.toThrow(
           errors.invalidParams({
             message: `Permissions request for origin "${origin}" contains no permissions.`,
-            data: { origin, requestedPermissions: {} },
+            data: { requestedPermissions: {} },
           }),
         );
 
@@ -4179,7 +4183,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         const controller = getDefaultPermissionController(options);
         await expect(
@@ -4203,12 +4207,10 @@ describe('PermissionController', () => {
               origin,
               requestedPermissions: {
                 [PermissionNames.wallet_getSecretArray]: {
-                  [PermissionNames.wallet_getSecretArray]: {
-                    parentCapability: PermissionNames.wallet_getSecretArray,
-                  },
-                  [PermissionNames.wallet_getSecretObject]: {
-                    parentCapability: PermissionNames.wallet_getSecretArray,
-                  },
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+                [PermissionNames.wallet_getSecretObject]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
                 },
               },
             },
@@ -4223,7 +4225,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         const controller = getDefaultPermissionController(options);
         await expect(
@@ -4239,10 +4241,8 @@ describe('PermissionController', () => {
           errors.methodNotFound('wallet_getSecretKabob', {
             origin,
             requestedPermissions: {
-              [PermissionNames.wallet_getSecretArray]: {
-                [PermissionNames.wallet_getSecretArray]: {},
-                wallet_getSecretKabob: {},
-              },
+              [PermissionNames.wallet_getSecretArray]: {},
+              wallet_getSecretKabob: {},
             },
           }),
         );
@@ -4255,7 +4255,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(() => {
             return {
@@ -4291,7 +4291,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(() => {
             return {
@@ -4327,7 +4327,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = '@metamask/test-snap-bip44';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementation((...args) => {
             const [action, { requestData }] = args as AddPermissionRequestArgs;
@@ -4398,7 +4398,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         const controller = getDefaultPermissionController(options);
         for (const invalidCaveatsValue of [
@@ -4436,7 +4436,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         const controller = getDefaultPermissionController(options);
         await expect(
@@ -4468,7 +4468,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
         const controller = getDefaultPermissionController(options);
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         for (const invalidRequestObject of ['foo', null, { metadata: 'foo' }]) {
           callActionSpy.mockClear();
@@ -4514,7 +4514,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4565,7 +4565,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4590,7 +4590,7 @@ describe('PermissionController', () => {
         ).rejects.toThrow(
           errors.internalError(
             `Approved permissions request for subject "${origin}" mutated its origin.`,
-            { originalOrigin: origin, mutatedOrigin: 'foo' },
+            { originalOrigin: origin, mutatedOrigin: 'foo.com' },
           ),
         );
 
@@ -4616,7 +4616,7 @@ describe('PermissionController', () => {
         const { messenger } = options;
         const origin = 'metamask.io';
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4638,9 +4638,7 @@ describe('PermissionController', () => {
         ).rejects.toThrow(
           errors.internalError(
             `Invalid approved permissions request: Permissions request for origin "${origin}" contains no permissions.`,
-            {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
+            { requestedPermissions: {} },
           ),
         );
 
@@ -4668,7 +4666,7 @@ describe('PermissionController', () => {
         const id = 'arbitraryId';
         const controller = getDefaultPermissionController(options);
 
-        const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = vi.spyOn(messenger, 'call');
 
         // The metadata is valid, but the permissions are invalid
         const getInvalidRequestObject = (
@@ -4706,7 +4704,10 @@ describe('PermissionController', () => {
           ).rejects.toThrow(
             errors.internalError(
               `Invalid approved permissions request: Requested permissions for origin "${origin}" is not a plain object.`,
-              { data: { approvedRequest: invalidRequestObject } },
+              {
+                origin,
+                requestedPermissions: invalidRequestObject.permissions,
+              },
             ),
           );
 
@@ -4734,7 +4735,7 @@ describe('PermissionController', () => {
         const origin = 'metamask.io';
         const controller = getDefaultPermissionController(options);
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4763,22 +4764,20 @@ describe('PermissionController', () => {
               },
             ),
         ).rejects.toThrow(
-          errors.invalidParams({
-            message: `Invalid approved permissions request: Permissions request for origin "${origin}" contains invalid requested permission(s).`,
-            data: {
+          errors.internalError(
+            `Invalid approved permissions request: Permissions request for origin "${origin}" contains invalid requested permission(s).`,
+            {
               origin,
               requestedPermissions: {
                 [PermissionNames.wallet_getSecretArray]: {
-                  [PermissionNames.wallet_getSecretArray]: {
-                    parentCapability: PermissionNames.wallet_getSecretArray,
-                  },
-                  [PermissionNames.wallet_getSecretObject]: {
-                    parentCapability: PermissionNames.wallet_getSecretArray,
-                  },
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+                [PermissionNames.wallet_getSecretObject]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
                 },
               },
             },
-          }),
+          ),
         );
 
         expect(callActionSpy).toHaveBeenCalledTimes(1);
@@ -4808,7 +4807,7 @@ describe('PermissionController', () => {
         const origin = 'metamask.io';
         const controller = getDefaultPermissionController(options);
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -4914,7 +4913,7 @@ describe('PermissionController', () => {
             },
           });
 
-          const callActionSpy = jest
+          const callActionSpy = vi
             .spyOn(messenger, 'call')
             .mockImplementationOnce(async (...args) => {
               const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -5044,7 +5043,7 @@ describe('PermissionController', () => {
             },
           });
 
-          const callActionSpy = jest
+          const callActionSpy = vi
             .spyOn(messenger, 'call')
             .mockImplementationOnce(async (...args) => {
               const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -5116,7 +5115,7 @@ describe('PermissionController', () => {
           },
         });
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -5168,7 +5167,7 @@ describe('PermissionController', () => {
           },
         });
 
-        const callActionSpy = jest
+        const callActionSpy = vi
           .spyOn(messenger, 'call')
           .mockImplementationOnce(async (...args) => {
             const [, { requestData }] = args as AddPermissionRequestArgs;
@@ -5203,7 +5202,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => true)
         .mockImplementationOnce(() => undefined);
@@ -5245,7 +5244,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => true)
         .mockImplementationOnce(() => undefined);
@@ -5282,7 +5281,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => false);
 
@@ -5314,7 +5313,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => true)
         .mockImplementationOnce(() => {
@@ -5370,7 +5369,7 @@ describe('PermissionController', () => {
       const { messenger } = options;
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(async () => true)
         .mockImplementationOnce(async () => undefined);
@@ -5401,7 +5400,7 @@ describe('PermissionController', () => {
       const { messenger } = options;
       const id = 'foobar';
 
-      const callActionSpy = jest
+      const callActionSpy = vi
         .spyOn(messenger, 'call')
         .mockImplementationOnce(() => false);
 
@@ -5631,7 +5630,7 @@ describe('PermissionController', () => {
   describe('controller actions', () => {
     it('action: PermissionController:clearState', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5661,7 +5660,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:getEndowments', async () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5736,7 +5735,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:getSubjectNames', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5773,7 +5772,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:hasPermission', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5839,7 +5838,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:hasPermissions', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5878,7 +5877,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:getPermissions', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5921,7 +5920,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:revokeAllPermissions', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5957,7 +5956,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:revokePermissionForAllSubjects', () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -6069,7 +6068,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:requestPermissionsIncremental', async () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -6104,7 +6103,7 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:updateCaveat', async () => {
       const messenger = getRootMessenger();
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const state = {
         subjects: {

@@ -1,12 +1,17 @@
 import { parseCaipAssetType } from '@metamask/utils';
-import { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import {
+  RESPONSE_METADATA_SURFACE,
+  RESPONSE_PRICES_SURFACE,
+  responseBalancesSurface,
+} from '../__fixtures__/assetSurfaces.js';
 import { mockBscSpamApisV6 } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import type { V6BalancesMock } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
-  getIgnoringCase,
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
 import { registerBscSpamNetwork } from '../__fixtures__/bsc-spam-token/messenger.js';
 import {
@@ -22,13 +27,9 @@ import { withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
-import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
-import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
-  AccountId,
   AssetsControllerState,
   AssetsDataSource,
   Caip19AssetId,
@@ -43,7 +44,7 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 /**
  * Integration coverage for the fast fetch lane against the BNB Chain wallet
  * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report, on the Accounts API
- * **v6** balances endpoint (`assetsAccountsApiV6` on).
+ * balances endpoint.
  *
  * Executes the real fast-lane pipeline against the live-captured v6 APIs. The
  * v6 endpoint classifies every balance row and omits `Malicious` rows unless
@@ -58,39 +59,9 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
  * `Malicious`) must survive.
  */
 
-type ResponseSurface = {
-  surface: string;
-  lookUp: (response: DataResponse, assetId: string) => unknown;
-};
-
-const BALANCES: ResponseSurface = {
-  surface: 'balances',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(
-      response.assetsBalance?.[BSC_SPAM_ACCOUNT_ID] ?? {},
-      assetId,
-    ),
-};
-
-const METADATA: ResponseSurface = {
-  surface: 'metadata',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsInfo ?? {}, assetId),
-};
-
-const PRICES: ResponseSurface = {
-  surface: 'prices',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsPrice ?? {}, assetId),
-};
-
-const DETECTED_ASSETS: ResponseSurface = {
-  surface: 'detected assets',
-  lookUp: (response, assetId) =>
-    Object.values(response.detectedAssets ?? {})
-      .flat()
-      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
-};
+const BALANCES = responseBalancesSurface(BSC_SPAM_ACCOUNT_ID);
+const METADATA = RESPONSE_METADATA_SURFACE;
+const PRICES = RESPONSE_PRICES_SURFACE;
 
 async function runPipeline(
   state: AssetsControllerState,
@@ -127,8 +98,7 @@ async function runPipeline(
   const accountsApiDataSource = new AccountsApiDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
-    onActiveChainsUpdated: jest.fn(),
-    getAssetsState: (): AssetsControllerState => state,
+    onActiveChainsUpdated: vi.fn(),
     getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
       getAssetVisibility({
         state,
@@ -136,19 +106,13 @@ async function runPipeline(
         chainIds,
         getNativeAssetForChain: () => BNB_ASSET_ID,
       }),
-    isBalanceV6Enabled: (): boolean => true,
-  });
-
-  const stakedBalanceDataSource = new StakedBalanceDataSource({
-    messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
   });
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
     getAssetsState: (): AssetsControllerState => state,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
@@ -198,31 +162,13 @@ async function runPipeline(
   const sources = buildFastFetchSources(
     {
       accountsApiDataSource,
-      stakedBalanceDataSource,
-      customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
-        getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
-        removeCustomAsset: (): void => {
-          throw new Error(
-            'The v6 lane never graduates custom assets - pins travel as includeAssetIds!',
-          );
-        },
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
-        getAssetsState: (): AssetsControllerState => state,
-        isBalanceV6Enabled: (): boolean => true,
-      }),
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
       }),
       tokenDataSource,
       priceDataSource,
     },
-    // The v6 lane never runs custom-asset graduation: pins are sent to the
-    // endpoint as `includeAssetIds`, and an endpoint that cannot resolve one
-    // fails the whole chain so the RPC fallback recovers it.
-    { isBasicFunctionality: true, includeCustomAssetGraduation: false },
+    { isBasicFunctionality: true },
   );
 
   const { response } = await executeAssetsPipeline({
@@ -231,7 +177,6 @@ async function runPipeline(
   });
 
   accountsApiDataSource.destroy();
-  stakedBalanceDataSource.destroy();
   rpcDataSource.destroy();
   queryApiClient.clear();
 
@@ -248,7 +193,7 @@ const WALLET_PASSES = [
     pass: 'second pass over the wallet the first pass left behind',
     run: async (): Promise<DataResponse> => {
       const firstPass = await runPipeline(buildEmptyAssetsState());
-      cleanAll();
+      nock.cleanAll();
 
       return (
         await runPipeline(
@@ -265,33 +210,43 @@ const WALLET_PASSES = [
 
 describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
-  describe.each(WALLET_PASSES)('$pass', ({ run }) => {
+  describe.each(WALLET_PASSES)('$pass', ({ pass, run }) => {
     let response: DataResponse;
 
     beforeAll(async () => {
       response = await run();
     });
 
-    it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+    it.each([BALANCES, METADATA])(
       '$surface - filter out the spam token',
       ({ lookUp }) => {
         expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
       },
     );
 
-    it.each([BALANCES, METADATA])(
-      '$surface - keeps the native BNB asset despite low occurrences',
-      ({ lookUp }) => {
-        expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
-      },
-    );
+    if (pass.startsWith('second')) {
+      it('balances - keeps the stored native BNB balance', () => {
+        expect(BALANCES.lookUp(response, BNB_ASSET_ID)).toBeDefined();
+      });
+
+      it('metadata - does not refetch the stored native BNB record', () => {
+        expect(METADATA.lookUp(response, BNB_ASSET_ID)).toBeUndefined();
+      });
+    } else {
+      it.each([BALANCES, METADATA])(
+        '$surface - keeps the native BNB asset despite low occurrences',
+        ({ lookUp }) => {
+          expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
+        },
+      );
+    }
 
     // Unlike the v5 suite, this is not `it.failing`!
     // On v6 the backend omits the Malicious row, so the token is
-    // never in `assetsBalance` or `detectedAssets` at any pipeline stage and
+    // never in `assetsBalance` at any pipeline stage and
     // no price is ever fetched for it.
     //
     // Note we still need the unlock cleanup (`cleanSpamAssets`) to
@@ -309,14 +264,14 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
   it('generates snapshot (source of truth)', async () => {
     const { response } = await runPipeline(buildEmptyAssetsState());
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });
 
 describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   const createRecordingRpcSource = (
@@ -338,7 +293,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     return { source, requests };
   };
 
-  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+  it.each([BALANCES, METADATA])(
     '$surface - keeps the imported token the backend flags as Malicious',
     async ({ lookUp }) => {
       const { response, v6Balances } = await runPipeline(

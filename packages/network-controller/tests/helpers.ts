@@ -18,10 +18,12 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { getKnownPropertyNames } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
-import { buildTestObject } from '../../../tests/helpers.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
 import type {
@@ -63,6 +65,51 @@ export type RootMessenger = Messenger<
 >;
 
 /**
+ * It's common when writing tests to need an object which fits the shape of a
+ * type. However, some properties are unimportant to a test, and so it's useful
+ * if such properties can get filled in with defaults if not explicitly
+ * provided, so that a complete version of that object can still be produced.
+ *
+ * A naive approach to doing this is to define those defaults and then mix them
+ * in with overrides using the spread operator; however, this causes issues if
+ * creating a default value causes a change in global test state — such as
+ * causing a mocked function to get called inadvertently.
+ *
+ * This function solves this problem by allowing defaults to be defined lazily.
+ *
+ * @param defaults - An object where each value is wrapped in a function so that
+ * it doesn't get evaluated unless `overrides` does not contain the key.
+ * @param overrides - The values to override the defaults with.
+ * @param finalizeObject - An optional function to call which will create the
+ * final version of the object. This is useful if you need to customize how a
+ * value receives its default version (say, if it needs be calculated based on
+ * some other property).
+ * @returns The complete version of the object.
+ */
+export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
+  defaults: { [Key in keyof Type]: () => Type[Key] },
+  overrides: Partial<Type>,
+  finalizeObject?: (object: Type) => Type,
+): Type {
+  const keys = [
+    ...new Set([
+      ...getKnownPropertyNames(defaults),
+      ...getKnownPropertyNames<keyof Type>(overrides),
+    ]),
+  ];
+  const object = keys.reduce<Type>((workingObject, key) => {
+    if (key in overrides) {
+      return { ...workingObject, [key]: overrides[key] };
+    } else if (key in defaults) {
+      return { ...workingObject, [key]: defaults[key]() };
+    }
+    return workingObject;
+  }, {} as never);
+
+  return finalizeObject ? finalizeObject(object) : object;
+}
+
+/**
  * A list of active InfuraNetworkType that are used in many tests
  *
  * TODO: Base this off of InfuraNetworkType when Goerli is removed.
@@ -91,11 +138,12 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
- * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
+ * @param options.rpcFailoverMode - The RPC failover mode that
+ * `RemoteFeatureFlagController` returns.
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
  * @param options.trackEvent - The handler registered for
- * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
+ * `AnalyticsController:trackEvent`. Defaults to a Vitest mock so tests can assert
  * on it.
  * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
@@ -104,22 +152,22 @@ export const TESTNET = {
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
-  rpcFailoverMode = 'disabled',
+  rpcFailoverMode,
   analyticsId = '11111111-1111-4111-8111-111111111111',
-  trackEvent = jest.fn(),
+  trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
-  trackEvent?: jest.Mock;
+  trackEvent?: Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',
@@ -130,12 +178,18 @@ export function buildRootMessenger({
 
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({
-      remoteFeatureFlags: {
-        corePlatformRpcFailoverMode: rpcFailoverMode,
-      },
-      cacheTimestamp: 0,
-    }),
+    () => {
+      const remoteFeatureFlags: {
+        corePlatformRpcFailoverMode?: RpcFailoverMode;
+      } = rpcFailoverMode
+        ? { corePlatformRpcFailoverMode: rpcFailoverMode }
+        : {};
+
+      return {
+        remoteFeatureFlags,
+        cacheTimestamp: 0,
+      };
+    },
   );
 
   rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
@@ -545,16 +599,12 @@ export function buildInfuraNetworkConfiguration(
  *
  * @param infuraNetworkType - The Infura network type from which to create the
  * InfuraRpcEndpoint.
- * @param options - Options.
- * @param options.failoverUrls - The failover URLs to use.
  * @returns The created InfuraRpcEndpoint object.
  */
 export function buildInfuraRpcEndpoint(
   infuraNetworkType: InfuraNetworkType,
-  { failoverUrls = [] }: { failoverUrls?: string[] } = {},
 ): InfuraRpcEndpoint {
   return {
-    failoverUrls,
     networkClientId: infuraNetworkType,
     type: RpcEndpointType.Infura as const,
     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
@@ -573,7 +623,6 @@ export function buildCustomRpcEndpoint(
 ): CustomRpcEndpoint {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
@@ -635,7 +684,6 @@ export function buildAddNetworkCustomRpcEndpointFields(
 ): AddNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },
@@ -656,7 +704,6 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
 ): UpdateNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },

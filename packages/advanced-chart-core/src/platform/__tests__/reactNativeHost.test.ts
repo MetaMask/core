@@ -1,12 +1,15 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import type { ChartConfig } from '../../core/types.js';
 import { createReactNativeHost } from '../reactNativeHost.js';
 
 type MockBridge = {
-  postMessage: jest.Mock<void, [string]>;
+  postMessage: Mock<(...args: [string]) => void>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: jest.fn() };
+  const bridge: MockBridge = { postMessage: vi.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -15,7 +18,7 @@ describe('platform/reactNativeHost', () => {
   afterEach(() => {
     delete window.ReactNativeWebView;
     delete window.CONFIG;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('postMessage', () => {
@@ -47,26 +50,26 @@ describe('platform/reactNativeHost', () => {
 
     beforeEach(() => {
       listeners = { window: [], document: [] };
-      jest
-        .spyOn(window, 'addEventListener')
-        .mockImplementation(
-          (type: string, listener: EventListenerOrEventListenerObject) => {
-            if (type === 'message') {
-              listeners.window.push(listener as EventListener);
-            }
-          },
-        );
-      jest
-        .spyOn(document, 'addEventListener')
-        .mockImplementation(
-          (type: string, listener: EventListenerOrEventListenerObject) => {
-            if (type === 'message') {
-              listeners.document.push(listener as EventListener);
-            }
-          },
-        );
-      jest.spyOn(window, 'removeEventListener').mockImplementation();
-      jest.spyOn(document, 'removeEventListener').mockImplementation();
+      vi.spyOn(window, 'addEventListener').mockImplementation(
+        (type: string, listener: EventListenerOrEventListenerObject) => {
+          if (type === 'message') {
+            listeners.window.push(listener as EventListener);
+          }
+        },
+      );
+      vi.spyOn(document, 'addEventListener').mockImplementation(
+        (type: string, listener: EventListenerOrEventListenerObject) => {
+          if (type === 'message') {
+            listeners.document.push(listener as EventListener);
+          }
+        },
+      );
+      vi.spyOn(window, 'removeEventListener').mockImplementation(
+        () => undefined,
+      );
+      vi.spyOn(document, 'removeEventListener').mockImplementation(
+        () => undefined,
+      );
     });
 
     it('subscribes to both window and document message events', () => {
@@ -76,14 +79,14 @@ describe('platform/reactNativeHost', () => {
     });
 
     it('delivers the raw event data to the listener', () => {
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
       createReactNativeHost().subscribe(onMessage);
       listeners.window[0]({ data: '{"type":"X"}' } as MessageEvent);
       expect(onMessage).toHaveBeenCalledWith('{"type":"X"}');
     });
 
     it('rejects messages from real web origins', () => {
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
       createReactNativeHost().subscribe(onMessage);
       listeners.window[0]({
         origin: 'https://evil.com',
@@ -93,7 +96,7 @@ describe('platform/reactNativeHost', () => {
     });
 
     it('accepts null and file: origins', () => {
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
       createReactNativeHost().subscribe(onMessage);
       listeners.window[0]({ origin: 'null', data: 'a' } as MessageEvent);
       listeners.window[0]({

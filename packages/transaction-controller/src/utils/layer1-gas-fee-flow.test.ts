@@ -1,13 +1,15 @@
 import type { Hex } from '@metamask/utils';
+import type { Mock, Mocked } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionStatus } from '../types.js';
 import type { Layer1GasFeeFlow, TransactionMeta } from '../types.js';
 import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  query: vi.fn(),
 }));
 
 const LAYER1_GAS_FEE_VALUE_MATCH_MOCK: Hex = '0x1';
@@ -27,20 +29,20 @@ function createLayer1GasFeeFlowMock({
 }: {
   match: boolean;
   layer1Fee: Hex;
-}): jest.Mocked<Layer1GasFeeFlow> {
+}): Mocked<Layer1GasFeeFlow> {
   return {
-    matchesTransaction: jest.fn().mockResolvedValue(match),
-    getLayer1Fee: jest.fn().mockResolvedValue({ layer1Fee }),
+    matchesTransaction: vi.fn().mockResolvedValue(match),
+    getLayer1Fee: vi.fn().mockResolvedValue({ layer1Fee }),
   };
 }
 
 describe('updateTransactionLayer1GasFee', () => {
-  let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
+  let layer1GasFeeFlowsMock: Mocked<Layer1GasFeeFlow[]>;
   let transactionMetaMock: TransactionMeta;
   let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     layer1GasFeeFlowsMock = [
       createLayer1GasFeeFlowMock({
@@ -94,7 +96,7 @@ describe('updateTransactionLayer1GasFee', () => {
       const [, matchingLayer1GasFeeFlow] = layer1GasFeeFlowsMock;
 
       const mockError = new Error('Error getting layer 1 gas fee');
-      (matchingLayer1GasFeeFlow.getLayer1Fee as jest.Mock).mockRejectedValue(
+      (matchingLayer1GasFeeFlow.getLayer1Fee as Mock).mockRejectedValue(
         mockError,
       );
 

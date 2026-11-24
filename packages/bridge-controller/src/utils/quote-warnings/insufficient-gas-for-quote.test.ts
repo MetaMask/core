@@ -1,7 +1,9 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { hasSufficientGasForQuote } from './insufficient-gas-for-quote.js';
 
-const mockHasNetworkFee = jest.fn();
-jest.mock('./network-fee-unavailable.ts', () => ({
+const mockHasNetworkFee = vi.fn();
+vi.mock('./network-fee-unavailable.ts', () => ({
   hasNetworkFee: (): boolean => mockHasNetworkFee(),
 }));
 
@@ -35,7 +37,7 @@ const balances = {
 
 describe('hasSufficientGasForQuote', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockHasNetworkFee.mockReturnValue(true);
   });
 

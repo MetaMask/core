@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   notifyDataLifecycle,
   _resetDataLifecycleForTests,
@@ -47,13 +50,13 @@ let shapeIdCounter = 0;
 
 function makeWidget(): {
   widget: TVChartingLibraryWidget;
-  applyOverrides: jest.Mock;
-  createShape: jest.Mock;
-  removeEntity: jest.Mock;
+  applyOverrides: Mock;
+  createShape: Mock;
+  removeEntity: Mock;
 } {
-  const applyOverrides = jest.fn();
-  const removeEntity = jest.fn();
-  const createShape = jest.fn().mockImplementation(() => {
+  const applyOverrides = vi.fn();
+  const removeEntity = vi.fn();
+  const createShape = vi.fn().mockImplementation(() => {
     shapeIdCounter += 1;
     return Promise.resolve(`shape-${shapeIdCounter}`);
   });
@@ -133,7 +136,7 @@ describe('positionLines/index', () => {
     const entryCall = createShape.mock.calls.find(
       (call: unknown[]) =>
         (call[1] as Record<string, unknown>).text === 'Entry',
-    );
+    ) as unknown[];
     expect(entryCall).toBeDefined();
     expect(entryCall[0]).toStrictEqual({ price: 42000 });
     expect(
@@ -223,16 +226,16 @@ describe('positionLines/index', () => {
   });
 
   it('reports errors from createShape to RN', () => {
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
     const throwingWidget = {
-      applyOverrides: jest.fn(),
+      applyOverrides: vi.fn(),
       activeChart: () => ({
         createShape: (): never => {
           throw new Error('chart disposed');
         },
-        removeEntity: jest.fn(),
+        removeEntity: vi.fn(),
       }),
     } as unknown as TVChartingLibraryWidget;
     setWidget(throwingWidget);

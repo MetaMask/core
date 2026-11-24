@@ -2,6 +2,7 @@ import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { Hex, Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createFinalMiddlewareWithDefaultResult,
@@ -11,8 +12,8 @@ import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector
 
 const createMockBlockTracker = (): PollingBlockTracker => {
   return {
-    getCurrentBlock: jest.fn().mockReturnValue('0x123'),
-    checkForLatestBlock: jest.fn().mockResolvedValue(undefined),
+    getCurrentBlock: vi.fn().mockReturnValue('0x123'),
+    checkForLatestBlock: vi.fn().mockResolvedValue(undefined),
   } as unknown as PollingBlockTracker;
 };
 
@@ -20,11 +21,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
   describe('method filtering', () => {
     it('processes eth_getTransactionByHash requests', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(
-        mockBlockTracker,
-        'getCurrentBlock',
-      );
-      const checkForLatestBlockSpy = jest.spyOn(
+      const getCurrentBlockSpy = vi.spyOn(mockBlockTracker, 'getCurrentBlock');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -54,11 +52,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('processes eth_getTransactionReceipt requests', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(
-        mockBlockTracker,
-        'getCurrentBlock',
-      );
-      const checkForLatestBlockSpy = jest.spyOn(
+      const getCurrentBlockSpy = vi.spyOn(mockBlockTracker, 'getCurrentBlock');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -88,11 +83,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('skips processing for non-inspected methods', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(
-        mockBlockTracker,
-        'getCurrentBlock',
-      );
-      const checkForLatestBlockSpy = jest.spyOn(
+      const getCurrentBlockSpy = vi.spyOn(mockBlockTracker, 'getCurrentBlock');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -120,8 +112,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
   describe('block tracker update logic', () => {
     it('calls checkForLatestBlock when response block number is higher than current', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
-      const checkForLatestBlockSpy = jest.spyOn(
+      vi.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -150,8 +142,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('does not call checkForLatestBlock when response block number equals current', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
-      const checkForLatestBlockSpy = jest.spyOn(
+      vi.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -180,8 +172,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('does not call checkForLatestBlock when response block number is lower than current', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x200');
-      const checkForLatestBlockSpy = jest.spyOn(
+      vi.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x200');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -210,10 +202,10 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('handles null current block gracefully', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest
+      const getCurrentBlockSpy = vi
         .spyOn(mockBlockTracker, 'getCurrentBlock')
         .mockReturnValue(null);
-      const checkForLatestBlockSpy = jest.spyOn(
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -245,11 +237,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
   describe('edge cases', () => {
     it('skips processing for error responses', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest.spyOn(
-        mockBlockTracker,
-        'getCurrentBlock',
-      );
-      const checkForLatestBlockSpy = jest.spyOn(
+      const getCurrentBlockSpy = vi.spyOn(mockBlockTracker, 'getCurrentBlock');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -285,10 +274,10 @@ describe('createBlockTrackerInspectorMiddleware', () => {
       'skips processing for result values: $description',
       async ({ result }) => {
         const mockBlockTracker = createMockBlockTracker();
-        const getCurrentBlockSpy = jest
+        const getCurrentBlockSpy = vi
           .spyOn(mockBlockTracker, 'getCurrentBlock')
           .mockReturnValue('0x100');
-        const checkForLatestBlockSpy = jest.spyOn(
+        const checkForLatestBlockSpy = vi.spyOn(
           mockBlockTracker,
           'checkForLatestBlock',
         );
@@ -315,10 +304,10 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('skips processing for non-string block numbers', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      const getCurrentBlockSpy = jest
+      const getCurrentBlockSpy = vi
         .spyOn(mockBlockTracker, 'getCurrentBlock')
         .mockReturnValue('0x100');
-      const checkForLatestBlockSpy = jest.spyOn(
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );
@@ -348,8 +337,8 @@ describe('createBlockTrackerInspectorMiddleware', () => {
 
     it('handles malformed hex block numbers gracefully', async () => {
       const mockBlockTracker = createMockBlockTracker();
-      jest.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
-      const checkForLatestBlockSpy = jest.spyOn(
+      vi.spyOn(mockBlockTracker, 'getCurrentBlock').mockReturnValue('0x100');
+      const checkForLatestBlockSpy = vi.spyOn(
         mockBlockTracker,
         'checkForLatestBlock',
       );

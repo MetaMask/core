@@ -1,4 +1,5 @@
 import { getChainById } from 'eth-chainlist';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   formatAddressToAssetId,
@@ -7,11 +8,11 @@ import {
   resolveNativeAssetId,
 } from './caip.js';
 
-jest.mock('eth-chainlist', () => ({
-  getChainById: jest.fn(),
+vi.mock(import('eth-chainlist'), () => ({
+  getChainById: vi.fn(),
 }));
 
-const mockGetChainById = jest.mocked(getChainById);
+const mockGetChainById = vi.mocked(getChainById);
 
 describe('caip helpers', () => {
   beforeEach(() => {

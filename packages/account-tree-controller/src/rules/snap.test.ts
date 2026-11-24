@@ -10,6 +10,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   getAccountTreeControllerMessenger,

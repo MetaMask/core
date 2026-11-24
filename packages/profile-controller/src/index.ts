@@ -1,6 +1,7 @@
 export type {
   Profile,
   XProfile,
+  ConnectXSession,
   ProfileControllerState,
   ProfileControllerGetStateAction,
   ProfileControllerActions,
@@ -17,11 +18,15 @@ export type {
   ProfileControllerConnectXAction,
   ProfileControllerCreateProfileAction,
   ProfileControllerDeleteProfileAction,
+  ProfileControllerDisconnectXAction,
   ProfileControllerGetProfileAction,
   ProfileControllerFetchAndUpdateXAccountAction,
+  ProfileControllerFetchAndUpdateProfileAction,
   ProfileControllerGetXProfileAction,
   ProfileControllerReplaceProfileAction,
+  ProfileControllerGetXAuthorizationUrlAction,
   ProfileControllerUpdateProfileAction,
+  ProfileControllerClearStateAction,
 } from './ProfileController-method-action-types.js';
 export type {
   ProfileApiResponse,
@@ -31,8 +36,10 @@ export type {
   UpdateProfileParams,
   ConnectXParams,
   UsernameAvailabilityResponse,
+  FieldValidityResponse,
+  EarlyAccessResponse,
   XAuthUrlResponse,
-  XConnectResponse,
+  ConnectXResponse,
   XAccountResponse,
   ProfileServiceActions,
   ProfileServiceEvents,
@@ -42,11 +49,26 @@ export {
   ProfileService,
   ProfileServiceErrorMessage,
 } from './ProfileService.js';
+export {
+  ProfileApiErrorCode,
+  ProfileServiceError,
+  findProfileServiceError,
+} from './errors/index.js';
+export type {
+  ProfileApiErrorCodeId,
+  ProfileServiceApiError,
+  ProfileServiceErrorCodeInfo,
+  ProfileServiceErrorDetail,
+} from './errors/index.js';
 export type {
   ProfileServiceCheckUsernameAvailabilityAction,
+  ProfileServiceCheckDisplayNameValidityAction,
+  ProfileServiceCheckBioValidityAction,
+  ProfileServiceCheckEarlyAccessAction,
   ProfileServiceConnectXAction,
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,
+  ProfileServiceDisconnectXAction,
   ProfileServiceGetProfileAction,
   ProfileServiceGetXAccountAction,
   ProfileServiceGetXAuthUrlAction,

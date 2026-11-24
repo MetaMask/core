@@ -8,6 +8,8 @@
 // Remove this file when tests are migrated from Mobile to Core.
 
 // Satisfies import-x/unambiguous (file must be an ES module).
+import { describe, expect, it } from 'vitest';
+
 import type { PerpsControllerState } from '../src/index.js';
 
 describe('PerpsController', () => {

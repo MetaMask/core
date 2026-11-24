@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { GeolocationData } from './geolocation-api-service/geolocation-api-service.js';
 import {
@@ -255,7 +256,7 @@ describe('GeolocationController', () => {
       it('stores string representation of non-Error thrown values', async () => {
         await withController(
           {
-            serviceHandler: jest.fn().mockRejectedValue('string error'),
+            serviceHandler: vi.fn().mockRejectedValue('string error'),
           },
           async ({ controller }) => {
             await controller.getGeolocation();
@@ -341,7 +342,7 @@ describe('GeolocationController', () => {
   describe('refreshGeolocation', () => {
     it('resets lastFetchedAt and calls service with bypassCache', async () => {
       let callCount = 0;
-      const mockServiceHandler = jest.fn(
+      const mockServiceHandler = vi.fn(
         (_options?: { bypassCache?: boolean }) => {
           callCount += 1;
           return Promise.resolve(
@@ -398,7 +399,7 @@ describe('GeolocationController', () => {
     it('stores string representation of non-Error thrown values', async () => {
       await withController(
         {
-          serviceHandler: jest
+          serviceHandler: vi
             .fn()
             .mockResolvedValueOnce(buildGeolocationData({ country: 'US' }))
             .mockRejectedValueOnce('string refresh error'),
@@ -576,7 +577,7 @@ async function withController<ReturnValue>(
   const [{ options = {}, serviceResponse, serviceHandler } = {}, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
 
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   const rootMessenger = getRootMessenger();
   const controllerMessenger = getMessenger(rootMessenger);
@@ -605,6 +606,6 @@ async function withController<ReturnValue>(
       controllerMessenger,
     });
   } finally {
-    jest.useRealTimers();
+    vi.useRealTimers();
   }
 }

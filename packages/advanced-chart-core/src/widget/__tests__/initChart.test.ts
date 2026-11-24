@@ -1,3 +1,8 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
+import * as bridgeModule from '../../core/bridge.js';
+import * as loadLibraryModule from '../../core/loadLibrary.js';
 import {
   _resetStateForTests,
   getWidget,
@@ -9,7 +14,10 @@ import type {
   ChartConfig,
   ChartTheme,
   TVChartingLibraryWidget,
+  TVVisibilityType,
+  TVWatchedValue,
 } from '../../core/types.js';
+import * as externalLinkBridgeModule from '../externalLinkBridge.js';
 import {
   generatePaletteShades,
   createChartWidget,
@@ -19,26 +27,31 @@ import {
 import type { CreateChartWidgetOptions } from '../initChart.js';
 import { initThemeFromConfig } from '../theme.js';
 
-jest.mock('../../core/bridge', () => ({
-  postToRN: jest.fn(),
-  reportErrorToRN: jest.fn(),
+vi.mock('../../core/bridge', () => ({
+  postToRN: vi.fn(),
+  reportErrorToRN: vi.fn(),
 }));
 
-jest.mock('../../core/loadLibrary', () => ({
-  loadTradingViewLibrary: jest.fn().mockResolvedValue(undefined),
+vi.mock('../../core/loadLibrary', () => ({
+  loadTradingViewLibrary: vi.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../externalLinkBridge', () => ({
-  installTradingViewExternalOpenBridge: jest.fn(),
+vi.mock('../externalLinkBridge', () => ({
+  installTradingViewExternalOpenBridge: vi.fn(),
 }));
 
-const { postToRN, reportErrorToRN } = jest.requireMock('../../core/bridge');
+const { postToRN, reportErrorToRN } = bridgeModule as unknown as Record<
+  string,
+  Mock
+>;
 
-const { loadTradingViewLibrary } = jest.requireMock('../../core/loadLibrary');
+const { loadTradingViewLibrary } = loadLibraryModule as unknown as Record<
+  string,
+  Mock
+>;
 
-const { installTradingViewExternalOpenBridge } = jest.requireMock(
-  '../externalLinkBridge',
-);
+const { installTradingViewExternalOpenBridge } =
+  externalLinkBridgeModule as unknown as Record<string, Mock>;
 
 const baseTheme: ChartTheme = {
   backgroundColor: 'rgb(0, 0, 0)',
@@ -65,24 +78,33 @@ const baseConfig: ChartConfig = {
 
 function makeMockWidget(): TVChartingLibraryWidget & {
   _onChartReadyCb: (() => void) | null;
+  paneButtonsVisibility: () => TVWatchedValue<TVVisibilityType>;
 } {
   const mock = {
     _onChartReadyCb: null as (() => void) | null,
     onChartReady(callback: () => void): void {
       mock._onChartReadyCb = callback;
     },
-    activeChart: jest.fn(),
-    applyOverrides: jest.fn(),
-    subscribe: jest.fn(),
-    resize: jest.fn(),
-    remove: jest.fn(),
+    paneButtonsVisibility(): TVWatchedValue<TVVisibilityType> {
+      return {
+        value: (): TVVisibilityType => 'visibleOnMouseOver',
+        setValue: (): void => undefined,
+      };
+    },
+    activeChart: vi.fn(),
+    applyOverrides: vi.fn(),
+    subscribe: vi.fn(),
+    resize: vi.fn(),
+    remove: vi.fn(),
   };
   return mock;
 }
 
-function installTradingViewGlobal(): jest.Mock {
+function installTradingViewGlobal(): Mock {
   const mockWidget = makeMockWidget();
-  const ctor = jest.fn().mockReturnValue(mockWidget);
+  const ctor = vi.fn(function () {
+    return mockWidget;
+  });
   (window as unknown as Record<string, unknown>).TradingView = { widget: ctor };
   return ctor;
 }
@@ -127,7 +149,7 @@ describe('generatePaletteShades', () => {
 });
 
 describe('createChartWidget', () => {
-  let ctor: jest.Mock;
+  let ctor: Mock;
 
   beforeEach(() => {
     _resetStateForTests();
@@ -172,7 +194,7 @@ describe('createChartWidget', () => {
   });
 
   it('passes datafeed and library_path from config', () => {
-    const datafeed = { onReady: jest.fn() };
+    const datafeed = { onReady: vi.fn() };
     createChartWidget(baseConfig, { ...defaultOptions, datafeed });
     const args = ctor.mock.calls[0][0] as Record<string, unknown>;
     expect(args.datafeed).toBe(datafeed);
@@ -181,7 +203,7 @@ describe('createChartWidget', () => {
 
   it('passes timeframe and customFormatters when provided', () => {
     const tf = { type: 'time-range' as const, from: 100, to: 200 };
-    const fmt = { priceFormatter: jest.fn() };
+    const fmt = { priceFormatter: vi.fn() };
     createChartWidget(baseConfig, {
       ...defaultOptions,
       timeframe: tf,
@@ -265,7 +287,9 @@ describe('createChartWidget onChartReady', () => {
     initThemeFromConfig(baseTheme);
 
     mockWidgetInstance = makeMockWidget();
-    const ctor = jest.fn().mockReturnValue(mockWidgetInstance);
+    const ctor = vi.fn(function () {
+      return mockWidgetInstance;
+    });
     (window as unknown as Record<string, unknown>).TradingView = {
       widget: ctor,
     };
@@ -300,19 +324,74 @@ describe('createChartWidget onChartReady', () => {
   });
 
   it('calls onReady callback with the widget', () => {
-    const onReady = jest.fn();
+    const onReady = vi.fn();
     const widget = createChartWidget(baseConfig, { datafeed: {}, onReady });
     mockWidgetInstance._onChartReadyCb?.();
     expect(onReady).toHaveBeenCalledWith(widget);
   });
 
   it('reports onReady callback errors to RN', () => {
-    const onReady = jest.fn(() => {
+    const onReady = vi.fn(() => {
       throw new Error('callback boom');
     });
     createChartWidget(baseConfig, { datafeed: {}, onReady });
     mockWidgetInstance._onChartReadyCb?.();
     expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  describe('pane buttons visibility', () => {
+    let setValue: Mock;
+
+    beforeEach(() => {
+      setValue = vi.fn();
+      vi.spyOn(mockWidgetInstance, 'paneButtonsVisibility').mockReturnValue({
+        value: vi.fn(),
+        setValue,
+      });
+    });
+
+    it('hides pane buttons by default', () => {
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('hides pane buttons when hidePaneButtons is true', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: true } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(setValue).toHaveBeenCalledWith('alwaysOff');
+    });
+
+    it('leaves pane buttons untouched when hidePaneButtons is false', () => {
+      createChartWidget(
+        { ...baseConfig, features: { hidePaneButtons: false } },
+        { datafeed: {} },
+      );
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(mockWidgetInstance.paneButtonsVisibility).not.toHaveBeenCalled();
+      expect(setValue).not.toHaveBeenCalled();
+    });
+
+    it('reports errors from paneButtonsVisibility and still posts CHART_READY', () => {
+      setValue.mockImplementation(() => {
+        throw new Error('pane boom');
+      });
+      createChartWidget(baseConfig, { datafeed: {} });
+      mockWidgetInstance._onChartReadyCb?.();
+      expect(reportErrorToRN).toHaveBeenCalledWith(expect.any(Error));
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
+
+    it('does not throw when the widget lacks paneButtonsVisibility', () => {
+      delete (mockWidgetInstance as TVChartingLibraryWidget)
+        .paneButtonsVisibility;
+      createChartWidget(baseConfig, { datafeed: {} });
+      expect(() => mockWidgetInstance._onChartReadyCb?.()).not.toThrow();
+      expect(postToRN).toHaveBeenCalledWith('CHART_READY', {});
+    });
   });
 });
 
@@ -325,12 +404,12 @@ describe('scheduleChartLayoutSettledNotify', () => {
   it('posts CHART_LAYOUT_SETTLED after two rAF ticks when widget exists', () => {
     setWidget(makeMockWidget() as unknown as TVChartingLibraryWidget);
     const rafCallbacks: (() => void)[] = [];
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((frameCallback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (frameCallback: FrameRequestCallback) => {
         rafCallbacks.push(frameCallback as unknown as () => void);
         return rafCallbacks.length;
-      });
+      },
+    );
 
     scheduleChartLayoutSettledNotify();
 
@@ -340,39 +419,39 @@ describe('scheduleChartLayoutSettledNotify', () => {
     rafCallbacks[1]();
     expect(postToRN).toHaveBeenCalledWith('CHART_LAYOUT_SETTLED', {});
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
+    (window.requestAnimationFrame as Mock).mockRestore();
   });
 
   it('does not post if widget is null', () => {
     const rafCallbacks: (() => void)[] = [];
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((frameCallback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (frameCallback: FrameRequestCallback) => {
         rafCallbacks.push(frameCallback as unknown as () => void);
         return rafCallbacks.length;
-      });
+      },
+    );
 
     scheduleChartLayoutSettledNotify();
     rafCallbacks[0]();
     rafCallbacks[1]();
     expect(postToRN).not.toHaveBeenCalledWith('CHART_LAYOUT_SETTLED', {});
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
+    (window.requestAnimationFrame as Mock).mockRestore();
   });
 
   it('falls back to setTimeout when requestAnimationFrame throws', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     setWidget(makeMockWidget() as unknown as TVChartingLibraryWidget);
-    jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
       throw new Error('rAF unavailable');
     });
 
     scheduleChartLayoutSettledNotify();
-    jest.advanceTimersByTime(50);
+    vi.advanceTimersByTime(50);
     expect(postToRN).toHaveBeenCalledWith('CHART_LAYOUT_SETTLED', {});
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
-    jest.useRealTimers();
+    (window.requestAnimationFrame as Mock).mockRestore();
+    vi.useRealTimers();
   });
 });
 

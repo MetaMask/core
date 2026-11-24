@@ -6,12 +6,45 @@
 import type { KycController } from './KycController.js';
 
 /**
- * Starts a KYC session for the given vendor and email. Reuses a latest
- * vendor session when one exists; otherwise creates a UKYC session.
+ * Creates the UKYC `local_user_secret` and stores it in Encrypted User
+ * Storage when one does not already exist.
+ *
+ * Call this after the user has expressed intent to onboard and before
+ * {@link startSession}. Persisting the secret here moves generation and the
+ * storage write off the `startSession` path. `startSession` still reads the
+ * secret, and still creates it when this has not been called.
+ *
+ * Await this call, or attach a rejection handler. A failure does not block
+ * onboarding: {@link startSession} creates the secret if it is still missing.
+ *
+ * The operation is idempotent and uses the same primary entropy source as
+ * session creation. The plaintext secret is not returned and is not sent to
+ * idOS. Only the encrypted User Storage copy is synced.
+ *
+ * @throws When Encrypted User Storage cannot be read or written, or when a
+ * stored secret has an unexpected length.
+ */
+export type KycControllerEnsureLocalUserSecretAction = {
+  type: `KycController:ensureLocalUserSecret`;
+  handler: KycController['ensureLocalUserSecret'];
+};
+
+/**
+ * Starts a KYC session for the given vendor. Reuses a latest vendor session
+ * when one exists; otherwise creates a UKYC session.
+ *
+ * The verified email stored on controller state comes from the partner
+ * identity token. When that request returns HTTP 422, a stored email is
+ * kept for an existing session. Creating a vendor customer and UKYC session
+ * requires the token, which both requests send as `partnerIdentityToken`.
+ *
+ * Session creation derives client material from the UKYC
+ * `local_user_secret`. Call {@link ensureLocalUserSecret} after the user
+ * has expressed intent to onboard so that secret is generated and stored
+ * before this method runs.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
- * @param params.email - Account email associated with the session.
  * @param params.aal2Token - AAL2 authentication token. Required only when a
  * UKYC session must be created, where it is sent as the Authorization bearer
  * value. Omit it when reusing an existing session.
@@ -50,6 +83,24 @@ export type KycControllerGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendors this customer's verified identity data has been shared
+ * with, newest first.
+ *
+ * The external user id comes from the session status on state. When no
+ * session has been stored yet, the latest session for the vendor on state is
+ * fetched first (without writing it to state). An unresolvable session — no
+ * vendor on state, or no latest session for it — yields an empty list rather
+ * than an error, so consumers can render an empty "shared with" list.
+ *
+ * @returns The data shares, newest first; empty when no session can be
+ * resolved.
+ */
+export type KycControllerGetDataSharesAction = {
+  type: `KycController:getDataShares`;
+  handler: KycController['getDataShares'];
+};
+
+/**
  * Returns the durable outcome of the identity-provider flow.
  *
  * @returns The latest provider-flow status.
@@ -60,10 +111,13 @@ export type KycControllerGetProviderFlowStatusAction = {
 };
 
 /**
- * Returns the current session status and starts polling when it is not yet
- * terminal.
+ * Returns the session already stored on state.
  *
- * @returns The current session status.
+ * Starts session-status polling when `finalStatus` is not `approved`,
+ * `rejected`, or `retry`. Does not fetch status or refresh capability
+ * authorization.
+ *
+ * @returns The session status stored at call time.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {
@@ -72,11 +126,38 @@ export type KycControllerRefreshSessionStatusAction = {
 };
 
 /**
+ * Returns the persisted session status.
+ *
+ * Does not call the network and does not start session-status polling.
+ *
+ * @returns The session on state, or `null` when none is stored.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: `KycController:readSessionStatus`;
+  handler: KycController['readSessionStatus'];
+};
+
+/**
+ * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+ *
+ * Does not start the session-status polling timer.
+ *
+ * @param sessionId - UKYC session id.
+ * @returns The fetched session status.
+ */
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: `KycController:fetchSessionStatusOnce`;
+  handler: KycController['fetchSessionStatusOnce'];
+};
+
+/**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
- * the result onto state only when the payload changed. The loop stops once
- * `finalStatus` is `approved`, `rejected`, or `retry`, or when
- * {@link reset} / {@link clearState} runs.
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
  *
  * @throws If there is no current session id to poll.
  */
@@ -126,10 +207,9 @@ export type KycControllerRecordSessionDisclaimersAction = {
 };
 
 /**
- * Fetches session-scoped disclaimers and reports whether every document is
- * consented and credential reuse was accepted.
+ * Fetches the current session status and reports whether consent was given.
  *
- * @returns Whether session disclaimers are complete.
+ * @returns Whether `consentStatus` is `given`.
  * @throws If there is no session on state.
  */
 export type KycControllerHasCompletedSessionDisclaimersAction = {
@@ -178,6 +258,24 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 };
 
 /**
+ * Deletes the caller's encrypted KYC blobs from MetaMask servers.
+ *
+ * Mints a fresh X25519 keypair, fetches a wrapping key from
+ * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
+ * lifetime, client-presented) for that key, and submits it to
+ * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+ * with `params.aal2Token`. Does not clear controller state.
+ *
+ * @param params - The deletion parameters.
+ * @param params.aal2Token - AAL2 authentication token sent as the
+ * Authorization bearer value for both deletion requests.
+ */
+export type KycControllerDeleteEncryptedStorageAction = {
+  type: `KycController:deleteEncryptedStorage`;
+  handler: KycController['deleteEncryptedStorage'];
+};
+
+/**
  * Presents the identity-provider verification UI. Currently launches SumSub.
  *
  * @param params - Optional SDK presentation options.
@@ -194,12 +292,16 @@ export type KycControllerLaunchProviderFlowAction = {
  * Union of all KycController action types.
  */
 export type KycControllerMethodActions =
+  | KycControllerEnsureLocalUserSecretAction
   | KycControllerStartSessionAction
   | KycControllerResetAction
   | KycControllerClearStateAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetDataSharesAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
   | KycControllerStartSessionStatusPollingAction
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerRecordSessionDisclaimersAction
@@ -207,4 +309,5 @@ export type KycControllerMethodActions =
   | KycControllerFetchVendorDisclaimersAction
   | KycControllerRecordVendorDisclaimersAction
   | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerDeleteEncryptedStorageAction
   | KycControllerLaunchProviderFlowAction;

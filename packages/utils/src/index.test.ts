@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as allExports from './index.js';
 
 describe('index', () => {
@@ -31,6 +33,7 @@ describe('index', () => {
         "ESCAPE_CHARACTERS_REGEXP",
         "FrozenMap",
         "FrozenSet",
+        "HEX_REGEX",
         "HexAddressStruct",
         "HexChecksumAddressStruct",
         "HexStruct",
@@ -47,6 +50,7 @@ describe('index', () => {
         "JsonStruct",
         "KnownCaipNamespace",
         "PendingJsonRpcResponseStruct",
+        "STRICT_HEX_REGEX",
         "StrictHexStruct",
         "UnsafeJsonStruct",
         "VersionRangeStruct",

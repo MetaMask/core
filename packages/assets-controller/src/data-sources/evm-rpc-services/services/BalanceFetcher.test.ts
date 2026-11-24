@@ -1,4 +1,6 @@
 import type { CaipAssetType } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import { getDefaultTrackedAssetsForChain } from '../../../defaults.js';
 import type { MulticallClient } from '../clients/index.js';
@@ -59,10 +61,10 @@ const TOKEN_2_ENTRY_WITH_DECIMALS: AssetFetchEntry = {
 // MOCK HELPERS
 // =============================================================================
 
-const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
+const createMockMulticallClient = (): Mocked<MulticallClient> =>
   ({
-    batchBalanceOf: jest.fn(),
-  }) as unknown as jest.Mocked<MulticallClient>;
+    batchBalanceOf: vi.fn(),
+  }) as unknown as Mocked<MulticallClient>;
 
 function createMockAssetsBalanceState(
   accountId: string,
@@ -95,22 +97,16 @@ function createMockBalanceResponse(
 // =============================================================================
 
 type WithControllerOptions = {
-  config?: Omit<
-    BalanceFetcherConfig,
-    'getAssetsState' | 'getAssetVisibility' | 'isBalanceV6Enabled'
-  > &
+  config?: Omit<BalanceFetcherConfig, 'getAssetsState' | 'getAssetVisibility'> &
     Partial<
-      Pick<
-        BalanceFetcherConfig,
-        'getAssetsState' | 'getAssetVisibility' | 'isBalanceV6Enabled'
-      >
+      Pick<BalanceFetcherConfig, 'getAssetsState' | 'getAssetVisibility'>
     >;
   assetsBalanceState?: AssetsBalanceState;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
   controller: BalanceFetcher;
-  mockMulticallClient: jest.Mocked<MulticallClient>;
+  mockMulticallClient: Mocked<MulticallClient>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -132,7 +128,6 @@ async function withController<ReturnValue>(
   } = options;
   const resolvedConfig: BalanceFetcherConfig = {
     getAssetsState: createMockGetAssetsState(assetsBalanceState),
-    isBalanceV6Enabled: () => false,
     getAssetVisibility: () => ({
       visibleAssetIds: [],
       hiddenAssetIds: [],
@@ -156,12 +151,12 @@ async function withController<ReturnValue>(
 
 describe('BalanceFetcher', () => {
   beforeEach(() => {
-    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -222,7 +217,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnBalanceUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -253,12 +248,7 @@ describe('BalanceFetcher', () => {
       );
     });
 
-    it('polls custom assets even when they have no entry in assetsBalance yet', async () => {
-      // Regression: custom assets must be polled by RPC because RPC is the
-      // sole balance fetcher for them. Previously #getAssetsToFetch only
-      // looked at state.assetsBalance, so a freshly added custom asset
-      // (no balance row yet, e.g. zero balance or first fetch failed)
-      // would never be polled.
+    it('polls pinned assets even when they have no entry in assetsBalance yet', async () => {
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {
@@ -275,10 +265,14 @@ describe('BalanceFetcher', () => {
           assetsBalanceState: mockState,
           config: {
             isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+            getAssetVisibility: () => ({
+              visibleAssetIds: [NATIVE_ETH_ASSET_ID, TOKEN_1_ASSET_ID],
+              hiddenAssetIds: [],
+            }),
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = jest.fn();
+          const mockCallback = vi.fn();
           controller.setOnBalanceUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -338,7 +332,6 @@ describe('BalanceFetcher', () => {
           assetsBalanceState: mockState,
           config: {
             isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
-            isBalanceV6Enabled: (): boolean => true,
             getAssetVisibility: () => ({
               visibleAssetIds: [NATIVE_ETH_ASSET_ID, mainnetMusd],
               hiddenAssetIds: [],
@@ -346,7 +339,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(jest.fn());
+          controller.setOnBalanceUpdate(vi.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -394,7 +387,6 @@ describe('BalanceFetcher', () => {
           assetsBalanceState: mockState,
           config: {
             isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
-            isBalanceV6Enabled: (): boolean => true,
             getAssetVisibility: () => ({
               visibleAssetIds: [NATIVE_ETH_ASSET_ID],
               hiddenAssetIds: [TOKEN_1_ASSET_ID],
@@ -402,7 +394,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(jest.fn());
+          controller.setOnBalanceUpdate(vi.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -448,7 +440,6 @@ describe('BalanceFetcher', () => {
           assetsBalanceState: mockState,
           config: {
             isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
-            isBalanceV6Enabled: (): boolean => true,
             getAssetVisibility: () => ({
               visibleAssetIds: [NATIVE_ETH_ASSET_ID],
               hiddenAssetIds: [],
@@ -456,7 +447,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(jest.fn());
+          controller.setOnBalanceUpdate(vi.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -488,66 +479,9 @@ describe('BalanceFetcher', () => {
       );
     });
 
-    it('in customAssetsOnly mode skips state.assetsBalance and only fetches state.customAssets', async () => {
-      // The supplemental subscription path: another data source covers the
-      // chain for regular balances, but RPC must still poll the user's
-      // customAssets. We must NOT also poll the regular tracked balances.
-      const mockState: AssetsBalanceState = {
-        assetsBalance: {
-          [TEST_ACCOUNT_ID]: {
-            [NATIVE_ETH_ASSET_ID]: { amount: '0' },
-            [TOKEN_2_ASSET_ID]: { amount: '0' },
-          },
-        },
-        customAssets: {
-          [TEST_ACCOUNT_ID]: [TOKEN_1_ASSET_ID],
-        },
-      };
-
-      await withController(
-        {
-          assetsBalanceState: mockState,
-          config: {
-            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
-          },
-        },
-        async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(jest.fn());
-          mockMulticallClient.batchBalanceOf.mockResolvedValue([
-            createMockBalanceResponse(
-              TEST_TOKEN_1.toLowerCase() as Address,
-              TEST_ACCOUNT,
-              true,
-              '500',
-            ),
-          ]);
-
-          const input: BalancePollingInput = {
-            chainId: MAINNET_CHAIN_ID,
-            accountId: TEST_ACCOUNT_ID,
-            accountAddress: TEST_ACCOUNT,
-            customAssetsOnly: true,
-          };
-
-          await controller._executePoll(input);
-
-          const [, batchedRequests] =
-            mockMulticallClient.batchBalanceOf.mock.calls[0];
-          const requestedTokens = (
-            batchedRequests as { tokenAddress: string }[]
-          )
-            .map((req) => req.tokenAddress.toLowerCase())
-            .sort();
-          // ONLY the custom token — not the native and not TOKEN_2 from
-          // assetsBalance.
-          expect(requestedTokens).toStrictEqual([TEST_TOKEN_1.toLowerCase()]);
-        },
-      );
-    });
-
     it('does not call callback when balances are empty', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
         controller.setOnBalanceUpdate(mockCallback);
 
         mockMulticallClient.batchBalanceOf.mockResolvedValue([]);

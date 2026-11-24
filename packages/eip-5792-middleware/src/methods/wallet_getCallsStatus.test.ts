@@ -4,6 +4,8 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type {
   GetCallsStatusHook,
@@ -46,7 +48,7 @@ describe('wallet_getCallsStatus', () => {
   let request: JsonRpcRequest<GetCallsStatusParams>;
   let params: GetCallsStatusParams;
   let response: PendingJsonRpcResponse<GetCallsStatusResult>;
-  let getCallsStatusMock: jest.MockedFunction<GetCallsStatusHook>;
+  let getCallsStatusMock: MockedFunction<GetCallsStatusHook>;
 
   /**
    *
@@ -59,13 +61,13 @@ describe('wallet_getCallsStatus', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK);
     params = request.params as GetCallsStatusParams;
     response = {} as PendingJsonRpcResponse<GetCallsStatusResult>;
 
-    getCallsStatusMock = jest.fn().mockResolvedValue(RESULT_MOCK);
+    getCallsStatusMock = vi.fn().mockResolvedValue(RESULT_MOCK);
   });
 
   it('calls hook', async () => {

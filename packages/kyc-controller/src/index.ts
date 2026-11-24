@@ -16,11 +16,16 @@ export type {
   KycControllerStateChangeEvent,
   FetchSessionDisclaimersParams,
   KycProviderFlowStatus,
+  KycTraceCallback,
+  KycTraceRequest,
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
+  KycControllerDeleteEncryptedStorageAction,
+  KycControllerEnsureLocalUserSecretAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
@@ -28,11 +33,22 @@ export type {
   KycControllerLaunchProviderFlowAction,
   KycControllerRecordSessionDisclaimersAction,
   KycControllerRecordVendorDisclaimersAction,
+  KycControllerFetchSessionStatusOnceAction,
+  KycControllerReadSessionStatusAction,
   KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
   KycControllerStartSessionAction,
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
+
+export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
+export type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcome,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
 
 export { KycService, serviceName } from './KycService.js';
 export type {
@@ -40,11 +56,16 @@ export type {
   CapabilityAuthorization,
   CreateVendorCustomerParams,
   CreateMoonpaySessionParams,
+  CompleteDeletionParams,
+  CreateDeletionParams,
+  CreateDeletionResponse,
   CreateUkycSessionParams,
   EncryptionSchema,
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
+  GetDataSharesParams,
   GetSessionStatusParams,
+  ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
@@ -61,6 +82,8 @@ export type {
 } from './KycService.js';
 export type {
   KycServiceCreateVendorCustomerAction,
+  KycServiceCompleteDeletionAction,
+  KycServiceCreateDeletionAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,
@@ -69,9 +92,11 @@ export type {
   KycServiceFetchSessionDisclaimersByCountryAction,
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
+  KycServiceGetDataSharesAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
@@ -88,10 +113,17 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
+export {
+  KYC_CURRENT_STEPS,
+  KYC_STATUSES,
+  TERMINAL_SESSION_STATUSES,
+} from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
+  KycCurrentStep,
+  KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycPhase,
@@ -104,6 +136,13 @@ export type {
   KycMoonpayVendorDisclaimersAccepted,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
+} from './types.js';
+export {
+  FINAL_STATUSES_TO_SKIP_AUTH_REFRESH,
+  CAPABILITY_AUTHORIZATION_STATUSES,
+  CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH,
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
 } from './types.js';
 export type {
   KycSumSubLaunchParams,
@@ -145,9 +184,3 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
-
-export {
-  clearMoonPaySession,
-  MoonPayFrameHandler,
-} from './vendors/MoonPayFrameHandler.js';
-export type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';

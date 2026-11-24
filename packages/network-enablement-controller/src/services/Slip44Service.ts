@@ -1,6 +1,9 @@
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
+// `@metamask/slip44` publishes a JSON file as its entry point. Node.js ESM
+// rejects that import unless it carries a JSON import attribute, which crashes
+// the wallet daemon on Node 22 and 24.
 // @ts-expect-error: No type definitions for '@metamask/slip44'
-import slip44 from '@metamask/slip44';
+import slip44 from '@metamask/slip44' with { type: 'json' };
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
 

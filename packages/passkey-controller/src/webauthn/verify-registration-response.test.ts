@@ -1,6 +1,7 @@
 import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha2';
+import { describe, expect, it, vi } from 'vitest';
 
 import { base64URLToBytes } from '../utils/encoding.js';
 import { bytesToBase64URL } from '../utils/encoding.js';
@@ -904,7 +905,7 @@ describe('verifyRegistrationResponse edge cases', () => {
   } as const;
 
   it('throws when parsed authenticator data has no credential ID', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
       .mockReturnValueOnce({
         ...mockParsedAuthBase,
@@ -923,7 +924,7 @@ describe('verifyRegistrationResponse edge cases', () => {
   });
 
   it('throws when parsed authenticator data has no credential public key', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
       .mockReturnValueOnce({
         ...mockParsedAuthBase,
@@ -948,7 +949,7 @@ describe('verifyRegistrationResponse edge cases', () => {
   });
 
   it('throws when parsed authenticator data has no AAGUID', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
       .mockReturnValueOnce({
         ...mockParsedAuthBase,

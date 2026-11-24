@@ -5,8 +5,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import {
   getMockBridgeQuotesErc20Erc20V2,
   mockBridgeQuotesErc20Erc20V1,
@@ -51,10 +53,10 @@ const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
   'AssetsController:getExchangeRatesForBridge',
 ] as const;
 
-const messengerCallMock = jest.fn();
-const getLayer1GasFeeMock = jest.fn();
-const mockFetchFn = jest.fn();
-const trackMetaMetricsFn = jest.fn();
+const messengerCallMock = vi.fn();
+const getLayer1GasFeeMock = vi.fn();
+const mockFetchFn = vi.fn();
+const trackMetaMetricsFn = vi.fn();
 
 const quoteRequest = {
   srcChainId: '0x1',
@@ -88,12 +90,12 @@ const assetExchangeRates = {
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeController;
   rootMessenger: RootMessenger;
-  stopAllPollingSpy: jest.SpyInstance;
-  startPollingSpy: jest.SpyInstance;
-  hasSufficientBalanceSpy: jest.SpyInstance;
-  fetchBridgeQuotesSpy: jest.SpyInstance;
-  fetchAssetPricesSpy: jest.SpyInstance;
-  consoleLogSpy: jest.SpyInstance;
+  stopAllPollingSpy: MockInstance;
+  startPollingSpy: MockInstance;
+  hasSufficientBalanceSpy: MockInstance;
+  fetchBridgeQuotesSpy: MockInstance;
+  fetchAssetPricesSpy: MockInstance;
+  consoleLogSpy: MockInstance;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -128,7 +130,7 @@ async function withController<ReturnValue>(
     );
   }
 
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   getLayer1GasFeeMock.mockResolvedValue('0x1');
 
@@ -140,7 +142,7 @@ async function withController<ReturnValue>(
         default:
           return {
             address: '0x123',
-            provider: jest.fn(),
+            provider: vi.fn(),
             currencyRates: {},
             marketData: {},
             conversionRates: {},
@@ -149,7 +151,7 @@ async function withController<ReturnValue>(
     },
   );
 
-  jest.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
+  vi.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
     minimumVersion: '0.0.0',
     maxRefreshCount: 5,
     refreshRate: 30000,
@@ -181,13 +183,13 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-  const startPollingSpy = jest.spyOn(controller, 'startPolling');
-  const hasSufficientBalanceSpy = jest
+  const stopAllPollingSpy = vi.spyOn(controller, 'stopAllPolling');
+  const startPollingSpy = vi.spyOn(controller, 'startPolling');
+  const hasSufficientBalanceSpy = vi
     .spyOn(balanceUtils, 'hasSufficientBalance')
     .mockResolvedValue(true);
-  const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
-  const fetchAssetPricesSpy = jest
+  const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
+  const fetchAssetPricesSpy = vi
     .spyOn(fetchUtils, 'fetchAssetPrices')
     .mockResolvedValue({
       'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -195,7 +197,7 @@ async function withController<ReturnValue>(
       },
     });
 
-  const consoleLogSpy = jest.spyOn(console, 'log');
+  const consoleLogSpy = vi.spyOn(console, 'log');
 
   return await testFunction({
     controller,
@@ -212,13 +214,13 @@ async function withController<ReturnValue>(
 describe('BridgeController BatchSell (multiple quote requests) SSE', function () {
   describe('fetch quotes', function () {
     beforeEach(() => {
-      jest.clearAllMocks();
-      jest.clearAllTimers();
-      jest.resetAllMocks();
+      vi.clearAllMocks();
+      vi.clearAllTimers();
+      vi.resetAllMocks();
     });
 
     it('should trigger quote polling if request is valid', async function () {
-      const consoleWarnSpy = jest.spyOn(console, 'warn');
+      const consoleWarnSpy = vi.spyOn(console, 'warn');
       await withController(
         async ({
           controller: bridgeController,
@@ -355,7 +357,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(bridgeController.state).toStrictEqual(expectedState);
 
           // Loading state
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           await advanceToNthTimerThenFlush();
           expect(bridgeController.state.quotesLoadingStatus).toBe(
             RequestStatus.LOADING,
@@ -396,12 +398,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
           const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
             bridgeController.state;
-          // eslint-disable-next-line jest/no-restricted-matchers
+          // eslint-disable-next-line vitest/no-restricted-matchers
           expect(stateWithoutTimestamp).toMatchSnapshot();
           expect(t1).toBeCloseTo(Date.now() - 1000);
 
           // After first fetch
-          jest.advanceTimersByTime(5000);
+          vi.advanceTimersByTime(5000);
           await flushPromises();
           expect(consoleWarnSpy.mock.calls).toMatchInlineSnapshot(`[]`);
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
@@ -455,7 +457,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(consoleLogSpy).toHaveBeenCalledTimes(0);
           expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
           expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
-          // eslint-disable-next-line jest/no-restricted-matchers
+          // eslint-disable-next-line vitest/no-restricted-matchers
           expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         },
@@ -465,9 +467,9 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
   describe('fetch trades/fees', function () {
     beforeEach(() => {
-      jest.clearAllMocks();
-      jest.clearAllTimers();
-      jest.resetAllMocks();
+      vi.clearAllMocks();
+      vi.clearAllTimers();
+      vi.resetAllMocks();
     });
 
     it('should fetch batch gasless trades and fees', async function () {
@@ -480,12 +482,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchAssetPricesSpy,
           consoleLogSpy,
         }) => {
-          jest.useFakeTimers();
-          const abortControllerSpy = jest.spyOn(
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
             AbortController.prototype,
             'abort',
           );
-          const fetchBatchSellTradesSpy = jest.spyOn(
+          const fetchBatchSellTradesSpy = vi.spyOn(
             fetchUtils,
             'fetchBatchSellTrades',
           );
@@ -522,9 +524,9 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchBatchSellTradesSpy.mockImplementationOnce(
             () =>
               new Promise((resolve) => {
-                jest.useRealTimers();
+                vi.useRealTimers();
                 setTimeout(() => {
-                  jest.useFakeTimers();
+                  vi.useFakeTimers();
                   resolve(mockBatchSellTrades);
                 }, 2000);
               }),
@@ -537,7 +539,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             false,
           );
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
@@ -549,7 +551,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(bridgeController.state).toStrictEqual({
@@ -561,7 +563,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
           expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
-          jest.useRealTimers();
+          vi.useRealTimers();
         },
       );
     });
@@ -576,12 +578,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchAssetPricesSpy,
           consoleLogSpy,
         }) => {
-          jest.useFakeTimers();
-          const abortControllerSpy = jest.spyOn(
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
             AbortController.prototype,
             'abort',
           );
-          const fetchBatchSellTradesSpy = jest.spyOn(
+          const fetchBatchSellTradesSpy = vi.spyOn(
             fetchUtils,
             'fetchBatchSellTrades',
           );
@@ -627,9 +629,9 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchBatchSellTradesSpy.mockImplementationOnce(
             () =>
               new Promise((resolve) => {
-                jest.useRealTimers();
+                vi.useRealTimers();
                 setTimeout(() => {
-                  jest.useFakeTimers();
+                  vi.useFakeTimers();
                   resolve(mockBatchSellTrades);
                 }, 2000);
               }),
@@ -654,7 +656,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             false,
           );
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
@@ -669,7 +671,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ).toStrictEqual(RequestStatus.FETCHED);
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(bridgeController.state).toStrictEqual({
@@ -701,7 +703,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ]);
           expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
-          jest.useRealTimers();
+          vi.useRealTimers();
         },
       );
     });
@@ -716,12 +718,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchAssetPricesSpy,
           consoleLogSpy,
         }) => {
-          jest.useFakeTimers();
-          const abortControllerSpy = jest.spyOn(
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
             AbortController.prototype,
             'abort',
           );
-          const fetchBatchSellTradesSpy = jest.spyOn(
+          const fetchBatchSellTradesSpy = vi.spyOn(
             fetchUtils,
             'fetchBatchSellTrades',
           );
@@ -749,9 +751,9 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchBatchSellTradesSpy.mockImplementationOnce(
             () =>
               new Promise((resolve) => {
-                jest.useRealTimers();
+                vi.useRealTimers();
                 setTimeout(() => {
-                  jest.useFakeTimers();
+                  vi.useFakeTimers();
                   resolve(mockBatchSellTrades);
                 }, 2000);
               }),
@@ -765,7 +767,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
           rootMessenger.call('BridgeController:resetState');
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
@@ -778,7 +780,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ).toBeNull();
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(bridgeController.state).toStrictEqual(
@@ -798,7 +800,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ]);
           expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`[]`);
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
-          jest.useRealTimers();
+          vi.useRealTimers();
         },
       );
     });
@@ -813,12 +815,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchAssetPricesSpy,
           consoleLogSpy,
         }) => {
-          jest.useFakeTimers();
-          const abortControllerSpy = jest.spyOn(
+          vi.useFakeTimers();
+          const abortControllerSpy = vi.spyOn(
             AbortController.prototype,
             'abort',
           );
-          const fetchBatchSellTradesSpy = jest.spyOn(
+          const fetchBatchSellTradesSpy = vi.spyOn(
             fetchUtils,
             'fetchBatchSellTrades',
           );
@@ -845,9 +847,9 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           fetchBatchSellTradesSpy.mockImplementationOnce(
             () =>
               new Promise((resolve) => {
-                jest.useRealTimers();
+                vi.useRealTimers();
                 setTimeout(() => {
-                  jest.useFakeTimers();
+                  vi.useFakeTimers();
                   resolve(mockBatchSellTrades);
                 }, 1000);
               }),
@@ -863,7 +865,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             false,
           );
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
@@ -891,7 +893,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             false,
           );
 
-          await jest.advanceTimersByTimeAsync(2000);
+          await vi.advanceTimersByTimeAsync(2000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
@@ -921,7 +923,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             ]
           `);
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
-          jest.useRealTimers();
+          vi.useRealTimers();
         },
       );
     });

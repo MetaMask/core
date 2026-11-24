@@ -1,4 +1,5 @@
 import { stringToBytes, bytesToHex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { sha256, sha384, sha512 } from './sha.js';
 

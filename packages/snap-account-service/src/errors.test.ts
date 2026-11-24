@@ -2,6 +2,7 @@ import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
 } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createSentryError,
@@ -170,7 +171,7 @@ describe('createSentryError', () => {
 
 describe('reportError', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   it('logs to console.error', () => {
@@ -182,7 +183,7 @@ describe('reportError', () => {
 
   it('calls captureException when provided', () => {
     const error = new Error('boom');
-    const captureException = jest.fn();
+    const captureException = vi.fn();
     reportError({ captureException }, 'Something failed', error);
 
     expect(captureException).toHaveBeenCalledWith(

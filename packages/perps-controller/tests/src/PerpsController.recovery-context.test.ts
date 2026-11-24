@@ -1,12 +1,18 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
 import {
   getDefaultPerpsControllerState,
   InitializationState,
   PerpsController,
 } from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
+  AccountState,
   PerpsActiveProviderMode,
+  PerpsChaseOrderOwnership,
   PerpsProvider,
   PerpsRecoveredDispatch,
   ReconcileChaseOrderCancellationParams,
@@ -23,13 +29,21 @@ import {
   createMockEvmAccount,
 } from '../helpers/serviceMocks.js';
 
-jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('../../src/providers/HyperLiquidProvider.js');
-jest.mock('../../src/utils/wait.js', () => ({ wait: jest.fn() }));
+vi.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('../../src/providers/HyperLiquidProvider.js');
+vi.mock('../../src/utils/wait.js', () => ({ wait: vi.fn() }));
 
 const ACCOUNT_A = createMockEvmAccount().address;
 const ACCOUNT_B = '0xabcdef1234567890abcdef1234567890abcdef12';
 const LEGACY_ID = '42:nohash';
+const ACCOUNT_BALANCE: AccountState = {
+  totalBalance: '123',
+  spendableBalance: '123',
+  withdrawableBalance: '123',
+  marginUsed: '0',
+  unrealizedPnl: '0',
+  returnOnEquity: '0',
+};
 
 class RecoveryContextController extends PerpsController {
   /**
@@ -64,11 +78,11 @@ class RecoveryContextController extends PerpsController {
 type Fixture = {
   controller: RecoveryContextController;
   provider: ReturnType<typeof createMockHyperLiquidProvider> & {
-    acknowledgeRecoveredDispatch: jest.MockedFunction<
+    acknowledgeRecoveredDispatch: MockedFunction<
       NonNullable<PerpsProvider['acknowledgeRecoveredDispatch']>
     >;
   };
-  acknowledge: jest.MockedFunction<
+  acknowledge: MockedFunction<
     NonNullable<PerpsProvider['acknowledgeRecoveredDispatch']>
   >;
   ledgers: Map<string, Set<string>>;
@@ -81,9 +95,13 @@ type Fixture = {
  * Only the provider boundary and initialization delay are mocked.
  *
  * @param initialized - Whether to start with an already available provider.
+ * @param state - Optional persisted state to restore.
  * @returns Controller, provider calls, local outcomes and host selection.
  */
-function createFixture(initialized = true): Fixture {
+function createFixture(
+  initialized = true,
+  state: Partial<PerpsControllerState> = {},
+): Fixture {
   const host = createKeyringlessMessenger();
   host.rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
@@ -103,7 +121,7 @@ function createFixture(initialized = true): Fixture {
     [ACCOUNT_A, new Set([LEGACY_ID])],
     [ACCOUNT_B, new Set([LEGACY_ID])],
   ]);
-  const acknowledge = jest.fn(async (id: string) => {
+  const acknowledge = vi.fn(async (id: string) => {
     ledgers.get(selectedAddress)?.delete(id);
   });
   const provider = Object.assign(createMockHyperLiquidProvider(), {
@@ -111,7 +129,7 @@ function createFixture(initialized = true): Fixture {
   }) satisfies PerpsProvider;
   const controller = new RecoveryContextController({
     messenger: host.messenger,
-    state: { ...getDefaultPerpsControllerState(), isTestnet: true },
+    state: { ...getDefaultPerpsControllerState(), isTestnet: true, ...state },
     infrastructure: createMockInfrastructure(),
     deferEligibilityCheck: true,
   });
@@ -168,7 +186,7 @@ function failTargetInitialization(
   replacement: ReturnType<typeof createMockHyperLiquidProvider>,
 ): void {
   let attempts = 0;
-  jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+  vi.mocked(HyperLiquidProvider).mockImplementation(function () {
     attempts += 1;
     if (attempts <= 3) {
       throw new Error('Target provider initialization failed');
@@ -179,15 +197,220 @@ function failTargetInitialization(
 
 describe('PerpsController recovered-dispatch acknowledgment context', () => {
   beforeEach(() => {
-    jest.mocked(wait).mockReset().mockResolvedValue(undefined);
-    jest.mocked(HyperLiquidProvider).mockReset();
+    vi.mocked(wait).mockReset().mockResolvedValue(undefined);
+    vi.mocked(HyperLiquidProvider).mockReset();
+  });
+
+  it('review: keeps a newer wallet balance when the old opening refuses', () => {
+    const { controller, provider, selectAccount } = createFixture();
+    const callback = vi.fn();
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      selectAccount(ACCOUNT_B);
+      provider.subscribeToAccount.mockImplementationOnce((params) => {
+        params.callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+
+    controller.subscribeToAccount({ callback });
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+  });
+
+  it('review: clears state when the selected wallet cannot open a stream', async () => {
+    const { controller, provider, selectAccount } = createFixture();
+    controller.subscribeToOrders({ callback: vi.fn() });
+    selectAccount(ACCOUNT_B);
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toBeNull();
+  });
+
+  const startChaseOwnership = async (
+    fixture: Fixture,
+  ): Promise<{
+    pending: Promise<PerpsChaseOrderOwnership>;
+    ownership: PerpsChaseOrderOwnership;
+    complete: () => void;
+  }> => {
+    const { controller, provider } = fixture;
+    const ownership: PerpsChaseOrderOwnership = {
+      status: 'unsupported',
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+      reason: 'No ownership history',
+    };
+    const pendingOwnership = createDeferred<PerpsChaseOrderOwnership>();
+    const entered = createDeferred<void>();
+    Object.assign(provider, {
+      getChaseOrderOwnership: vi.fn(() => {
+        entered.resolve();
+        return pendingOwnership.promise;
+      }),
+    });
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+
+    const pending = controller.getChaseOrderOwnership({
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+    });
+    await entered.promise;
+    return {
+      pending,
+      ownership,
+      complete: (): void => pendingOwnership.resolve(ownership),
+    };
+  };
+
+  it.each([
+    {
+      name: 'startup refresh',
+      update: async ({ controller }: Fixture): Promise<void> => {
+        await controller.getAccountState();
+      },
+    },
+    {
+      name: 'repeat selection',
+      update: ({ host }: Fixture): Promise<void> => {
+        host.rootMessenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          'entropy:default/0',
+          'entropy:default/0',
+        );
+        return Promise.resolve();
+      },
+    },
+  ])(
+    'keeps a Chase ownership read current across $name',
+    async ({ update }) => {
+      const fixture = createFixture(true, {
+        perpsBalances: {
+          hyperliquid: {
+            totalBalance: '123',
+            unrealizedPnl: '0',
+            lastUpdated: 1,
+          },
+        },
+      });
+      const { pending, ownership, complete } =
+        await startChaseOwnership(fixture);
+      await update(fixture);
+      complete();
+      expect(await pending).toStrictEqual(ownership);
+    },
+  );
+
+  it('rejects Chase ownership if balance reconciliation changes the selected wallet', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+    const getChaseOrderOwnership = vi.fn();
+    Object.assign(provider, { getChaseOrderOwnership });
+
+    await expect(
+      controller.getChaseOrderOwnership({
+        providerId: 'hyperliquid',
+        handle: 'original-chase',
+      }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    expect(getChaseOrderOwnership).not.toHaveBeenCalled();
+  });
+
+  it('stores a valid synchronous replay after reconciliation returns to the provider wallet', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+
+    provider.subscribeToAccount.mockImplementation(
+      ({ accountId, callback }) => {
+        expect(accountId).toBeUndefined();
+        expect(
+          host.messenger.call('AccountsController:getSelectedAccount').address,
+        ).toBe(ACCOUNT_A);
+        callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      },
+    );
+
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledWith(ACCOUNT_BALANCE);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    expect(controller.state.perpsBalances.hyperliquid?.totalBalance).toBe(
+      '123',
+    );
+  });
+
+  it('binds an implicit stream after balance reconciliation publishes its state change', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    let addressAtOpen: string | undefined;
+    provider.subscribeToAccount.mockImplementation(() => {
+      addressAtOpen = host.messenger.call(
+        'AccountsController:getSelectedAccount',
+      ).address;
+      return vi.fn();
+    });
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+
+    controller.subscribeToAccount({ callback: vi.fn() });
+    const [stream] = provider.subscribeToAccount.mock.calls[0];
+    expect(addressAtOpen).toBe(ACCOUNT_A);
+    stream.callback({ ...ACCOUNT_BALANCE, totalBalance: '234' });
+    expect(controller.state.accountState?.totalBalance).toBe('234');
+  });
+
+  it('keeps a Chase read started after a silent wallet change current', async () => {
+    const fixture = createFixture();
+    fixture.host.selectAccount(ACCOUNT_B);
+    const { pending, ownership, complete } = await startChaseOwnership(fixture);
+    await fixture.controller.getAccountState();
+    complete();
+    expect(await pending).toStrictEqual(ownership);
+  });
+
+  it('invalidates an in-flight Chase ownership read after an observed wallet round trip', async () => {
+    const fixture = createFixture();
+    const { controller, host } = fixture;
+    const { pending, complete } = await startChaseOwnership(fixture);
+    host.selectAccount(ACCOUNT_B);
+    await controller.getAccountState();
+    host.selectAccount(ACCOUNT_A);
+    await controller.getAccountState();
+    complete();
+    await expect(pending).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    );
   });
 
   it.each(CONTEXT_CHANGES)(
     'refuses stale Scale inventory before provider readiness after $name changes',
     async ({ change }) => {
       const fixture = createFixture();
-      const getScaleOrderGroups = jest.fn().mockResolvedValue([]);
+      const getScaleOrderGroups = vi.fn().mockResolvedValue([]);
       Object.assign(fixture.provider, { getScaleOrderGroups });
       const result = fixture.controller.getScaleOrderGroups();
       change(fixture);
@@ -205,7 +428,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       const review = createDeferred<[]>();
       const entered = createDeferred<void>();
       Object.assign(fixture.provider, {
-        getScaleOrderGroups: jest.fn(async () => {
+        getScaleOrderGroups: vi.fn(async () => {
           entered.resolve();
           return review.promise;
         }),
@@ -227,7 +450,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       const review = createDeferred<[]>();
       const entered = createDeferred<void>();
       Object.assign(fixture.provider, {
-        reviewScaleOrderGroups: jest.fn(async () => {
+        reviewScaleOrderGroups: vi.fn(async () => {
           entered.resolve();
           return review.promise;
         }),
@@ -254,7 +477,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
 
   it('refuses a Scale review route that differs from the active provider', async () => {
     const fixture = createFixture();
-    const reviewScaleOrderGroups = jest.fn().mockResolvedValue([]);
+    const reviewScaleOrderGroups = vi.fn().mockResolvedValue([]);
     Object.assign(fixture.provider, { reviewScaleOrderGroups });
     await expect(
       fixture.controller.reviewScaleOrderGroups({ providerId: 'lighter' }),
@@ -292,7 +515,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
           params(),
         ),
       ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
-      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+      expect(vi.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
         0,
       );
     });
@@ -300,7 +523,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       'rejects stale reconciliation before readiness after $name changes',
       async ({ change }) => {
         const fixture = createFixture();
-        const reconcile = jest.fn().mockResolvedValue(unsupported);
+        const reconcile = vi.fn().mockResolvedValue(unsupported);
         Object.assign(fixture.provider, {
           reconcileChaseOrderCancellation: reconcile,
         });
@@ -311,9 +534,9 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
           PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
         );
         expect(reconcile).not.toHaveBeenCalled();
-        expect(
-          jest.mocked(fixture.provider).cancelOrder.mock.calls,
-        ).toHaveLength(0);
+        expect(vi.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+          0,
+        );
       },
     );
     it.each(CONTEXT_CHANGES)(
@@ -322,7 +545,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         const fixture = createFixture();
         const result = createDeferred<ReconcileChaseOrderCancellationResult>();
         const entered = createDeferred<void>();
-        const reconcile = jest.fn(async () => {
+        const reconcile = vi.fn(async () => {
           entered.resolve();
           return result.promise;
         });
@@ -341,16 +564,16 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
           PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
         );
         expect(reconcile).toHaveBeenCalledTimes(1);
-        expect(
-          jest.mocked(fixture.provider).cancelOrder.mock.calls,
-        ).toHaveLength(0);
+        expect(vi.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+          0,
+        );
       },
     );
     it('captures exact caller identity before readiness', async () => {
       const fixture = createFixture();
       const input = params();
       const expected = structuredClone(input);
-      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      const reconcile = vi.fn().mockResolvedValue(unsupported);
       Object.assign(fixture.provider, {
         reconcileChaseOrderCancellation: reconcile,
       });
@@ -362,7 +585,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     });
     it('rejects a provider route different from the active context', async () => {
       const fixture = createFixture();
-      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      const reconcile = vi.fn().mockResolvedValue(unsupported);
       Object.assign(fixture.provider, {
         reconcileChaseOrderCancellation: reconcile,
       });
@@ -373,13 +596,13 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         fixture.controller.reconcileChaseOrderCancellation(input),
       ).rejects.toThrow(/active context/u);
       expect(reconcile).not.toHaveBeenCalled();
-      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+      expect(vi.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
         0,
       );
     });
     it('propagates a lost provider reply without retry or ordinary cancellation', async () => {
       const fixture = createFixture();
-      const reconcile = jest
+      const reconcile = vi
         .fn()
         .mockRejectedValue(new Error('reconciliation reply lost'));
       Object.assign(fixture.provider, {
@@ -389,7 +612,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         fixture.controller.reconcileChaseOrderCancellation(params()),
       ).rejects.toThrow('reconciliation reply lost');
       expect(reconcile).toHaveBeenCalledTimes(1);
-      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+      expect(vi.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
         0,
       );
     });
@@ -415,7 +638,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       'refuses stale reconciliation before provider readiness after $name changes',
       async ({ change }) => {
         const fixture = createFixture();
-        const read = jest.fn().mockResolvedValue(dispatches);
+        const read = vi.fn().mockResolvedValue(dispatches);
         Object.assign(fixture.provider, { [capability]: read });
 
         const result = fixture.controller.reconcileRecoveredDispatches();
@@ -434,7 +657,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         const fixture = createFixture();
         const completion = createDeferred<PerpsRecoveredDispatch[]>();
         const entered = createDeferred<void>();
-        const read = jest.fn(async () => {
+        const read = vi.fn(async () => {
           entered.resolve();
           return completion.promise;
         });
@@ -456,7 +679,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       const fixture = createFixture();
       const completion = createDeferred<PerpsRecoveredDispatch[]>();
       const entered = createDeferred<void>();
-      const read = jest.fn(async () => {
+      const read = vi.fn(async () => {
         entered.resolve();
         return completion.promise;
       });
@@ -474,7 +697,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       'preserves readiness rejection after $name changes',
       async ({ change }) => {
         const fixture = createFixture(false);
-        const read = jest.fn().mockResolvedValue(dispatches);
+        const read = vi.fn().mockResolvedValue(dispatches);
         Object.assign(fixture.provider, { [capability]: read });
 
         const result = fixture.controller.reconcileRecoveredDispatches();
@@ -494,7 +717,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         const completion = createDeferred<PerpsRecoveredDispatch[]>();
         const entered = createDeferred<void>();
         const failure = new Error('Original reconciliation rejection');
-        const read = jest.fn(async () => {
+        const read = vi.fn(async () => {
           entered.resolve();
           return completion.promise;
         });
@@ -557,10 +780,10 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       const fixture = createFixture(false);
       const { controller, acknowledge, ledgers } = fixture;
       const readiness = createDeferred<void>();
-      jest.mocked(wait).mockReturnValueOnce(readiness.promise);
-      jest
-        .mocked(HyperLiquidProvider)
-        .mockImplementation(() => fixture.provider);
+      vi.mocked(wait).mockReturnValueOnce(readiness.promise);
+      vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+        return fixture.provider;
+      });
       const initialization = controller.init();
 
       const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
@@ -608,16 +831,20 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
   it('rejects a retired lifetime while readiness waits without redirecting to its replacement', async () => {
     const { controller, provider, acknowledge, ledgers } = createFixture(false);
     const readiness = createDeferred<void>();
-    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
-    jest.mocked(HyperLiquidProvider).mockImplementation(() => provider);
+    vi.mocked(wait).mockReturnValueOnce(readiness.promise);
+    vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+      return provider;
+    });
     const replacement = Object.assign(createMockHyperLiquidProvider(), {
-      acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+      acknowledgeRecoveredDispatch: vi.fn(async () => undefined),
     });
     const initialization = controller.init();
     const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
     const disconnected = controller.disconnect();
     const replaced = disconnected.then(async () => {
-      jest.mocked(HyperLiquidProvider).mockImplementation(() => replacement);
+      vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+        return replacement;
+      });
       await controller.init();
     });
     readiness.resolve();
@@ -641,7 +868,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       const completion = createDeferred<void>();
       const failure = new Error('Original retired-provider rejection');
       const replacement = Object.assign(createMockHyperLiquidProvider(), {
-        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+        acknowledgeRecoveredDispatch: vi.fn(async () => undefined),
       });
       acknowledge.mockImplementationOnce(async (id) => {
         started.resolve();
@@ -683,9 +910,9 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     'refuses held readiness after a failed $name switch restores the context',
     async ({ change, constructorCalls }) => {
       const { controller, acknowledge, ledgers, provider } = createFixture();
-      const disconnect = jest.spyOn(provider, 'disconnect');
+      const disconnect = vi.spyOn(provider, 'disconnect');
       const replacement = Object.assign(createMockHyperLiquidProvider(), {
-        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+        acknowledgeRecoveredDispatch: vi.fn(async () => undefined),
       });
       failTargetInitialization(replacement);
 
@@ -723,9 +950,9 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     'preserves issuing storage and $outcome after a failed $name switch',
     async ({ change, constructorCalls, outcome }) => {
       const { controller, acknowledge, ledgers, provider } = createFixture();
-      const disconnect = jest.spyOn(provider, 'disconnect');
+      const disconnect = vi.spyOn(provider, 'disconnect');
       const replacement = Object.assign(createMockHyperLiquidProvider(), {
-        acknowledgeRecoveredDispatch: jest.fn(async () => undefined),
+        acknowledgeRecoveredDispatch: vi.fn(async () => undefined),
       });
       const started = createDeferred<void>();
       const completion = createDeferred<void>();
@@ -773,7 +1000,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
 
   it('reports unavailable initialization for a new acknowledgment after a failed network switch', async () => {
     const { controller, acknowledge, ledgers, provider } = createFixture();
-    const disconnect = jest.spyOn(provider, 'disconnect');
+    const disconnect = vi.spyOn(provider, 'disconnect');
     failTargetInitialization(createMockHyperLiquidProvider());
 
     const transition = await controller.toggleTestnet();
@@ -798,13 +1025,15 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     const transition = await controller.toggleTestnet();
     expect(transition.success).toBe(false);
     const readiness = createDeferred<void>();
-    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
+    vi.mocked(wait).mockReturnValueOnce(readiness.promise);
     const replacement = Object.assign(createMockHyperLiquidProvider(), {
-      acknowledgeRecoveredDispatch: jest.fn(async (id: string) => {
+      acknowledgeRecoveredDispatch: vi.fn(async (id: string) => {
         ledgers.get(ACCOUNT_A)?.delete(id);
       }),
     });
-    jest.mocked(HyperLiquidProvider).mockImplementation(() => replacement);
+    vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+      return replacement;
+    });
     const initialization = controller.init();
     expect(controller.state.initializationState).toBe(
       InitializationState.Initializing,
@@ -844,8 +1073,10 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
   it('acknowledges after initialization in an unchanged context', async () => {
     const { controller, provider, acknowledge, ledgers } = createFixture(false);
     const readiness = createDeferred<void>();
-    jest.mocked(wait).mockReturnValueOnce(readiness.promise);
-    jest.mocked(HyperLiquidProvider).mockImplementation(() => provider);
+    vi.mocked(wait).mockReturnValueOnce(readiness.promise);
+    vi.mocked(HyperLiquidProvider).mockImplementation(function () {
+      return provider;
+    });
     const initialization = controller.init();
 
     const result = controller.acknowledgeRecoveredDispatch(LEGACY_ID);
@@ -860,7 +1091,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
 
   it('preserves cold-start readiness failure when no provider lifetime existed', async () => {
     const { controller, acknowledge, ledgers } = createFixture(false);
-    jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+    vi.mocked(HyperLiquidProvider).mockImplementation(function () {
       throw new Error('Cold-start initialization failed');
     });
     const initialization = controller.init();

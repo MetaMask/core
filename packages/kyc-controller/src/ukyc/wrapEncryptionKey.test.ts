@@ -1,5 +1,6 @@
 import { areUint8ArraysEqual } from '@metamask/utils';
 import { box } from 'tweetnacl';
+import { describe, expect, it } from 'vitest';
 
 import { base64UrlToBytes, toBase64Url } from '../encoding.js';
 import { wrapEncryptionKey } from './wrapEncryptionKey.js';

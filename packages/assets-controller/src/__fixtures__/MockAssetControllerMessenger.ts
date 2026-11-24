@@ -1,5 +1,7 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import type { AccountTreeControllerStateChangeEvent } from '@metamask/account-tree-controller';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -11,8 +13,15 @@ import {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import type { Hex } from '@metamask/utils';
+import { vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import {
   AssetsControllerMessenger,
@@ -28,9 +37,14 @@ type TestMockType = any;
 type GlobalActions = MessengerActions<
   AssetsControllerMessenger | KeyringControllerMessenger
 >;
-type GlobalEvents = MessengerEvents<
-  AssetsControllerMessenger | KeyringControllerMessenger
+type AssetsControllerStateChangedEvent = ControllerStateChangedEvent<
+  'AssetsController',
+  AssetsControllerState
 >;
+type GlobalEvents =
+  | MessengerEvents<AssetsControllerMessenger | KeyringControllerMessenger>
+  | AssetsControllerStateChangedEvent
+  | AccountTreeControllerStateChangeEvent;
 
 export type MockRootMessenger = Messenger<
   MockAnyNamespace,
@@ -66,9 +80,12 @@ export function registerKeyringUnlockMock(
   });
 }
 
-export function createMockRootMessenger(): MockRootMessenger {
+export function createMockRootMessenger(options?: {
+  captureException?: (error: Error) => void;
+}): MockRootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: options?.captureException,
   });
 }
 
@@ -103,6 +120,11 @@ export function createMockAssetsControllerMessenger(
       'PhishingController:bulkScanTokens',
       // AccountsApiDataSource
       'RemoteFeatureFlagController:getState',
+      // AuthenticatedUserStorageService (fire-and-forget user-assets sync)
+      'AuthenticatedUserStorageService:getUserAssets',
+      'AuthenticatedUserStorageService:setUserAssets',
+      'AuthenticatedUserStorageService:importTokens',
+      'AuthenticatedUserStorageService:hideTokens',
     ],
 
     events: [
@@ -115,6 +137,7 @@ export function createMockAssetsControllerMessenger(
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       'TransactionController:unapprovedTransactionAdded',
+      'MultichainTransactionsController:transactionConfirmed',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
@@ -140,13 +163,14 @@ export function createMockAssetsControllerMessenger(
 
 export function createMockMessengers(options?: {
   registerCustomRootActions?: (rootMessenger: MockRootMessenger) => void;
+  captureException?: (error: Error) => void;
 }): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
-  const { registerCustomRootActions } = options ?? {};
+  const { registerCustomRootActions, captureException } = options ?? {};
 
-  const rootMessenger = createMockRootMessenger();
+  const rootMessenger = createMockRootMessenger({ captureException });
 
   registerCustomRootActions?.(rootMessenger);
 
@@ -238,7 +262,7 @@ export function registerRpcDataSourceActions(
     'NetworkController:getNetworkClientById',
     () =>
       ({
-        provider: { request: jest.fn().mockResolvedValue('0x0') },
+        provider: { request: vi.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MAINNET_CHAIN_ID_HEX },
       }) as TestMockType,
   );
@@ -259,15 +283,24 @@ export function registerRpcDataSourceActions(
   );
 }
 
+export function createMockAutoManagedNetworkClient(
+  chainId: Hex,
+): AutoManagedNetworkClient<CustomNetworkClientConfiguration> {
+  return {
+    provider: {},
+    configuration: { chainId },
+  } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+}
+
 export function createMockWeb3Provider(
   options = {
     sharesWei: '1000000000000000000',
     assetsWei: '1500000000000000000',
   },
-): jest.SpyInstance<ProviderModule.Web3Provider> {
-  const mockProvider = jest.spyOn(ProviderModule, 'Web3Provider');
+): MockInstance<typeof ProviderModule.Web3Provider> {
+  const mockProvider = vi.spyOn(ProviderModule, 'Web3Provider');
 
-  const mockCalls = jest.fn().mockImplementation((callData) => {
+  const mockCalls = vi.fn().mockImplementation((callData) => {
     // Will decode and return mock shares or throw
     try {
       STAKING_INTERFACE.decodeFunctionData('getShares', callData.data);
@@ -287,9 +320,9 @@ export function createMockWeb3Provider(
     throw new Error('MOCK FAILURE: Invalid function data');
   });
 
-  mockProvider.mockReturnValue({
-    call: mockCalls,
-  } as unknown as ProviderModule.Web3Provider);
+  mockProvider.mockImplementation(function () {
+    return { call: mockCalls } as unknown as ProviderModule.Web3Provider;
+  });
 
   return mockProvider;
 }
@@ -485,7 +518,7 @@ export function registerAssetsControllerActions(
     'NetworkController:getNetworkClientById',
     () =>
       ({
-        provider: { request: jest.fn().mockResolvedValue('0x0') },
+        provider: { request: vi.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MAINNET_CHAIN_ID_HEX },
       }) as TestMockType,
   );

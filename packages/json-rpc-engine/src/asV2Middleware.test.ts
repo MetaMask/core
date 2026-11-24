@@ -1,5 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   getExtraneousKeys,
@@ -45,9 +46,7 @@ describe('asV2Middleware', () => {
       middleware: [asV2Middleware(legacyEngine)],
     });
 
-    await expect(v2Engine.handle(makeRequest())).rejects.toThrow(
-      rpcErrors.internal('test'),
-    );
+    await expect(v2Engine.handle(makeRequest())).rejects.toThrow('test');
   });
 
   it('forwards a serialized error to the v2 engine', async () => {
@@ -61,14 +60,12 @@ describe('asV2Middleware', () => {
       middleware: [asV2Middleware(legacyEngine)],
     });
 
-    await expect(v2Engine.handle(makeRequest())).rejects.toThrow(
-      new Error('test'),
-    );
+    await expect(v2Engine.handle(makeRequest())).rejects.toThrow('test');
   });
 
   it('allows the v2 engine to continue when not ending the request', async () => {
     const legacyEngine = new JsonRpcEngine();
-    const legacyMiddleware = jest.fn((_req, _res, next) => {
+    const legacyMiddleware = vi.fn((_req, _res, next) => {
       next();
     });
     legacyEngine.push(legacyMiddleware);
@@ -86,7 +83,7 @@ describe('asV2Middleware', () => {
     const observedContextValues: number[] = [];
 
     const legacyEngine = new JsonRpcEngine();
-    const legacyMiddleware = jest.fn((req, _res, next) => {
+    const legacyMiddleware = vi.fn((req, _res, next) => {
       observedContextValues.push(req.value);
 
       expect(getExtraneousKeys(req)).toStrictEqual(['value']);
@@ -120,7 +117,7 @@ describe('asV2Middleware', () => {
 
   describe('with legacy middleware', () => {
     it('accepts a single legacy middleware', async () => {
-      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+      const legacyMiddleware = vi.fn((_req, res, _next, end) => {
         res.result = 'test-result';
         end();
       });
@@ -135,12 +132,12 @@ describe('asV2Middleware', () => {
     });
 
     it('accepts multiple legacy middlewares via rest params', async () => {
-      const middleware1 = jest.fn((req, _res, next) => {
+      const middleware1 = vi.fn((req, _res, next) => {
         req.visited1 = true;
         next();
       });
 
-      const middleware2 = jest.fn((req, res, _next, end) => {
+      const middleware2 = vi.fn((req, res, _next, end) => {
         expect(req.visited1).toBe(true);
         res.result = 'composed-result';
         end();
@@ -157,7 +154,7 @@ describe('asV2Middleware', () => {
     });
 
     it('forwards errors from legacy middleware', async () => {
-      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+      const legacyMiddleware = vi.fn((_req, res, _next, end) => {
         res.error = rpcErrors.internal('legacy-error');
         end();
       });
@@ -167,12 +164,12 @@ describe('asV2Middleware', () => {
       });
 
       await expect(v2Engine.handle(makeRequest())).rejects.toThrow(
-        rpcErrors.internal('legacy-error'),
+        'legacy-error',
       );
     });
 
     it('does not forward undefined errors from legacy middleware', async () => {
-      const legacyMiddleware = jest.fn((_req, res, _next, end) => {
+      const legacyMiddleware = vi.fn((_req, res, _next, end) => {
         res.error = undefined;
         res.result = 42;
         end();
@@ -187,7 +184,7 @@ describe('asV2Middleware', () => {
     });
 
     it('allows v2 engine to continue when legacy middleware does not end', async () => {
-      const legacyMiddleware = jest.fn((_req, _res, next) => {
+      const legacyMiddleware = vi.fn((_req, _res, next) => {
         next();
       });
 

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { Order, PositionTriggerOrder } from '../../../src/types/index.js';
 import type {
   OrderType,
@@ -15,6 +17,7 @@ import {
   isTriggerOrderType,
   resolvePositionTriggerSummaryPrice,
 } from '../../../src/utils/orderTypes.js';
+import { isTriggerPriceOnValidSide } from '../../../src/utils/tpslCalculations.js';
 
 const createOrder = (overrides: Partial<Order> = {}): Order => ({
   orderId: '111',
@@ -411,4 +414,60 @@ describe('orderTypes', () => {
       ).toBe('60000');
     });
   });
+});
+
+describe('isTriggerPriceOnValidSide', () => {
+  it.each([
+    ['stop_market', true, '110', true],
+    ['stop_limit', true, '90', false],
+    ['take_profit_market', true, '90', true],
+    ['take_profit_limit', true, '110', false],
+    ['stop_market', false, '90', true],
+    ['stop_limit', false, '110', false],
+    ['take_profit_market', false, '110', true],
+    ['take_profit_limit', false, '90', false],
+  ] as const)(
+    '%s with isBuy %s at trigger %s against 100 is %s',
+    (orderType, isBuy, triggerPrice, expected) => {
+      expect(
+        isTriggerPriceOnValidSide({
+          orderType,
+          isBuy,
+          triggerPrice,
+          referencePrice: 100,
+        }),
+      ).toBe(expected);
+    },
+  );
+
+  it('rejects a trigger at the reference price', () => {
+    expect(
+      isTriggerPriceOnValidSide({
+        orderType: 'stop_market',
+        isBuy: true,
+        triggerPrice: 100,
+        referencePrice: '100',
+      }),
+    ).toBe(false);
+  });
+
+  it.each([
+    [undefined, 100],
+    ['110', undefined],
+    ['abc', 100],
+    ['0', 100],
+    ['110', -1],
+  ])(
+    'returns undefined for trigger %s and reference %s',
+    (triggerPrice, referencePrice) => {
+      expect(
+        isTriggerPriceOnValidSide({
+          orderType: 'stop_market',
+          isBuy: true,
+          triggerPrice,
+          referencePrice,
+        }),
+      ).toBeUndefined();
+    },
+  );
 });

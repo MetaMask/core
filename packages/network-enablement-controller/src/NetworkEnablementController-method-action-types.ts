@@ -132,6 +132,7 @@ export type NetworkEnablementControllerDisableNetworkAction = {
  * map. Missing snapshot values default to `false`. Intended for callers with
  * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
  * switches when adding a network without changing the active selection.
+ * Networks not in the snapshot keep their current value if every network enabled in the snapshot is still enabled; otherwise they are disabled.
  *
  * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
  */

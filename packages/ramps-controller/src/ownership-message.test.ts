@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { buildOwnershipMessage } from './ownership-message.js';
 
 describe('buildOwnershipMessage', () => {

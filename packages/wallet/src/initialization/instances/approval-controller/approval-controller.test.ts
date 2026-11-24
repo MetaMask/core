@@ -1,6 +1,7 @@
 import { ApprovalController } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -62,7 +63,7 @@ describe('approvalController', () => {
 
   it('uses the provided showApprovalRequest callback', () => {
     const messenger = approvalController.getMessenger(getRootMessenger());
-    const showApprovalRequest = jest.fn();
+    const showApprovalRequest = vi.fn();
 
     const instance = approvalController.init({
       state: undefined,

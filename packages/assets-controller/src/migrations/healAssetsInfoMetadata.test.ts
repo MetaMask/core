@@ -1,4 +1,5 @@
 import { cloneDeep } from 'lodash-es';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createTestApiClient,
@@ -630,7 +631,7 @@ describe('tempHealAssetsInfoMetadata', () => {
 
   it('reports errors thrown by getMigrationState via captureException without throwing', () => {
     const state = buildFullState();
-    const captureException = jest.fn();
+    const captureException = vi.fn();
 
     let healedState: AssetsControllerState | undefined;
     expect(() => {
@@ -1015,6 +1016,19 @@ describe('cleanSpamAssets', () => {
     });
   });
 
+  it('spares a below-floor token the Token API reports as a launchpad token', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets({ launchpadAssetIds: [MAINNET_SPAM] });
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_SPAM]),
+      assetsBalance: {},
+    });
+
+    const nextState = await runCleanup(state);
+
+    expect(Object.keys(nextState.assetsInfo)).toStrictEqual([MAINNET_SPAM]);
+  });
+
   it('does not mutate the state it was given', async () => {
     mockSuggestedOccurrenceFloors();
     mockV3Assets();
@@ -1064,7 +1078,7 @@ describe('cleanSpamAssets', () => {
     mockV3Assets({ occurrences: {} });
     mockV3Assets({ status: 502 });
     mockV3Assets({ occurrences: {} });
-    const captureException = jest.fn();
+    const captureException = vi.fn();
 
     const nextState = await runCleanup(state);
 
@@ -1079,7 +1093,7 @@ describe('cleanSpamAssets', () => {
     mockSuggestedOccurrenceFloors({ status: 503 });
     const { scope: assetsScope } = mockV3Assets();
     const state = buildSpamWalletState();
-    const captureException = jest.fn();
+    const captureException = vi.fn();
 
     const nextState = await runCleanup(state, captureException);
 

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as publicConstants from '../../../src/constants/index.js';
 import {
   computeLighterMinOrderSize,
@@ -47,7 +49,7 @@ describe('lighterConfig', () => {
   describe('endpoints', () => {
     it('returns the testnet HTTP endpoint', () => {
       expect(getLighterHttpEndpoint('testnet')).toBe(
-        'https://testnet.zklighter.elliot.ai',
+        'https://api.testnet.lighter.xyz',
       );
     });
 
@@ -59,7 +61,7 @@ describe('lighterConfig', () => {
 
     it('defines websocket endpoints per network', () => {
       expect(LIGHTER_ENDPOINTS.testnet.ws).toBe(
-        'wss://testnet.zklighter.elliot.ai/stream',
+        'wss://api.testnet.lighter.xyz/stream',
       );
       expect(LIGHTER_ENDPOINTS.mainnet.ws).toBe(
         'wss://mainnet.zklighter.elliot.ai/stream',
@@ -174,7 +176,9 @@ describe('lighterConfig', () => {
     it.each([
       [{ ...market, minBaseAmount: '0.0002oops' }, 100],
       [{ ...market, minQuoteAmount: 'missing' }, 100],
+      [{ ...market, minBaseAmount: '1e999' }, 100],
       [{ ...market, supportedSizeDecimals: Number.NaN }, 100],
+      [{ ...market, supportedSizeDecimals: 101 }, 100],
       [market, Number.NaN],
       [market, 0],
     ])('fails closed for malformed minimum-size input', (input, price) => {

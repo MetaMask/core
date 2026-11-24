@@ -1,5 +1,6 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 import { assertIsJsonRpcSuccess, isJsonRpcSuccess } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { JsonRpcEngine } from './index.js';
 

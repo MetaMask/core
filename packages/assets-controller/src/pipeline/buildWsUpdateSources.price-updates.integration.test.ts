@@ -1,6 +1,12 @@
 import { parseCaipAssetType } from '@metamask/utils';
-import { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import {
+  RESPONSE_METADATA_SURFACE,
+  RESPONSE_PRICES_SURFACE,
+  responseBalancesSurface,
+} from '../__fixtures__/assetSurfaces.js';
 import {
   createMockMessengers,
   registerAccountMocks,
@@ -29,15 +35,11 @@ import {
   buildEthHeldUnpricedState,
   buildUsdcHeldAndPricedState,
   buildWsAccount,
-  getIgnoringCase,
 } from '../__fixtures__/ws-price-updates/wsWallet.js';
 import { AccountActivityDataSource } from '../data-sources/AccountActivityDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
-import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import type {
-  AccountId,
   AssetsControllerState,
   AssetsDataSource,
   Context,
@@ -57,38 +59,9 @@ import { executeAssetsPipeline } from './executeAssetsPipeline.js';
  * priced in the same pass.
  */
 
-type UpdateLane = 'v5' | 'v6';
-
-type ResponseSurface = {
-  surface: string;
-  lookUp: (response: DataResponse, assetId: string) => unknown;
-};
-
-const BALANCES: ResponseSurface = {
-  surface: 'balances',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsBalance?.[WS_ACCOUNT_ID] ?? {}, assetId),
-};
-
-const METADATA: ResponseSurface = {
-  surface: 'metadata',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsInfo ?? {}, assetId),
-};
-
-const PRICES: ResponseSurface = {
-  surface: 'prices',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsPrice ?? {}, assetId),
-};
-
-const DETECTED_ASSETS: ResponseSurface = {
-  surface: 'detected assets',
-  lookUp: (response, assetId) =>
-    Object.values(response.detectedAssets ?? {})
-      .flat()
-      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
-};
+const BALANCES = responseBalancesSurface(WS_ACCOUNT_ID);
+const METADATA = RESPONSE_METADATA_SURFACE;
+const PRICES = RESPONSE_PRICES_SURFACE;
 
 /** A completed websocket update pass. */
 type WsUpdatePassResult = {
@@ -100,12 +73,6 @@ type WsUpdatePassResult = {
     rpc: { rpcFallbackRequests: DataRequest[] };
   };
 };
-
-/** The update lanes the controller composes. */
-const LANES: { name: string; lane: UpdateLane }[] = [
-  { name: 'the v5 lane', lane: 'v5' },
-  { name: 'the v6 lane', lane: 'v6' },
-];
 
 /**
  * Asset IDs an API was asked about, lower-cased, across all batches.
@@ -146,19 +113,16 @@ function createRecordingRpcFallback(): {
  * @param options - The pass inputs.
  * @param options.state - The state the pass sees.
  * @param options.event - The websocket event to deliver.
- * @param options.lane - The update lane to compose (`v5` by default).
  * @returns The pass result.
  */
 async function runWsUpdatePass({
   state,
   event,
-  lane = 'v5',
 }: {
   state: ReturnType<typeof buildEmptyAssetsState>;
   event: BalanceUpdatedEventPayload;
-  lane?: UpdateLane;
 }): Promise<WsUpdatePassResult> {
-  cleanAll();
+  nock.cleanAll();
   const { assets, prices } = mockWsApis();
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
@@ -190,32 +154,17 @@ async function runWsUpdatePass({
 
   const sources = buildWsUpdateSources(
     {
-      customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
-        getSelectedAccountId: (): AccountId => WS_ACCOUNT_ID,
-        removeCustomAsset: (): void => {
-          throw new Error(
-            'Websocket pass should not graduate custom assets away!',
-          );
-        },
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       rpcFallbackMiddleware,
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       tokenDataSource,
       priceDataSource,
     },
-    {
-      isBasicFunctionality: true,
-      includeCustomAssetGraduation: lane === 'v5',
-    },
+    { isBasicFunctionality: true },
   );
 
   let captured: { response: DataResponse; request: DataRequest } | undefined;
   const accountActivityDataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     onAssetsUpdate: async (
       response: DataResponse,
       request: DataRequest,
@@ -253,89 +202,74 @@ async function runWsUpdatePass({
 
 describe('websocket update pipeline: prices for surfaced holdings', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
-  describe.each(LANES)(
-    '$name: brand-new holdings: ETH held and USDC acquired in one websocket event',
-    ({ lane }) => {
-      let result: WsUpdatePassResult;
+  describe('brand-new holdings: ETH held and USDC acquired in one websocket event', () => {
+    let result: WsUpdatePassResult;
 
-      beforeAll(async () => {
-        result = await runWsUpdatePass({
-          state: buildEmptyAssetsState(),
-          event: buildEthAndUsdcBalanceUpdatedEvent(),
-          lane,
-        });
+    beforeAll(async () => {
+      result = await runWsUpdatePass({
+        state: buildEmptyAssetsState(),
+        event: buildEthAndUsdcBalanceUpdatedEvent(),
       });
+    });
 
-      it.each([BALANCES, METADATA, PRICES, DETECTED_ASSETS])(
-        '$surface - present for the surfaced holdings after one pass',
-        ({ lookUp }) => {
-          expect(lookUp(result.response, ETH_ASSET_ID)).toBeDefined();
-          expect(
-            lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-          ).toBeDefined();
-        },
+    it.each([BALANCES, METADATA, PRICES])(
+      '$surface - present for the surfaced holdings after one pass',
+      ({ lookUp }) => {
+        expect(lookUp(result.response, ETH_ASSET_ID)).toBeDefined();
+        expect(lookUp(result.response, USDC_ASSET_ID_LOWERCASE)).toBeDefined();
+      },
+    );
+
+    it('carries the websocket balances through', () => {
+      expect(BALANCES.lookUp(result.response, ETH_ASSET_ID)).toStrictEqual({
+        amount: ETH_WS_AMOUNT,
+      });
+      expect(
+        BALANCES.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
+      ).toStrictEqual({ amount: USDC_WS_AMOUNT });
+    });
+
+    it('enriches both holdings with the captured metadata', () => {
+      expect(METADATA.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
+        name: 'Ethereum',
+        symbol: 'ETH',
+        decimals: 18,
+      });
+      expect(
+        METADATA.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
+      ).toMatchObject({ name: 'USDC', symbol: 'USDC', decimals: 6 });
+    });
+
+    it('prices both holdings from the captured spot prices', () => {
+      expect(PRICES.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
+        assetPriceType: 'fungible',
+        price: ETH_SPOT_PRICE,
+        usdPrice: ETH_SPOT_PRICE,
+      });
+      expect(
+        PRICES.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
+      ).toMatchObject({
+        assetPriceType: 'fungible',
+        price: USDC_SPOT_PRICE,
+        usdPrice: USDC_SPOT_PRICE,
+      });
+    });
+
+    it('invokes the Price API for both surfaced holdings in the same pass', () => {
+      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
+        new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
       );
+    });
 
-      it('carries the websocket balances through', () => {
-        expect(BALANCES.lookUp(result.response, ETH_ASSET_ID)).toStrictEqual({
-          amount: ETH_WS_AMOUNT,
-        });
-        expect(
-          BALANCES.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-        ).toStrictEqual({ amount: USDC_WS_AMOUNT });
-      });
-
-      it('enriches both holdings with the captured metadata', () => {
-        expect(METADATA.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
-          name: 'Ethereum',
-          symbol: 'ETH',
-          decimals: 18,
-        });
-        expect(
-          METADATA.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-        ).toMatchObject({ name: 'USDC', symbol: 'USDC', decimals: 6 });
-      });
-
-      it('prices both holdings from the captured spot prices', () => {
-        expect(PRICES.lookUp(result.response, ETH_ASSET_ID)).toMatchObject({
-          assetPriceType: 'fungible',
-          price: ETH_SPOT_PRICE,
-          usdPrice: ETH_SPOT_PRICE,
-        });
-        expect(
-          PRICES.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-        ).toMatchObject({
-          assetPriceType: 'fungible',
-          price: USDC_SPOT_PRICE,
-          usdPrice: USDC_SPOT_PRICE,
-        });
-      });
-
-      it('queues both surfaced holdings for a price update', () => {
-        const queued =
-          result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-          [];
-        expect(queued).toStrictEqual(
-          expect.arrayContaining([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
-        );
-      });
-
-      it('invokes the Price API for both surfaced holdings in the same pass', () => {
-        expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
-          new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
-        );
-      });
-
-      it('invokes the Token API for the new token and the native asset', () => {
-        expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-          new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
-        );
-      });
-    },
-  );
+    it('invokes the Token API for the new token and the native asset', () => {
+      expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
+        new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
+      );
+    });
+  });
 
   it('generates snapshot (source of truth)', async () => {
     const { response } = await runWsUpdatePass({
@@ -343,18 +277,17 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       event: buildEthAndUsdcBalanceUpdatedEvent(),
     });
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 
-  describe('v6 lane: the RPC fallback on the balance pass', () => {
+  describe('the RPC fallback on the balance pass', () => {
     let result: WsUpdatePassResult;
 
     beforeAll(async () => {
       result = await runWsUpdatePass({
         state: buildEmptyAssetsState(),
         event: buildEthAndUsdcBalanceUpdatedEvent(),
-        lane: 'v6',
       });
     });
 
@@ -377,17 +310,7 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     });
 
-    it('does not re-detect the holding', () => {
-      expect(
-        DETECTED_ASSETS.lookUp(result.response, ETH_ASSET_ID),
-      ).toBeUndefined();
-    });
-
     it('prices the held-but-unpriced asset in the same pass', () => {
-      const queued =
-        result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-        [];
-      expect(queued).toStrictEqual([ETH_ASSET_ID]);
       expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
@@ -415,20 +338,13 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     });
 
-    it('does not re-detect the token', () => {
-      expect(
-        DETECTED_ASSETS.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-    });
-
     it('does not re-price the already-priced token', () => {
-      expect(result.request.assetsForPriceUpdate ?? []).toStrictEqual([]);
       expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
-    it('does not refetch metadata for the enriched token, only the native asset', () => {
+    it('does not refetch metadata for the enriched token', () => {
       expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
+        new Set(),
       );
     });
 

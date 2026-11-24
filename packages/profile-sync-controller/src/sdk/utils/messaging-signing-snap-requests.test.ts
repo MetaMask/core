@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { arrangeMockProvider } from '../__fixtures__/test-utils.js';
 import type { MockVariable } from '../__fixtures__/test-utils.js';
 import type { Snap } from './messaging-signing-snap-requests.js';

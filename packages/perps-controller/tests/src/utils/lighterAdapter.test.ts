@@ -1,23 +1,33 @@
-import type { MarketDataFormatters } from '../../../src/types/index.js';
+import { describe, expect, it } from 'vitest';
+
+import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
+import type {
+  CrossMarginSummary,
+  MarketDataFormatters,
+} from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
   LighterApiPosition,
   LighterOrderBookDetail,
   LighterOrderBookMeta,
   LighterSubAccount,
+  LighterWsMarketStat,
   LighterWsUserStats,
 } from '../../../src/types/lighter-types.js';
 import {
   adaptFillFromLighterTrade,
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
+  adaptCrossMarginSummaryFromLighter,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
   adaptPositionFromLighter,
+  adaptPriceUpdateFromLighter,
+  adaptPriceUpdateFromLighterWsStat,
 } from '../../../src/utils/lighterAdapter.js';
 
-// Built per-test (jest resetMocks wipes module-scope jest.fn implementations).
+// Built per-test (jest resetMocks wipes module-scope vi.fn implementations).
 const buildFormatters = (): MarketDataFormatters => ({
   formatPerpsFiat: (value: number) => `$${value.toFixed(2)}`,
   formatVolume: (value: number) => `$${value}`,
@@ -76,7 +86,8 @@ describe('lighterAdapter', () => {
       dailyPriceLow: 95000,
       dailyPriceHigh: 101000,
       dailyPriceChange: 2.5,
-      openInterest: 12345678,
+      // Base units: 123.45 BTC, $12,345,000 at the last trade price.
+      openInterest: 123.45,
       dailyChart: {},
       minInitialMarginFraction: 400,
     };
@@ -88,7 +99,22 @@ describe('lighterAdapter', () => {
       expect(data.change24hPercent).toBe('+2.50%');
       expect(data.change24h.startsWith('+$')).toBe(true);
       expect(data.volume).toBe('$2500000');
-      expect(data.openInterest).toBe('$12345678');
+      expect(data.openInterest).toBe('$12345000');
+      expect(data.numericValues).toStrictEqual({
+        price: 100000,
+        change24hPercent: 2.5,
+        volume: 2500000,
+        openInterest: 12345000,
+      });
+    });
+
+    it('leaves open interest out of numericValues without a price', () => {
+      const data = adaptMarketDataFromLighter(
+        { ...detail, lastTradePrice: 0 },
+        buildFormatters(),
+      );
+      expect(data.openInterest).toBe(PERPS_CONSTANTS.FallbackPriceDisplay);
+      expect(data.numericValues).not.toHaveProperty('openInterest');
     });
 
     it('formats negative change with a minus prefix', () => {
@@ -115,6 +141,71 @@ describe('lighterAdapter', () => {
           buildFormatters(),
         ),
       ).toThrow('Invalid Lighter venue data');
+    });
+  });
+
+  describe('price update open interest', () => {
+    const detail: LighterOrderBookDetail = {
+      ...btcMarket,
+      lastTradePrice: 100000,
+      dailyTradesCount: 1000,
+      dailyBaseTokenVolume: 25,
+      dailyQuoteTokenVolume: 2500000,
+      dailyPriceLow: 95000,
+      dailyPriceHigh: 101000,
+      dailyPriceChange: 2.5,
+      // Base units: 123.45 BTC, $12,345,000 at the last trade price.
+      openInterest: 123.45,
+      dailyChart: {},
+    };
+    const stat: LighterWsMarketStat = {
+      symbol: 'BTC',
+      marketId: 1,
+      indexPrice: '99990',
+      markPrice: '100000',
+      midPrice: '100005',
+      bestAskPrice: '100010',
+      bestBidPrice: '100000',
+      lastTradePrice: '99000',
+      // Base units: 123.45 BTC, $12,345,000 at the mark price.
+      openInterest: '123.45',
+      fundingRate: '0.0001',
+      dailyQuoteTokenVolume: 2500000,
+      dailyPriceChange: 2.5,
+    };
+
+    it('converts REST polling open interest to USD at the last trade price', () => {
+      expect(adaptPriceUpdateFromLighter(detail, 1).openInterest).toBe(
+        12345000,
+      );
+    });
+
+    it('leaves REST polling open interest unset without a price', () => {
+      expect(
+        adaptPriceUpdateFromLighter({ ...detail, lastTradePrice: 0 }, 1),
+      ).not.toHaveProperty('openInterest');
+    });
+
+    it('converts WebSocket open interest to USD at the mark price', () => {
+      expect(adaptPriceUpdateFromLighterWsStat(stat, 1).openInterest).toBe(
+        12345000,
+      );
+    });
+
+    it('uses the last trade price without a mark price', () => {
+      expect(
+        adaptPriceUpdateFromLighterWsStat({ ...stat, markPrice: '' }, 1)
+          .openInterest,
+      ).toBe(12221550);
+    });
+
+    it('leaves WebSocket open interest unset without a price', () => {
+      expect(
+        adaptPriceUpdateFromLighterWsStat(
+          { ...stat, markPrice: '', lastTradePrice: '' },
+          1,
+        ),
+      ).not.toHaveProperty('openInterest');
     });
   });
 
@@ -199,6 +290,19 @@ describe('lighterAdapter', () => {
       expect(adapted.providerId).toBe('lighter');
     });
 
+    it('returns returnOnEquity as a fraction of margin used, like Hyperliquid', () => {
+      // 20x ETH long: 161.4 notional at 5% initial margin = 8.07 margin.
+      const adapted = adaptPositionFromLighter({
+        ...position,
+        symbol: 'ETH',
+        initialMarginFraction: '5',
+        positionValue: '161.4',
+        unrealizedPnl: '-0.86',
+      });
+      expect(adapted.marginUsed).toBe('8.07');
+      expect(Number(adapted.returnOnEquity)).toBeCloseTo(-0.10657, 5);
+    });
+
     it('negates size for short positions', () => {
       const adapted = adaptPositionFromLighter({ ...position, sign: -1 });
       expect(adapted.size).toBe('-0.5');
@@ -223,6 +327,45 @@ describe('lighterAdapter', () => {
       });
       expect(adapted.liquidationPrice).toBeNull();
     });
+
+    it.each(['0', '', 'oops', '-5'])(
+      'rejects an open position with initial margin fraction %j instead of inventing 1x margin',
+      (initialMarginFraction) => {
+        expect(() =>
+          adaptPositionFromLighter({ ...position, initialMarginFraction }),
+        ).toThrow('Invalid Lighter venue data: initial margin fraction');
+      },
+    );
+
+    it('leaves leverage undefined on a flat row without a margin fraction', () => {
+      const adapted = adaptPositionFromLighter({
+        ...position,
+        position: '0',
+        positionValue: '0',
+        unrealizedPnl: '0',
+        initialMarginFraction: '0',
+      });
+      expect(adapted.leverage.value).toBeUndefined();
+      expect(adapted.marginUsed).toBe('0');
+      expect(adapted.returnOnEquity).toBe('0');
+    });
+
+    it('omits cumulative funding, which the account payload does not carry', () => {
+      const adapted = adaptPositionFromLighter(position);
+      expect(adapted).not.toHaveProperty('cumulativeFunding');
+    });
+
+    it.each([
+      ['position value', { positionValue: '50000oops' }],
+      ['unrealized PnL', { unrealizedPnl: 'NaN' }],
+    ])(
+      'rejects a malformed %s instead of producing NaN margin or RoE',
+      (_label, overrides) => {
+        expect(() =>
+          adaptPositionFromLighter({ ...position, ...overrides }),
+        ).toThrow('Invalid Lighter venue data');
+      },
+    );
   });
 
   describe('adaptAccountStateFromLighter', () => {
@@ -262,15 +405,28 @@ describe('lighterAdapter', () => {
       expect(state.marginUsed).toBe('2000');
       expect(state.unrealizedPnl).toBe('500');
       expect(state.providerId).toBe('lighter');
+      expect(state.spotCollateral).toBe('0');
     });
 
-    it('handles accounts with no positions', () => {
+    it('returns account returnOnEquity in percent, like Hyperliquid account state', () => {
+      // 500 PnL on 2000 margin used. Hyperliquid's AccountState reports 25.
+      const state = adaptAccountStateFromLighter(account);
+      expect(state.returnOnEquity).toBe('25');
+    });
+
+    it('reads an empty positions list as zero PnL', () => {
       const state = adaptAccountStateFromLighter({
         ...account,
-        positions: undefined,
+        positions: [],
       });
       expect(state.unrealizedPnl).toBe('0');
       expect(state.totalBalance).toBe('10000');
+    });
+
+    it('rejects a payload without positions instead of reading zero PnL', () => {
+      expect(() =>
+        adaptAccountStateFromLighter({ ...account, positions: undefined }),
+      ).toThrow('Invalid Lighter venue data: REST positions missing');
     });
 
     it.each([
@@ -295,6 +451,158 @@ describe('lighterAdapter', () => {
     );
   });
 
+  describe('adaptCrossMarginSummaryFromLighter', () => {
+    const row = (
+      overrides: Partial<LighterApiPosition>,
+    ): LighterApiPosition => ({
+      marketId: 1,
+      symbol: 'BTC',
+      initialMarginFraction: '20',
+      openOrderCount: 0,
+      sign: 1,
+      position: '0.1',
+      avgEntryPrice: '100000',
+      positionValue: '10000',
+      unrealizedPnl: '0',
+      realizedPnl: '0',
+      liquidationPrice: '0',
+      marginMode: 0,
+      ...overrides,
+    });
+    const accountWith = (
+      positions: LighterApiPosition[] | undefined,
+    ): LighterSubAccount => ({
+      code: 0,
+      accountType: 0,
+      index: 28,
+      l1Address: '0xabc',
+      cancelAllTime: 0,
+      totalOrderCount: 0,
+      pendingOrderCount: 0,
+      status: 1,
+      collateral: '10000',
+      availableBalance: '8000',
+      positions,
+    });
+    const fractions: Record<string, number> = { BTC: 0.012, ETH: 0.02 };
+    const lookup = (symbol: string): number | undefined => fractions[symbol];
+    const summarize = (
+      positions: LighterApiPosition[] | undefined,
+    ): CrossMarginSummary | undefined => {
+      const account = accountWith(positions);
+      return adaptCrossMarginSummaryFromLighter(
+        account,
+        adaptAccountStateFromLighter(account).totalBalance,
+        lookup,
+      );
+    };
+
+    it('sums cross positions and removes isolated PnL from account value', () => {
+      // total balance = 10000 + 500 - 200 = 10300; isolated PnL is -200.
+      expect(
+        summarize([
+          row({ unrealizedPnl: '500' }),
+          row({
+            marketId: 2,
+            symbol: 'ETH',
+            initialMarginFraction: '10',
+            sign: -1,
+            position: '1',
+            positionValue: '3000',
+            unrealizedPnl: '-200',
+            marginMode: 1,
+          }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10500',
+        maintenanceMargin: '120',
+        marginUsed: '2000',
+        notional: '10000',
+      });
+    });
+
+    it('counts several cross positions in one market and skips its isolated one', () => {
+      expect(
+        summarize([
+          row({ positionValue: '10000' }),
+          row({ initialMarginFraction: '10', positionValue: '5000' }),
+          row({ positionValue: '2000', unrealizedPnl: '50', marginMode: 1 }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '180',
+        marginUsed: '2500',
+        notional: '15000',
+      });
+    });
+
+    it('treats rows without a margin mode as cross', () => {
+      const { marginMode: _marginMode, ...legacy } = row({});
+      expect(summarize([legacy])?.notional).toBe('10000');
+    });
+
+    it('skips flat cross rows without needing their market metadata', () => {
+      expect(
+        summarize([
+          row({ symbol: 'DELISTED', position: '0', positionValue: '0' }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '0',
+        marginUsed: '0',
+        notional: '0',
+      });
+    });
+
+    it('reports zeros and the total balance for an empty positions list', () => {
+      expect(summarize([])).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '0',
+        marginUsed: '0',
+        notional: '0',
+      });
+    });
+
+    it('returns no summary when the response omits positions', () => {
+      expect(
+        adaptCrossMarginSummaryFromLighter(
+          accountWith(undefined),
+          '10000',
+          lookup,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns no summary when an open cross position has no initial margin fraction', () => {
+      expect(summarize([row({ initialMarginFraction: '0' })])).toBeUndefined();
+    });
+
+    it('returns no summary when an open cross position has no maintenance fraction', () => {
+      expect(
+        summarize([row({}), row({ marketId: 3, symbol: 'SOL' })]),
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ['position value', { positionValue: '1e999' }],
+      ['position value', { positionValue: '10000oops' }],
+      ['initial margin fraction', { initialMarginFraction: 'NaN' }],
+      ['position size', { position: '0.1x' }],
+      ['unrealized PnL', { unrealizedPnl: 'Infinity', marginMode: 1 }],
+    ])('fails on a malformed %s', (_label, overrides) => {
+      const account = accountWith([row(overrides)]);
+      expect(() =>
+        adaptCrossMarginSummaryFromLighter(account, '10000', lookup),
+      ).toThrow('Invalid Lighter venue data');
+    });
+
+    it('fails on a non-finite total balance', () => {
+      expect(() =>
+        adaptCrossMarginSummaryFromLighter(accountWith([]), 'NaN', lookup),
+      ).toThrow('Invalid Lighter venue data');
+    });
+  });
+
   describe('adaptAccountStateFromLighterUserStats', () => {
     const stats: LighterWsUserStats = {
       collateral: '10000',
@@ -304,6 +612,28 @@ describe('lighterAdapter', () => {
       marginUsage: '40',
       buyingPower: '0',
     };
+
+    it('reports no extra spot collateral for a known account', () => {
+      expect(adaptAccountStateFromLighterUserStats(stats).spotCollateral).toBe(
+        '0',
+      );
+    });
+
+    it('returns returnOnEquity over margin used, like the REST account state', () => {
+      // PnL 1000 over margin used 4000 (collateral 10000 - available 6000).
+      expect(adaptAccountStateFromLighterUserStats(stats).returnOnEquity).toBe(
+        '25',
+      );
+    });
+
+    it('returns returnOnEquity 0 when no margin is used', () => {
+      expect(
+        adaptAccountStateFromLighterUserStats({
+          ...stats,
+          availableBalance: '10000',
+        }).returnOnEquity,
+      ).toBe('0');
+    });
 
     it.each([
       ['collateral', { collateral: '10000USD' }],

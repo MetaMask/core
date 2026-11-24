@@ -1,20 +1,21 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { noop } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionData, TransactionFiatPayment } from '../types.js';
 import { getTransaction } from '../utils/transaction.js';
 import { updateFiatPayment } from './update-fiat-payment.js';
 
-jest.mock('../utils/transaction');
+vi.mock(import('../utils/transaction.js'));
 
 const TRANSACTION_ID_MOCK = '123-456';
 const FROM_MOCK = '0x456';
 
 describe('Update Fiat Payment Action', () => {
-  const getTransactionMock = jest.mocked(getTransaction);
+  const getTransactionMock = vi.mocked(getTransaction);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getTransactionMock.mockReturnValue({
       id: TRANSACTION_ID_MOCK,
@@ -23,7 +24,7 @@ describe('Update Fiat Payment Action', () => {
   });
 
   it('updates only selected payment method id', () => {
-    const updateTransactionDataMock = jest.fn();
+    const updateTransactionDataMock = vi.fn();
 
     updateFiatPayment(
       {
@@ -56,7 +57,7 @@ describe('Update Fiat Payment Action', () => {
   });
 
   it('updates amount without resetting other fiat fields', () => {
-    const updateTransactionDataMock = jest.fn();
+    const updateTransactionDataMock = vi.fn();
 
     updateFiatPayment(
       {
@@ -87,7 +88,7 @@ describe('Update Fiat Payment Action', () => {
   });
 
   it('initializes fiat payment state when missing', () => {
-    const updateTransactionDataMock = jest.fn();
+    const updateTransactionDataMock = vi.fn();
 
     updateFiatPayment(
       {
@@ -113,8 +114,8 @@ describe('Update Fiat Payment Action', () => {
   });
 
   it('supports explicit callback-style mutation', () => {
-    const updateTransactionDataMock = jest.fn();
-    const callback = jest.fn((fiatPayment: TransactionFiatPayment) => {
+    const updateTransactionDataMock = vi.fn();
+    const callback = vi.fn((fiatPayment: TransactionFiatPayment) => {
       fiatPayment.amountFiat = '12';
     });
 

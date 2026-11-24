@@ -1,7 +1,9 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import type {
+  AddressIdentityResponse,
   ChompApiServiceVerifyDelegationAction,
   IntentEntry,
+  MigrationStep,
 } from '@metamask/chomp-api-service';
 import { createRedeemerTerms } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -16,6 +18,8 @@ import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   MoneyAccountUpgradeControllerMessenger,
@@ -34,6 +38,8 @@ const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployme
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry
 const MOCK_ACCOUNT_ADDRESS =
   '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+const MOCK_PREDECESSOR_ADDRESS =
+  '0xfedcba0987654321fedcba0987654321fedcba09' as Hex;
 const MOCK_BORING_VAULT_ADDRESS =
   '0xA20f97813014129E7609171d2D3AA3da5206259e' as Hex;
 
@@ -255,28 +261,28 @@ const flushPromises = async (): Promise<void> => {
 };
 
 type Mocks = {
-  getServiceDetails: jest.Mock;
-  signPersonalMessage: jest.Mock;
-  associateAddress: jest.Mock;
-  getAssociatedAddresses: jest.Mock;
-  createUpgrade: jest.Mock;
-  signEip7702Authorization: jest.Mock;
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock;
-  listDelegations: jest.Mock;
-  createDelegation: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock<
-    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-  >;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
-  isEnabled: jest.Mock;
-  isEligible: jest.Mock;
-  ensureChainConfigured: jest.Mock;
-  onBootstrapError: jest.Mock;
+  getServiceDetails: Mock;
+  signPersonalMessage: Mock;
+  createAddressChallenge: Mock;
+  associateAddressV2: Mock;
+  getAssociatedAddresses: Mock;
+  getDerivedIdentityByAddress: Mock;
+  createUpgrade: Mock;
+  signEip7702Authorization: Mock;
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  providerRequest: Mock;
+  listDelegations: Mock;
+  createDelegation: Mock;
+  signDelegation: Mock;
+  verifyDelegation: Mock<ChompApiServiceVerifyDelegationAction['handler']>;
+  getIntentsByAddress: Mock;
+  createIntents: Mock;
+  createIntentsV2: Mock;
+  isEnabled: Mock;
+  isEligible: Mock;
+  ensureChainConfigured: Mock;
+  onBootstrapError: Mock;
 };
 
 /**
@@ -333,7 +339,7 @@ function setup({
   const signature = `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
 
   // Default provider responses: account is a plain EOA with nonce 0.
-  const providerRequest = jest
+  const providerRequest = vi
     .fn()
     .mockImplementation(async ({ method }: { method: string }) => {
       if (method === 'eth_getCode') {
@@ -346,17 +352,21 @@ function setup({
     });
 
   const mocks: Mocks = {
-    getServiceDetails: jest
-      .fn()
-      .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
-    signPersonalMessage: jest.fn().mockResolvedValue('0xdeadbeef'),
-    associateAddress: jest.fn().mockResolvedValue({
+    getServiceDetails: vi.fn().mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
+    signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
+    createAddressChallenge: vi.fn().mockResolvedValue({
+      challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
+      message: 'chomp.example.com wants you to sign in',
+      expiresAt: '2026-04-21T12:05:00.000Z',
+    }),
+    associateAddressV2: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
     }),
-    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
-    createUpgrade: jest.fn().mockResolvedValue({
+    getAssociatedAddresses: vi.fn().mockResolvedValue([]),
+    getDerivedIdentityByAddress: vi.fn().mockResolvedValue(null),
+    createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
       chainId: MOCK_CHAIN_ID,
@@ -364,29 +374,25 @@ function setup({
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
-    signEip7702Authorization: jest.fn().mockResolvedValue(signature),
-    findNetworkClientIdByChainId: jest
-      .fn()
-      .mockReturnValue('network-client-id'),
-    getNetworkClientById: jest.fn().mockReturnValue({
+    signEip7702Authorization: vi.fn().mockResolvedValue(signature),
+    findNetworkClientIdByChainId: vi.fn().mockReturnValue('network-client-id'),
+    getNetworkClientById: vi.fn().mockReturnValue({
       provider: { request: providerRequest },
     }),
     providerRequest,
-    listDelegations: jest.fn().mockResolvedValue([]),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
-    signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
-    verifyDelegation: jest
-      .fn<
-        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-      >()
+    listDelegations: vi.fn().mockResolvedValue([]),
+    createDelegation: vi.fn().mockResolvedValue(undefined),
+    signDelegation: vi.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+    verifyDelegation: vi
+      .fn<ChompApiServiceVerifyDelegationAction['handler']>()
       .mockResolvedValue({ valid: true }),
-    getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest.fn().mockResolvedValue([]),
-    isEnabled: jest.fn().mockImplementation(() => config.isEnabled),
-    isEligible: jest.fn().mockImplementation(async () => config.isEligible),
-    ensureChainConfigured: jest.fn().mockResolvedValue(undefined),
-    onBootstrapError: jest.fn(),
+    getIntentsByAddress: vi.fn().mockResolvedValue([]),
+    createIntents: vi.fn().mockResolvedValue([]),
+    createIntentsV2: vi.fn().mockResolvedValue([]),
+    isEnabled: vi.fn().mockImplementation(() => config.isEnabled),
+    isEligible: vi.fn().mockImplementation(async () => config.isEligible),
+    ensureChainConfigured: vi.fn().mockResolvedValue(undefined),
+    onBootstrapError: vi.fn(),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -424,8 +430,16 @@ function setup({
     mocks.signPersonalMessage,
   );
   rootMessenger.registerActionHandler(
-    'ChompApiService:associateAddress',
-    mocks.associateAddress,
+    'ChompApiService:createAddressChallenge',
+    mocks.createAddressChallenge,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:associateAddressV2',
+    mocks.associateAddressV2,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getDerivedIdentityByAddress',
+    mocks.getDerivedIdentityByAddress,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:getAssociatedAddresses',
@@ -471,6 +485,10 @@ function setup({
     'ChompApiService:createIntents',
     mocks.createIntents,
   );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:createIntentsV2',
+    mocks.createIntentsV2,
+  );
 
   const messenger: MoneyAccountUpgradeControllerMessenger = new Messenger({
     namespace: 'MoneyAccountUpgradeController',
@@ -482,7 +500,9 @@ function setup({
       'ChompApiService:getServiceDetails',
       'KeyringController:getState',
       'KeyringController:signPersonalMessage',
-      'ChompApiService:associateAddress',
+      'ChompApiService:createAddressChallenge',
+      'ChompApiService:associateAddressV2',
+      'ChompApiService:getDerivedIdentityByAddress',
       'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
@@ -494,6 +514,7 @@ function setup({
       'ChompApiService:verifyDelegation',
       'ChompApiService:getIntentsByAddress',
       'ChompApiService:createIntents',
+      'ChompApiService:createIntentsV2',
       'RemoteFeatureFlagController:getState',
     ],
     events: [
@@ -1239,7 +1260,7 @@ describe('MoneyAccountUpgradeController', () => {
         await bootstrap();
 
         let releaseAssociate: () => void = () => undefined;
-        mocks.associateAddress.mockImplementationOnce(
+        mocks.associateAddressV2.mockImplementationOnce(
           async () =>
             new Promise((resolve) => {
               releaseAssociate = (): void =>
@@ -1252,7 +1273,7 @@ describe('MoneyAccountUpgradeController', () => {
         );
         const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
         await flushPromises();
-        expect(mocks.associateAddress).toHaveBeenCalled();
+        expect(mocks.associateAddressV2).toHaveBeenCalled();
 
         await triggerKeyringChange();
         expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
@@ -1602,7 +1623,7 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
         expect.objectContaining({ from: MOCK_ACCOUNT_ADDRESS }),
       );
-      expect(mocks.associateAddress).toHaveBeenCalledWith(
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
         expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
       );
       expect(mocks.signEip7702Authorization).toHaveBeenCalledWith(
@@ -2050,6 +2071,476 @@ describe('MoneyAccountUpgradeController', () => {
       );
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('upgradeSuccessorAccount', () => {
+    it('throws when no bootstrap has been scheduled', async () => {
+      const { controller } = setup({ isEnabled: false });
+      controller.init();
+
+      await expect(
+        controller.upgradeSuccessorAccount(
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_PREDECESSOR_ADDRESS,
+        ),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
+    it('links the address to its predecessor when associating it', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith({
+        address: MOCK_ACCOUNT_ADDRESS,
+        purpose: 'ASSOCIATE_SUCCESSOR',
+        predecessorAddress: MOCK_PREDECESSOR_ADDRESS,
+      });
+      expect(mocks.associateAddressV2).toHaveBeenCalled();
+    });
+
+    it('runs the remaining upgrade steps and records the upgrade', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      makeAusAndChompWritable(mocks);
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createUpgrade).toHaveBeenCalled();
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('does not trust a recorded upgrade: the link is still made', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: 'ASSOCIATE_SUCCESSOR' }),
+      );
+    });
+
+    it('does not pass the predecessor to a later plain upgrade', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+      clearMockCalls(mocks);
+
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith({
+        address: MOCK_ACCOUNT_ADDRESS,
+        purpose: 'ASSOCIATE',
+      });
+    });
+
+    it('wraps a terminal link rejection in a terminal MoneyAccountUpgradeStepError', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.associateAddressV2.mockRejectedValue(
+        Object.assign(new Error('conflict'), {
+          httpStatus: 409,
+          code: 'SUCCESSOR_ALREADY_MONEY_ACCOUNT',
+        }),
+      );
+
+      const error = await controller
+        .upgradeSuccessorAccount(MOCK_ACCOUNT_ADDRESS, MOCK_PREDECESSOR_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(true);
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+    });
+
+    it('surfaces open predecessor withdrawals as a non-terminal step error carrying the CHOMP code', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.associateAddressV2.mockRejectedValue(
+        Object.assign(new Error('conflict'), {
+          httpStatus: 409,
+          code: 'PREDECESSOR_HAS_OPEN_WITHDRAWALS',
+        }),
+      );
+
+      const error = await controller
+        .upgradeSuccessorAccount(MOCK_ACCOUNT_ADDRESS, MOCK_PREDECESSOR_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(false);
+      expect(error).toMatchObject({
+        step: 'associate-address',
+        cause: { code: 'PREDECESSOR_HAS_OPEN_WITHDRAWALS' },
+      });
+    });
+
+    it('is callable via the messenger', async () => {
+      const { rootMessenger, mocks, bootstrap } = setup();
+      await bootstrap();
+
+      const result = await rootMessenger.call(
+        'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(result).toBeUndefined();
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: 'ASSOCIATE_SUCCESSOR' }),
+      );
+    });
+  });
+
+  describe('registerMigrationIntents', () => {
+    const MOCK_VAULT_MIGRATION_HELPER_ADDRESS =
+      '0x7777777777777777777777777777777777777777' as Hex;
+
+    const migratingIdentity = (
+      steps: MigrationStep[] = [
+        'ROOT_DELEGATION',
+        'TRANSFER_INTENT_MUSD',
+        'TRANSFER_INTENT_VMUSD',
+        'FUNDS_TRANSFERRED',
+      ],
+    ): AddressIdentityResponse => ({
+      identity: {
+        currentAddress: MOCK_PREDECESSOR_ADDRESS,
+        previousAddresses: [],
+        status: 'MIGRATING',
+        migration: {
+          from: MOCK_PREDECESSOR_ADDRESS,
+          to: MOCK_ACCOUNT_ADDRESS,
+          steps: steps.map((step) => ({ step, completed: false })),
+          transfer: null,
+          premiumTransfer: null,
+        },
+      },
+      address: {
+        address: MOCK_PREDECESSOR_ADDRESS,
+        role: 'CURRENT',
+        predecessor: null,
+        successor: MOCK_ACCOUNT_ADDRESS,
+      },
+    });
+
+    const premiumIdentity = (): AddressIdentityResponse =>
+      migratingIdentity(['TRANSFER_INTENT_PVMUSD', 'FUNDS_TRANSFERRED']);
+
+    const withVaultMigrationHelper = {
+      ...MOCK_SERVICE_DETAILS_RESPONSE,
+      chains: {
+        [MOCK_CHAIN_ID]: {
+          ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+          vaultMigrationHelperAddress: MOCK_VAULT_MIGRATION_HELPER_ADDRESS,
+        },
+      },
+    };
+
+    it('throws when no bootstrap has been scheduled', async () => {
+      const { controller } = setup({ isEnabled: false });
+      controller.init();
+
+      await expect(
+        controller.registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        ),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
+    it('registers the missing intents of the predecessor, signed against the armed config', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
+      await bootstrap();
+
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(3);
+      expect(mocks.signDelegation).toHaveBeenCalledWith({
+        delegation: expect.objectContaining({
+          delegator: MOCK_PREDECESSOR_ADDRESS,
+          caveats: expect.arrayContaining([
+            expect.objectContaining({
+              enforcer: MAINNET_CONTRACTS.AllowedTargetsEnforcer,
+            }),
+            expect.objectContaining({
+              enforcer: MAINNET_CONTRACTS.AllowedCalldataEnforcer,
+            }),
+          ]),
+        }),
+        chainId: MOCK_CHAIN_ID,
+      });
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      expect(mocks.createIntentsV2).toHaveBeenCalledTimes(1);
+      expect(mocks.createIntentsV2.mock.calls[0][0]).toHaveLength(3);
+    });
+
+    it('signs nothing when CHOMP reports another successor than the expected one', async () => {
+      const OTHER_SUCCESSOR_ADDRESS =
+        '0x6666666666666666666666666666666666666666' as Hex;
+      const { controller, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
+      await bootstrap();
+
+      const error = await controller
+        .registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          OTHER_SUCCESSOR_ADDRESS,
+        )
+        .catch((caught: unknown) => caught);
+
+      expect(error).toMatchObject({
+        step: 'register-migration-intents',
+        cause: new Error(
+          `${MOCK_PREDECESSOR_ADDRESS} is migrating to ${MOCK_ACCOUNT_ADDRESS}, not to ${OTHER_SUCCESSOR_ADDRESS}`,
+        ),
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createIntentsV2).not.toHaveBeenCalled();
+    });
+
+    it('does not record an upgrade', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
+      await bootstrap();
+
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+    });
+
+    it('signs the premium transfer through the vault migration helper from the service details', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      mocks.getServiceDetails.mockResolvedValue(withVaultMigrationHelper);
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(premiumIdentity());
+      await bootstrap();
+
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(mocks.signDelegation).toHaveBeenCalledWith({
+        delegation: expect.objectContaining({
+          delegate: MOCK_DELEGATE_ADDRESS,
+          caveats: expect.arrayContaining([
+            {
+              enforcer: MAINNET_CONTRACTS.RedeemerEnforcer,
+              terms: createRedeemerTerms({
+                redeemers: [MOCK_VAULT_MIGRATION_HELPER_ADDRESS],
+              }),
+              args: '0x',
+            },
+          ]),
+        }),
+        chainId: MOCK_CHAIN_ID,
+      });
+      expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ from: MOCK_PREDECESSOR_ADDRESS }),
+      );
+    });
+
+    it('uses a vault migration helper that CHOMP starts serving after the bootstrap', async () => {
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(premiumIdentity());
+      await bootstrap();
+      await expect(
+        controller.registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        ),
+      ).rejects.toThrow('register-migration-intents');
+
+      mocks.getServiceDetails.mockResolvedValue(withVaultMigrationHelper);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(mocks.createIntentsV2).toHaveBeenCalledTimes(1);
+    });
+
+    it('signs for the vault migration helper CHOMP serves when called, not the one served at bootstrap', async () => {
+      const MOVED_HELPER_ADDRESS =
+        '0x8888888888888888888888888888888888888888' as Hex;
+      const { controller, mocks, bootstrap } = setup({
+        premiumVaultConfig: PREMIUM_VAULT_CONFIG,
+      });
+      mocks.getServiceDetails.mockResolvedValue(withVaultMigrationHelper);
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(premiumIdentity());
+      await bootstrap();
+
+      mocks.getServiceDetails.mockResolvedValue({
+        ...withVaultMigrationHelper,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...withVaultMigrationHelper.chains[MOCK_CHAIN_ID],
+            vaultMigrationHelperAddress: MOVED_HELPER_ADDRESS,
+          },
+        },
+      });
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(mocks.signDelegation).toHaveBeenCalledWith({
+        delegation: expect.objectContaining({
+          caveats: expect.arrayContaining([
+            {
+              enforcer: MAINNET_CONTRACTS.RedeemerEnforcer,
+              terms: createRedeemerTerms({
+                redeemers: [MOVED_HELPER_ADDRESS],
+              }),
+              args: '0x',
+            },
+          ]),
+        }),
+        chainId: MOCK_CHAIN_ID,
+      });
+    });
+
+    it('wraps a failure in a step error', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(null);
+      await bootstrap();
+
+      const error = await controller
+        .registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        )
+        .catch((caught: unknown) => caught);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(error).toMatchObject({
+        step: 'register-migration-intents',
+        cause: new Error(
+          `${MOCK_PREDECESSOR_ADDRESS} is not the predecessor of a Money Account migration`,
+        ),
+      });
+    });
+
+    it('is exposed through the messenger', async () => {
+      const { rootMessenger, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
+      await bootstrap();
+
+      await rootMessenger.call(
+        'MoneyAccountUpgradeController:registerMigrationIntents',
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(mocks.createIntentsV2).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getRegistrationStatus', () => {
+    const identityResponse: AddressIdentityResponse = {
+      identity: {
+        currentAddress: MOCK_ACCOUNT_ADDRESS,
+        previousAddresses: [],
+        status: 'DONE',
+        migration: null,
+      },
+      address: {
+        address: MOCK_ACCOUNT_ADDRESS,
+        role: 'CURRENT',
+        predecessor: null,
+        successor: null,
+      },
+    };
+
+    it('reports the address as registered when CHOMP has an identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+      expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ADDRESS,
+      );
+    });
+
+    it('reports the address as not registered when CHOMP has no identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(null);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: false });
+    });
+
+    it('does not require a bootstrap', async () => {
+      const { controller, mocks } = setup({ isEnabled: false });
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+    });
+
+    it('propagates a failed CHOMP lookup', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockRejectedValue(
+        new Error('CHOMP unavailable'),
+      );
+
+      await expect(
+        controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('CHOMP unavailable');
+    });
+
+    it('is exposed through the messenger', async () => {
+      const { rootMessenger, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status = await rootMessenger.call(
+        'MoneyAccountUpgradeController:getRegistrationStatus',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(status).toStrictEqual({ isRegistered: true });
     });
   });
 });

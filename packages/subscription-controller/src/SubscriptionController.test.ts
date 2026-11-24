@@ -11,8 +11,9 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   CANCELLATION_REASONS,
@@ -175,6 +176,14 @@ const MOCK_MONEY_ACCOUNT_PRODUCT_PRICE: ProductPricing = {
   ],
 };
 
+const MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL: ProductPricing = {
+  ...MOCK_MONEY_ACCOUNT_PRODUCT_PRICE,
+  prices: MOCK_MONEY_ACCOUNT_PRODUCT_PRICE.prices.map((price) => ({
+    ...price,
+    trialPeriodDays: 14,
+  })),
+};
+
 const MOCK_PRICING_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   type: PAYMENT_TYPES.byCrypto,
   chains: [
@@ -231,6 +240,9 @@ const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
 
 const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: true,
+  benefitPeriodId: 'bp_2026_08_15',
+  benefitPeriodStart: '2026-08-15T00:00:00.000Z',
+  benefitPeriodEnd: '2026-09-15T00:00:00.000Z',
   billingPeriodId: 'bp_2026_08_15',
   products: {
     swaps: {
@@ -242,7 +254,6 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: '0',
-      builderCode: '<builder-code>',
       capMicroUsd: 1_500_000_000,
       consumedMicroUsd: 500_000_000,
       remainingMicroUsd: 1_000_000_000,
@@ -260,6 +271,9 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
   eligible: false,
+  benefitPeriodId: null,
+  benefitPeriodStart: null,
+  benefitPeriodEnd: null,
   billingPeriodId: null,
   products: {
     swaps: {
@@ -269,7 +283,6 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: null,
-      builderCode: null,
       remainingMicroUsd: null,
       exhausted: false,
     },
@@ -283,6 +296,9 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
 
 const MOCK_BENEFITS_STATE: SubscriptionBenefitsState = {
   billingPeriodId: MOCK_BENEFITS_RESPONSE.billingPeriodId,
+  benefitPeriodId: MOCK_BENEFITS_RESPONSE.benefitPeriodId,
+  benefitPeriodStart: MOCK_BENEFITS_RESPONSE.benefitPeriodStart,
+  benefitPeriodEnd: MOCK_BENEFITS_RESPONSE.benefitPeriodEnd,
   ...MOCK_BENEFITS_RESPONSE.products,
 };
 
@@ -358,7 +374,7 @@ function createCustomSubscriptionMessenger(): {
 }
 
 /**
- * Jest Mock Utility to generate a mock Subscription Messenger
+ * Mock utility to generate a mock Subscription Messenger
  *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @param overrideMessengers.rootMessenger - base messenger to override
@@ -371,26 +387,26 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 }): {
   rootMessenger: RootMessenger;
   messenger: SubscriptionControllerMessenger;
-  mockPerformSignOut: jest.Mock;
-  mockGetIsUserAuthenticated: jest.Mock;
-  mockGetGeolocationData: jest.Mock;
+  mockPerformSignOut: Mock;
+  mockGetIsUserAuthenticated: Mock;
+  mockGetGeolocationData: Mock;
 } {
   const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
-  const mockPerformSignOut = jest.fn();
+  const mockPerformSignOut = vi.fn();
   rootMessenger.registerActionHandler(
     'AuthenticationController:performSignOut',
     mockPerformSignOut,
   );
 
-  const mockGetIsUserAuthenticated = jest.fn().mockResolvedValue(true);
+  const mockGetIsUserAuthenticated = vi.fn().mockResolvedValue(true);
   rootMessenger.registerActionHandler(
     'SeedlessOnboardingController:getIsUserAuthenticated',
     mockGetIsUserAuthenticated,
   );
 
-  const mockGetGeolocationData = jest.fn().mockResolvedValue({
+  const mockGetGeolocationData = vi.fn().mockResolvedValue({
     country: 'US',
     region: null,
     timezone: null,
@@ -411,49 +427,49 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 
 function registerMockSubscriptionService(rootMessenger: RootMessenger): {
   mockService: {
-    getSubscriptions: jest.Mock;
-    getBenefits: jest.Mock;
-    cancelSubscription: jest.Mock;
-    unCancelSubscription: jest.Mock;
-    startSubscriptionWithCard: jest.Mock;
-    getPricing: jest.Mock;
-    startSubscriptionWithCrypto: jest.Mock;
-    updatePaymentMethodCard: jest.Mock;
-    updatePaymentMethodCrypto: jest.Mock;
-    getBillingPortalUrl: jest.Mock;
-    getSubscriptionsEligibilities: jest.Mock;
-    submitUserEvent: jest.Mock;
-    submitSponsorshipIntents: jest.Mock;
-    assignUserToCohort: jest.Mock;
-    linkRewards: jest.Mock;
+    getSubscriptions: Mock;
+    getBenefits: Mock;
+    cancelSubscription: Mock;
+    unCancelSubscription: Mock;
+    startSubscriptionWithCard: Mock;
+    getPricing: Mock;
+    startSubscriptionWithCrypto: Mock;
+    updatePaymentMethodCard: Mock;
+    updatePaymentMethodCrypto: Mock;
+    getBillingPortalUrl: Mock;
+    getSubscriptionsEligibilities: Mock;
+    submitUserEvent: Mock;
+    submitSponsorshipIntents: Mock;
+    assignUserToCohort: Mock;
+    linkRewards: Mock;
   };
-  mockGetSubscriptions: jest.Mock;
-  mockGetBenefits: jest.Mock;
-  mockCancelSubscription: jest.Mock;
-  mockUnCancelSubscription: jest.Mock;
-  mockStartSubscriptionWithCard: jest.Mock;
-  mockGetPricing: jest.Mock;
-  mockStartSubscriptionWithCrypto: jest.Mock;
-  mockUpdatePaymentMethodCard: jest.Mock;
-  mockUpdatePaymentMethodCrypto: jest.Mock;
-  mockSubmitSponsorshipIntents: jest.Mock;
-  mockAssignUserToCohort: jest.Mock;
+  mockGetSubscriptions: Mock;
+  mockGetBenefits: Mock;
+  mockCancelSubscription: Mock;
+  mockUnCancelSubscription: Mock;
+  mockStartSubscriptionWithCard: Mock;
+  mockGetPricing: Mock;
+  mockStartSubscriptionWithCrypto: Mock;
+  mockUpdatePaymentMethodCard: Mock;
+  mockUpdatePaymentMethodCrypto: Mock;
+  mockSubmitSponsorshipIntents: Mock;
+  mockAssignUserToCohort: Mock;
 } {
-  const mockGetSubscriptions = jest.fn().mockImplementation();
-  const mockGetBenefits = jest.fn();
-  const mockCancelSubscription = jest.fn();
-  const mockUnCancelSubscription = jest.fn();
-  const mockStartSubscriptionWithCard = jest.fn();
-  const mockGetPricing = jest.fn();
-  const mockStartSubscriptionWithCrypto = jest.fn();
-  const mockUpdatePaymentMethodCard = jest.fn();
-  const mockUpdatePaymentMethodCrypto = jest.fn();
-  const mockGetBillingPortalUrl = jest.fn();
-  const mockGetSubscriptionsEligibilities = jest.fn();
-  const mockSubmitUserEvent = jest.fn();
-  const mockSubmitSponsorshipIntents = jest.fn();
-  const mockAssignUserToCohort = jest.fn();
-  const mockLinkRewards = jest.fn();
+  const mockGetSubscriptions = vi.fn().mockImplementation(() => undefined);
+  const mockGetBenefits = vi.fn();
+  const mockCancelSubscription = vi.fn();
+  const mockUnCancelSubscription = vi.fn();
+  const mockStartSubscriptionWithCard = vi.fn();
+  const mockGetPricing = vi.fn();
+  const mockStartSubscriptionWithCrypto = vi.fn();
+  const mockUpdatePaymentMethodCard = vi.fn();
+  const mockUpdatePaymentMethodCrypto = vi.fn();
+  const mockGetBillingPortalUrl = vi.fn();
+  const mockGetSubscriptionsEligibilities = vi.fn();
+  const mockSubmitUserEvent = vi.fn();
+  const mockSubmitSponsorshipIntents = vi.fn();
+  const mockAssignUserToCohort = vi.fn();
+  const mockLinkRewards = vi.fn();
 
   rootMessenger.registerActionHandler(
     'SubscriptionService:getSubscriptions',
@@ -561,9 +577,9 @@ type WithControllerCallback<ReturnValue> = (params: {
   mockService: ReturnType<
     typeof registerMockSubscriptionService
   >['mockService'];
-  mockPerformSignOut: jest.Mock;
-  mockGetIsUserAuthenticated: jest.Mock;
-  mockGetGeolocationData: jest.Mock;
+  mockPerformSignOut: Mock;
+  mockGetIsUserAuthenticated: Mock;
+  mockGetGeolocationData: Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -809,7 +825,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should clear benefits state before throwing UserNotSubscribed for an ineligible response', async () => {
+    it('should clear benefits state and return an ineligible response', async () => {
       await withController(
         {
           state: {
@@ -822,12 +838,11 @@ describe('SubscriptionController', () => {
             MOCK_INELIGIBLE_BENEFITS_RESPONSE,
           );
 
-          await expect(
-            rootMessenger.call('SubscriptionController:getBenefits'),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          const result = await rootMessenger.call(
+            'SubscriptionController:getBenefits',
           );
 
+          expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
@@ -1588,7 +1603,7 @@ describe('SubscriptionController', () => {
             rewardAccountId: mockRewardAccountId,
           });
 
-          const stateChangeListener = jest.fn();
+          const stateChangeListener = vi.fn();
           rootMessenger.subscribe(
             'SubscriptionController:stateChange',
             stateChangeListener,
@@ -1980,6 +1995,9 @@ describe('SubscriptionController', () => {
       };
       const nextPeriodBenefits: SubscriptionBenefitsResponse = {
         ...MOCK_BENEFITS_RESPONSE,
+        benefitPeriodId: 'bp_2024_02_01',
+        benefitPeriodStart: '2024-02-01T00:00:00.000Z',
+        benefitPeriodEnd: '2024-03-01T00:00:00.000Z',
         billingPeriodId: 'bp_2024_02_01',
       };
 
@@ -2005,6 +2023,9 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual({
             billingPeriodId: nextPeriodBenefits.billingPeriodId,
+            benefitPeriodId: nextPeriodBenefits.benefitPeriodId,
+            benefitPeriodStart: nextPeriodBenefits.benefitPeriodStart,
+            benefitPeriodEnd: nextPeriodBenefits.benefitPeriodEnd,
             ...nextPeriodBenefits.products,
           });
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
@@ -2274,9 +2295,18 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.unCancelSubscription.mockResolvedValue({
+          const uncancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.active,
+          };
+          mockService.unCancelSubscription.mockResolvedValue(
+            uncancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [uncancelledSubscription, mockSubscription2],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           expect(
             await rootMessenger.call(
@@ -2287,13 +2317,99 @@ describe('SubscriptionController', () => {
             ),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.active },
+            uncancelledSubscription,
             mockSubscription2,
           ]);
           expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
             subscriptionId: MOCK_SUBSCRIPTION.id,
           });
           expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should clear a stale cancelAtPeriodEnd when the uncancel response omits it', async () => {
+      const pendingCancellation = {
+        ...MOCK_SUBSCRIPTION,
+        cancelAtPeriodEnd: true,
+      };
+      const resumedSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.active,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [pendingCancellation],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            resumedSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [resumedSubscription],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:unCancelSubscription',
+            {
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            resumedSubscription,
+          ]);
+          expect(
+            controller.state.subscriptions[0]?.cancelAtPeriodEnd,
+          ).toBeUndefined();
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should replace the subscription with the uncancel response when the subscription refresh fails', async () => {
+      const pendingCancellation = {
+        ...MOCK_SUBSCRIPTION,
+        cancelAtPeriodEnd: true,
+        canceledAt: '2024-01-15T00:00:00Z',
+      };
+      const resumedSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.active,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [pendingCancellation],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            resumedSubscription,
+          );
+          mockService.getSubscriptions.mockRejectedValue(
+            new SubscriptionServiceError('Failed to refresh subscriptions'),
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:unCancelSubscription',
+            {
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            resumedSubscription,
+          ]);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2362,6 +2478,7 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
         },
       );
     });
@@ -2382,6 +2499,12 @@ describe('SubscriptionController', () => {
           mockService.unCancelSubscription.mockResolvedValue(
             MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
           );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+            productEntitlements: {},
+          });
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           await rootMessenger.call(
@@ -2396,6 +2519,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2416,6 +2540,12 @@ describe('SubscriptionController', () => {
           mockService.unCancelSubscription.mockResolvedValue(
             MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
           );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+            productEntitlements: {},
+          });
           mockService.getBenefits.mockRejectedValue(
             new SubscriptionServiceError('Failed to get benefits'),
           );
@@ -2434,6 +2564,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2580,6 +2711,46 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
+            recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
+          });
+        },
+      );
+    });
+
+    it('does not request a Money Account Plus trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+            isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
             isEligibleForRefund: false,
           });
@@ -3102,7 +3273,7 @@ describe('SubscriptionController', () => {
             });
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
-          const triggerAccessTokenRefreshSpy = jest.spyOn(
+          const triggerAccessTokenRefreshSpy = vi.spyOn(
             controller,
             'triggerAccessTokenRefresh',
           );
@@ -3254,6 +3425,187 @@ describe('SubscriptionController', () => {
             },
           );
 
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: true,
+            }),
+          );
+        },
+      );
+    });
+
+    it('does not request a Money Account Plus trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('requests a Money Account Plus trial when the user is authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(true);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).toHaveBeenCalledTimes(1);
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: true,
+            }),
+          );
+        },
+      );
+    });
+
+    it('does not request a Money Account Plus trial when the product was already trialed, without checking social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(true);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('still requests a Shield trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_CRYPTO_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
             expect.objectContaining({
               isTrialRequested: true,
@@ -3817,18 +4169,18 @@ describe('SubscriptionController', () => {
 
   describe('startPolling', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should call getSubscriptions with the correct interval', async () => {
       await withController(async ({ controller }) => {
-        const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
+        const getSubscriptionsSpy = vi.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
-        await jestAdvanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -3838,12 +4190,12 @@ describe('SubscriptionController', () => {
         mockService.getSubscriptions.mockResolvedValue(
           MOCK_GET_SUBSCRIPTIONS_RESPONSE,
         );
-        const triggerAccessTokenRefreshSpy = jest.spyOn(
+        const triggerAccessTokenRefreshSpy = vi.spyOn(
           controller,
           'triggerAccessTokenRefresh',
         );
         controller.startPolling({});
-        await jestAdvanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -3864,7 +4216,7 @@ describe('SubscriptionController', () => {
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           controller.startPolling({});
-          await jestAdvanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
@@ -4910,7 +5262,7 @@ describe('SubscriptionController', () => {
   describe('submitUserEvent', () => {
     it('should submit user event successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const submitUserEventSpy = jest
+        const submitUserEventSpy = vi
           .spyOn(mockService, 'submitUserEvent')
           .mockResolvedValue(undefined);
 
@@ -4930,7 +5282,7 @@ describe('SubscriptionController', () => {
 
     it('should submit user event with cohort successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const submitUserEventSpy = jest
+        const submitUserEventSpy = vi
           .spyOn(mockService, 'submitUserEvent')
           .mockResolvedValue(undefined);
 
@@ -4969,7 +5321,7 @@ describe('SubscriptionController', () => {
   describe('assignUserToCohort', () => {
     it('should assign user to cohort successfully', async () => {
       await withController(async ({ rootMessenger, mockService }) => {
-        const assignUserToCohortSpy = jest
+        const assignUserToCohortSpy = vi
           .spyOn(mockService, 'assignUserToCohort')
           .mockResolvedValue(undefined);
 
@@ -5286,7 +5638,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
-          const submitSponsorshipIntentsSpy = jest
+          const submitSponsorshipIntentsSpy = vi
             .spyOn(mockService, 'submitSponsorshipIntents')
             .mockResolvedValue(undefined);
 
@@ -6511,7 +6863,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
-          const linkRewardsSpy = jest
+          const linkRewardsSpy = vi
             .spyOn(mockService, 'linkRewards')
             .mockResolvedValue({
               success: true,

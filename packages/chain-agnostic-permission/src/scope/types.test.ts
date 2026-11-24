@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { parseScopeString } from './types.js';
 
 describe('Scope', () => {

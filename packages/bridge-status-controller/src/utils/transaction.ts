@@ -6,6 +6,7 @@ import {
   isEvmTxData,
   FeeType,
   BatchSellTransactionType,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import type {
   BatchSellTradesResponse,
@@ -35,7 +36,6 @@ import type { Hex } from '@metamask/utils';
 import { APPROVAL_DELAY_MS } from '../constants.js';
 import type { BridgeStatusControllerMessenger } from '../types.js';
 import type { QuoteAndTxMetadata } from '../types.js';
-import { getAccountByAddress } from './accounts.js';
 import { getNetworkClientIdByChainId } from './network.js';
 
 export const isApprovalTx = (type: TransactionType) =>
@@ -81,11 +81,30 @@ export const shouldDisable7702 = (
   return true;
 };
 
-export const hasNestedSwapTransactions = (txMeta: TransactionMeta) => {
-  return Boolean(
-    txMeta?.nestedTransactions?.some((tx) => tx.type === TransactionType.swap),
-  );
+const hasNestedTransactions = (
+  txMeta: TransactionMeta,
+  txType: TransactionType,
+) => {
+  return Boolean(txMeta?.nestedTransactions?.some((tx) => tx.type === txType));
 };
+
+export const hasNestedSwapTransactions = (txMeta: TransactionMeta) =>
+  hasNestedTransactions(txMeta, TransactionType.swap);
+
+export const hasNestedBridgeTransactions = (txMeta: TransactionMeta) =>
+  hasNestedTransactions(txMeta, TransactionType.bridge);
+
+export const hasNestedDepositTransactions = (txMeta: TransactionMeta) =>
+  hasNestedTransactions(txMeta, TransactionType.moneyAccountDeposit);
+
+export const hasNestedWithdrawTransferTransactions = (
+  txMeta: TransactionMeta,
+) => hasNestedTransactions(txMeta, TransactionType.moneyAccountWithdraw);
+
+export const isAtomic7702BatchTx = (txMeta: TransactionMeta): boolean =>
+  txMeta.type === TransactionType.batch ||
+  hasNestedSwapTransactions(txMeta) ||
+  Boolean(txMeta.txParams?.authorizationList?.length);
 
 export const getGasFeeEstimates = async (
   messenger: BridgeStatusControllerMessenger,
@@ -99,8 +118,6 @@ export const getGasFeeEstimates = async (
   if (estimates?.type === GasFeeEstimateType.FeeMarket) {
     return estimates[BRIDGE_PREFERRED_GAS_ESTIMATE];
   }
-
-  return;
 };
 
 export const getTransactions = (messenger: BridgeStatusControllerMessenger) => {
@@ -113,6 +130,15 @@ export const getTransactionMetaById = (
 ) => {
   return getTransactions(messenger).find(
     (tx: TransactionMeta) => tx.id === txId,
+  );
+};
+
+export const getTransactionMetaByActionId = (
+  messenger: BridgeStatusControllerMessenger,
+  actionId?: string,
+) => {
+  return getTransactions(messenger).find(
+    (tx: TransactionMeta) => tx.actionId === actionId,
   );
 };
 
@@ -159,6 +185,17 @@ export const checkIsDelegatedAccount = async (
     return false;
   }
 };
+
+export const getTransactionMetaByBatchId = ({
+  messenger,
+  batchId,
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  batchId: string;
+}): TransactionMeta[] =>
+  getTransactions(messenger).filter(
+    (tx: TransactionMeta) => tx.batchId === batchId,
+  );
 
 const waitForHashAndReturnFinalTxMeta = async (
   messenger: BridgeStatusControllerMessenger,
@@ -474,15 +511,21 @@ export const getAddTransactionBatchParams = async ({
   tradeData,
   requireApproval = false,
   isDelegatedAccount,
+  selectedAccount: selectedAccountOverride,
   ...addTransactionBatchParams
 }: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
   tradeData: QuoteAndTxMetadata[];
   requireApproval?: boolean;
   isDelegatedAccount?: boolean;
+  selectedAccount?: { address: `0x${string}` };
 }): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
   const trade = tradeData[0].tx;
-  const selectedAccount = getAccountByAddress(messenger, trade.from);
+  // Deposit and withdraw txs use the money account address
+  // Which is not recognized by the getAccountByAddress util
+  const selectedAccount =
+    selectedAccountOverride ??
+    (trade.from ? getAccountByAddress(messenger, trade.from) : undefined);
   if (!selectedAccount) {
     throw new Error(
       'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
@@ -526,9 +569,7 @@ export const findAllTransactionsInBatch = ({
   tradeData: QuoteAndTxMetadata[];
 }): QuoteAndTxMetadata[] => {
   // Filter for transactions with batchId
-  const txs = getTransactions(messenger).filter(
-    (tx: TransactionMeta) => tx.batchId === batchId,
-  );
+  const txs = getTransactionMetaByBatchId({ messenger, batchId });
 
   return tradeData.map((tradeWithMetadata) => {
     const { tx, type } = tradeWithMetadata;
@@ -584,15 +625,20 @@ export const updateTransactionsInBatch = ({
     const { txMeta, type } = tradeWithMetadata;
 
     if (txMeta) {
-      // Update the tx type from batch to swap/bridge
-      updateTransaction(
-        messenger,
-        txMeta,
-        { type },
-        `Update tx type to ${type}`,
-      );
-      const updatedTx = { ...txMeta, type };
-      return { ...tradeWithMetadata, txMeta: updatedTx, type };
+      try {
+        // Update the tx type from batch to swap/bridge
+        updateTransaction(
+          messenger,
+          txMeta,
+          { type },
+          `Update tx type to ${type}`,
+        );
+        const updatedTx = { ...txMeta, type };
+        return { ...tradeWithMetadata, txMeta: updatedTx, type };
+      } catch (error) {
+        console.warn(`Failed to update transaction type to ${type}`, error);
+        return tradeWithMetadata;
+      }
     }
 
     return tradeWithMetadata;

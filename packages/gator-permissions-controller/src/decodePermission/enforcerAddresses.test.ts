@@ -1,6 +1,7 @@
 import { makePermissionDecoderConfigs } from '@metamask/7715-permission-types';
 import type { EnforcerAddressesByName } from '@metamask/7715-permission-types';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { buildMockDelegationEnforcerContracts } from '../../tests/mocks.js';
 import type { DelegationDeploymentsEnforcerAddressesByName } from '../types.js';

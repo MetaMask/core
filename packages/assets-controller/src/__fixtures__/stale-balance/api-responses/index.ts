@@ -155,8 +155,8 @@ export function mockV3Assets(): {
     .persist()
     .get('/v3/assets')
     .query(true)
-    .reply(200, (uri: string) => {
-      const assetIds = readListParam(uri, 'assetIds', API_URLS.TOKENS);
+    .reply(200, (request: Request) => {
+      const assetIds = readListParam(request, 'assetIds', API_URLS.TOKENS);
       requestedBatches.push(assetIds);
       return assetIds.map((assetId) => lookupAsset(assetId));
     });
@@ -179,8 +179,8 @@ export function mockV3SpotPrices(): {
     .persist()
     .get('/v3/spot-prices')
     .query(true)
-    .reply(200, (uri: string) => {
-      const assetIds = readListParam(uri, 'assetIds', API_URLS.PRICES);
+    .reply(200, (request: Request) => {
+      const assetIds = readListParam(request, 'assetIds', API_URLS.PRICES);
       requestedBatches.push(assetIds);
 
       const prices: Record<string, Json> = {};
@@ -232,10 +232,14 @@ export function mockV6MultiAccountBalances({
     .persist()
     .get('/v6/multiaccount/balances')
     .query(true)
-    .reply(200, (uri: string) => {
-      const accountIds = readListParam(uri, 'accountIds', API_URLS.ACCOUNTS);
+    .reply(200, (request: Request) => {
+      const accountIds = readListParam(
+        request,
+        'accountIds',
+        API_URLS.ACCOUNTS,
+      );
       const includeAssetIds = readListParam(
-        uri,
+        request,
         'includeAssetIds',
         API_URLS.ACCOUNTS,
       );
@@ -349,13 +353,17 @@ export function mockStaleBalanceApis({
 /**
  * Read a comma-separated query parameter back off an intercepted request URI.
  *
- * @param uri - The intercepted request URI, path and query.
+ * @param request - The intercepted request.
  * @param param - The query parameter name.
  * @param base - Base URL, so the relative URI can be parsed.
  * @returns The parameter's values.
  */
-function readListParam(uri: string, param: string, base: string): string[] {
-  const value = new URL(uri, base).searchParams.get(param);
+function readListParam(
+  request: Request,
+  param: string,
+  base: string,
+): string[] {
+  const value = new URL(request.url, base).searchParams.get(param);
   return value ? value.split(',') : [];
 }
 

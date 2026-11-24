@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../../index.js';
 import type { TransactionPayQuote } from '../../types.js';
@@ -7,19 +8,19 @@ import { submitRelayQuotes } from './relay-submit.js';
 import { RelayStrategy } from './RelayStrategy.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('./relay-quotes');
-jest.mock('./relay-submit');
+vi.mock(import('./relay-quotes.js'));
+vi.mock(import('./relay-submit.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
 } as TransactionPayQuote<RelayQuote>;
 
 describe('RelayStrategy', () => {
-  const getBridgeQuotesMock = jest.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
+  const getBridgeQuotesMock = vi.mocked(getRelayQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getBridgeQuotesMock.mockResolvedValue([QUOTE_MOCK]);
   });
 

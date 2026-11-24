@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { QuoteStatusState } from './constants.js';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
 
@@ -61,7 +63,7 @@ describe('QuoteStatusStateFsm', () => {
 
     it('emits a state update event on a successful transition', () => {
       const fsm = new QuoteStatusStateFsm(QuoteStatusState.Submitted);
-      const listener = jest.fn();
+      const listener = vi.fn();
       fsm.onStateUpdate(listener);
 
       fsm.transitionTo(QuoteStatusState.FinalizedSuccess);
@@ -74,7 +76,7 @@ describe('QuoteStatusStateFsm', () => {
 
     it('does not emit an event on a failed transition', () => {
       const fsm = new QuoteStatusStateFsm(QuoteStatusState.Submitted);
-      const listener = jest.fn();
+      const listener = vi.fn();
       fsm.onStateUpdate(listener);
 
       fsm.transitionTo(QuoteStatusState.Completed);
@@ -86,8 +88,8 @@ describe('QuoteStatusStateFsm', () => {
   describe('onStateUpdate', () => {
     it('notifies every subscribed listener', () => {
       const fsm = new QuoteStatusStateFsm(QuoteStatusState.Submitted);
-      const first = jest.fn();
-      const second = jest.fn();
+      const first = vi.fn();
+      const second = vi.fn();
       fsm.onStateUpdate(first);
       fsm.onStateUpdate(second);
 
@@ -99,7 +101,7 @@ describe('QuoteStatusStateFsm', () => {
 
     it('stops notifying a listener after it unsubscribes', () => {
       const fsm = new QuoteStatusStateFsm(QuoteStatusState.Submitted);
-      const listener = jest.fn();
+      const listener = vi.fn();
       const unsubscribe = fsm.onStateUpdate(listener);
 
       unsubscribe();
@@ -115,7 +117,7 @@ describe('QuoteStatusStateFsm', () => {
         calls.push('self');
         unsubscribe();
       });
-      const other = jest.fn(() => calls.push('other'));
+      const other = vi.fn(() => calls.push('other'));
       fsm.onStateUpdate(other);
 
       fsm.transitionTo(QuoteStatusState.FinalizedSuccess);
@@ -128,7 +130,7 @@ describe('QuoteStatusStateFsm', () => {
   describe('removeAllListeners', () => {
     it('removes every subscribed listener', () => {
       const fsm = new QuoteStatusStateFsm(QuoteStatusState.Submitted);
-      const listener = jest.fn();
+      const listener = vi.fn();
       fsm.onStateUpdate(listener);
 
       fsm.removeAllListeners();

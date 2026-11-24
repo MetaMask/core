@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { prefixError } from './error-prefix.js';
 
 describe('prefixError', () => {

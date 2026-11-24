@@ -25,9 +25,21 @@ export type CurrencyRateControllerUpdateExchangeRateAction = {
   handler: CurrencyRateController['updateExchangeRate'];
 };
 
+export type CurrencyRateControllerStartPollingAction = {
+  type: `CurrencyRateController:startPolling`;
+  handler: CurrencyRateController['startPolling'];
+};
+
+export type CurrencyRateControllerStopPollingByPollingTokenAction = {
+  type: `CurrencyRateController:stopPollingByPollingToken`;
+  handler: CurrencyRateController['stopPollingByPollingToken'];
+};
+
 /**
  * Union of all CurrencyRateController action types.
  */
 export type CurrencyRateControllerMethodActions =
   | CurrencyRateControllerSetCurrentCurrencyAction
-  | CurrencyRateControllerUpdateExchangeRateAction;
+  | CurrencyRateControllerUpdateExchangeRateAction
+  | CurrencyRateControllerStartPollingAction
+  | CurrencyRateControllerStopPollingByPollingTokenAction;

@@ -21,6 +21,7 @@ import type {
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   buildCaipAssetType,
+  getEvmQuoteSource,
   getLiveTokenBalance,
   getNativeToken,
   getTokenInfo,
@@ -64,11 +65,9 @@ export async function fundFiatOrderFromTestSource({
   }
 
   const isDirectMusd = isDirectMusdMoneyAccountQuote(quote);
+  const quoteSource = getEvmQuoteSource(quote.request);
   const fiatAsset = isDirectMusd
-    ? {
-        address: quote.request.sourceTokenAddress,
-        chainId: quote.request.sourceChainId,
-      }
+    ? { address: quoteSource.tokenAddress, chainId: quoteSource.chainId }
     : deriveFiatAssetForFiatPayment(transaction, messenger);
 
   const recipient = getFiatFundingRecipient({ quote, transaction });

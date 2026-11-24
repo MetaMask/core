@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   setChartReady,
@@ -50,17 +53,17 @@ describe('handleFocusTime', () => {
     _resetStateForTests();
     _resetFocusTimeForTests();
     setOhlcvData(sampleBars);
-    jest.useFakeTimers();
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         setTimeout(() => callback(Date.now()), 16);
         return 0;
-      });
+      },
+    );
   });
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('no-ops when widget is not ready', () => {
@@ -105,7 +108,7 @@ describe('handleFocusTime', () => {
     installWidget(stub.chart);
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
     // Advance the requestAnimationFrame-driven loop past ANIM_MS.
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls.length).toBeGreaterThan(0);
     const last = stub.setRangeCalls[stub.setRangeCalls.length - 1];
     // Final frame lands close to the target [95, 105].
@@ -117,11 +120,11 @@ describe('handleFocusTime', () => {
     const stub = makeStubChart({ from: 0, to: 10 });
     installWidget(stub.chart);
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
-    jest.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
 
     // Second call bumps generation → first animation stops
     handleFocusTime({ timeMs: 200_000, spanMs: 10_000 });
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
 
     // Final frame should land at the second target (195-205), not the first (95-105)
     const last = stub.setRangeCalls[stub.setRangeCalls.length - 1];
@@ -135,7 +138,7 @@ describe('handleFocusTime', () => {
         throw new Error('disposed');
       },
     } as unknown as TVChartingLibraryWidget;
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     setWidget(widget);
     setChartReady(true);
@@ -158,16 +161,16 @@ describe('handleFocusTime', () => {
 
   it('returns null from readVisibleRangeSec when getVisibleRange is not a function', () => {
     const chart = {
-      setVisibleRange: jest.fn(),
+      setVisibleRange: vi.fn(),
     } as unknown as TVActiveChart;
     installWidget(chart);
     // Without getVisibleRange, readVisibleRangeSec returns null → immediate jump
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
-    expect((chart.setVisibleRange as jest.Mock).mock.calls).toHaveLength(1);
+    expect((chart.setVisibleRange as Mock).mock.calls).toHaveLength(1);
   });
 
   it('handles readVisibleRangeSec returning null for invalid range (to <= from)', () => {
-    const setVisibleRange = jest.fn();
+    const setVisibleRange = vi.fn();
     const chart = {
       getVisibleRange: () => ({ from: 10, to: 5 }),
       setVisibleRange,
@@ -209,7 +212,7 @@ describe('handleFocusTime', () => {
 
     expect(() => {
       handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     }).not.toThrow();
   });
 
@@ -217,21 +220,21 @@ describe('handleFocusTime', () => {
     const stub = makeStubChart({ from: 0, to: 10 });
     installWidget(stub.chart);
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     let frameCount = 0;
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         frameCount += 1;
         if (frameCount > 2) {
           throw new Error('rAF unavailable');
         }
         setTimeout(() => callback(Date.now()), 16);
         return 0;
-      });
+      },
+    );
 
     handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
 
     // Animation still progressed via setTimeout fallback
     expect(stub.setRangeCalls.length).toBeGreaterThan(0);
@@ -241,8 +244,8 @@ describe('handleFocusTime', () => {
     const stub = makeStubChart({ from: 0, to: 10 });
     installWidget(stub.chart);
 
-    jest.restoreAllMocks();
-    jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
       throw new Error('rAF unavailable');
     });
 

@@ -10,12 +10,16 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
   AnalyticsPurpose,
+  DEFAULT_ERROR_TRACKING_OPTIONS,
+  ERROR_OCCURRED_EVENT_NAME,
   EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
@@ -42,7 +46,8 @@ type AnalyticsControllerTestActions =
   | ConfigRegistryControllerGetStateAction;
 
 type SetupControllerOptions = {
-  state: AnalyticsControllerState;
+  state: Partial<AnalyticsControllerState> &
+    Pick<AnalyticsControllerState, 'analyticsId'>;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
   isEventQueuePersistenceEnabled?: boolean;
@@ -123,10 +128,10 @@ function buildGeolocationData(
 }
 
 type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
-  track: jest.Mock;
-  identify: jest.Mock;
-  view: jest.Mock;
-  onSetupCompleted: jest.Mock;
+  track: Mock;
+  identify: Mock;
+  view: Mock;
+  onSetupCompleted: Mock;
 };
 
 /**
@@ -166,10 +171,10 @@ async function setupController(
   const adapter =
     platformAdapter ??
     ({
-      track: jest.fn(),
-      identify: jest.fn(),
-      view: jest.fn(),
-      onSetupCompleted: jest.fn(),
+      track: vi.fn(),
+      identify: vi.fn(),
+      view: vi.fn(),
+      onSetupCompleted: vi.fn(),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -260,10 +265,10 @@ function createTestEvent(
  */
 function createMockAdapter(): MockAnalyticsPlatformAdapter {
   return {
-    track: jest.fn(),
-    identify: jest.fn(),
-    view: jest.fn(),
-    onSetupCompleted: jest.fn(),
+    track: vi.fn(),
+    identify: vi.fn(),
+    view: vi.fn(),
+    onSetupCompleted: vi.fn(),
   };
 }
 
@@ -299,7 +304,7 @@ function withPurposeConsent(
  * @returns Delivery options from the call.
  */
 function getDeliveryOptions(
-  mock: jest.Mock,
+  mock: Mock,
   callIndex = 0,
 ): AnalyticsDeliveryOptions {
   return mock.mock.calls[callIndex][3] as AnalyticsDeliveryOptions;
@@ -315,6 +320,7 @@ describe('AnalyticsController', () => {
         consentDecisionMade: false,
         optedInToMarketing: false,
         marketingConsentDecisionMade: false,
+        marketingConsentSyncPending: false,
         marketingCampaignCookieId: null,
       });
       expect('analyticsId' in defaults).toBe(false);
@@ -352,6 +358,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -375,6 +382,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -398,6 +406,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -632,6 +641,18 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.optedIn).toBe(false);
       expect(controller.state.analyticsId).toBe(analyticsId);
+    });
+
+    it('applies default opt-in preferences when only analyticsId is provided', async () => {
+      const analyticsId = '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d';
+      const { controller } = await setupController({
+        state: { analyticsId },
+      });
+
+      expect(controller.state).toStrictEqual({
+        ...getDefaultAnalyticsControllerState(),
+        analyticsId,
+      });
     });
 
     it('preserves provided analyticsId (does not generate new one)', async () => {
@@ -890,7 +911,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      const onSetupCompletedSpy = vi.spyOn(mockAdapter, 'onSetupCompleted');
       expect(onSetupCompletedSpy).not.toHaveBeenCalled();
 
       await controller.init();
@@ -931,7 +952,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      const onSetupCompletedSpy = vi.spyOn(mockAdapter, 'onSetupCompleted');
 
       await controller.init();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
@@ -1046,7 +1067,7 @@ describe('AnalyticsController', () => {
         'Failed to add privacy plugin to Segment client',
         cause,
       );
-      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
+      vi.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
         throw error;
       });
 
@@ -1330,9 +1351,7 @@ describe('AnalyticsController', () => {
         typeof rootMessenger
       >({ namespace: 'AnalyticsController', parent: rootMessenger });
 
-      const getStateMock = jest.fn(() =>
-        buildConfigRegistryState(eventsConfig),
-      );
+      const getStateMock = vi.fn(() => buildConfigRegistryState(eventsConfig));
       rootMessenger.registerActionHandler(
         'ConfigRegistryController:getState',
         getStateMock,
@@ -2106,7 +2125,7 @@ describe('AnalyticsController', () => {
     });
 
     it('does not resolve geolocation when geolocation enrichment is disabled', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2245,7 +2264,7 @@ describe('AnalyticsController', () => {
     });
 
     it('defers geolocation to opt-in, then enriches replayed pre-consent events and later events', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2343,7 +2362,7 @@ describe('AnalyticsController', () => {
     });
 
     it('does not resolve geolocation at init when the user is not opted in', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2365,7 +2384,7 @@ describe('AnalyticsController', () => {
 
     it('does not replay pre-consent events if consent is reset while geolocation resolves', async () => {
       let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
-      const geolocationHandler = jest.fn(
+      const geolocationHandler = vi.fn(
         () =>
           new Promise<GeolocationData>((resolve) => {
             resolveGeolocation = resolve;
@@ -2408,7 +2427,7 @@ describe('AnalyticsController', () => {
 
     it('still replays pre-consent events if another purpose is opted out while geolocation resolves', async () => {
       let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
-      const geolocationHandler = jest.fn(
+      const geolocationHandler = vi.fn(
         () =>
           new Promise<GeolocationData>((resolve) => {
             resolveGeolocation = resolve;
@@ -2553,7 +2572,7 @@ describe('AnalyticsController', () => {
 
     it('keeps queued payloads when the platform adapter throws', async () => {
       const mockAdapter = createMockAdapter();
-      jest.spyOn(mockAdapter, 'track').mockImplementation(() => {
+      vi.spyOn(mockAdapter, 'track').mockImplementation(() => {
         throw new Error('Segment failed');
       });
       const { controller } = await setupController({
@@ -2582,9 +2601,8 @@ describe('AnalyticsController', () => {
     it('passes mutable clones of queued payload data to the platform adapter', async () => {
       const mockAdapter = createMockAdapter();
       let adapterMutationCompleted = false;
-      jest
-        .spyOn(mockAdapter, 'track')
-        .mockImplementation((_eventName, properties, context) => {
+      vi.spyOn(mockAdapter, 'track').mockImplementation(
+        (_eventName, properties, context) => {
           (
             properties as { nested: { adapterNormalized?: boolean } }
           ).nested.adapterNormalized = true;
@@ -2592,7 +2610,8 @@ describe('AnalyticsController', () => {
             context as { page: { adapterNormalized?: boolean } }
           ).page.adapterNormalized = true;
           adapterMutationCompleted = true;
-        });
+        },
+      );
       const { controller } = await setupController({
         state: {
           optedIn: true,
@@ -3203,6 +3222,289 @@ describe('AnalyticsController', () => {
     });
   });
 
+  describe('marketing consent sync', () => {
+    const analyticsId = '01234567-89ab-4cde-8f01-23456789abcd';
+
+    it.each([
+      { optedInToMarketing: false, marketingConsentDecisionMade: false },
+      { optedInToMarketing: true, marketingConsentDecisionMade: true },
+    ])(
+      'marks an opt-in as waiting to be saved (from %o)',
+      async (initialConsent) => {
+        const { controller } = await setupController({
+          state: { ...initialConsent, analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.optInToMarketing();
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        });
+      },
+    );
+
+    it.each([
+      { optedInToMarketing: false, marketingConsentDecisionMade: false },
+      { optedInToMarketing: false, marketingConsentDecisionMade: true },
+    ])(
+      'marks an opt-out as waiting to be saved (from %o)',
+      async (initialConsent) => {
+        const { controller } = await setupController({
+          state: { ...initialConsent, analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        controller.optOutOfMarketing();
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        });
+      },
+    );
+
+    it('changes consent and marks it as waiting in a single state update', async () => {
+      const { controller, messenger } = await setupController({
+        state: { analyticsId },
+        isGeolocationEnabled: false,
+      });
+      const listener = vi.fn();
+      messenger.subscribe('AnalyticsController:stateChange', listener);
+
+      controller.optOutOfMarketing();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        }),
+        expect.any(Array),
+      );
+    });
+
+    it('drops a choice waiting to be saved when the decision is reset', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+          analyticsId,
+        },
+        isGeolocationEnabled: false,
+      });
+
+      controller.resetMarketingConsentDecision();
+
+      expect(controller.state.marketingConsentSyncPending).toBe(false);
+    });
+
+    describe('applyRemoteMarketingConsent', () => {
+      it('applies a remote opt-in without marking it as waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+        });
+      });
+
+      it('applies a remote opt-out without marking it as waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: {
+            optedInToMarketing: true,
+            marketingConsentDecisionMade: true,
+            marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(false);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+          marketingCampaignCookieId: null,
+        });
+      });
+
+      it('adopts a remote opt-out on an undecided client', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(false);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+        });
+      });
+
+      it('replays queued marketing events on a remote opt-in', async () => {
+        const adapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            analyticsId,
+            preConsentEventQueue: {
+              queued: {
+                type: 'track',
+                eventName: 'queued_event',
+                messageId: 'queued',
+                timestamp: '2026-01-01T00:00:00.000Z',
+                eventPurposes: [AnalyticsPurpose.Marketing],
+              },
+            },
+          },
+          platformAdapter: adapter,
+          isGeolocationEnabled: false,
+          isPreConsentQueueEnabled: true,
+          skipInit: true,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state.preConsentEventQueue).toStrictEqual({});
+        expect(adapter.track).toHaveBeenCalledWith(
+          'queued_event',
+          undefined,
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('does not override a local choice waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: {
+            optedInToMarketing: false,
+            marketingConsentDecisionMade: true,
+            marketingConsentSyncPending: true,
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentSyncPending: true,
+        });
+      });
+
+      it.each([true, false])(
+        'does not update state when the user already decided %s',
+        async (optedIn) => {
+          const { controller, messenger } = await setupController({
+            state: {
+              optedInToMarketing: optedIn,
+              marketingConsentDecisionMade: true,
+              analyticsId,
+            },
+            isGeolocationEnabled: false,
+          });
+          const listener = vi.fn();
+          messenger.subscribe('AnalyticsController:stateChange', listener);
+
+          await controller.applyRemoteMarketingConsent(optedIn);
+
+          expect(listener).not.toHaveBeenCalled();
+        },
+      );
+
+      it('is exposed as a messenger action', async () => {
+        const { controller, messenger } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await messenger.call(
+          'AnalyticsController:applyRemoteMarketingConsent',
+          true,
+        );
+
+        expect(controller.state.optedInToMarketing).toBe(true);
+      });
+    });
+
+    describe('clearMarketingConsentSyncPending', () => {
+      it('clears the flag when local consent matches the saved value', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        controller.optOutOfMarketing();
+
+        controller.clearMarketingConsentSyncPending(false);
+
+        expect(controller.state.marketingConsentSyncPending).toBe(false);
+      });
+
+      it('keeps the flag when a newer choice was made since', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        await controller.optInToMarketing();
+        controller.optOutOfMarketing();
+
+        controller.clearMarketingConsentSyncPending(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentSyncPending: true,
+        });
+      });
+
+      it('does not update state when nothing is waiting to be saved', async () => {
+        const { controller, messenger } = await setupController({
+          state: {
+            optedInToMarketing: true,
+            marketingConsentDecisionMade: true,
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+        const listener = vi.fn();
+        messenger.subscribe('AnalyticsController:stateChange', listener);
+
+        controller.clearMarketingConsentSyncPending(true);
+
+        expect(listener).not.toHaveBeenCalled();
+      });
+
+      it('is exposed as a messenger action', async () => {
+        const { controller, messenger } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        await controller.optInToMarketing();
+
+        messenger.call(
+          'AnalyticsController:clearMarketingConsentSyncPending',
+          true,
+        );
+
+        expect(controller.state.marketingConsentSyncPending).toBe(false);
+      });
+    });
+  });
+
   describe('setMarketingCampaignCookieId', () => {
     it('sets the marketing campaign cookie ID', async () => {
       const { controller } = await setupController({
@@ -3686,7 +3988,7 @@ describe('AnalyticsController', () => {
      * @returns The handler and coordination promises.
      */
     function createBlockingGeolocationHandler(): {
-      geolocationHandler: jest.Mock<Promise<GeolocationData>, []>;
+      geolocationHandler: Mock<() => Promise<GeolocationData>>;
       geolocationRequested: Promise<void>;
       resolveGeolocation: (value: GeolocationData) => void;
     } {
@@ -3696,7 +3998,7 @@ describe('AnalyticsController', () => {
         notifyGeolocationRequested = resolve;
       });
 
-      const geolocationHandler = jest.fn((): Promise<GeolocationData> => {
+      const geolocationHandler = vi.fn((): Promise<GeolocationData> => {
         notifyGeolocationRequested();
         return new Promise<GeolocationData>((resolve) => {
           resolveGeolocation = resolve;
@@ -3779,7 +4081,7 @@ describe('AnalyticsController', () => {
 
       it('defaults the property bags and timestamps', async () => {
         const now = 1700000000000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const { controller } = await setupFragmentController();
 
         const fragment = controller.createEventFragment({ id: 'bag-1' });
@@ -4070,7 +4372,7 @@ describe('AnalyticsController', () => {
       });
 
       it('advances lastUpdated but preserves createdAt', async () => {
-        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
+        const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
         const { controller } = await setupFragmentController();
         controller.createEventFragment({ id: 'signature-1' });
         nowSpy.mockReturnValue(2000);
@@ -4488,7 +4790,7 @@ describe('AnalyticsController', () => {
 
       it('drops persisted fragments whose lastUpdated is older than EVENT_FRAGMENT_MAX_AGE', async () => {
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const fresh = buildFragment({
           id: 'signature-fresh',
           persist: true,
@@ -4520,7 +4822,7 @@ describe('AnalyticsController', () => {
 
       it('drops a fragment whose lastUpdated exceeds max age even when createdAt is recent', async () => {
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const recentlyCreatedButStale = buildFragment({
           id: 'signature-1',
           persist: true,
@@ -4545,7 +4847,7 @@ describe('AnalyticsController', () => {
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
 
         const { controller } = await setupController({
           state: {
@@ -6287,6 +6589,583 @@ describe('AnalyticsController', () => {
         withConfiguredPurposeConsent({ product: false, marketing: true }),
         expect.anything(),
       );
+    });
+  });
+
+  describe('trackErrorAsAnalytics', () => {
+    const analyticsId = '12121212-1212-4121-8121-121212121212';
+    const source = 'test';
+
+    async function setupTrackingController(
+      state: Partial<AnalyticsControllerState> = {},
+      {
+        isPreConsentQueueEnabled = false,
+      }: {
+        isPreConsentQueueEnabled?: boolean;
+      } = {},
+    ): Promise<
+      SetupControllerReturn & {
+        platformAdapter: MockAnalyticsPlatformAdapter;
+      }
+    > {
+      const platformAdapter = createMockAdapter();
+      const setup = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId,
+          ...state,
+        },
+        platformAdapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled,
+      });
+
+      return { ...setup, platformAdapter };
+    }
+
+    function expectErrorOccurred(
+      platformAdapter: MockAnalyticsPlatformAdapter,
+      errorMessage: string,
+      eventSource = source,
+    ): void {
+      expect(platformAdapter.track).toHaveBeenCalledWith(
+        ERROR_OCCURRED_EVENT_NAME,
+        {
+          source: eventSource,
+          error_message: errorMessage,
+        },
+        withPurposeConsent({ product: true, marketing: false }),
+      );
+    }
+
+    describe('error normalization', () => {
+      it('emits the sanitized message and no stack for an Error instance', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), { source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'boom');
+      });
+
+      it('normalizes error message whitespace', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('failed\nwith   whitespace\taround'),
+          { source },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'failed with whitespace around');
+      });
+
+      it('truncates messages above the 500 character cap', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('x'.repeat(600)), {
+          source,
+        });
+
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          source,
+          error_message: `${'x'.repeat(499)}…`,
+        });
+      });
+
+      it('sanitizes non-Error thrown values', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics('unexpected\n  string   value', {
+          source,
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'unexpected string value');
+      });
+
+      it('uses a string message property on a non-Error object', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          { message: 'from object\nvalue' },
+          { source },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'from object value');
+      });
+
+      it('stringifies other non-Error thrown values', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(42, { source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, '42');
+      });
+
+      it('reports values without a string message as Unknown error', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics({ message: 1 }, { source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+
+      it('reports null as Unknown error without throwing', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(null, { source });
+        }).not.toThrow();
+
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+
+      it('reports undefined as Unknown error without throwing', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(undefined, { source });
+        }).not.toThrow();
+
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+    });
+
+    describe('canonical schema', () => {
+      it('emits Error Occurred with source and error_message only by default', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          source,
+          volumeControls: {
+            samplingRate: 1,
+            dedupWindowMs: 12_345,
+            sessionCap: 7,
+          },
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          source,
+          error_message: 'boom',
+        });
+      });
+
+      it('merges caller properties into the event payload', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('boom'),
+          { source },
+          {
+            anonymous: true,
+          },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          anonymous: true,
+          source,
+          error_message: 'boom',
+        });
+      });
+
+      it('keeps sanitized source and error_message over caller properties', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('real message'),
+          { source },
+          {
+            source: 'spoofed-source',
+            error_message: 'spoofed message',
+            anonymous: true,
+          },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          anonymous: true,
+          source,
+          error_message: 'real message',
+        });
+      });
+    });
+
+    describe('fail-safe behavior', () => {
+      it('does not throw or consume the session budget when tracking throws', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        platformAdapter.track.mockImplementationOnce(() => {
+          throw new Error('dispatch failed');
+        });
+        const options = {
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+        }).not.toThrow();
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('keeps a newer dedup entry when an earlier delivery throws', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          platformAdapter.track.mockImplementationOnce(() => {
+            vi.setSystemTime(2000);
+            controller.trackErrorAsAnalytics(new Error('boom'), {
+              source,
+              volumeControls: { dedupWindowMs: 0 },
+            });
+            throw new Error('dispatch failed');
+          });
+
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
+          vi.setSystemTime(2001);
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
+
+    describe('volume controls', () => {
+      it('suppresses events outside the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.75);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('emits events inside the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.25);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('suppresses a sample equal to the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('never emits when the sampling rate is zero, even on a zero draw', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: 0 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('emits only once for a duplicate signature within the dedup window', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
+          vi.setSystemTime(2000);
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('emits again for the same signature after the dedup window', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          const options = {
+            source,
+            volumeControls: { dedupWindowMs: 5000 },
+          };
+
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+          vi.setSystemTime(1000 + 5000 + 1);
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('treats different error messages as distinct signatures', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('first'), { source });
+        controller.trackErrorAsAnalytics(new Error('second'), { source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('emits again for the same message under a different source', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          source: 'first-source',
+        });
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          source: 'second-source',
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not collide when source and message contain colon delimiters', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('failed'), {
+          source: 'rpc:request',
+        });
+        controller.trackErrorAsAnalytics(new Error('request:failed'), {
+          source: 'rpc',
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('suppresses all events once the session cap is reached', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('first'), options);
+        controller.trackErrorAsAnalytics(new Error('second'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'first');
+      });
+
+      it('clamps an out-of-range sampling rate instead of failing open', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: -1 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('falls back to the default sampling rate for NaN', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            source,
+            volumeControls: { samplingRate: Number.NaN },
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('still dedupes when dedupWindowMs is NaN', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          const options = {
+            source,
+            volumeControls: { dedupWindowMs: Number.NaN },
+          };
+
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+          vi.setSystemTime(2000);
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('falls back to the default session cap for NaN', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          source,
+          volumeControls: { sessionCap: Number.NaN },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('first'), options);
+        controller.trackErrorAsAnalytics(new Error('second'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('falls back to the default session cap for a negative value', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          source,
+          volumeControls: { sessionCap: -1 },
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+      });
+
+      it('clamps a caller-supplied sessionCap above the global default', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          source,
+          volumeControls: { sessionCap: Number.MAX_SAFE_INTEGER },
+        };
+        const cap = DEFAULT_ERROR_TRACKING_OPTIONS.sessionCap;
+
+        for (let index = 0; index < cap + 1; index += 1) {
+          controller.trackErrorAsAnalytics(
+            new Error(`error-${index}`),
+            options,
+          );
+        }
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(cap);
+      });
+    });
+
+    describe('consent', () => {
+      it('does not emit or consume the session budget when the user is opted out', async () => {
+        const { controller, platformAdapter } = await setupTrackingController({
+          optedIn: false,
+          consentDecisionMade: true,
+        });
+        const options = {
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+        expect(platformAdapter.track).not.toHaveBeenCalled();
+
+        await controller.optIn();
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'boom');
+      });
+
+      it('queues Error Occurred while consent is undecided and delivers it on opt-in', async () => {
+        const { controller, platformAdapter } = await setupTrackingController(
+          {
+            optedIn: false,
+            consentDecisionMade: false,
+          },
+          { isPreConsentQueueEnabled: true },
+        );
+
+        controller.trackErrorAsAnalytics(new Error('boom'), { source });
+
+        expect(platformAdapter.track).not.toHaveBeenCalled();
+        const { preConsentEventQueue } = controller.state;
+        expect(preConsentEventQueue).toBeDefined();
+        const queuedEvents = Object.values(
+          preConsentEventQueue as NonNullable<typeof preConsentEventQueue>,
+        );
+        expect(queuedEvents).toHaveLength(1);
+        expect(queuedEvents[0]).toMatchObject({
+          type: 'track',
+          eventName: ERROR_OCCURRED_EVENT_NAME,
+          properties: {
+            source,
+            error_message: 'boom',
+          },
+        });
+
+        await controller.optIn();
+
+        expect(controller.state.preConsentEventQueue).toStrictEqual({});
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track).toHaveBeenCalledWith(
+          ERROR_OCCURRED_EVENT_NAME,
+          {
+            source,
+            error_message: 'boom',
+          },
+          withPurposeConsent({ product: true, marketing: false }),
+          expect.objectContaining({ messageId: expect.any(String) }),
+        );
+      });
+    });
+
+    it('reaches the platform adapter when called via the messenger action', async () => {
+      const { messenger, platformAdapter } = await setupTrackingController();
+
+      messenger.call(
+        'AnalyticsController:trackErrorAsAnalytics',
+        new Error('boom'),
+        { source },
+      );
+
+      expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+      expectErrorOccurred(platformAdapter, 'boom');
     });
   });
 });

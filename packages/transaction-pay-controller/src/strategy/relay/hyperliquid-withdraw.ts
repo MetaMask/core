@@ -3,13 +3,16 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { CHAIN_ID_ARBITRUM } from '../../constants.js';
+import {
+  CHAIN_ID_ARBITRUM,
+  HYPERLIQUID_EXCHANGE_URL,
+} from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { RELAY_AUTHORIZE_URL, HYPERLIQUID_EXCHANGE_URL } from './constants.js';
+import { RELAY_AUTHORIZE_URL } from './constants.js';
 import type { RelayQuote, RelaySignatureStep } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'hyperliquid-withdraw');

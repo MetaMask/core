@@ -12,10 +12,16 @@
       "path": "../address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.build.json"
     },
     {
       "path": "../claims-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../client-controller/tsconfig.build.json"
     },
     {
       "path": "../config-registry-controller/tsconfig.build.json"
@@ -36,19 +42,31 @@
       "path": "../keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "../logging-controller/tsconfig.build.json"
+    },
+    {
       "path": "../messenger/tsconfig.build.json"
     },
     {
       "path": "../network-controller/tsconfig.build.json"
     },
     {
+      "path": "../network-enablement-controller/tsconfig.build.json"
+    },
+    {
       "path": "../passkey-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.build.json"
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
       "path": "../seedless-onboarding-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../selected-network-controller/tsconfig.build.json"
     },
     {
       "path": "../shield-controller/tsconfig.build.json"
@@ -64,6 +82,12 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../geolocation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../signature-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

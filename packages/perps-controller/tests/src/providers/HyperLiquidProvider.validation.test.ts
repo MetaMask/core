@@ -1,7 +1,9 @@
 /* eslint-disable */
-jest.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -22,7 +24,10 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
+  Position,
 } from '../../../src/types/index.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import { estimateCrossLiquidationPrice } from '../../../src/utils/hyperLiquidPositionPreview.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -31,63 +36,62 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidWalletService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidWalletService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 // Mock stream manager - will be set up in test
 let mockStreamManagerInstance: any;
-const mockGetStreamManagerInstance = jest.fn(() => mockStreamManagerInstance);
-jest.mock(
-  '../../../../components/UI/Perps/providers/PerpsStreamManager',
-  () => ({
-    getStreamManagerInstance: mockGetStreamManagerInstance,
-  }),
-  { virtual: true },
-);
+const mockGetStreamManagerInstance = vi.fn(() => mockStreamManagerInstance);
+vi.mock('../../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: mockGetStreamManagerInstance,
+}));
 
 // Mock standalone info client for standalone mode tests
 let mockStandaloneInfoClient: any;
-jest.mock('../../../src/utils/standaloneInfoClient', () => ({
-  ...jest.requireActual('../../../src/utils/standaloneInfoClient'),
-  createStandaloneInfoClient: jest.fn(() => mockStandaloneInfoClient),
-}));
+vi.mock(
+  import('../../../src/utils/standaloneInfoClient'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    createStandaloneInfoClient: vi.fn(() => mockStandaloneInfoClient),
+  }),
+);
 
-jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
-  validateOrderParams: jest.fn(),
-  validateWithdrawalParams: jest.fn(),
-  validateDepositParams: jest.fn(),
-  validateCoinExists: jest.fn(),
-  validateAssetSupport: jest.fn(),
-  validateBalance: jest.fn(),
-  getSupportedPaths: jest
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
     .fn()
     .mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
     ]),
-  getBridgeInfo: jest.fn().mockReturnValue({
+  getBridgeInfo: vi.fn().mockReturnValue({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: jest.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
-  const actual = jest.requireActual('../../../src/utils/hyperLiquidAdapter');
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >();
   return {
     ...actual,
-    adaptHyperLiquidLedgerUpdateToUserHistoryItem: jest.fn((updates) => {
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: vi.fn((updates) => {
       // Return mock history items based on input
       if (!updates || !Array.isArray(updates) || updates.length === 0) {
         return [];
@@ -103,41 +107,41 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
 });
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
-jest.mock('../../../src/services/TradingReadinessCache');
+vi.mock('../../../src/services/TradingReadinessCache');
 
-const MockedHyperLiquidClientService =
-  HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
-const MockedHyperLiquidWalletService =
-  HyperLiquidWalletService as jest.MockedClass<typeof HyperLiquidWalletService>;
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
+const MockedHyperLiquidWalletService = HyperLiquidWalletService as MockedClass<
+  typeof HyperLiquidWalletService
+>;
 const MockedHyperLiquidSubscriptionService =
-  HyperLiquidSubscriptionService as jest.MockedClass<
+  HyperLiquidSubscriptionService as MockedClass<
     typeof HyperLiquidSubscriptionService
   >;
-const mockValidateOrderParams = validateOrderParams as jest.MockedFunction<
+const mockValidateOrderParams = validateOrderParams as MockedFunction<
   typeof validateOrderParams
 >;
-const mockValidateWithdrawalParams =
-  validateWithdrawalParams as jest.MockedFunction<
-    typeof validateWithdrawalParams
-  >;
-const mockValidateDepositParams = validateDepositParams as jest.MockedFunction<
+const mockValidateWithdrawalParams = validateWithdrawalParams as MockedFunction<
+  typeof validateWithdrawalParams
+>;
+const mockValidateDepositParams = validateDepositParams as MockedFunction<
   typeof validateDepositParams
 >;
-const mockValidateCoinExists = validateCoinExists as jest.MockedFunction<
+const mockValidateCoinExists = validateCoinExists as MockedFunction<
   typeof validateCoinExists
 >;
-const mockValidateAssetSupport = validateAssetSupport as jest.MockedFunction<
+const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
   typeof validateAssetSupport
 >;
-const mockValidateBalance = validateBalance as jest.MockedFunction<
+const mockValidateBalance = validateBalance as MockedFunction<
   typeof validateBalance
 >;
 
 // Mock factory functions - defined once, reused everywhere
 // These reduce duplication and make tests more maintainable
 const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
-  clearinghouseState: jest.fn().mockResolvedValue({
+  clearinghouseState: vi.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',
       accountValue: '10500',
@@ -182,19 +186,19 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       totalMarginUsed: '5000',
     },
   }),
-  spotClearinghouseState: jest.fn().mockResolvedValue({
+  spotClearinghouseState: vi.fn().mockResolvedValue({
     balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
   }),
   // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
   // so tests that predated the gate still see spot folded into spendable/withdrawable.
-  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-  meta: jest.fn().mockResolvedValue({
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
     universe: [
       { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
       { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
     ],
   }),
-  metaAndAssetCtxs: jest.fn().mockResolvedValue([
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
     {
       universe: [
         { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -222,17 +226,17 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       },
     ],
   ]),
-  perpDexs: jest.fn().mockResolvedValue([null]),
-  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
-  referral: jest.fn().mockResolvedValue({
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  frontendOpenOrders: vi.fn().mockResolvedValue([]),
+  referral: vi.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
       data: { code: 'MMCSI' },
     },
   }),
-  maxBuilderFee: jest.fn().mockResolvedValue(1),
-  userFees: jest.fn().mockResolvedValue({
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
     feeSchedule: {
       cross: '0.00030',
       add: '0.00010',
@@ -241,7 +245,7 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
     },
     dailyUserVlm: [],
   }),
-  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
     {
       delta: { type: 'deposit', usdc: '100' },
       time: Date.now(),
@@ -253,7 +257,7 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       hash: '0x456def',
     },
   ]),
-  portfolio: jest.fn().mockResolvedValue([
+  portfolio: vi.fn().mockResolvedValue([
     null,
     [
       null,
@@ -266,49 +270,49 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       },
     ],
   ]),
-  spotMeta: jest.fn().mockResolvedValue({
+  spotMeta: vi.fn().mockResolvedValue({
     tokens: [
       { name: 'USDC', tokenId: '0xdef456', index: 0 },
       { name: 'USDT', tokenId: '0x789abc', index: 1 },
     ],
     universe: [],
   }),
-  historicalOrders: jest.fn().mockResolvedValue([]),
-  userFills: jest.fn().mockResolvedValue([]),
-  userFillsByTime: jest.fn().mockResolvedValue([]),
-  userFunding: jest.fn().mockResolvedValue([]),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
   ...overrides,
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
+  order: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: 123 } }] } },
   }),
-  modify: jest.fn().mockResolvedValue({
+  modify: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
   }),
-  cancel: jest.fn().mockResolvedValue({
+  cancel: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: ['success'] } },
   }),
-  withdraw3: jest.fn().mockResolvedValue({
+  withdraw3: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  updateLeverage: jest.fn().mockResolvedValue({
+  updateLeverage: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  approveBuilderFee: jest.fn().mockResolvedValue({
+  approveBuilderFee: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  setReferrer: jest.fn().mockResolvedValue({
+  setReferrer: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  sendAsset: jest.fn().mockResolvedValue({
+  sendAsset: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  agentSetAbstraction: jest.fn().mockResolvedValue({
+  agentSetAbstraction: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
   ...overrides,
@@ -345,124 +349,133 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
-  let mockClientService: jest.Mocked<HyperLiquidClientService>;
-  let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
-  let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
 
   beforeEach(() => {
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (
-      mockPlatformDependencies.marketDataFormatters.formatVolume as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
     ).mockImplementation((value: number) => '$' + value.toFixed(0));
     (
-      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
     ).mockImplementation((value: number) => '$' + value.toFixed(2));
     (
-      mockPlatformDependencies.marketDataFormatters
-        .formatPercentage as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
     ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
     (
-      mockPlatformDependencies.featureFlags.validateVersionGated as jest.Mock
+      mockPlatformDependencies.featureFlags.validateVersionGated as Mock
     ).mockReturnValue(undefined);
-    (mockPlatformDependencies.metrics.isEnabled as jest.Mock).mockReturnValue(
-      true,
-    );
+    (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
 
     // Reset TradingReadinessCache mock state (using imported mocked module)
-    const mockedCache = TradingReadinessCache as jest.Mocked<
+    const mockedCache = TradingReadinessCache as Mocked<
       typeof TradingReadinessCache
     >;
     mockedCache.get.mockReturnValue(undefined);
     mockedCache.getBuilderFee.mockReturnValue(undefined);
     mockedCache.getReferral.mockReturnValue(undefined);
     mockedCache.isInFlight.mockReturnValue(undefined);
-    mockedCache.setInFlight.mockReturnValue(jest.fn());
+    mockedCache.setInFlight.mockReturnValue(vi.fn());
 
     // Initialize mock stream manager instance
     mockStreamManagerInstance = {
-      clearAllChannels: jest.fn(),
+      clearAllChannels: vi.fn(),
     };
 
     // Create mocked service instances using factory functions
     mockClientService = {
-      initialize: jest.fn(),
-      isInitialized: jest.fn().mockReturnValue(true),
-      isTestnetMode: jest.fn().mockReturnValue(false),
-      ensureInitialized: jest.fn(),
-      getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
-      fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
-      disconnect: jest.fn().mockResolvedValue(undefined),
-      toggleTestnet: jest.fn(),
-      setTestnetMode: jest.fn(),
-      getNetwork: jest.fn().mockReturnValue('mainnet'),
-      ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
-      getSubscriptionClient: jest.fn(),
-      setOnReconnectCallback: jest.fn(),
-      setOnTerminateCallback: jest.fn(),
-      getConnectionState: jest.fn().mockReturnValue('connected'),
-    } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+      initialize: vi.fn(),
+      isInitialized: vi.fn().mockReturnValue(true),
+      isTestnetMode: vi.fn().mockReturnValue(false),
+      ensureInitialized: vi.fn(),
+      getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      toggleTestnet: vi.fn(),
+      setTestnetMode: vi.fn(),
+      getNetwork: vi.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(),
+      setOnReconnectCallback: vi.fn(),
+      setOnTerminateCallback: vi.fn(),
+      getConnectionState: vi.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
 
     mockWalletService = {
-      setTestnetMode: jest.fn(),
-      getCurrentAccountId: jest
+      setTestnetMode: vi.fn(),
+      getCurrentAccountId: vi
         .fn()
         .mockReturnValue(
           'eip155:42161:0x1234567890123456789012345678901234567890',
         ),
-      createWalletAdapter: jest.fn().mockReturnValue({
-        request: jest
+      createWalletAdapter: vi.fn().mockReturnValue({
+        request: vi
           .fn()
           .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
       }),
-      getUserAddress: jest
+      getUserAddress: vi
         .fn()
         .mockReturnValue('0x1234567890123456789012345678901234567890'),
-      getUserAddressWithDefault: jest
+      getUserAddressWithDefault: vi
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
-      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
-    } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
+      isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
-      subscribeToPrices: jest.fn().mockResolvedValue(jest.fn()), // Returns Promise
-      subscribeToPositions: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      clearAll: jest.fn(),
-      isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedPositions: jest.fn().mockReturnValue([]),
-      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
-      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
-      updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
+      getFreshCrossMarginContext: vi.fn().mockReturnValue(null),
+      subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+      subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      clearAll: vi.fn(),
+      isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedPositions: vi.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+      getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getCachedOpenOrdersForDex: vi.fn().mockReturnValue(null),
+      getCachedActiveTwapOrders: vi.fn().mockReturnValue(null),
+      getCachedActiveAssetLeverage: vi.fn().mockReturnValue(null),
+      updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
-      setDexMetaCache: jest.fn(),
-      setDexAssetCtxsCache: jest.fn(),
-      getDexAssetCtxsCache: jest.fn().mockReturnValue(undefined),
+      setDexMetaCache: vi.fn(),
+      setDexAssetCtxsCache: vi.fn(),
+      getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
       // Price cache used by placeOrder, editOrder, closePosition optimizations
-      getCachedPrice: jest.fn().mockImplementation((symbol: string) => {
+      getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
         const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
         return prices[symbol];
       }),
-      getLastAllMidsSnapshot: jest.fn().mockReturnValue(null),
+      getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
       // Orders cache used by updatePositionTPSL and getOpenOrders
-      isOrdersCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedOrders: jest.fn().mockReturnValue([]),
+      isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedOrders: vi.fn().mockReturnValue([]),
       // Atomic getter - returns null when cache not initialized (prevents race condition)
-      getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
+      getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
       // Abstraction-mode resolved-mode setter (unified account migration)
-      setUserAbstractionMode: jest.fn(),
-    } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
+      setUserAbstractionMode: vi.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
 
     // Mock constructors
-    MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
-    MockedHyperLiquidWalletService.mockImplementation(() => mockWalletService);
-    MockedHyperLiquidSubscriptionService.mockImplementation(
-      () => mockSubscriptionService,
-    );
+    MockedHyperLiquidClientService.mockImplementation(function () {
+      return mockClientService;
+    });
+    MockedHyperLiquidWalletService.mockImplementation(function () {
+      return mockWalletService;
+    });
+    MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+      return mockSubscriptionService;
+    });
 
     // Mock validation
     mockValidateOrderParams.mockReturnValue({ isValid: true });
@@ -471,9 +484,8 @@ describe('HyperLiquidProvider', () => {
     mockValidateCoinExists.mockReturnValue({ isValid: true });
     mockValidateAssetSupport.mockReturnValue({ isValid: true });
     mockValidateBalance.mockReturnValue({ isValid: true });
-    const hyperLiquidValidation = jest.requireMock(
-      '../../../src/utils/hyperLiquidValidation',
-    );
+    const hyperLiquidValidation =
+      hyperLiquidValidationModule as unknown as Record<string, Mock>;
     hyperLiquidValidation.getSupportedPaths.mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
@@ -483,15 +495,12 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
-    const hyperLiquidAdapter = jest.requireMock(
-      '../../../src/utils/hyperLiquidAdapter',
-    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
     hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
       (updates: unknown[]) => {
         if (!updates || !Array.isArray(updates) || updates.length === 0) {
@@ -881,13 +890,34 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('calculateLiquidationPrice', () => {
+    const crossBtcPosition: Position = {
+      symbol: 'BTC',
+      size: '0.1',
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '0',
+      marginUsed: '500',
+      leverage: { type: 'cross', value: 10 },
+      liquidationPrice: '46000',
+      maxLeverage: 20,
+      returnOnEquity: '0',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    };
+
     beforeEach(() => {
       // Set up mock for asset info with maxLeverage: 20 for BTC (test expectations)
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [
-              { name: 'BTC', szDecimals: 3, maxLeverage: 20 },
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 20,
+              },
               { name: 'ETH', szDecimals: 4, maxLeverage: 20 },
             ],
           }),
@@ -935,10 +965,496 @@ describe('HyperLiquidProvider', () => {
       expect(parseFloat(result)).toBeCloseTo(53658.54, 2);
     });
 
+    it('estimates a cross opening from scoped account equity and free spot', async () => {
+      const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+      vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(accountId);
+      const info = mockClientService.getInfoClient();
+      const user = '0x1234567890123456789012345678901234567890';
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          assetPositions: [],
+          crossMaintenanceMarginUsed: '50',
+          crossMarginSummary: {
+            ...state.crossMarginSummary,
+            accountValue: '400',
+            totalMarginUsed: '100',
+            totalNtlPos: '2000',
+          },
+        });
+      vi.mocked(info.spotClearinghouseState).mockResolvedValue({
+        balances: [
+          { coin: 'USDC', token: 0, total: '100', hold: '0', entryNtl: '0' },
+        ],
+        tokenToAvailableAfterMaintenance: [[0, '100']],
+      });
+      const positions = vi
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([]);
+
+      const price = await provider.calculateLiquidationPrice({
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        asset: 'BTC',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      // With the new position, maintenance is 50 + (50000 * 0.1 / 40).
+      expect(Number(price)).toBeCloseTo(46666.66667, 4);
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
+      expect(info.spotClearinghouseState).toHaveBeenCalledExactlyOnceWith({
+        user,
+      });
+      expect(positions).toHaveBeenCalledWith({
+        accountId,
+        skipCache: true,
+        throwOnUnavailable: true,
+        includeProtection: false,
+      });
+      positions.mockRestore();
+      vi.mocked(provider.getCurrentAccountId).mockRestore();
+    });
+
+    it.each([
+      // Maintenance becomes 50 + 5000 / 40.
+      ['a flat market', false, 50, 46666.66667],
+      // The 0.1 BTC long holds 125 of 150 maintenance; at 0.2 BTC it holds
+      // 250: 50000 - (500 - 275) / 0.2 / 0.975.
+      ['an existing long', true, 150, 48846.15385],
+    ])(
+      'uses the live Cross context without account reads for %s',
+      async (_name, hasPosition, maintenanceMargin, expected) => {
+        const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+        vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(accountId);
+        const positions = vi.spyOn(provider, 'getPositions');
+        const info = mockClientService.getInfoClient();
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '400',
+            maintenanceMargin: String(maintenanceMargin),
+            marginUsed: '100',
+            notional: '2000',
+          },
+          spotCollateral: '100',
+          hasPosition,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          {
+            ...crossBtcPosition,
+            symbol: hasPosition ? 'BTC' : 'ETH',
+          },
+        ]);
+
+        const price = await provider.calculateLiquidationPrice({
+          asset: 'BTC',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        });
+
+        expect(Number(price)).toBeCloseTo(expected, 4);
+        expect(positions).not.toHaveBeenCalled();
+        expect(info.userAbstraction).not.toHaveBeenCalled();
+        expect(info.clearinghouseState).not.toHaveBeenCalled();
+        expect(info.spotClearinghouseState).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a live Cross context whose position is missing from the cache', async () => {
+      mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+        summary: {
+          accountValue: '400',
+          maintenanceMargin: '150',
+          marginUsed: '100',
+          notional: '2000',
+        },
+        spotCollateral: '100',
+        hasPosition: true,
+      });
+
+      await expect(
+        provider.calculateLiquidationPrice({
+          asset: 'BTC',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+    });
+
+    it('returns 0 for a Cross long the account can never liquidate', async () => {
+      mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+        summary: {
+          accountValue: '100000',
+          maintenanceMargin: '50',
+          marginUsed: '100',
+          notional: '2000',
+        },
+        spotCollateral: '0',
+        hasPosition: false,
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
+
+      expect(
+        await provider.calculateLiquidationPrice({
+          asset: 'BTC',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        }),
+      ).toBe('0');
+    });
+
+    it('rejects a Cross order that closes the position', async () => {
+      mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+        summary: {
+          accountValue: '400',
+          maintenanceMargin: '150',
+          marginUsed: '100',
+          notional: '2000',
+        },
+        spotCollateral: '100',
+        hasPosition: true,
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+        crossBtcPosition,
+      ]);
+
+      await expect(
+        provider.calculateLiquidationPrice({
+          asset: 'BTC',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'short',
+          marginType: 'cross',
+          positionSize: 0.1,
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+    });
+
+    it('quotes Standard mode using only the main DEX cross pool', async () => {
+      const info = mockClientService.getInfoClient();
+      vi.mocked(info.userAbstraction).mockResolvedValue('disabled');
+      const state = await info.clearinghouseState({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      vi.mocked(info.clearinghouseState).mockResolvedValue({
+        ...state,
+        assetPositions: [],
+        crossMaintenanceMarginUsed: '50',
+        crossMarginSummary: {
+          ...state.crossMarginSummary,
+          accountValue: '400',
+          totalNtlPos: '0',
+        },
+      });
+      const aggregate = vi
+        .spyOn(provider, 'getAccountState')
+        .mockResolvedValue({
+          totalBalance: '1000',
+          spendableBalance: '1000',
+          withdrawableBalance: '1000',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          spotCollateral: '0',
+          crossMarginSummary: {
+            accountValue: '1000',
+            maintenanceMargin: '50',
+            marginUsed: '0',
+            notional: '0',
+          },
+        });
+
+      const price = await provider.calculateLiquidationPrice({
+        asset: 'BTC',
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      expect(Number(price)).toBeCloseTo(47692.30769, 4);
+      expect(aggregate).not.toHaveBeenCalled();
+      aggregate.mockRestore();
+    });
+
+    it('prices a Standard add from the main DEX position over REST', async () => {
+      const info = mockClientService.getInfoClient();
+      vi.mocked(info.userAbstraction).mockResolvedValue('disabled');
+      const state = await info.clearinghouseState({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      vi.mocked(info.clearinghouseState).mockResolvedValue({
+        ...state,
+        assetPositions: [state.assetPositions[0]],
+        crossMaintenanceMarginUsed: '150',
+        crossMarginSummary: {
+          ...state.crossMarginSummary,
+          accountValue: '500',
+          totalNtlPos: '5000',
+        },
+      });
+
+      const price = await provider.calculateLiquidationPrice({
+        asset: 'BTC',
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      // The 0.1 BTC long holds 125 of 150 maintenance; at 0.2 BTC, 250.
+      expect(Number(price)).toBeCloseTo(50000 - 225 / 0.2 / 0.975, 4);
+    });
+
+    it.each([
+      ['disabled', 'unifiedAccount'],
+      ['unifiedAccount', 'disabled'],
+    ] as const)(
+      'rejects cross liquidation when the mode changes from %s to %s during the read',
+      async (initialMode, settledMode) => {
+        const info = mockClientService.getInfoClient();
+        const state = await info.clearinghouseState({
+          user: '0x1234567890123456789012345678901234567890',
+        });
+        vi.mocked(info.clearinghouseState).mockResolvedValue({
+          ...state,
+          assetPositions: [],
+          crossMaintenanceMarginUsed: '50',
+          crossMarginSummary: {
+            ...state.crossMarginSummary,
+            accountValue: '400',
+            totalNtlPos: '0',
+          },
+        });
+        vi.mocked(info.userAbstraction)
+          .mockResolvedValueOnce(initialMode)
+          .mockResolvedValue(settledMode);
+
+        await expect(
+          provider.calculateLiquidationPrice({
+            asset: 'BTC',
+            entryPrice: 50000,
+            leverage: 10,
+            direction: 'short',
+            marginType: 'cross',
+            positionSize: 0.1,
+          }),
+        ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+      },
+    );
+
+    const setUpStandardHip3 = ({ useUnifiedAccount = false } = {}) => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount,
+      });
+      const user = '0x1234567890123456789012345678901234567890';
+      const xyzMeta = {
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 20,
+            marginTableId: 20,
+          },
+        ],
+        marginTables: [],
+        collateralToken: 0,
+      };
+      const info = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: vi.fn().mockImplementation((params?: { dex?: string }) =>
+          Promise.resolve(
+            params?.dex === 'xyz'
+              ? xyzMeta
+              : {
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                },
+          ),
+        ),
+        userAbstraction: vi.fn().mockResolvedValue('disabled'),
+        clearinghouseState: vi.fn().mockResolvedValue({
+          marginSummary: { accountValue: '2', totalMarginUsed: '0' },
+          crossMarginSummary: {
+            accountValue: '2',
+            totalMarginUsed: '0',
+            totalNtlPos: '0',
+          },
+          crossMaintenanceMarginUsed: '0',
+          withdrawable: '2',
+          assetPositions: [],
+        }),
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
+      return { hip3Provider, info, user };
+    };
+
+    it('prices a Standard HIP-3 opening against the DEX placement funds', async () => {
+      const { hip3Provider, info, user } = setUpStandardHip3();
+
+      const price = await hip3Provider.calculateLiquidationPrice({
+        asset: 'xyz:TSLA',
+        entryPrice: 500,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      // Placement needs 5 * 1.003 against 2 withdrawable and moves the
+      // shortfall in. The 0.015 left after the order is under the rebalance
+      // threshold and stays: account value 5.015, maintenance 50 * 0.025.
+      expect(Number(price)).toBeCloseTo(500 - (5.015 - 1.25) / 0.1 / 0.975, 6);
+      expect(info.clearinghouseState).toHaveBeenCalledWith({
+        user,
+        dex: 'xyz',
+      });
+      expect(
+        await hip3Provider.estimateCrossLiquidation({
+          symbol: 'xyz:TSLA',
+          direction: 'long',
+          size: '0.1',
+          entryPrice: '500',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'price', price });
+    });
+
+    it('prices a HIP-3 opening against the DEX funds when placement skips the transfer', async () => {
+      // With useUnifiedAccount on (the default), placement moves no funds to
+      // the DEX, so the estimate keeps the DEX account value of 2.
+      const { hip3Provider } = setUpStandardHip3({ useUnifiedAccount: true });
+
+      const price = await hip3Provider.calculateLiquidationPrice({
+        asset: 'xyz:TSLA',
+        entryPrice: 500,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      expect(Number(price)).toBeCloseTo(500 - (2 - 1.25) / 0.1 / 0.975, 6);
+      expect(
+        await hip3Provider.estimateCrossLiquidation({
+          symbol: 'xyz:TSLA',
+          direction: 'long',
+          size: '0.1',
+          entryPrice: '500',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'price', price });
+    });
+
+    it('is unavailable when the account changes while placement margin is read', async () => {
+      const { hip3Provider } = setUpStandardHip3();
+      const accountId = vi
+        .spyOn(hip3Provider, 'getCurrentAccountId')
+        .mockResolvedValue(
+          'eip155:1:0x1234567890123456789012345678901234567890',
+        );
+      // The required-margin read is the last await before the result.
+      mockSubscriptionService.getCachedPositionsForDex.mockImplementation(
+        () => {
+          accountId.mockResolvedValue(
+            'eip155:1:0x00000000000000000000000000000000000000aa',
+          );
+          return [];
+        },
+      );
+
+      expect(
+        await hip3Provider.estimateCrossLiquidation({
+          symbol: 'xyz:TSLA',
+          direction: 'long',
+          size: '0.1',
+          entryPrice: '500',
+          leverage: 10,
+        }),
+      ).toStrictEqual({ status: 'unavailable', reason: 'account_unknown' });
+    });
+
+    it('refuses a cross estimate for a disabled HIP-3 market', async () => {
+      const info = mockClientService.getInfoClient();
+      vi.mocked(info.meta).mockResolvedValue({
+        marginTables: [],
+        collateralToken: 0,
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 20,
+            marginTableId: 20,
+          },
+        ],
+      });
+      const account = vi.spyOn(provider, 'getAccountState').mockResolvedValue({
+        totalBalance: '500',
+        spendableBalance: '400',
+        withdrawableBalance: '400',
+        marginUsed: '100',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        spotCollateral: '100',
+        crossMarginSummary: {
+          accountValue: '400',
+          maintenanceMargin: '50',
+          marginUsed: '100',
+          notional: '2000',
+        },
+      });
+      const positions = vi
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([]);
+
+      await expect(
+        provider.calculateLiquidationPrice({
+          asset: 'xyz:TSLA',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+      account.mockRestore();
+      positions.mockRestore();
+    });
+
+    it('rejects a cross opening without a sized order', async () => {
+      await expect(
+        provider.calculateLiquidationPrice({
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          asset: 'BTC',
+          marginType: 'cross',
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+    });
+
     it('throws error for leverage exceeding maintenance leverage', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [
               { name: 'BTC', szDecimals: 3, maxLeverage: 20 },
               { name: 'ETH', szDecimals: 4, maxLeverage: 20 },
@@ -969,8 +1485,11 @@ describe('HyperLiquidProvider', () => {
       ];
 
       for (const params of invalidCases) {
-        const result = await provider.calculateLiquidationPrice(params);
-        expect(result).toBe('0.00');
+        await expect(
+          provider.calculateLiquidationPrice(params),
+        ).rejects.toMatchObject({
+          errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE',
+        });
       }
     });
 
@@ -1009,11 +1528,230 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  describe('estimateCrossLiquidation', () => {
+    const order = {
+      symbol: 'BTC',
+      direction: 'long' as const,
+      size: '0.1',
+      entryPrice: '50000',
+      leverage: 10,
+    };
+    const liveContext = (
+      overrides: Partial<{
+        accountValue: string;
+        maintenanceMargin: string;
+        spotCollateral: string;
+      }> = {},
+    ) => {
+      mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+        summary: {
+          accountValue: overrides.accountValue ?? '400',
+          maintenanceMargin: overrides.maintenanceMargin ?? '50',
+          marginUsed: '100',
+          notional: '2000',
+        },
+        spotCollateral: overrides.spotCollateral ?? '100',
+        hasPosition: false,
+      });
+      mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
+    };
+
+    beforeEach(() => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
+        createMockInfoClient({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 20,
+              },
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 20,
+                marginTableId: 60,
+              },
+            ],
+            marginTables: [],
+          }),
+        }),
+      );
+    });
+
+    it('reports a Unified opening covered by spot collateral', async () => {
+      liveContext({ spotCollateral: '100000' });
+
+      expect(await provider.estimateCrossLiquidation(order)).toStrictEqual({
+        status: 'none',
+        reason: 'covered_by_account',
+      });
+    });
+
+    it('prices an opening past the account value with estimateCrossLiquidationPrice', async () => {
+      liveContext();
+
+      expect(await provider.estimateCrossLiquidation(order)).toStrictEqual({
+        status: 'price',
+        price: String(
+          estimateCrossLiquidationPrice({
+            isLong: true,
+            markPrice: 50000,
+            positionSize: 0.1,
+            accountValue: 500,
+            maintenanceMargin: 50 + 125,
+            marginTiers: [{ lowerBound: 0, maxLeverage: 20 }],
+          }),
+        ),
+      });
+    });
+
+    it.each([
+      ['a zero size', { size: '0' }],
+      ['an unparsable entry price', { entryPrice: 'abc' }],
+      ['no leverage', { leverage: 0 }],
+      ['margin tiers missing from meta', { symbol: 'ETH' }],
+      ['a market missing from meta', { symbol: 'DOGE' }],
+    ])(
+      'is unavailable for missing inputs with %s',
+      async (_name, overrides) => {
+        liveContext();
+
+        expect(
+          await provider.estimateCrossLiquidation({ ...order, ...overrides }),
+        ).toStrictEqual({ status: 'unavailable', reason: 'missing_inputs' });
+      },
+    );
+
+    it('is unavailable for missing inputs without a Cross maintenance figure', async () => {
+      liveContext({ maintenanceMargin: '' });
+
+      expect(await provider.estimateCrossLiquidation(order)).toStrictEqual({
+        status: 'unavailable',
+        reason: 'missing_inputs',
+      });
+    });
+
+    describe('over an isolated position in the market', () => {
+      const isolatedBtc: Position = {
+        symbol: 'BTC',
+        size: '0.1',
+        entryPrice: '50000',
+        positionValue: '5000',
+        unrealizedPnl: '0',
+        marginUsed: '500',
+        leverage: { type: 'isolated', value: 10 },
+        liquidationPrice: '46000',
+        maxLeverage: 20,
+        returnOnEquity: '0',
+        cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+      };
+      const missingInputs = { status: 'unavailable', reason: 'missing_inputs' };
+
+      it('is unavailable for missing inputs from the stream', async () => {
+        liveContext();
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '400',
+            maintenanceMargin: '50',
+            marginUsed: '100',
+            notional: '2000',
+          },
+          spotCollateral: '100',
+          hasPosition: true,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          isolatedBtc,
+        ]);
+
+        expect(await provider.estimateCrossLiquidation(order)).toStrictEqual(
+          missingInputs,
+        );
+      });
+
+      const venueLeverage = {
+        cross: { type: 'cross', value: 10 },
+        isolated: { type: 'isolated', value: 10, rawUsd: '-4500' },
+      } as const;
+      const mockRestState = async (
+        mode: 'unifiedAccount' | 'disabled',
+        leverageType: 'cross' | 'isolated',
+      ) => {
+        const info = mockClientService.getInfoClient();
+        vi.mocked(info.userAbstraction).mockResolvedValue(mode);
+        const state = await info.clearinghouseState({
+          user: '0x1234567890123456789012345678901234567890',
+        });
+        const [assetPosition] = state.assetPositions;
+        vi.mocked(info.clearinghouseState).mockResolvedValue({
+          ...state,
+          crossMaintenanceMarginUsed: '125',
+          crossMarginSummary: {
+            ...state.crossMarginSummary,
+            totalNtlPos: '5000',
+          },
+          assetPositions: [
+            {
+              ...assetPosition,
+              position: {
+                ...assetPosition.position,
+                leverage: venueLeverage[leverageType],
+              },
+            },
+          ],
+        });
+        vi.spyOn(provider, 'getPositions').mockResolvedValue([
+          { ...isolatedBtc, leverage: { type: leverageType, value: 10 } },
+        ]);
+      };
+
+      it.each(['unifiedAccount', 'disabled'] as const)(
+        'is unavailable for missing inputs from a %s REST read',
+        async (mode) => {
+          await mockRestState(mode, 'cross');
+          expect(
+            (await provider.estimateCrossLiquidation(order)).status,
+          ).not.toBe('unavailable');
+
+          await mockRestState(mode, 'isolated');
+          expect(await provider.estimateCrossLiquidation(order)).toStrictEqual(
+            missingInputs,
+          );
+        },
+      );
+    });
+
+    it('is unavailable for an account mode without a Cross estimate', async () => {
+      vi.mocked(
+        mockClientService.getInfoClient().userAbstraction,
+      ).mockResolvedValue('portfolioMargin');
+
+      expect(await provider.estimateCrossLiquidation(order)).toStrictEqual({
+        status: 'unavailable',
+        reason: 'provider',
+      });
+    });
+
+    it('is unavailable with an unknown account instead of rejecting', async () => {
+      vi.spyOn(provider, 'getCurrentAccountId').mockRejectedValue(
+        new Error('locked'),
+      );
+
+      expect(await provider.estimateCrossLiquidation(order)).toStrictEqual({
+        status: 'unavailable',
+        reason: 'account_unknown',
+      });
+    });
+  });
+
   describe('calculateMaintenanceMargin', () => {
     it('calculates maintenance margin correctly for 40x max leverage asset', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'BTC', maxLeverage: 40, szDecimals: 5 }],
           }),
         }),
@@ -1028,8 +1766,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('calculates maintenance margin correctly for 3x max leverage asset', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        meta: jest.fn().mockResolvedValue({
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        meta: vi.fn().mockResolvedValue({
           universe: [{ name: 'DOGE', maxLeverage: 3, szDecimals: 0 }],
         }),
       });
@@ -1043,8 +1781,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('returns default maintenance margin when asset not found', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        meta: jest.fn().mockResolvedValue({
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        meta: vi.fn().mockResolvedValue({
           universe: [],
         }),
       });
@@ -1070,29 +1808,308 @@ describe('HyperLiquidProvider', () => {
       maxLeverage: 25,
     };
 
-    it('returns unsupported for cross-margin positions without fetching meta', async () => {
-      const result = await provider.previewPositionModify({
-        position: {
-          ...isolatedPosition,
-          leverage: { type: 'cross', value: 5 },
-        },
-        direction: 'long',
-        size: '0.5',
-        price: '2000',
-        leverage: 5,
+    describe('cross margin', () => {
+      const crossPosition = {
+        ...isolatedPosition,
+        leverage: { type: 'cross' as const, value: 5 },
+        marginUsed: '400',
+        liquidationPrice: null,
+      };
+      const ethPosition: Position = {
+        ...crossPosition,
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+      };
+
+      beforeEach(() => {
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            meta: vi.fn().mockResolvedValue({
+              universe: [
+                {
+                  name: 'ETH',
+                  szDecimals: 4,
+                  maxLeverage: 25,
+                  marginTableId: 25,
+                },
+              ],
+              marginTables: [],
+            }),
+            userAbstraction: vi.fn().mockResolvedValue('portfolioMargin'),
+          }),
+        );
+        vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(
+          'eip155:1:0x1234567890123456789012345678901234567890',
+        );
       });
 
-      expect(result).toStrictEqual({
-        status: 'unsupported',
-        reason: 'cross_margin',
+      it('projects an add against the live Cross account', async () => {
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '900',
+            maintenanceMargin: '100',
+            marginUsed: '400',
+            notional: '2000',
+          },
+          spotCollateral: '100',
+          hasPosition: true,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          ethPosition,
+        ]);
+
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 1,
+        });
+
+        // 2 ETH at 10x; ETH maintenance 2000 / 50 becomes 4000 / 50, so the
+        // account holds 100 - 40 + 80 against 1000 - 1.
+        expect(result).toStrictEqual({
+          status: 'open',
+          kind: 'increase',
+          current: {
+            margin: { available: true, value: 400 },
+            liquidationPrice: { available: false },
+          },
+          resulting: {
+            direction: 'long',
+            size: 2,
+            entryPrice: 2000,
+            leverage: 10,
+            margin: { available: true, value: 400 },
+            liquidationPrice: {
+              available: true,
+              value: expect.closeTo(2000 - (999 - 140) / 2 / 0.98, 6),
+            },
+          },
+        });
       });
-      expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+
+      it('keeps the margin when the Cross account read fails', async () => {
+        vi.mocked(provider.getCurrentAccountId).mockRejectedValue(
+          new Error('locked'),
+        );
+
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 1,
+        });
+
+        expect(result.status === 'open' && result.resulting).toMatchObject({
+          margin: { available: true, value: 400 },
+          liquidationPrice: { available: false },
+        });
+      });
+
+      it('keeps the margin without a Cross account', async () => {
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 1,
+        });
+
+        expect(result.status === 'open' && result.resulting).toMatchObject({
+          margin: { available: true, value: 400 },
+          liquidationPrice: { available: false },
+        });
+      });
+
+      it('withholds liquidation when the account holds no such position', async () => {
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '900',
+            maintenanceMargin: '100',
+            marginUsed: '400',
+            notional: '2000',
+          },
+          spotCollateral: '100',
+          hasPosition: false,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
+
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 1,
+        });
+
+        expect(
+          result.status === 'open' && result.resulting.liquidationPrice,
+        ).toStrictEqual({ available: false, reason: 'missing_inputs' });
+      });
+
+      it('projects from the position the account holds', async () => {
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '900',
+            maintenanceMargin: '160',
+            marginUsed: '800',
+            notional: '4000',
+          },
+          spotCollateral: '100',
+          hasPosition: true,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          {
+            ...ethPosition,
+            size: '2',
+            positionValue: '4000',
+            marginUsed: '800',
+          },
+        ]);
+
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 0,
+        });
+
+        // The account holds 2 ETH, not the client's 1: 3 ETH at 10x.
+        expect(result).toMatchObject({
+          status: 'open',
+          current: { margin: { available: true, value: 800 } },
+          resulting: { size: 3, margin: { available: true, value: 600 } },
+        });
+      });
+
+      it('withholds liquidation when the account holds the market isolated', async () => {
+        mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+          summary: {
+            accountValue: '900',
+            maintenanceMargin: '0',
+            marginUsed: '0',
+            notional: '0',
+          },
+          spotCollateral: '100',
+          hasPosition: true,
+        });
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...ethPosition, leverage: { type: 'isolated', value: 5 } },
+        ]);
+
+        const result = await provider.previewPositionModify({
+          position: crossPosition,
+          direction: 'long',
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 0,
+        });
+
+        expect(result).toMatchObject({
+          status: 'open',
+          resulting: {
+            liquidationPrice: { available: false, reason: 'missing_inputs' },
+          },
+        });
+      });
+
+      describe('against a Unified account holding the position', () => {
+        const liveContext = (accountValue: string, spotCollateral: string) => {
+          mockSubscriptionService.getFreshCrossMarginContext.mockReturnValue({
+            summary: {
+              accountValue,
+              maintenanceMargin: '40',
+              marginUsed: '400',
+              notional: '2000',
+            },
+            spotCollateral,
+            hasPosition: true,
+          });
+          mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+            ethPosition,
+          ]);
+        };
+        const add = {
+          position: crossPosition,
+          direction: 'long' as const,
+          size: '1',
+          price: '2000',
+          leverage: 10,
+          feeAmountUsd: 0,
+        };
+
+        it('reports an add covered by spot collateral', async () => {
+          liveContext('400', '100000');
+
+          const result = await provider.previewPositionModify(add);
+
+          expect(
+            result.status === 'open' && result.resulting.liquidationPrice,
+          ).toStrictEqual({ available: false, reason: 'covered_by_account' });
+        });
+
+        it('prices an add past the account value as estimateCrossLiquidation does', async () => {
+          liveContext('300', '0');
+
+          const result = await provider.previewPositionModify(add);
+          const estimate = await provider.estimateCrossLiquidation({
+            symbol: 'ETH',
+            direction: 'long',
+            size: '1',
+            entryPrice: '2000',
+            leverage: 10,
+          });
+
+          // 2 ETH at 2000 holds 80 of maintenance against 300.
+          expect(estimate).toStrictEqual({
+            status: 'price',
+            price: String(2000 - (300 - 80) / 2 / 0.98),
+          });
+          expect(
+            result.status === 'open' && result.resulting.liquidationPrice,
+          ).toStrictEqual({
+            available: true,
+            value: Number(estimate.status === 'price' && estimate.price),
+          });
+        });
+
+        it('reports a reduce to zero as a full close', async () => {
+          liveContext('300', '0');
+
+          expect(
+            await provider.previewPositionModify({
+              ...add,
+              direction: 'short',
+              reduceOnly: true,
+            }),
+          ).toStrictEqual({
+            status: 'full_close',
+            current: {
+              margin: { available: true, value: 400 },
+              liquidationPrice: { available: false },
+            },
+            resultingDirection: 'long',
+          });
+        });
+      });
     });
 
     it('uses cached meta margin tables for an isolated increase', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [
               {
                 name: 'ETH',
@@ -1112,6 +2129,7 @@ describe('HyperLiquidProvider', () => {
         size: '0.5',
         price: '2000',
         leverage: 10,
+        feeAmountUsd: 0,
       });
 
       expect(result.status).toBe('open');
@@ -1119,17 +2137,18 @@ describe('HyperLiquidProvider', () => {
         return;
       }
       expect(result.kind).toBe('increase');
+      // The venue keeps the $400 at 10x; the order adds $100.
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.direction).toBe('long');
     });
 
     it('withholds liquidation when the asset is missing from meta', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [
               {
                 name: 'BTC',
@@ -1149,15 +2168,17 @@ describe('HyperLiquidProvider', () => {
         size: '0.5',
         price: '2000',
         leverage: 10,
+        feeAmountUsd: 0,
       });
 
       expect(result.status).toBe('open');
       if (result.status !== 'open') {
         return;
       }
+      // The venue keeps the $400 at 10x; the order adds $100.
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.liquidationPrice).toStrictEqual({
         available: false,
@@ -1167,9 +2188,9 @@ describe('HyperLiquidProvider', () => {
 
   describe('getMaxLeverage', () => {
     it('returns max leverage for an asset', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'ETH', maxLeverage: 30, szDecimals: 4 }],
           }),
         }),
@@ -1181,8 +2202,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('returns default max leverage when asset not found', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        meta: jest.fn().mockResolvedValue({
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        meta: vi.fn().mockResolvedValue({
           universe: [],
         }),
       });
@@ -1194,8 +2215,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('returns default max leverage on network failure', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        meta: jest.fn().mockRejectedValue(new Error('Network error')),
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        meta: vi.fn().mockRejectedValue(new Error('Network error')),
       });
 
       const result = await provider.getMaxLeverage('BTC');
@@ -1306,6 +2327,120 @@ describe('HyperLiquidProvider', () => {
         orderType: 'limit',
       });
     });
+
+    it.each([0, Number.NaN, -2])(
+      'rejects leverage %s as invalid',
+      async (leverage) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
+      },
+    );
+
+    it.each(['', '0'])(
+      'leaves an empty or zero size (%j) to the minimum-size check',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        });
+      },
+    );
+
+    it.each(['Infinity', '0', '-1'])(
+      'rejects an invalid reduce-only size cap %s alongside a valid USD amount',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: false,
+          orderType: 'market',
+          reduceOnly: true,
+          currentPrice: 50000,
+          usdAmount: '100',
+        });
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
+    it.each(['abc', 'Infinity', '-1'])(
+      'rejects size %s when no USD amount is given',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
+    it.each([
+      [
+        { orderType: 'limit', price: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: Infinity },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: NaN },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'stop_market', triggerPrice: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      ],
+    ] as const)(
+      'rejects a non-finite price for %j',
+      async (priceParams, error) => {
+        const actualValidation = await vi.importActual<
+          typeof import('../../../src/utils/hyperLiquidValidation.js')
+        >('../../../src/utils/hyperLiquidValidation.js');
+        mockValidateOrderParams.mockImplementation(
+          actualValidation.validateOrderParams,
+        );
+
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          ...priceParams,
+        });
+
+        expect(result).toStrictEqual({ isValid: false, error });
+      },
+    );
 
     it('handles validation errors gracefully', async () => {
       mockValidateOrderParams.mockImplementation(() => {

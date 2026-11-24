@@ -1,11 +1,11 @@
-import { jest } from '@jest/globals';
 import {
   createSandbox,
   readFile,
   readJsonFile,
   writeJsonFile,
-} from '@metamask/utils/node';
+} from '@metamask/node-utils';
 import path from 'path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addSuppressions,
@@ -446,7 +446,7 @@ describe('writeSuppressions', () => {
 
 describe('printReport', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'log').mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockReturnValue(undefined);
   });
 
   it('announces success when there is nothing to report', () => {
@@ -476,7 +476,7 @@ describe('printReport', () => {
       didPass: false,
     });
 
-    const output = jest.mocked(console.log).mock.calls.flat().join('\n');
+    const output = vi.mocked(console.log).mock.calls.flat().join('\n');
     expect(output).toContain('a.ts');
     expect(output).toContain('TS2322');
     expect(output).toContain('One.');
@@ -492,7 +492,7 @@ describe('printReport', () => {
       didPass: false,
     });
 
-    const output = jest.mocked(console.log).mock.calls.flat().join('\n');
+    const output = vi.mocked(console.log).mock.calls.flat().join('\n');
     expect(output).toContain('a.ts');
     expect(output).toContain('yarn lint:tsc:prune');
   });

@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { MockInstance, MockedFunction } from 'vitest';
+
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
 import { TradingService } from '../../../src/services/TradingService.js';
@@ -17,19 +20,17 @@ describe('TradingService malformed Scale expectation refusal', () => {
   function setup(): {
     service: TradingService;
     provider: ReturnType<typeof createMockHyperLiquidProvider>;
-    placeOrder: jest.SpyInstance<ReturnType<TradingService['placeOrder']>>;
-    resolveFee: jest.SpyInstance<
-      ReturnType<RewardsIntegrationService['resolveFee']>
-    >;
+    placeOrder: MockInstance;
+    resolveFee: MockInstance<RewardsIntegrationService['resolveFee']>;
     context: ReturnType<typeof createMockServiceContext>;
-    reportOrderToDataLake: jest.MockedFunction<ReportOrderToDataLake>;
+    reportOrderToDataLake: MockedFunction<ReportOrderToDataLake>;
   } {
     const dependencies = createMockInfrastructure();
     const rewards = new RewardsIntegrationService(
       dependencies,
       createMockMessenger(),
     );
-    const resolveFee = jest.spyOn(rewards, 'resolveFee').mockResolvedValue({
+    const resolveFee = vi.spyOn(rewards, 'resolveFee').mockResolvedValue({
       feeBips: 10,
       discountBips: undefined,
       source: 'default',
@@ -38,15 +39,12 @@ describe('TradingService malformed Scale expectation refusal', () => {
     const service = new TradingService(dependencies);
     service.setControllerDependencies({ rewardsIntegrationService: rewards });
     const provider = createMockHyperLiquidProvider();
-    const placeOrder = jest
+    const placeOrder = vi
       .spyOn(provider, 'placeOrder')
       .mockResolvedValue({ success: true });
     const context = createMockServiceContext();
-    const reportOrderToDataLake = jest
-      .fn<
-        ReturnType<ReportOrderToDataLake>,
-        Parameters<ReportOrderToDataLake>
-      >()
+    const reportOrderToDataLake = vi
+      .fn<ReportOrderToDataLake>()
       .mockResolvedValue({ success: true });
     return {
       service,

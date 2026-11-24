@@ -1,6 +1,7 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createMockInternalAccount,
@@ -34,7 +35,7 @@ import {
   buildAssetsInfo,
   buildSpamWalletState,
 } from './__fixtures__/spamWalletState.js';
-import { waitFor } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 
@@ -198,14 +199,7 @@ describe('AssetsController spam cleanup', () => {
 
     await withController({}, async ({ messenger }) => {
       const stateChanges: AssetsControllerState[] = [];
-      (
-        messenger as unknown as {
-          subscribe: (
-            topic: string,
-            handler: (state: AssetsControllerState) => void,
-          ) => void;
-        }
-      ).subscribe('AssetsController:stateChanged', (state) => {
+      messenger.subscribe('AssetsController:stateChanged', (state) => {
         stateChanges.push(state);
       });
 
@@ -224,7 +218,11 @@ describe('AssetsController spam cleanup', () => {
     const { scope: assetsScope } = mockV3Assets();
 
     await withController({}, async ({ controller }) => {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await waitUntilStable(() => [
+        floorsScope.isDone(),
+        assetsScope.isDone(),
+        controller.state.assetsInfo,
+      ]);
 
       expect(floorsScope.isDone()).toBe(false);
       expect(assetsScope.isDone()).toBe(false);
@@ -242,7 +240,10 @@ describe('AssetsController spam cleanup', () => {
       { isBasicFunctionality: () => false },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(controller.state.assetsInfo).toStrictEqual(
@@ -264,7 +265,11 @@ describe('AssetsController spam cleanup', () => {
       },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          assetsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(assetsScope.isDone()).toBe(false);
@@ -283,7 +288,11 @@ describe('AssetsController spam cleanup', () => {
       { remoteFeatureFlags: {} },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          assetsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(assetsScope.isDone()).toBe(false);
@@ -297,7 +306,7 @@ describe('AssetsController spam cleanup', () => {
   it('leaves the wallet untouched and reports when the Token API is down', async () => {
     mockSuggestedOccurrenceFloors({ status: 503 });
     const state = buildSpamWalletState();
-    const captureException = jest.fn();
+    const captureException = vi.fn();
 
     await withController(
       { state, captureException },
@@ -359,11 +368,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
       messenger.publish('KeyringController:unlock');
       (messenger.publish as CallableFunction)(
         'AccountTreeController:initialized',

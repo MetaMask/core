@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AbstractMessageManager } from './AbstractMessageManager.js';
 import type {
@@ -80,10 +81,10 @@ class AbstractTestManager extends AbstractMessageManager<
 }
 
 const MOCK_MESSENGER = {
-  clearEventSubscriptions: jest.fn(),
-  publish: jest.fn(),
-  registerActionHandler: jest.fn(),
-  registerInitialEventPayload: jest.fn(),
+  clearEventSubscriptions: vi.fn(),
+  publish: vi.fn(),
+  registerActionHandler: vi.fn(),
+  registerInitialEventPayload: vi.fn(),
 } as unknown as Messenger<'TestManager'>;
 
 const MOCK_INITIAL_OPTIONS = {
@@ -177,7 +178,7 @@ describe('AbstractTestManager', () => {
 
   it('adds a valid message with provider security response', async () => {
     const securityProviderResponseMock = { flagAsDangerous: 2 };
-    const securityProviderRequestMock: SecurityProviderRequest = jest
+    const securityProviderRequestMock: SecurityProviderRequest = vi
       .fn()
       .mockResolvedValue(securityProviderResponseMock);
     const controller = new AbstractTestManager({
@@ -384,8 +385,8 @@ describe('AbstractTestManager', () => {
 
   describe('setMessageStatus', () => {
     it('updates the status of a message', async () => {
-      jest.mock('events', () => ({
-        emit: jest.fn(),
+      vi.doMock('events', () => ({
+        emit: vi.fn(),
       }));
 
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
@@ -416,8 +417,8 @@ describe('AbstractTestManager', () => {
 
   describe('setMessageStatusAndResult', () => {
     it('emits updateBadge once', async () => {
-      jest.mock('events', () => ({
-        emit: jest.fn(),
+      vi.doMock('events', () => ({
+        emit: vi.fn(),
       }));
 
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { FailurePhase, SwapBridgeErrorCode } from './constants.js';
 import { getQuoteFetchErrorCode } from './failure-telemetry.js';
 import type {

@@ -6,10 +6,16 @@
   },
   "references": [
     {
+      "path": "../authenticated-user-storage/tsconfig.build.json"
+    },
+    {
       "path": "../base-controller/tsconfig.build.json"
     },
     {
       "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.build.json"
     },
     {
       "path": "../controller-utils/tsconfig.build.json"

@@ -29,13 +29,11 @@
     },
     {
       "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../key-tree/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": [
-    "./jest.config.packages.ts",
-    "**/*.test.ts",
-    "**/jest.config.ts",
-    "**/__fixtures__/"
-  ]
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }

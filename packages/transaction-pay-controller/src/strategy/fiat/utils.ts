@@ -10,16 +10,22 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
-import type { TransactionPayControllerMessenger } from '../../types.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+} from '../../types.js';
 import {
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
 } from '../../utils/feature-flags.js';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
+import { buildCaipAssetType } from '../../utils/token.js';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
-import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
-import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants.js';
+import {
+  DEFAULT_FIAT_CURRENCY,
+  FIAT_ENABLED_TYPES,
+  MONEY_ACCOUNT_DEPOSIT_TYPES,
+} from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -63,8 +69,9 @@ export function resolveTransactionType(
 /**
  * Checks whether a transaction is a Money Account deposit.
  *
- * Handles both direct `moneyAccountDeposit` transactions and EIP-7702
- * batch transactions that contain a `moneyAccountDeposit` nested call.
+ * Matches any of `MONEY_ACCOUNT_DEPOSIT_TYPES` (`moneyAccountDeposit` and
+ * `membershipSubscription`), either as the transaction type or as a nested
+ * call in an EIP-7702 batch.
  * Uses {@link resolveTransactionType} with `FIAT_ENABLED_TYPES` to
  * correctly skip non-deposit nested types (e.g. `tokenMethodApprove`).
  *
@@ -74,10 +81,9 @@ export function resolveTransactionType(
 export function isMoneyAccountDepositTransaction(
   transaction: TransactionMeta,
 ): boolean {
-  return (
-    resolveTransactionType(transaction, FIAT_ENABLED_TYPES) ===
-    TransactionType.moneyAccountDeposit
-  );
+  const type = resolveTransactionType(transaction, FIAT_ENABLED_TYPES);
+
+  return type !== undefined && MONEY_ACCOUNT_DEPOSIT_TYPES.includes(type);
 }
 
 /**
@@ -174,37 +180,18 @@ export function validateOrderAsset({
 }
 
 /**
- * Result from {@link resolveSourceAmountRaw}.
- */
-export type ResolvedSourceAmount = {
-  /** Raw (atomic) source amount as a decimal string. */
-  amountRaw: string;
-  /**
-   * Block number of the ramps settlement transaction as a 0x-prefixed hex
-   * string. Populated when `order.txHash` is present and the on-chain receipt
-   * was successfully fetched (ERC-20 only). Use this as the `fromBlock` for
-   * CHOMP idempotency log queries — it reuses the receipt already fetched for
-   * the amount and requires no additional network request.
-   */
-  fromBlock: Hex | undefined;
-};
-
-/**
- * Resolves the raw source amount for a completed fiat order.
+ * Resolves the raw source amount for a completed fiat order, read from the
+ * on-chain transfer identified by `order.txHash`.
  *
- * Attempts to read the actual transferred amount from the on-chain transaction
- * identified by `order.txHash`. If the on-chain read fails or returns
- * no amount, falls back to computing the amount from `order.cryptoAmount`.
- *
- * Also returns the receipt `blockNumber` from the ramps tx when available, so
- * callers can use it as a CHOMP idempotency baseline without any extra request.
+ * Throws when the order has no transaction hash or no matching transfer,
+ * rather than trusting the provider-reported `order.cryptoAmount`.
  *
  * @param options - The resolution options.
  * @param options.messenger - Controller messenger for network access.
  * @param options.order - The completed on-ramp order.
  * @param options.fiatAsset - The fiat asset describing the expected token.
  * @param options.walletAddress - Recipient wallet address for on-chain lookup.
- * @returns The raw (atomic) source amount and optional receipt block number.
+ * @returns The raw (atomic) source amount.
  */
 export async function resolveSourceAmountRaw({
   messenger,
@@ -216,52 +203,31 @@ export async function resolveSourceAmountRaw({
   order: RampsOrder;
   fiatAsset: TransactionPayFiatAsset;
   walletAddress: Hex;
-}): Promise<ResolvedSourceAmount> {
-  if (order.txHash) {
-    try {
-      const { amountRaw: onChainAmount, blockNumber } =
-        await getTransferredAmountFromTxHash({
-          messenger,
-          txHash: order.txHash,
-          chainId: fiatAsset.chainId,
-          tokenAddress: fiatAsset.address,
-          walletAddress,
-        });
-
-      if (onChainAmount) {
-        log('Resolved source amount from on-chain transaction', {
-          txHash: order.txHash,
-          onChainAmount,
-          blockNumber,
-        });
-        return { amountRaw: onChainAmount, fromBlock: blockNumber };
-      }
-    } catch (error) {
-      log(
-        'Failed to read on-chain amount, falling back to order.cryptoAmount',
-        { txHash: order.txHash, error },
-      );
-    }
+}): Promise<string> {
+  if (!order.txHash) {
+    throw new Error('Missing fiat order transaction hash');
   }
 
-  const tokenInfo = getTokenInfo(
+  const { amountRaw } = await getTransferredAmountFromTxHash({
     messenger,
-    fiatAsset.address,
-    fiatAsset.chainId,
-  );
+    txHash: order.txHash,
+    chainId: fiatAsset.chainId,
+    tokenAddress: fiatAsset.address,
+    walletAddress,
+  });
 
-  if (!tokenInfo) {
+  if (!amountRaw) {
     throw new Error(
-      `Unable to resolve token info for fiat asset ${fiatAsset.address} on chain ${fiatAsset.chainId}`,
+      `Could not determine transferred amount from transaction ${order.txHash}`,
     );
   }
 
-  const amountRaw = getRawSourceAmountFromOrderCryptoAmount({
-    cryptoAmount: order.cryptoAmount,
-    decimals: tokenInfo.decimals,
+  log('Resolved source amount from on-chain transaction', {
+    amountRaw,
+    txHash: order.txHash,
   });
 
-  return { amountRaw, fromBlock: undefined };
+  return amountRaw;
 }
 
 /**
@@ -320,21 +286,15 @@ export function validateRelayRateDrift({
   maxRateDriftPercent,
   transactionId,
 }: {
-  originalQuote: RelayQuote;
-  discoveryQuote: RelayQuote;
+  originalQuote: TransactionPayQuote<unknown>;
+  discoveryQuote: TransactionPayQuote<unknown>;
   maxRateDriftPercent: number;
   transactionId: string;
 }): void {
-  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(
-    originalQuote.details.currencyOut.amountUsd,
-  );
-  const discoveryIn = new BigNumber(
-    discoveryQuote.details.currencyIn.amountUsd,
-  );
-  const discoveryOut = new BigNumber(
-    discoveryQuote.details.currencyOut.amountUsd,
-  );
+  const originalIn = new BigNumber(originalQuote.sourceAmount.usd);
+  const originalOut = new BigNumber(originalQuote.targetAmount.usd);
+  const discoveryIn = new BigNumber(discoveryQuote.sourceAmount.usd);
+  const discoveryOut = new BigNumber(discoveryQuote.targetAmount.usd);
 
   if (
     !originalIn.gt(0) ||

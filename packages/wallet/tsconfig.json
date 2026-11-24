@@ -8,10 +8,16 @@
       "path": "../address-book-controller"
     },
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../approval-controller"
     },
     {
       "path": "../claims-controller"
+    },
+    {
+      "path": "../client-controller"
     },
     {
       "path": "../config-registry-controller"
@@ -32,19 +38,31 @@
       "path": "../keyring-controller"
     },
     {
+      "path": "../logging-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
       "path": "../network-controller"
     },
     {
+      "path": "../network-enablement-controller"
+    },
+    {
       "path": "../passkey-controller"
+    },
+    {
+      "path": "../permission-controller"
     },
     {
       "path": "../remote-feature-flag-controller"
     },
     {
       "path": "../seedless-onboarding-controller"
+    },
+    {
+      "path": "../selected-network-controller"
     },
     {
       "path": "../shield-controller"
@@ -60,6 +78,12 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../geolocation-controller"
+    },
+    {
+      "path": "../signature-controller"
     }
   ],
   "include": ["../../types", "./src"]

@@ -24,7 +24,8 @@ import {
   QueryObserver,
 } from '@tanstack/query-core';
 import assert from 'assert';
-import { ReplyBody } from 'nock';
+import type nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AddFollowerResponse,
@@ -74,13 +75,15 @@ type DataServiceGranularCacheUpdatedHandler = (
  */
 function createRootMessenger({
   actionHandlers = {
-    'StorageService:getItem': jest.fn(),
-    'StorageService:setItem': jest.fn(),
-    'StorageService:removeItem': jest.fn(),
+    'StorageService:getItem': vi.fn(),
+    'StorageService:setItem': vi.fn(),
+    'StorageService:removeItem': vi.fn(),
   },
 }: {
   actionHandlers?: {
-    [Action in MessengerActions<RootMessenger> as Action['type']]?: Action['handler'];
+    [
+      Action in MessengerActions<RootMessenger> as Action['type']
+    ]?: Action['handler'];
   };
 } = {}): RootMessenger {
   const messenger: RootMessenger = new Messenger({
@@ -182,7 +185,7 @@ describe('createUIQueryClient', () => {
   beforeEach(() => {
     // This is necessary to avoid a "Jest did not exit within 1 second" error
     // even for "simple" tests like fetching queries or executing mutations
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
 
     mockAssets();
     mockTransactionsPage1();
@@ -190,7 +193,7 @@ describe('createUIQueryClient', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('proxies queries to the underlying service', async () => {
@@ -383,7 +386,7 @@ describe('createUIQueryClient', () => {
 
     const { promise: promiseToResolveMutation, resolve: resolveMutation } =
       createDeferredPromise();
-    const replyFn = async (): Promise<[number, ReplyBody]> => {
+    const replyFn = async (): Promise<[number, nock.ReplyBody]> => {
       await promiseToResolveMutation;
       return [
         DEFAULT_ADD_FOLLOWER_REPLY.status,
@@ -398,7 +401,7 @@ describe('createUIQueryClient', () => {
     );
 
     const promiseForMutation = observer.mutate();
-    jest.advanceTimersByTime(0);
+    vi.advanceTimersByTime(0);
 
     const mutationFromUi = client
       .getMutationCache()
@@ -692,7 +695,7 @@ describe('createUIQueryClient', () => {
     await Promise.all([promiseA, promiseB]);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     // Replace the mock response and invalidate
     mockAssets({
@@ -716,7 +719,7 @@ describe('createUIQueryClient', () => {
   it('supports customizing query invalidation', async () => {
     const { clientA, messenger, service } = createClients();
 
-    const spy = jest.spyOn(messenger, 'call');
+    const spy = vi.spyOn(messenger, 'call');
 
     const observer = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -780,12 +783,12 @@ describe('createUIQueryClient', () => {
       });
     });
 
-    jest.advanceTimersByTime(0);
+    vi.advanceTimersByTime(0);
 
     await Promise.all([promiseA, promiseB]);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
     expect(queryData).toBeDefined();
@@ -800,7 +803,7 @@ describe('createUIQueryClient', () => {
     const { clientA, clientB, service } = createClients();
     const { promise: promiseToResolveMutation, resolve: resolveMutation } =
       createDeferredPromise();
-    const replyFn = async (): Promise<[number, ReplyBody]> => {
+    const replyFn = async (): Promise<[number, nock.ReplyBody]> => {
       await promiseToResolveMutation;
       return [
         DEFAULT_ADD_FOLLOWER_REPLY.status,
@@ -820,7 +823,7 @@ describe('createUIQueryClient', () => {
     const promiseA = observerA.mutate();
     const promiseB = observerB.mutate();
 
-    jest.advanceTimersByTime(0);
+    vi.advanceTimersByTime(0);
 
     const mutationBeforeRemovalA = clientA
       .getMutationCache()
@@ -836,7 +839,7 @@ describe('createUIQueryClient', () => {
     await Promise.all([promiseA, promiseB]);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const mutationDataAfterRemovalA = clientA
       .getMutationCache()
@@ -883,12 +886,12 @@ describe('createUIQueryClient', () => {
       });
     });
 
-    jest.advanceTimersByTime(0);
+    vi.advanceTimersByTime(0);
 
     await Promise.all([promiseA, promiseB]);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
 
@@ -898,7 +901,7 @@ describe('createUIQueryClient', () => {
     observerA.destroy();
     observerB.destroy();
 
-    jest.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
+    vi.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
 
     expect(clientA.getQueryData(getAssetsQueryKey)).toBeUndefined();
     service.destroy();
@@ -924,12 +927,12 @@ describe('createUIQueryClient', () => {
     const promiseA = observerA.mutate();
     const promiseB = observerB.mutate();
 
-    jest.advanceTimersByTime(0);
+    vi.advanceTimersByTime(0);
 
     await Promise.all([promiseA, promiseB]);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const mutationBeforeRemovalA = clientA
       .getMutationCache()
@@ -943,7 +946,7 @@ describe('createUIQueryClient', () => {
     observerA.reset();
     observerB.reset();
 
-    jest.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
+    vi.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
 
     const mutationDataAfterRemovalA = clientA
       .getMutationCache()
@@ -1011,7 +1014,7 @@ describe('createUIQueryClient', () => {
     expect(resultA).toStrictEqual(resultB);
 
     // Advance the full gcTime of ExampleDataService
-    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+    vi.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const nextPageResult = await observerA.fetchNextPage();
     expect(nextPageResult.data?.pages).toHaveLength(2);
@@ -1060,7 +1063,7 @@ describe('createUIQueryClient', () => {
   it('ignores attempts to invalidate non-data service queries', async () => {
     const { clientA, messenger } = createClients();
 
-    const spy = jest.spyOn(messenger, 'call');
+    const spy = vi.spyOn(messenger, 'call');
 
     const observer = new QueryObserver(clientA, {
       queryKey: ['query'],
@@ -1083,8 +1086,8 @@ describe('createUIQueryClient', () => {
   it('ignores non-data service queries', async () => {
     const { clientA, messenger } = createClients();
 
-    const callSpy = jest.spyOn(messenger, 'call');
-    const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+    const callSpy = vi.spyOn(messenger, 'call');
+    const subscribeSpy = vi.spyOn(messenger, 'subscribe');
 
     const observer = new QueryObserver(clientA, {
       queryKey: [1, 2, 3],
@@ -1107,8 +1110,8 @@ describe('createUIQueryClient', () => {
   it('ignores non-data service mutations', async () => {
     const { clientA, messenger } = createClients();
 
-    const callSpy = jest.spyOn(messenger, 'call');
-    const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+    const callSpy = vi.spyOn(messenger, 'call');
+    const subscribeSpy = vi.spyOn(messenger, 'subscribe');
 
     const observer = new TanStackQueryMutationObserver(clientA, {
       mutationKey: [1, 2, 3],

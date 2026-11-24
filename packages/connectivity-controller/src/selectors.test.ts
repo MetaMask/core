@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { ConnectivityControllerState } from './ConnectivityController.js';
 import { connectivityControllerSelectors } from './selectors.js';
 import { CONNECTIVITY_STATUSES } from './types.js';

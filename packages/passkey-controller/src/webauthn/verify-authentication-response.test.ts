@@ -2,6 +2,7 @@ import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { concatBytes } from '@metamask/utils';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha2';
+import { describe, expect, it } from 'vitest';
 
 import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding.js';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';

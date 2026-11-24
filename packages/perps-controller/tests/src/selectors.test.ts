@@ -1,8 +1,11 @@
 /* eslint-disable */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
 } from '../../src/constants/perpsConfig.js';
+import { getDefaultPerpsControllerState } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import {
   selectIsFirstTimeUser,
@@ -21,8 +24,21 @@ import {
   selectVisibleCandleCount,
   selectPerpsMode,
 } from '../../src/selectors.js';
+import type { PerpsMarketData } from '../../src/types/index.js';
 
 describe('PerpsController selectors', () => {
+  it('returns no configuration when selector state has not been hydrated', () => {
+    for (const selector of [
+      selectTradeConfiguration,
+      selectPendingTradeConfiguration,
+      selectOrderBookGrouping,
+      selectMarginMode,
+    ]) {
+      // @ts-expect-error Selector state may be absent at runtime before hydration.
+      expect(selector(undefined, 'BTC')).toBeUndefined();
+    }
+  });
+
   describe('selectIsFirstTimeUser', () => {
     it('returns true when state is undefined', () => {
       expect(selectIsFirstTimeUser(undefined)).toBe(true);
@@ -54,7 +70,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+            },
           },
           testnet: {},
         },
@@ -71,7 +89,9 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: { leverage: 5 },
+            hyperliquid: {
+              ETH: { leverage: 5 },
+            },
           },
         },
       } as unknown as PerpsControllerState;
@@ -100,7 +120,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {},
+            hyperliquid: {
+              BTC: {},
+            },
           },
           testnet: {},
         },
@@ -116,9 +138,11 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
-            ETH: { leverage: 5 },
-            SOL: { leverage: 3 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+              ETH: { leverage: 5 },
+              SOL: { leverage: 3 },
+            },
           },
           testnet: {},
         },
@@ -199,6 +223,63 @@ describe('PerpsController selectors', () => {
       const result = selectIsWatchlistMarket(state, 'SOL');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('selectIsWatchlistMarket with saved references', () => {
+    const lighterNvda: PerpsMarketData = {
+      symbol: 'NVDA',
+      name: 'NVDA',
+      maxLeverage: '10x',
+      price: '$120.00',
+      change24h: '$0.00',
+      change24hPercent: '0.00%',
+      volume: '$1',
+      providerId: 'lighter',
+    };
+    const stateWith = (mainnet: string[]): PerpsControllerState => ({
+      ...getDefaultPerpsControllerState(),
+      watchlistMarkets: { mainnet, testnet: [] },
+    });
+
+    it('matches a grouped favorite saved by market key', () => {
+      const state = stateWith(['market-key:NVDA-USD']);
+
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', 'NVDA-USD', [
+          { ...lighterNvda, marketKey: 'NVDA-USD', priceScale: 1 },
+        ]),
+      ).toBe(true);
+      expect(selectIsWatchlistMarket(state, 'NVDA')).toBe(false);
+    });
+
+    it('matches an AUS-saved bare symbol for a keyed check in direct HyperLiquid mode', () => {
+      const state = {
+        ...stateWith(['NVDA']),
+        activeProvider: 'hyperliquid' as const,
+      };
+
+      expect(selectIsWatchlistMarket(state, 'NVDA', 'NVDA-USD')).toBe(true);
+      expect(
+        selectIsWatchlistMarket(
+          { ...state, activeProvider: 'aggregated' },
+          'NVDA',
+          'NVDA-USD',
+        ),
+      ).toBe(false);
+    });
+
+    it('matches a non-legacy venue favorite only on that venue', () => {
+      const state = stateWith(['venue:lighter:NVDA']);
+
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', undefined, [lighterNvda]),
+      ).toBe(true);
+      expect(
+        selectIsWatchlistMarket(state, 'NVDA', undefined, [
+          { ...lighterNvda, providerId: 'hyperliquid' },
+        ]),
+      ).toBe(false);
     });
   });
 
@@ -325,11 +406,11 @@ describe('PerpsController selectors', () => {
 
   describe('selectPendingTradeConfiguration', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('returns pending config for mainnet when not testnet and not expired', () => {
@@ -338,18 +419,20 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                takeProfitPrice: '50000',
-                stopLossPrice: '40000',
-                limitPrice: '45000',
-                orderType: 'limit',
-                reduceOnly: true,
-                direction: 'short',
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  takeProfitPrice: '50000',
+                  stopLossPrice: '40000',
+                  limitPrice: '45000',
+                  orderType: 'limit',
+                  reduceOnly: true,
+                  direction: 'short',
+                  timestamp: now,
+                },
               },
             },
           },
@@ -377,12 +460,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: expiredAt,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: expiredAt,
+                },
               },
             },
           },
@@ -401,13 +486,15 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                orderType: 'market',
-                timestamp: validAt,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  orderType: 'market',
+                  timestamp: validAt,
+                },
               },
             },
           },
@@ -429,8 +516,10 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+              },
             },
           },
           testnet: {},
@@ -449,12 +538,14 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: {
-              leverage: 5,
-              pendingConfig: {
-                amount: '200',
-                leverage: 10,
-                timestamp: now,
+            hyperliquid: {
+              ETH: {
+                leverage: 5,
+                pendingConfig: {
+                  amount: '200',
+                  leverage: 10,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -474,8 +565,10 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+              },
             },
           },
           testnet: {},
@@ -493,12 +586,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -514,7 +609,7 @@ describe('PerpsController selectors', () => {
 
       // Time passes beyond the TTL without any change to isTestnet,
       // tradeConfigurations, or coin (same state reference).
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERPS_CONSTANTS.PendingTradeConfigurationTtlMs + 1,
       );
 
@@ -529,12 +624,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -555,7 +652,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { orderBookGrouping: 10 },
+            hyperliquid: {
+              BTC: { orderBookGrouping: 10 },
+            },
           },
           testnet: {},
         },
@@ -572,7 +671,9 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: { orderBookGrouping: 0.01 },
+            hyperliquid: {
+              ETH: { orderBookGrouping: 0.01 },
+            },
           },
         },
       } as unknown as PerpsControllerState;
@@ -601,7 +702,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+            },
           },
           testnet: {},
         },
@@ -618,7 +721,9 @@ describe('PerpsController selectors', () => {
       const state = {
         isTestnet: false,
         tradeConfigurations: {
-          mainnet: { BTC: { marginMode: 'cross' } },
+          mainnet: {
+            hyperliquid: { BTC: { marginMode: 'cross' } },
+          },
           testnet: { BTC: { marginMode: 'isolated' } },
         },
       } as unknown as PerpsControllerState;
@@ -631,7 +736,9 @@ describe('PerpsController selectors', () => {
         isTestnet: true,
         tradeConfigurations: {
           mainnet: { BTC: { marginMode: 'cross' } },
-          testnet: { BTC: { marginMode: 'isolated' } },
+          testnet: {
+            hyperliquid: { BTC: { marginMode: 'isolated' } },
+          },
         },
       } as unknown as PerpsControllerState;
 
@@ -658,11 +765,7 @@ describe('PerpsController selectors', () => {
     const expired = now - 25 * 60 * 60 * 1000; // 25 hours ago — outside 24h TTL
 
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(now);
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
+      vi.spyOn(Date, 'now').mockReturnValue(now);
     });
 
     it('returns mainnet symbols when not on testnet, ordered newest-first', () => {

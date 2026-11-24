@@ -4,6 +4,7 @@ import type {
   JsonRpcRequest,
   JsonRpcSuccess,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   getExtraneousKeys,
@@ -84,8 +85,8 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('allows the legacy engine to continue when not ending the request', async () => {
-    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
-      ({ next }) => next(),
+    const v2Middleware = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(({ next }) =>
+      next(),
     );
     const v2Engine = JsonRpcEngineV2.create({
       middleware: [v2Middleware],
@@ -106,7 +107,7 @@ describe('asLegacyMiddleware', () => {
   });
 
   it('allows the legacy engine to continue when not ending the request (passing through the original request)', async () => {
-    const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+    const v2Middleware = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(
       ({ request, next }) => next(request),
     );
     const v2Engine = JsonRpcEngineV2.create({
@@ -156,7 +157,7 @@ describe('asLegacyMiddleware', () => {
   it('propagates additional request properties to the v2 context and back', async () => {
     const observedContextValues: number[] = [];
 
-    const v2Middleware = jest.fn((({
+    const v2Middleware = vi.fn((({
       context,
       next,
     }): Promise<Readonly<Json> | undefined> => {
@@ -198,7 +199,7 @@ describe('asLegacyMiddleware', () => {
 
   describe('with V2 middleware', () => {
     it('accepts a single V2 middleware', async () => {
-      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      const v2Middleware = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(
         () => 'test-result',
       );
 
@@ -214,14 +215,14 @@ describe('asLegacyMiddleware', () => {
     });
 
     it('accepts multiple V2 middlewares via rest params', async () => {
-      const middleware1: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      const middleware1 = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(
         ({ context, next }) => {
           context.set('visited1', true);
           return next();
         },
       );
 
-      const middleware2: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      const middleware2 = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(
         ({ context }) => {
           expect(context.get('visited1')).toBe(true);
           return 'composed-result';
@@ -241,7 +242,7 @@ describe('asLegacyMiddleware', () => {
     });
 
     it('forwards errors from V2 middleware', async () => {
-      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(() => {
+      const v2Middleware = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(() => {
         throw new Error('v2-error');
       });
 
@@ -265,7 +266,7 @@ describe('asLegacyMiddleware', () => {
     });
 
     it('allows legacy engine to continue when V2 middleware does not end', async () => {
-      const v2Middleware: JsonRpcMiddleware<JsonRpcRequest> = jest.fn(
+      const v2Middleware = vi.fn<JsonRpcMiddleware<JsonRpcRequest>>(
         ({ next }) => next(),
       );
 

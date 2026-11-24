@@ -1,4 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import { describe, expect, it } from 'vitest';
 
 import { makeRequest } from '../../tests/utils.js';
 import type { MiddlewareScaffold } from './createScaffoldMiddleware.js';

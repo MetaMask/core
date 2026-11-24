@@ -14,7 +14,7 @@
  *                        testnet key (accountIndex 28; never use for funds).
  *   --account-index=N    Lighter account index (default 28).
  *   --api-key-index=N    API key slot (default 7).
- *   --wasm-dir=DIR       Cache dir from build-wasm.sh (default
+ *   --wasm-dir=DIR       Verified artifact dir from build-wasm.sh (default
  *                        <repo>/temp/lighter-wasm).
  *
  * Each phase writes <out>/<phase>.json and prints PASS/FAIL lines;
@@ -54,7 +54,7 @@ import { createNodeWasmBridge } from './lighter/nodeWasmBridge.js';
 const DEFAULT_DUMMY_ETH_KEY =
   '0x1234567812345678123456781234567812345678123456781234567812345678';
 
-const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const PACKAGE_ROOT = resolve(import.meta.dirname, '..', '..');
 const REPO_ROOT = resolve(PACKAGE_ROOT, '..', '..');
 
 type PhaseResult = {
@@ -1512,7 +1512,7 @@ async function phaseParityHistory(result: PhaseResult): Promise<void> {
   const [withdrawalRoute] = provider.getWithdrawalRoutes();
   const live = convertKeysToCamelCase(
     await (
-      await fetch('https://testnet.zklighter.elliot.ai/api/v1/layer1BasicInfo')
+      await fetch('https://api.testnet.lighter.xyz/api/v1/layer1BasicInfo')
     ).json(),
   ) as {
     contractAddresses: { name: string; address: string }[];
@@ -1964,12 +1964,13 @@ async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
     const position = accounts.accounts?.[0]?.positions?.find(
       (entry) => entry.marketId === meta.marketId,
     );
-    return position
-      ? {
-          imf: position.initialMarginFraction,
-          size: parseFloat(position.position),
-        }
-      : null;
+    if (position?.initialMarginFraction === undefined) {
+      return null;
+    }
+    return {
+      imf: position.initialMarginFraction,
+      size: parseFloat(position.position),
+    };
   };
   await poll(
     'position readable with isolated 10x margin fraction',

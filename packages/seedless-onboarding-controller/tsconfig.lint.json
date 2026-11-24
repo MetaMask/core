@@ -12,6 +12,9 @@
       "path": "../base-controller/tsconfig.lint.json"
     },
     {
+      "path": "../cryptography/tsconfig.lint.json"
+    },
+    {
       "path": "../keyring-controller/tsconfig.lint.json"
     },
     {

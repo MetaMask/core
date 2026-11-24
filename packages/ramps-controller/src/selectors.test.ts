@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { RampsControllerState } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import {

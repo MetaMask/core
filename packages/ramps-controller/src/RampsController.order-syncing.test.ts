@@ -4,6 +4,8 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { RampsControllerMessenger } from './RampsController.js';
 import {
@@ -53,17 +55,18 @@ function setupControllerWithOrderSyncingMocks(args?: {
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
   ) => void;
+  isNetworkAccessAllowed?: () => boolean;
 }): {
   controller: RampsController;
-  performBatchSetStorage: jest.Mock;
-  performGetStorageAllFeatureEntries: jest.Mock;
-  getOrder: jest.Mock;
+  performBatchSetStorage: Mock;
+  performGetStorageAllFeatureEntries: Mock;
+  getOrder: Mock;
 } {
-  const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
-  const performGetStorageAllFeatureEntries = jest
+  const performBatchSetStorage = vi.fn().mockResolvedValue(undefined);
+  const performGetStorageAllFeatureEntries = vi
     .fn()
     .mockResolvedValue([] as string[]);
-  const getOrder = jest.fn();
+  const getOrder = vi.fn();
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -102,6 +105,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
 
   const controller = new RampsController({
     messenger,
+    isNetworkAccessAllowed: args?.isNetworkAccessAllowed,
     onOrderSyncErroneousSituation: args?.onOrderSyncErroneousSituation,
   });
 
@@ -114,10 +118,6 @@ function setupControllerWithOrderSyncingMocks(args?: {
 }
 
 describe('RampsController order syncing', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   it('exposes the order syncing semaphore getter and setter', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 
@@ -175,7 +175,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('stamps lastUpdatedAt on local addOrder edits', () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.addOrder({
@@ -193,7 +193,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('does not bump lastUpdatedAt or write remotely when addOrder payload is unchanged', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -203,7 +203,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
 
     controller.addOrder(order);
     await new Promise((resolve) => {
@@ -215,7 +215,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('does not write remotely when getOrder returns an unchanged order', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, getOrder, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -225,7 +225,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
     getOrder.mockResolvedValue(order);
 
     await controller.getOrder('transak', 'abc-123', order.walletAddress);
@@ -260,7 +260,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('merges paymentDetails without bumping lastUpdatedAt or writing remotely when only paymentDetails changed', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -270,7 +270,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
 
     const orderWithPaymentDetails = {
       ...order,
@@ -289,7 +289,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('merges paymentDetails from poll without remote write when only paymentDetails changed', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, getOrder, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -299,7 +299,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
     const orderWithPaymentDetails = {
       ...order,
       paymentDetails: [{ method: 'bank_transfer', details: 'some-details' }],
@@ -319,10 +319,10 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports incremental addOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks({ onOrderSyncErroneousSituation });
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -345,7 +345,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports incremental removeOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const {
       controller,
       performBatchSetStorage,
@@ -353,7 +353,7 @@ describe('RampsController order syncing', () => {
     } = setupControllerWithOrderSyncingMocks({
       onOrderSyncErroneousSituation,
     });
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -391,6 +391,129 @@ describe('RampsController order syncing', () => {
 
     expect(controller.state.orders).toStrictEqual([]);
     expect(controller.getPendingRemoteDeletes()).toStrictEqual([]);
+  });
+
+  it('uploads an order added while network access is denied on the next full sync', async () => {
+    let allowed = false;
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks({
+        isNetworkAccessAllowed: () => allowed,
+      });
+    const order = createMockOrder({
+      id: '/providers/transak/orders/deferred-add',
+      providerOrderId: 'deferred-add',
+    });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'deferred-add' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    const [, entries] = performBatchSetStorage.mock.calls[0];
+    expect(entries).toStrictEqual([
+      ['deferred-add', expect.stringContaining('deferred-add')],
+    ]);
+  });
+
+  it('uploads the tombstone on the next full sync when removeOrder ran while network access is denied', async () => {
+    let allowed = true;
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks({
+        isNetworkAccessAllowed: () => allowed,
+      });
+
+    controller.addOrder(createMockOrder());
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+
+    allowed = false;
+    controller.removeOrder('abc-123');
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders).toStrictEqual([]);
+    expect(controller.getPendingRemoteDeletes()).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'abc-123' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    const [, entries] = performBatchSetStorage.mock.calls[0];
+    expect(entries).toStrictEqual([
+      ['abc-123', expect.stringContaining('"dt"')],
+    ]);
+  });
+
+  it('does not run a queued sync pass when network access is revoked mid-sync', async () => {
+    let allowed = true;
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks({
+      isNetworkAccessAllowed: () => allowed,
+    });
+
+    controller.addOrder(
+      createMockOrder({
+        providerOrderId: 'seed-order',
+        id: '/providers/transak/orders/seed-order',
+      }),
+    );
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+
+    performBatchSetStorage.mockImplementationOnce(async () => {
+      // Host revokes access while the full sync is uploading, then a local
+      // edit lands before the in-flight pass settles.
+      allowed = false;
+      controller.addOrder(
+        createMockOrder({
+          providerOrderId: 'mid-sync-denied',
+          id: '/providers/transak/orders/mid-sync-denied',
+        }),
+      );
+    });
+
+    await controller.syncOrdersWithUserStorage();
+
+    // The in-flight pass may finish its already-started upload, but the queued
+    // follow-up pass must not start another User Storage read or write.
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(1);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'seed-order' }),
+      expect.objectContaining({ providerOrderId: 'mid-sync-denied' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(2);
+    const [, entries] = performBatchSetStorage.mock.calls[1];
+    expect(entries).toStrictEqual(
+      expect.arrayContaining([
+        ['mid-sync-denied', expect.stringContaining('mid-sync-denied')],
+      ]),
+    );
   });
 
   it('does not restore an order when its fetch finishes after removal', async () => {
@@ -491,7 +614,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('queues mid-sync deletes and drains them after sync', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
     const {
       controller,
       performBatchSetStorage,
@@ -697,7 +820,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('bumps lastUpdatedAt for external edits made while a sync is in progress', () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_222);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_222);
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.setIsOrderSyncingInProgress(true);
@@ -748,7 +871,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports when addOrder cannot derive an internal order code', () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const rootMessenger: RootMessenger = new Messenger({
       namespace: MOCK_ANY_NAMESPACE,
     });

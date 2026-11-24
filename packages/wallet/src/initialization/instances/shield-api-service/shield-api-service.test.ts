@@ -4,6 +4,7 @@ import {
   ShieldApiService,
   SHIELD_API_URL_MAP,
 } from '@metamask/shield-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -67,7 +68,7 @@ describe('shieldApiService', () => {
       async () => 'test-bearer-token',
     );
     const messenger = shieldApiService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async () => {
+    const fetchFunction = vi.fn(async () => {
       const callCount = fetchFunction.mock.calls.length;
       if (callCount === 1) {
         return new globalThis.Response(
@@ -118,7 +119,7 @@ describe('shieldApiService', () => {
 
   it('delegates AuthenticationController:getBearerToken', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
     const messenger = shieldApiService.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({
@@ -137,7 +138,7 @@ describe('shieldApiService', () => {
       async () => 'token',
     );
     const messenger = shieldApiService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async () => {
+    const fetchFunction = vi.fn(async () => {
       const callCount = fetchFunction.mock.calls.length;
       if (callCount === 1) {
         return new globalThis.Response(

@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../../index.js';
 import type {
@@ -8,14 +9,16 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getMaxAmountRefreshInterval } from '../../utils/max-quote.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
 import { ServerStrategy } from './ServerStrategy.js';
 import type { ServerQuote } from './types.js';
 
-jest.mock('./server-quotes');
-jest.mock('./server-submit');
-jest.mock('../../utils/feature-flags');
+vi.mock(import('./server-quotes.js'));
+vi.mock(import('./server-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/max-quote.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
@@ -23,9 +26,9 @@ const QUOTE_MOCK = {
 
 const QUOTE_REQUEST_MOCK = {
   from: '0x1234567890123456789012345678901234567890',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
   sourceBalanceRaw: '1000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x0000000000000000000000000000000000000001',
   sourceTokenAmount: '1000',
   targetAmountMinimum: '900',
   targetChainId: '0xa4b1',
@@ -39,12 +42,12 @@ const SUPPORTS_REQUEST_MOCK = {
 } as PayStrategyGetQuotesRequest;
 
 describe('ServerStrategy', () => {
-  const getServerQuotesMock = jest.mocked(getServerQuotes);
-  const submitServerQuotesMock = jest.mocked(submitServerQuotes);
-  const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
+  const getServerQuotesMock = vi.mocked(getServerQuotes);
+  const submitServerQuotesMock = vi.mocked(submitServerQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getServerQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getPayStrategiesConfigMock.mockReturnValue({
       server: {
@@ -84,11 +87,19 @@ describe('ServerStrategy', () => {
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
     });
 
-    it('returns false when a request uses an unsupported capability', () => {
+    it('returns false when a request has a non-EVM source asset', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            },
+          ],
         }),
       ).toBe(false);
     });
@@ -111,6 +122,28 @@ describe('ServerStrategy', () => {
     it('returns empty batch list', async () => {
       expect(await new ServerStrategy().getBatchTransactions()).toStrictEqual(
         [],
+      );
+    });
+  });
+
+  describe('getRefreshInterval', () => {
+    it('returns max amount refresh interval', async () => {
+      const getMaxAmountRefreshIntervalMock = vi.mocked(
+        getMaxAmountRefreshInterval,
+      );
+      getMaxAmountRefreshIntervalMock.mockReturnValue(5000);
+
+      const refreshRequest = {
+        chainId: 'eip155:1' as const,
+        messenger: {} as TransactionPayControllerMessenger,
+        transactionId: 'tx-1',
+      };
+
+      expect(
+        await new ServerStrategy().getRefreshInterval(refreshRequest),
+      ).toBe(5000);
+      expect(getMaxAmountRefreshIntervalMock).toHaveBeenCalledWith(
+        refreshRequest,
       );
     });
   });

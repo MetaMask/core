@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   OnChainNotificationsCache,
   NotificationConfigCacheTTL,
@@ -8,12 +10,12 @@ describe('OnChainNotificationsCache', () => {
   let cache: OnChainNotificationsCache;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     cache = new OnChainNotificationsCache();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('get', () => {
@@ -27,7 +29,7 @@ describe('OnChainNotificationsCache', () => {
       cache.set([{ address: '0x123', enabled: true }]);
 
       // Fast-forward time past TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL + 1);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL + 1);
 
       const result = cache.get(['0x123']);
       expect(result).toBeNull();
@@ -87,7 +89,7 @@ describe('OnChainNotificationsCache', () => {
       cache.set([{ address: '0x123', enabled: true }]);
 
       // Add more data (within TTL)
-      jest.advanceTimersByTime(NotificationConfigCacheTTL / 2);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL / 2);
       cache.set([{ address: '0x456', enabled: false }]);
 
       const result = cache.get(['0x123', '0x456']);
@@ -113,7 +115,7 @@ describe('OnChainNotificationsCache', () => {
       cache.set([{ address: '0x123', enabled: true }]);
 
       // Fast-forward time past TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL + 1);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL + 1);
 
       // Set new data
       cache.set([{ address: '0x456', enabled: false }]);
@@ -162,13 +164,13 @@ describe('OnChainNotificationsCache', () => {
       ]);
 
       // Should still be available just before expiration
-      jest.advanceTimersByTime(NotificationConfigCacheTTL / 2);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL / 2);
       expect(cache.get(['0x123'])).toStrictEqual([
         { address: '0x123', enabled: true },
       ]);
 
       // Should be expired after TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL);
       expect(cache.get(['0x123'])).toBeNull();
     });
 
@@ -177,7 +179,7 @@ describe('OnChainNotificationsCache', () => {
       cache.set([{ address: '0x123', enabled: true }]);
 
       // Advance under TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL / 2);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL / 2);
 
       // Add more data (should merge with existing)
       cache.set([{ address: '0x456', enabled: false }]);
@@ -189,7 +191,7 @@ describe('OnChainNotificationsCache', () => {
       ]);
 
       // Advance past TTL
-      jest.advanceTimersByTime(NotificationConfigCacheTTL + 1);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL + 1);
 
       // Cache should be expired now
       expect(cache.get(['0x123', '0x456'])).toBeNull();
@@ -200,13 +202,13 @@ describe('OnChainNotificationsCache', () => {
       cache.set([{ address: '0x123', enabled: true }]);
 
       // Advance under TTL (almost ended)
-      jest.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
 
       // Update cache (should reset TTL)
       cache.set([{ address: '0x456', enabled: false }]);
 
       // Advance TTL (it should be past TTL, but cache was reset)
-      jest.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
 
       // Should still be available because TTL was reset
       expect(cache.get(['0x123', '0x456'])).toStrictEqual([
@@ -215,7 +217,7 @@ describe('OnChainNotificationsCache', () => {
       ]);
 
       // Advance past TTL (added from previous timer makes this past TTL)
-      jest.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
+      vi.advanceTimersByTime(NotificationConfigCacheTTL * 0.9);
 
       // Now should be expired
       expect(cache.get(['0x123', '0x456'])).toBeNull();

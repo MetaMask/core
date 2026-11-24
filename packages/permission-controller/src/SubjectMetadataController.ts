@@ -5,6 +5,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import deepEqual from 'fast-deep-equal';
 
 import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types.js';
 import type {
@@ -200,6 +201,12 @@ export class SubjectMetadataController extends BaseController<
       name: metadata.name ?? null,
       subjectType: metadata.subjectType ?? null,
     };
+
+    const existingEntry = this.state.subjectMetadata[origin];
+
+    if (deepEqual(existingEntry, newMetadata)) {
+      return;
+    }
 
     let originToForget: string | null = null;
     // We only delete the oldest encountered subject from the cache, again to

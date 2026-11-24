@@ -348,8 +348,9 @@ export function markSubscriptionCloid(params: {
  */
 export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
   return Math.floor(
-    BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
-      (1 - discountBips / BASIS_POINTS_DIVISOR),
+    (BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+      (BASIS_POINTS_DIVISOR - discountBips)) /
+      BASIS_POINTS_DIVISOR,
   );
 }
 
@@ -385,7 +386,11 @@ export function applyFeeResolution(params: {
 }): FeeCalculationResult {
   const { fees, resolution, amount, chargesBuilderFee } = params;
 
-  if (resolution === undefined || fees.metamaskFeeRate === undefined) {
+  if (
+    resolution === undefined ||
+    fees.metamaskFeeRate === undefined ||
+    chargesBuilderFee === false
+  ) {
     return fees;
   }
 
@@ -429,8 +434,11 @@ export function applyFeeResolution(params: {
       ? parsedAmount
       : undefined;
 
-  const protocolFeeRate = fees.protocolFeeRate ?? 0;
-  const feeRate = protocolFeeRate + metamaskFeeRate;
+  // An unknown protocol rate leaves the total unknown, never MetaMask-only.
+  const feeRate =
+    fees.protocolFeeRate === undefined
+      ? undefined
+      : fees.protocolFeeRate + metamaskFeeRate;
 
   return {
     ...fees,
@@ -441,7 +449,7 @@ export function applyFeeResolution(params: {
     undiscountedMetamaskFeeRate,
     ...(notional !== undefined && {
       metamaskFeeAmount: notional * metamaskFeeRate,
-      feeAmount: notional * feeRate,
+      feeAmount: feeRate === undefined ? undefined : notional * feeRate,
     }),
   };
 }

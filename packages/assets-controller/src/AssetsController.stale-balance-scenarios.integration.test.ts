@@ -1,7 +1,9 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { stateBalancesSurface } from './__fixtures__/assetSurfaces.js';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type {
   MockRootMessenger,
@@ -53,11 +55,7 @@ import {
   USDT_ASSET_ID_CHECKSUM,
   USDT_CONTRACT,
 } from './__fixtures__/stale-balance/wallet.js';
-import {
-  getIgnoringCase,
-  waitFor,
-  waitUntilStable,
-} from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 import { normalizeAmountString } from './utils/normalizeAmountString.js';
@@ -79,16 +77,6 @@ const BSC_DOUBLED = buildDoubledBscBalances();
 
 /** The lower-cased form of the USDT asset ID, as the captures key it. */
 const USDT_ASSET_ID_LOWER = USDT_ASSET_ID_CHECKSUM.toLowerCase();
-
-type StateSurface = {
-  surface: string;
-  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
-  getAssetIds: (state: AssetsControllerState) => Set<string>;
-  lookupAmount: (
-    state: AssetsControllerState,
-    assetId: string,
-  ) => string | undefined;
-};
 
 type StaleBalanceHarnessOptions = {
   state?: Partial<AssetsControllerState>;
@@ -216,32 +204,15 @@ async function fetchSolanaSnapWallet({
 }
 
 describe('AssetsController stale-balance scenarios: Solana keyring snap', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(
-          state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {},
-          assetId,
-        ) as { amount?: string } | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(SOLANA_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('1: keeps the last amounts on screen when the snap is unreachable', async () => {
     const seeded = await fetchSolanaSnapWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const unreachable = await fetchSolanaSnapWallet({
       state: buildEmptySolanaSnapState({
@@ -266,7 +237,7 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
 
   it('2: copies the last amount for a skipped asset the snap has seen before', async () => {
     const seeded = await fetchSolanaSnapWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const skipped = await fetchSolanaSnapWallet({
       state: buildEmptySolanaSnapState({
@@ -403,31 +374,15 @@ async function fetchBscWallet({
 }
 
 describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
-          | { amount?: string }
-          | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('4: keeps the last amount for the one token whose RPC read fails while the rest of the chain updates', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -457,7 +412,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       apiMutations: { setBalances: { [USDT_ASSET_ID_LOWER]: '0' } },
     });
     expect(BALANCES.lookupAmount(seeded, USDT_ASSET_ID_CHECKSUM)).toBe('0');
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -491,7 +446,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
 
   it('6: keeps every last amount on the chain when all RPC calls fail', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -515,7 +470,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
 
   it('7: recovers the chain with fresh amounts once the RPC fallback owns it', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -618,26 +573,10 @@ const publishBalanceUpdated = (
 };
 
 describe('AssetsController stale-balance scenarios: Account Activity live events', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
-          | { amount?: string }
-          | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   /**
@@ -798,27 +737,10 @@ const STAKED_AMOUNTS = {
 const MAINNET_ETH_CAPTURED_AMOUNT = '0.053234767359623827';
 
 describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Hoodi', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(
-          state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {},
-          assetId,
-        ) as { amount?: string } | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(MAINNET_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('12: refreshes only the vault the transaction touched, and staked ETH survives token polls that never include it', async () => {

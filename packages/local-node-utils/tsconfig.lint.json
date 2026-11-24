@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo",
-    "types": ["jest", "node"]
+    "types": ["node"]
   },
   "references": []
 }

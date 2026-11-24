@@ -1,3 +1,4 @@
+import type { Web3Provider } from '@ethersproject/providers';
 import type { TokenAmountValues } from '@metamask/bridge-controller';
 import { isNativeAddress } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -9,7 +10,7 @@ const getReceivedNativeAmount = (
   historyItem: BridgeHistoryItem,
   actualGas: Omit<TokenAmountValues, 'valueInCurrency'> | null,
   txMeta: TransactionMeta,
-) => {
+): string | BigNumber | null => {
   const { preTxBalance, postTxBalance } = txMeta;
 
   if (!preTxBalance || !postTxBalance || preTxBalance === postTxBalance) {
@@ -28,43 +29,43 @@ const getReceivedNativeAmount = (
     : null;
 };
 
-const getReceivedERC20Amount = (
-  historyItem: BridgeHistoryItem,
-  txMeta: TransactionMeta,
-) => {
-  const { txReceipt } = txMeta;
-  if (!txReceipt?.logs || txReceipt.status === '0x0') {
+export const getReceivedERC20Amount = (
+  walletAddress: string,
+  destAssetAddress: string,
+  logs?: { address?: string; topics?: string[]; data?: string }[],
+): BigNumber | null => {
+  if (!logs) {
     return null;
   }
-  const { account: accountAddress, quote } = historyItem;
 
   const TOKEN_TRANSFER_LOG_TOPIC_HASH =
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-  const tokenTransferLog = txReceipt.logs.find((txReceiptLog) => {
-    const isTokenTransfer = txReceiptLog.topics?.[0]?.startsWith(
-      TOKEN_TRANSFER_LOG_TOPIC_HASH,
-    );
+  const tokenTransferLogs = logs.filter((txReceiptLog) => {
+    const isTokenTransfer = txReceiptLog.topics?.[0]
+      ?.toLowerCase()
+      .startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
     const isTransferFromGivenToken =
-      txReceiptLog.address?.toLowerCase() ===
-      quote.destAsset.address?.toLowerCase();
+      txReceiptLog.address?.toLowerCase() === destAssetAddress?.toLowerCase();
     const isTransferFromGivenAddress =
       txReceiptLog.topics?.[2] &&
-      (txReceiptLog.topics[2] === accountAddress ||
-        txReceiptLog.topics[2].match(accountAddress?.slice(2)));
+      (txReceiptLog.topics[2].toLowerCase() === walletAddress?.toLowerCase() ||
+        txReceiptLog.topics[2]
+          .toLowerCase()
+          .match(walletAddress?.slice(2).toLowerCase()));
 
     return (
       isTokenTransfer && isTransferFromGivenToken && isTransferFromGivenAddress
     );
   });
 
-  if (tokenTransferLog?.data) {
-    return new BigNumber(tokenTransferLog.data, 16).div(
-      new BigNumber(10).pow(quote.destAsset.decimals),
-    );
-  }
+  const totalReceivedAmount = tokenTransferLogs.reduce(
+    (sum, tokenTransferLog) =>
+      tokenTransferLog?.data ? sum.plus(tokenTransferLog.data, 16) : sum,
+    new BigNumber(0),
+  );
 
-  return null;
+  return totalReceivedAmount.gt(0) ? totalReceivedAmount : null;
 };
 
 /**
@@ -79,11 +80,11 @@ export const getActualSwapReceivedAmount = (
   historyItem: BridgeHistoryItem,
   actualGas: Omit<TokenAmountValues, 'valueInCurrency'> | null,
   txMeta?: TransactionMeta,
-) => {
+): null | { amount?: BigNumber | string | null; usd: BigNumber | null } => {
   const { pricingData } = historyItem;
   const quotedReturnAmount = historyItem.quote.destTokenAmount;
 
-  if (!txMeta?.txReceipt) {
+  if (!txMeta?.txReceipt || txMeta?.txReceipt.status === '0x0') {
     return null;
   }
 
@@ -91,7 +92,12 @@ export const getActualSwapReceivedAmount = (
     historyItem.quote.destAsset.address,
   )
     ? getReceivedNativeAmount(historyItem, actualGas, txMeta)
-    : getReceivedERC20Amount(historyItem, txMeta);
+    : getReceivedERC20Amount(
+        historyItem.account,
+        historyItem.quote.destAsset.address,
+        // @ts-expect-error - txReceipt.logs is not typed correctly
+        txMeta?.txReceipt?.logs,
+      )?.div(new BigNumber(10).pow(historyItem.quote.destAsset.decimals));
 
   const returnUsdExchangeRate =
     pricingData?.quotedReturnInUsd && quotedReturnAmount
@@ -132,4 +138,24 @@ export const getActualBridgeReceivedAmount = (
         usd: usdExchangeRate.multipliedBy(actualAmount).toString(10),
       }
     : null;
+};
+
+export const getReceivedAmountFromTxHash = async (
+  txHash: string,
+  walletAddress: string,
+  tokenAddress: string,
+  provider: Web3Provider,
+): Promise<BigNumber> => {
+  const txReceipt = await provider.getTransactionReceipt(txHash);
+  const receivedAmount = getReceivedERC20Amount(
+    walletAddress,
+    tokenAddress,
+    txReceipt?.logs,
+  );
+
+  if (!receivedAmount) {
+    throw new Error(`Missing received amount`);
+  }
+
+  return receivedAmount;
 };

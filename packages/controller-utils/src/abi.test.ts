@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import { describe, expect, it } from 'vitest';
 
 import { encodeFunctionData } from './abi.js';
 
@@ -70,7 +71,7 @@ describe('encodeFunctionData', () => {
       expect(() =>
         encodeFunctionData(erc20Interface, 'nonExistentFunction', []),
       ).toThrow(
-        'no matching function (argument="name", value="nonExistentFunction", code=INVALID_ARGUMENT, version=abi/5.7.0)',
+        'no matching function (argument="name", value="nonExistentFunction", code=INVALID_ARGUMENT, version=abi/',
       );
     });
   });

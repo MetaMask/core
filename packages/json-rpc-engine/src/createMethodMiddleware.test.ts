@@ -6,6 +6,7 @@ import {
   JsonRpcParams,
   JsonRpcRequest,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   MethodHandler,
@@ -184,7 +185,7 @@ describe('createMethodMiddleware', () => {
   });
 
   it('invokes onError when a handler throws', async () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     const handler = makeHandler<AllHooks>(
       () => {
         throw new Error('test error');
@@ -203,7 +204,7 @@ describe('createMethodMiddleware', () => {
     await engine.handle(baseRequest);
 
     expect(onError).toHaveBeenCalledTimes(1);
-    const [error, receivedRequest] = onError.mock.calls[0];
+    const [error, receivedRequest] = onError.mock.calls[0] ?? [];
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe('test error');
     expect(receivedRequest).toMatchObject(baseRequest);

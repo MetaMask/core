@@ -9,6 +9,8 @@ import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredentialType,
   VerificationChallenge,
   VerificationProof,
@@ -20,10 +22,12 @@ import {
 import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
   AccessToken,
+  LoginResponse,
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
   ProfileIdentifier,
+  SocialLoginParams,
   OidcTokenAudience,
   OidcTokenClaims,
   UserProfileLineage,
@@ -129,41 +133,67 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaEnrollment(
       flowId,
       proof,
       entropySourceId,
+      accessToken,
     );
   }
 
   async beginMfaVerification(
     type: MfaCredentialType,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<VerificationChallenge> {
     this.#assertSRP(this.#type, this.#sdk);
-    return await this.#sdk.beginMfaVerification(type, entropySourceId);
+    return await this.#sdk.beginMfaVerification(
+      type,
+      entropySourceId,
+      accessToken,
+    );
   }
 
   async completeMfaVerification(
     flowId: string,
     proof: VerificationProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaVerification(
       flowId,
       proof,
       entropySourceId,
+      accessToken,
     );
   }
 
   async getMfaCredentials(
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<EnrolledCredential[]> {
     this.#assertSRP(this.#type, this.#sdk);
-    return await this.#sdk.getMfaCredentials(entropySourceId);
+    return await this.#sdk.getMfaCredentials(entropySourceId, accessToken);
+  }
+
+  async requestMfaApproval(
+    body: MfaApprovalRequest,
+    options?: { entropySourceId?: string; accessToken?: string },
+  ): Promise<MfaApproval> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.requestMfaApproval(body, options);
+  }
+
+  async deleteMfaCredential(
+    credentialId: string,
+    accessToken: string,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.deleteMfaCredential(credentialId, accessToken);
   }
 
   async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
@@ -185,6 +215,13 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+  }
+
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeSocialAccessToken(params);
   }
 
   async signMessage(

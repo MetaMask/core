@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   getTheme,
@@ -48,21 +51,20 @@ const baseTheme: ChartTheme = {
  * @returns The mock widget alongside references to its inner mocks.
  */
 function createMockWidget(overrides?: {
-  applyOverrides?: jest.Mock;
-  setChartStyleProperties?: jest.Mock;
+  applyOverrides?: Mock;
+  setChartStyleProperties?: Mock;
 }): {
   widget: TVChartingLibraryWidget;
-  applyOverrides: jest.Mock;
-  setChartStyleProperties: jest.Mock;
+  applyOverrides: Mock;
+  setChartStyleProperties: Mock;
 } {
-  const setChartStyleProperties =
-    overrides?.setChartStyleProperties ?? jest.fn();
-  const applyOverridesFn = overrides?.applyOverrides ?? jest.fn();
+  const setChartStyleProperties = overrides?.setChartStyleProperties ?? vi.fn();
+  const applyOverridesFn = overrides?.applyOverrides ?? vi.fn();
   return {
     widget: {
       applyOverrides: applyOverridesFn,
       activeChart: () => ({
-        getSeries: (): { setChartStyleProperties: jest.Mock } => ({
+        getSeries: (): { setChartStyleProperties: Mock } => ({
           setChartStyleProperties,
         }),
       }),
@@ -173,7 +175,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('notifies subscribers with the updated theme', () => {
     initThemeFromConfig(baseTheme);
-    const subscriber = jest.fn();
+    const subscriber = vi.fn();
     subscribeTheme(subscriber);
     applyThemeColors({ successColor: 'rgb(170,187,204)' });
     expect(subscriber).toHaveBeenCalledTimes(1);
@@ -182,7 +184,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('applies overrides on the widget when the chart is ready', () => {
     initThemeFromConfig(baseTheme);
-    const applyOverrides = jest.fn();
+    const applyOverrides = vi.fn();
     setWidget({ applyOverrides } as unknown as TVChartingLibraryWidget);
     setChartReady(true);
 
@@ -216,13 +218,13 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('reports subscriber errors to RN without stopping other subscribers', () => {
     initThemeFromConfig(baseTheme);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
-    const bad = jest.fn(() => {
+    const bad = vi.fn(() => {
       throw new Error('subscriber fail');
     });
-    const good = jest.fn();
+    const good = vi.fn();
     subscribeTheme(bad);
     subscribeTheme(good);
 
@@ -236,7 +238,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('unsubscribe returned by subscribeTheme removes the listener', () => {
     initThemeFromConfig(baseTheme);
-    const listener = jest.fn();
+    const listener = vi.fn();
     const unsub = subscribeTheme(listener);
     unsub();
     applyThemeColors({ lineColor: 'rgb(7,7,7)' });
@@ -245,7 +247,7 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('reports widget.applyOverrides errors to RN', () => {
     initThemeFromConfig(baseTheme);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     setWidget({
       applyOverrides: () => {
@@ -285,11 +287,11 @@ describe('initThemeFromConfig + applyThemeColors', () => {
 
   it('reports setChartStyleProperties errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
-      setChartStyleProperties: jest.fn(() => {
+      setChartStyleProperties: vi.fn(() => {
         throw new Error('series style fail');
       }),
     });
@@ -418,11 +420,11 @@ describe('flushPendingTheme', () => {
 
   it('reports applyOverrides errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
-      applyOverrides: jest.fn(() => {
+      applyOverrides: vi.fn(() => {
         throw new Error('flush override fail');
       }),
     });
@@ -437,11 +439,11 @@ describe('flushPendingTheme', () => {
 
   it('reports setChartStyleProperties errors to RN without throwing', () => {
     initThemeFromConfig(baseTheme);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
     const { widget } = createMockWidget({
-      setChartStyleProperties: jest.fn(() => {
+      setChartStyleProperties: vi.fn(() => {
         throw new Error('flush series fail');
       }),
     });

@@ -37,6 +37,71 @@ export type PixDepositInstructions = {
 };
 
 /**
+ * MoonPay `deposit_rails` types for a USD virtual account. They share the same
+ * fields.
+ */
+export type UsBankDepositRail = 'ACH' | 'Wire' | 'RTP' | 'FedNow';
+
+/**
+ * US bank transfer details from an autoramp `deposit_rails` entry.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type UsBankDepositInstructions = {
+  /** Which US rail these details came from. */
+  rail: UsBankDepositRail;
+  /** Account holder name, matching the customer's verified identity. */
+  accountHolder: string;
+  /** ABA routing number. */
+  routingNumber: string;
+  /** Virtual account number. */
+  accountNumber: string;
+  /** Name of the issuing bank. */
+  bankName: string;
+  /** Address of the issuing bank, when MoonPay includes one. */
+  bankAddress?: string;
+  /** Account holder address, when MoonPay includes one. */
+  accountHolderAddress?: string;
+};
+
+/**
+ * SEPA transfer details from an autoramp `deposit_rails` entry (EUR), plus the
+ * autoramp's inbound payment reference when MoonPay uses pay-by-reference.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type SepaDepositInstructions = {
+  /** The customer's IBAN, no spaces. Always present. */
+  iban: string;
+  /** The bank's BIC, when MoonPay includes one. */
+  bic?: string;
+  /** Account holder: the customer's verified name, when present. */
+  accountHolder?: string;
+  /** Name of the bank that holds the account, when present. */
+  bankName?: string;
+  /** Address of that bank, when present. */
+  bankAddress?: string;
+  /**
+   * Reference to include in the SEPA payment reference so MoonPay can match
+   * the deposit, when the autoramp uses pay-by-reference. Backed by the
+   * autoramp's `inbound_payment_reference`.
+   */
+  paymentReference?: string;
+  /**
+   * Whether the autoramp accepts third-party payments; false means only a
+   * transfer from a bank account in the customer's own name is accepted.
+   * Backed by the autoramp's `is_third_party`.
+   */
+  isThirdParty?: boolean;
+};
+
+/**
+ * Deposit details for an autoramp, discriminated by `type`.
+ */
+export type AutorampDepositInstructions =
+  | ({ type: 'Pix' } & PixDepositInstructions)
+  | ({ type: 'UsBank' } & UsBankDepositInstructions)
+  | ({ type: 'Sepa' } & SepaDepositInstructions);
+
+/**
  * Polling summary of one autoramp transaction.
  * `status` is MoonPay `transaction_status` (`Completed`, `Failed`, …).
  */

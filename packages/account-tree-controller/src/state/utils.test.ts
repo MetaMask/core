@@ -5,6 +5,7 @@ import {
   string,
   StructError,
 } from '@metamask/superstruct';
+import { describe, expect, it } from 'vitest';
 
 import {
   BytesStruct,

@@ -8,6 +8,7 @@ import {
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { randomBytes } from 'crypto';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { DelegationDeploymentsEnforcerAddressesByName } from '../../types.js';
 import { toEnforcerAddressesByName } from '../enforcerAddresses.js';
@@ -34,7 +35,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       expect(decoder.permissionType).toStrictEqual(permissionType);
@@ -53,7 +54,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers: {},
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       expect(decoder.optionalEnforcers).toStrictEqual(
@@ -74,7 +75,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const requiredEnforcersMap = new Map(
@@ -106,7 +107,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [enforcer1, enforcer2, enforcer3];
@@ -131,7 +132,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [
@@ -166,7 +167,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [
@@ -200,7 +201,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [requiredEnforcer, optionalEnforcer2];
@@ -225,7 +226,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [
@@ -255,7 +256,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [requiredEnforcer1, optionalEnforcer];
@@ -276,7 +277,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [enforcer1];
@@ -297,7 +298,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [enforcer1, enforcer1];
@@ -322,7 +323,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers,
         requiredEnforcers,
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const specifiedCaveats = [
@@ -348,7 +349,7 @@ describe('makePermissionDecoder', () => {
           [requiredEnforcer]: 1,
         },
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       expect(
@@ -363,7 +364,7 @@ describe('makePermissionDecoder', () => {
   describe('validateAndDecodePermission', () => {
     it('returns a valid result when the specified validation and decoding succeeds', () => {
       const data = { result: 'success' };
-      const validateAndDecodeData = jest.fn().mockReturnValue(data);
+      const validateAndDecodeData = vi.fn().mockReturnValue(data);
       const decoder = makePermissionDecoder({
         permissionType,
         contractAddresses,
@@ -383,7 +384,7 @@ describe('makePermissionDecoder', () => {
     });
 
     it('calls the validation and decoding function with the correct arguments', () => {
-      const validateAndDecodeData = jest.fn();
+      const validateAndDecodeData = vi.fn();
       const decoder = makePermissionDecoder({
         permissionType,
         contractAddresses,
@@ -421,7 +422,7 @@ describe('makePermissionDecoder', () => {
 
     it('returns an invalid result, with thrown error when the specified validation and decoding throws', () => {
       const validationError = new Error('test error');
-      const validateAndDecodeData = jest.fn().mockImplementation(() => {
+      const validateAndDecodeData = vi.fn().mockImplementation(() => {
         throw validationError;
       });
       const decoder = makePermissionDecoder({
@@ -442,7 +443,7 @@ describe('makePermissionDecoder', () => {
 
     it('returns an invalid result, with appropriate error if any of the terms is not valid hex', () => {
       const data = { result: 'success' };
-      const validateAndDecodeData = jest.fn().mockReturnValue(data);
+      const validateAndDecodeData = vi.fn().mockReturnValue(data);
       const decoder = makePermissionDecoder({
         permissionType,
         contractAddresses,
@@ -469,9 +470,9 @@ describe('makePermissionDecoder', () => {
 
     it('calls decode on each of the specified rules', () => {
       const rules: RuleDecoder[] = [
-        jest.fn().mockReturnValue(null),
-        jest.fn().mockReturnValue(null),
-        jest.fn().mockReturnValue(null),
+        vi.fn().mockReturnValue(null),
+        vi.fn().mockReturnValue(null),
+        vi.fn().mockReturnValue(null),
       ];
 
       const decoder = makePermissionDecoder({
@@ -480,7 +481,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules,
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const caveats: Caveat<Hex>[] = [
@@ -516,7 +517,7 @@ describe('makePermissionDecoder', () => {
 
     it('returns an invalid result, with thrown error when a rule decoder throws', () => {
       const ruleDecoderError = new Error('test error');
-      const ruleDecoder = jest.fn().mockImplementation(() => {
+      const ruleDecoder = vi.fn().mockImplementation(() => {
         throw ruleDecoderError;
       });
       const decoder = makePermissionDecoder({
@@ -525,7 +526,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules: [ruleDecoder],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const result = decoder.validateAndDecodePermission([]);
@@ -542,7 +543,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const result = decoder.validateAndDecodePermission([]);
@@ -558,7 +559,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules: [],
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const result = decoder.validateAndDecodePermission([]);
@@ -580,9 +581,9 @@ describe('makePermissionDecoder', () => {
       };
 
       const rules: RuleDecoder[] = [
-        jest.fn().mockReturnValue(mockRule1),
-        jest.fn().mockReturnValue(null),
-        jest.fn().mockReturnValue(mockRule2),
+        vi.fn().mockReturnValue(mockRule1),
+        vi.fn().mockReturnValue(null),
+        vi.fn().mockReturnValue(mockRule2),
       ];
 
       const decoder = makePermissionDecoder({
@@ -591,7 +592,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules,
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const result = decoder.validateAndDecodePermission([]);
@@ -612,7 +613,7 @@ describe('makePermissionDecoder', () => {
         },
       };
 
-      const rules: RuleDecoder[] = [jest.fn().mockReturnValue(expiryRule)];
+      const rules: RuleDecoder[] = [vi.fn().mockReturnValue(expiryRule)];
 
       const decoder = makePermissionDecoder({
         permissionType,
@@ -620,7 +621,7 @@ describe('makePermissionDecoder', () => {
         optionalEnforcers: [],
         requiredEnforcers: {},
         rules,
-        validateAndDecodeData: jest.fn(),
+        validateAndDecodeData: vi.fn(),
       });
 
       const result = decoder.validateAndDecodePermission([]);

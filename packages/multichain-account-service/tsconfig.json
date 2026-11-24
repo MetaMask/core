@@ -21,7 +21,10 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../key-tree"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

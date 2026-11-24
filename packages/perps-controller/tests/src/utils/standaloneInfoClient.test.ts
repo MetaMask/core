@@ -1,5 +1,7 @@
 /* eslint-disable */
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import type { ClearinghouseStateResponse } from '../../../src/types/hyperliquid-types.js';
 import {
@@ -11,18 +13,22 @@ import {
 // Mock instances — must use 'mock' prefix for Jest hoisting
 const mockHttpTransportInstance = { url: 'http://mock' };
 const mockInfoClientInstance = {
-  clearinghouseState: jest.fn(),
-  frontendOpenOrders: jest.fn(),
+  clearinghouseState: vi.fn(),
+  frontendOpenOrders: vi.fn(),
 };
 
-jest.mock('@nktkas/hyperliquid', () => ({
-  HttpTransport: jest.fn(() => mockHttpTransportInstance),
-  InfoClient: jest.fn(() => mockInfoClientInstance),
+vi.mock('@nktkas/hyperliquid', () => ({
+  HttpTransport: vi.fn(function () {
+    return mockHttpTransportInstance;
+  }),
+  InfoClient: vi.fn(function () {
+    return mockInfoClientInstance;
+  }),
 }));
 
-// After jest.mock hoisting, these imports are the mocked constructors
-const MockedHttpTransport = HttpTransport as unknown as jest.Mock;
-const MockedInfoClient = InfoClient as unknown as jest.Mock;
+// After vi.mock hoisting, these imports are the mocked constructors
+const MockedHttpTransport = HttpTransport as unknown as Mock;
+const MockedInfoClient = InfoClient as unknown as Mock;
 
 /**
  * Factory for mock ClearinghouseStateResponse.
@@ -44,9 +50,13 @@ const createMockClearinghouseResponse = (
 
 describe('standaloneInfoClient', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    MockedHttpTransport.mockImplementation(() => mockHttpTransportInstance);
-    MockedInfoClient.mockImplementation(() => mockInfoClientInstance);
+    vi.clearAllMocks();
+    MockedHttpTransport.mockImplementation(function () {
+      return mockHttpTransportInstance;
+    });
+    MockedInfoClient.mockImplementation(function () {
+      return mockInfoClientInstance;
+    });
   });
 
   // ----------------------------------------------------------------
@@ -101,11 +111,11 @@ describe('standaloneInfoClient', () => {
   describe('queryStandaloneClearinghouseStates', () => {
     const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
 
-    let mockInfoClient: jest.Mocked<Pick<InfoClient, 'clearinghouseState'>>;
+    let mockInfoClient: Mocked<Pick<InfoClient, 'clearinghouseState'>>;
 
     beforeEach(() => {
       mockInfoClient = {
-        clearinghouseState: jest.fn(),
+        clearinghouseState: vi.fn(),
       };
     });
 
@@ -179,7 +189,14 @@ describe('standaloneInfoClient', () => {
         [null, 'xyz', 'abc'],
       );
 
-      expect(results).toEqual([responseA, responseB, responseC]);
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'xyz', data: responseB },
+          { dex: 'abc', data: responseC },
+        ],
+        failedDexs: [],
+      });
     });
 
     it('returns single response for main-DEX-only list', async () => {
@@ -193,10 +210,13 @@ describe('standaloneInfoClient', () => {
       );
 
       expect(mockInfoClient.clearinghouseState).toHaveBeenCalledTimes(1);
-      expect(results).toEqual([response]);
+      expect(results).toStrictEqual({
+        results: [{ dex: null, data: response }],
+        failedDexs: [],
+      });
     });
 
-    it('returns empty array for empty DEX list', async () => {
+    it('returns no results for an empty DEX list', async () => {
       const results = await queryStandaloneClearinghouseStates(
         mockInfoClient as unknown as InfoClient,
         userAddress,
@@ -204,10 +224,10 @@ describe('standaloneInfoClient', () => {
       );
 
       expect(mockInfoClient.clearinghouseState).not.toHaveBeenCalled();
-      expect(results).toEqual([]);
+      expect(results).toStrictEqual({ results: [], failedDexs: [] });
     });
 
-    it('returns successful results when some DEX queries fail', async () => {
+    it('reports the DEXs that failed alongside the successful results', async () => {
       const responseA = createMockClearinghouseResponse({
         withdrawable: '100',
       });
@@ -226,10 +246,18 @@ describe('standaloneInfoClient', () => {
         [null, 'failing-dex', 'healthy-dex'],
       );
 
-      expect(results).toEqual([responseA, responseC]);
+      expect(results).toStrictEqual({
+        results: [
+          { dex: null, data: responseA },
+          { dex: 'healthy-dex', data: responseC },
+        ],
+        failedDexs: [
+          { dex: 'failing-dex', error: new Error('HIP-3 DEX timeout') },
+        ],
+      });
     });
 
-    it('returns empty array when all DEX queries fail', async () => {
+    it('reports every DEX as failed when all queries fail', async () => {
       mockInfoClient.clearinghouseState.mockRejectedValue(
         new Error('Network timeout'),
       );
@@ -240,7 +268,11 @@ describe('standaloneInfoClient', () => {
         [null, 'dex-a'],
       );
 
-      expect(results).toEqual([]);
+      expect(results.results).toStrictEqual([]);
+      expect(results.failedDexs.map(({ dex }) => dex)).toStrictEqual([
+        null,
+        'dex-a',
+      ]);
     });
   });
 
@@ -251,12 +283,12 @@ describe('standaloneInfoClient', () => {
     const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
 
     let mockInfoClient: {
-      frontendOpenOrders: jest.Mock;
+      frontendOpenOrders: Mock;
     };
 
     beforeEach(() => {
       mockInfoClient = {
-        frontendOpenOrders: jest.fn(),
+        frontendOpenOrders: vi.fn(),
       };
     });
 

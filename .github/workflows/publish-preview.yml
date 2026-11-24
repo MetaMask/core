@@ -1,19 +1,49 @@
 name: Publish a preview build
 
 on:
-  issue_comment:
-    types: created
+  workflow_dispatch:
+    inputs:
+      pull-request:
+        description: 'Pull request number to publish a preview build for. Mutually exclusive with "branch".'
+        required: false
+        type: number
+      branch:
+        description: 'Branch in this repository to publish a preview build for. Mutually exclusive with "pull-request".'
+        required: false
+        type: string
+        default: ''
+      packages:
+        description: 'Comma-separated list of packages to publish, e.g., "@metamask/network-controller, permission-controller". Mutually exclusive with "only-changed-packages". Leave empty to publish all packages.'
+        required: false
+        type: string
+        default: ''
+      only-changed-packages:
+        description: 'Only publish packages changed compared to the base branch. Mutually exclusive with "packages".'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Perform a dry run.'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   publish-preview:
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
-    uses: MetaMask/github-tools/.github/workflows/publish-preview.yml@v1
+    name: Publish preview
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: MetaMask/github-tools/.github/workflows/publish-preview-oidc.yml@v1
     with:
-      environment: default-branch
+      pull-request: ${{ fromJSON(inputs.pull-request || '0') }}
+      branch: ${{ inputs.branch }}
+      packages: ${{ inputs.packages }}
+      only-changed-packages: ${{ inputs.only-changed-packages }}
+      dry-run: ${{ inputs.dry-run }}
+      environment: npm-preview
       docs-url: 'https://github.com/MetaMask/core/blob/main/docs/processes/preview-builds.md'
-    secrets:
-      PUBLISH_PREVIEW_NPM_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}

@@ -25,7 +25,7 @@ The package is built around a few deliberate constraints:
 | Principle                                                   | How it shows up in the code                                                                                                                                                                          |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Vendor-neutral surface**                                  | Consumers deal with `KycProduct` (`'ramps' \| 'card' \| 'money'`) and a phase machine. Identity vendor is a parameterized `KycVendor` (`initialize({ vendor })`), not vendor-branded public methods. |
-| **Platform-agnostic core**                                  | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@noble/*` + `@scure/base`. WebView/iframe presentation and the SumSub SDK are **injected** by each client.                         |
+| **Platform-agnostic core**                                  | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@metamask/cryptography`. WebView/iframe presentation and the SumSub SDK are **injected** by each client.                           |
 | **Controller owns orchestration; clients own presentation** | `KycController` owns all state, HTTP orchestration, crypto and the frame protocol. Clients only render frames, forward raw messages, and present the SumSub SDK.                                     |
 | **Stateless service**                                       | `KycService` performs HTTP only; it holds no state and derives auth/geolocation from other controllers via the messenger.                                                                            |
 | **Everything through the messenger**                        | Both classes register their public methods as messenger actions, and reach external capabilities (auth token, geolocation) via delegated actions.                                                    |
@@ -690,16 +690,15 @@ graph LR
 
 ### Appendix — key source files
 
-| File                                 | Responsibility                                                      |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| `src/KycController.ts`               | Stateful orchestrator, phase machine.                               |
-| `src/vendors/MoonPayFrameHandler.ts` | MoonPay Check/Auth protocol, URLs, and ephemeral frame credentials. |
-| `src/KycService.ts`                  | Stateless UKYC HTTP client + superstruct validation.                |
-| `src/crypto.ts`                      | X25519 ECDH + AES-256-GCM credential decryption.                    |
-| `src/selectors.ts`                   | Memoized selectors over controller state.                           |
-| `src/types.ts`                       | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.                 |
-| `src/countryCodes.ts`                | ISO alpha-2 → alpha-3 mapping.                                      |
-| `src/index.ts`                       | Public exports (no barrel wildcards).                               |
+| File                   | Responsibility                                       |
+| ---------------------- | ---------------------------------------------------- |
+| `src/KycController.ts` | Stateful orchestrator, phase machine.                |
+| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation. |
+| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.     |
+| `src/selectors.ts`     | Memoized selectors over controller state.            |
+| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
+| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                       |
+| `src/index.ts`         | Public exports (no barrel wildcards).                |
 
 Reference client (metamask-mobile):
 

@@ -1,4 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import { describe, expect, it } from 'vitest';
 
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';

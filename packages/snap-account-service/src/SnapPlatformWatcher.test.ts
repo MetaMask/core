@@ -7,6 +7,8 @@ import type {
 } from '@metamask/messenger';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher.js';
@@ -50,14 +52,14 @@ function setup(
   mocks: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     SnapController: {
-      getState: jest.Mock<SnapControllerState>;
+      getState: Mock<() => SnapControllerState>;
     };
   };
   watcher: SnapPlatformWatcher;
 } {
   const mocks = {
     SnapController: {
-      getState: jest.fn(),
+      getState: vi.fn(),
     },
   };
 
@@ -192,7 +194,7 @@ describe('SnapPlatformWatcher', () => {
     it('resolves deferred promise only once when platform becomes ready', async () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
-      const resolveSpy = jest.fn();
+      const resolveSpy = vi.fn();
 
       // Access the private deferred promise through ensureCanUsePlatform.
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
@@ -265,7 +267,7 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const { promise: onboardingPromise, resolve: resolveOnboarding } =
         createDeferredPromise<void>();
-      const ensureOnboardingComplete = jest
+      const ensureOnboardingComplete = vi
         .fn()
         .mockReturnValue(onboardingPromise);
       const watcher = new SnapPlatformWatcher(messenger, {
@@ -291,7 +293,7 @@ describe('SnapPlatformWatcher', () => {
 
     it('requires both onboarding complete and Snap platform ready when ensureOnboardingComplete is provided', async () => {
       const { rootMessenger, messenger } = setup();
-      const ensureOnboardingComplete = jest.fn().mockResolvedValue(undefined);
+      const ensureOnboardingComplete = vi.fn().mockResolvedValue(undefined);
       const watcher = new SnapPlatformWatcher(messenger, {
         ensureOnboardingComplete,
       });

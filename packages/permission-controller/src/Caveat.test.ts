@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as errors from './errors.js';
 import type { Caveat, PermissionConstraint } from './index.js';
 import { decorateWithCaveats, PermissionType } from './index.js';

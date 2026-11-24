@@ -6,7 +6,7 @@
   },
   "references": [
     {
-      "path": "../utils"
+      "path": "../node-utils"
     }
   ],
   "include": ["../../types", "./src"]

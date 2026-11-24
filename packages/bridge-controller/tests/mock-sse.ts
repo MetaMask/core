@@ -1,6 +1,7 @@
 import { ReadableStream } from 'node:stream/web';
+import { vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { QuoteStreamCompleteData, TokenFeature } from '../src/index.js';
 import { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
 
@@ -8,7 +9,7 @@ type MockSseResponse = { status: number; ok: boolean; body: ReadableStream };
 
 export const advanceToNthTimer = (nth = 1): void => {
   for (let i = 0; i < nth; i++) {
-    jest.advanceTimersToNextTimer();
+    vi.advanceTimersToNextTimer();
   }
 };
 

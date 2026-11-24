@@ -2,13 +2,15 @@
  * Token API Client Tests - token.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient.js';
-import { API_URLS } from '../shared-types.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from '../test-utils.js';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS } from '../shared-types.js';
 import type { NetworkInfo, TokenMetadata } from './types.js';
 
 describe('TokenApiClient', () => {
@@ -378,6 +380,37 @@ describe('TokenApiClient', () => {
         expect.stringContaining('/v1/suggestedOccurrenceFloors'),
         expect.any(Object),
       );
+    });
+  });
+
+  describe('fetchV2Assets', () => {
+    it('fetches v2 assets with launchpad and security flags', async () => {
+      const mockResponse = [
+        {
+          assetId: 'eip155:56/erc20:0xabc',
+          symbol: 'ABC',
+          name: 'Abc',
+          decimals: 18,
+          launchpad: 'flap',
+        },
+      ];
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchV2Assets(
+        ['eip155:56/erc20:0xabc'],
+        { includeLaunchpadData: true, includeTokenSecurityData: true },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain('/v2/assets');
+      expect(url).toContain('includeLaunchpadData=true');
+      expect(url).toContain('includeTokenSecurityData=true');
+    });
+
+    it('returns an empty array without fetching when no asset IDs are given', async () => {
+      expect(await client.token.fetchV2Assets([])).toStrictEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

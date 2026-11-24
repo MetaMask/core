@@ -30,6 +30,7 @@ import {
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
 } from '../SubscriptionController-method-action-types.js';
 import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
@@ -135,6 +136,7 @@ type AllowedActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 /**
@@ -294,12 +296,12 @@ export class SubscriptionDelegationService {
       'SubscriptionController:getSubscriptions',
     );
     this.#assertUserNotSubscribed(subscriptions, request.product);
-    const { trialedProducts } = this.#messenger.call(
-      'SubscriptionController:getState',
+    const isEligibleForTrial = await this.#messenger.call(
+      'SubscriptionController:isUserEligibleForTrial',
+      request.product,
     );
     const isTrialRequested =
-      config.price.trialPeriodDays > 0 &&
-      !trialedProducts.includes(request.product);
+      config.price.trialPeriodDays > 0 && isEligibleForTrial;
 
     await this.#messenger.call(
       'MoneyAccountUpgradeController:forceUpgradeAccount',
@@ -337,6 +339,8 @@ export class SubscriptionDelegationService {
         // delegation start date was derived from the original trial state.
         // This local guard is removed before the backend request.
         assertTrialEligibility: true,
+        // Omit when unset so existing callers keep the previous request shape.
+        ...(request.useTestClock ? { useTestClock: true } : {}),
       },
     );
   }
@@ -389,7 +393,7 @@ export class SubscriptionDelegationService {
       periodAmount,
       periodDuration,
       nowSeconds,
-      isTrialDeferred: startDate > nowSeconds,
+      expectedStartDate: startDate,
       enforcers: config.enforcers,
     });
     const reusable = pickLatestMatchingSubscriptionDelegation(
@@ -661,7 +665,6 @@ export class SubscriptionDelegationService {
         ? price.trialPeriodDays
         : undefined,
     });
-    const isTrialDeferred = startDate > nowSeconds;
 
     const reusable = forceNew
       ? undefined
@@ -674,7 +677,7 @@ export class SubscriptionDelegationService {
           periodAmount,
           periodDuration,
           nowSeconds,
-          isTrialDeferred,
+          expectedStartDate: startDate,
           enforcers,
         });
     if (reusable) {
@@ -790,7 +793,7 @@ export class SubscriptionDelegationService {
     periodAmount,
     periodDuration,
     nowSeconds,
-    isTrialDeferred,
+    expectedStartDate,
     enforcers,
   }: {
     request: PrepareSubscriptionDelegationRequest;
@@ -801,7 +804,7 @@ export class SubscriptionDelegationService {
     periodAmount: bigint;
     periodDuration: number;
     nowSeconds: number;
-    isTrialDeferred: boolean;
+    expectedStartDate: number;
     enforcers: SubscriptionDelegationEnforcers;
   }): Promise<DelegationResponse | undefined> {
     const matches = makeMatchesSubscriptionDelegation({
@@ -813,7 +816,7 @@ export class SubscriptionDelegationService {
       periodAmount,
       periodDuration,
       nowSeconds,
-      isTrialDeferred,
+      expectedStartDate,
       enforcers,
     });
 

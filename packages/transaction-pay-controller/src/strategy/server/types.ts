@@ -1,17 +1,10 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import type { TradeType } from '../../utils/trade-type.js';
 
-/** Provider names supported by the server intents API. */
-export enum ServerProviderName {
-  Relay = 'relay',
-  Across = 'across',
-}
-
-/** Token amount with chain and token context. */
+/** Token amount with its CAIP-19 asset ID. */
 export type ServerQuoteAmount = {
-  chainId: number;
-  token: string;
+  asset: CaipAssetType;
   decimals: number;
   raw: string;
   formatted: string;
@@ -65,18 +58,33 @@ export type ServerAuthorization = {
 
 /** Request body for POST /quote. */
 export type ServerQuoteRequest = {
-  source: { chainId: number; token: Hex };
-  target: { chainId: number; token: Hex };
+  /** CAIP-19 asset ID of the source token. */
+  sourceAsset: CaipAssetType;
+
+  /** CAIP-19 asset ID of the target token. */
+  targetAsset: CaipAssetType;
+
   amount: string;
   tradeType: TradeType;
   sender: Hex;
-  recipient: Hex;
+
+  /** Address of the recipient, or another identifier such as a Lighter account index. */
+  recipient: string;
   refundTo?: Hex;
   slippage?: number;
-  providers?: ServerProviderName[];
+  providers?: string[];
   calls?: ServerCall[];
   authorizationList?: ServerAuthorization[];
+  supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
+
+  /**
+   * Whether the quote is funded with a plain token transfer to a provider
+   * deposit address, rather than by calling the provider contracts. The
+   * transfer must not include any additional calldata, such as an appended
+   * request ID.
+   */
+  useDepositAddress?: boolean;
 };
 
 /** Error detail from a rejected quote result. */
@@ -94,6 +102,7 @@ export type ServerQuotePayload = {
   duration: number;
   steps: ServerStep[];
   gasless: boolean;
+  callsDeferred?: boolean;
 };
 
 /** Fee breakdown from a quote. */
@@ -105,7 +114,7 @@ export type ServerQuoteFees = {
 
 /** A single provider result within the quote response. */
 export type ServerQuoteResult = {
-  provider: ServerProviderName;
+  provider: string;
   quote?: ServerQuotePayload;
   error?: ServerQuoteError;
 };
@@ -124,8 +133,13 @@ export type ServerQuoteClient = {
 
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
+  /**
+   * Signed EIP-7702 authorizations sent with the quote request, kept when the
+   * quote embeds the calls, so a non-gasless submit can upgrade the account.
+   */
+  authorizationList?: ServerAuthorization[];
   id: string;
-  provider: ServerProviderName;
+  provider: string;
   input: ServerQuoteAmount;
   output: ServerQuoteAmount;
   fees: ServerQuoteFees;
@@ -135,7 +149,14 @@ export type ServerQuote = {
   gasless: boolean;
 };
 
-/** Status values returned by GET /status. */
+/** Log from the source transaction receipt sent to POST /status. */
+export type ServerStatusLog = {
+  address: Hex;
+  data: Hex;
+  topics: Hex[];
+};
+
+/** Status values returned by POST /status. */
 export enum ServerStatus {
   Pending = 'PENDING',
   Submitted = 'SUBMITTED',
@@ -145,7 +166,7 @@ export enum ServerStatus {
   Unknown = 'UNKNOWN',
 }
 
-/** Response body from GET /status. */
+/** Response body from POST /status. */
 export type ServerStatusResponse = {
   status: ServerStatus;
   sourceHash?: Hex;
@@ -155,7 +176,7 @@ export type ServerStatusResponse = {
 
 /** Request body for POST /submit. */
 export type ServerSubmitRequest = {
-  provider: ServerProviderName;
+  provider: string;
   id: string;
   chainId: number;
   to: Hex;

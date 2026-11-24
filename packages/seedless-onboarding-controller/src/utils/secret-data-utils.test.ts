@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { stringToBytes } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   createFetchedSecretDataItem,

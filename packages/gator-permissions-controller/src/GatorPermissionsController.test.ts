@@ -29,8 +29,10 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import type { Mock, MockedFunction } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import {
   mockGatorPermissionsStorageEntriesFactory,
   mockNativeTokenStreamStorageEntry,
@@ -51,10 +53,12 @@ import type {
   SupportedPermissionType,
 } from './types.js';
 
-jest.mock('./decodePermission/enforcerAddresses.js', () => ({
-  ...jest.requireActual('./decodePermission/enforcerAddresses.js'),
-  __esModule: true,
-}));
+vi.mock(
+  import('./decodePermission/enforcerAddresses.js'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+  }),
+);
 
 const PERMISSION_STATUSES: GatorPermissionStatus[] = [
   'Active',
@@ -66,12 +70,12 @@ const PERMISSION_STATUSES: GatorPermissionStatus[] = [
  * Default JSON-RPC behavior for permission status sync tests (disabled = false,
  * latest block far in the future).
  *
- * @returns A Jest mock function suitable as a provider `request` implementation.
+ * @returns A mock function suitable as a provider `request` implementation.
  */
-function createDefaultPermissionStatusProviderRequest(): jest.MockedFunction<
+function createDefaultPermissionStatusProviderRequest(): MockedFunction<
   (args: { method: string; params?: unknown[] }) => Promise<unknown>
 > {
-  return jest.fn(async (req) => {
+  return vi.fn(async (req) => {
     if (req.method === 'eth_call') {
       return '0x0000000000000000000000000000000000000000000000000000000000000000';
     }
@@ -87,9 +91,9 @@ function createDefaultPermissionStatusProviderRequest(): jest.MockedFunction<
  * (assertable when sync must resolve on-chain permission status).
  */
 let lastNetworkControllerTestMocks: {
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  permissionStatusProviderRequest: jest.MockedFunction<
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  permissionStatusProviderRequest: MockedFunction<
     (args: { method: string; params?: unknown[] }) => Promise<unknown>
   >;
 } | null = null;
@@ -243,7 +247,7 @@ describe('GatorPermissionsController', () => {
         },
       ];
 
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(mockStorageEntriesWithRules);
       const rootMessenger = getRootMessenger({
@@ -336,7 +340,7 @@ describe('GatorPermissionsController', () => {
       };
 
       const rootMessenger = getRootMessenger({
-        snapControllerHandleRequestActionHandler: jest
+        snapControllerHandleRequestActionHandler: vi
           .fn()
           .mockResolvedValue([storedEntry]),
       });
@@ -413,7 +417,7 @@ describe('GatorPermissionsController', () => {
       } as unknown as PermissionInfoWithMetadata;
 
       const rootMessenger = getRootMessenger({
-        snapControllerHandleRequestActionHandler: jest
+        snapControllerHandleRequestActionHandler: vi
           .fn()
           .mockResolvedValue([storedEntry]),
       });
@@ -499,9 +503,7 @@ describe('GatorPermissionsController', () => {
       const requestPromise = new Promise<StoredGatorPermission[]>((resolve) => {
         resolveRequest = resolve;
       });
-      const mockHandleRequestHandler = jest
-        .fn()
-        .mockReturnValue(requestPromise);
+      const mockHandleRequestHandler = vi.fn().mockReturnValue(requestPromise);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -526,7 +528,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('performs a new sync when called after previous sync completes', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
       const rootMessenger = getRootMessenger({
@@ -553,7 +555,7 @@ describe('GatorPermissionsController', () => {
 
   describe('initialize', () => {
     it('calls fetchAndUpdateGatorPermissions when lastSyncedTimestamp is -1', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
       const rootMessenger = getRootMessenger({
@@ -575,7 +577,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('does not call fetchAndUpdateGatorPermissions when lastSyncedTimestamp is recent', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
       const rootMessenger = getRootMessenger({
@@ -596,7 +598,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('calls fetchAndUpdateGatorPermissions when lastSyncedTimestamp is older than sync interval', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
       const rootMessenger = getRootMessenger({
@@ -618,7 +620,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('respects custom maxSyncIntervalMs from config', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
       const rootMessenger = getRootMessenger({
@@ -648,7 +650,7 @@ describe('GatorPermissionsController', () => {
   describe('message handlers tests', () => {
     it('registers all message handlers', () => {
       const messenger = getGatorPermissionsControllerMessenger();
-      const mockRegisterActionHandler = jest.spyOn(
+      const mockRegisterActionHandler = vi.spyOn(
         messenger,
         'registerActionHandler',
       );
@@ -807,7 +809,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('throws PermissionDecodingError when toEnforcerAddressesByName throws', () => {
-      const toEnforcerAddressesByNameSpy = jest
+      const toEnforcerAddressesByNameSpy = vi
         .spyOn(enforcerAddressesModule, 'toEnforcerAddressesByName')
         .mockImplementation(() => {
           throw new Error('Failed to checksum enforcer addresses');
@@ -1539,7 +1541,7 @@ describe('GatorPermissionsController', () => {
 
   describe('submitRevocation', () => {
     it('should successfully submit a revocation when gator permissions are enabled', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1586,7 +1588,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should submit revocation when controller is configured', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1611,7 +1613,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should throw GatorPermissionsProviderError when snap request fails', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockRejectedValue(new Error('Snap request failed'));
       const rootMessenger = getRootMessenger({
@@ -1645,7 +1647,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should clear pending revocation in finally block even if refresh fails', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1674,9 +1676,9 @@ describe('GatorPermissionsController', () => {
         message: 'Failed to fetch gator permissions',
         cause: new Error('Refresh failed'),
       });
-      jest
-        .spyOn(controller, 'fetchAndUpdateGatorPermissions')
-        .mockRejectedValue(fetchError);
+      vi.spyOn(controller, 'fetchAndUpdateGatorPermissions').mockRejectedValue(
+        fetchError,
+      );
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
@@ -1709,7 +1711,7 @@ describe('GatorPermissionsController', () => {
 
   describe('submitDirectRevocation', () => {
     it('should add to pending revocations and immediately submit revocation', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1751,7 +1753,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should add pending revocation with placeholder txId', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1774,7 +1776,7 @@ describe('GatorPermissionsController', () => {
       };
 
       // Spy on submitRevocation to check pending state before it's called
-      const submitRevocationSpy = jest.spyOn(controller, 'submitRevocation');
+      const submitRevocationSpy = vi.spyOn(controller, 'submitRevocation');
 
       await rootMessenger.call(
         'GatorPermissionsController:submitDirectRevocation',
@@ -1788,7 +1790,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should clear pending revocation even if submitRevocation fails (finally block)', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockRejectedValue(new Error('Snap request failed'));
       const rootMessenger = getRootMessenger({
@@ -1922,15 +1924,15 @@ describe('GatorPermissionsController', () => {
 
   describe('addPendingRevocation', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should submit revocation when transaction is confirmed', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -1993,7 +1995,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should throw and error if the transaction fails', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2049,7 +2051,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should submit revocation metadata when transaction is confirmed', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2117,7 +2119,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should cleanup without adding to state when transaction is rejected by user', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2158,7 +2160,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should cleanup and refresh permissions without submitting revocation when transaction fails', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2207,7 +2209,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should cleanup and refresh permissions without submitting revocation when transaction is dropped', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2256,7 +2258,7 @@ describe('GatorPermissionsController', () => {
 
     it('should handle error when refreshing permissions after transaction fails', async () => {
       const mockError = new Error('Failed to fetch permissions');
-      const mockHandleRequestHandler = jest.fn().mockRejectedValue(mockError);
+      const mockHandleRequestHandler = vi.fn().mockRejectedValue(mockError);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2298,7 +2300,7 @@ describe('GatorPermissionsController', () => {
 
     it('should handle error when refreshing permissions after transaction is dropped', async () => {
       const mockError = new Error('Failed to fetch permissions');
-      const mockHandleRequestHandler = jest.fn().mockRejectedValue(mockError);
+      const mockHandleRequestHandler = vi.fn().mockRejectedValue(mockError);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2338,7 +2340,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should cleanup without submitting revocation when timeout is reached', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2363,7 +2365,7 @@ describe('GatorPermissionsController', () => {
       );
 
       // Fast-forward time by 2 hours
-      jest.advanceTimersByTime(2 * 60 * 60 * 1000);
+      vi.advanceTimersByTime(2 * 60 * 60 * 1000);
 
       // Wait for async operations
       await Promise.resolve();
@@ -2373,7 +2375,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should add to pending revocations state only after user approval', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2411,7 +2413,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should not submit revocation for different transaction IDs', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2471,7 +2473,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should cleanup listeners before timeout is set when transaction fails during subscription', async () => {
-      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandleRequestHandler = vi.fn().mockResolvedValue(undefined);
       const rootMessenger = getRootMessenger({
         snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
       });
@@ -2490,18 +2492,16 @@ describe('GatorPermissionsController', () => {
       const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
 
       const originalSubscribe = messenger.subscribe.bind(messenger);
-      jest
-        .spyOn(messenger, 'subscribe')
-        .mockImplementation((event, handler) => {
-          const subscription = originalSubscribe(event, handler);
-          if (event === 'TransactionController:transactionDropped') {
-            rootMessenger.publish('TransactionController:transactionFailed', {
-              transactionMeta: { id: txId } as TransactionMeta,
-              error: 'Transaction failed during subscription',
-            });
-          }
-          return subscription;
-        });
+      vi.spyOn(messenger, 'subscribe').mockImplementation((event, handler) => {
+        const subscription = originalSubscribe(event, handler);
+        if (event === 'TransactionController:transactionDropped') {
+          rootMessenger.publish('TransactionController:transactionFailed', {
+            transactionMeta: { id: txId } as TransactionMeta,
+            error: 'Transaction failed during subscription',
+          });
+        }
+        return subscription;
+      });
 
       await rootMessenger.call(
         'GatorPermissionsController:addPendingRevocation',
@@ -2524,7 +2524,7 @@ describe('GatorPermissionsController', () => {
     });
 
     it('should handle revocation submission errors gracefully', async () => {
-      const mockHandleRequestHandler = jest
+      const mockHandleRequestHandler = vi
         .fn()
         .mockRejectedValue(new Error('Revocation submission failed'));
       const rootMessenger = getRootMessenger({
@@ -2601,18 +2601,12 @@ type RootMessenger = Messenger<
  * @returns The unrestricted messenger suited for GatorPermissionsController.
  */
 function getRootMessenger({
-  snapControllerHandleRequestActionHandler = jest
-    .fn<
-      ReturnType<SnapControllerHandleRequestAction['handler']>,
-      Parameters<SnapControllerHandleRequestAction['handler']>
-    >()
+  snapControllerHandleRequestActionHandler = vi
+    .fn<SnapControllerHandleRequestAction['handler']>()
     .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES),
-  snapControllerHasActionHandler = jest
-    .fn<
-      ReturnType<SnapControllerHasSnapAction['handler']>,
-      Parameters<SnapControllerHasSnapAction['handler']>
-    >()
-    .mockResolvedValue(true as never),
+  snapControllerHasActionHandler = vi
+    .fn<SnapControllerHasSnapAction['handler']>()
+    .mockResolvedValue(true),
 }: {
   snapControllerHandleRequestActionHandler?: SnapControllerHandleRequestAction['handler'];
   snapControllerHasActionHandler?: SnapControllerHasSnapAction['handler'];
@@ -2623,10 +2617,10 @@ function getRootMessenger({
 
   const permissionStatusProviderRequest =
     createDefaultPermissionStatusProviderRequest();
-  const findNetworkClientIdByChainId = jest
+  const findNetworkClientIdByChainId = vi
     .fn()
     .mockReturnValue('test-network-client-id');
-  const getNetworkClientById = jest.fn().mockReturnValue({
+  const getNetworkClientById = vi.fn().mockReturnValue({
     provider: { request: permissionStatusProviderRequest },
   });
   lastNetworkControllerTestMocks = {

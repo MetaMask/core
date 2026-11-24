@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import type { LighterClientService } from '../../../src/services/LighterClientService.js';
 import { LighterTwapService } from '../../../src/services/LighterTwapService.js';
 import type {
@@ -36,19 +39,19 @@ const build = (
 ): {
   service: LighterTwapService;
   storage: {
-    getItem: jest.Mock<Promise<string | null>, [string]>;
-    setItem: jest.Mock<Promise<void>, [string, string]>;
+    getItem: Mock<(...args: [string]) => Promise<string | null>>;
+    setItem: Mock<(...args: [string, string]) => Promise<void>>;
   };
   disk: Map<string, string>;
-  assertCurrent: jest.Mock;
+  assertCurrent: Mock;
 } => {
   const storage = {
-    getItem: jest.fn(async (key: string) => disk.get(key) ?? null),
-    setItem: jest.fn(async (key: string, value: string) => {
+    getItem: vi.fn(async (key: string) => disk.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: string) => {
       disk.set(key, value);
     }),
   };
-  const assertCurrent = jest.fn();
+  const assertCurrent = vi.fn();
   const service = new LighterTwapService({
     storage,
     assertCurrent,
@@ -99,7 +102,7 @@ describe('LighterTwapService durable ownership', () => {
     expect((await restarted.list(intent.owner))[0].placement.phase).toBe(
       'attempted',
     );
-    const send = jest.fn();
+    const send = vi.fn();
     await expect(restarted.place(intent, send)).rejects.toThrow(
       'already tracked',
     );
@@ -109,7 +112,7 @@ describe('LighterTwapService durable ownership', () => {
   it('refuses dispatch when persistence fails', async () => {
     const { service, storage } = build();
     storage.setItem.mockRejectedValueOnce(new Error('disk full'));
-    const send = jest.fn();
+    const send = vi.fn();
     await expect(service.place(intent, send)).rejects.toThrow('disk full');
     expect(send).not.toHaveBeenCalled();
   });
@@ -147,7 +150,7 @@ describe('LighterTwapService durable ownership', () => {
     expect(record.cancellations[0].phase).toBe('acknowledged');
     expect(record.terminalConfirmed).toBe(false);
     await expect(
-      service.cancel(intent.owner, intent.clientOrderId, jest.fn()),
+      service.cancel(intent.owner, intent.clientOrderId, vi.fn()),
     ).rejects.toThrow('cancellation remains unresolved');
   });
 
@@ -190,7 +193,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
   };
   const readClient = (
     status = 'in-progress',
-  ): jest.Mocked<
+  ): Mocked<
     Pick<
       LighterClientService,
       | 'getOrdersByClientIds'
@@ -202,37 +205,25 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
   > => {
     const row = { ...parent, status };
     return {
-      getOrdersByClientIds: jest
-        .fn<
-          ReturnType<LighterClientService['getOrdersByClientIds']>,
-          Parameters<LighterClientService['getOrdersByClientIds']>
-        >()
+      getOrdersByClientIds: vi
+        .fn<LighterClientService['getOrdersByClientIds']>()
         .mockResolvedValue({ code: 200, orders: [row] }),
-      getActiveOrders: jest
-        .fn<
-          ReturnType<LighterClientService['getActiveOrders']>,
-          Parameters<LighterClientService['getActiveOrders']>
-        >()
+      getActiveOrders: vi
+        .fn<LighterClientService['getActiveOrders']>()
         .mockResolvedValue({
           code: 200,
           orders: status === 'in-progress' ? [row] : [],
         }),
-      getInactiveOrders: jest
-        .fn<
-          ReturnType<LighterClientService['getInactiveOrders']>,
-          Parameters<LighterClientService['getInactiveOrders']>
-        >()
+      getInactiveOrders: vi
+        .fn<LighterClientService['getInactiveOrders']>()
         .mockResolvedValue({
           code: 200,
           orders: status === 'in-progress' ? [] : [row],
         }),
-      getTrades: jest
-        .fn<
-          ReturnType<LighterClientService['getTrades']>,
-          Parameters<LighterClientService['getTrades']>
-        >()
+      getTrades: vi
+        .fn<LighterClientService['getTrades']>()
         .mockResolvedValue({ code: 200, trades: [] }),
-      getTx: jest.fn(async (hash: string) => ({
+      getTx: vi.fn(async (hash: string) => ({
         code: 200,
         hash,
         accountIndex: 28,
@@ -320,7 +311,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       (await service.observe(intent.owner, client, 'read-token'))[0].record
         .terminalConfirmed,
     ).toBe(true);
-    const send = jest.fn();
+    const send = vi.fn();
     await service.cancel(intent.owner, '123', send);
     expect(send).not.toHaveBeenCalled();
   });
@@ -447,7 +438,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
             nextCursor: 'incomplete',
           });
         }
-        const now = jest
+        const now = vi
           .spyOn(Date, 'now')
           .mockReturnValue(identity.expiresAt + 30001);
         try {
@@ -462,7 +453,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
           expect((await restarted.list(intent.owner))[0].placement.phase).toBe(
             'acknowledged',
           );
-          const send = jest.fn();
+          const send = vi.fn();
           await expect(
             restarted.place({ ...intent, clientOrderId: '124' }, send),
           ).rejects.toThrow('unresolved');
@@ -479,7 +470,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       client.getTx.mockResolvedValue(null);
       client.getOrdersByClientIds.mockResolvedValue({ code: 200, orders: [] });
       client.getActiveOrders.mockResolvedValue({ code: 200, orders: [] });
-      const now = jest
+      const now = vi
         .spyOn(Date, 'now')
         .mockReturnValue(identity.expiresAt + 30001);
       try {
@@ -529,7 +520,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       await expect(
         restarted.place(
           { ...intent, marketId: 4096, symbol: 'BTC', clientOrderId: '124' },
-          jest.fn(),
+          vi.fn(),
         ),
       ).rejects.toThrow('unresolved');
     });
@@ -543,7 +534,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       }));
       disk.set(key, JSON.stringify({ version: 1, records: doc.records }));
       await expect(
-        service.cancel(intent.owner, '123', jest.fn()),
+        service.cancel(intent.owner, '123', vi.fn()),
       ).rejects.toThrow('attempt limit');
       doc.records = Array.from({ length: 64 }, (_, index) => ({
         ...doc.records[0],
@@ -552,7 +543,7 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       }));
       disk.set(key, JSON.stringify({ version: 1, records: doc.records }));
       await expect(
-        service.place({ ...intent, clientOrderId: '2000' }, jest.fn()),
+        service.place({ ...intent, clientOrderId: '2000' }, vi.fn()),
       ).rejects.toThrow('capacity');
     });
     it('reconciles two history pages and unequal children with three paginated trades', async () => {

@@ -1,4 +1,5 @@
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { JsonRpcEngine, createAsyncMiddleware } from './index.js';
 

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AssetsController: websocket price updates generates snapshot (source of truth) 1`] = `
+exports[`AssetsController: websocket price updates > generates snapshot (source of truth) 1`] = `
 {
   "assetPreferences": {},
   "assetsBalance": {

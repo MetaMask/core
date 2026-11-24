@@ -1,3 +1,5 @@
+import { describe } from 'vitest';
+
 import { testsForRpcMethodNotHandledByMiddleware } from '../../../tests/network-client/not-handled-by-middleware.js';
 import { NetworkClientType } from '../../types.js';
 

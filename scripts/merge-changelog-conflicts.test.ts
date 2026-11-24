@@ -1,20 +1,17 @@
-import { jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
-jest.unstable_mockModule('./lib/changelog-conflicts.js', () => ({
-  resolveChangelogConflicts: jest.fn(),
+import * as changelogConflicts from './lib/changelog-conflicts.ts';
+import { main } from './merge-changelog-conflicts.ts';
+
+vi.mock(import('./lib/changelog-conflicts.ts'), () => ({
+  resolveChangelogConflicts: vi.fn(),
 }));
-
-const changelogConflicts = await import('./lib/changelog-conflicts.js');
-const { main } = await import('./merge-changelog-conflicts.js');
 
 describe('merge-changelog-conflicts', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'log').mockReturnValue(undefined);
-    jest.spyOn(console, 'warn').mockReturnValue(undefined);
-    jest.spyOn(console, 'error').mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockReturnValue(undefined);
+    vi.spyOn(console, 'warn').mockReturnValue(undefined);
+    vi.spyOn(console, 'error').mockReturnValue(undefined);
     // The module under test invokes `main()` once as a side effect of being
     // imported (using the auto-mocked, undefined-returning
     // `resolveChangelogConflicts`), which leaves a stale exit code.
@@ -26,9 +23,10 @@ describe('merge-changelog-conflicts', () => {
   });
 
   it('logs a message and exits cleanly when there are no conflicted files', async () => {
-    jest
-      .mocked(changelogConflicts.resolveChangelogConflicts)
-      .mockResolvedValue({ resolved: [], skipped: [] });
+    vi.mocked(changelogConflicts.resolveChangelogConflicts).mockResolvedValue({
+      resolved: [],
+      skipped: [],
+    });
 
     await main();
 
@@ -39,14 +37,12 @@ describe('merge-changelog-conflicts', () => {
   });
 
   it('logs each resolved file and exits cleanly', async () => {
-    jest
-      .mocked(changelogConflicts.resolveChangelogConflicts)
-      .mockResolvedValue({
-        resolved: [
-          { path: 'packages/example/CHANGELOG.md', mergedEntryCount: 2 },
-        ],
-        skipped: [],
-      });
+    vi.mocked(changelogConflicts.resolveChangelogConflicts).mockResolvedValue({
+      resolved: [
+        { path: 'packages/example/CHANGELOG.md', mergedEntryCount: 2 },
+      ],
+      skipped: [],
+    });
 
     await main();
 
@@ -60,17 +56,15 @@ describe('merge-changelog-conflicts', () => {
   });
 
   it('warns about skipped files and exits with a non-zero code', async () => {
-    jest
-      .mocked(changelogConflicts.resolveChangelogConflicts)
-      .mockResolvedValue({
-        resolved: [],
-        skipped: [
-          {
-            path: 'packages/example/CHANGELOG.md',
-            reason: 'Malformed release header',
-          },
-        ],
-      });
+    vi.mocked(changelogConflicts.resolveChangelogConflicts).mockResolvedValue({
+      resolved: [],
+      skipped: [
+        {
+          path: 'packages/example/CHANGELOG.md',
+          reason: 'Malformed release header',
+        },
+      ],
+    });
 
     await main();
 

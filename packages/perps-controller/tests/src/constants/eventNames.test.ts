@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -5,6 +7,97 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  it('exports the chart interaction keys Terminal sends', () => {
+    expect({
+      chartInteraction: PERPS_EVENT_PROPERTY.CHART_INTERACTION,
+      chartType: PERPS_EVENT_PROPERTY.CHART_TYPE,
+      provider: PERPS_EVENT_PROPERTY.PROVIDER,
+      orderId: PERPS_EVENT_PROPERTY.ORDER_ID,
+      priceDistancePct: PERPS_EVENT_PROPERTY.PRICE_DISTANCE_PCT,
+      oldPrice: PERPS_EVENT_PROPERTY.OLD_PRICE,
+      newPrice: PERPS_EVENT_PROPERTY.NEW_PRICE,
+      tpSlType: PERPS_EVENT_PROPERTY.TP_SL_TYPE,
+      indicatorName: PERPS_EVENT_PROPERTY.INDICATOR_NAME,
+      indicatorCount: PERPS_EVENT_PROPERTY.INDICATOR_COUNT,
+      drawingName: PERPS_EVENT_PROPERTY.DRAWING_NAME,
+      drawingCount: PERPS_EVENT_PROPERTY.DRAWING_COUNT,
+      previousCandlePeriod: PERPS_EVENT_PROPERTY.PREVIOUS_CANDLE_PERIOD,
+      previousChartType: PERPS_EVENT_PROPERTY.PREVIOUS_CHART_TYPE,
+      interactionType: PERPS_EVENT_VALUE.INTERACTION_TYPE.CHART_INTERACTED,
+      source: PERPS_EVENT_VALUE.SOURCE.CHART,
+      tpSlTypes: [PERPS_EVENT_VALUE.ACTION.TP, PERPS_EVENT_VALUE.ACTION.SL],
+      chartInteractions: PERPS_EVENT_VALUE.CHART_INTERACTION,
+    }).toStrictEqual({
+      chartInteraction: 'chart_interaction',
+      chartType: 'chart_type',
+      provider: 'provider',
+      orderId: 'order_id',
+      priceDistancePct: 'price_distance_pct',
+      oldPrice: 'old_price',
+      newPrice: 'new_price',
+      tpSlType: 'tp_sl_type',
+      indicatorName: 'indicator_name',
+      indicatorCount: 'indicator_count',
+      drawingName: 'drawing_name',
+      drawingCount: 'drawing_count',
+      previousCandlePeriod: 'previous_candle_period',
+      previousChartType: 'previous_chart_type',
+      interactionType: 'chart_interacted',
+      source: 'chart',
+      tpSlTypes: ['tp', 'sl'],
+      chartInteractions: {
+        PLACE_ORDER: 'place_order',
+        EDIT_ORDER: 'edit_order',
+        CANCEL_ORDER: 'cancel_order',
+        CLOSE_POSITION: 'close_position',
+        TP_SL: 'tp_sl',
+        INDICATOR: 'indicator',
+        DRAWING: 'drawing',
+        TIMEFRAME_CHANGED: 'timeframe_changed',
+        CHART_TYPE_CHANGED: 'chart_type_changed',
+        FULLSCREEN_ENTERED: 'fullscreen_entered',
+        FULLSCREEN_EXITED: 'fullscreen_exited',
+        CHART_VIEWED: 'chart_viewed',
+      },
+    });
+  });
+
+  it('defines every property string once', () => {
+    const values = Object.values(PERPS_EVENT_PROPERTY);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  it('records only the previous value of a changed chart setting', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('FROM');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('TO');
+  });
+
+  it('exports the chart status and action values Terminal sends', () => {
+    expect(PERPS_EVENT_VALUE.STATUS).toMatchObject({
+      CRAFTED: 'crafted',
+      DRAGGED: 'dragged',
+      DROPPED: 'dropped',
+      CANCELLED: 'cancelled',
+      MODIFIED: 'modified',
+      TAPPED: 'tapped',
+    });
+    expect(PERPS_EVENT_VALUE.ACTION).toMatchObject({
+      ADD: 'add',
+      REMOVE: 'remove',
+      EDIT: 'edit',
+      FAVORITE: 'favorite',
+      UNFAVORITE: 'unfavorite',
+    });
+  });
+
+  it.each(['STATUS', 'ACTION'] as const)(
+    'defines every %s value string once',
+    (group) => {
+      const values = Object.values(PERPS_EVENT_VALUE[group]);
+      expect(new Set(values).size).toBe(values.length);
+    },
+  );
+
   describe('PREVIOUS_LEVERAGE', () => {
     it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
       expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');
@@ -284,6 +377,10 @@ describe('PERPS_EVENT_VALUE.SECTION_NAME', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.TOP_MOVERS).toBe('top_movers');
   });
 
+  it('exports EXPLORE', () => {
+    expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE).toBe('explore');
+  });
+
   it('exports EXPLORE_CRYPTO', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE_CRYPTO).toBe(
       'explore_crypto',
@@ -304,6 +401,12 @@ describe('PERPS_EVENT_VALUE.SECTION_NAME', () => {
 
   it('exports EXPLORE_FOREX', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE_FOREX).toBe('explore_forex');
+  });
+
+  it('exports RECENTLY_ADDED', () => {
+    expect(PERPS_EVENT_VALUE.SECTION_NAME.RECENTLY_ADDED).toBe(
+      'recently_added',
+    );
   });
 
   it('exports RECENT_ACTIVITY', () => {
@@ -456,5 +559,51 @@ describe('PerpsAnalyticsEvent', () => {
 
     // No event names invented beyond the five new + nine existing = 14 total.
     expect(Object.keys(PerpsAnalyticsEvent)).toHaveLength(14);
+  });
+});
+
+describe('analytics keys clients previously defined locally', () => {
+  it('does not export keys that duplicate SEARCH_QUERY, ASSET or RESULT_RANK', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('QUERY_TEXT');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('MARKET');
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('POSITION');
+  });
+
+  it('exports the search funnel, chase and related-markets property keys', () => {
+    expect(PERPS_EVENT_PROPERTY).toMatchObject({
+      QUERY_COUNT: 'query_count',
+      TIME_IN_SEARCH_MS: 'time_in_search_ms',
+      TIME_TO_TAP_MS: 'time_to_tap_ms',
+      QUERY_LENGTH: 'query_length',
+      HAS_RESULTS: 'has_results',
+      ACTIVE_CHIPS: 'active_chips',
+      FILL_PCT_AT_TERMINATE: 'fill_pct_at_terminate',
+      SOURCE_MARKET: 'source_market',
+      CATEGORY: 'category',
+    });
+  });
+
+  it('exports the close-all, chart, order-book, chase and related-markets interaction values', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE).toMatchObject({
+      CLOSE_ALL_TAPPED: 'close_all_tapped',
+      CLOSE_ALL_CONFIRMED: 'close_all_confirmed',
+      CLOSE_ALL_CANCELLED: 'close_all_cancelled',
+      CHART_OPENED: 'chart_opened',
+      CHART_CLOSED: 'chart_closed',
+      ORDER_BOOK_OPENED: 'order_book_opened',
+      ORDER_BOOK_CLOSED: 'order_book_closed',
+      CHASE_CONCURRENCY_LIMIT_HIT: 'chase_concurrency_limit_hit',
+      CHASE_MAX_DISTANCE_HIT: 'chase_max_distance_hit',
+      CHASE_REPRICE: 'chase_reprice',
+      RELATED_MARKET_CLICKED: 'related_market_clicked',
+      RELATED_MARKETS_HEADER_TAPPED: 'related_markets_header_tapped',
+    });
+    expect(PERPS_EVENT_VALUE.SOURCE.RELATED_MARKETS).toBe('related_markets');
+  });
+
+  it('keeps every property key unique', () => {
+    const values = Object.values(PERPS_EVENT_PROPERTY);
+
+    expect(new Set(values).size).toBe(values.length);
   });
 });

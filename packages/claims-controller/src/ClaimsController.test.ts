@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger.js';
 import type { WithControllerArgs } from '../tests/types.js';
@@ -14,12 +15,12 @@ import type {
   CreateClaimRequest,
 } from './types.js';
 
-const mockClaimServiceRequestHeaders = jest.fn();
-const mockClaimServiceGetClaimsApiUrl = jest.fn();
-const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
-const mockKeyringControllerSignPersonalMessage = jest.fn();
-const mockClaimsServiceGetClaims = jest.fn();
-const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
+const mockClaimServiceRequestHeaders = vi.fn();
+const mockClaimServiceGetClaimsApiUrl = vi.fn();
+const mockClaimServiceGenerateMessageForClaimSignature = vi.fn();
+const mockKeyringControllerSignPersonalMessage = vi.fn();
+const mockClaimsServiceGetClaims = vi.fn();
+const mockClaimsServiceFetchClaimsConfigurations = vi.fn();
 
 const MOCK_CLAIM_1: Claim = {
   id: 'mock-claim-1',
@@ -96,7 +97,7 @@ describe('ClaimsController', () => {
     };
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockClaimsServiceFetchClaimsConfigurations.mockResolvedValueOnce(
         MOCK_CONFIGURATIONS_RESPONSE,
@@ -148,7 +149,7 @@ describe('ClaimsController', () => {
     };
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockClaimServiceRequestHeaders.mockResolvedValueOnce(MOCK_HEADERS);
       mockClaimServiceGetClaimsApiUrl.mockReturnValueOnce(MOCK_CLAIM_API);
@@ -208,7 +209,7 @@ describe('ClaimsController', () => {
     const MOCK_CLAIM_SIGNATURE = '0xdeadbeef';
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockClaimServiceGenerateMessageForClaimSignature.mockResolvedValueOnce({
         message: MOCK_SIWE_MESSAGE,

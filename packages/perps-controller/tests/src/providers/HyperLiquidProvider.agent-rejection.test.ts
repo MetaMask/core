@@ -1,4 +1,6 @@
 import { getChecksumAddress } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -36,23 +38,23 @@ import { createDeferred } from '../../helpers/serviceMocks.js';
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
 // cancel errors against its error class.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 
 // The client and subscription services are mocked: they own the SDK's
 // REST/exchange/info clients and the WebSocket subscriptions. The wallet
 // service, the signing caches and the validation run for real.
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 // The agent address as a host may supply it: EIP-55 checksummed, so in
 // mixed case.
 const CHECKSUMMED_AGENT_ADDRESS = getChecksumAddress(AGENT_ADDRESS);
 
 describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
-  let loggerError: jest.SpyInstance;
-  let trackPerpsEvent: jest.SpyInstance;
+  let loggerError: MockInstance;
+  let trackPerpsEvent: MockInstance;
 
   beforeEach(() => {
     ({ loggerError, trackPerpsEvent } = setUpAccountSignerSuite());
@@ -91,7 +93,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       // The agent getAgentSigner answers once the rejected one is dropped.
       const REPLACEMENT_AGENT = {
         address: OTHER_AGENT_ADDRESS,
-        signTypedData: jest.fn(),
+        signTypedData: vi.fn(),
       };
 
       beforeEach(() => {
@@ -116,11 +118,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           | 'agentSetAbstraction'
           | 'setReferrer',
       ): AccountSignerFixture & {
-        getAgentSigner: jest.Mock;
-        onAgentRejected: jest.Mock;
+        getAgentSigner: Mock;
+        onAgentRejected: Mock;
       } {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const built = createAccountSignerProvider({
           abstraction:
             write === 'agentSetAbstraction' ? 'default' : 'unifiedAccount',
@@ -149,6 +151,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -191,6 +198,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -332,6 +344,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -353,11 +370,21 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           successCount: 0,
           failureCount: 1,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
           results: [
             {
               symbol: 'BTC',
               success: false,
               error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              errorDetails: {
+                code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+                provider: 'hyperliquid',
+              },
             },
           ],
         });
@@ -380,6 +407,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -411,6 +443,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -435,6 +472,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
           [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -463,6 +505,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
           [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -503,6 +550,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(exchangeClient.cancel.mock.calls).toStrictEqual([
             [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -608,6 +660,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
             childOrderIds: [
               String(STOP_LOSS_ORDER.oid),
               String(RESTING_ORDER_ID),
@@ -626,9 +683,10 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           // Only the cancelled take profit is placed again; no replacement.
           expect(
             exchangeClient.order.mock.calls.map(
-              ([request]: [
-                { orders: { t: unknown }[]; grouping: string },
-              ]) => ({
+              ([request]: {
+                orders: { t: unknown }[];
+                grouping: string;
+              }[]) => ({
                 triggers: request.orders.map((order) => order.t),
                 grouping: request.grouping,
               }),
@@ -696,6 +754,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [String(STOP_LOSS_ORDER.oid)],
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
@@ -711,7 +774,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         // Only the restoration of the cancelled take profit was attempted.
         expect(
           exchangeClient.order.mock.calls.map(
-            ([request]: [{ orders: { t: unknown }[] }]) =>
+            ([request]: { orders: { t: unknown }[] }[]) =>
               request.orders.map((order) => order.t),
           ),
         ).toStrictEqual([
@@ -772,11 +835,16 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [String(RESTING_ORDER_ID)],
         });
         expect(
           exchangeClient.order.mock.calls.map(
-            ([request]: [{ orders: { t: unknown }[] }]) =>
+            ([request]: { orders: { t: unknown }[] }[]) =>
               request.orders.map((order) => order.t),
           ),
         ).toStrictEqual([
@@ -824,13 +892,18 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         // The replacement and the restoration are both rejected: the agent is
         // asked again after the first rejection and answers the same agent.
         expect(
           exchangeClient.order.mock.calls.map(
-            ([request]: [{ orders: { t: unknown }[] }]) =>
+            ([request]: { orders: { t: unknown }[] }[]) =>
               request.orders.map((order) => order.t),
           ),
         ).toStrictEqual([
@@ -870,6 +943,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -895,6 +973,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -903,8 +986,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('attributes a rejection to the account the agent signed for after an account switch', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -943,6 +1026,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, agentSigner.address],
@@ -955,8 +1043,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('recognizes the rejection of an agent replaced while its action was in flight, and keeps its replacement', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -969,7 +1057,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         });
         const replacement = {
           address: OTHER_AGENT_ADDRESS,
-          signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+          signTypedData: vi.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
         };
         getAgentSigner.mockResolvedValue(agentSigner);
         await accountSignerProvider.getMarketDataWithPrices();
@@ -997,6 +1085,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(order).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1014,8 +1107,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('keeps the agent when the venue rejects the main account as unknown', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -1037,9 +1130,10 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
         await wallet.signTypedData(L1_PAYLOAD);
 
-        expect(order).toStrictEqual({
+        expect(order).toMatchObject({
           success: false,
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         });
         expect(onAgentRejected).not.toHaveBeenCalled();
         // The referral set up for the first order, the order, then the next
@@ -1053,8 +1147,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('fails every in-flight write the venue rejects with KEYRING_LOCKED, after the first drops the agent', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -1095,11 +1189,21 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
             success: false,
             orderId: '123',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           },
           {
             success: false,
             orderId: '124',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           },
         ]);
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1115,8 +1219,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('recognizes a rejected agent whatever the case of its address', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const { accountSignerProvider, exchangeClient, sdkWallet } =
           createAccountSignerProvider({
             abstraction: 'unifiedAccount',
@@ -1126,7 +1230,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         // The host returns a mixed-case address; the venue names it lowercased.
         const mixedCaseAgent = {
           address: CHECKSUMMED_AGENT_ADDRESS,
-          signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
+          signTypedData: vi.fn().mockResolvedValue(AGENT_SIGNATURE),
         };
         getAgentSigner.mockResolvedValue(mixedCaseAgent);
         await accountSignerProvider.getMarketDataWithPrices();
@@ -1146,6 +1250,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         // The host gets its agent's address as it supplied it.
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1159,8 +1268,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('keeps the agent when the venue reports an unknown wallet without an address', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -1185,10 +1294,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         });
         await wallet.signTypedData(L1_PAYLOAD);
 
-        expect(result).toStrictEqual({
+        expect(result).toMatchObject({
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         });
         expect(onAgentRejected).not.toHaveBeenCalled();
         // Kept, so the next L1 action does not ask again.
@@ -1232,8 +1342,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       });
 
       it('evicts only the agent of the account that signed the rejected action', async () => {
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const {
           accountSignerProvider,
           agentSigner,
@@ -1270,6 +1380,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(loggerError).not.toHaveBeenCalled();
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1299,6 +1414,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(order).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1369,8 +1489,8 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
 
   describe('without an agent', () => {
     it('keeps treating a rejected main account as a wallet with no HyperLiquid account', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(null);
-      const onAgentRejected = jest.fn();
+      const getAgentSigner = vi.fn().mockResolvedValue(null);
+      const onAgentRejected = vi.fn();
       const { accountSignerProvider, exchangeClient, sdkWallet } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
@@ -1385,9 +1505,10 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
 
       const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-      expect(order).toStrictEqual({
+      expect(order).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
       expect(onAgentRejected).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();

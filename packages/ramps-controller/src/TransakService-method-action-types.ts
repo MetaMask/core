@@ -160,6 +160,21 @@ export type TransakServiceGetActiveOrdersAction = {
   handler: TransakService['getActiveOrders'];
 };
 
+export type TransakServiceSubmitMicaConsentAction = {
+  type: `TransakService:submitMicaConsent`;
+  handler: TransakService['submitMicaConsent'];
+};
+
+export type TransakServiceSubmitSourceOfIncomeAction = {
+  type: `TransakService:submitSourceOfIncome`;
+  handler: TransakService['submitSourceOfIncome'];
+};
+
+export type TransakServiceSubmitAdditionalDetailsNationalityAction = {
+  type: `TransakService:submitAdditionalDetailsNationality`;
+  handler: TransakService['submitAdditionalDetailsNationality'];
+};
+
 /**
  * Union of all TransakService action types.
  */
@@ -188,4 +203,7 @@ export type TransakServiceMethodActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubmitMicaConsentAction
+  | TransakServiceSubmitSourceOfIncomeAction
+  | TransakServiceSubmitAdditionalDetailsNationalityAction;

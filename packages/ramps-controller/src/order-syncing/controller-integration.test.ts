@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { RampsOrderStatus } from '../RampsService.js';
 import type { RampsOrder } from '../RampsService.js';
 import {
@@ -51,37 +54,37 @@ describe('order-syncing/controller-integration', () => {
     isSignedIn = true,
   } = {}): {
     options: OrderSyncingOptions;
-    addOrder: jest.Mock;
-    removeOrder: jest.Mock;
-    setIsOrderSyncingInProgress: jest.Mock;
-    performBatchSetStorage: jest.Mock;
-    performSetStorage: jest.Mock;
-    performGetStorage: jest.Mock;
-    performGetStorageAllFeatureEntries: jest.Mock;
-    acknowledgePendingRemoteDeletes: jest.Mock;
+    addOrder: Mock;
+    removeOrder: Mock;
+    setIsOrderSyncingInProgress: Mock;
+    performBatchSetStorage: Mock;
+    performSetStorage: Mock;
+    performGetStorage: Mock;
+    performGetStorageAllFeatureEntries: Mock;
+    acknowledgePendingRemoteDeletes: Mock;
   } => {
-    const removeOrder = jest.fn();
-    const setIsOrderSyncingInProgress = jest.fn();
-    const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
-    const performSetStorage = jest.fn().mockResolvedValue(undefined);
-    const performGetStorage = jest.fn().mockResolvedValue(null);
-    const performGetStorageAllFeatureEntries = jest
+    const removeOrder = vi.fn();
+    const setIsOrderSyncingInProgress = vi.fn();
+    const performBatchSetStorage = vi.fn().mockResolvedValue(undefined);
+    const performSetStorage = vi.fn().mockResolvedValue(undefined);
+    const performGetStorage = vi.fn().mockResolvedValue(null);
+    const performGetStorageAllFeatureEntries = vi
       .fn()
       .mockResolvedValue(remoteEntries);
-    const acknowledgePendingRemoteDeletes = jest.fn();
+    const acknowledgePendingRemoteDeletes = vi.fn();
 
     const controller = {
       state: { orders: localOrders },
       isOrderSyncingInProgress: false,
       setIsOrderSyncingInProgress,
-      addOrder: jest.fn(),
+      addOrder: vi.fn(),
       removeOrder,
-      getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+      getPendingRemoteDeletes: vi.fn().mockReturnValue([]),
       acknowledgePendingRemoteDeletes,
-      setIsApplyingOrderSyncChanges: jest.fn(),
+      setIsApplyingOrderSyncChanges: vi.fn(),
     };
 
-    const addOrder = jest.fn((order: RampsOrder) => {
+    const addOrder = vi.fn((order: RampsOrder) => {
       const existingIndex = controller.state.orders.findIndex(
         (existing) => existing.providerOrderId === order.providerOrderId,
       );
@@ -98,7 +101,7 @@ describe('order-syncing/controller-integration', () => {
     });
     controller.addOrder = addOrder;
 
-    const messengerCall = jest
+    const messengerCall = vi
       .fn()
       .mockImplementation((action: string, ...args: unknown[]) => {
         switch (action) {
@@ -318,27 +321,27 @@ describe('order-syncing/controller-integration', () => {
       const localOrder = createMockOrder({ fiatAmount: 100 });
       const updatedLocalOrder = createMockOrder({ fiatAmount: 500 });
 
-      const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
-      const performGetStorageAllFeatureEntries = jest
+      const performBatchSetStorage = vi.fn().mockResolvedValue(undefined);
+      const performGetStorageAllFeatureEntries = vi
         .fn()
         .mockResolvedValue(null);
 
       const controller = {
         state: { orders: [localOrder] },
         isOrderSyncingInProgress: false,
-        setIsOrderSyncingInProgress: jest.fn((value: boolean) => {
+        setIsOrderSyncingInProgress: vi.fn((value: boolean) => {
           if (value) {
             controller.state.orders = [updatedLocalOrder];
           }
         }),
-        setIsApplyingOrderSyncChanges: jest.fn(),
-        addOrder: jest.fn(),
-        removeOrder: jest.fn(),
-        getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
-        acknowledgePendingRemoteDeletes: jest.fn(),
+        setIsApplyingOrderSyncChanges: vi.fn(),
+        addOrder: vi.fn(),
+        removeOrder: vi.fn(),
+        getPendingRemoteDeletes: vi.fn().mockReturnValue([]),
+        acknowledgePendingRemoteDeletes: vi.fn(),
       };
 
-      const messengerCall = jest
+      const messengerCall = vi
         .fn()
         .mockImplementation((action: string, ...callArgs: unknown[]) => {
           if (action === 'UserStorageController:getState') {
@@ -442,7 +445,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('aborts sync when remote fetch fails instead of treating it as empty', async () => {
-      const onOrderSyncErroneousSituation = jest.fn();
+      const onOrderSyncErroneousSituation = vi.fn();
       const {
         options,
         performBatchSetStorage,
@@ -467,7 +470,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('skips corrupt remote entries while still importing valid ones', async () => {
-      const onOrderSyncErroneousSituation = jest.fn();
+      const onOrderSyncErroneousSituation = vi.fn();
       const remoteOrder = createMockOrder({
         providerOrderId: 'valid-remote',
         id: '/providers/transak/orders/valid-remote',
@@ -505,7 +508,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('skips remote entries with unsupported version or missing payload', async () => {
-      const onOrderSyncErroneousSituation = jest.fn();
+      const onOrderSyncErroneousSituation = vi.fn();
       const remoteOrder = createMockOrder({
         providerOrderId: 'valid-remote',
         id: '/providers/transak/orders/valid-remote',
@@ -580,7 +583,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('reports and skips empty storage keys when uploading', async () => {
-      const onOrderSyncErroneousSituation = jest.fn();
+      const onOrderSyncErroneousSituation = vi.fn();
       const { options, performBatchSetStorage } = arrangeMocks();
 
       await orderSyncingTestExports.saveOrdersToUserStorage(
@@ -605,7 +608,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('uploads tombstones for orders deleted while sync is in progress', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_500);
+      vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_500);
       const localOrder = createMockOrder();
       const deletedDuringSync = createMockOrder({
         providerOrderId: 'deleted-mid-sync',
@@ -622,7 +625,7 @@ describe('order-syncing/controller-integration', () => {
       });
 
       const controller = options.getRampsControllerInstance();
-      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
+      (controller.getPendingRemoteDeletes as Mock).mockReturnValue([
         deletedDuringSync,
       ]);
 
@@ -669,7 +672,7 @@ describe('order-syncing/controller-integration', () => {
         remoteEntries: [remoteEntry],
       });
       const controller = options.getRampsControllerInstance();
-      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
+      (controller.getPendingRemoteDeletes as Mock).mockReturnValue([
         deletedDuringSync,
       ]);
 
@@ -701,7 +704,7 @@ describe('order-syncing/controller-integration', () => {
         remoteEntries: [],
       });
       const controller = options.getRampsControllerInstance();
-      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
+      (controller.getPendingRemoteDeletes as Mock).mockReturnValue([
         deletedDuringSync,
       ]);
       performBatchSetStorage.mockRejectedValue(new Error('batch failed'));
@@ -714,7 +717,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('reports sync failures via onOrderSyncErroneousSituation', async () => {
-      const onOrderSyncErroneousSituation = jest.fn();
+      const onOrderSyncErroneousSituation = vi.fn();
       const { options, performBatchSetStorage } = arrangeMocks({
         localOrders: [createMockOrder()],
         remoteEntries: [],
@@ -733,7 +736,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('wraps full sync in trace when provided', async () => {
-      const trace = jest.fn(async (_request, fn) => fn());
+      const trace = vi.fn(async (_request, fn) => fn());
       const { options } = arrangeMocks({
         localOrders: [createMockOrder()],
         remoteEntries: [],
@@ -754,7 +757,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('records new-device sync metadata in trace', async () => {
-      const trace = jest.fn(async (_request, fn) => fn());
+      const trace = vi.fn(async (_request, fn) => fn());
       const remoteOrder = createMockOrder({
         providerOrderId: 'remote-only',
         id: '/providers/transak/orders/remote-only',
@@ -794,29 +797,29 @@ describe('order-syncing/controller-integration', () => {
         id: '/providers/transak/orders/during-sync-1',
       });
 
-      const addOrder = jest.fn();
-      const removeOrder = jest.fn();
-      const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
-      const performGetStorageAllFeatureEntries = jest
+      const addOrder = vi.fn();
+      const removeOrder = vi.fn();
+      const performBatchSetStorage = vi.fn().mockResolvedValue(undefined);
+      const performGetStorageAllFeatureEntries = vi
         .fn()
         .mockResolvedValue(null);
 
       const controller = {
         state: { orders: [localOrder] },
         isOrderSyncingInProgress: false,
-        setIsOrderSyncingInProgress: jest.fn((value: boolean) => {
+        setIsOrderSyncingInProgress: vi.fn((value: boolean) => {
           if (value) {
             controller.state.orders = [localOrder, orderAddedDuringSync];
           }
         }),
-        setIsApplyingOrderSyncChanges: jest.fn(),
+        setIsApplyingOrderSyncChanges: vi.fn(),
         addOrder,
         removeOrder,
-        getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
-        acknowledgePendingRemoteDeletes: jest.fn(),
+        getPendingRemoteDeletes: vi.fn().mockReturnValue([]),
+        acknowledgePendingRemoteDeletes: vi.fn(),
       };
 
-      const messengerCall = jest
+      const messengerCall = vi
         .fn()
         .mockImplementation((action: string, ...callArgs: unknown[]) => {
           if (action === 'UserStorageController:getState') {
@@ -908,7 +911,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('wraps incremental updates in trace when provided', async () => {
-      const trace = jest.fn(async (_request, fn) => fn());
+      const trace = vi.fn(async (_request, fn) => fn());
       const order = createMockOrder();
       const { options } = arrangeMocks();
 
@@ -957,7 +960,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('wraps incremental deletes in trace when provided', async () => {
-      const trace = jest.fn(async (_request, fn) => fn());
+      const trace = vi.fn(async (_request, fn) => fn());
       const order = createMockOrder();
       const { options } = arrangeMocks();
 
@@ -973,7 +976,7 @@ describe('order-syncing/controller-integration', () => {
     });
 
     it('wraps batch saves in trace when provided', async () => {
-      const trace = jest.fn(async (_request, fn) => fn());
+      const trace = vi.fn(async (_request, fn) => fn());
       const { options } = arrangeMocks({
         localOrders: [createMockOrder()],
         remoteEntries: [],

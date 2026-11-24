@@ -1,30 +1,88 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../../index.js';
-import type { TransactionPayQuote } from '../../types.js';
+import type {
+  PayStrategyResumeRequest,
+  TransactionPayQuote,
+} from '../../types.js';
 import { getFiatQuotes } from './fiat-quotes.js';
+import { resumeFiatDirectMusd } from './fiat-resume.js';
 import { submitFiatQuotes } from './fiat-submit.js';
 import { FiatStrategy } from './FiatStrategy.js';
 import type { FiatQuote } from './types.js';
 
-jest.mock('./fiat-quotes');
-jest.mock('./fiat-submit');
+vi.mock(import('./fiat-quotes.js'));
+vi.mock(import('./fiat-resume.js'));
+vi.mock(import('./fiat-submit.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
 } as TransactionPayQuote<FiatQuote>;
 
 const MESSENGER_MOCK = {
-  call: jest.fn().mockReturnValue({ remoteFeatureFlags: {} }),
+  call: vi.fn().mockReturnValue({ remoteFeatureFlags: {} }),
 } as unknown as TransactionPayControllerMessenger;
 
 describe('FiatStrategy', () => {
-  const getFiatQuotesMock = jest.mocked(getFiatQuotes);
-  const submitFiatQuotesMock = jest.mocked(submitFiatQuotes);
+  const getFiatQuotesMock = vi.mocked(getFiatQuotes);
+  const resumeFiatDirectMusdMock = vi.mocked(resumeFiatDirectMusd);
+  const submitFiatQuotesMock = vi.mocked(submitFiatQuotes);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getFiatQuotesMock.mockResolvedValue([QUOTE_MOCK]);
+  });
+
+  describe('supports', () => {
+    it('returns true for requests with an EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId: 'eip155:1:0x1',
+              sourceAssetId: 'eip155:1/slip44:60',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for requests with a non-EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(false);
+    });
   });
 
   describe('getQuotes', () => {
@@ -91,7 +149,9 @@ describe('FiatStrategy', () => {
 
     it('preserves nested Post-Ramp and Vault prefixes', async () => {
       submitFiatQuotesMock.mockRejectedValue(
-        new Error('Post-Ramp: Direct mUSD: Vault: Missing transaction hash'),
+        new Error(
+          'Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
+        ),
       );
 
       await expect(
@@ -102,8 +162,124 @@ describe('FiatStrategy', () => {
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
       ).rejects.toThrow(
-        'Fiat: Post-Ramp: Direct mUSD: Vault: Missing transaction hash',
+        'Fiat: Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
       );
+    });
+  });
+
+  describe('canResume', () => {
+    it('returns true for a Money Account deposit with complete fiat order metadata', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: {
+              isDirectMusd: true,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
+          },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when the fiat order is not direct mUSD', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: {
+              isDirectMusd: false,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
+          },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: { orderId: 'order-1', provider: 'transak' },
+          },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when the transaction is not a Money Account deposit', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: {
+              isDirectMusd: true,
+              orderId: 'order-1',
+              provider: 'transak',
+            },
+          },
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+
+    it('returns false when fiat order metadata is missing', () => {
+      expect(new FiatStrategy().canResume({} as TransactionMeta)).toBe(false);
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: { fiat: { isDirectMusd: true, orderId: 'order-1' } },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: { fiat: { isDirectMusd: true, provider: 'transak' } },
+          type: TransactionType.moneyAccountDeposit,
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+  });
+
+  describe('resume', () => {
+    it('delegates to resumeFiatDirectMusd', async () => {
+      resumeFiatDirectMusdMock.mockResolvedValue({ transactionHash: '0x1234' });
+      const request = {
+        messenger: MESSENGER_MOCK,
+        transaction: { id: 'tx-1' } as TransactionMeta,
+      } satisfies PayStrategyResumeRequest;
+
+      expect(await new FiatStrategy().resume(request)).toStrictEqual({
+        transactionHash: '0x1234',
+      });
+
+      expect(resumeFiatDirectMusdMock).toHaveBeenCalledWith(request);
+    });
+
+    it('throws if fiat resume returns no transaction hash', async () => {
+      resumeFiatDirectMusdMock.mockResolvedValue({
+        transactionHash: undefined,
+      });
+
+      await expect(
+        new FiatStrategy().resume({
+          messenger: MESSENGER_MOCK,
+          transaction: { id: 'tx-1' } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Fiat: Missing transaction hash after fiat resume');
+    });
+
+    it('prefixes resume errors with the Fiat prefix without replacing the Error object', async () => {
+      const error = new Error('resume failed');
+      resumeFiatDirectMusdMock.mockRejectedValue(error);
+
+      const thrown = await new FiatStrategy()
+        .resume({
+          messenger: MESSENGER_MOCK,
+          transaction: { id: 'tx-1' } as TransactionMeta,
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(thrown).toBe(error);
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe('Fiat: resume failed');
     });
   });
 });

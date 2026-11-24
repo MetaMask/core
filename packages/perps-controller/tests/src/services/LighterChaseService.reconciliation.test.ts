@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
+
 import { LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS } from '../../../src/constants/lighterConfig.js';
 import { LighterChaseService } from '../../../src/services/LighterChaseService.js';
 import type {
@@ -69,7 +72,7 @@ const retained = (): LighterChaseRecord => ({
 type ReconciliationFixture = {
   service: LighterChaseService;
   io: LighterChaseIo;
-  storage: jest.Mocked<{
+  storage: Mocked<{
     getItem: (key: string) => Promise<string | null>;
     setItem: (key: string, value: string) => Promise<void>;
   }>;
@@ -84,19 +87,19 @@ const setup = (record = retained()): ReconciliationFixture => {
     [key, JSON.stringify({ version: 1, records: [record] })],
   ]);
   const storage = {
-    getItem: jest.fn(async (name: string) => disk.get(name) ?? null),
-    setItem: jest.fn(async (name: string, value: string) => {
+    getItem: vi.fn(async (name: string) => disk.get(name) ?? null),
+    setItem: vi.fn(async (name: string, value: string) => {
       disk.set(name, value);
     }),
   };
   let terminal = false;
   const io: LighterChaseIo = {
-    assertCurrent: jest.fn(),
+    assertCurrent: vi.fn(),
     now: () => Date.now(),
-    allocateClientId: jest.fn(() => '102'),
-    quote: jest.fn(async () => '100000'),
-    place: jest.fn(),
-    cancel: jest.fn(async (_child, hooks) => {
+    allocateClientId: vi.fn(() => '102'),
+    quote: vi.fn(async () => '100000'),
+    place: vi.fn(),
+    cancel: vi.fn<LighterChaseIo['cancel']>(async (_child, hooks) => {
       await hooks.signed({
         nonce: 210,
         txHash: 'c'.repeat(64),
@@ -107,7 +110,7 @@ const setup = (record = retained()): ReconciliationFixture => {
       await hooks.afterAccepted();
       terminal = true;
     }),
-    observe: jest.fn(async () => ({
+    observe: vi.fn<LighterChaseIo['observe']>(async () => ({
       orderId: '90101',
       terminal,
       filledSize: '0',
@@ -123,7 +126,7 @@ const setup = (record = retained()): ReconciliationFixture => {
         (value) => ({ value }),
         (error: unknown) => ({ error }),
       );
-    await jest.advanceTimersByTimeAsync(
+    await vi.advanceTimersByTimeAsync(
       LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS + 1,
     );
     const result = await pending;
@@ -146,8 +149,8 @@ const setup = (record = retained()): ReconciliationFixture => {
 };
 
 describe('Lighter Chase cancellation reconciliation without dispatch', () => {
-  beforeEach(() => jest.useFakeTimers({ now: 100000 }));
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers({ now: 100000 }));
+  afterEach(() => vi.useRealTimers());
 
   it('settles exact terminal evidence without changing the cancellation inventory', async () => {
     const env = setup();
@@ -163,7 +166,7 @@ describe('Lighter Chase cancellation reconciliation without dispatch', () => {
   });
   it('never sends another cancellation after acknowledged phase downgrades with a nonterminal child', async () => {
     const env = setup();
-    jest.mocked(env.io.observe).mockImplementation(async (child) => {
+    vi.mocked(env.io.observe).mockImplementation(async (child) => {
       child.cancellations[0].phase = 'failed';
       return {
         orderId: '90101',
@@ -196,9 +199,9 @@ describe('Lighter Chase cancellation reconciliation without dispatch', () => {
   );
   it('retains unresolved management when a reconciliation reply is lost', async () => {
     const env = setup();
-    jest
-      .mocked(env.io.observe)
-      .mockRejectedValue(new Error('read response lost'));
+    vi.mocked(env.io.observe).mockRejectedValue(
+      new Error('read response lost'),
+    );
     const result = await env.reconcile();
     expect(result.status).toBe('termination_pending');
     expect(result.children[0].cancellations).toStrictEqual(
@@ -261,8 +264,8 @@ describe('Lighter Chase cancellation reconciliation without dispatch', () => {
   );
   it('fences an ownership switch while reading the exact cancellation', async () => {
     const env = setup();
-    jest.mocked(env.io.observe).mockImplementation(async () => {
-      jest.mocked(env.io.assertCurrent).mockImplementation(() => {
+    vi.mocked(env.io.observe).mockImplementation(async () => {
+      vi.mocked(env.io.assertCurrent).mockImplementation(() => {
         throw new Error('owner switched');
       });
       return {
@@ -285,7 +288,7 @@ describe('Lighter Chase cancellation reconciliation without dispatch', () => {
     record.children[0].cancellations[0].phase = 'failed';
     const env = setup(record);
     const pending = env.service.stop(owner, handle, env.io, 'canceled');
-    await jest.advanceTimersByTimeAsync(
+    await vi.advanceTimersByTimeAsync(
       LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS + 1,
     );
     const result = await pending;

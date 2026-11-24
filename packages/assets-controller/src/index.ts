@@ -36,7 +36,6 @@ export type {
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
   AssetsControllerPriceChangedEvent,
-  AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
 } from './AssetsController.js';
 export type {
@@ -47,6 +46,7 @@ export type {
   AssetsControllerGetAccountAssetsByIDsAction,
   AssetsControllerGetAccountAssetsByScopeAction,
   AssetsControllerGetAssetsPriceAction,
+  AssetsControllerSyncAssetsPricesAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
   AssetsControllerGetCustomAssetsAction,
@@ -93,6 +93,7 @@ export type {
   DataRequest,
   DataResponse,
   AssetsUpdateMode,
+  AssetsLoadingStatus,
   // Middleware types
   Context,
   NextFunction,
@@ -108,7 +109,6 @@ export type {
   BalanceChangeEvent,
   PriceChangeEvent,
   MetadataChangeEvent,
-  AssetsDetectedEvent,
 } from './types.js';
 
 // Data sources - base class and types
@@ -165,16 +165,8 @@ export type {
 } from './data-sources/index.js';
 
 // Middlewares
-export {
-  CustomAssetGraduationMiddleware,
-  DetectionMiddleware,
-  RpcFallbackMiddleware,
-} from './middlewares/index.js';
-export type {
-  CustomAssetGraduationMiddlewareOptions,
-  DetectionMiddlewareOptions,
-  RpcFallbackMiddlewareOptions,
-} from './middlewares/index.js';
+export { RpcFallbackMiddleware } from './middlewares/index.js';
+export type { RpcFallbackMiddlewareOptions } from './middlewares/index.js';
 
 // Utilities
 export {
@@ -199,6 +191,19 @@ export {
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance.js';
+
+export {
+  getAccountBackgroundLoadingStatus,
+  getAccountGroupBackgroundLoadingStatus,
+  getAccountGroupLoadingStatus,
+  getAccountLoadingStatus,
+  getIsAssetsBackgroundLoadingForSelectedAccountGroup,
+  getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountBackgroundLoading,
+  isAccountGroupBackgroundLoading,
+  isAccountGroupLoading,
+  isAccountLoading,
+} from './selectors/loading.js';
 
 export type {
   AccountGroupBalance,

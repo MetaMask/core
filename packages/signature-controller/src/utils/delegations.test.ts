@@ -1,5 +1,6 @@
 import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import type { Json } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SignatureControllerMessenger } from '../SignatureController.js';
 import type { MessageParamsTyped, MessageParamsTypedData } from '../types.js';
@@ -61,7 +62,7 @@ describe('delegations utils', () => {
 
     beforeEach(() => {
       messenger = {
-        call: jest.fn().mockReturnValue(decodedPermissionResult),
+        call: vi.fn().mockReturnValue(decodedPermissionResult),
       } as unknown as SignatureControllerMessenger;
     });
 

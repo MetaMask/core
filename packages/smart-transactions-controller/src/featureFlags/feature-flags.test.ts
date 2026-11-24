@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants.js';
 import {
   processSmartTransactionsFeatureFlags,
@@ -66,7 +68,9 @@ describe('feature-flags', () => {
 
     it('should silently return defaults without logging for invalid input', () => {
       // Error reporting is handled by SmartTransactionsController, not here
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       processSmartTransactionsFeatureFlags(null);
 
@@ -117,7 +121,7 @@ describe('feature-flags', () => {
       };
 
       const mockMessenger = {
-        call: jest.fn().mockReturnValue({
+        call: vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: mockFlags,
           },
@@ -134,7 +138,7 @@ describe('feature-flags', () => {
 
     it('should return default flags when remoteFeatureFlags is undefined', () => {
       const mockMessenger = {
-        call: jest.fn().mockReturnValue({}),
+        call: vi.fn().mockReturnValue({}),
       };
 
       const result = getSmartTransactionsFeatureFlags(mockMessenger);
@@ -146,7 +150,7 @@ describe('feature-flags', () => {
 
     it('should return default flags when smartTransactionsNetworks is undefined', () => {
       const mockMessenger = {
-        call: jest.fn().mockReturnValue({
+        call: vi.fn().mockReturnValue({
           remoteFeatureFlags: {},
         }),
       };
@@ -160,7 +164,7 @@ describe('feature-flags', () => {
 
     it('should return default flags when state is null', () => {
       const mockMessenger = {
-        call: jest.fn().mockReturnValue(null),
+        call: vi.fn().mockReturnValue(null),
       };
 
       const result = getSmartTransactionsFeatureFlags(mockMessenger);

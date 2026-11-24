@@ -1,4 +1,5 @@
 import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { decrypt, encrypt } from './aes-gcm.js';
 
@@ -56,7 +57,7 @@ describe('encrypt', () => {
   });
 
   it('generates a random 12-byte IV when none is provided', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(globalThis.crypto, 'getRandomValues')
       .mockImplementation((array) => {
         (array as Uint8Array).set(nistIv15);
@@ -132,6 +133,15 @@ describe('encrypt', () => {
       additionalData: new DataView(nistAdditionalData4.buffer),
     });
     expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext4));
+  });
+
+  it('does not pass additionalData to WebCrypto when none is provided', async () => {
+    const spy = vi.spyOn(globalThis.crypto.subtle, 'encrypt');
+
+    await encrypt(nistKey2, nistPlaintext2, { unsafeIv: nistIv2 });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).not.toHaveProperty('additionalData');
   });
 });
 
@@ -215,5 +225,14 @@ describe('decrypt', () => {
         additionalData: new Uint8Array(nistAdditionalData4.length),
       }),
     ).rejects.toThrow(DOMException);
+  });
+
+  it('does not pass additionalData to WebCrypto when none is provided', async () => {
+    const spy = vi.spyOn(globalThis.crypto.subtle, 'decrypt');
+
+    await decrypt(nistKey2, nistIv2, nistCiphertext2);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).not.toHaveProperty('additionalData');
   });
 });

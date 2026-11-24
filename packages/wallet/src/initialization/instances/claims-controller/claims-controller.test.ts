@@ -4,6 +4,7 @@ import {
 } from '@metamask/claims-controller';
 import { Env } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -82,7 +83,7 @@ describe('claimsController', () => {
 
   it('delegates only the ClaimsService and Keyring actions it uses', () => {
     const rootMessenger = getRootMessenger();
-    const delegateSpy = jest.spyOn(rootMessenger, 'delegate');
+    const delegateSpy = vi.spyOn(rootMessenger, 'delegate');
 
     claimsController.getMessenger(rootMessenger);
 
@@ -120,7 +121,7 @@ describe('claimsController', () => {
       rootMessenger,
       'AuthenticationController',
       'AuthenticationController:getBearerToken',
-      jest.fn().mockResolvedValue('test-token'),
+      vi.fn().mockResolvedValue('test-token'),
     );
 
     const serviceMessenger = claimsService.getMessenger(rootMessenger);

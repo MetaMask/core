@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { BrokenCircuitError } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -16,6 +16,7 @@ import type { Json } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
+import type { AutorampTransactionSummary } from './autoramp-types.js';
 import type {
   AutorampAccount,
   AutorampRemoteSnapshot,
@@ -24,10 +25,14 @@ import type {
 import {
   applyAutorampRemoteStatus,
   AutorampStatus,
-  buildMusdAutorampRequest,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
+import type {
+  AutorampTransactionChange,
+  AutorampTransactionRecords,
+} from './diffAutorampTransactions.js';
+import { diffAutorampTransactions } from './diffAutorampTransactions.js';
 import {
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
@@ -37,11 +42,16 @@ import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetAutorampsAction,
+  NeoBankServiceGetCustomerAbilitiesAction,
   NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceListAutorampTransactionsAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
-import type { NeoBankServiceActions } from './NeoBankService.js';
+import type {
+  NeoBankCustomerAbilities,
+  NeoBankServiceActions,
+} from './NeoBankService.js';
 import {
   areOrdersEqual,
   deleteOrderInUserStorage,
@@ -63,6 +73,11 @@ import {
   normalizeRampsAssetId,
   providerServesAsset,
 } from './providerAvailability.js';
+import {
+  findFirstProviderById,
+  getPreviouslyUsedProviders,
+} from './providerHistory.js';
+import type { RampsProviderHistoryEntry } from './providerHistory.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -140,6 +155,9 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
+  TransakServiceSubmitMicaConsentAction,
+  TransakServiceSubmitSourceOfIncomeAction,
+  TransakServiceSubmitAdditionalDetailsNationalityAction,
 } from './TransakService-method-action-types.js';
 import type {
   TransakAccessToken,
@@ -156,6 +174,9 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
   TransakOrder,
+  SubmitMicaConsentResponse,
+  SubmitSourceOfIncomeResponse,
+  SubmitAdditionalDetailsNationalityResponse,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
 import {
@@ -221,12 +242,17 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
+  'TransakService:submitMicaConsent',
+  'TransakService:submitSourceOfIncome',
+  'TransakService:submitAdditionalDetailsNationality',
   'NeoBankService:getAutoramp',
   'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
+  'NeoBankService:listAutorampTransactions',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
   'NeoBankService:registerSelfHostedWallet',
+  'NeoBankService:getCustomerAbilities',
 ] as const satisfies readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
@@ -246,9 +272,9 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
-  'KycController:getSessionStatusForVendor',
   'KycController:getProviderFlowStatus',
-  'KycController:refreshSessionStatus',
+  'KycController:readSessionStatus',
+  'KycController:fetchSessionStatusOnce',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
   'KycController:clearState',
@@ -270,15 +296,10 @@ export type KeyringControllerSignPersonalMessageAction = {
 
 /**
  * Minimal structural subset of the KYC controller's session status — only the
- * status fields the VBA stage machine reads.
+ * status fields the VBA read path uses.
  */
-/**
- * Identity vendor accepted by the KYC controller. Declared locally so the
- * ramps package does not depend on `@metamask/kyc-controller`.
- */
-type KycVendor = 'moonpay' | 'iron';
-
 type KycControllerSessionStatus = {
+  id: string;
   finalStatus: string;
   kycStatus: string;
   vendorStatus: string;
@@ -287,19 +308,28 @@ type KycControllerSessionStatus = {
 };
 
 /**
- * Structural types for the KYC controller's VBA onboarding messenger actions.
- * Declared locally so the ramps package does not require a kyc-controller
- * version that already exports them — the two changes land as separate PRs,
- * with KYC merging first.
+ * `finalStatus` values that end a KYC session. Mirrors
+ * `TERMINAL_SESSION_STATUSES` in `@metamask/kyc-controller`.
  */
-export type KycControllerGetSessionStatusForVendorAction = {
-  type: 'KycController:getSessionStatusForVendor';
-  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+const TERMINAL_VBA_KYC_FINAL_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'rejected',
+  'retry',
+]);
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not depend on
+ * `@metamask/kyc-controller`.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: 'KycController:readSessionStatus';
+  handler: () => KycControllerSessionStatus | null;
 };
 
-export type KycControllerRefreshSessionStatusAction = {
-  type: 'KycController:refreshSessionStatus';
-  handler: () => KycControllerSessionStatus;
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: 'KycController:fetchSessionStatusOnce';
+  handler: (sessionId: string) => Promise<KycControllerSessionStatus>;
 };
 
 export type KycControllerGetProviderFlowStatusAction = {
@@ -329,6 +359,19 @@ export type KycControllerClearStateAction = {
  * It is not the same as unregistered — callers must not treat it as a cue to
  * submit a new ownership proof.
  */
+/**
+ * Persisted Money Account wallet registration.
+ *
+ * Written only after {@link RampsController.registerMoneyAccountWallet}
+ * observes `alreadyRegistered`, `registered`, or `registeredDisabled`.
+ * The EIP-191 signature and ownership message are not stored.
+ */
+export type MoneyAccountWalletRegistration = {
+  walletAddress: string;
+  status: 'active' | 'disabled';
+  updatedAt: number;
+};
+
 export type MoneyAccountWalletRegistrationResult =
   | {
       type: 'registered' | 'alreadyRegistered';
@@ -374,16 +417,26 @@ export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
 
 /**
  * Autoramp setup progress after KYC has been approved.
+ *
+ * `'needs_wallet_registration'` means KYC is approved, this wallet has no
+ * persisted registration row, and there is no usable autoramp.
+ * `'needs_source_currency'` means KYC is approved, the registration row is
+ * `active` or `disabled`, and there is no usable autoramp.
  * `'in_progress'` is reserved for hosts that observe an in-flight hydrate.
- * `'needs_source_currency'` means registration finished and the wallet has no
- * usable autoramp, but hydrate was not given a fiat code, so nothing was
- * created. {@link RampsController.hydrateVbaOnboarding} itself returns
- * `'ready'`, `'needs_source_currency'`, or `'retryable_failure'` once the
- * coalesced run settles.
+ * {@link RampsController.hydrateVbaOnboarding} returns `'ready'`,
+ * `'needs_wallet_registration'`, `'needs_source_currency'`, or
+ * `'retryable_failure'` once an approved read settles.
  */
+/**
+ * Newest-page size for `refreshAutorampTransactions`.
+ * MoonPay accepts up to 100; 50 covers a details view without paging.
+ */
+const AUTORAMP_TRANSACTION_PAGE_SIZE = 50;
+
 export const VBA_AUTORAMP_STATUSES = [
   'not_ready',
   'in_progress',
+  'needs_wallet_registration',
   'needs_source_currency',
   'ready',
   'retryable_failure',
@@ -416,6 +469,33 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
 
 const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
 
+type MoonpayCustomerRecord = {
+  id: string;
+  status: string | null;
+};
+
+/**
+ * Reads the MoonPay customer id and lifecycle status from a customer payload.
+ *
+ * @param customer - `GET /neobank/customers/{external_id}/external` body.
+ * @returns The id and status, or `null` when the id is missing.
+ */
+function readMoonpayCustomerRecord(
+  customer: unknown,
+): MoonpayCustomerRecord | null {
+  if (!customer || typeof customer !== 'object') {
+    return null;
+  }
+  const { id, status } = customer as { id?: unknown; status?: unknown };
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  return {
+    id,
+    status: typeof status === 'string' && status.length > 0 ? status : null,
+  };
+}
+
 /**
  * Maps a vendor status string onto the snapshot vocabulary.
  *
@@ -430,15 +510,48 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
 }
 
 /**
- * Idempotency key for a standing fiat to mUSD autoramp.
+ * Maps a KYC session onto the snapshot vocabulary.
  *
- * The prefix includes the fiat code (`brl-musd-monad`, `usd-musd-monad`) so a
- * USD create does not replay a BRL route. The customer and wallet keep retries
- * of one create on the same key. Rejected or cancelled route ids are appended,
- * sorted, so a replacement create is a new key and MoonPay does not replay the
- * terminal route.
+ * Only provider approval (`finalStatus: 'approved'`) is final. Relay approval
+ * (`kycStatus: 'approved'`) can represent completed document review while the
+ * provider is still deciding, so that state remains `pending`. A non-approved
+ * session whose provider flow was submitted, or whose status is pending, is
+ * also `pending`.
  *
- * @param sourceCurrencyCode - Fiat code for this create.
+ * @param session - Persisted or freshly fetched KYC session.
+ * @param providerFlowStatus - Durable provider-flow outcome.
+ * @returns The snapshot KYC status.
+ */
+function resolveVbaKycStatus(
+  session: KycControllerSessionStatus,
+  providerFlowStatus: VbaProviderFlowStatus,
+): VbaKycStatus {
+  if (session.finalStatus === 'approved') {
+    return 'approved';
+  }
+  const mapped = toVbaKycStatus(session.finalStatus);
+  if (mapped === 'rejected' || mapped === 'retry') {
+    return mapped;
+  }
+  if (
+    session.finalStatus === 'pending' ||
+    session.kycStatus === 'pending' ||
+    providerFlowStatus === 'submitted'
+  ) {
+    return 'pending';
+  }
+  return mapped;
+}
+
+/**
+ * Idempotency key for a standing fiat to mUSD autoramp on Monad.
+ *
+ * The source fiat, customer, and wallet keep retries of one create on the
+ * same key (`brl-musd-monad` versus `usd-musd-monad`). Rejected or cancelled
+ * route ids are appended, sorted, so a replacement create is a new key and
+ * MoonPay does not replay the terminal route.
+ *
+ * @param sourceCurrencyCode - Fiat code from the create body. Trimmed and lowercased here.
  * @param customerId - MoonPay customer id.
  * @param walletAddress - Money Account address that receives mUSD.
  * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
@@ -456,6 +569,56 @@ function buildMusdAutorampIdempotencyKey(
     return base;
   }
   return `${base}:${[...terminalAutorampIds].sort().join(':')}`;
+}
+
+/**
+ * Reads the first fiat `source_currencies` code from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Lowercased fiat code, or `null` when the body has none.
+ */
+function readCreateAutorampFiatCode(
+  request: CreateAutorampRequest,
+): string | null {
+  const sourceCurrencies = request.source_currencies;
+  if (!Array.isArray(sourceCurrencies)) {
+    return null;
+  }
+  for (const currency of sourceCurrencies) {
+    if (!currency || typeof currency !== 'object') {
+      continue;
+    }
+    const record = currency as { type?: unknown; code?: unknown };
+    if (record.type !== 'Fiat' || typeof record.code !== 'string') {
+      continue;
+    }
+    const code = record.code.trim().toLowerCase();
+    if (code.length > 0) {
+      return code;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads the destination wallet from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Trimmed recipient address, or `null` when it is missing.
+ */
+function readCreateAutorampWalletAddress(
+  request: CreateAutorampRequest,
+): string | null {
+  const recipient = request.recipient_account;
+  if (!recipient || typeof recipient !== 'object') {
+    return null;
+  }
+  const { address } = recipient as { address?: unknown };
+  if (typeof address !== 'string') {
+    return null;
+  }
+  const trimmed = address.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**
@@ -479,6 +642,8 @@ function isFullAutorampAccount(
  * Quotes are time-sensitive and should have a shorter cache duration.
  */
 const DEFAULT_QUOTES_TTL = 15000;
+
+const allowNetworkAccess = (): boolean => true;
 
 const CIRCUIT_BREAKER_OPEN_ERROR =
   'Execution prevented because the circuit breaker is open';
@@ -720,12 +885,44 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
-   * Whether the currently selected provider was auto-selected by the system
-   * (no order history, no Transak) rather than chosen by the user or derived
-   * from order history. When true, the UI should silently switch providers on
-   * token conflict instead of showing the "Token Not Available" modal.
+   * Last seen autoramp transaction status per autoramp id.
+   * The first successful fetch seeds the record and emits nothing.
+   * Only the status string is stored.
+   */
+  autorampTransactionRecords: AutorampTransactionRecords;
+  /**
+   * Money Account self-hosted wallet registrations observed by
+   * {@link RampsController.registerMoneyAccountWallet}.
+   * Each row is the address plus `active` or `disabled`. It does not store
+   * the EIP-191 signature or the ownership message.
+   */
+  moneyAccountWalletRegistrations: MoneyAccountWalletRegistration[];
+  /**
+   * Epoch ms of the last successful VBA autoramp list `GET`.
+   * The usable-autoramp short-circuit does not update it.
+   */
+  vbaAutorampListFetchedAt: number | null;
+  /**
+   * Rail abilities of the signed-in profile's MoonPay customer from the last
+   * {@link RampsController.refreshCustomerAbilities}. MoonPay rejects an
+   * autoramp create when the rail it needs is not `Active`. Not persisted,
+   * since a rail can change at any time.
+   */
+  vbaCustomerAbilities: NeoBankCustomerAbilities | null;
+  /**
+   * Whether the app chose the currently selected provider (from order
+   * history or API ranking) rather than the user. When true, the UI should
+   * silently switch providers on token conflict instead of showing the
+   * "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The provider the user chose themselves in this session, set only through
+   * `setSelectedProvider(provider, { userSelected: true })`. A system switch
+   * to another provider keeps it, so {@link RampsController.selectProviderForAsset}
+   * returns to it on the next token it offers. Not persisted.
+   */
+  userSelectedProviderId: string | null;
 };
 
 /**
@@ -786,8 +983,38 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
+  autorampTransactionRecords: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
+  moneyAccountWalletRegistrations: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaAutorampListFetchedAt: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  vbaCustomerAbilities: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
   providerAutoSelected: {
     persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  userSelectedProviderId: {
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -853,7 +1080,12 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    autorampTransactionRecords: {},
+    moneyAccountWalletRegistrations: [],
+    vbaAutorampListFetchedAt: null,
+    vbaCustomerAbilities: null,
     providerAutoSelected: false,
+    userSelectedProviderId: null,
   };
 }
 
@@ -919,6 +1151,7 @@ function resetDependentResources(
     resetResource(state, key, defaultState[key]);
   }
   state.providerAutoSelected = false;
+  state.userSelectedProviderId = null;
 }
 
 // === MESSENGER ===
@@ -978,17 +1211,22 @@ type AllowedActions =
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubmitMicaConsentAction
+  | TransakServiceSubmitSourceOfIncomeAction
+  | TransakServiceSubmitAdditionalDetailsNationalityAction
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
+  | NeoBankServiceListAutorampTransactionsAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
+  | NeoBankServiceGetCustomerAbilitiesAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
-  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
   | KycControllerGetProviderFlowStatusAction
-  | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
   | KycControllerClearStateAction
@@ -1031,6 +1269,17 @@ export type RampsControllerAutorampStatusChangedEvent = {
 };
 
 /**
+ * One autoramp transaction that is new or whose status changed.
+ * Passed to {@link RampsControllerOptions.trackAutorampTransactionStatusChanged}
+ * after the record is written. `previousStatus` is omitted for a new id.
+ */
+export type AutorampTransactionStatusChangedPayload = {
+  autorampId: string;
+  transaction: AutorampTransactionSummary;
+  previousStatus?: string;
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerEvents =
@@ -1066,6 +1315,15 @@ export type RampsControllerOptions = {
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
   /**
+   * Host check for whether this controller may be used to reach the network.
+   * Evaluated at the start of every gated method, so a denied call throws
+   * `NETWORK_ACCESS_DENIED` before any state write or request, even when a
+   * non-expired request-cache entry exists. Read already-fetched data from
+   * controller state to render while access is denied.
+   * Defaults to allowing network access.
+   */
+  isNetworkAccessAllowed?: () => boolean;
+  /**
    * Optional callback for order-sync failures (full sync parse/fetch/merge and
    * incremental remote push/delete). Context never includes full order JSON.
    */
@@ -1077,6 +1335,14 @@ export type RampsControllerOptions = {
    * Optional performance tracing callback used by order sync operations.
    */
   trace?: TraceCallback;
+  /**
+   * Optional callback for a new autoramp transaction or a status change.
+   * Called after the transaction record is written. Omitted clients record
+   * nothing.
+   */
+  trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
 };
 
 // === HELPER FUNCTIONS ===
@@ -1182,6 +1448,22 @@ type OrderPollingMetadata = {
   errorCount: number;
 };
 
+/**
+ * Options for {@link RampsController.selectProviderForAsset}.
+ */
+export type SelectProviderForAssetOptions = {
+  /**
+   * Provider ids that win over order history (but not over the user's own
+   * pick) when they offer the asset. The first one that offers it is chosen.
+   * Ignored for a `null` asset.
+   */
+  aheadOfHistory?: string[];
+  /** Completed buys from outside controller state, merged into history. */
+  extraHistory?: RampsProviderHistoryEntry[];
+  /** Provider ids to leave out, e.g. one that returned no payment methods. */
+  excludeProviderIds?: string[];
+};
+
 // === CONTROLLER DEFINITION ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -1191,6 +1473,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setUserRegion',
   'setSelectedProvider',
   'setSelectedProviderForAsset',
+  'selectProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -1212,6 +1495,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'applyAutorampStatusFromPush',
   'refreshAutoramp',
   'refreshAutoramps',
+  'refreshAutorampTransactions',
+  'refreshCustomerAbilities',
   'startOrderPolling',
   'stopOrderPolling',
   'getBuyWidgetData',
@@ -1246,6 +1531,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'transakSubmitMicaConsent',
+  'transakSubmitSourceOfIncome',
+  'transakSubmitAdditionalDetailsNationality',
   'syncOrdersWithUserStorage',
 ] as const;
 
@@ -1336,12 +1624,18 @@ export class RampsController extends BaseController<
    */
   readonly #requestCacheMaxSize: number;
 
+  readonly #isNetworkAccessAllowed: () => boolean;
+
   readonly #onOrderSyncErroneousSituation?: (
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
   ) => void;
 
   readonly #trace?: TraceCallback;
+
+  readonly #trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
 
   /**
    * Map of pending requests for deduplication.
@@ -1370,6 +1664,15 @@ export class RampsController extends BaseController<
   #initPromise: Promise<void> | null = null;
 
   #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
+
+  /**
+   * In-flight `refreshAutorampTransactions` calls, keyed by autoramp id.
+   * Concurrent refreshes for one autoramp share one request.
+   */
+  readonly #autorampTransactionRefreshes = new Map<
+    string,
+    Promise<AutorampTransactionSummary[]>
+  >();
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -1482,6 +1785,20 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Throws before any request bookkeeping or state write when the host has
+   * revoked network access. Cache entries are not served while denied.
+   * Callers match on `errorKey`, never the message.
+   */
+  #assertNetworkAccessAllowed(): void {
+    if (!this.#isNetworkAccessAllowed()) {
+      throw Object.assign(
+        new Error('Ramps network access is not allowed by the host.'),
+        { errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED },
+      );
+    }
+  }
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
@@ -1490,16 +1807,20 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.isNetworkAccessAllowed - Host check for network access. Defaults to allowing access.
    * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
    * @param args.trace - Optional performance tracing callback for order sync.
+   * @param args.trackAutorampTransactionStatusChanged - Optional callback for a new autoramp transaction or a status change.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    isNetworkAccessAllowed = allowNetworkAccess,
     onOrderSyncErroneousSituation,
     trace,
+    trackAutorampTransactionStatusChanged,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -1515,8 +1836,11 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#isNetworkAccessAllowed = isNetworkAccessAllowed;
     this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
     this.#trace = trace;
+    this.#trackAutorampTransactionStatusChanged =
+      trackAutorampTransactionStatusChanged;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1587,6 +1911,10 @@ export class RampsController extends BaseController<
     fetcher: (signal: AbortSignal) => Promise<TResult>,
     options?: ExecuteRequestOptions,
   ): Promise<TResult> {
+    // Also guarded here so callers of the exposed
+    // `RampsController:executeRequest` action cannot bypass the host gate.
+    this.#assertNetworkAccessAllowed();
+
     // Get TTL for verifying cache expiration
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
@@ -1947,15 +2275,19 @@ export class RampsController extends BaseController<
    * @param options.autoSelected - When true, marks the provider as system-guessed
    *   (soft selection). The UI will silently auto-switch on token conflict instead
    *   of showing the "Token Not Available" modal. Defaults to false.
+   * @param options.userSelected - When true, also records the provider as the
+   *   user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+   *   Defaults to false. Passing `null` as the provider always clears the pick.
    */
   setSelectedProvider(
     providerOrId: string | Provider | null,
-    options?: { autoSelected?: boolean },
+    options?: { autoSelected?: boolean; userSelected?: boolean },
   ): void {
     if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
         state.providerAutoSelected = false;
+        state.userSelectedProviderId = null;
       });
       return;
     }
@@ -1964,22 +2296,18 @@ export class RampsController extends BaseController<
 
     // If a full Provider object is passed, store it directly (avoids
     // depending on state.providers.data being populated).
-    if (typeof providerOrId !== 'string') {
-      this.update((state) => {
-        state.providers.selected = providerOrId;
-        state.providerAutoSelected = options?.autoSelected ?? false;
-      });
-      return;
-    }
-
-    // ID string: look up from state
-    const providers = this.state.providers.data;
-    const provider = providers?.find((prov) => prov.id === providerOrId);
+    const provider =
+      typeof providerOrId === 'string'
+        ? this.state.providers.data?.find((prov) => prov.id === providerOrId)
+        : providerOrId;
 
     if (provider) {
       this.update((state) => {
         state.providers.selected = provider;
         state.providerAutoSelected = options?.autoSelected ?? false;
+        if (options?.userSelected) {
+          state.userSelectedProviderId = provider.id;
+        }
       });
     }
   }
@@ -2040,23 +2368,96 @@ export class RampsController extends BaseController<
       return false;
     }
 
-    const preferredIds = this.#getPreferredProviderIdsFromOrders().map(
-      normalizeHeadlessProviderId,
-    );
-    const preferred = preferredIds
-      .map((preferredId) =>
-        compatible.find(
-          (provider) =>
-            normalizeHeadlessProviderId(provider.id) === preferredId,
-        ),
-      )
-      .find((provider) => provider !== undefined);
+    const [preferred] = getPreviouslyUsedProviders({
+      providers: compatible,
+      orders: this.state.orders,
+    });
 
     this.setSelectedProvider(preferred ?? compatible[0], {
       autoSelected: true,
       ...options,
     });
     return true;
+  }
+
+  /**
+   * Selects the provider for the given asset and returns its id.
+   *
+   * Among the providers in `providers.data` that offer the asset (minus
+   * `excludeProviderIds`), the first match wins:
+   * 1. The user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+   * 2. The first provider in `aheadOfHistory`.
+   * 3. The provider of the most recent completed buy, across all accounts,
+   *    from controller orders plus `extraHistory`.
+   * 4. The first provider in API ranking order.
+   *
+   * With a `null` asset (no token chosen yet) every provider is a candidate
+   * and step 2 is skipped, since that list only applies to assets its
+   * providers offer.
+   *
+   * The selection is marked auto-selected unless it is the user's own pick.
+   * The user's pick is kept when another provider is chosen, so it comes back
+   * on the next asset it offers.
+   *
+   * @param assetId - CAIP-19 asset id the user is buying, or `null`.
+   * @param options - Optional inputs.
+   * @param options.aheadOfHistory - Provider ids that win over history.
+   * @param options.extraHistory - Completed buys from outside controller state.
+   * @param options.excludeProviderIds - Provider ids to leave out.
+   * @returns The selected provider id, or `null` when providers are not loaded
+   *   or none offers the asset (the selection is left unchanged).
+   */
+  selectProviderForAsset(
+    assetId: string | null,
+    options?: SelectProviderForAssetOptions,
+  ): string | null {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return null;
+    }
+
+    const excluded = new Set(
+      (options?.excludeProviderIds ?? []).map(normalizeHeadlessProviderId),
+    );
+    const candidates = providers.filter(
+      (provider) =>
+        !excluded.has(normalizeHeadlessProviderId(provider.id)) &&
+        (assetId === null || providerServesAsset(provider, assetId)),
+    );
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const { userSelectedProviderId } = this.state;
+    const userPick = userSelectedProviderId
+      ? findFirstProviderById(candidates, [userSelectedProviderId])
+      : undefined;
+    const aheadOfHistory =
+      assetId === null ? [] : (options?.aheadOfHistory ?? []);
+    const [previouslyUsed] = getPreviouslyUsedProviders({
+      providers: candidates,
+      orders: this.state.orders,
+      extraHistory: options?.extraHistory,
+    });
+    const chosen =
+      userPick ??
+      findFirstProviderById(candidates, aheadOfHistory) ??
+      previouslyUsed ??
+      candidates[0];
+    const autoSelected = chosen !== userPick;
+
+    // Compared by reference so a stale copy of the same provider is replaced
+    // once a fresh provider list has arrived.
+    if (
+      this.state.providers.selected !== chosen ||
+      this.state.providerAutoSelected !== autoSelected
+    ) {
+      this.update((state) => {
+        state.providers.selected = chosen;
+        state.providerAutoSelected = autoSelected;
+      });
+    }
+    return chosen.id;
   }
 
   /**
@@ -2073,6 +2474,7 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     if (!options?.forceRefresh && this.#initPromise !== null) {
       return this.#initPromise;
     }
@@ -2162,6 +2564,7 @@ export class RampsController extends BaseController<
    * @returns An array of countries.
    */
   async getCountries(options?: ExecuteRequestOptions): Promise<Country[]> {
+    this.#assertNetworkAccessAllowed();
     const cacheKey = createCacheKey('getCountries', []);
 
     const countries = await this.executeRequest(
@@ -2198,6 +2601,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -2320,6 +2724,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<ProvidersResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -2379,6 +2784,7 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionCode = region ?? this.#requireRegion();
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
@@ -2490,6 +2896,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<PaymentMethodsForContextResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = options.region ?? this.#requireRegion();
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const assetId = options.assetId.trim();
@@ -2696,6 +3103,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = options.region ?? this.#requireRegion();
     const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
     const paymentMethodsToUse =
@@ -2950,6 +3358,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<Quote | undefined> {
+    this.#assertNetworkAccessAllowed();
     const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
 
     const response = await this.getQuotes(quoteOptions);
@@ -3281,14 +3690,14 @@ export class RampsController extends BaseController<
     //    `preferredProviderIds` when supplied, otherwise completed-order
     //    history. Takes priority over Transak Native to preserve an existing
     //    KYC relationship and avoid churn.
-    const preferred =
-      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
-
-    for (const preferredId of preferred) {
-      const match = supporting.find((provider) => provider.id === preferredId);
-      if (match) {
-        return [match.id];
-      }
+    const preferred = preferredProviderIds
+      ? findFirstProviderById(supporting, preferredProviderIds)
+      : getPreviouslyUsedProviders({
+          providers: supporting,
+          orders: this.state.orders,
+        })[0];
+    if (preferred) {
+      return [preferred.id];
     }
 
     // 3. A native provider (e.g. Transak Native).
@@ -3391,35 +3800,6 @@ export class RampsController extends BaseController<
     return selectedId ? [selectedId] : [];
   }
 
-  /**
-   * Derives an ordered list of provider IDs from the user's completed-order
-   * history, most recently completed first, with duplicates removed.
-   *
-   * Reads only this controller's own normalized order state, so it carries no
-   * dependency on any client-specific order representation.
-   *
-   * @returns Provider IDs ordered by most recent completed order.
-   */
-  #getPreferredProviderIdsFromOrders(): string[] {
-    const orderedIds: string[] = [];
-
-    const completedOrders = this.state.orders
-      .filter(
-        (order) =>
-          order.status === RampsOrderStatus.Completed && order.provider?.id,
-      )
-      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
-
-    for (const order of completedOrders) {
-      const id = order.provider?.id;
-      if (id && !orderedIds.includes(id)) {
-        orderedIds.push(id);
-      }
-    }
-
-    return orderedIds;
-  }
-
   // === ORDER MANAGEMENT ===
 
   /**
@@ -3429,6 +3809,9 @@ export class RampsController extends BaseController<
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
    * Unchanged syncable payloads (including unchanged poll results) are ignored
    * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
+   *
+   * When network access is denied, the order is still written locally and the
+   * remote push is deferred to the next full sync.
    *
    * @param order - The RampsOrder to add or update.
    */
@@ -3513,7 +3896,10 @@ export class RampsController extends BaseController<
       // Incremental push is suppressed during full sync; queue another full
       // sync pass so mutations during the upload await are not dropped.
       this.#orderSyncQueued = true;
-    } else if (!this.#isOrderSyncingInProgress) {
+    } else if (
+      !this.#isOrderSyncingInProgress &&
+      this.#isNetworkAccessAllowed()
+    ) {
       updateOrderInUserStorage(
         healedOrder,
         {
@@ -3535,6 +3921,9 @@ export class RampsController extends BaseController<
 
   /**
    * Removes a V2 order from controller state by providerOrderId.
+   *
+   * When network access is denied, the order is still removed locally and the
+   * remote tombstone is deferred to the next full sync.
    *
    * @param providerOrderId - The provider order ID to remove.
    */
@@ -3582,7 +3971,7 @@ export class RampsController extends BaseController<
           // upload await are not dropped.
           this.#orderSyncQueued = true;
         }
-      } else if (isLocalDeletion) {
+      } else if (isLocalDeletion && this.#isNetworkAccessAllowed()) {
         deleteOrderInUserStorage(
           orderToRemove,
           {
@@ -3616,6 +4005,7 @@ export class RampsController extends BaseController<
    * resolution is not dropped.
    */
   async syncOrdersWithUserStorage(): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     this.#orderSyncQueued = true;
     let syncError: Error | undefined;
 
@@ -3633,6 +4023,12 @@ export class RampsController extends BaseController<
       this.#orderSyncPromise = (async (): Promise<void> => {
         while (this.#orderSyncQueued) {
           this.#orderSyncQueued = false;
+          if (!this.#isNetworkAccessAllowed()) {
+            // Do not start another User Storage pass after the host revoked
+            // access. Local changes stay pending until the next allowed
+            // `syncOrdersWithUserStorage` call.
+            break;
+          }
           await syncOrdersWithUserStorageInternal(
             {
               onOrderSyncErroneousSituation:
@@ -3710,10 +4106,16 @@ export class RampsController extends BaseController<
    *
    * The vendor `customer_id` is resolved via
    * {@link RampsController.resolveAutorampCustomerId} and injected into the
-   * request (any caller-supplied `customer_id` is overwritten).
+   * request (any caller-supplied `customer_id` is overwritten). The caller
+   * supplies the fiat body. When that body names a source fiat and a
+   * recipient wallet, the idempotency key is derived from that fiat
+   * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+   * rejected or cancelled autoramp ids. A caller-supplied key is used only
+   * when the body has no source fiat or recipient address.
    *
-   * @param request - CreateAutoramp payload.
-   * @param options - Optional idempotency key forwarded to the proxy.
+   * @param request - CreateAutoramp payload, including the source fiat.
+   * @param options - Optional idempotency key forwarded when the body does
+   * not identify a fiat route.
    * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
    * @returns The created/updated local {@link AutorampAccount}.
    */
@@ -3721,13 +4123,28 @@ export class RampsController extends BaseController<
     request: CreateAutorampRequest,
     options: { idempotencyKey?: string } = {},
   ): Promise<AutorampAccount> {
+    this.#assertNetworkAccessAllowed();
     const customerId = await this.resolveAutorampCustomerId();
+    const fiatCode = readCreateAutorampFiatCode(request);
+    const walletAddress = readCreateAutorampWalletAddress(request);
+    const requestOptions =
+      fiatCode && walletAddress
+        ? {
+            ...options,
+            idempotencyKey: buildMusdAutorampIdempotencyKey(
+              fiatCode,
+              customerId,
+              walletAddress,
+              this.#terminalAutorampIdsForWallet(walletAddress),
+            ),
+          }
+        : options;
 
     const body = { ...request, customer_id: customerId };
     const remote = await this.messenger.call(
       'NeoBankService:createAutoramp',
       body,
-      options,
+      requestOptions,
     );
     return this.#applyAutorampRemoteSnapshot(remote);
   }
@@ -3741,6 +4158,17 @@ export class RampsController extends BaseController<
    * @returns The vendor customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
+    this.#assertNetworkAccessAllowed();
+    return (await this.#resolveMoonpayCustomer()).id;
+  }
+
+  /**
+   * Loads the MoonPay customer for the signed-in profile, including lifecycle
+   * `status`. Wallet registration is allowed only when that status is `Active`.
+   *
+   * @returns The customer id and status.
+   */
+  async #resolveMoonpayCustomer(): Promise<MoonpayCustomerRecord> {
     const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
@@ -3755,22 +4183,18 @@ export class RampsController extends BaseController<
       );
     }
 
-    const customer = await this.messenger.call(
-      'NeoBankService:getCustomerByExternalId',
-      externalId,
+    const customer = readMoonpayCustomerRecord(
+      await this.messenger.call(
+        'NeoBankService:getCustomerByExternalId',
+        externalId,
+      ),
     );
-    const customerId =
-      customer &&
-      typeof customer === 'object' &&
-      typeof (customer as { id?: unknown }).id === 'string'
-        ? (customer as { id: string }).id
-        : null;
-    if (!customerId) {
+    if (!customer) {
       throw new Error(
         `Cannot resolve MoonPay customer id: no MoonPay customer is mapped to external id "${externalId}".`,
       );
     }
-    return customerId;
+    return customer;
   }
 
   /**
@@ -3786,6 +4210,7 @@ export class RampsController extends BaseController<
   }: {
     address: string;
   }): Promise<MoneyAccountWalletRegistrationResult> {
+    this.#assertNetworkAccessAllowed();
     let machine = transitionWalletRegistration(
       createInitialWalletRegistrationState(),
       { type: 'START' },
@@ -3806,7 +4231,8 @@ export class RampsController extends BaseController<
       return undefined;
     };
 
-    const customerId = await this.resolveAutorampCustomerId();
+    const customer = await this.#resolveMoonpayCustomer();
+    const { id: customerId } = customer;
 
     const toLookupUnavailableResult = (
       error: unknown,
@@ -3867,7 +4293,17 @@ export class RampsController extends BaseController<
 
     const existingResult = await resolveLookup();
     if (existingResult) {
-      return existingResult;
+      return this.#finishMoneyAccountWalletRegistration(
+        address,
+        existingResult,
+      );
+    }
+
+    if (customer.status !== 'Active') {
+      throw new WalletRegistrationError('forbidden', {
+        message:
+          'MoonPay customer must be Active before a self-hosted wallet can be registered',
+      });
     }
 
     let idempotencyKey = createIdempotencyKey();
@@ -3911,7 +4347,7 @@ export class RampsController extends BaseController<
           },
         );
         machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
-        return result;
+        return this.#finishMoneyAccountWalletRegistration(address, result);
       } catch (error) {
         if (!(error instanceof WalletRegistrationError)) {
           machine = transitionWalletRegistration(machine, {
@@ -3954,7 +4390,10 @@ export class RampsController extends BaseController<
         ) {
           const reconciledResult = await resolveLookup();
           if (reconciledResult) {
-            return reconciledResult;
+            return this.#finishMoneyAccountWalletRegistration(
+              address,
+              reconciledResult,
+            );
           }
         }
 
@@ -3966,39 +4405,52 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Refreshes KYC session facts and, when Iron has approved KYC, registers the
-   * Money Account wallet and refreshes autoramps. An autoramp is created only
-   * when `sourceCurrencyCode` is set and the wallet has no usable autoramp.
-   * With no usable autoramp and no code, the snapshot status is
-   * `needs_source_currency` and nothing is posted. Hosts map the returned
+   * Reads VBA onboarding facts. Hosts map the returned
    * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
    * name screens.
    *
-   * Overlapping calls share one run so polling cannot trigger duplicate wallet
-   * signatures or autoramp creation. A second call does not apply its own
-   * `sourceCurrencyCode`; it receives the in-flight result.
+   * The read uses the persisted KYC session. `refreshKyc` performs one
+   * session-status GET when a session id is already stored and `finalStatus`
+   * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+   * unless this wallet already has a usable route. An approved session with no
+   * usable autoramp returns `needs_wallet_registration` or
+   * `needs_source_currency` only when
+   * `GET /neobank/customers/{external_id}/external` reports
+   * `status: 'Active'`. Any other customer status returns `not_ready`.
+   * It does not sign, post a self-hosted address, create an autoramp, or start
+   * KYC polling.
+   *
+   * Overlapping calls share one run.
    *
    * @param params - VBA onboarding parameters.
    * @param params.walletAddress - Monad Money Account wallet address.
-   * @param params.sourceCurrencyCode - Fiat code to create when the wallet has
-   * no usable autoramp. Omit it to register and refresh without creating.
+   * @param params.refreshKyc - When true, fetch session status once for a
+   * non-terminal persisted session. A failed GET keeps that session. Defaults
+   * to false.
+   * @param params.refreshAutoramps - When true, replace the autoramp cursor
+   * from `GET /neobank/autoramps` unless a usable route is already stored.
+   * Defaults to false.
    * @returns Independent KYC and autoramp facts for the current customer.
    */
   async hydrateVbaOnboarding({
     walletAddress,
-    sourceCurrencyCode,
+    refreshKyc = false,
+    refreshAutoramps = false,
   }: {
     walletAddress: string;
-    sourceCurrencyCode?: string;
+    refreshKyc?: boolean;
+    refreshAutoramps?: boolean;
   }): Promise<VbaOnboardingSnapshot> {
+    this.#assertNetworkAccessAllowed();
     if (this.#vbaOnboardingHydrationPromise) {
       return await this.#vbaOnboardingHydrationPromise;
     }
 
-    const hydrationPromise = this.#hydrateVbaOnboarding(
+    const hydrationPromise = this.#hydrateVbaOnboarding({
       walletAddress,
-      sourceCurrencyCode,
-    );
+      refreshKyc,
+      refreshAutoramps,
+    });
     this.#vbaOnboardingHydrationPromise = hydrationPromise;
 
     try {
@@ -4010,51 +4462,54 @@ export class RampsController extends BaseController<
     }
   }
 
-  async #hydrateVbaOnboarding(
-    walletAddress: string,
-    sourceCurrencyCode?: string,
-  ): Promise<VbaOnboardingSnapshot> {
-    // Prefer the in-memory/persisted session status over the backend
-    // latest-status endpoint: after SumSub the backend endpoint can lag, while
-    // the controller state reflects the journey/SDK outcome. Fall back to a
-    // backend fetch only when the controller has no session in state (e.g. a
-    // reinstall/cleared state resuming an existing customer, or a brand-new user
-    // with no session at all).
-    let session: KycControllerSessionStatus | null = null;
-    // Whether `session` came from persisted controller state (as opposed to a
-    // fresh backend fetch, which is always scoped to the current user). Only a
-    // persisted session can belong to a previous identity, so only that path
-    // needs the ownership check below.
-    let sessionFromCache = false;
-    try {
-      session = this.messenger.call('KycController:refreshSessionStatus');
-      sessionFromCache = true;
-    } catch {
-      try {
-        session = await this.messenger.call(
-          'KycController:getSessionStatusForVendor',
-          'iron',
-        );
-      } catch {
-        // No session exists for this customer yet: the backend returns 404
-        // ("KYC session not found"), which surfaces as a rejection here.
-        session = null;
-      }
-    }
-    if (!session) {
+  async #hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc,
+    refreshAutoramps,
+  }: {
+    walletAddress: string;
+    refreshKyc: boolean;
+    refreshAutoramps: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    let session = this.messenger.call('KycController:readSessionStatus');
+
+    // A persisted session can outlive the identity that created it. Reusing it
+    // makes session-scoped calls fail closed. Discard it before any fetch, with
+    // the registration rows and autoramp cursor it left behind, since neither
+    // is keyed by profile.
+    if (session && !(await this.#isVbaSessionOwnedByCurrentProfile(session))) {
+      this.messenger.call('KycController:clearState');
+      this.update((state) => {
+        state.moneyAccountWalletRegistrations = [];
+        state.autoramps = [];
+        state.autorampTransactionRecords = {};
+        state.vbaAutorampListFetchedAt = null;
+        state.vbaCustomerAbilities = null;
+      });
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
-    // A persisted session can outlive the identity that created it — e.g. a new
-    // wallet created over an install that still holds a previous customer's
-    // session. Reusing it makes the backend reject every session-scoped call
-    // (owner mismatch), dead-ending the user. Verify ownership up front against
-    // the signed-in profile and, on a mismatch, discard the stale session.
     if (
-      sessionFromCache &&
-      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
+      refreshKyc &&
+      session?.id &&
+      !TERMINAL_VBA_KYC_FINAL_STATUSES.has(session.finalStatus)
     ) {
-      this.messenger.call('KycController:clearState');
+      try {
+        session = await this.messenger.call(
+          'KycController:fetchSessionStatusOnce',
+          session.id,
+        );
+      } catch (error) {
+        if (error instanceof HttpError && error.httpStatus === 404) {
+          this.messenger.call('KycController:clearState');
+          return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+        }
+        // The persisted session is already in hand. A transient status GET
+        // must not reject the read.
+      }
+    }
+
+    if (!session) {
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
@@ -4073,16 +4528,7 @@ export class RampsController extends BaseController<
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
       providerFlowStatus,
-      // The relay approves (`kycStatus: 'approved'`) as soon as the KYC decision
-      // is made, while the vendor-side `finalStatus` can lag at `'pending'` until
-      // the vendor record is finalized (and in sandbox may never advance). Treat
-      // either signal as approval so a relay-approved user is not stranded on the
-      // pending screen. This mirrors the UKYC backend, whose own "already
-      // approved" check is `finalStatus === 'approved' || kycStatus === 'approved'`.
-      kycStatus:
-        session.finalStatus === 'approved' || session.kycStatus === 'approved'
-          ? 'approved'
-          : toVbaKycStatus(session.finalStatus),
+      kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
       autorampStatus: 'not_ready',
     };
 
@@ -4093,80 +4539,139 @@ export class RampsController extends BaseController<
       throw new Error('walletAddress is required after KYC acceptance.');
     }
 
-    // KYC is approved; the remaining work registers the wallet and refreshes
-    // autoramps. A create runs only when the caller passed a fiat code and this
-    // wallet has no usable autoramp. Those calls hit the neobank backend and
-    // can fail transiently (e.g. an address-list lookup timeout). Surface
-    // `retryable_failure` so the host can keep the user on a pending screen
-    // rather than a fatal error — the KYC decision itself already succeeded.
+    if (this.#hasUsableAutorampForWallet(walletAddress)) {
+      return { ...snapshot, autorampStatus: 'ready' };
+    }
+
+    if (refreshAutoramps) {
+      try {
+        await this.#replaceAutorampCursorFromList();
+      } catch {
+        return { ...snapshot, autorampStatus: 'retryable_failure' };
+      }
+      if (this.#hasUsableAutorampForWallet(walletAddress)) {
+        return { ...snapshot, autorampStatus: 'ready' };
+      }
+    }
+
+    let customer: MoonpayCustomerRecord;
     try {
-      const registration = await this.registerMoneyAccountWallet({
-        address: walletAddress,
-      });
-      if (registration.type === 'lookupUnavailable') {
-        throw registration.error;
-      }
-
-      const customerId = await this.resolveAutorampCustomerId();
-      const remoteAutoramps = await this.messenger.call(
-        'NeoBankService:getAutoramps',
-        { customerId },
-      );
-      const remoteAutorampIds = new Set(
-        remoteAutoramps.map((autoramp) => autoramp.id),
-      );
-      for (const autoramp of remoteAutoramps) {
-        this.#applyAutorampRemoteSnapshot(autoramp);
-      }
-      this.update((state) => {
-        state.autoramps = state.autoramps.filter((autoramp) =>
-          remoteAutorampIds.has(autoramp.id),
-        );
-      });
-
-      const trimmedWalletAddress = walletAddress.trim();
-      const normalizedWalletAddress = trimmedWalletAddress.toLowerCase();
-      const autorampsForWallet = this.state.autoramps.filter(
-        (autoramp) =>
-          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress,
-      );
-      const hasUsableAutoramp = autorampsForWallet.some(
-        (autoramp) =>
-          autoramp.status !== AutorampStatus.Rejected &&
-          autoramp.status !== AutorampStatus.Cancelled,
-      );
-      const trimmedSourceCurrencyCode = sourceCurrencyCode?.trim() ?? '';
-      if (!hasUsableAutoramp && trimmedSourceCurrencyCode.length === 0) {
-        return { ...snapshot, autorampStatus: 'needs_source_currency' };
-      }
-      if (!hasUsableAutoramp) {
-        const terminalAutorampIds = autorampsForWallet
-          .filter(
-            (autoramp) =>
-              autoramp.status === AutorampStatus.Rejected ||
-              autoramp.status === AutorampStatus.Cancelled,
-          )
-          .map((autoramp) => autoramp.id);
-        await this.createAutoramp(
-          buildMusdAutorampRequest(
-            trimmedWalletAddress,
-            trimmedSourceCurrencyCode,
-          ),
-          {
-            idempotencyKey: buildMusdAutorampIdempotencyKey(
-              trimmedSourceCurrencyCode,
-              customerId,
-              trimmedWalletAddress,
-              terminalAutorampIds,
-            ),
-          },
-        );
-      }
+      customer = await this.#resolveMoonpayCustomer();
     } catch {
       return { ...snapshot, autorampStatus: 'retryable_failure' };
     }
+    if (customer.status !== 'Active') {
+      return { ...snapshot, autorampStatus: 'not_ready' };
+    }
 
-    return { ...snapshot, autorampStatus: 'ready' };
+    const registration = this.state.moneyAccountWalletRegistrations.find(
+      (row) =>
+        row.walletAddress.trim().toLowerCase() ===
+        walletAddress.trim().toLowerCase(),
+    );
+    if (!registration) {
+      return { ...snapshot, autorampStatus: 'needs_wallet_registration' };
+    }
+    return { ...snapshot, autorampStatus: 'needs_source_currency' };
+  }
+
+  /**
+   * Writes the registration row after a successful register outcome.
+   * `lookupUnavailable` writes nothing.
+   *
+   * @param address - Money Account wallet address.
+   * @param result - Registration outcome.
+   * @returns The same outcome.
+   */
+  #finishMoneyAccountWalletRegistration(
+    address: string,
+    result: MoneyAccountWalletRegistrationResult,
+  ): MoneyAccountWalletRegistrationResult {
+    if (result.type === 'lookupUnavailable') {
+      return result;
+    }
+    const normalized = address.trim().toLowerCase();
+    const status = result.type === 'registeredDisabled' ? 'disabled' : 'active';
+    const row: MoneyAccountWalletRegistration = {
+      walletAddress: normalized,
+      status,
+      updatedAt: Date.now(),
+    };
+    this.update((state) => {
+      const index = state.moneyAccountWalletRegistrations.findIndex(
+        (existing) =>
+          existing.walletAddress.trim().toLowerCase() === normalized,
+      );
+      if (index === -1) {
+        state.moneyAccountWalletRegistrations.push(row);
+      } else {
+        state.moneyAccountWalletRegistrations[index] = row;
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Ids of rejected or cancelled autoramps for a wallet, used in create keys.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Terminal autoramp ids for that wallet.
+   */
+  #terminalAutorampIdsForWallet(walletAddress: string): string[] {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps
+      .filter(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalized &&
+          (autoramp.status === AutorampStatus.Rejected ||
+            autoramp.status === AutorampStatus.Cancelled),
+      )
+      .map((autoramp) => autoramp.id);
+  }
+
+  /**
+   * Whether this wallet has an autoramp that is not Rejected or Cancelled.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Whether a usable route is already on the cursor.
+   */
+  #hasUsableAutorampForWallet(walletAddress: string): boolean {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalized &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+  }
+
+  /**
+   * Replaces the autoramp cursor from `GET /neobank/autoramps` and records
+   * `vbaAutorampListFetchedAt` only after that GET succeeds.
+   */
+  async #replaceAutorampCursorFromList(): Promise<void> {
+    const customerId = await this.resolveAutorampCustomerId();
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+      { customerId },
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+      for (const autorampId of Object.keys(state.autorampTransactionRecords)) {
+        if (!remoteAutorampIds.has(autorampId)) {
+          delete state.autorampTransactionRecords[autorampId];
+        }
+      }
+      state.vbaAutorampListFetchedAt = Date.now();
+    });
   }
 
   /**
@@ -4207,6 +4712,7 @@ export class RampsController extends BaseController<
       state.autoramps = state.autoramps.filter(
         (autoramp) => autoramp.id !== autorampId,
       );
+      delete state.autorampTransactionRecords[autorampId];
     });
   }
 
@@ -4253,11 +4759,30 @@ export class RampsController extends BaseController<
    * cursor was removed during the fetch.
    */
   async refreshAutoramp(autorampId: string): Promise<AutorampAccount> {
+    this.#assertNetworkAccessAllowed();
     const remote = await this.messenger.call(
       'NeoBankService:getAutoramp',
       autorampId,
     );
     return this.#applyAutorampRemoteSnapshot(remote, { allowInsert: false });
+  }
+
+  /**
+   * Fetches the MoonPay customer's rail abilities from the neo-bank proxy and
+   * stores them in `vbaCustomerAbilities`. A failed fetch throws and leaves the
+   * stored value unchanged.
+   *
+   * @returns The fetched abilities.
+   */
+  async refreshCustomerAbilities(): Promise<NeoBankCustomerAbilities> {
+    this.#assertNetworkAccessAllowed();
+    const abilities = await this.messenger.call(
+      'NeoBankService:getCustomerAbilities',
+    );
+    this.update((state) => {
+      state.vbaCustomerAbilities = abilities;
+    });
+    return abilities;
   }
 
   /**
@@ -4267,6 +4792,7 @@ export class RampsController extends BaseController<
    * @returns Updated autoramp accounts (failed fetches are skipped).
    */
   async refreshAutoramps(): Promise<AutorampAccount[]> {
+    this.#assertNetworkAccessAllowed();
     const ids = this.state.autoramps.map((autoramp) => autoramp.id);
     const updated: AutorampAccount[] = [];
 
@@ -4284,6 +4810,109 @@ export class RampsController extends BaseController<
     }
 
     return updated;
+  }
+
+  /**
+   * Fetches the newest page of transactions for one autoramp and calls
+   * `trackAutorampTransactionStatusChanged` for each new id or status change.
+   *
+   * The updated record is written before the callback runs. A failed fetch
+   * leaves the record untouched. Concurrent calls for the same autoramp share
+   * one request. The first successful fetch seeds the record and calls
+   * nothing. When this autoramp was on the cursor at the start of the fetch
+   * and was removed before the response is applied (`removeAutoramp`, a cursor
+   * replace that drops the id, or a foreign VBA session discard), the record
+   * is not restored and the callback is not called. A callback that throws
+   * is ignored, so one failing change does not drop the rest of the batch.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Transaction summaries from the newest page.
+   */
+  async refreshAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    this.#assertNetworkAccessAllowed();
+    const inFlight = this.#autorampTransactionRefreshes.get(autorampId);
+    if (inFlight) {
+      return await inFlight;
+    }
+
+    const refreshPromise = this.#refreshAutorampTransactions(autorampId);
+    this.#autorampTransactionRefreshes.set(autorampId, refreshPromise);
+
+    try {
+      return await refreshPromise;
+    } finally {
+      if (
+        this.#autorampTransactionRefreshes.get(autorampId) === refreshPromise
+      ) {
+        this.#autorampTransactionRefreshes.delete(autorampId);
+      }
+    }
+  }
+
+  #tracksAutoramp(autorampId: string): boolean {
+    return this.state.autoramps.some((autoramp) => autoramp.id === autorampId);
+  }
+
+  async #refreshAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    const trackedAtStart = this.#tracksAutoramp(autorampId);
+    const fetched = await this.messenger.call(
+      'NeoBankService:listAutorampTransactions',
+      autorampId,
+      { pageSize: AUTORAMP_TRANSACTION_PAGE_SIZE },
+    );
+    // A removal that landed during the fetch wins. Writing now would put the
+    // cleared record back and later refreshes could emit for an autoramp that
+    // is gone, including one discarded with the previous profile.
+    if (trackedAtStart && !this.#tracksAutoramp(autorampId)) {
+      return fetched;
+    }
+    const { changes, nextRecord } = diffAutorampTransactions(
+      this.state.autorampTransactionRecords[autorampId],
+      fetched,
+      Date.now(),
+    );
+
+    this.update((state) => {
+      state.autorampTransactionRecords[autorampId] = nextRecord;
+    });
+
+    for (const change of changes) {
+      this.#trackAutorampTransactionChange(autorampId, change);
+    }
+
+    return fetched;
+  }
+
+  /**
+   * Reports one transaction change through
+   * `trackAutorampTransactionStatusChanged`.
+   *
+   * A callback exception is ignored. The record already says this status was
+   * seen, so rethrowing would drop every later change in the same batch and
+   * none of them would ever be reported again.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @param change - The new transaction or status change to report.
+   */
+  #trackAutorampTransactionChange(
+    autorampId: string,
+    change: AutorampTransactionChange,
+  ): void {
+    try {
+      this.#trackAutorampTransactionStatusChanged?.({
+        autorampId,
+        transaction: change.transaction,
+        ...(change.previousStatus === undefined
+          ? {}
+          : { previousStatus: change.previousStatus }),
+      });
+    } catch {
+      // The host's tracker failed. The written record stays as it is.
+    }
   }
 
   /**
@@ -4341,6 +4970,12 @@ export class RampsController extends BaseController<
    * @param order - The order to refresh (needs provider and providerOrderId).
    */
   async #refreshOrder(order: RampsOrder): Promise<void> {
+    if (!this.#isNetworkAccessAllowed()) {
+      // A denied call is host policy, not a provider failure. Skip without
+      // counting an error so a later allowed poll is not delayed by backoff.
+      return;
+    }
+
     const providerCode = order.provider?.id ?? '';
     if (!providerCode || !order.providerOrderId || !order.walletAddress) {
       return;
@@ -4369,9 +5004,19 @@ export class RampsController extends BaseController<
       meta.lastTimeFetched = Date.now();
       this.#orderPollingMeta.set(order.providerOrderId, meta);
 
+      // Publish only a transition that is now stored. A transition the
+      // controller could not write (for example the order was removed while the
+      // request was in flight) would otherwise be republished on every poll.
+      const storedStatus = this.state.orders.find(
+        (existingOrder) =>
+          getInternalOrderCode(existingOrder) ===
+          getInternalOrderCode(updatedOrder),
+      )?.status;
+
       if (
         previousStatus !== updatedOrder.status &&
-        previousStatus !== undefined
+        previousStatus !== undefined &&
+        storedStatus === updatedOrder.status
       ) {
         this.messenger.publish('RampsController:orderStatusChanged', {
           order: updatedOrder,
@@ -4481,6 +5126,7 @@ export class RampsController extends BaseController<
    * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
   async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
+    this.#assertNetworkAccessAllowed();
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
@@ -4505,6 +5151,7 @@ export class RampsController extends BaseController<
     fallback: BuyWidgetFallback,
     options?: { redirectUrl?: string },
   ): Promise<BuyWidget | null> {
+    this.#assertNetworkAccessAllowed();
     if (!fallback?.url) {
       return null;
     }
@@ -4538,6 +5185,9 @@ export class RampsController extends BaseController<
    * Registers an order ID for polling until the order is created or resolved.
    * Adds a minimal stub order to controller state; the existing order polling
    * will fetch the full order when the provider has created it.
+   *
+   * When network access is denied, the stub is still written locally and its
+   * remote push is deferred to the next full sync.
    *
    * @param params - Object containing order identifiers and wallet info.
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
@@ -4606,6 +5256,7 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    this.#assertNetworkAccessAllowed();
     const hadOrderAtRequestStart = this.state.orders.some(
       (existingOrder) => getInternalOrderCode(existingOrder) === orderCode,
     );
@@ -4617,15 +5268,32 @@ export class RampsController extends BaseController<
     );
 
     const healedWalletAddress = order.walletAddress || wallet;
-    const internalOrderCode = getInternalOrderCode({
+    const requestedOrderCode = getInternalOrderCode(orderCode);
+    const storedOrder = this.state.orders.find(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === requestedOrderCode,
+    );
+    const fetchedOrderCode = getInternalOrderCode({
       id: order.id,
       providerOrderId: orderCode,
     });
+
+    // The order was requested by the code it is stored under, so the response
+    // is that order even when its canonical `id` carries a different code.
+    // Keep the stored identity so the write below updates the stored row.
+    // Re-keying it would leave the stored row at its old status, and polling
+    // would republish the same transition on every cycle.
+    const keepsStoredIdentity =
+      storedOrder !== undefined && fetchedOrderCode !== requestedOrderCode;
     const healedOrder = {
       ...order,
       walletAddress: healedWalletAddress,
-      providerOrderId: internalOrderCode,
+      ...(keepsStoredIdentity ? { id: storedOrder.id } : {}),
+      providerOrderId: keepsStoredIdentity
+        ? requestedOrderCode
+        : fetchedOrderCode,
     };
+    const internalOrderCode = getInternalOrderCode(healedOrder);
 
     const orderStillExists = this.state.orders.some(
       (existingOrder) =>
@@ -4657,6 +5325,7 @@ export class RampsController extends BaseController<
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    this.#assertNetworkAccessAllowed();
     const order = await this.messenger.call(
       'RampsService:getOrderFromCallback',
       providerCode,
@@ -4759,6 +5428,7 @@ export class RampsController extends BaseController<
     email: string;
     expiresIn: number;
   }> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:sendUserOtp', email);
     } catch (error) {
@@ -4780,6 +5450,7 @@ export class RampsController extends BaseController<
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
+    this.#assertNetworkAccessAllowed();
     try {
       const token = await this.messenger.call(
         'TransakService:verifyUserOtp',
@@ -4798,19 +5469,35 @@ export class RampsController extends BaseController<
    * Logs the user out of Transak. Clears authentication state and user details
    * regardless of whether the API call succeeds or fails.
    *
+   * When network access is denied, the local session is cleared and a message
+   * is returned without calling the Transak service.
+   *
    * @returns A message indicating the logout result.
    */
   async transakLogout(): Promise<string> {
+    if (!this.#isNetworkAccessAllowed()) {
+      this.#clearTransakLocalSession();
+      return 'Transak session cleared without network access';
+    }
+
     try {
       return await this.messenger.call('TransakService:logout');
     } catch (error) {
       throw this.#getNormalizedTransakError(error).normalizedError;
     } finally {
-      this.transakClearAccessToken();
-      this.update((state) => {
-        state.nativeProviders.transak.userDetails.data = null;
-      });
+      this.#clearTransakLocalSession();
     }
+  }
+
+  /**
+   * Clears the local Transak session without making a request. Used on logout
+   * when network access is revoked, so users can still clear their data.
+   */
+  #clearTransakLocalSession(): void {
+    this.transakClearAccessToken();
+    this.update((state) => {
+      state.nativeProviders.transak.userDetails.data = null;
+    });
   }
 
   /**
@@ -4820,6 +5507,7 @@ export class RampsController extends BaseController<
    * @returns The user's profile and KYC details.
    */
   async transakGetUserDetails(): Promise<TransakUserDetails> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
@@ -4871,6 +5559,7 @@ export class RampsController extends BaseController<
     fiatAmount: string,
     isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
@@ -4913,6 +5602,7 @@ export class RampsController extends BaseController<
   async transakGetKycRequirement(
     quoteId: string,
   ): Promise<TransakKycRequirement> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
@@ -4954,6 +5644,7 @@ export class RampsController extends BaseController<
   async transakGetAdditionalRequirements(
     quoteId: string,
   ): Promise<TransakAdditionalRequirementsResponse> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getAdditionalRequirements',
@@ -4979,6 +5670,7 @@ export class RampsController extends BaseController<
     walletAddress: string,
     paymentMethodId: string,
   ): Promise<TransakDepositOrder> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:createOrder',
@@ -5005,6 +5697,7 @@ export class RampsController extends BaseController<
     wallet: string,
     paymentDetails?: TransakOrderPaymentMethod[],
   ): Promise<TransakDepositOrder> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getOrder',
@@ -5030,6 +5723,7 @@ export class RampsController extends BaseController<
     paymentMethod: string,
     kycType: string,
   ): Promise<TransakUserLimits> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getUserLimits',
@@ -5049,6 +5743,7 @@ export class RampsController extends BaseController<
    * @returns The OTT response containing the token.
    */
   async transakRequestOtt(): Promise<TransakOttResponse> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:requestOtt');
     } catch (error) {
@@ -5096,6 +5791,7 @@ export class RampsController extends BaseController<
     walletAddress: string,
     extraParams?: Record<string, string>,
   ): Promise<string> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:createWidgetUrl',
@@ -5116,6 +5812,7 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the form is submitted.
    */
   async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:submitPurposeOfUsageForm',
@@ -5134,6 +5831,7 @@ export class RampsController extends BaseController<
    * @returns The API response data.
    */
   async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:patchUser', data);
     } catch (error) {
@@ -5153,6 +5851,7 @@ export class RampsController extends BaseController<
     ssn: string,
     quoteId: string,
   ): Promise<unknown> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:submitSsnDetails',
@@ -5176,6 +5875,7 @@ export class RampsController extends BaseController<
     orderId: string,
     paymentMethodId: string,
   ): Promise<{ success: boolean }> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:confirmPayment',
@@ -5197,6 +5897,7 @@ export class RampsController extends BaseController<
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getTranslation',
@@ -5216,6 +5917,7 @@ export class RampsController extends BaseController<
   async transakGetIdProofStatus(
     workFlowRunId: string,
   ): Promise<TransakIdProofStatus> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getIdProofStatus',
@@ -5234,6 +5936,7 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the order is cancelled.
    */
   async transakCancelOrder(depositOrderId: string): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:cancelOrder',
@@ -5252,6 +5955,7 @@ export class RampsController extends BaseController<
    * @returns An array of errors from any failed cancellations (empty if all succeeded).
    */
   async transakCancelAllActiveOrders(): Promise<Error[]> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:cancelAllActiveOrders');
     } catch (error) {
@@ -5266,8 +5970,78 @@ export class RampsController extends BaseController<
    * @returns The list of active orders.
    */
   async transakGetActiveOrders(): Promise<TransakOrder[]> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits MiCA consent for the authenticated user.
+   *
+   * @param consentedAt - ISO 8601 timestamp of consent.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitMicaConsent(
+    consentedAt: string,
+  ): Promise<SubmitMicaConsentResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitMicaConsent',
+        consentedAt,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits source of income details for the authenticated user.
+   *
+   * @param monthlyVolume - Expected monthly transaction volume.
+   * @param sourceOfFundsType - Source of funds (e.g., "salary", "business_income").
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitSourceOfIncome(
+    monthlyVolume: string,
+    sourceOfFundsType: string,
+  ): Promise<SubmitSourceOfIncomeResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSourceOfIncome',
+        monthlyVolume,
+        sourceOfFundsType,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
+   * Submits additional nationality details for the authenticated user.
+   *
+   * @param employmentStatus - Employment status (e.g., "employed", "self_employed").
+   * @param countryOfCitizenship - ISO 3166-1 alpha-2 country code.
+   * @returns The submission response containing the status.
+   */
+  async transakSubmitAdditionalDetailsNationality(
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<SubmitAdditionalDetailsNationalityResponse> {
+    this.#assertNetworkAccessAllowed();
+    try {
+      return await this.messenger.call(
+        'TransakService:submitAdditionalDetailsNationality',
+        employmentStatus,
+        countryOfCitizenship,
+      );
     } catch (error) {
       throw this.#getNormalizedTransakError(error, { syncAuth: true })
         .normalizedError;

@@ -1,6 +1,10 @@
 /* eslint-disable consistent-return */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { formatChainIdToHex, isEvmTxData } from '@metamask/bridge-controller';
+import {
+  formatChainIdToHex,
+  isEvmTxData,
+  getAccountByAddress,
+} from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
   TransactionMeta,
@@ -8,12 +12,13 @@ import {
 } from '@metamask/transaction-controller';
 
 import { BridgeStatusControllerMessenger } from '../types.js';
-import { getAccountByAddress } from '../utils/accounts.js';
+import { getHistoryOverridesFromTxMeta } from '../utils/history.js';
 import { getNetworkClientIdByChainId } from '../utils/network.js';
 import { getApprovalTraceParams } from '../utils/trace.js';
 import {
   addTransaction,
   generateActionId,
+  getTransactionMetaByActionId,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   toTransactionParams,
@@ -36,7 +41,7 @@ import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
  * @param args.messenger - The messenger to use for the transaction
  * @returns The transaction meta
  */
-export const handleSingleTx = async ({
+const handleSingleTx = async ({
   messenger,
   trade,
   transactionType,
@@ -91,10 +96,11 @@ export const handleSingleTx = async ({
  * But only the approval's txMetaId will be returned.
  *
  * @param args - The parameters for the submission flow
+ * @param actionId - The actionId for the approval transaction
  *
- * @returns The approvalTxId of the approval transaction
+ * @returns The approval txMeta of the approval transaction
  */
-const approve = async (args: SubmitStrategyParams) => {
+const approve = async (args: SubmitStrategyParams, actionId?: string) => {
   const {
     quoteResponses: [quoteResponse],
     isBridgeTx,
@@ -116,20 +122,21 @@ const approve = async (args: SubmitStrategyParams) => {
     });
   }
 
-  if (approval) {
-    const approvalTxMeta = await handleSingleTx({
-      ...args,
-      transactionType,
-      trade: approval,
-    });
-    return approvalTxMeta?.id;
-  }
+  return await handleSingleTx({
+    ...args,
+    transactionType,
+    trade: approval,
+    actionId,
+  });
 };
 
-export const handleEvmApprovals = async (args: SubmitStrategyParams) =>
+export const handleEvmApprovals = async (
+  args: SubmitStrategyParams,
+  actionId?: string,
+) =>
   await args.traceFn(
     getApprovalTraceParams(args.quoteResponses[0], args.isStxEnabled),
-    async () => await approve(args),
+    async () => await approve(args, actionId),
   );
 
 /**
@@ -145,13 +152,64 @@ export async function* submitEvmHandler(
     quoteResponses: [quoteResponse],
     requireApproval,
     isBridgeTx,
+    next,
+    batchId,
   } = args;
 
+  // Generate actionId for pre-submission history
+  const actionId = batchId ?? generateActionId();
+  const historyKey = args.historyKey ?? actionId;
+
+  // Add new history item if no historyKey is provided
+  if (args.historyKey) {
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey,
+        historyItemOverrides: {
+          next,
+          quote: quoteResponse.quote,
+          actionId,
+          batchId,
+        },
+      },
+    };
+  } else {
+    // Add pre-submission history keyed by actionId
+    // This ensures we have quote data available if transaction fails during submission
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey,
+        quoteResponse,
+        bridgeTxMeta: {
+          actionId,
+        },
+        next,
+      },
+    };
+  }
+
   // Submit resetApproval and approval transactions if present
-  const approvalTxId = await handleEvmApprovals(args);
+  const approvalTxMeta = await handleEvmApprovals(args, actionId);
+  const approvalTxId = approvalTxMeta?.id;
+
+  let tradeActionId = actionId;
 
   // Delay after approval
   if (approvalTxId) {
+    // Generate a new actionId for the trade transaction since approval used the first one
+    tradeActionId = generateActionId();
+    yield {
+      type: SubmitStep.RekeyHistoryItem,
+      payload: {
+        oldHistoryKey: historyKey,
+        newHistoryKey: tradeActionId,
+        historyItemOverrides: {
+          approvalTxId,
+        },
+      },
+    };
     await handleApprovalDelay(quoteResponse.quote.srcChainId);
   }
   // Hardware-wallet delay first (Ledger second-prompt spacing), then wait for
@@ -161,52 +219,51 @@ export async function* submitEvmHandler(
     await waitForTxConfirmation(args.messenger, approvalTxId);
   }
 
-  // Generate trade actionId for pre-submission history
-  const actionId = generateActionId();
-
-  // Add pre-submission history keyed by actionId
-  // This ensures we have quote data available if transaction fails during submission
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      historyKey: actionId,
-      approvalTxId,
-      actionId,
-      quoteResponse,
-    },
-  };
-
   const transactionType = isBridgeTx
     ? TransactionType.bridge
     : TransactionType.swap;
 
-  const tradeMeta = await handleSingleTx({
-    ...args,
-    transactionType,
-    trade: quoteResponse.trade,
-    // TODO figure out if this is needed
-    // Pass txFee when gasIncluded is true to use the quote's gas fees
-    // instead of re-estimating (which would fail for max native token swaps)
-    txFee: quoteResponse.quote.gasIncluded
-      ? quoteResponse.quote.feeData.txFee
-      : undefined,
-    actionId,
-  });
+  let tradeMeta: TransactionMeta | undefined;
+  try {
+    tradeMeta = await handleSingleTx({
+      ...args,
+      transactionType,
+      trade: quoteResponse.trade,
+      // TODO figure out if this is needed
+      // Pass txFee when gasIncluded is true to use the quote's gas fees
+      // instead of re-estimating (which would fail for max native token swaps)
+      txFee: quoteResponse.quote.gasIncluded
+        ? quoteResponse.quote.feeData.txFee
+        : undefined,
+      actionId: tradeActionId,
+    });
+  } catch (error) {
+    // Silence the error if tx has been added to the TransactionController to prevent duplicate Failed events
+    tradeMeta = getTransactionMetaByActionId(args.messenger, tradeActionId);
+    if (!tradeMeta) {
+      throw error;
+    }
+  }
+
+  yield {
+    type: SubmitStep.SetTradeMeta,
+    payload: { tradeMeta },
+  };
 
   // Use the tradeMeta's id as history key
   yield {
     type: SubmitStep.RekeyHistoryItem,
     payload: {
-      oldHistoryKey: actionId,
+      oldHistoryKey: tradeActionId,
       newHistoryKey: tradeMeta.id,
       tradeMeta,
-    },
-  };
-
-  yield {
-    type: SubmitStep.SetTradeMeta,
-    payload: {
-      tradeMeta,
+      historyItemOverrides: {
+        ...getHistoryOverridesFromTxMeta(
+          false, // Ignore STX flag when rekeying
+          args.quoteResponses[0].quote.srcChainId,
+          tradeMeta,
+        ),
+      },
     },
   };
 }

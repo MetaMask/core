@@ -1,3 +1,8 @@
+import type {
+  AccountTreeControllerGetAccountContextAction,
+  AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetStateAction,
+} from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
   AssetsControllerGetStateAction,
@@ -10,16 +15,19 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
   KeyringControllerUnlockEvent,
-  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuoteWithFeesAction,
+  RampsControllerGetStateAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -34,23 +42,35 @@ import type {
   BatchTransaction,
   BatchTransactionParams,
   TransactionControllerAddTransactionAction,
+  TransactionControllerFailTransactionAction,
+  TransactionControllerFinalizeResumedTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
   TransactionControllerStateChangeEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
   CONTROLLER_NAME,
   PaymentOverride,
+  TransactionPayClientId,
   TransactionPayStrategy,
 } from './constants.js';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
+  | AccountTreeControllerGetAccountContextAction
+  | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetStateAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
   | GetGasFeeState
@@ -59,14 +79,18 @@ export type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | NetworkControllerGetStateAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuoteWithFeesAction
+  | RampsControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
+  | TransactionControllerFinalizeResumedTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -85,11 +109,17 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /**
-   * Optional address to override the default account used by the transaction.
+   * Optional ID of an `InternalAccount` to override the default account used
+   * by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
+   *
+   * An EVM account overrides the EVM account. The account holding a non-EVM
+   * payment token is the override account when it supports the payment token
+   * chain, otherwise the account in the same account group as the override
+   * account, or as the transaction account, that supports that chain.
    */
-  accountOverride?: Hex;
+  accountOverride?: string;
 
   /**
    * Whether the target transaction (or `paymentOverride` batch) is executed
@@ -251,18 +281,15 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerEvents | AllowedEvents
 >;
 
-/**
- * Keyring types that support EIP-7702 authorization signing.
- * Hardware wallets, snap keyrings, and custody keyrings are excluded.
- */
-export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
-  'HD Key Tree',
-  'Simple Key Pair',
-  'Money Keyring',
-];
-
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /**
+   * Identifies the MetaMask client, sent as the `X-Client-Id` header on
+   * requests to the intents API so the server can distinguish Mobile from
+   * Extension traffic.
+   */
+  clientId?: TransactionPayClientId;
+
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
   getAmountData?: GetAmountDataCallback;
 
@@ -299,7 +326,7 @@ export type TransactionPayControllerOptions = {
 
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** State relating to each transaction, keyed by transaction ID. */
+  /** Transient state relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
 };
 
@@ -315,11 +342,17 @@ export type TransactionPayFiatOptions = {
 /** State relating to a single transaction. */
 export type TransactionData = {
   /**
-   * Optional address to override the default account used by the transaction.
+   * Optional ID of an `InternalAccount` to override the default account used
+   * by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
+   *
+   * An EVM account overrides the EVM account. The account holding a non-EVM
+   * payment token is the override account when it supports the payment token
+   * chain, otherwise the account in the same account group as the override
+   * account, or as the transaction account, that supports that chain.
    */
-  accountOverride?: Hex;
+  accountOverride?: string;
 
   /**
    * Whether the target transaction is executed atomically with the Relay
@@ -481,6 +514,11 @@ export type TransactionPaySourceAmount = {
  * and `detail` on {@link QuoteErrorInfo}.
  */
 export type QuoteErrorReason =
+  /**
+   * @deprecated No longer emitted. An unreadable live balance is treated as
+   * unknown rather than insufficient, so it no longer blocks the quote. Kept
+   * so existing consumers and historical analytics still type-check.
+   */
   | 'balance-unavailable'
   | 'insufficient-source-balance'
   | 'insufficient-transfer-balance'
@@ -506,8 +544,11 @@ export type QuoteErrorInfo = {
 
 /** Source token used to pay for required tokens. */
 export type TransactionPaymentToken = {
-  /** Address of the payment token. */
-  address: Hex;
+  /**
+   * CAIP-19 asset type of the payment token, as keyed in `AssetsController`
+   * state. The chain and, for EVM tokens, the token address are derived from it.
+   */
+  assetId: CaipAssetType;
 
   /** Balance of the payment token in the selected currency. */
   balanceFiat: string;
@@ -521,14 +562,23 @@ export type TransactionPaymentToken = {
   /** Balance of the payment token in USD. */
   balanceUsd: string;
 
-  /** Chain ID of the payment token. */
-  chainId: Hex;
-
   /** Decimals of the payment token. */
   decimals: number;
 
   /** Symbol of the payment token. */
   symbol: string;
+};
+
+/**
+ * Payment token on an EVM chain, with its chain ID and token address derived
+ * from its asset ID. Used internally by the EVM quote and balance paths.
+ */
+export type EvmPaymentToken = TransactionPaymentToken & {
+  /** Address of the payment token, derived from its asset ID. */
+  address: Hex;
+
+  /** Chain ID of the payment token, derived from its asset ID. */
+  chainId: Hex;
 };
 
 /** Callback to update state for a single transaction. */
@@ -548,8 +598,21 @@ export type FiatRates = {
   usdRate: string;
 };
 
-/** Request for a quote to retrieve a required token. */
+/**
+ * Request for a quote to retrieve a required token.
+ *
+ * The source is identified by its CAIP-19 asset type and CAIP-10 account for
+ * every protocol. Strategies support or reject a request based on the
+ * protocol of `sourceAssetId`, and EVM strategies derive the Hex chain ID and
+ * token address from it.
+ */
 export type QuoteRequest = {
+  /**
+   * Selected account receiving post-quote output.
+   * See {@link TransactionConfig.accountOverride}.
+   */
+  accountOverride?: Hex;
+
   /**
    * Whether the target transaction is executed atomically with the Relay
    * quote. See {@link TransactionConfig.atomic}.
@@ -590,14 +653,17 @@ export type QuoteRequest = {
   /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
   skipProcessTransactions?: boolean;
 
+  /** CAIP-10 account ID of the account holding the source token. */
+  sourceAccountId: CaipAccountId;
+
+  /**
+   * CAIP-19 asset type of the source token. The protocol of its chain selects
+   * the strategy execution path.
+   */
+  sourceAssetId: CaipAssetType;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
-
-  /** Chain ID of the source token. */
-  sourceChainId: Hex;
-
-  /** Address of the source token. */
-  sourceTokenAddress: Hex;
 
   /** Amount of the required token in atomic format without factoring token decimals. */
   sourceTokenAmount: string;
@@ -670,6 +736,17 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Associated quote request. */
   request: QuoteRequest;
 
+  /**
+   * Whether the target calls could not be embedded in the quote and must be
+   * submitted separately, on the target chain, once the quote settles.
+   *
+   * Set by the strategy at quote time, since only it knows whether the provider
+   * accepted the calls. {@link TransactionConfig.atomic} is a hint rather than
+   * a guarantee: a quote requested atomically still falls back to a second leg
+   * when the provider cannot execute the calls itself.
+   */
+  requiresSecondLeg?: boolean;
+
   /** Amount of source token required. */
   sourceAmount: Amount;
 
@@ -689,8 +766,8 @@ export type PayStrategyGetQuotesRequest = {
   fiatPaymentMethod?: string;
 
   /**
-   * Resolved wallet address for the transaction.
-   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * Account sending the quotes: `txParams.from` for post-quote flows,
+   * otherwise `accountOverride ?? txParams.from`. Pre-computed by the quote
    * orchestrator so that individual strategies do not need to re-derive it.
    */
   from: Hex;
@@ -698,7 +775,10 @@ export type PayStrategyGetQuotesRequest = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
-  /** Quote requests for required tokens. */
+  /**
+   * Quote requests for required tokens. Strategies support or reject the
+   * requests based on the protocol of their `sourceAssetId`.
+   */
   requests: QuoteRequest[];
 
   /**
@@ -713,7 +793,7 @@ export type PayStrategyGetQuotesRequest = {
 };
 
 /** Request to submit quotes for a transaction. */
-export type PayStrategyExecuteRequest<OriginalRequest> = {
+export type PayStrategyExecuteRequest<OriginalQuote> = {
   /** Whether the account supports EIP-7702 authorization signing. */
   accountSupports7702: boolean;
 
@@ -724,9 +804,18 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
   messenger: TransactionPayControllerMessenger;
 
   /** Quotes to be submitted. */
-  quotes: TransactionPayQuote<OriginalRequest>[];
+  quotes: TransactionPayQuote<OriginalQuote>[];
 
   /** Metadata of the original target transaction. */
+  transaction: TransactionMeta;
+};
+
+/** Request object passed to {@link PayStrategy.resume}. */
+export type PayStrategyResumeRequest = {
+  /** Controller messenger for making actions. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** The transaction to resume. */
   transaction: TransactionMeta;
 };
 
@@ -759,11 +848,14 @@ export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
 
 /** Request to get refresh interval for a specific strategy. */
 export type PayStrategyGetRefreshIntervalRequest = {
-  /** Chain ID of the source or payment token. */
-  chainId: Hex;
+  /** CAIP-2 chain ID of the source asset. */
+  chainId: CaipChainId;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
+
+  /** ID of the transaction whose refresh interval is being resolved. */
+  transactionId: string;
 };
 
 /** Strategy used to obtain required tokens for a transaction. */
@@ -810,6 +902,22 @@ export type PayStrategy<OriginalQuote> = {
   execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
     transactionHash?: Hex;
   }>;
+
+  /**
+   * Returns true if the strategy can resume the given transaction after
+   * an app restart. Sync, tx-only check — no network calls.
+   */
+  canResume?: (transaction: TransactionMeta) => boolean;
+
+  /**
+   * Resume a previously interrupted transaction.
+   * Called only after the wallet is unlocked and resume dependencies are
+   * registered.
+   * Returns the final on-chain hash on success; throws on failure.
+   */
+  resume?: (request: PayStrategyResumeRequest) => Promise<{
+    transactionHash?: Hex;
+  }>;
 };
 
 /** Single fiat value in alternate currencies. */
@@ -847,11 +955,8 @@ export type UpdatePaymentTokenRequest = {
   /** ID of the transaction to update. */
   transactionId: string;
 
-  /** Address of the new payment token. */
-  tokenAddress: Hex;
-
-  /** Chain ID of the new payment token. */
-  chainId: Hex;
+  /** CAIP-19 asset type of the new payment token. */
+  assetId: CaipAssetType;
 };
 
 /** Request to update fiat payment state for a transaction. */

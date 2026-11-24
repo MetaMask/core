@@ -1,4 +1,5 @@
 import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { generateKeyPair, getPublicKey, sign, verify } from './ed25519.js';
 import * as random from './random.js';
@@ -25,7 +26,7 @@ const rfcSignature = hexToBytes(
 
 describe('generateKeyPair', () => {
   it('uses 32 random bytes as the private key and derives the public key from it', async () => {
-    const getRandomBytesSpy = jest
+    const getRandomBytesSpy = vi
       .spyOn(random, 'getRandomBytes')
       .mockReturnValueOnce(rfcPrivateKey);
 

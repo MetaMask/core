@@ -12,6 +12,7 @@ export const seedlessOnboardingController: InitializationConfiguration<
   SeedlessOnboardingControllerMessenger
 > = {
   name: 'SeedlessOnboardingController',
+  reference: SeedlessOnboardingController,
   init: ({ state, messenger, options }) =>
     new SeedlessOnboardingController({
       ...options,

@@ -4,6 +4,8 @@ import type * as HyperLiquidExchange from '@nktkas/hyperliquid/api/exchange';
 import type * as HyperLiquidSigning from '@nktkas/hyperliquid/signing';
 import { recoverTypedDataAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import {
   ARBITRUM_SEPOLIA_CHAIN_ID,
@@ -36,7 +38,7 @@ import {
 } from '../../helpers/serviceMocks.js';
 
 type SignerOverrides = {
-  signTypedData?: jest.Mock;
+  signTypedData?: Mock;
   isReady?: () => boolean;
   requiresSignatureConfirmation?: () => boolean;
   getChainId?: () => Promise<number>;
@@ -44,8 +46,8 @@ type SignerOverrides = {
 
 type Built = {
   service: HyperLiquidWalletService;
-  call: jest.SpyInstance;
-  signer: { signTypedData: jest.Mock; signPersonalMessage: jest.Mock };
+  call: MockInstance;
+  signer: { signTypedData: Mock; signPersonalMessage: Mock };
 };
 
 function buildService(
@@ -54,8 +56,8 @@ function buildService(
 ): Built {
   const signer = {
     signTypedData:
-      overrides.signTypedData ?? jest.fn().mockResolvedValue(MAIN_SIGNATURE),
-    signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
+      overrides.signTypedData ?? vi.fn().mockResolvedValue(MAIN_SIGNATURE),
+    signPersonalMessage: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady: overrides.isReady,
     requiresSignatureConfirmation: overrides.requiresSignatureConfirmation,
     getChainId: overrides.getChainId,
@@ -89,7 +91,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   it('propagates account signer rejections', async () => {
     const rejection = new Error('User rejected the request.');
     const { service } = buildService({
-      signTypedData: jest.fn().mockRejectedValue(rejection),
+      signTypedData: vi.fn().mockRejectedValue(rejection),
     });
 
     await expect(
@@ -102,7 +104,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     const hostError = new Error('Wallet is locked');
     const { service } = buildService({
       isReady: () => ready,
-      signTypedData: jest.fn(async () => {
+      signTypedData: vi.fn(async () => {
         ready = false;
         throw hostError;
       }),
@@ -167,7 +169,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   );
 
   it('signs user-signed actions for the chain the signer reports at signing time', async () => {
-    const getChainId = jest
+    const getChainId = vi
       .fn()
       .mockResolvedValueOnce(11155111)
       .mockResolvedValueOnce(42161);
@@ -179,7 +181,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
   });
 
   it('fails with KEYRING_LOCKED without asking for the chain when isReady returns false', async () => {
-    const getChainId = jest.fn().mockResolvedValue(11155111);
+    const getChainId = vi.fn().mockResolvedValue(11155111);
     const { service } = buildService({ getChainId, isReady: () => false });
 
     await expect(
@@ -193,7 +195,7 @@ describe('HyperLiquidWalletService with accountSigner', () => {
     const hostError = new Error('Wallet disconnected');
     const { service } = buildService({
       isReady: () => ready,
-      getChainId: jest.fn(async () => {
+      getChainId: vi.fn(async () => {
         ready = false;
         throw hostError;
       }),
@@ -221,19 +223,19 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   const { address: mainAddress } = createMockEvmAccount();
   function buildAdapter(agentAvailable = true): {
     adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
-    resolveAgent: jest.Mock;
-    agentSign: jest.Mock;
-    mainSign: jest.Mock;
-    call: jest.SpyInstance;
+    resolveAgent: Mock;
+    agentSign: Mock;
+    mainSign: Mock;
+    call: MockInstance;
     selectAccount: (address: `0x${string}`) => void;
   } {
     const signer = {
-      signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
-      signPersonalMessage: jest.fn(),
+      signTypedData: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
+      signPersonalMessage: vi.fn(),
     };
     const { messenger, call, selectAccount } = createKeyringlessMessenger();
-    const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
-    const resolveAgent = jest
+    const agentSign = vi.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const resolveAgent = vi
       .fn()
       .mockResolvedValue(
         agentAvailable
@@ -264,8 +266,8 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   it('resolves agents through the resolver given to the adapter instead of the service one', async () => {
     const { resolveAgent } = buildAdapter();
     const { messenger } = createKeyringlessMessenger();
-    const adapterAgentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
-    const adapterResolveAgent = jest.fn().mockResolvedValue({
+    const adapterAgentSign = vi.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const adapterResolveAgent = vi.fn().mockResolvedValue({
       address: AGENT_ADDRESS,
       signTypedData: adapterAgentSign,
     });
@@ -273,8 +275,8 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
       {
         ...createMockInfrastructure(),
         accountSigner: {
-          signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
-          signPersonalMessage: jest.fn(),
+          signTypedData: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
+          signPersonalMessage: vi.fn(),
         },
       },
       messenger,
@@ -373,11 +375,11 @@ describe('HyperLiquidWalletService wallet adapter with an agent', () => {
   });
 
   it('signs L1 actions with the agent while the main signer is not ready', async () => {
-    const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const agentSign = vi.fn().mockResolvedValue(AGENT_SIGNATURE);
     const { messenger } = createKeyringlessMessenger();
     const signer = {
-      signTypedData: jest.fn(),
-      signPersonalMessage: jest.fn(),
+      signTypedData: vi.fn(),
+      signPersonalMessage: vi.fn(),
       isReady: (): boolean => false,
     };
     const adapter = new HyperLiquidWalletService(
@@ -422,11 +424,11 @@ describe('HyperLiquidWalletService wallet adapter with an agent and a keyring', 
   const { address: mainAddress } = createMockEvmAccount();
   function buildKeyringAdapter(): {
     adapter: ReturnType<HyperLiquidWalletService['createWalletAdapter']>;
-    agentSign: jest.Mock;
-    call: jest.SpyInstance;
+    agentSign: Mock;
+    call: MockInstance;
   } {
     const { messenger, call } = createKeyringMessenger(MAIN_SIGNATURE);
-    const agentSign = jest.fn().mockResolvedValue(AGENT_SIGNATURE);
+    const agentSign = vi.fn().mockResolvedValue(AGENT_SIGNATURE);
     const service = new HyperLiquidWalletService(
       createMockInfrastructure(),
       messenger,
@@ -497,11 +499,11 @@ describeWithSdk(
     let signing: typeof HyperLiquidSigning;
     let exchange: typeof HyperLiquidExchange;
 
-    beforeAll(() => {
-      signing = jest.requireActual<typeof HyperLiquidSigning>(
+    beforeAll(async () => {
+      signing = await vi.importActual<typeof HyperLiquidSigning>(
         '@nktkas/hyperliquid/signing',
       );
-      exchange = jest.requireActual<typeof HyperLiquidExchange>(
+      exchange = await vi.importActual<typeof HyperLiquidExchange>(
         '@nktkas/hyperliquid/api/exchange',
       );
     });
@@ -543,7 +545,7 @@ describeWithSdk(
         messenger,
         { isTestnet: true, resolveAgent },
       );
-      const agentSign = jest.spyOn(agentAccount, 'signTypedData');
+      const agentSign = vi.spyOn(agentAccount, 'signTypedData');
       return {
         adapter: service.createWalletAdapter(),
         signatures,
@@ -614,7 +616,7 @@ describeWithSdk(
     it('sends the r value of the agent signature as the agent signed it', async () => {
       const { adapter, agentSignatures } = buildSdkAdapter();
       // The exchange endpoint, answering the way the venue does.
-      const request = jest.fn().mockResolvedValue({
+      const request = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { type: 'cancel', data: { statuses: ['success'] } },
       });
@@ -641,7 +643,7 @@ describeWithSdk(
         async () => 11155111,
       );
       // The exchange endpoint, answering the way the venue does.
-      const request = jest
+      const request = vi
         .fn()
         .mockResolvedValue({ status: 'ok', response: { type: 'default' } });
 

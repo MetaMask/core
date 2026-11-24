@@ -1,3 +1,6 @@
+import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { ListKeys, ListNames } from './PhishingController.js';
 import type { PhishingListState } from './PhishingController.js';
 import type { TokenScanResultType } from './types.js';
@@ -84,15 +87,12 @@ const exampleRemoveDiff = {
 
 describe('fetchTimeNow', () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
@@ -100,7 +100,7 @@ describe('fetchTimeNow', () => {
 
 describe('applyDiffs', () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('adds a valid addition diff to the state then sets lastUpdated to be the time of the latest diff', () => {
@@ -130,10 +130,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -145,10 +142,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if the removal diff is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -170,10 +164,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -188,10 +179,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    jest.useFakeTimers({
-      doNotFake: ['nextTick', 'queueMicrotask'],
-      now: testTime,
-    });
+    vi.useFakeTimers({ now: testTime });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -565,10 +553,10 @@ describe('domainToParts', () => {
 });
 
 describe('processConfigs', () => {
-  let consoleErrorMock: jest.SpyInstance;
+  let consoleErrorMock: MockInstance;
 
   beforeEach(() => {
-    consoleErrorMock = jest.spyOn(console, 'error');
+    consoleErrorMock = vi.spyOn(console, 'error');
   });
 
   afterEach(() => {
@@ -727,10 +715,12 @@ describe('processConfigs', () => {
 });
 
 describe('processDomainList', () => {
-  let consoleWarnMock: jest.SpyInstance;
+  let consoleWarnMock: MockInstance;
 
   beforeEach(() => {
-    consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation();
+    consoleWarnMock = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -1339,7 +1329,7 @@ describe('isAddressScanSupportedChainId', () => {
 
 describe('splitCacheHits', () => {
   const mockCache = {
-    get: jest.fn(),
+    get: vi.fn(),
   };
 
   beforeEach(() => {

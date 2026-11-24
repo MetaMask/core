@@ -1,5 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
+  doesLegendOwnLayoutSettle,
+  getActiveStudies,
   getCurrentResolution,
   getOhlcvData,
   getOhlcvGeneration,
@@ -81,7 +86,7 @@ describe('handleSetOHLCVData', () => {
   });
 
   it('fires the first-data callback exactly once when no widget exists', () => {
-    const callback = jest.fn();
+    const callback = vi.fn();
     onFirstOhlcvData(callback);
     handleSetOHLCVData({ data: oneMinuteApart(2) });
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -89,14 +94,12 @@ describe('handleSetOHLCVData', () => {
   });
 
   it('calls chart.resetData when widget is ready and resolution unchanged', () => {
-    const resetData = jest.fn();
-    const setResolution = jest.fn();
-    const onDataLoaded = jest
+    const resetData = vi.fn();
+    const setResolution = vi.fn();
+    const onDataLoaded = vi
       .fn()
-      .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() });
-    const getTimeScale = jest
-      .fn()
-      .mockReturnValue({ setRightOffset: jest.fn() });
+      .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset: vi.fn() });
     const chart = {
       resetData,
       setResolution,
@@ -116,17 +119,15 @@ describe('handleSetOHLCVData', () => {
   });
 
   it('calls setResolution when the detected resolution changes', () => {
-    const resetData = jest.fn();
+    const resetData = vi.fn();
     let setResCb: () => void = () => undefined;
-    const setResolution = jest.fn().mockImplementation((_res, callback) => {
+    const setResolution = vi.fn().mockImplementation((_res, callback) => {
       setResCb = callback;
     });
-    const onDataLoaded = jest
+    const onDataLoaded = vi
       .fn()
-      .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() });
-    const getTimeScale = jest
-      .fn()
-      .mockReturnValue({ setRightOffset: jest.fn() });
+      .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() });
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset: vi.fn() });
     const chart = {
       resetData,
       setResolution,
@@ -154,63 +155,51 @@ describe('handleSetOHLCVData', () => {
     expect(getTimeScale).toHaveBeenCalled();
   });
 
-  it('ignores stale setResolution callback when a newer interval arrives', () => {
-    const resetData = jest.fn();
-    const setResCbs: (() => void)[] = [];
-    const setResolution = jest
-      .fn()
-      .mockImplementation((_res: string, callback: () => void) => {
-        setResCbs.push(callback);
-      });
-    const onDataLoaded = jest
-      .fn()
-      .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() });
-    const getTimeScale = jest
-      .fn()
-      .mockReturnValue({ setRightOffset: jest.fn() });
+  it('releases the visible-range pin via setRightOffset before switching resolution', () => {
+    const setRightOffset = vi.fn();
+    const setResolution = vi.fn();
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
-      resetData,
+      resetData: vi.fn(),
       setResolution,
-      onDataLoaded,
+      onDataLoaded: vi
+        .fn()
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
       getTimeScale,
     } as unknown as TVActiveChart;
 
+    // Prime resolution at "1" (60s spacing).
     handleSetOHLCVData({ data: oneMinuteApart(2) });
     setWidget({
       activeChart: () => chart,
     } as unknown as TVChartingLibraryWidget);
     setChartReady(true);
 
-    // Switch to 5m
+    // Switch to 5m (300s spacing).
     handleSetOHLCVData({
       data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
     });
-    // Switch again to 15m before first callback fires
-    handleSetOHLCVData({
-      data: Array.from({ length: 3 }, (_, i) => bar(i * 900_000)),
-    });
 
-    expect(setResCbs).toHaveLength(2);
-
-    // Fire the stale 5m callback — should be ignored (no side-effects)
-    setResCbs[0]();
-    expect(getTimeScale).not.toHaveBeenCalled();
-
-    // Fire the current 15m callback — should proceed
-    setResCbs[1]();
-    expect(getTimeScale).toHaveBeenCalled();
+    // The absolute visible-range pin is released (setRightOffset) BEFORE
+    // setResolution so TradingView preserves the visible bar count rather than
+    // the inherited wide time span (the pagination storm).
+    expect(setRightOffset).toHaveBeenCalledWith(2);
+    expect(setResolution).toHaveBeenCalledWith('5', expect.any(Function));
+    const releaseOrder = setRightOffset.mock.invocationCallOrder[0];
+    const switchOrder = setResolution.mock.invocationCallOrder[0];
+    expect(releaseOrder).toBeLessThan(switchOrder);
   });
 
   it('calls widget.resetCache before resetData on same-resolution reload', () => {
-    const resetCache = jest.fn();
-    const resetData = jest.fn();
+    const resetCache = vi.fn();
+    const resetData = vi.fn();
     const chart = {
       resetData,
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -262,23 +251,23 @@ describe('applyVisibleRange', () => {
 
   it('calls setVisibleRange after onDataLoaded fires when visibleFromMs is set', () => {
     let subscribedCb: (() => void) | undefined;
-    const unsubscribe = jest.fn();
-    const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+    const unsubscribe = vi.fn();
+    const onDataLoaded = vi.fn().mockReturnValue({
+      subscribe: vi.fn((_scope: unknown, callback: () => void) => {
         subscribedCb = callback;
       }),
       unsubscribe,
     });
-    const setVisibleRange = jest.fn();
-    const setRightOffset = jest.fn();
-    const getTimeScale = jest.fn().mockReturnValue({ setRightOffset });
+    const setVisibleRange = vi.fn();
+    const setRightOffset = vi.fn();
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
       onDataLoaded,
       getTimeScale,
       setVisibleRange,
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     // Prime resolution with first batch.
@@ -313,21 +302,21 @@ describe('applyVisibleRange', () => {
   });
 
   it('unsubscribes from onDataLoaded once loaded', () => {
-    const unsubscribeFn = jest.fn();
+    const unsubscribeFn = vi.fn();
     let subscribedCb: (() => void) | undefined;
-    const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+    const onDataLoaded = vi.fn().mockReturnValue({
+      subscribe: vi.fn((_scope: unknown, callback: () => void) => {
         subscribedCb = callback;
       }),
       unsubscribe: unsubscribeFn,
     });
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
       onDataLoaded,
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      setVisibleRange: jest.fn(),
-      getPanes: jest.fn().mockReturnValue([]),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange: vi.fn(),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -346,20 +335,20 @@ describe('applyVisibleRange', () => {
 
   it('skips setVisibleRange when generation changed between subscribe and load', () => {
     let subscribedCb: (() => void) | undefined;
-    const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+    const onDataLoaded = vi.fn().mockReturnValue({
+      subscribe: vi.fn((_scope: unknown, callback: () => void) => {
         subscribedCb = callback;
       }),
-      unsubscribe: jest.fn(),
+      unsubscribe: vi.fn(),
     });
-    const setVisibleRange = jest.fn();
+    const setVisibleRange = vi.fn();
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
       onDataLoaded,
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
       setVisibleRange,
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -389,16 +378,16 @@ describe('applyVisibleRange', () => {
   });
 
   it('falls back to setRightOffset(2) when visibleFromMs is null', () => {
-    const setRightOffset = jest.fn();
-    const getTimeScale = jest.fn().mockReturnValue({ setRightOffset });
+    const setRightOffset = vi.fn();
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
       getTimeScale,
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -412,20 +401,20 @@ describe('applyVisibleRange', () => {
   });
 
   it('reports error when setRightOffset throws', () => {
-    window.ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: vi.fn() };
 
-    const setRightOffset = jest.fn().mockImplementation(() => {
+    const setRightOffset = vi.fn().mockImplementation(() => {
       throw new Error('setRightOffset boom');
     });
-    const getTimeScale = jest.fn().mockReturnValue({ setRightOffset });
+    const getTimeScale = vi.fn().mockReturnValue({ setRightOffset });
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
       getTimeScale,
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -438,7 +427,7 @@ describe('applyVisibleRange', () => {
     expect(() => handleSetOHLCVData({ data: oneMinuteApart(3) })).not.toThrow();
 
     const errorCalls = (
-      window.ReactNativeWebView?.postMessage as jest.Mock
+      window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]);
       return (
@@ -450,25 +439,25 @@ describe('applyVisibleRange', () => {
   });
 
   it('reports error when setVisibleRange throws inside onDataLoaded callback', () => {
-    window.ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: vi.fn() };
 
     let subscribedCb: (() => void) | undefined;
-    const onDataLoaded = jest.fn().mockReturnValue({
-      subscribe: jest.fn((_scope: unknown, callback: () => void) => {
+    const onDataLoaded = vi.fn().mockReturnValue({
+      subscribe: vi.fn((_scope: unknown, callback: () => void) => {
         subscribedCb = callback;
       }),
-      unsubscribe: jest.fn(),
+      unsubscribe: vi.fn(),
     });
-    const setVisibleRange = jest.fn().mockImplementation(() => {
+    const setVisibleRange = vi.fn().mockImplementation(() => {
       throw new Error('setVisibleRange boom');
     });
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
       onDataLoaded,
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
       setVisibleRange,
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -486,7 +475,7 @@ describe('applyVisibleRange', () => {
     }).not.toThrow();
 
     const errorCalls = (
-      window.ReactNativeWebView?.postMessage as jest.Mock
+      window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]) as {
         type: string;
@@ -512,17 +501,17 @@ describe('resetMainPriceScaleAutoScale (via handleSetOHLCVData)', () => {
   });
 
   it('calls priceScale.setAutoScale(true) via the pane API', () => {
-    const setAutoScale = jest.fn();
+    const setAutoScale = vi.fn();
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([
         {
-          getMainSourcePriceScale: jest.fn().mockReturnValue({ setAutoScale }),
+          getMainSourcePriceScale: vi.fn().mockReturnValue({ setAutoScale }),
         },
       ]),
     } as unknown as TVActiveChart;
@@ -539,12 +528,12 @@ describe('resetMainPriceScaleAutoScale (via handleSetOHLCVData)', () => {
 
   it('is a no-op when getPanes is not a function', () => {
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
       // getPanes is missing
     } as unknown as TVActiveChart;
 
@@ -559,16 +548,16 @@ describe('resetMainPriceScaleAutoScale (via handleSetOHLCVData)', () => {
 
   it('is a no-op when the main pane has no price scale', () => {
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi
         .fn()
         .mockReturnValue([
-          { getMainSourcePriceScale: jest.fn().mockReturnValue(null) },
+          { getMainSourcePriceScale: vi.fn().mockReturnValue(null) },
         ]),
     } as unknown as TVActiveChart;
 
@@ -583,13 +572,13 @@ describe('resetMainPriceScaleAutoScale (via handleSetOHLCVData)', () => {
 
   it('is a no-op when panes array is empty', () => {
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([]),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -613,25 +602,25 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
   });
 
   it('posts CHART_LAYOUT_SETTLED via requestAnimationFrame', () => {
-    const postMessage = jest.fn();
+    const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
 
     const rafCallbacks: FrameRequestCallback[] = [];
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((frameCallback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (frameCallback: FrameRequestCallback) => {
         rafCallbacks.push(frameCallback);
         return rafCallbacks.length;
-      });
+      },
+    );
 
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([]),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -655,27 +644,27 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     });
     expect(settledCalls.length).toBeGreaterThanOrEqual(1);
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
+    (window.requestAnimationFrame as Mock).mockRestore();
   });
 
   it('falls back to setTimeout when requestAnimationFrame throws', () => {
-    const postMessage = jest.fn();
+    const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
 
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
-    jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
       throw new Error('rAF not available');
     });
 
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([]),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -685,7 +674,7 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     setChartReady(true);
     handleSetOHLCVData({ data: oneMinuteApart(3) });
 
-    jest.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
 
     const settledCalls = postMessage.mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]);
@@ -693,30 +682,30 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     });
     expect(settledCalls.length).toBeGreaterThanOrEqual(1);
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
-    jest.useRealTimers();
+    (window.requestAnimationFrame as Mock).mockRestore();
+    vi.useRealTimers();
   });
 
   it('does not post CHART_LAYOUT_SETTLED when widget is not ready', () => {
-    const postMessage = jest.fn();
+    const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
 
     const rafCallbacks: FrameRequestCallback[] = [];
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((frameCallback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (frameCallback: FrameRequestCallback) => {
         rafCallbacks.push(frameCallback);
         return rafCallbacks.length;
-      });
+      },
+    );
 
     const chart = {
-      resetData: jest.fn(),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([]),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -737,7 +726,95 @@ describe('emitLayoutSettled (via handleSetOHLCVData)', () => {
     });
     expect(settledCalls).toHaveLength(0);
 
-    (window.requestAnimationFrame as jest.Mock).mockRestore();
+    (window.requestAnimationFrame as Mock).mockRestore();
+  });
+
+  describe('on resolution switch', () => {
+    const setUpResolutionSwitch = (): {
+      postMessageMock: Mock;
+      runSetResolutionCallback: () => void;
+      flushRaf: () => void;
+    } => {
+      const postMessageMock = vi.fn();
+      window.ReactNativeWebView = { postMessage: postMessageMock };
+
+      const rafCallbacks: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+        (frameCallback: FrameRequestCallback) => {
+          rafCallbacks.push(frameCallback);
+          return rafCallbacks.length;
+        },
+      );
+
+      let setResCb: () => void = () => undefined;
+      const chart = {
+        resetData: vi.fn(),
+        setResolution: vi.fn().mockImplementation((_res, callback) => {
+          setResCb = callback;
+        }),
+        onDataLoaded: vi
+          .fn()
+          .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+        getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+        getPanes: vi.fn().mockReturnValue([]),
+      } as unknown as TVActiveChart;
+
+      // Prime resolution "1", then switch to "5".
+      handleSetOHLCVData({ data: oneMinuteApart(3) });
+      setWidget({
+        activeChart: () => chart,
+      } as unknown as TVChartingLibraryWidget);
+      setChartReady(true);
+
+      return {
+        postMessageMock,
+        runSetResolutionCallback: () => {
+          handleSetOHLCVData({
+            data: Array.from({ length: 3 }, (_, i) => bar(i * 300_000)),
+          });
+          setResCb();
+        },
+        flushRaf: () => {
+          // Drain nested rAFs (emitLayoutSettled uses 2×rAF).
+          while (rafCallbacks.length > 0) {
+            rafCallbacks.shift()?.(0);
+          }
+        },
+      };
+    };
+
+    const settledCount = (postMessageMock: Mock): number =>
+      postMessageMock.mock.calls.filter((call: string[]) => {
+        const parsed = JSON.parse(call[0]) as { type: string };
+        return parsed.type === 'CHART_LAYOUT_SETTLED';
+      }).length;
+
+    it('defers CHART_LAYOUT_SETTLED to the legend when studies are active', () => {
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+      getActiveStudies().set('RSI', 'study-1');
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(true);
+      expect(settledCount(postMessageMock)).toBe(0);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
+
+    it('posts CHART_LAYOUT_SETTLED from ingestion when no studies are active', () => {
+      const { postMessageMock, runSetResolutionCallback, flushRaf } =
+        setUpResolutionSwitch();
+
+      runSetResolutionCallback();
+      flushRaf();
+
+      expect(doesLegendOwnLayoutSettle()).toBe(false);
+      expect(settledCount(postMessageMock)).toBe(1);
+
+      (window.requestAnimationFrame as Mock).mockRestore();
+    });
   });
 });
 
@@ -786,18 +863,18 @@ describe('error paths', () => {
   });
 
   it('reports error and does not throw when chart.resetData() throws', () => {
-    window.ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: vi.fn() };
 
     const chart = {
-      resetData: jest.fn().mockImplementation(() => {
+      resetData: vi.fn().mockImplementation(() => {
         throw new Error('resetData kaboom');
       }),
-      setResolution: jest.fn(),
-      onDataLoaded: jest
+      setResolution: vi.fn(),
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({ setRightOffset: jest.fn() }),
-      getPanes: jest.fn().mockReturnValue([]),
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     handleSetOHLCVData({ data: oneMinuteApart(3) });
@@ -809,7 +886,7 @@ describe('error paths', () => {
     expect(() => handleSetOHLCVData({ data: oneMinuteApart(3) })).not.toThrow();
 
     const errorCalls = (
-      window.ReactNativeWebView?.postMessage as jest.Mock
+      window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]);
       return (
@@ -821,9 +898,9 @@ describe('error paths', () => {
   });
 
   it('resets firstDataDelivered when firstDataCallback throws', () => {
-    window.ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: vi.fn() };
 
-    const failingCb = jest.fn().mockImplementation(() => {
+    const failingCb = vi.fn().mockImplementation(() => {
       throw new Error('firstDataCallback boom');
     });
     onFirstOhlcvData(failingCb);
@@ -833,7 +910,7 @@ describe('error paths', () => {
     expect(failingCb).toHaveBeenCalledTimes(1);
 
     const errorCalls = (
-      window.ReactNativeWebView?.postMessage as jest.Mock
+      window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]);
       return (
@@ -852,24 +929,24 @@ describe('error paths', () => {
   });
 
   it('reports error when setRightOffset throws inside setResolution callback', () => {
-    window.ReactNativeWebView = { postMessage: jest.fn() };
+    window.ReactNativeWebView = { postMessage: vi.fn() };
 
     let setResCb: () => void = () => undefined;
     const chart = {
-      setResolution: jest
+      setResolution: vi
         .fn()
         .mockImplementation((_res: string, callback: () => void) => {
           setResCb = callback;
         }),
-      onDataLoaded: jest
+      onDataLoaded: vi
         .fn()
-        .mockReturnValue({ subscribe: jest.fn(), unsubscribe: jest.fn() }),
-      getTimeScale: jest.fn().mockReturnValue({
-        setRightOffset: jest.fn().mockImplementation(() => {
+        .mockReturnValue({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
+      getTimeScale: vi.fn().mockReturnValue({
+        setRightOffset: vi.fn().mockImplementation(() => {
           throw new Error('setRightOffset inside setResolution');
         }),
       }),
-      getPanes: jest.fn().mockReturnValue([]),
+      getPanes: vi.fn().mockReturnValue([]),
     } as unknown as TVActiveChart;
 
     // First batch primes resolution at "1" (60s spacing).
@@ -888,7 +965,7 @@ describe('error paths', () => {
     expect(() => setResCb()).not.toThrow();
 
     const errorCalls = (
-      window.ReactNativeWebView?.postMessage as jest.Mock
+      window.ReactNativeWebView?.postMessage as Mock
     ).mock.calls.filter((call: string[]) => {
       const parsed = JSON.parse(call[0]);
       return (
@@ -897,5 +974,91 @@ describe('error paths', () => {
       );
     });
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// atomicIntervalWindow (opt-in)
+// ---------------------------------------------------------------------------
+describe('atomicIntervalWindow (opt-in)', () => {
+  beforeEach(() => {
+    _resetStateForTests();
+    _resetOhlcvIngestionForTests();
+    delete window.ReactNativeWebView;
+  });
+
+  it('clamps the visible-range pin to the oldest bar when opted in', () => {
+    let subscribedCb: (() => void) | undefined;
+    const setVisibleRange = vi.fn();
+    const chart = {
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi.fn().mockReturnValue({
+        subscribe: vi.fn((_scope: unknown, callback: () => void) => {
+          subscribedCb = callback;
+        }),
+        unsubscribe: vi.fn(),
+      }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange,
+      getPanes: vi.fn().mockReturnValue([]),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(3) }); // oldest bar at t=0
+    setWidget({
+      activeChart: () => chart,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    // Same-resolution reload with opt-in + a window older than the oldest bar.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      atomicIntervalWindow: true,
+      visibleFromMs: -600_000,
+    });
+
+    expect(subscribedCb).toBeDefined();
+    (subscribedCb as () => void)();
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    const [clampedRange] = setVisibleRange.mock.calls[0] as [{ from: number }];
+    // Clamped up to the oldest loaded bar (t=0).
+    expect(clampedRange.from).toBe(0);
+  });
+
+  it('does not clamp the visible-range pin when not opted in (today\u2019s behavior)', () => {
+    let subscribedCb: (() => void) | undefined;
+    const setVisibleRange = vi.fn();
+    const chart = {
+      resetData: vi.fn(),
+      setResolution: vi.fn(),
+      onDataLoaded: vi.fn().mockReturnValue({
+        subscribe: vi.fn((_scope: unknown, callback: () => void) => {
+          subscribedCb = callback;
+        }),
+        unsubscribe: vi.fn(),
+      }),
+      getTimeScale: vi.fn().mockReturnValue({ setRightOffset: vi.fn() }),
+      setVisibleRange,
+      getPanes: vi.fn().mockReturnValue([]),
+    } as unknown as TVActiveChart;
+
+    handleSetOHLCVData({ data: oneMinuteApart(3) }); // oldest bar at t=0
+    setWidget({
+      activeChart: () => chart,
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    // Same-resolution reload, no opt-in, window older than the oldest bar.
+    handleSetOHLCVData({
+      data: oneMinuteApart(3),
+      visibleFromMs: -600_000,
+    });
+
+    expect(subscribedCb).toBeDefined();
+    (subscribedCb as () => void)();
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    const [rawRange] = setVisibleRange.mock.calls[0] as [{ from: number }];
+    // Unclamped: the raw visibleFromMs is used (-600_000 ms -> -600 s).
+    expect(rawRange.from).toBe(Math.floor(-600_000 / 1000));
   });
 });

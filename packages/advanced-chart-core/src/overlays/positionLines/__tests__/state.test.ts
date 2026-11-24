@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import type { TVShapeId } from '../../../core/types.js';
 import {
   getPositionShapeIds,

@@ -1,4 +1,6 @@
 import log from 'loglevel';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import {
   mockEndpointDeletePushNotificationLinks,
@@ -14,17 +16,16 @@ import {
 import type { RegToken } from './services.js';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
-  jest.spyOn(log, 'error').mockImplementation(jest.fn());
+const mockErrorLog = (): MockInstance =>
+  vi.spyOn(log, 'error').mockImplementation(vi.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 const MOCK_JWT = 'MOCK_JWT';
 
-type CreateRegTokenMock = jest.Mock<
-  Promise<string | null>,
-  [PushNotificationEnv]
+type CreateRegTokenMock = Mock<
+  (env: PushNotificationEnv) => Promise<string | null>
 >;
 
 type ArrangeMocksParams<Platform extends RegToken['platform']> = {
@@ -77,9 +78,7 @@ describe('NotificationServicesPushController Services', () => {
     });
 
     it('should return false if an error is thrown', async () => {
-      jest
-        .spyOn(global, 'fetch')
-        .mockRejectedValue(new Error('MOCK FAIL FETCH'));
+      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('MOCK FAIL FETCH'));
       const result = await act();
       expect(result).toBe(false);
     });
@@ -114,8 +113,8 @@ describe('NotificationServicesPushController Services', () => {
         typeof mockEndpointUpdatePushNotificationLinks
       >[1];
     }): ArrangeMocksResult => {
-      const createRegToken: CreateRegTokenMock = jest
-        .fn<Promise<string | null>, [PushNotificationEnv]>()
+      const createRegToken: CreateRegTokenMock = vi
+        .fn<(env: PushNotificationEnv) => Promise<string | null>>()
         .mockResolvedValue(MOCK_NEW_REG_TOKEN);
       const params = {
         bearerToken: MOCK_JWT,
@@ -267,9 +266,7 @@ describe('NotificationServicesPushController Services', () => {
     });
 
     it('should return false if an error is thrown', async () => {
-      jest
-        .spyOn(global, 'fetch')
-        .mockRejectedValue(new Error('MOCK FAIL FETCH'));
+      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('MOCK FAIL FETCH'));
       const result = await act();
       expect(result).toBe(false);
     });
@@ -281,7 +278,7 @@ describe('NotificationServicesPushController Services', () => {
     const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,
-        deleteRegToken: jest.fn().mockResolvedValue(true),
+        deleteRegToken: vi.fn().mockResolvedValue(true),
         env: {} as PushNotificationEnv,
       };
 

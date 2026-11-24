@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { canPerformOrderSyncing } from './sync-utils.js';
 import type { OrderSyncingOptions } from './types.js';
 
@@ -11,8 +13,8 @@ describe('order-syncing/sync-utils', () => {
       throwOnMessengerCall = false,
     } = {}): { options: OrderSyncingOptions } => {
       const options: OrderSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockImplementation((action: string) => {
+        getMessenger: vi.fn().mockReturnValue({
+          call: vi.fn().mockImplementation((action: string) => {
             if (throwOnMessengerCall) {
               throw new Error('action not registered');
             }
@@ -25,15 +27,15 @@ describe('order-syncing/sync-utils', () => {
             return null;
           }),
         }),
-        getRampsControllerInstance: jest.fn().mockReturnValue({
+        getRampsControllerInstance: vi.fn().mockReturnValue({
           isOrderSyncingInProgress,
           state: { orders: [] },
-          setIsOrderSyncingInProgress: jest.fn(),
-          setIsApplyingOrderSyncChanges: jest.fn(),
-          addOrder: jest.fn(),
-          removeOrder: jest.fn(),
-          getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
-          acknowledgePendingRemoteDeletes: jest.fn(),
+          setIsOrderSyncingInProgress: vi.fn(),
+          setIsApplyingOrderSyncChanges: vi.fn(),
+          addOrder: vi.fn(),
+          removeOrder: vi.fn(),
+          getPendingRemoteDeletes: vi.fn().mockReturnValue([]),
+          acknowledgePendingRemoteDeletes: vi.fn(),
         }),
       };
 
@@ -58,8 +60,8 @@ describe('order-syncing/sync-utils', () => {
 
     it('defaults isRampsSyncingEnabled to true when absent from User Storage state', () => {
       const options: OrderSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockImplementation((action: string) => {
+        getMessenger: vi.fn().mockReturnValue({
+          call: vi.fn().mockImplementation((action: string) => {
             if (action === 'UserStorageController:getState') {
               return { isBackupAndSyncEnabled: true };
             }
@@ -69,15 +71,15 @@ describe('order-syncing/sync-utils', () => {
             return null;
           }),
         }),
-        getRampsControllerInstance: jest.fn().mockReturnValue({
+        getRampsControllerInstance: vi.fn().mockReturnValue({
           isOrderSyncingInProgress: false,
           state: { orders: [] },
-          setIsOrderSyncingInProgress: jest.fn(),
-          setIsApplyingOrderSyncChanges: jest.fn(),
-          addOrder: jest.fn(),
-          removeOrder: jest.fn(),
-          getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
-          acknowledgePendingRemoteDeletes: jest.fn(),
+          setIsOrderSyncingInProgress: vi.fn(),
+          setIsApplyingOrderSyncChanges: vi.fn(),
+          addOrder: vi.fn(),
+          removeOrder: vi.fn(),
+          getPendingRemoteDeletes: vi.fn().mockReturnValue([]),
+          acknowledgePendingRemoteDeletes: vi.fn(),
         }),
       };
 

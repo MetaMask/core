@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { bytesToBase64URL, base64URLToBytes } from './encoding.js';
 
 describe('encoding', () => {

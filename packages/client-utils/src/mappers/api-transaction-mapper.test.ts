@@ -1,10 +1,23 @@
+import type {
+  V1TransactionByHashResponse,
+  V5TransactionRecord,
+} from '@metamask/core-backend';
+import { describe, expect, it, vi } from 'vitest';
+
 import { apiTransactionFixtures } from '../../test/fixtures/api-transactions.js';
-import { mapApiTransaction } from './api-transaction-mapper.js';
+import {
+  toV5TransactionRecord,
+  v5ApiTransactionFixtures,
+} from '../../test/fixtures/v5-api-transactions.js';
+import {
+  mapApiTransaction,
+  mapV5ApiTransaction,
+} from './api-transaction-mapper.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 
 // Mock known-token lookup with the deterministic test table in `test/`.
-jest.mock('./helpers/token-metadata', () => ({
-  getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')
+vi.mock(import('./helpers/token-metadata.js'), async () => ({
+  getKnownTokenMetadata: (await import('../../test/test-helpers.js'))
     .getKnownTokenMetadata,
 }));
 
@@ -798,6 +811,35 @@ describe('mapApiTransaction', () => {
     expect(token).toBeUndefined();
   });
 
+  it('maps a Polygon smart-account batch execute to a contractInteraction with fees', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.polygonSmartAccountBatchExecute,
+    );
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      chainId: 'eip155:137',
+      status: 'success',
+      hash: '0xpolygonsmartaccountbatchexecute',
+      data: {
+        from: subjectAddress,
+        to: subjectAddress,
+        methodId: '0xe9ae5c53',
+        transactionCategory: 'WITHDRAW',
+        fees: [
+          {
+            type: 'base',
+            amount: '214819023645917287',
+            decimals: 18,
+            assetType: 'native',
+            symbol: 'POL',
+            assetId: 'eip155:137/slip44:966',
+          },
+        ],
+      },
+    });
+  });
+
   it('maps the reported generic contract call to a contract interaction with its token amount', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsTheReportedGenericContractCall,
@@ -1255,6 +1297,205 @@ describe('mapApiTransaction', () => {
           symbol: 'USDT',
           assetType: 'erc20',
         },
+      },
+    });
+  });
+});
+
+describe('mapV5ApiTransaction', () => {
+  const { records } = v5ApiTransactionFixtures;
+
+  const parityCases = Object.entries(apiTransactionFixtures.mapArgs).flatMap(
+    ([name, mapArgs]) => {
+      const v1Transaction = mapArgs.transaction as V1TransactionByHashResponse;
+      const record = toV5TransactionRecord(
+        v1Transaction,
+        mapArgs.subjectAddress,
+      );
+
+      return record
+        ? [{ name, address: mapArgs.subjectAddress, v1Transaction, record }]
+        : [];
+    },
+  );
+
+  it.each(parityCases)(
+    'maps the v5 equivalent of the $name fixture like the V1 mapper',
+    ({ address, v1Transaction, record }) => {
+      expect(mapV5ApiTransaction({ transaction: record })).toStrictEqual(
+        mapApiTransaction({
+          subjectAddress: address,
+          transaction: v1Transaction,
+        }),
+      );
+    },
+  );
+
+  it('maps an NFT exchange without its NFT leg to a contract interaction', () => {
+    const item = mapV5ApiTransaction({
+      transaction: records.nftExchangeWethProceeds,
+    });
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      chainId: 'eip155:1',
+      status: 'success',
+      timestamp: 1793753903000,
+      hash: records.nftExchangeWethProceeds.tx.id,
+      data: {
+        transactionCategory: 'NFT_EXCHANGE',
+        token: {
+          direction: 'in',
+          amount: '5395500000000000000',
+          symbol: 'WETH',
+          assetType: 'erc20',
+          assetId: formatAddressToAssetId(wethContractAddress, 'eip155:1'),
+        },
+      },
+    });
+  });
+
+  it('maps a plain native receive when the API sends methodId null', () => {
+    const record = records.standardReceiveWithNullMethodId;
+    // The live API returns null here. V5Transaction.methodId is still
+    // `string | undefined`, so the null is only asserted in this test.
+    const transaction = {
+      ...record,
+      tx: { ...record.tx, methodId: null },
+    } as unknown as V5TransactionRecord;
+    const item = mapV5ApiTransaction({ transaction });
+
+    expect(item).toStrictEqual({
+      type: 'receive',
+      chainId: 'eip155:1',
+      status: 'success',
+      timestamp: 1793745131000,
+      hash: records.standardReceiveWithNullMethodId.tx.id,
+      data: {
+        from: '0xceb69f6342ece283b2f5c9088ff249b5d0ae66ea',
+        to: '0x020ca66c30bec2c4fe3861a94e4db4a498a35872',
+        token: {
+          direction: 'in',
+          amount: '25000000000000000000',
+          decimals: 18,
+          symbol: 'ETH',
+          assetId: 'eip155:1/slip44:60',
+          assetType: 'native',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '15400436779165',
+            decimals: 18,
+            symbol: 'ETH',
+            assetId: 'eip155:1/slip44:60',
+            assetType: 'native',
+          },
+        ],
+      },
+    });
+  });
+
+  it('treats eip155Internal transfers as internal native transfers', () => {
+    const item = mapV5ApiTransaction({
+      transaction: records.internalNativeReceive,
+    });
+
+    expect(item).toMatchObject({
+      type: 'receive',
+      data: {
+        token: {
+          direction: 'in',
+          amount: '5940000000000000000',
+          assetType: 'native',
+          assetId: 'eip155:1/slip44:60',
+        },
+        fees: undefined,
+      },
+    });
+  });
+
+  it('maps a failed transaction without a recipient', () => {
+    const item = mapV5ApiTransaction({
+      transaction: records.contractDeployment,
+    });
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      status: 'failed',
+      data: {
+        from: '0x020ca66c30bec2c4fe3861a94e4db4a498a35872',
+        to: '',
+        methodId: undefined,
+      },
+    });
+  });
+
+  it('maps a non-EVM native send using the API asset IDs', () => {
+    const item = mapV5ApiTransaction({ transaction: records.stellarPayment });
+
+    expect(item).toStrictEqual({
+      type: 'send',
+      chainId: 'stellar:pubnet',
+      status: 'success',
+      timestamp: 1714440000000,
+      hash: '8d0fstellarpayment',
+      data: {
+        from: 'GABCSUBJECT',
+        to: 'GDEFRECIPIENT',
+        token: {
+          direction: 'out',
+          amount: '10000000',
+          decimals: 7,
+          symbol: 'XLM',
+          assetId: 'stellar:pubnet/slip44:148',
+          assetType: 'native',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '100',
+            decimals: 7,
+            symbol: 'XLM',
+            assetId: 'stellar:pubnet/slip44:148',
+            assetType: 'native',
+          },
+        ],
+      },
+    });
+  });
+
+  it('maps a non-EVM token receive that is still pending', () => {
+    const item = mapV5ApiTransaction({
+      transaction: records.stellarTokenReceive,
+    });
+
+    expect(item).toStrictEqual({
+      type: 'receive',
+      chainId: 'stellar:pubnet',
+      status: 'pending',
+      timestamp: 1714440000000,
+      hash: '8d0fstellartoken',
+      data: {
+        from: 'GDEFSENDER',
+        to: 'GABCSUBJECT',
+        token: {
+          direction: 'in',
+          amount: '5000000',
+          decimals: 7,
+          symbol: 'USDC',
+          assetId:
+            'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+        },
+        fees: [
+          {
+            type: 'base',
+            amount: '100',
+            decimals: 7,
+            assetId: 'stellar:pubnet/slip44:148',
+            assetType: 'native',
+          },
+        ],
       },
     });
   });

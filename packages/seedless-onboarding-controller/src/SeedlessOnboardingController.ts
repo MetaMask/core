@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
@@ -18,10 +19,13 @@ import {
   ToprfSecureBackup,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
-import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
-import { managedNonce } from '@noble/ciphers/webcrypto';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToString,
+  stringToBytes,
+  concatBytes,
+} from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -30,11 +34,13 @@ import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
+  SeedlessIdentityMismatchSource,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
 } from './constants.js';
 import {
+  isIdentityMismatchError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
@@ -53,6 +59,7 @@ import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
+  SeedlessAuthData,
   SocialBackupsMetadata,
   RefreshJWTToken,
   RevokeRefreshToken,
@@ -72,6 +79,8 @@ import {
   deserializeVaultData,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  assertIdentityUnchangedAndTrackEvent,
+  assertIdTokenMismatchAndTrackEvent,
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
@@ -294,34 +303,33 @@ export class SeedlessOnboardingController<
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the authentication result.
    */
-  async authenticate(params: {
-    idTokens: string[];
-    accessToken: string;
-    metadataAccessToken: string;
-    authConnection: AuthConnection;
-    authConnectionId: string;
-    userId: string;
-    groupedAuthConnectionId?: string;
-    socialLoginEmail?: string;
-    refreshToken: string;
-    revokeToken?: string;
-    skipLock?: boolean;
-  }): Promise<AuthenticateResult> {
+  async authenticate(
+    params: SeedlessAuthData & { skipLock?: boolean },
+  ): Promise<AuthenticateResult> {
     const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
-      try {
-        const {
-          idTokens,
-          authConnectionId,
-          groupedAuthConnectionId,
-          userId,
-          authConnection,
-          socialLoginEmail,
-          refreshToken,
-          revokeToken,
-          accessToken,
-          metadataAccessToken,
-        } = params;
+      const {
+        idTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+        authConnection,
+        socialLoginEmail,
+        refreshToken,
+        revokeToken,
+        accessToken,
+        metadataAccessToken,
+      } = params;
 
+      // Fail fast if the idToken does not belong to the provided user, before
+      // making any network request. This detects caller-side inconsistencies
+      // (e.g. a userId sourced from a different login than the idTokens).
+      this.#assertIdTokenMismatchAndTrackEvent(
+        idTokens,
+        userId,
+        SeedlessIdentityMismatchSource.ToprfAuthenticate,
+      );
+
+      try {
         const authenticationResult = await this.toprfClient.authenticate({
           authConnectionId,
           userId,
@@ -417,8 +425,8 @@ export class SeedlessOnboardingController<
         // create a new vault with the resulting authentication data
         await this.#createNewVaultWithAuthData({
           password,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
 
@@ -646,8 +654,8 @@ export class SeedlessOnboardingController<
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
           await this.#createNewVaultWithAuthData({
             password,
-            rawToprfEncryptionKey: encKey,
-            rawToprfPwEncryptionKey: pwEncKey,
+            rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+            rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
           });
         }
@@ -702,8 +710,8 @@ export class SeedlessOnboardingController<
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: newPassword,
-          rawToprfEncryptionKey: newEncKey,
-          rawToprfPwEncryptionKey: newPwEncKey,
+          rawToprfEncryptionKey: newEncKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: newPwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: newAuthKeyPair,
         });
 
@@ -902,8 +910,8 @@ export class SeedlessOnboardingController<
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: globalPassword,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
 
@@ -976,7 +984,9 @@ export class SeedlessOnboardingController<
         maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
-      const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
+      const vaultKey = await this.#loadSeedlessEncryptionKey(
+        pwEncKey as Uint8Array<ArrayBuffer>,
+      );
 
       // accessToken before unlocking vault and flooding the state with values from the decrypted vault
       // it might be the new token set from the `refreshAuthTokens` method.
@@ -1238,13 +1248,14 @@ export class SeedlessOnboardingController<
    * @param keyringEncryptionKey - The keyring encryption key.
    */
   async #storeKeyringEncryptionKey(
-    encKey: Uint8Array,
+    encKey: Uint8Array<ArrayBuffer>,
     keyringEncryptionKey: string,
   ): Promise<void> {
-    const aes = managedNonce(gcm)(encKey);
-    const encryptedKeyringEncryptionKey = aes.encrypt(
-      utf8ToBytes(keyringEncryptionKey),
+    const { ciphertext, iv } = await encrypt(
+      encKey,
+      stringToBytes(keyringEncryptionKey),
     );
+    const encryptedKeyringEncryptionKey = concatBytes([iv, ciphertext]);
     this.update((state) => {
       state.encryptedKeyringEncryptionKey = bytesToBase64(
         encryptedKeyringEncryptionKey,
@@ -1258,13 +1269,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The keyring encryption key.
    */
-  async #loadKeyringEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadKeyringEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
     const encryptedPasswordBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const password = aes.decrypt(encryptedPasswordBytes);
-    return bytesToUtf8(password);
+    const iv = encryptedPasswordBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedPasswordBytes.slice(IV_LENGTH);
+    const password = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(password);
   }
 
   /**
@@ -1273,13 +1287,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The seedless encryption key.
    */
-  async #loadSeedlessEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadSeedlessEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
     const encryptedKeyBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const seedlessEncryptionKey = aes.decrypt(encryptedKeyBytes);
-    return bytesToUtf8(seedlessEncryptionKey);
+    const iv = encryptedKeyBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedKeyBytes.slice(IV_LENGTH);
+    const seedlessEncryptionKey = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(seedlessEncryptionKey);
   }
 
   /**
@@ -1714,8 +1731,8 @@ export class SeedlessOnboardingController<
     rawToprfAuthKeyPair,
   }: {
     password: string;
-    rawToprfEncryptionKey: Uint8Array;
-    rawToprfPwEncryptionKey: Uint8Array;
+    rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
+    rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
@@ -1761,7 +1778,7 @@ export class SeedlessOnboardingController<
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
-    pwEncKey: Uint8Array;
+    pwEncKey: Uint8Array<ArrayBuffer>;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       const serializedVaultData = serializeVaultData(vaultData);
@@ -1797,7 +1814,7 @@ export class SeedlessOnboardingController<
 
         // encrypt the seedless encryption key with the password encryption key from TOPRF network
         updatedState.encryptedSeedlessEncryptionKey =
-          this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+          await this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
       } else if (vaultEncryptionKey && vaultEncryptionSalt) {
         const encryptionKey =
           await this.#vaultEncryptor.importKey(vaultEncryptionKey);
@@ -1841,13 +1858,15 @@ export class SeedlessOnboardingController<
    * @param pwEncKey - The password encryption key from TOPRF network.
    * @returns The encrypted seedless encryption key.
    */
-  #encryptSeedlessEncryptionKey(
+  async #encryptSeedlessEncryptionKey(
     vaultEncryptionKey: string,
-    pwEncKey: Uint8Array,
-  ): string {
-    const aes = managedNonce(gcm)(pwEncKey);
-    const encryptedKey = aes.encrypt(utf8ToBytes(vaultEncryptionKey));
-    return bytesToBase64(encryptedKey);
+    pwEncKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
+    const { ciphertext, iv } = await encrypt(
+      pwEncKey,
+      stringToBytes(vaultEncryptionKey),
+    );
+    return bytesToBase64(concatBytes([iv, ciphertext]));
   }
 
   /**
@@ -2053,7 +2072,7 @@ export class SeedlessOnboardingController<
    */
   async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
-    const { refreshToken } = this.state;
+    const { refreshToken, userId, authConnectionId } = this.state;
 
     const res = await this.#refreshJWTToken({
       connection: this.state.authConnection,
@@ -2101,10 +2120,28 @@ export class SeedlessOnboardingController<
           pwEncKey,
         });
 
+        // Side-effect guard: the identity may have changed while the vault
+        // update was in flight. Aborting here prevents the refresh-token
+        // rotation from mixing the previous identity's tokens into the
+        // current state.
+        this.#assertIdentityUnchangedAndTrackEvent(
+          {
+            userId: this.state.userId,
+            authConnectionId: this.state.authConnectionId,
+          },
+          { userId, authConnectionId },
+          SeedlessIdentityMismatchSource.TokenRefresh,
+        );
+
         // Proactively rotate the refresh token now that we have vault access.
-        await this.rotateRefreshToken().catch((error) => {
-          // Rotation failure is intentionally non-fatal: the JWT refresh
-          // itself succeeded and the caller should not be blocked.
+        // IdentityMismatch must propagate: a sub/userId mismatch means the
+        // vault revoke token must not be renewed for the wrong identity.
+        await this.rotateRefreshToken(idTokens).catch((error) => {
+          if (isIdentityMismatchError(error)) {
+            throw error;
+          }
+          // Other rotation failures are intentionally non-fatal: the JWT
+          // refresh itself succeeded and the caller should not be blocked.
           // However the user is now operating with a stale refresh token
           // that may be revoked server-side, so log prominently.
           log(
@@ -2115,6 +2152,11 @@ export class SeedlessOnboardingController<
         });
       }
     } catch (error) {
+      if (isIdentityMismatchError(error)) {
+        // Propagate identity mismatch errors as-is so callers can distinguish
+        // them from generic authentication failures.
+        throw error;
+      }
       log('Error refreshing node auth tokens', error);
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
@@ -2158,15 +2200,37 @@ export class SeedlessOnboardingController<
       socialLoginEmail,
     } = this.state;
 
+    // Fail fast if the refreshed idTokens do not belong to the identity in
+    // state. This can happen when the identity changes while a token refresh
+    // is in flight (there is no lock between the refresh and this call).
+    this.#assertIdTokenMismatchAndTrackEvent(
+      idTokens,
+      userId,
+      SeedlessIdentityMismatchSource.TokenRefresh,
+    );
+
     try {
       const authenticationResult = await this.toprfClient.authenticate({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         authConnectionId: authConnectionId!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        userId: userId!,
+        userId,
         idTokens,
         groupedAuthConnectionId,
       });
+
+      // Stale-write guard: the state may have been overwritten by another
+      // `authenticate()` call or wiped by `clearState()` while the request
+      // was in flight. Discard the result instead of resurrecting the previous
+      // identity into the current state. There is no `await` between this
+      // check and the `update` below, so the pair is atomic.
+      this.#assertIdentityUnchangedAndTrackEvent(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+        SeedlessIdentityMismatchSource.TokenRefresh,
+      );
 
       this.update((state) => {
         state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
@@ -2183,6 +2247,11 @@ export class SeedlessOnboardingController<
 
       return authenticationResult;
     } catch (error) {
+      if (isIdentityMismatchError(error)) {
+        // Propagate identity mismatch errors as-is so callers can distinguish
+        // them from generic authentication failures.
+        throw error;
+      }
       log('Error re-authenticating user', error);
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
@@ -2199,9 +2268,16 @@ export class SeedlessOnboardingController<
    *
    * This method should be called after a successful JWT refresh.
    *
+   * When `idTokens` are provided, their `sub` claim is checked against
+   * `state.userId` before the renewal request. A mismatch throws
+   * {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch} and the
+   * vault revoke token is not renewed.
+   *
+   * @param idTokens - Id tokens from the JWT refresh. Only the first token is
+   * validated. Omit when the caller has no id token to check.
    * @returns A Promise that resolves to void.
    */
-  async rotateRefreshToken(): Promise<void> {
+  async rotateRefreshToken(idTokens?: string[]): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
     const vaultData = this.#cachedDecryptedVaultData;
@@ -2215,7 +2291,18 @@ export class SeedlessOnboardingController<
         SeedlessOnboardingControllerErrorMessage.VaultLocked,
       );
     }
-    const { refreshToken } = this.state;
+    const { refreshToken, userId, authConnectionId } = this.state;
+
+    // Fail before renewing the vault revoke token. A mismatched, missing, or
+    // corrupted id token must not refresh another identity's credentials.
+    if (idTokens) {
+      this.#assertIdTokenMismatchAndTrackEvent(
+        idTokens,
+        userId,
+        SeedlessIdentityMismatchSource.RotateRefreshToken,
+      );
+    }
+
     const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
@@ -2223,6 +2310,18 @@ export class SeedlessOnboardingController<
     });
 
     if (newRevokeToken && newRefreshToken) {
+      // The identity may have changed while the renewal was in flight. Check
+      // before persisting so the vault does not keep the previous identity's
+      // revoke token.
+      this.#assertIdentityUnchangedAndTrackEvent(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+        SeedlessIdentityMismatchSource.RotateRefreshToken,
+      );
+
       // Persist the new revoke token to the vault first. Only update state after
       // the vault write succeeds, so state and vault stay in sync if the write fails.
       await this.#updateVault({
@@ -2232,6 +2331,17 @@ export class SeedlessOnboardingController<
         },
         pwEncKey,
       });
+
+      // Re-check immediately before the state write. There is no `await`
+      // between this check and the `update` below, so the pair is atomic.
+      this.#assertIdentityUnchangedAndTrackEvent(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+        SeedlessIdentityMismatchSource.RotateRefreshToken,
+      );
 
       this.update((state) => {
         state.revokeToken = newRevokeToken;
@@ -2461,6 +2571,55 @@ export class SeedlessOnboardingController<
     }
   }
 
+  /**
+   * Assert the id token belongs to `userId` and report a mismatch.
+   *
+   * @param idTokens - Id tokens to check. Only the first is validated.
+   * @param userId - The user id the token should belong to.
+   * @param source - The flow that is checking the token.
+   */
+  #assertIdTokenMismatchAndTrackEvent(
+    idTokens: string[],
+    userId: string | null | undefined,
+    source: SeedlessIdentityMismatchSource,
+  ): asserts userId is string {
+    assertIdTokenMismatchAndTrackEvent(
+      idTokens,
+      userId,
+      source,
+      (event) => this.messenger.call('AnalyticsController:trackEvent', event),
+      this.state.migrationVersion,
+    );
+  }
+
+  /**
+   * Assert the controller identity is unchanged and report a mismatch.
+   *
+   * @param currentState - Identity fields from the current controller state.
+   * @param expectedIdentity - Identity fields captured before the request.
+   * @param source - The flow that is checking the identity.
+   */
+  #assertIdentityUnchangedAndTrackEvent(
+    currentState: {
+      userId?: string;
+      authConnectionId?: string;
+    },
+    expectedIdentity: {
+      userId?: string;
+      authConnectionId?: string;
+    },
+    source: SeedlessIdentityMismatchSource,
+  ): void {
+    assertIdentityUnchangedAndTrackEvent({
+      currentState,
+      expectedIdentity,
+      source,
+      trackEvent: (event) =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      migrationVersion: this.state.migrationVersion,
+    });
+  }
+
   async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
     const deserializedVaultData =
       this.#cachedDecryptedVaultData as DeserializedVaultData;
@@ -2477,7 +2636,6 @@ export class SeedlessOnboardingController<
         }),
       trackEvent: (event) =>
         this.messenger.call('AnalyticsController:trackEvent', event),
-      logFn: log,
     });
   }
 }

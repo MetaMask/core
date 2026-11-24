@@ -2,21 +2,22 @@ import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
 } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { reportError } from './errors.js';
 import { logErrorAs } from './logger.js';
 import { TimeoutError } from './providers/utils.js';
 
-jest.mock('./logger', () => ({
-  logErrorAs: jest.fn(),
+vi.mock('./logger', () => ({
+  logErrorAs: vi.fn(),
 }));
 
 describe('reportError', () => {
   const message = 'Unable to create account';
 
   beforeEach(() => {
-    jest.spyOn(console, 'warn').mockImplementation();
-    jest.spyOn(console, 'error').mockImplementation();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   it.each([
@@ -31,7 +32,7 @@ describe('reportError', () => {
       ),
     },
   ])('logs $name as warnings without capturing them', ({ error }) => {
-    const messenger = { captureException: jest.fn() };
+    const messenger = { captureException: vi.fn() };
 
     reportError(messenger, message, error);
 
@@ -44,7 +45,7 @@ describe('reportError', () => {
   it('logs unexpected errors and captures them with context', () => {
     const error = new Error('Something went wrong');
     const context = { accountId: 'account-id' };
-    const messenger = { captureException: jest.fn() };
+    const messenger = { captureException: vi.fn() };
 
     reportError(messenger, message, error, context);
 

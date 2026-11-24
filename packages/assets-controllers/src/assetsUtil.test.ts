@@ -7,6 +7,8 @@ import {
 } from '@metamask/controller-utils';
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import nock from 'nock';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as assetsUtil from './assetsUtil.js';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
@@ -376,6 +378,131 @@ describe('assetsUtil', () => {
     });
   });
 
+  describe('isDataUri', () => {
+    it.each([
+      ['data:application/json,{}', true],
+      ['DATA:image/png;base64,AAAA', true],
+      [' \n\tdata:application/json,{}', true],
+      ['https://example.com/data:', false],
+      ['ipfs://QmFoo', false],
+      ['', false],
+    ])('returns the correct result for %s', (uri, expected) => {
+      expect(assetsUtil.isDataUri(uri)).toBe(expected);
+    });
+  });
+
+  describe('parseJsonDataUri', () => {
+    const json = { name: 'Name', description: 'Ünïcödé ✓', image: 'x' };
+    const base64 = btoa(
+      String.fromCharCode(...new TextEncoder().encode(JSON.stringify(json))),
+    );
+
+    it.each([
+      ['base64', `data:application/json;base64,${base64}`],
+      [
+        'base64 with charset',
+        `data:application/json;charset=utf-8;base64,${base64}`,
+      ],
+      [
+        'percent-encoded JSON',
+        `data:application/json,${encodeURIComponent(JSON.stringify(json))}`,
+      ],
+      ['plain JSON', `data:application/json;utf8,${JSON.stringify(json)}`],
+      ['mixed-case header', `Data:Application/Json;Base64,${base64}`],
+      ['leading whitespace', ` \ndata:application/json;base64,${base64}`],
+    ])('parses %s', (_description, uri) => {
+      expect(assetsUtil.parseJsonDataUri(uri)).toStrictEqual(json);
+    });
+
+    it.each([
+      ['a non-data URL', 'https://example.com/1.json'],
+      ['a data URL without a comma', 'data:application/json;base64'],
+      ['a non-JSON media type', 'data:text/csv,{}'],
+      ['a text/plain media type', 'data:text/plain,{}'],
+      ['a lookalike media type', 'data:application/jsonx,{}'],
+      ['a missing media type', 'data:;base64,e30='],
+      ['an image media type', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='],
+      ['an HTML media type', 'data:text/html,{}'],
+      ['malformed percent-encoding', 'data:application/json,%E0%A4%A'],
+      ['malformed base64', 'data:application/json;base64,!!!'],
+      [
+        'base64 that is not JSON',
+        `data:application/json;base64,${btoa('nope')}`,
+      ],
+      ['malformed JSON', 'data:application/json,{"a":'],
+      ['a JSON string', 'data:application/json,"a"'],
+      ['a JSON array', 'data:application/json,[]'],
+      ['JSON null', 'data:application/json,null'],
+    ])('returns null for %s', (_description, uri) => {
+      expect(assetsUtil.parseJsonDataUri(uri)).toBeNull();
+    });
+  });
+
+  describe('getTokenUriJson', () => {
+    it('decodes a JSON data URL without fetching', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      expect(
+        await assetsUtil.getTokenUriJson('data:application/json,{"a":1}'),
+      ).toStrictEqual({ a: 1 });
+      expect(
+        await assetsUtil.getTokenUriJson('data:text/html,<p></p>'),
+      ).toBeNull();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('fetches a non-data URL', async () => {
+      nock('https://example.com').get('/1.json').reply(200, { a: 1 });
+
+      expect(
+        await assetsUtil.getTokenUriJson('https://example.com/1.json'),
+      ).toStrictEqual({ a: 1 });
+    });
+
+    it('returns null for fetched JSON that is not an object', async () => {
+      nock('https://example.com').get('/1.json').reply(200, [1]);
+
+      expect(
+        await assetsUtil.getTokenUriJson('https://example.com/1.json'),
+      ).toBeNull();
+    });
+  });
+
+  describe('getTokenUriImage', () => {
+    it.each([
+      [
+        'an HTTPS image',
+        'https://example.com/a.png',
+        'https://example.com/a.png',
+      ],
+      [
+        'an IPFS image',
+        'ipfs://bafybeidxfmwycgzcp4v2togflpqh2gnibuexjy4m4qqwxp7nh3jx5zlh4y',
+        'https://bafybeidxfmwycgzcp4v2togflpqh2gnibuexjy4m4qqwxp7nh3jx5zlh4y.ipfs.ipfs.example.com',
+      ],
+      ['a non-string image', 42, undefined],
+    ])('resolves %s from a data URL', async (_description, image, expected) => {
+      const tokenURI = `data:application/json,${encodeURIComponent(
+        JSON.stringify({ image }),
+      )}`;
+
+      expect(
+        await assetsUtil.getTokenUriImage(tokenURI, 'https://ipfs.example.com'),
+      ).toBe(expected);
+    });
+
+    it('returns undefined if fetching the token URI fails', async () => {
+      nock('https://example.com').get('/1.json').reply(500);
+
+      expect(
+        await assetsUtil.getTokenUriImage(
+          'https://example.com/1.json',
+          'https://ipfs.example.com',
+        ),
+      ).toBeUndefined();
+    });
+  });
+
   describe('getFormattedIpfsUrl', () => {
     it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', async () => {
       expect(
@@ -588,9 +715,9 @@ describe('assetsUtil', () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
 
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(false);
+      vi.spyOn(mockPriceService, 'validateChainIdSupported').mockReturnValue(
+        false,
+      );
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -605,9 +732,9 @@ describe('assetsUtil', () => {
     it('should return empty object when nativeCurrency not supported', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
-      jest
-        .spyOn(mockPriceService, 'validateCurrencySupported')
-        .mockReturnValue(false);
+      vi.spyOn(mockPriceService, 'validateCurrencySupported').mockReturnValue(
+        false,
+      );
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -625,7 +752,7 @@ describe('assetsUtil', () => {
       const testChainId = '0x1';
       const mockPriceService = createMockPriceService();
 
-      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+      vi.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
         {
           tokenAddress: testTokenAddress,
           chainId: testChainId,
@@ -672,7 +799,7 @@ describe('assetsUtil', () => {
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
 
-      const fetchTokenPricesSpy = jest.spyOn(
+      const fetchTokenPricesSpy = vi.spyOn(
         mockPriceService,
         'fetchTokenPrices',
       );
@@ -721,7 +848,7 @@ describe('assetsUtil', () => {
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
 
-      const fetchTokenPricesSpy = jest.spyOn(
+      const fetchTokenPricesSpy = vi.spyOn(
         mockPriceService,
         'fetchTokenPrices',
       );
@@ -793,11 +920,9 @@ describe('assetsUtil', () => {
         pricePercentChange1d: 100,
       };
 
-      jest
-        .spyOn(mockPriceService, 'fetchTokenPrices')
-        .mockResolvedValue([
-          mockMarketData as unknown as EvmAssetWithMarketData,
-        ]);
+      vi.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+        mockMarketData as unknown as EvmAssetWithMarketData,
+      ]);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,

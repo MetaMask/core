@@ -102,7 +102,10 @@ export const selectLendingPositionsByProtocolChainIdMarketId = createSelector(
 export const selectLendingMarketsWithPosition = createSelector(
   selectLendingPositionsByProtocolChainIdMarketId,
   selectLendingMarkets,
-  (positionsByProtocolChainIdMarketId, lendingMarkets) =>
+  (
+    positionsByProtocolChainIdMarketId,
+    lendingMarkets,
+  ): LendingMarketWithPosition[] =>
     lendingMarkets.map((market) => {
       const position =
         positionsByProtocolChainIdMarketId?.[market.protocol]?.[

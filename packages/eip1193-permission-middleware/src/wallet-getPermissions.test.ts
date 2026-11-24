@@ -4,14 +4,10 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 import { getPermissionsHandler } from './wallet-getPermissions.js';
-
-jest.mock('@metamask/chain-agnostic-permission', () => ({
-  ...jest.requireActual('@metamask/chain-agnostic-permission'),
-  __esModule: true,
-}));
 
 const { Caip25CaveatType, Caip25EndowmentPermissionName } =
   chainAgnosticPermissionModule;
@@ -23,9 +19,9 @@ const baseRequest = {
 };
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const getPermissionsForOrigin = jest.fn().mockReturnValue(
+  const next = vi.fn();
+  const end = vi.fn();
+  const getPermissionsForOrigin = vi.fn().mockReturnValue(
     Object.freeze({
       [Caip25EndowmentPermissionName]: {
         id: '1',
@@ -64,7 +60,7 @@ const createMockedHandler = () => {
       },
     }),
   );
-  const getAccounts = jest.fn().mockReturnValue([]);
+  const getAccounts = vi.fn().mockReturnValue([]);
   const response: PendingJsonRpcResponse = {
     jsonrpc: '2.0' as const,
     id: 0,
@@ -87,9 +83,10 @@ const createMockedHandler = () => {
 
 describe('getPermissionsHandler', () => {
   beforeEach(() => {
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getPermittedEthChainIds')
-      .mockReturnValue([]);
+    vi.spyOn(
+      chainAgnosticPermissionModule,
+      'getPermittedEthChainIds',
+    ).mockReturnValue([]);
   });
 
   it('gets the permissions for the origin', async () => {
@@ -168,9 +165,10 @@ describe('getPermissionsHandler', () => {
         }),
       );
       getAccounts.mockReturnValue([]);
-      jest
-        .spyOn(chainAgnosticPermissionModule, 'getPermittedEthChainIds')
-        .mockReturnValue([]);
+      vi.spyOn(
+        chainAgnosticPermissionModule,
+        'getPermittedEthChainIds',
+      ).mockReturnValue([]);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -287,9 +285,10 @@ describe('getPermissionsHandler', () => {
 
     it('returns the permissions with a permittedChains permission if some eip155 chainIds are permitted', async () => {
       const { handler, response } = createMockedHandler();
-      jest
-        .spyOn(chainAgnosticPermissionModule, 'getPermittedEthChainIds')
-        .mockReturnValue(['0x1', '0x64']);
+      vi.spyOn(
+        chainAgnosticPermissionModule,
+        'getPermittedEthChainIds',
+      ).mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -320,9 +319,10 @@ describe('getPermissionsHandler', () => {
     it('returns the permissions with a eth_accounts and permittedChains permission if some eip155 accounts and chainIds are permitted', async () => {
       const { handler, getAccounts, response } = createMockedHandler();
       getAccounts.mockReturnValue(['0x1', '0x2', '0xdeadbeef']);
-      jest
-        .spyOn(chainAgnosticPermissionModule, 'getPermittedEthChainIds')
-        .mockReturnValue(['0x1', '0x64']);
+      vi.spyOn(
+        chainAgnosticPermissionModule,
+        'getPermittedEthChainIds',
+      ).mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([

@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
@@ -10,13 +13,13 @@ import {
 } from '../../helpers/serviceMocks.js';
 
 function createSigner(isReady?: () => boolean): {
-  signTypedData: jest.Mock;
-  signPersonalMessage: jest.Mock;
+  signTypedData: Mock;
+  signPersonalMessage: Mock;
   isReady?: () => boolean;
 } {
   return {
-    signTypedData: jest.fn(),
-    signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
+    signTypedData: vi.fn(),
+    signPersonalMessage: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady,
   };
 }

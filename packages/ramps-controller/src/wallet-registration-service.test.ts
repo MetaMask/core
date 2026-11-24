@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   createIdempotencyKey,
   extractErrorBody,
@@ -169,13 +171,12 @@ describe('extractErrorBody', () => {
 
 describe('WalletRegistrationService.getMoonpayCustomerId', () => {
   it('returns Iron customer id from GET /neobank/customers/{external_id}/external', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, {
-          id: 'iron-customer-1',
-          external_id: EXTERNAL_ID,
-          status: 'Active',
-        }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, {
+        id: 'iron-customer-1',
+        external_id: EXTERNAL_ID,
+        status: 'Active',
+      }),
     );
 
     expect(await buildService(fetchMock).getMoonpayCustomerId()).toBe(
@@ -194,8 +195,8 @@ describe('WalletRegistrationService.getMoonpayCustomerId', () => {
   });
 
   it('maps a failed customer lookup to a typed HTTP error with transparent body', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(404, 'not found'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(404, 'not found'),
     );
 
     await expect(
@@ -210,19 +211,19 @@ describe('WalletRegistrationService.getMoonpayCustomerId', () => {
   it('rejects malformed customer lookup responses', async () => {
     await expect(
       buildService(
-        jest.fn(async (): Promise<HttpResponse> => invalidJsonResponse(200)),
+        vi.fn(async (): Promise<HttpResponse> => invalidJsonResponse(200)),
       ).getMoonpayCustomerId(),
     ).rejects.toMatchObject({ kind: 'malformedResponse' });
 
     await expect(
       buildService(
-        jest.fn(async (): Promise<HttpResponse> => jsonResponse(200, {})),
+        vi.fn(async (): Promise<HttpResponse> => jsonResponse(200, {})),
       ).getMoonpayCustomerId(),
     ).rejects.toMatchObject({ kind: 'malformedResponse' });
   });
 
   it('rejects an empty external id before calling the network', async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     const service = new WalletRegistrationService({
       fetch: fetchMock,
       baseUrl: BASE_URL,
@@ -239,8 +240,8 @@ describe('WalletRegistrationService.getMoonpayCustomerId', () => {
 
 describe('WalletRegistrationService.getRegistrationStatus', () => {
   it('lists via /neobank/addresses/crypto/{customer_id}?filter=SelfHosted', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => jsonResponse(200, []),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, []),
     );
     const service = buildService(fetchMock);
 
@@ -262,12 +263,11 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('returns an active match parsed from wallet_address (Monad filter client-side)', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [
-          verifiedAddress({ blockchain: 'Ethereum' }),
-          verifiedAddress(),
-        ]),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, [
+        verifiedAddress({ blockchain: 'Ethereum' }),
+        verifiedAddress(),
+      ]),
     );
     const service = buildService(fetchMock);
 
@@ -284,9 +284,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('returns a disabled result when the matching address is disabled', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [verifiedAddress({ disabled: true })]),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, [verifiedAddress({ disabled: true })]),
     );
     const service = buildService(fetchMock);
 
@@ -300,9 +299,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('scopes matching per blockchain (same address, different chain is absent)', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [verifiedAddress({ blockchain: 'Ethereum' })]),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, [verifiedAddress({ blockchain: 'Ethereum' })]),
     );
     const service = buildService(fetchMock);
 
@@ -316,12 +314,11 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('skips entries whose wallet_address is not a string', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [
-          { id: 'junk', wallet_address: 12345, blockchain: 'Monad' },
-          verifiedAddress(),
-        ]),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, [
+        { id: 'junk', wallet_address: 12345, blockchain: 'Monad' },
+        verifiedAddress(),
+      ]),
     );
     const service = buildService(fetchMock);
 
@@ -335,15 +332,14 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('throws malformedResponse when a matching row has no id', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [
-          {
-            wallet_address: EVM_ADDRESS,
-            blockchain: 'Monad',
-            disabled: false,
-          },
-        ]),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, [
+        {
+          wallet_address: EVM_ADDRESS,
+          blockchain: 'Monad',
+          disabled: false,
+        },
+      ]),
     );
     const service = buildService(fetchMock);
 
@@ -357,8 +353,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('throws malformedResponse when the list body is not valid JSON', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => invalidJsonResponse(200),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      invalidJsonResponse(200),
     );
     const service = buildService(fetchMock);
 
@@ -372,8 +368,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('throws a lookupUnavailable error on a non-2xx list response', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(500, 'boom'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(500, 'boom'),
     );
     const service = buildService(fetchMock);
 
@@ -387,14 +383,12 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('throws a lookupUnavailable error when the error body cannot be read', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => ({
-        ...textResponse(500, ''),
-        text: async (): Promise<string> => {
-          throw new Error('stream failed');
-        },
-      }),
-    );
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> => ({
+      ...textResponse(500, ''),
+      text: async (): Promise<string> => {
+        throw new Error('stream failed');
+      },
+    }));
     const service = buildService(fetchMock);
 
     await expect(
@@ -411,8 +405,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('throws a malformedResponse error when the list body is malformed', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => jsonResponse(200, { nope: true }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, { nope: true }),
     );
     const service = buildService(fetchMock);
 
@@ -426,8 +420,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('never converts a network failure during lookup into "absent"', async () => {
-    const fetchMock = jest
-      .fn<Promise<HttpResponse>, unknown[]>()
+    const fetchMock = vi
+      .fn<(...args: unknown[]) => Promise<HttpResponse>>()
       .mockRejectedValue(new Error('network down'));
     const service = buildService(fetchMock);
 
@@ -441,8 +435,8 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
   });
 
   it('handles a non-Error thrown during lookup', async () => {
-    const fetchMock = jest
-      .fn<Promise<HttpResponse>, unknown[]>()
+    const fetchMock = vi
+      .fn<(...args: unknown[]) => Promise<HttpResponse>>()
       .mockRejectedValue('string failure');
     const service = buildService(fetchMock);
 
@@ -478,9 +472,8 @@ const selfHostedResponse = (
 
 describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   it('posts to /neobank/addresses/crypto/selfhosted with an idempotency key', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, selfHostedResponse()),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, selfHostedResponse()),
     );
     const service = buildService(fetchMock);
 
@@ -511,9 +504,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('generates an Idempotency-Key when the caller omits one', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, selfHostedResponse()),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, selfHostedResponse()),
     );
     const service = buildService(fetchMock);
 
@@ -524,12 +516,11 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a plain-string 409 body to an ambiguous conflict error', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        textResponse(
-          409,
-          'A crypto address with this wallet address already exists',
-        ),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(
+        409,
+        'A crypto address with this wallet address already exists',
+      ),
     );
     const service = buildService(fetchMock);
 
@@ -543,8 +534,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps 5xx to a transient error', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(500, 'internal error'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(500, 'internal error'),
     );
     const service = buildService(fetchMock);
 
@@ -554,8 +545,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a network failure / timeout to a transient error', async () => {
-    const fetchMock = jest
-      .fn<Promise<HttpResponse>, unknown[]>()
+    const fetchMock = vi
+      .fn<(...args: unknown[]) => Promise<HttpResponse>>()
       .mockRejectedValue(new Error('ETIMEDOUT'));
     const service = buildService(fetchMock);
 
@@ -565,8 +556,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a non-Error thrown during registration to transient', async () => {
-    const fetchMock = jest
-      .fn<Promise<HttpResponse>, unknown[]>()
+    const fetchMock = vi
+      .fn<(...args: unknown[]) => Promise<HttpResponse>>()
       .mockRejectedValue('socket hang up');
     const service = buildService(fetchMock);
 
@@ -576,8 +567,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps 400 to a validation error', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(400, 'bad message'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(400, 'bad message'),
     );
     const service = buildService(fetchMock);
 
@@ -587,8 +578,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps an unmapped 4xx (422) to a validation error', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(422, 'unprocessable'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(422, 'unprocessable'),
     );
     const service = buildService(fetchMock);
 
@@ -598,8 +589,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps 401 to unauthorized', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(401, 'session expired'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(401, 'session expired'),
     );
 
     await expect(
@@ -608,11 +599,11 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps 403 to forbidden and 404 to notFound', async () => {
-    const forbiddenFetch = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(403, 'suspended'),
+    const forbiddenFetch = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(403, 'suspended'),
     );
-    const notFoundFetch = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(404, 'not found'),
+    const notFoundFetch = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(404, 'not found'),
     );
 
     const forbidden = await buildService(forbiddenFetch)
@@ -631,9 +622,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a JSON error object with message when present', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(403, { message: 'forbidden' }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(403, { message: 'forbidden' }),
     );
     const service = buildService(fetchMock);
 
@@ -643,9 +633,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a JSON-encoded string error body', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        textResponse(409, JSON.stringify('already exists')),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(409, JSON.stringify('already exists')),
     );
 
     await expect(
@@ -654,9 +643,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('keeps a JSON object without message as the raw body', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(400, { code: 'x', detail: 'nope' }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(400, { code: 'x', detail: 'nope' }),
     );
 
     await expect(
@@ -668,8 +656,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('keeps a whitespace-only error body as-is', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(400, '   '),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(400, '   '),
     );
 
     await expect(
@@ -678,8 +666,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('omits Error.message when the upstream body is empty', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(400, ''),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(400, ''),
     );
 
     await expect(
@@ -692,18 +680,16 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps an unreadable error body to malformedResponse', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => ({
-        ok: false,
-        status: 500,
-        json: async (): Promise<unknown> => {
-          throw new Error('no json');
-        },
-        text: async (): Promise<string> => {
-          throw new Error('no text');
-        },
-      }),
-    );
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> => ({
+      ok: false,
+      status: 500,
+      json: async (): Promise<unknown> => {
+        throw new Error('no json');
+      },
+      text: async (): Promise<string> => {
+        throw new Error('no text');
+      },
+    }));
 
     await expect(
       buildService(fetchMock).registerSelfHostedWallet(registerRequest),
@@ -711,8 +697,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps 429 to a rateLimited error', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => textResponse(429, 'slow down'),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      textResponse(429, 'slow down'),
     );
     const service = buildService(fetchMock);
 
@@ -722,8 +708,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a malformed 200 body to malformedResponse', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => jsonResponse(200, { nope: true }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, { nope: true }),
     );
     const service = buildService(fetchMock);
 
@@ -733,9 +719,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('rejects a success body that has an id but no address', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, { id: 'wallet-1', disabled: false }),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      jsonResponse(200, { id: 'wallet-1', disabled: false }),
     );
     const service = buildService(fetchMock);
 
@@ -745,8 +730,8 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
   });
 
   it('maps a non-JSON success body to malformedResponse', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => invalidJsonResponse(200),
+    const fetchMock = vi.fn(async (): Promise<HttpResponse> =>
+      invalidJsonResponse(200),
     );
     const service = buildService(fetchMock);
 

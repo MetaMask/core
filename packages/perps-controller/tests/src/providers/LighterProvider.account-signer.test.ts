@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance, MockedClass } from 'vitest';
+
 import { LIGHTER_TX_TYPE_CHANGE_PUB_KEY } from '../../../src/constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
@@ -13,6 +16,11 @@ import type {
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
 import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+} from '../../../src/utils/errorContext.js';
+import {
   MAIN_SIGNATURE,
   OTHER_MAIN_ADDRESS,
 } from '../../helpers/agentFixtures.js';
@@ -27,14 +35,15 @@ import {
 
 // The wallet service stays real. The venue REST client and the WASM signer
 // bridge are the mocked I/O boundaries.
-jest.mock('../../../src/services/LighterClientService', () => ({
-  ...jest.requireActual<
-    typeof import('../../../src/services/LighterClientService.js')
-  >('../../../src/services/LighterClientService'),
-  LighterClientService: jest.fn(),
-}));
+vi.mock(
+  import('../../../src/services/LighterClientService'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    LighterClientService: vi.fn(),
+  }),
+);
 
-const MockedClientService = LighterClientService as jest.MockedClass<
+const MockedClientService = LighterClientService as MockedClass<
   typeof LighterClientService
 >;
 
@@ -63,7 +72,7 @@ const CHANGE_PUB_KEY_TX = [
  * Pin the clock the mocked signer stamps its transaction with.
  */
 function pinClock(): void {
-  jest.spyOn(Date, 'now').mockReturnValue(NOW);
+  vi.spyOn(Date, 'now').mockReturnValue(NOW);
 }
 
 function createBridge(): {
@@ -72,7 +81,7 @@ function createBridge(): {
 } {
   const calls: LighterWasmCall[] = [];
   const bridge: LighterSignerBridge = {
-    createClient: jest.fn(async (params) =>
+    createClient: vi.fn<LighterSignerBridge['createClient']>(async (params) =>
       bridge.execute({
         function: '_createClient',
         params: [
@@ -83,7 +92,7 @@ function createBridge(): {
         ],
       }),
     ),
-    execute: jest.fn(
+    execute: vi.fn(
       async <Operation extends LighterSignerOperation>(
         call: LighterWasmCall<Operation>,
       ): Promise<LighterSignerResult<Operation>> => {
@@ -115,14 +124,16 @@ type BuiltProvider = {
   bridge: LighterSignerBridge;
   address: string;
   client: {
-    sendTx: jest.Mock;
-    getAccountsByL1Address: jest.Mock;
-    getApiKeys: jest.Mock;
-    getNextNonce: jest.Mock;
-    getTx: jest.Mock;
+    sendTx: Mock;
+    getAccountsByL1Address: Mock;
+    getApiKeys: Mock;
+    getNextNonce: Mock;
+    getTx: Mock;
+    runTradingSection: Mock;
+    cancelHeldRequests: Mock;
   };
-  accountSigner: { signPersonalMessage: jest.Mock };
-  call: jest.SpyInstance;
+  accountSigner: { signPersonalMessage: Mock };
+  call: MockInstance;
   selectAccount: (address: `0x${string}`) => void;
   deselectAccount: () => void;
   calls: LighterWasmCall[];
@@ -164,25 +175,29 @@ function buildProvider({
   };
   const client = {
     network: 'testnet',
-    getAccountsByL1Address: jest.fn().mockResolvedValue({
+    getAccountsByL1Address: vi.fn().mockResolvedValue({
       code: 200,
       l1Address: address,
       subAccounts: [account],
     }),
-    getAccountByIndex: jest
+    getAccountByIndex: vi
       .fn()
       .mockResolvedValue({ code: 200, accounts: [account] }),
-    getApiKeys: jest.fn().mockResolvedValue({ code: 200, apiKeys: [] }),
-    getNextNonce: jest.fn().mockResolvedValue({ code: 200, nonce: NEXT_NONCE }),
-    getTx: jest.fn().mockResolvedValue(null),
-    sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
+    getApiKeys: vi.fn().mockResolvedValue({ code: 200, apiKeys: [] }),
+    getNextNonce: vi.fn().mockResolvedValue({ code: 200, nonce: NEXT_NONCE }),
+    getTx: vi.fn().mockResolvedValue(null),
+    sendTx: vi.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
+    runTradingSection: vi.fn(
+      async (section: () => Promise<unknown>) => await section(),
+    ),
+    cancelHeldRequests: vi.fn(),
   };
-  MockedClientService.mockImplementation(
-    () => client as unknown as LighterClientService,
-  );
+  MockedClientService.mockImplementation(function () {
+    return client as unknown as LighterClientService;
+  });
   const accountSigner = {
-    signTypedData: jest.fn(),
-    signPersonalMessage: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
+    signTypedData: vi.fn(),
+    signPersonalMessage: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
     isReady,
   };
   const { messenger, call, selectAccount, deselectAccount } = keyring
@@ -191,7 +206,7 @@ function buildProvider({
   const { bridge, calls } = createBridge();
   if (storedKeyIndices) {
     Object.assign(bridge, {
-      getStoredKeyIndices: jest.fn().mockResolvedValue(storedKeyIndices),
+      getStoredKeyIndices: vi.fn().mockResolvedValue(storedKeyIndices),
     });
     client.sendTx.mockImplementation(async () => {
       const existing = (await client.getApiKeys()) as Awaited<
@@ -241,7 +256,7 @@ function buildProvider({
 
 describe('LighterProvider with accountSigner', () => {
   beforeEach(pinClock);
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('registers the venue key with an L1 signature from accountSigner', async () => {
     const { provider, address, client, accountSigner, call, calls } =
@@ -308,7 +323,7 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, client, accountSigner, calls, deps } = buildProvider({
       isReady: () => false,
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -328,7 +343,7 @@ describe('LighterProvider with accountSigner', () => {
       isReady: () => false,
       withoutBridge: true,
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -358,7 +373,7 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, client, deps } = buildProvider();
     const failure = new Error('venue unavailable');
     client.sendTx.mockRejectedValue(failure);
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -371,10 +386,16 @@ describe('LighterProvider with accountSigner', () => {
             feature: PERPS_CONSTANTS.FeatureName,
             provider: 'LighterProvider',
             network: 'testnet',
+            operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+            action: PERPS_ERROR_ACTION.ConnectionConnection,
+            component: PERPS_ERROR_COMPONENT.ConnectionManager,
           },
           context: {
             name: 'LighterProvider.prepareTradingWallet',
-            data: { isTestnet: true },
+            data: {
+              method: 'prepareTradingWallet',
+              isTestnet: true,
+            },
           },
         },
       ],
@@ -412,7 +433,7 @@ describe('LighterProvider with accountSigner', () => {
       const { provider, address, accountSigner, client, deps } =
         buildProvider();
       accountSigner.signPersonalMessage.mockRejectedValueOnce(rejection);
-      const loggerError = jest.spyOn(deps.logger, 'error');
+      const loggerError = vi.spyOn(deps.logger, 'error');
 
       const declined = await provider.prepareTradingWallet();
       const retried = await provider.prepareTradingWallet();
@@ -435,7 +456,7 @@ describe('LighterProvider with accountSigner', () => {
     client.getAccountsByL1Address.mockRejectedValueOnce(
       new LighterApiError('account not found', ACCOUNT_NOT_FOUND_CODE),
     );
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const missing = await provider.prepareTradingWallet();
     // The account now exists (funded through the bridge).
@@ -469,7 +490,7 @@ describe('LighterProvider with accountSigner', () => {
       storedKeyIndices: [],
     });
     Object.assign(bridge, {
-      getRecoverableKeyIndices: jest.fn(
+      getRecoverableKeyIndices: vi.fn(
         async (params: { apiKeyIndices: number[] }) => params.apiKeyIndices,
       ),
     });
@@ -518,7 +539,7 @@ describe('LighterProvider with accountSigner', () => {
       storedKeyIndices: [],
     });
     Object.assign(bridge, {
-      getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+      getRecoverableKeyIndices: vi.fn().mockResolvedValue([7, 19]),
     });
     client.getApiKeys.mockResolvedValue({
       code: 200,
@@ -546,7 +567,7 @@ describe('LighterProvider with accountSigner', () => {
       const { provider, client, bridge, accountSigner, calls, deps } =
         buildProvider({ storedKeyIndices: [] });
       Object.assign(bridge, {
-        getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+        getRecoverableKeyIndices: vi.fn().mockResolvedValue([7, 19]),
       });
       client.getApiKeys.mockResolvedValue({
         code: 200,
@@ -610,7 +631,7 @@ describe('LighterProvider with accountSigner', () => {
         storedKeyIndices: [],
       });
       Object.assign(bridge, {
-        getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+        getRecoverableKeyIndices: vi.fn().mockResolvedValue([7, 19]),
       });
       client.getApiKeys.mockResolvedValue({
         code: 200,
@@ -669,7 +690,7 @@ describe('LighterProvider with accountSigner', () => {
   it('recreates registration plaintext when the durable nonce floor exceeds the probe seed', async () => {
     const { provider, client, bridge, calls, deps, accountSigner, address } =
       buildProvider({ storedKeyIndices: [] });
-    jest.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
+    vi.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
       ...(await bridge.execute({
         function: '_createClient',
         params: [
@@ -714,7 +735,7 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, client, bridge, deps, accountSigner } = buildProvider({
       storedKeyIndices: [],
     });
-    jest.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
+    vi.spyOn(bridge, 'createClient').mockImplementation(async (params) => ({
       ...(await bridge.execute({
         function: '_createClient',
         params: [
@@ -753,7 +774,7 @@ describe('LighterProvider with accountSigner', () => {
       });
       if (discovery === 'wallet-recovery') {
         Object.assign(bridge, {
-          getRecoverableKeyIndices: jest.fn().mockResolvedValue([]),
+          getRecoverableKeyIndices: vi.fn().mockResolvedValue([]),
         });
       }
       client.getApiKeys.mockResolvedValue({
@@ -775,7 +796,7 @@ describe('LighterProvider with accountSigner', () => {
       storedKeyIndices: [],
     });
     Object.assign(bridge, {
-      getRecoverableKeyIndices: jest.fn().mockResolvedValue([7, 19]),
+      getRecoverableKeyIndices: vi.fn().mockResolvedValue([7, 19]),
     });
     client.getApiKeys.mockResolvedValue({
       code: 200,
@@ -797,9 +818,9 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, bridge, address } = buildProvider({
       storedKeyIndices: [],
     });
-    const discover = jest.fn().mockResolvedValue([]);
+    const discover = vi.fn().mockResolvedValue([]);
     Object.assign(bridge, { getRecoverableKeyIndices: discover });
-    const createClient = jest.spyOn(bridge, 'createClient');
+    const createClient = vi.spyOn(bridge, 'createClient');
 
     await provider.prepareTradingWallet();
 
@@ -816,7 +837,7 @@ describe('LighterProvider with accountSigner', () => {
       storedKeyIndices: [],
     });
     Object.assign(bridge, {
-      getRecoverableKeyIndices: jest.fn().mockResolvedValue([255]),
+      getRecoverableKeyIndices: vi.fn().mockResolvedValue([255]),
     });
 
     const result = await provider.prepareTradingWallet();
@@ -830,7 +851,7 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('waits for the registered public key before reporting trading ready', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const { provider, client } = buildProvider({ storedKeyIndices: [] });
     client.sendTx.mockImplementationOnce(async () => {
       client.getApiKeys
@@ -846,13 +867,13 @@ describe('LighterProvider with accountSigner', () => {
       ready = result.ready;
       return result;
     });
-    await jest.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(ready).toBe(false);
-    await jest.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(await setup).toStrictEqual({ ready: true });
     expect(client.sendTx).toHaveBeenCalledTimes(1);
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('skips a replaced local key and registers only in an unused slot', async () => {
@@ -874,14 +895,14 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('keeps an invisible accepted registration on its original slot after provider restart', async () => {
-    jest.useFakeTimers();
-    jest.spyOn(Math, 'random').mockReturnValue(0);
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     const first = buildProvider({ storedKeyIndices: [7] });
     const occupied = [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }];
     first.client.getApiKeys.mockResolvedValue({ code: 200, apiKeys: occupied });
     first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const original = first.provider.prepareTradingWallet();
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
     const pendingResult1 = await original;
     expect(pendingResult1.ready).toBe(false);
     expect(pendingResult1.error).toContain('registration is still pending');
@@ -904,13 +925,13 @@ describe('LighterProvider with accountSigner', () => {
     });
     await first.provider.disconnect();
 
-    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const restarted = buildProvider({
       storedKeyIndices: [7],
       infrastructure: first.deps,
     });
     Object.assign(restarted.bridge, {
-      getStoredKeyIndices: jest.fn(
+      getStoredKeyIndices: vi.fn(
         async ({ apiKeyIndices }: { apiKeyIndices: number[] }) =>
           [7, originalSlot].filter((slot) => apiKeyIndices.includes(slot)),
       ),
@@ -921,7 +942,7 @@ describe('LighterProvider with accountSigner', () => {
     });
     restarted.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const retry = restarted.provider.prepareTradingWallet();
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
     const pendingResult2 = await retry;
     expect(pendingResult2.ready).toBe(false);
     expect(pendingResult2.error).toContain('registration is still pending');
@@ -930,7 +951,7 @@ describe('LighterProvider with accountSigner', () => {
       restarted.calls.filter((call) => call.function === '_signChangePubKey'),
     ).toStrictEqual([]);
 
-    jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+    vi.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
     const pendingResult3 = await restarted.provider.prepareTradingWallet();
     expect(pendingResult3.ready).toBe(false);
     expect(pendingResult3.error).toContain('registration is still pending');
@@ -948,7 +969,7 @@ describe('LighterProvider with accountSigner', () => {
       ready: true,
     });
     expect(
-      jest.mocked(restarted.bridge).createClient.mock.lastCall,
+      vi.mocked(restarted.bridge).createClient.mock.lastCall,
     ).toStrictEqual([expect.objectContaining({ apiKeyIndex: originalSlot })]);
     expect(restarted.client.sendTx).not.toHaveBeenCalled();
     expect(restarted.accountSigner.signPersonalMessage).not.toHaveBeenCalled();
@@ -960,15 +981,14 @@ describe('LighterProvider with accountSigner', () => {
     'does not dispatch a registration when %s fails',
     async (failure) => {
       const built = buildProvider({ storedKeyIndices: [] });
-      const setItem = jest
+      const setItem = vi
         .spyOn(built.deps.diskCache, 'setItem')
         .getMockImplementation();
       if (!setItem) {
         throw new Error('Missing storage writer');
       }
-      jest
-        .spyOn(built.deps.diskCache, 'setItem')
-        .mockImplementation(async (key, value) => {
+      vi.spyOn(built.deps.diskCache, 'setItem').mockImplementation(
+        async (key, value) => {
           if (
             key.startsWith(
               failure === 'pending-storage'
@@ -979,7 +999,8 @@ describe('LighterProvider with accountSigner', () => {
             throw new Error('Storage unavailable');
           }
           return setItem(key, value);
-        });
+        },
+      );
       expect(await built.provider.prepareTradingWallet()).toMatchObject({
         ready: false,
       });
@@ -1036,7 +1057,7 @@ describe('LighterProvider with accountSigner', () => {
               }[outcome],
             },
       );
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
       const retry = await restarted.provider.prepareTradingWallet();
       const canRetry = outcome === 'failed' || outcome === 'expired-absent';
       expect(retry.ready).toBe(canRetry);
@@ -1086,7 +1107,7 @@ describe('LighterProvider with accountSigner', () => {
       JSON.parse((await first.deps.diskCache.getItem(pendingKey)) ?? ''),
     ).toMatchObject({ accepted: true });
     await observed.provider.disconnect();
-    jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+    vi.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
     const absent = buildProvider({
       storedKeyIndices: [7],
       infrastructure: first.deps,
@@ -1116,7 +1137,7 @@ describe('LighterProvider with accountSigner', () => {
       const legacy = buildProvider();
       const discovery = buildProvider({ storedKeyIndices: [] });
       for (const built of [legacy, discovery]) {
-        const execute = jest.spyOn(built.bridge, 'execute');
+        const execute = vi.spyOn(built.bridge, 'execute');
         const sign = execute.getMockImplementation();
         if (!sign) {
           throw new Error('Missing signer fixture');
@@ -1157,11 +1178,11 @@ describe('LighterProvider with accountSigner', () => {
   );
 
   it('preserves pending registration bytes when its local signer key changes', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const first = buildProvider({ storedKeyIndices: [] });
     first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const setup = first.provider.prepareTradingWallet();
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
     expect(await setup).toMatchObject({ ready: false });
     const key = `lighterKeyRegistration:testnet:${first.address.toLowerCase()}:28`;
     const before = await first.deps.diskCache.getItem(key);
@@ -1170,7 +1191,7 @@ describe('LighterProvider with accountSigner', () => {
       storedKeyIndices: [7],
       infrastructure: first.deps,
     });
-    jest.spyOn(restarted.bridge, 'createClient').mockResolvedValue({
+    vi.spyOn(restarted.bridge, 'createClient').mockResolvedValue({
       success: true,
       pk: 'ab'.repeat(40),
       pubKeySuccess: true,
@@ -1185,7 +1206,7 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('serializes concurrent provider setup around an invisible accepted registration', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const first = buildProvider({ storedKeyIndices: [] });
     first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const second = buildProvider({
@@ -1195,7 +1216,7 @@ describe('LighterProvider with accountSigner', () => {
     second.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const a = first.provider.prepareTradingWallet();
     const b = second.provider.prepareTradingWallet();
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
     const pendingResult5 = await a;
     expect(pendingResult5.ready).toBe(false);
     expect(pendingResult5.error).toContain('registration is still pending');
@@ -1216,12 +1237,12 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('stops waiting when accepted key registration remains invisible', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const { provider, client } = buildProvider({ storedKeyIndices: [] });
     client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
     const setup = provider.prepareTradingWallet();
 
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
 
     const result = await setup;
     expect(result.ready).toBe(false);
@@ -1249,7 +1270,7 @@ describe('LighterProvider with accountSigner', () => {
   });
 
   it('bounds a stalled registration-visibility read by the wall deadline', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const { provider, client } = buildProvider({ storedKeyIndices: [] });
     client.sendTx.mockImplementation(async () => {
       client.getApiKeys.mockImplementation(() => new Promise(() => undefined));
@@ -1257,7 +1278,7 @@ describe('LighterProvider with accountSigner', () => {
     });
     const setup = provider.prepareTradingWallet();
 
-    await jest.advanceTimersByTimeAsync(11000);
+    await vi.advanceTimersByTimeAsync(11000);
     const result = await setup;
 
     expect(result.ready).toBe(false);
@@ -1310,7 +1331,7 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, accountSigner, client, calls, deps, deselectAccount } =
       buildProvider();
     deselectAccount();
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1352,7 +1373,7 @@ describe('LighterProvider with accountSigner', () => {
         await cancelSession(built);
         return MAIN_SIGNATURE;
       });
-      const loggerError = jest.spyOn(deps.logger, 'error');
+      const loggerError = vi.spyOn(deps.logger, 'error');
 
       const result = await provider.prepareTradingWallet();
 
@@ -1369,7 +1390,7 @@ describe('LighterProvider with accountSigner', () => {
     const { provider, accountSigner, client, deps } = buildProvider({
       withoutBridge: true,
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1384,7 +1405,7 @@ describe('LighterProvider with accountSigner', () => {
       withoutBridge: true,
     });
     deselectAccount();
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1404,7 +1425,7 @@ describe('LighterProvider with accountSigner', () => {
       signerReady = false;
       return MAIN_SIGNATURE;
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1423,7 +1444,7 @@ describe('LighterProvider with accountSigner', () => {
         cause: new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
       }),
     );
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1446,7 +1467,7 @@ describe('LighterProvider with accountSigner', () => {
       return MAIN_SIGNATURE;
     });
     client.sendTx.mockRejectedValue(new Error('venue unavailable'));
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1468,7 +1489,7 @@ describe('LighterProvider with accountSigner', () => {
       signerReady = false;
       throw new Error('Wallet is locked');
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const lockedResult = await provider.prepareTradingWallet();
     signerReady = true;
@@ -1496,7 +1517,7 @@ describe('LighterProvider with a KeyringController', () => {
       keyring: true,
       keyringUnlocked: false,
     });
-    const loggerError = jest.spyOn(deps.logger, 'error');
+    const loggerError = vi.spyOn(deps.logger, 'error');
 
     const result = await provider.prepareTradingWallet();
 
@@ -1522,7 +1543,7 @@ describe('LighterProvider with a KeyringController', () => {
     // Readiness before and after registration, around the signature of the
     // registration body's UTF-8 bytes, hex-encoded.
     expect(
-      call.mock.calls.filter(([action]: [string]) =>
+      call.mock.calls.filter(([action]: string[]) =>
         action.startsWith('KeyringController:'),
       ),
     ).toStrictEqual([

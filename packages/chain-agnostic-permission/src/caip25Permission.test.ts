@@ -9,6 +9,7 @@ import type {
   CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
 import { pick } from 'lodash-es';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { Caip25CaveatValue } from './caip25Permission.js';
 import {
@@ -28,25 +29,25 @@ import { CaveatTypes, PermissionKeys } from './constants.js';
 import { KnownSessionProperties } from './scope/constants.js';
 import * as ScopeSupported from './scope/supported.js';
 
-jest.mock('./scope/supported', () => ({
-  ...jest.requireActual('./scope/supported'),
-  isSupportedScopeString: jest.fn(),
-  isSupportedAccount: jest.fn(),
+vi.mock(import('./scope/supported.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSupportedScopeString: vi.fn(),
+  isSupportedAccount: vi.fn(),
 }));
-const MockScopeSupported = jest.mocked(ScopeSupported);
+const MockScopeSupported = vi.mocked(ScopeSupported);
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
 
-const mockRequestPermissionsIncremental = jest.fn();
-const mockGrantPermissionsIncremental = jest.fn();
+const mockRequestPermissionsIncremental = vi.fn();
+const mockGrantPermissionsIncremental = vi.fn();
 
 describe('caip25EndowmentBuilder', () => {
   describe('specificationBuilder', () => {
     it('builds the expected permission specification', () => {
       const specification = caip25EndowmentBuilder.specificationBuilder({
         methodHooks: {
-          findNetworkClientIdByChainId: jest.fn(),
-          listAccounts: jest.fn(),
+          findNetworkClientIdByChainId: vi.fn(),
+          listAccounts: vi.fn(),
         },
       });
       expect(specification).toStrictEqual({
@@ -498,10 +499,10 @@ describe('caip25EndowmentBuilder', () => {
 });
 
 describe('caip25CaveatBuilder', () => {
-  const findNetworkClientIdByChainId = jest.fn();
-  const listAccounts = jest.fn();
-  const isNonEvmScopeSupported = jest.fn();
-  const getNonEvmAccountAddresses = jest.fn();
+  const findNetworkClientIdByChainId = vi.fn();
+  const listAccounts = vi.fn();
+  const isNonEvmScopeSupported = vi.fn();
+  const getNonEvmAccountAddresses = vi.fn();
   const { validator, merger } = caip25CaveatBuilder({
     findNetworkClientIdByChainId,
     listAccounts,

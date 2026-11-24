@@ -6,6 +6,7 @@ import {
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
+import { createPriceMovedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
@@ -617,11 +618,9 @@ export function calculateFinalPositionSize(
 
   let finalPositionSize: number;
 
-  // Validate price staleness whenever the caller supplied a calculation-time
-  // price. This runs before the sizing branches on purpose: a full close submits
-  // the exact live position size rather than a USD-derived one, and it must still
-  // be rejected when the price has moved past the caller's tolerance.
-  if (priceAtCalculation) {
+  // Only USD-derived sizing needs a snapshot guard. Exact-size orders retain
+  // venue-side slippage protection without depending on a calculation price.
+  if (priceAtCalculation && usdAmount) {
     const priceDeltaBps = Math.abs(
       ((currentPrice - priceAtCalculation) / priceAtCalculation) * 10000,
     );
@@ -629,10 +628,20 @@ export function calculateFinalPositionSize(
       maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps;
 
     if (priceDeltaBps > maxSlippageBpsValue) {
-      throw new Error(
-        `Price moved too much: ${priceDeltaBps.toFixed(0)} bps (max: ${maxSlippageBpsValue} bps). ` +
-          `Expected: ${priceAtCalculation.toFixed(2)}, Current: ${currentPrice.toFixed(2)}`,
-      );
+      throw createPriceMovedError({
+        expectedPrice: priceAtCalculation,
+        currentPrice,
+        formattedExpectedPrice: formatHyperLiquidPrice({
+          price: priceAtCalculation,
+          szDecimals,
+        }),
+        formattedCurrentPrice: formatHyperLiquidPrice({
+          price: currentPrice,
+          szDecimals,
+        }),
+        priceDeltaBps,
+        maxSlippageBps: maxSlippageBpsValue,
+      });
     }
 
     debugLogger?.log('Price validation passed:', {
@@ -982,6 +991,7 @@ function formatTpslSize(params: {
  * never going to be accepted.
  *
  * @param params - Price and size parameters
+ * @param params.price - Limit price the order fills at, if any
  * @param params.triggerPrice - Trigger price for a trigger placement, if any
  * @param params.takeProfitPrice - Attached take profit price, if any
  * @param params.stopLossPrice - Attached stop loss price, if any
@@ -991,6 +1001,7 @@ function formatTpslSize(params: {
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderPrecision(params: {
+  price?: string;
   triggerPrice?: string;
   takeProfitPrice?: string;
   stopLossPrice?: string;
@@ -999,6 +1010,7 @@ export function validateOrderPrecision(params: {
   szDecimals: number;
 }): { isValid: boolean; error?: string } {
   const {
+    price: limitPrice,
     triggerPrice,
     takeProfitPrice,
     stopLossPrice,
@@ -1037,6 +1049,7 @@ export function validateOrderPrecision(params: {
   // formats to '0'. Every one of these becomes a `triggerPx` the exchange
   // rejects outright.
   const priceChecks: [string | undefined, string][] = [
+    [limitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
     [triggerPrice, PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE],
     [takeProfitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
     [stopLossPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],

@@ -50,7 +50,8 @@ export type KycServiceCreateMoonpaySessionAction = {
  *
  * @param params - The parameters.
  * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
- * @param params.email - Email associated with the customer.
+ * @param params.partnerIdentityToken - Partner identity token minted by
+ * `AuthenticationController:getPartnerIdentityToken`.
  * @returns The vendor customer record (subset validated for controller use).
  */
 export type KycServiceCreateVendorCustomerAction = {
@@ -127,7 +128,8 @@ export type KycServiceSubmitSessionDisclaimersAction = {
  * {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS enclave
- * host, distinct from the UKYC base URL.
+ * host, distinct from the UKYC base URL. A successful response is cached in
+ * the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
@@ -141,7 +143,8 @@ export type KycServiceFetchIdosEnclaveJwksAction = {
  * schema's `jwtChain` from {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS relay
- * host, distinct from both the UKYC base URL and the idOS enclave.
+ * host, distinct from both the UKYC base URL and the idOS enclave. A
+ * successful response is cached in the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
@@ -167,11 +170,34 @@ export type KycServiceFetchIdosRelayJwksAction = {
  * @param params - The session parameters.
  * @param params.aal2Token - AAL2 authentication token used as the
  * Authorization bearer value.
+ * @param params.partnerIdentityToken - Optional partner identity token for
+ * the session's vendor audience, sent as `partnerIdentityToken`.
  * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {
   type: `KycService:createUkycSession`;
   handler: KycService['createUkycSession'];
+};
+
+/**
+ * Reissues wrapping keys for an existing UKYC session
+ * (`POST /sessions/{sessionId}/wrapping-keys`).
+ *
+ * The client registers a new per-session X25519 public key so the server can
+ * open boxes sealed with the matching private key. The response matches
+ * {@link KycService.createUkycSession}: a session id plus per-secret
+ * encryption schemas (`encryptionDataKey` and `ukycCapabilityToken`) used to
+ * wrap and submit authorizations.
+ *
+ * @param params - The session whose wrapping keys should be reset.
+ * @param params.sessionId - UKYC session id.
+ * @param params.sessionClientPublicKey - Per-session X25519 public key
+ * (unpadded base64url) registered on the session.
+ * @returns The session id and fresh encryption schemas.
+ */
+export type KycServiceResetWrappingKeysAction = {
+  type: `KycService:resetWrappingKeys`;
+  handler: KycService['resetWrappingKeys'];
 };
 
 /**
@@ -186,6 +212,49 @@ export type KycServiceCreateUkycSessionAction = {
 export type KycServiceSetAuthorizationsAction = {
   type: `KycService:setAuthorizations`;
   handler: KycService['setAuthorizations'];
+};
+
+/**
+ * Prepares deletion of the caller's encrypted KYC blobs
+ * (`POST /deletions`).
+ *
+ * The client registers a fresh X25519 public key. The response carries the
+ * deletion id and the `ukycCapabilityToken` encryption schema used to wrap
+ * a `delete`-scoped capability token and submit it via
+ * {@link KycService.completeDeletion}.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The deletion parameters.
+ * @param params.sessionClientPublicKey - Per-request X25519 public key
+ * (unpadded base64url).
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ * @returns The deletion id and the capability-token encryption schema.
+ */
+export type KycServiceCreateDeletionAction = {
+  type: `KycService:createDeletion`;
+  handler: KycService['createDeletion'];
+};
+
+/**
+ * Completes a prepared deletion (`DELETE /deletions/{deletionId}`) by
+ * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
+ * redacts the encrypted blobs for the user named by that token.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The wrapped deletion.
+ * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
+ * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ */
+export type KycServiceCompleteDeletionAction = {
+  type: `KycService:completeDeletion`;
+  handler: KycService['completeDeletion'];
 };
 
 /**
@@ -226,6 +295,23 @@ export type KycServiceGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendors the customer's verified identity data has been shared
+ * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
+ * relay), newest first.
+ *
+ * Reads metadata only, so shares remain listed after the relay redacts the
+ * underlying session (14 days).
+ *
+ * @param params - The parameters.
+ * @param params.externalUserId - The vendor-agnostic external user id.
+ * @returns The data shares, newest first.
+ */
+export type KycServiceGetDataSharesAction = {
+  type: `KycService:getDataShares`;
+  handler: KycService['getDataShares'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
@@ -240,7 +326,11 @@ export type KycServiceMethodActions =
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
+  | KycServiceResetWrappingKeysAction
   | KycServiceSetAuthorizationsAction
+  | KycServiceCreateDeletionAction
+  | KycServiceCompleteDeletionAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
-  | KycServiceGetSessionStatusForVendorAction;
+  | KycServiceGetSessionStatusForVendorAction
+  | KycServiceGetDataSharesAction;

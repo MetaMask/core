@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { base64URLToBytes } from '../utils/encoding.js';
 import { decodeAttestationObject } from './decode-attestation-object.js';
 

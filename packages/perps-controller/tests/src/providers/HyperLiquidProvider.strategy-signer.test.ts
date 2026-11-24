@@ -1,4 +1,6 @@
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -23,18 +25,18 @@ import { createFrontendOpenOrder } from '../../helpers/providerMocks.js';
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
 // cancel errors against its error class.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 
 // The client and subscription services are mocked: they own the SDK's
 // REST/exchange/info clients and the WebSocket subscriptions. The wallet
 // service, the signing caches and the validation run for real.
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
-  let loggerError: jest.SpyInstance;
+  let loggerError: MockInstance;
 
   beforeEach(() => {
     ({ loggerError } = setUpAccountSignerSuite());
@@ -116,25 +118,25 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
        */
       function createStrategyProvider(failure: SignerFailure): {
         provider: HyperLiquidProvider;
-        order: jest.Mock;
-        cancel: jest.Mock;
-        cancelByCloid: jest.Mock;
-        twapCancel: jest.Mock;
-        twapOrder: jest.Mock;
-        l2Book: jest.Mock;
-        getAgentSigner: jest.Mock;
-        onAgentRejected: jest.Mock;
+        order: Mock;
+        cancel: Mock;
+        cancelByCloid: Mock;
+        twapCancel: Mock;
+        twapOrder: Mock;
+        l2Book: Mock;
+        getAgentSigner: Mock;
+        onAgentRejected: Mock;
         signL1Action: () => Promise<Hex>;
         failSigning: () => void;
       } {
         let signerReady = true;
-        const cancel = jest.fn();
-        const cancelByCloid = jest.fn();
-        const twapCancel = jest.fn();
-        const twapOrder = jest.fn();
-        const l2Book = jest.fn().mockResolvedValue(bookAt('2999'));
-        const getAgentSigner = jest.fn();
-        const onAgentRejected = jest.fn();
+        const cancel = vi.fn();
+        const cancelByCloid = vi.fn();
+        const twapCancel = vi.fn();
+        const twapOrder = vi.fn();
+        const l2Book = vi.fn().mockResolvedValue(bookAt('2999'));
+        const getAgentSigner = vi.fn();
+        const onAgentRejected = vi.fn();
         const fixture = createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           signer: { isReady: () => signerReady },
@@ -142,11 +144,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           onAgentRejected,
           exchange: { cancel, cancelByCloid, twapCancel, twapOrder },
           info: {
-            twapHistory: jest.fn().mockResolvedValue(TWAP_HISTORY),
-            userTwapSliceFills: jest.fn().mockResolvedValue([]),
+            twapHistory: vi.fn().mockResolvedValue(TWAP_HISTORY),
+            userTwapSliceFills: vi.fn().mockResolvedValue([]),
             l2Book,
             // The resting chase order, read before a re-price.
-            orderStatus: jest.fn().mockResolvedValue({
+            orderStatus: vi.fn().mockResolvedValue({
               status: 'order',
               order: {
                 status: 'open',
@@ -264,6 +266,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: '987',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(twapCancel.mock.calls).toStrictEqual([[{ a: 1, t: 987 }]]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
@@ -298,6 +305,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(retry).toStrictEqual({
             success: true,
@@ -373,6 +385,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(retry).toStrictEqual({
             success: true,
@@ -431,6 +448,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placement).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+            errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+              provider: 'hyperliquid',
+            },
             acceptedChildren: [
               { state: 'waitingForFill' },
               { state: 'waitingForFill' },
@@ -444,6 +466,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           const cloidCancels = {
             cancels: orders.map(({ c }) => ({ asset: 1, cloid: c })),
@@ -479,6 +506,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(cancel.mock.calls).toStrictEqual([
             [{ cancels: [{ a: 1, o: RESTING_ORDER_ID }] }],
@@ -548,6 +580,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placed).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+              provider: 'hyperliquid',
+            },
             submittedSize: '1',
             orderId: '987',
           });
@@ -610,6 +647,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placed).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+            errorCode: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+              provider: 'hyperliquid',
+            },
             submittedSize: '1',
             childOrderIds: [String(RESTING_ORDER_ID)],
           });
@@ -630,11 +672,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
 
       describe('during a chase re-price', () => {
         beforeEach(() => {
-          jest.useFakeTimers();
+          vi.useFakeTimers();
         });
 
         afterEach(() => {
-          jest.useRealTimers();
+          vi.useRealTimers();
         });
 
         it('drops an agent the venue rejects, so the next L1 action asks again', async () => {
@@ -656,7 +698,7 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           l2Book.mockResolvedValue(bookAt('2998'));
           failSigning();
 
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
           await signL1Action();
 
           expect(cancel.mock.calls).toStrictEqual([

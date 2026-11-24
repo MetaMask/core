@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { removeFencedCode } from '../index.js';
 import type { FeatureLabels } from '../index.js';
 import {

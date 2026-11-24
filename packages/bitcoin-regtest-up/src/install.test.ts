@@ -1,4 +1,4 @@
-/* eslint-disable jest/expect-expect, n/no-sync */
+/* eslint-disable vitest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -15,6 +15,7 @@ import {
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, describe, it } from 'vitest';
 
 import {
   BITCOIN_REGTEST_DEFAULT_CORE,

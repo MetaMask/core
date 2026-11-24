@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { KeyringTypes } from './KeyringController.js';
 import {
   selectHdKeyringEntropySourceIds,

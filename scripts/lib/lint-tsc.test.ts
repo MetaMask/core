@@ -1,28 +1,24 @@
-import { jest } from '@jest/globals';
+import { execa } from 'execa';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { lintTsc } from './lint-tsc.ts';
+import * as tscSuppressions from './tsc-suppressions.ts';
 import type { TscError } from './tsc-suppressions.ts';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
-jest.unstable_mockModule('execa', () => ({
-  execa: jest.fn(),
+vi.mock(import('execa'), () => ({
+  execa: vi.fn(),
 }));
 
-jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
-  parseTscOutput: jest.fn(),
-  isTscError: jest.fn(),
-  addSuppressions: jest.fn(),
-  pruneSuppressions: jest.fn(),
-  compareErrorsToSuppressions: jest.fn(),
-  readSuppressions: jest.fn(),
-  writeSuppressions: jest.fn(),
-  printReport: jest.fn(),
+vi.mock('./tsc-suppressions.ts', () => ({
+  parseTscOutput: vi.fn(),
+  isTscError: vi.fn(),
+  addSuppressions: vi.fn(),
+  pruneSuppressions: vi.fn(),
+  compareErrorsToSuppressions: vi.fn(),
+  readSuppressions: vi.fn(),
+  writeSuppressions: vi.fn(),
+  printReport: vi.fn(),
 }));
-
-const { execa } = await import('execa');
-const tscSuppressions = await import('./tsc-suppressions.ts');
-const { lintTsc } = await import('./lint-tsc.ts');
 
 const ERROR = { filePath: 'a.ts', code: 'TS2322', message: 'Nope.' };
 
@@ -40,9 +36,9 @@ const PASSING_REPORT = {
  * whenever it reports errors, so that is the default.
  */
 function mockTscRun(lines: string[], exitCode = 1): void {
-  jest.mocked(execa).mockResolvedValue({ all: lines, exitCode } as never);
-  jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
-  jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+  vi.mocked(execa).mockResolvedValue({ all: lines, exitCode } as never);
+  vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
+  vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 }
 
 describe('lintTsc', () => {
@@ -53,7 +49,7 @@ describe('lintTsc', () => {
     // The exit code is reset because it is global state that another test file
     // may have set.
     globalThis.process = { ...globalThis.process, exitCode: undefined };
-    jest.spyOn(console, 'log').mockReturnValue(undefined);
+    vi.spyOn(console, 'log').mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -62,9 +58,9 @@ describe('lintTsc', () => {
 
   it('typechecks every package in the repo, capturing errors rather than throwing', async () => {
     mockTscRun([]);
-    jest
-      .mocked(tscSuppressions.compareErrorsToSuppressions)
-      .mockReturnValue(PASSING_REPORT);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
 
     await lintTsc([]);
 
@@ -78,12 +74,10 @@ describe('lintTsc', () => {
   it('checks the parsed errors against the suppressions file', async () => {
     mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
     const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
-    jest
-      .mocked(tscSuppressions.readSuppressions)
-      .mockResolvedValue(suppressions);
-    jest
-      .mocked(tscSuppressions.compareErrorsToSuppressions)
-      .mockReturnValue(PASSING_REPORT);
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue(suppressions);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
 
     await lintTsc([]);
 
@@ -98,9 +92,9 @@ describe('lintTsc', () => {
 
   it('prints the report and leaves the exit code alone when the check passes', async () => {
     mockTscRun([]);
-    jest
-      .mocked(tscSuppressions.compareErrorsToSuppressions)
-      .mockReturnValue(PASSING_REPORT);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
 
     await lintTsc([]);
 
@@ -110,7 +104,7 @@ describe('lintTsc', () => {
 
   it('exits with a non-zero code when the check fails', async () => {
     mockTscRun([]);
-    jest.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue({
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue({
       unsuppressedErrors: [
         {
           filePath: 'a.ts',
@@ -130,14 +124,15 @@ describe('lintTsc', () => {
   });
 
   it('treats a successful run that produces no output as having no errors', async () => {
-    jest
-      .mocked(execa)
-      .mockResolvedValue({ all: undefined, exitCode: 0 } as never);
-    jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
-    jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
-    jest
-      .mocked(tscSuppressions.compareErrorsToSuppressions)
-      .mockReturnValue(PASSING_REPORT);
+    vi.mocked(execa).mockResolvedValue({
+      all: undefined,
+      exitCode: 0,
+    } as never);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
 
     await lintTsc([]);
 
@@ -145,12 +140,12 @@ describe('lintTsc', () => {
   });
 
   it('throws when tsc fails without reporting any type errors', async () => {
-    jest.mocked(execa).mockResolvedValue({
+    vi.mocked(execa).mockResolvedValue({
       all: ['boom'],
       exitCode: 1,
     } as never);
-    jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
-    jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    vi.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 
     await expect(lintTsc([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
@@ -160,9 +155,9 @@ describe('lintTsc', () => {
 
   it('does not throw when tsc exits non-zero but reports type errors, as those may be suppressed', async () => {
     mockTscRun(['a.ts(1,1): error TS2322: Nope.']);
-    jest
-      .mocked(tscSuppressions.compareErrorsToSuppressions)
-      .mockReturnValue(PASSING_REPORT);
+    vi.mocked(tscSuppressions.compareErrorsToSuppressions).mockReturnValue(
+      PASSING_REPORT,
+    );
 
     await lintTsc([]);
 
@@ -175,18 +170,14 @@ describe('lintTsc', () => {
       code: 'TS6053',
       message: "File 'nope.json' not found.",
     };
-    jest
-      .mocked(execa)
-      .mockResolvedValue({ all: ['boom'], exitCode: 1 } as never);
-    jest
-      .mocked(tscSuppressions.parseTscOutput)
-      .mockReturnValue([ERROR, filelessDiagnostic]);
-    jest
-      .mocked(tscSuppressions.isTscError)
-      .mockImplementation(
-        (diagnostic): diagnostic is TscError =>
-          diagnostic.filePath !== undefined,
-      );
+    vi.mocked(execa).mockResolvedValue({ all: ['boom'], exitCode: 1 } as never);
+    vi.mocked(tscSuppressions.parseTscOutput).mockReturnValue([
+      ERROR,
+      filelessDiagnostic,
+    ]);
+    vi.mocked(tscSuppressions.isTscError).mockImplementation(
+      (diagnostic): diagnostic is TscError => diagnostic.filePath !== undefined,
+    );
 
     await expect(lintTsc([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
@@ -197,8 +188,8 @@ describe('lintTsc', () => {
   it('records unsuppressed errors when given --suppress-all, without failing', async () => {
     mockTscRun([]);
     const suppressions = { 'a.ts': { TS2322: { count: 1 } } };
-    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
-    jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(suppressions);
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    vi.mocked(tscSuppressions.addSuppressions).mockReturnValue(suppressions);
 
     await lintTsc(['--suppress-all']);
 
@@ -218,8 +209,8 @@ describe('lintTsc', () => {
     mockTscRun([]);
     const existing = { 'a.ts': { TS2322: { count: 5 } } };
     const pruned = { 'a.ts': { TS2322: { count: 1 } } };
-    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue(existing);
-    jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue(existing);
+    vi.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
 
     await lintTsc(['--prune-suppressions']);
 
@@ -237,9 +228,9 @@ describe('lintTsc', () => {
     mockTscRun([]);
     const added = { 'a.ts': { TS2322: { count: 2 } } };
     const pruned = { 'a.ts': { TS2322: { count: 1 } } };
-    jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
-    jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(added);
-    jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
+    vi.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
+    vi.mocked(tscSuppressions.addSuppressions).mockReturnValue(added);
+    vi.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
 
     await lintTsc(['--suppress-all', '--prune-suppressions']);
 

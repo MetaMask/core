@@ -50,6 +50,12 @@ export type ChartFeaturesConfig = {
   disabledFeatures?: string[];
   hidePaneSeparator?: boolean;
   showBuiltInLegend?: boolean;
+  /**
+   * Hides TradingView's per-pane toolbar (delete / maximize / move up/down)
+   * so users can't remove indicator panes outside the host UI. Defaults to
+   * `true`; set `false` to restore TradingView's default pane buttons.
+   */
+  hidePaneButtons?: boolean;
 };
 
 /**
@@ -141,6 +147,14 @@ export type TVTimeRange = {
 
 export type TVWidgetEvent = 'mouse_down' | 'mouse_up' | 'panes_height_changed';
 
+/** TradingView `VisibilityType` used by `paneButtonsVisibility()`. */
+export type TVVisibilityType = 'alwaysOn' | 'visibleOnMouseOver' | 'alwaysOff';
+
+export type TVWatchedValue<TValue> = {
+  value(): TValue;
+  setValue(value: TValue): void;
+};
+
 export type TVChartingLibraryWidget = {
   onChartReady(callback: () => void): void;
   activeChart(): TVActiveChart;
@@ -149,6 +163,7 @@ export type TVChartingLibraryWidget = {
   resize(): void;
   remove(): void;
   resetCache?(): void;
+  paneButtonsVisibility?(): TVWatchedValue<TVVisibilityType>;
 };
 
 export type TVSubscription<TArgs extends unknown[] = []> = {

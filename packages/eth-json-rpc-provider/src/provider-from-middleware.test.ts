@@ -2,6 +2,7 @@ import type { JsonRpcMiddleware as LegacyJsonRpcMiddleware } from '@metamask/jso
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   providerFromMiddleware,

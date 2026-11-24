@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { renderCodeownersSection } from './render.ts';
 
 describe('renderCodeownersSection', () => {
@@ -7,7 +9,7 @@ describe('renderCodeownersSection', () => {
       rules: [
         {
           pattern: '/packages/accounts-controller',
-          owners: ['@MetaMask/accounts-engineers'],
+          primaryOwners: ['@MetaMask/accounts-engineers'],
         },
       ],
     };
@@ -21,10 +23,10 @@ describe('renderCodeownersSection', () => {
     const section = {
       title: 'example',
       rules: [
-        { pattern: '/packages/example', owners: ['@MetaMask/team'] },
+        { pattern: '/packages/example', primaryOwners: ['@MetaMask/team'] },
         {
           pattern: '/packages/example/CHANGELOG.md',
-          owners: ['@MetaMask/team', '@MetaMask/core-platform'],
+          primaryOwners: ['@MetaMask/team', '@MetaMask/core-platform'],
         },
       ],
     };
@@ -32,7 +34,27 @@ describe('renderCodeownersSection', () => {
     expect(renderCodeownersSection(section, 3)).toBe(
       '### example\n' +
         '/packages/example                 @MetaMask/team\n' +
-        '/packages/example/CHANGELOG.md    @MetaMask/team @MetaMask/core-platform',
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team',
+    );
+  });
+
+  it('notes the maintenance owners of a rule in an inline comment', () => {
+    const section = {
+      title: 'example',
+      rules: [
+        { pattern: '/packages/example', primaryOwners: ['@MetaMask/team'] },
+        {
+          pattern: '/packages/example/CHANGELOG.md',
+          primaryOwners: ['@MetaMask/team'],
+          maintenanceOwners: ['@MetaMask/core-platform'],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section, 3)).toBe(
+      '### example\n' +
+        '/packages/example                 @MetaMask/team\n' +
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team    # maintenance-owner: @MetaMask/core-platform',
     );
   });
 
@@ -53,16 +75,18 @@ describe('renderCodeownersSection', () => {
         {
           title: 'alpha',
           rules: [
-            { pattern: '/packages/alpha', owners: ['@MetaMask/team'] },
+            { pattern: '/packages/alpha', primaryOwners: ['@MetaMask/team'] },
             {
               pattern: '/packages/alpha/CHANGELOG.md',
-              owners: ['@MetaMask/team', '@MetaMask/core-platform'],
+              primaryOwners: ['@MetaMask/team', '@MetaMask/core-platform'],
             },
           ],
         },
         {
           title: 'beta',
-          rules: [{ pattern: '/packages/beta', owners: ['@MetaMask/team'] }],
+          rules: [
+            { pattern: '/packages/beta', primaryOwners: ['@MetaMask/team'] },
+          ],
         },
       ],
     };
@@ -73,7 +97,7 @@ describe('renderCodeownersSection', () => {
 
 ### alpha
 /packages/alpha                 @MetaMask/team
-/packages/alpha/CHANGELOG.md    @MetaMask/team @MetaMask/core-platform
+/packages/alpha/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team
 
 ### beta
 /packages/beta    @MetaMask/team`,
@@ -87,7 +111,7 @@ describe('renderCodeownersSection', () => {
         rules: [
           {
             pattern: '/.github/',
-            owners: ['@MetaMask/core-platform'],
+            primaryOwners: ['@MetaMask/core-platform'],
           },
         ],
       }),

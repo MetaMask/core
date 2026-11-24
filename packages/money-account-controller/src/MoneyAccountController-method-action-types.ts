@@ -7,7 +7,8 @@ import type { MoneyAccountController } from './MoneyAccountController.js';
 
 /**
  * Initializes the controller by creating a money account for the primary
- * entropy source if one does not already exist.
+ * entropy source if one does not already exist, and by setting that account
+ * as the default if no default is set.
  */
 export type MoneyAccountControllerInitAction = {
   type: `MoneyAccountController:init`;
@@ -15,10 +16,13 @@ export type MoneyAccountControllerInitAction = {
 };
 
 /**
- * Creates a money account for the given entropy source. If an account
- * already exists for that entropy source, it is returned as-is (idempotent).
+ * Creates a money account. If an account already exists for the given
+ * source, it is returned as-is (idempotent).
  *
- * @param entropySource - The entropy source ID to create the money account for.
+ * NOTE: Creating an MPC-backed account may trigger the MPC setup, which can
+ * be long-running and require interactive authentication.
+ *
+ * @param params - The parameters for creating the money account.
  * @returns The money account.
  */
 export type MoneyAccountControllerCreateMoneyAccountAction = {
@@ -27,12 +31,21 @@ export type MoneyAccountControllerCreateMoneyAccountAction = {
 };
 
 /**
- * Gets a money account by its associated entropy source ID. If no ID is
- * provided, the primary entropy source will be used.
+ * Sets the default money account.
  *
- * @param selector - Selector options for getting the money account.
- * @param selector.entropySource - The entropy source ID to get the money account for. If not provided, the primary entropy source will be used.
- * @returns The money account, or `undefined` if no account exists for the given entropy source.
+ * @param id - The id of the money account to use as the default.
+ */
+export type MoneyAccountControllerSetDefaultMoneyAccountAction = {
+  type: `MoneyAccountController:setDefaultMoneyAccount`;
+  handler: MoneyAccountController['setDefaultMoneyAccount'];
+};
+
+/**
+ * Gets a money account by id, by entropy source, the MPC-backed one, or the
+ * default one when no selector is provided.
+ *
+ * @param selector - Selector for getting the money account.
+ * @returns The money account, or `undefined` if none matches.
  */
 export type MoneyAccountControllerGetMoneyAccountAction = {
   type: `MoneyAccountController:getMoneyAccount`;
@@ -43,8 +56,7 @@ export type MoneyAccountControllerGetMoneyAccountAction = {
  * Resets the controller state to its default, removing all money accounts.
  *
  * Intended for use during a full app reset (e.g. when the user wipes all
- * wallet data). Does not interact with the keyring — the caller is
- * responsible for ensuring the associated keyring state is also cleared.
+ * wallet data). Does not interact with the keyring.
  */
 export type MoneyAccountControllerClearStateAction = {
   type: `MoneyAccountController:clearState`;
@@ -57,5 +69,6 @@ export type MoneyAccountControllerClearStateAction = {
 export type MoneyAccountControllerMethodActions =
   | MoneyAccountControllerInitAction
   | MoneyAccountControllerCreateMoneyAccountAction
+  | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerClearStateAction;

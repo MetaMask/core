@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import {
   DEFI_POSITIONS_API_URL,

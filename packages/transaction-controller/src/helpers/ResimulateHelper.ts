@@ -148,11 +148,13 @@ export class ResimulateHelper {
  *
  * @param originalTransactionMeta - The original transaction metadata.
  * @param newTransactionMeta - The new transaction metadata.
+ * @param isTransactionTrusted - Whether the transaction only interacts with trusted contracts.
  * @returns Whether the transaction should be resimulated.
  */
 export function shouldResimulate(
   originalTransactionMeta: TransactionMeta,
   newTransactionMeta: TransactionMeta,
+  isTransactionTrusted = false,
 ): ResimulateResponse {
   const { id: transactionId } = newTransactionMeta;
 
@@ -187,7 +189,10 @@ export function shouldResimulate(
 
   let blockTime: number | undefined;
 
-  if (securityAlert || valueAndNativeBalanceMismatch) {
+  if (
+    (securityAlert || valueAndNativeBalanceMismatch) &&
+    !isTransactionTrusted
+  ) {
     const nowSeconds = Math.floor(Date.now() / 1000);
     blockTime = nowSeconds + BLOCK_TIME_ADDITIONAL_SECONDS;
   }

@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   getVolumeIsOverlay,
@@ -16,23 +19,23 @@ import type {
 import { handleToggleVolume } from '../index.js';
 
 type ChartMock = {
-  createStudy: jest.Mock;
-  removeEntity: jest.Mock;
-  getAllPanesHeight: jest.Mock;
-  setAllPanesHeight: jest.Mock;
+  createStudy: Mock;
+  removeEntity: Mock;
+  getAllPanesHeight: Mock;
+  setAllPanesHeight: Mock;
 };
 
 const makeChart = (
-  createStudyImpl?: jest.Mock,
+  createStudyImpl?: Mock,
 ): {
   chart: TVActiveChart;
   mock: ChartMock;
 } => {
   const mock: ChartMock = {
-    createStudy: createStudyImpl ?? jest.fn().mockResolvedValue('vol-1'),
-    removeEntity: jest.fn(),
-    getAllPanesHeight: jest.fn().mockReturnValue([300, 100]),
-    setAllPanesHeight: jest.fn(),
+    createStudy: createStudyImpl ?? vi.fn().mockResolvedValue('vol-1'),
+    removeEntity: vi.fn(),
+    getAllPanesHeight: vi.fn().mockReturnValue([300, 100]),
+    setAllPanesHeight: vi.fn(),
   };
   return { chart: mock as unknown as TVActiveChart, mock };
 };
@@ -51,16 +54,16 @@ describe('handleToggleVolume', () => {
   beforeEach(() => {
     _resetStateForTests();
     setTheme(theme);
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         const frameTime = 0;
         callback(frameTime);
         return 0;
-      });
+      },
+    );
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('removes the existing volume study when visible=false', () => {
     const { chart, mock } = makeChart();
@@ -76,7 +79,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('creates a sub-pane volume study when visible=true and volumeOverlay omitted', async () => {
-    const createStudy = jest.fn().mockResolvedValue('new-vol');
+    const createStudy = vi.fn().mockResolvedValue('new-vol');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
 
@@ -96,7 +99,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('creates an overlay-mode volume study when volumeOverlay=true', async () => {
-    const createStudy = jest.fn().mockResolvedValue('new-vol');
+    const createStudy = vi.fn().mockResolvedValue('new-vol');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
 
@@ -116,7 +119,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('switches from sub-pane to overlay by removing then recreating', async () => {
-    const createStudy = jest.fn().mockResolvedValue('vol-2');
+    const createStudy = vi.fn().mockResolvedValue('vol-2');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
     setVolumeStudyId('vol-existing');
@@ -157,12 +160,12 @@ describe('handleToggleVolume', () => {
 
   it('swallows removeEntity errors on visible=false', () => {
     const { chart } = makeChart();
-    jest
-      .spyOn(chart as unknown as ChartMock, 'removeEntity')
-      .mockImplementation(() => {
+    vi.spyOn(chart as unknown as ChartMock, 'removeEntity').mockImplementation(
+      () => {
         throw new Error('disposed');
-      });
-    const bridge = { postMessage: jest.fn() };
+      },
+    );
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     setupReadyWidget(chart);
     setVolumeStudyId('vol-existing');
@@ -177,7 +180,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('does not re-create when same overlay mode is already active', async () => {
-    const createStudy = jest.fn().mockResolvedValue('vol-1');
+    const createStudy = vi.fn().mockResolvedValue('vol-1');
     const { chart } = makeChart(createStudy);
     setupReadyWidget(chart);
 
@@ -191,7 +194,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('applies sub-pane heights after creating a sub-pane study', async () => {
-    const createStudy = jest.fn().mockResolvedValue('new-vol');
+    const createStudy = vi.fn().mockResolvedValue('new-vol');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
 
@@ -205,7 +208,7 @@ describe('handleToggleVolume', () => {
   });
 
   it('builds overrides without theme colors when theme is null', () => {
-    const createStudy = jest.fn().mockResolvedValue('vol-x');
+    const createStudy = vi.fn().mockResolvedValue('vol-x');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
     setTheme(null as unknown as ChartTheme);
@@ -221,9 +224,9 @@ describe('handleToggleVolume', () => {
   });
 
   it('swallows createStudy rejection', async () => {
-    const createStudy = jest.fn().mockRejectedValue(new Error('study fail'));
+    const createStudy = vi.fn().mockRejectedValue(new Error('study fail'));
     const { chart } = makeChart(createStudy);
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     setupReadyWidget(chart);
 
@@ -241,27 +244,27 @@ describe('registerVolumeThemeSync', () => {
   beforeEach(() => {
     _resetStateForTests();
     setTheme(theme);
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         const frameTime = 0;
         callback(frameTime);
         return 0;
-      });
+      },
+    );
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('recolors volume study when theme changes', async () => {
     const { registerVolumeThemeSync: registerVolumeTheme } =
       await import('../index.js');
     const { applyThemeColors } = await import('../../../widget/theme.js');
-    const applyOverrides = jest.fn();
-    const createStudy = jest.fn().mockResolvedValue('vol-sync');
+    const applyOverrides = vi.fn();
+    const createStudy = vi.fn().mockResolvedValue('vol-sync');
     const chart = {
       createStudy,
-      removeEntity: jest.fn(),
-      getAllPanesHeight: jest.fn().mockReturnValue([300, 100]),
-      setAllPanesHeight: jest.fn(),
+      removeEntity: vi.fn(),
+      getAllPanesHeight: vi.fn().mockReturnValue([300, 100]),
+      setAllPanesHeight: vi.fn(),
       getStudyById: () => ({ applyOverrides }),
     } as unknown as TVActiveChart;
     setWidget({

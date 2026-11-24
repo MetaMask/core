@@ -6,6 +6,8 @@ import type {
 } from '@metamask/messenger';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
 import { SnapTracker } from './SnapTracker.js';
@@ -24,8 +26,8 @@ type MockTruncatedSnap = Pick<
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
-    getSnap: jest.MockedFunction<(snapId: string) => TruncatedSnap | null>;
-    getRunnableSnaps: jest.MockedFunction<() => TruncatedSnap[]>;
+    getSnap: MockedFunction<(snapId: string) => TruncatedSnap | null>;
+    getRunnableSnaps: MockedFunction<() => TruncatedSnap[]>;
   };
 };
 
@@ -183,8 +185,8 @@ function setup({
 
   const mocks: Mocks = {
     SnapController: {
-      getSnap: jest.fn().mockReturnValue(null),
-      getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
+      getSnap: vi.fn().mockReturnValue(null),
+      getRunnableSnaps: vi.fn().mockReturnValue(runnableSnaps),
     },
   };
 

@@ -1,4 +1,5 @@
 import { is } from '@metamask/superstruct';
+import { describe, expect, it } from 'vitest';
 
 import { ChecksumStruct } from './checksum.js';
 

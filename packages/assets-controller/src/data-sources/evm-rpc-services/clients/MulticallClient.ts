@@ -15,6 +15,12 @@ import type {
   Provider,
 } from '../types/index.js';
 import { reduceInBatchesSerially } from '../utils/index.js';
+import {
+  decodeAggregate3Response,
+  decodeUint256,
+  encodeAggregate3,
+} from './aggregate3Codec.js';
+import type { Aggregate3Call } from './aggregate3Codec.js';
 
 // =============================================================================
 // ABI DEFINITIONS
@@ -274,7 +280,6 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0xa70e': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x868b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xa0c71fd': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  '0x13e31': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xa1337': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f2b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xf63': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -456,7 +461,7 @@ const balanceCallDataCache = createBalanceCallDataCache();
 function buildAggregate3BalanceCalls(
   batch: BalanceOfRequest[],
   multicallAddress: Hex,
-): { target: Address; allowFailure: boolean; callData: Hex }[] {
+): Aggregate3Call[] {
   return batch.map((req) => {
     const isNative = req.tokenAddress === ZERO_ADDRESS;
     const target = isNative ? multicallAddress : req.tokenAddress;
@@ -471,13 +476,16 @@ function buildAggregate3BalanceCalls(
 }
 
 /**
- * Encode a Multicall3 aggregate3 call.
+ * Encode a Multicall3 aggregate3 call with the Ethers ABI coder.
+ *
+ * `MulticallClient` calls `encodeAggregate3` from `aggregate3Codec.ts`.
+ * This function stays so those tests can compare the two encodings.
  *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
  */
-export function encodeAggregate3(
-  calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
+export function encodeAggregate3WithEthers(
+  calls: readonly Aggregate3Call[],
 ): Hex {
   return encodeFunctionData(multicall3Interface, 'aggregate3', [
     calls.map((call) => ({
@@ -489,14 +497,16 @@ export function encodeAggregate3(
 }
 
 /**
- * Decode the response from aggregate3.
- * Returns array of (success, returnData) tuples.
+ * Decode the response from aggregate3 with the Ethers ABI coder.
+ *
+ * `MulticallClient` calls `decodeAggregate3Response` from `aggregate3Codec.ts`.
+ * This function stays so those tests can compare the two decodings.
  *
  * @param data - The raw response data.
  * @param callCount - Number of calls made (used for validation).
  * @returns Array of success and return data.
  */
-export function decodeAggregate3Response(
+export function decodeAggregate3ResponseWithEthers(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
@@ -519,12 +529,15 @@ export function decodeAggregate3Response(
 }
 
 /**
- * Decode a uint256 balance from return data.
+ * Decode a uint256 balance with the Ethers ABI coder.
+ *
+ * `MulticallClient` calls `decodeUint256` from `aggregate3Codec.ts`.
+ * This function stays so those tests can compare the two decodings.
  *
  * @param data - The hex return data.
  * @returns The decoded balance as a string.
  */
-function decodeUint256(data: Hex): string {
+export function decodeUint256WithEthers(data: Hex): string {
   if (data === '0x' || data.length < 66) {
     // Empty or invalid data; treat as 0
     return '0';

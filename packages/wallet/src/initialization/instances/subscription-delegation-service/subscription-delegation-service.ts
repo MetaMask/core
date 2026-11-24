@@ -34,6 +34,7 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'SubscriptionController:getState',
         'SubscriptionController:getPricing',
         'SubscriptionController:getSubscriptions',
+        'SubscriptionController:isUserEligibleForTrial',
         'SubscriptionController:startSubscriptionWithCrypto',
       ],
     });

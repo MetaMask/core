@@ -9,8 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.4.0` ([#11669](https://github.com/MetaMask/core/pull/11669), [#11732](https://github.com/MetaMask/core/pull/11732))
+
+## [28.0.0]
+
+### Added
+
+- **BREAKING:** Use `@metamask/sentinel-api-service` for all Sentinel API calls instead of calling the endpoints directly ([#11516](https://github.com/MetaMask/core/pull/11516))
+  - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork`, `SentinelApiService:getFees`, `SentinelApiService:submitTransactions`, `SentinelApiService:cancel` and `SentinelApiService:getBatchStatus` actions to the `SmartTransactionsController` messenger.
+  - `fetchLiveness` now calls `SentinelApiService:getNetwork`, and `getFees` calls `SentinelApiService:getFees`. The `getFees` return type is unchanged.
+  - `submitSignedTransactions` now calls `SentinelApiService:submitTransactions`. `signedCanceledTransactions` is forwarded as `rawCancelTxs`, and `SignedTransactionWithMetadata.tx` is now typed as `Hex`.
+  - `cancelSmartTransaction` now calls `SentinelApiService:cancel`. It still accepts `uuid` and an optional `networkClientId`, and still resolves to `void`.
+  - `fetchSmartTransactionsStatus` now calls `SentinelApiService:getBatchStatus`. It still resolves to a `Record<string, SmartTransactionsStatus>` keyed by UUID.
+  - A non-2xx response from `submitTransactions`, `getFees`, `getBatchStatus`, or `cancel` is still thrown as `Fetch error: <status>` with the response body on `data`.
+  - A batch status response that does not match the Sentinel batch status schema now throws instead of being processed.
+  - Remove `AuthenticationController:getBearerToken` from `SmartTransactionsControllerMessenger`'s allowed actions; consumers must stop delegating it to the `SmartTransactionsController` messenger (delegate it to the `SentinelApiService` messenger instead). `@metamask/profile-sync-controller` is no longer a dependency.
+  - `Feature` and `Kind` are no longer exported. `SentinelMeta` is now re-exported from `@metamask/sentinel-api-service`.
+  - Re-export `SentinelCancellationReason`, `SentinelMinedTxStatus` and `SentinelOriginalTransactionStatus` from `@metamask/sentinel-api-service`, and use them for the `cancellationReason`, `minedTx` and `originalTransactionStatus` types of `SmartTransactionsStatus`.
+  - `calculateStatus` no longer special-cases `minedTx === 'unknown'`; any unrecognised `minedTx` value resolves to `SmartTransactionStatuses.UNKNOWN`.
+  - Remove `SmartTransactionMinedTx`, `SmartTransactionCancellationReason` and `OriginalTransactionStatus`; use `SentinelMinedTxStatus`, `SentinelCancellationReason` and `SentinelOriginalTransactionStatus` instead. The string values are unchanged, but members are PascalCase (e.g. `SmartTransactionMinedTx.NOT_MINED` becomes `SentinelMinedTxStatus.NotMined`). `SmartTransactionMinedTx.UNKNOWN` has no replacement.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+
+## [27.3.0]
+
+### Added
+
+- Add optional `accountHardwareType` to sentinel transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [27.2.3]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [27.2.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [27.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^73.0.0` ([#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [27.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [27.1.1]
+
+### Changed
+
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
-- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^35.0.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@babel/runtime` from `^7.23.9` to `^7.29.7` ([#10711](https://github.com/MetaMask/core/pull/10711))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.1` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [27.1.0]
 
@@ -159,7 +236,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.3.0...@metamask/smart-transactions-controller@28.0.0
+[27.3.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.3...@metamask/smart-transactions-controller@27.3.0
+[27.2.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.2...@metamask/smart-transactions-controller@27.2.3
+[27.2.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.1...@metamask/smart-transactions-controller@27.2.2
+[27.2.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.0...@metamask/smart-transactions-controller@27.2.1
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.1...@metamask/smart-transactions-controller@27.2.0
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.0...@metamask/smart-transactions-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...@metamask/smart-transactions-controller@27.1.0
 [27.0.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.2...@metamask/smart-transactions-controller@27.0.3
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.1...@metamask/smart-transactions-controller@27.0.2

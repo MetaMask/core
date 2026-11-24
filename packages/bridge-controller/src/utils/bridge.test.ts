@@ -1,5 +1,6 @@
 import { BtcScope, SolScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   ETH_USDT_ADDRESS,
@@ -22,10 +23,6 @@ import {
 } from './bridge.js';
 
 describe('Bridge utils', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('sumHexes', () => {
     it('returns 0x0 for empty input', () => {
       expect(sumHexes()).toBe('0x0');

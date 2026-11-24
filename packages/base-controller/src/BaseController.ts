@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { Struct } from '@metamask/superstruct';
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
@@ -445,4 +446,98 @@ export function deriveStateFromMetadata<
       return derivedState;
     }
   }, {} as never);
+}
+
+/**
+ * A controller class that defines a static `struct` describing its state.
+ *
+ * This is used by `validateControllerState` to validate state at runtime.
+ * Only the struct's `validate` method is required. Unlike a full `Struct`,
+ * which is invariant in the type it describes, this makes the type covariant
+ * in `ControllerState`, so a controller whose struct describes a specific
+ * state can be used wherever a controller with a more general state is
+ * expected.
+ */
+export type ValidatableController<
+  Controller,
+  ControllerState extends StateConstraint,
+> = (new (...args: never[]) => Controller) & {
+  struct: Pick<Struct<ControllerState>, 'validate'>;
+};
+
+/**
+ * Validate the state of a controller against its struct.
+ *
+ * This overload is for "strict" mode: if the state matches the struct, returns
+ * the (optionally coerced) state, otherwise throws. Because validation passing
+ * proves that the state has the shape described by the struct, the return
+ * type is narrowed to the type of the struct's contents.
+ *
+ * @param name - The name of the controller.
+ * @param controller - The static controller.
+ * @param state - The unvalidated state of the controller.
+ * @param mode - The validation mode ('strict').
+ * @returns The validated controller state.
+ */
+export function validateControllerState<ValidatedState extends StateConstraint>(
+  name: string,
+  controller: ValidatableController<unknown, ValidatedState>,
+  state: unknown,
+  mode: 'strict',
+): ValidatedState;
+
+/**
+ * Validate the state of a controller against its struct.
+ *
+ * This overload is for "lenient" mode: it always returns the state, but if the
+ * state does not match the struct, it logs and reports an error. Because
+ * validation may have failed, the return type is either the type of the
+ * struct's contents or the type of the given state.
+ *
+ * @param name - The name of the controller.
+ * @param controller - The controller class, which defines a static
+ * `struct` property.
+ * @param state - The unvalidated state of the controller.
+ * @param mode - The validation mode ('lenient').
+ * @param captureException - A utility function for reporting an error to Sentry.
+ * @returns The validated controller state, or the given state if invalid.
+ */
+export function validateControllerState<
+  ValidatedState extends StateConstraint,
+  UnvalidatedState,
+>(
+  name: string,
+  controller: ValidatableController<unknown, ValidatedState>,
+  state: UnvalidatedState,
+  mode: 'lenient',
+  captureException?: (error: Error) => void,
+): ValidatedState | UnvalidatedState;
+
+export function validateControllerState<
+  ValidatedState extends StateConstraint,
+  UnvalidatedState,
+>(
+  name: string,
+  controller: ValidatableController<unknown, ValidatedState>,
+  state: UnvalidatedState,
+  mode: 'strict' | 'lenient',
+  captureException?: (error: Error) => void,
+): ValidatedState | UnvalidatedState {
+  const [validationError, result] = controller.struct.validate(state);
+
+  if (!validationError) {
+    return result;
+  }
+
+  if (mode === 'strict') {
+    throw validationError;
+  }
+
+  const error = new Error(
+    `Validation of "${name}" state failed. Not throwing because strict mode is not enabled. The reported error is: ${validationError.message}`,
+    { cause: validationError },
+  );
+  captureException?.(error);
+  console.warn(error);
+  return state;
 }

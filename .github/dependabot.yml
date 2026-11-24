@@ -9,9 +9,29 @@ updates:
       interval: 'daily'
     cooldown:
       default-days: 3
-    allow:
-      - dependency-name: '@metamask/*'
-      - dependency-name: '@lavamoat/*'
+      exclude:
+        - '@metamask/*'
+        - '@lavamoat/*'
+    groups:
+      metamask-non-major:
+        applies-to: 'version-updates'
+        patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      external-non-major:
+        applies-to: 'version-updates'
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+    open-pull-requests-limit: 10
     versioning-strategy: 'increase'
 
   - package-ecosystem: 'github-actions'

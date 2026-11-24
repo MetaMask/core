@@ -1,7 +1,17 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  groupMarketsByMarketKey,
+  resolveSavedPerpsMarkets,
+} from '../../../src/index.js';
 import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
+  applyMarketFilters,
+  clonePerpsMarketData,
   getMarketTypeFilter,
+  getPerpsWatchlistReferences,
   isHip3Market,
+  isSharedPerpsMarketReference,
   matchesCategory,
 } from '../../../src/utils/marketUtils.js';
 
@@ -16,6 +26,228 @@ const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
     fundingRate: 0,
     ...overrides,
   }) as PerpsMarketData;
+
+describe('groupMarketsByMarketKey', () => {
+  const hyperliquid = market({
+    symbol: 'xyz:TSLA',
+    providerId: 'hyperliquid',
+    marketKey: 'xyz:TSLA',
+    priceScale: 1,
+  });
+  const lighter = market({
+    symbol: 'TSLA',
+    providerId: 'lighter',
+    marketKey: 'xyz:TSLA',
+    priceScale: 1,
+    price: '510',
+  });
+
+  it('keeps the default venue’s data first and retains both venue symbols', () => {
+    expect(
+      groupMarketsByMarketKey([hyperliquid, lighter], 'lighter'),
+    ).toStrictEqual([
+      {
+        ...lighter,
+        rowId: 'market:xyz:TSLA',
+        venues: [lighter, hyperliquid],
+      },
+    ]);
+  });
+
+  it('keeps missing keys and scaled prices separate even when keys would match', () => {
+    const unmapped = market({ symbol: 'xyz:TSLA', providerId: 'hyperliquid' });
+    const scaled = market({
+      ...hyperliquid,
+      symbol: '1000TSLA',
+      priceScale: 1000,
+    });
+    const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
+    const { marketKey: _scaledKey, ...scaledDisplay } = scaled;
+    expect(
+      groupMarketsByMarketKey(
+        [unmapped, scaled, lighter, lighterFallback],
+        'lighter',
+      ),
+    ).toStrictEqual([
+      {
+        ...unmapped,
+        rowId: 'venue:hyperliquid:xyz:TSLA',
+        venues: [unmapped],
+      },
+      {
+        ...scaledDisplay,
+        rowId: 'venue:hyperliquid:1000TSLA',
+        venues: [scaled],
+      },
+      { ...lighter, rowId: 'market:xyz:TSLA', venues: [lighter] },
+      {
+        ...lighterFallback,
+        rowId: 'venue:lighter:TSLA',
+        venues: [lighterFallback],
+      },
+    ]);
+  });
+
+  it('saves an ungrouped row by venue, never as a backend key or a bare symbol on another venue', () => {
+    const scaled = market({
+      ...hyperliquid,
+      symbol: '1000TSLA',
+      priceScale: 1000,
+    });
+    const hyperliquidTsla = market({
+      symbol: 'TSLA',
+      providerId: 'hyperliquid',
+    });
+    const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
+    const rows = [scaled, hyperliquidTsla, lighterFallback];
+    const references = groupMarketsByMarketKey(rows, 'lighter').map((group) =>
+      getPerpsWatchlistReferences(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'hyperliquid',
+      ),
+    );
+
+    expect(references).toStrictEqual([
+      ['1000TSLA'],
+      ['TSLA'],
+      ['venue:lighter:TSLA'],
+    ]);
+    expect(
+      resolveSavedPerpsMarkets(['venue:lighter:TSLA'], rows, 'lighter'),
+    ).toStrictEqual([lighterFallback]);
+    expect(
+      resolveSavedPerpsMarkets(['TSLA'], rows, 'lighter', 'hyperliquid'),
+    ).toStrictEqual([hyperliquidTsla]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['venue:lighter:TSLA'],
+        [hyperliquidTsla],
+        'lighter',
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('resolves legacy symbols to their original venue and new keys to the preferred venue', () => {
+    const lighterOnly = market({ symbol: 'OPENAI', providerId: 'lighter' });
+    const renamed = market({
+      ...lighter,
+      symbol: 'XAU',
+      marketKey: 'xyz:GOLD',
+    });
+    expect(
+      resolveSavedPerpsMarkets(
+        ['xyz:TSLA', 'market-key:xyz:GOLD', 'UNKNOWN'],
+        [lighter, hyperliquid, lighterOnly, renamed],
+        'lighter',
+      ),
+    ).toStrictEqual([hyperliquid, renamed]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['OPENAI'],
+        [lighterOnly],
+        'hyperliquid',
+        'lighter',
+      ),
+    ).toStrictEqual([lighterOnly]);
+  });
+
+  it('keeps a keyed row with unknown scale out of both grouping and key resolution', () => {
+    const unknown = market({ ...lighter, priceScale: undefined });
+    const { marketKey: _unknownKey, ...unknownDisplay } = unknown;
+
+    expect(
+      groupMarketsByMarketKey([hyperliquid, unknown], 'lighter'),
+    ).toStrictEqual([
+      { ...hyperliquid, rowId: 'market:xyz:TSLA', venues: [hyperliquid] },
+      {
+        ...unknownDisplay,
+        rowId: 'venue:lighter:TSLA',
+        venues: [unknown],
+      },
+    ]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['market-key:xyz:TSLA'],
+        [unknown, hyperliquid],
+        'lighter',
+      ),
+    ).toStrictEqual([hyperliquid]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['market-key:xyz:TSLA'],
+        [{ ...hyperliquid, priceScale: undefined }],
+        'hyperliquid',
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('leaves a legacy favorite unresolved when only a different venue has the symbol', () => {
+    const lighterBtc = market({
+      symbol: 'BTC',
+      providerId: 'lighter',
+      marketKey: 'BTC',
+      priceScale: 1,
+    });
+    expect(
+      resolveSavedPerpsMarkets(['BTC'], [lighterBtc], 'lighter', 'hyperliquid'),
+    ).toStrictEqual([]);
+  });
+
+  it('requires actual HyperLiquid provenance for a legacy alias even with HyperLiquid preferred', () => {
+    const [group] = groupMarketsByMarketKey(
+      [{ ...lighter, providerId: undefined }],
+      'hyperliquid',
+    );
+    expect(group.venues[0].providerId).toBeUndefined();
+    expect(
+      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    ).toStrictEqual(['market-key:xyz:TSLA']);
+  });
+
+  it('matches a legacy favorite on the stated legacy venue for check and resolve', () => {
+    const lighterNvda = market({
+      symbol: 'NVDA',
+      providerId: 'lighter',
+      marketKey: 'NVDA-USD',
+      priceScale: 1,
+    });
+    const [group] = groupMarketsByMarketKey([lighterNvda], 'hyperliquid');
+
+    expect(
+      getPerpsWatchlistReferences(
+        group.symbol,
+        group.marketKey,
+        group.venues,
+        'lighter',
+      ),
+    ).toStrictEqual(['market-key:NVDA-USD', 'NVDA']);
+    expect(
+      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    ).toStrictEqual(['market-key:NVDA-USD', 'venue:lighter:NVDA']);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['NVDA'],
+        [lighterNvda],
+        'hyperliquid',
+        'lighter',
+      ),
+    ).toStrictEqual([lighterNvda]);
+  });
+
+  it('does not interpret a legacy symbol as an unrelated backend key', () => {
+    const unrelated = market({
+      symbol: 'X',
+      providerId: 'hyperliquid',
+      marketKey: 'BTC',
+      priceScale: 1,
+    });
+    expect(
+      resolveSavedPerpsMarkets(['BTC'], [unrelated], 'hyperliquid'),
+    ).toStrictEqual([]);
+  });
+});
 
 describe('marketUtils category classification', () => {
   describe('isHip3Market', () => {
@@ -50,6 +282,12 @@ describe('marketUtils category classification', () => {
 
     it("matches non-HIP3 markets for 'crypto'", () => {
       expect(matchesCategory(market({ isHip3: false }), 'crypto')).toBe(true);
+    });
+
+    it('honors the explicit stock category on a non-HIP3 Lighter market', () => {
+      const stock = market({ providerId: 'lighter', marketType: 'stock' });
+      expect(matchesCategory(stock, 'stock')).toBe(true);
+      expect(matchesCategory(stock, 'crypto')).toBe(false);
     });
 
     it("matches HIP-3 markets explicitly typed crypto for 'crypto'", () => {
@@ -156,6 +394,29 @@ describe('marketUtils category classification', () => {
         ).toBe(false);
       });
 
+      it('matches a main-DEX non-crypto market with the memecoin tag, as Mobile', () => {
+        expect(
+          matchesCategory(
+            market({ isHip3: false, marketType: 'stock', tags: ['memecoin'] }),
+            'memecoin',
+          ),
+        ).toBe(true);
+      });
+
+      it('does not match a HIP-3 crypto market with the memecoin tag, as Mobile', () => {
+        expect(
+          matchesCategory(
+            market({
+              isHip3: true,
+              marketSource: 'xyz',
+              marketType: 'crypto',
+              tags: ['memecoin'],
+            }),
+            'memecoin',
+          ),
+        ).toBe(false);
+      });
+
       it('does not match a marketSource-only HIP-3 market with the memecoin tag', () => {
         // isHip3Market also treats markets with only a marketSource DEX id
         // as HIP-3, so those shouldn't leak into the memecoin filter
@@ -248,5 +509,46 @@ describe('marketUtils category classification', () => {
     ])('is consistent with matchesCategory for %o', (sample) => {
       expect(matchesCategory(sample, getMarketTypeFilter(sample))).toBe(true);
     });
+  });
+});
+
+describe('isSharedPerpsMarketReference', () => {
+  it('accepts only bare venue symbols', () => {
+    expect(isSharedPerpsMarketReference('BTC')).toBe(true);
+    expect(isSharedPerpsMarketReference('xyz:TSLA')).toBe(true);
+    expect(isSharedPerpsMarketReference('market-key:BTC-USD')).toBe(false);
+    expect(isSharedPerpsMarketReference('venue:lighter:BTC')).toBe(false);
+  });
+});
+
+describe('clonePerpsMarketData', () => {
+  it('copies numericValues instead of sharing the object', () => {
+    const source = market({ numericValues: { volume: 1 } });
+
+    const [copy] = clonePerpsMarketData([source]);
+
+    expect(copy?.numericValues).toStrictEqual({ volume: 1 });
+    expect(copy?.numericValues).not.toBe(source.numericValues);
+  });
+});
+
+describe('applyMarketFilters', () => {
+  it('sorts by any MarketSortField, such as name and price', () => {
+    const markets = [
+      market({ symbol: 'ETH', numericValues: { price: 3000 } }),
+      market({ symbol: 'BTC', numericValues: { price: 90000 } }),
+      market({ symbol: 'SOL', numericValues: { price: 150 } }),
+    ];
+
+    expect(
+      applyMarketFilters(markets, { sortBy: 'name' }).map(
+        ({ symbol }) => symbol,
+      ),
+    ).toStrictEqual(['BTC', 'ETH', 'SOL']);
+    expect(
+      applyMarketFilters(markets, { sortBy: 'price', limit: 2 }).map(
+        ({ symbol }) => symbol,
+      ),
+    ).toStrictEqual(['BTC', 'ETH']);
   });
 });

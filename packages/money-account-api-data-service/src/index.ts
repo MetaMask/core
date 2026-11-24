@@ -13,6 +13,9 @@ export type {
   MoneyAccountApiDataServiceFetchHistoryAction,
   MoneyAccountApiDataServiceFetchRateHistoryAction,
   MoneyAccountApiDataServiceFetchVaultRateAction,
+  MoneyAccountApiDataServiceFetchVaultsAction,
+  MoneyAccountApiDataServiceFetchVaultShareValuationsAction,
+  MoneyAccountApiDataServiceFetchVbaTransfersAction,
 } from './money-account-api-data-service-method-action-types.js';
 export type {
   PositionResponse,
@@ -22,6 +25,15 @@ export type {
   HistoryResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VaultSummary,
+  VaultsResponse,
+  VaultShareValuation,
+  VaultShareValuationResult,
+  VaultShareValuationsResponse,
+  VbaSiweChallengeResponse,
+  VbaSiweSessionResponse,
+  VbaTransfer,
+  VbaTransfersResponse,
   VaultPosition,
   CashFlowEntry,
   RateHistoryEntry,
@@ -36,6 +48,11 @@ export type {
   HistoryOptions,
   RateHistoryOptions,
   VaultRateOptions,
+  VaultShareValuationsOptions,
+  FetchVbaTransfersOptions,
 } from './types.js';
-export { Env } from './constants.js';
-export { MoneyAccountApiResponseValidationError } from './errors.js';
+export { Env, VAULT_SHARE_VALUATIONS_MAX_TX_HASHES } from './constants.js';
+export {
+  MoneyAccountApiHttpError,
+  MoneyAccountApiResponseValidationError,
+} from './errors.js';

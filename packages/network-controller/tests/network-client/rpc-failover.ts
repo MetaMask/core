@@ -1,7 +1,9 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import type { Constructable } from '@vitest/spy';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ignoreRejection } from '../../../../tests/helpers.js';
+import { ignoreRejection } from '../../../../tests/vitest/helpers.js';
 import { buildRootMessenger } from '../helpers.js';
 import type { MockRequest, MockResponse, ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';
@@ -32,8 +34,8 @@ export function testsForRpcFailoverBehavior({
   getRequestToMock: (request: MockRequest, blockNumber: Hex) => MockRequest;
   failure: MockResponse | Error | string;
   isRetriableFailure: boolean;
-  getExpectedError: (url: string) => Error | jest.Constructable;
-  getExpectedBreakError?: (url: string) => Error | jest.Constructable;
+  getExpectedError: (url: string) => Error | Constructable;
+  getExpectedBreakError?: (url: string) => Error | Constructable;
 }): void {
   if (providerType === 'custom') {
     return;
@@ -107,7 +109,7 @@ export function testsForRpcFailoverBehavior({
                     // We also don't need to await this, it just needs to
                     // be added to the promise queue.
                     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                    jest.advanceTimersByTimeAsync(backoffDuration);
+                    vi.advanceTimersByTimeAsync(backoffDuration);
                   },
                 );
 
@@ -223,7 +225,7 @@ export function testsForRpcFailoverBehavior({
                       // We also don't need to await this, it just needs to
                       // be added to the promise queue.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      jest.advanceTimersByTimeAsync(backoffDuration);
+                      vi.advanceTimersByTimeAsync(backoffDuration);
                     },
                   );
 
@@ -285,7 +287,7 @@ export function testsForRpcFailoverBehavior({
               // We also don't need to await this, it just needs to
               // be added to the promise queue.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              jest.advanceTimersByTimeAsync(backoffDuration);
+              vi.advanceTimersByTimeAsync(backoffDuration);
             });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {

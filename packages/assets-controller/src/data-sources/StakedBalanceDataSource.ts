@@ -38,7 +38,7 @@ import {
 } from './evm-rpc-services/index.js';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
-const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
+const DEFAULT_POLL_INTERVAL = 3_600_000; // 1 hour
 
 /** Metadata for staked ETH (same symbol and decimals as native ETH). */
 const STAKED_ETH_METADATA: AssetMetadata = {
@@ -54,7 +54,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type StakedBalanceDataSourceConfig = {
   /** Whether staked balance fetching is enabled (default: true). */
   enabled?: boolean;
-  /** Polling interval in ms (default: 180s / 3 min). */
+  /** Polling interval in ms (default: 1 hour). */
   pollInterval?: number;
 };
 

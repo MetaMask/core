@@ -1,4 +1,5 @@
 import { CHAIN_IDS } from '@metamask/transaction-controller';
+import { describe, it, expect } from 'vitest';
 
 import {
   getTokenDisplaySymbol,

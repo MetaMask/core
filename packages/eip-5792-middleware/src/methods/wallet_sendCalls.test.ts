@@ -1,5 +1,7 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type {
   ProcessSendCallsHook,
@@ -38,8 +40,8 @@ describe('wallet_sendCalls', () => {
   let request: JsonRpcRequest<SendCallsParams> & { origin: string };
   let params: SendCallsParams;
   let response: PendingJsonRpcResponse<string>;
-  let getPermittedAccountsForOriginMock: jest.MockedFn<GetPermittedAccountsForOrigin>;
-  let processSendCallsMock: jest.MockedFunction<ProcessSendCallsHook>;
+  let getPermittedAccountsForOriginMock: MockedFunction<GetPermittedAccountsForOrigin>;
+  let processSendCallsMock: MockedFunction<ProcessSendCallsHook>;
 
   /**
    *
@@ -53,14 +55,14 @@ describe('wallet_sendCalls', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK);
     params = request.params as SendCallsParams;
     response = {} as PendingJsonRpcResponse<string>;
 
-    getPermittedAccountsForOriginMock = jest.fn();
-    processSendCallsMock = jest.fn();
+    getPermittedAccountsForOriginMock = vi.fn();
+    processSendCallsMock = vi.fn();
 
     getPermittedAccountsForOriginMock.mockResolvedValue([ADDRESS_MOCK]);
 

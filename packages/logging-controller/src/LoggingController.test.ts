@@ -6,18 +6,12 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { Duration, inMilliseconds } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type { LoggingControllerMessenger } from './LoggingController.js';
 import { LoggingController } from './LoggingController.js';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog.js';
 import { LogType } from './logTypes/index.js';
-
-jest.mock('uuid', () => {
-  return {
-    __esModule: true,
-    ...jest.requireActual('uuid'),
-  };
-});
 
 type AllLoggingControllerActions = MessengerActions<LoggingControllerMessenger>;
 

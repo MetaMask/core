@@ -1,4 +1,6 @@
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { Mocked } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types.js';
@@ -16,14 +18,14 @@ import type { UpdateGasFeesRequest } from './gas-fees.js';
 import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees.js';
 import { rpcRequest } from './provider.js';
 
-jest.mock('./feature-flags');
+vi.mock('./feature-flags');
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
-// eslint-disable-next-line jest/prefer-spy-on
-console.error = jest.fn();
+// eslint-disable-next-line vitest/prefer-spy-on
+console.error = vi.fn();
 
 const GAS_MOCK = 123;
 const GAS_LOW_MOCK = 111;
@@ -97,23 +99,23 @@ function toHex(value: number): string {
  *
  * @returns The mock GasFeeFlow.
  */
-function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
+function createGasFeeFlowMock(): Mocked<GasFeeFlow> {
   return {
-    matchesTransaction: jest.fn(),
-    getGasFees: jest.fn(),
+    matchesTransaction: vi.fn(),
+    getGasFees: vi.fn(),
   };
 }
 
 describe('gas-fees', () => {
-  let updateGasFeeRequest: jest.Mocked<UpdateGasFeesRequest>;
-  const rpcRequestMock = jest.mocked(rpcRequest);
-  const getReplaceUnderpricedDappGasFeesEnabledMock = jest.mocked(
+  let updateGasFeeRequest: Mocked<UpdateGasFeesRequest>;
+  const rpcRequestMock = vi.mocked(rpcRequest);
+  const getReplaceUnderpricedDappGasFeesEnabledMock = vi.mocked(
     getReplaceUnderpricedDappGasFeesEnabled,
   );
-  const getReplaceUnderpricedSavedGasFeesEnabledMock = jest.mocked(
+  const getReplaceUnderpricedSavedGasFeesEnabledMock = vi.mocked(
     getReplaceUnderpricedSavedGasFeesEnabled,
   );
-  let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
+  let gasFeeFlowMock: Mocked<GasFeeFlow>;
 
   /**
    * Mock the response of the gas fee flow.
@@ -133,14 +135,14 @@ describe('gas-fees', () => {
     );
 
     updateGasFeeRequest.gasFeeFlows = [gasFeeFlowMock];
-    // eslint-disable-next-line jest/prefer-spy-on
-    updateGasFeeRequest.getSavedGasFees = jest.fn();
-    // eslint-disable-next-line jest/prefer-spy-on
-    updateGasFeeRequest.getGasFeeEstimates = jest.fn().mockResolvedValue({});
+    // eslint-disable-next-line vitest/prefer-spy-on
+    updateGasFeeRequest.getSavedGasFees = vi.fn();
+    // eslint-disable-next-line vitest/prefer-spy-on
+    updateGasFeeRequest.getGasFeeEstimates = vi.fn().mockResolvedValue({});
   });
 
   afterEach(() => {
-    // eslint-disable-next-line jest/no-standalone-expect
+    // eslint-disable-next-line vitest/no-standalone-expect
     expect(updateGasFeeRequest.txMeta.defaultGasEstimates).toStrictEqual({
       maxFeePerGas: updateGasFeeRequest.txMeta.txParams.maxFeePerGas,
       maxPriorityFeePerGas:

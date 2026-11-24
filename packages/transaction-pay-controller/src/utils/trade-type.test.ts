@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import { describe, expect, it } from 'vitest';
 
 import { getQuotePricing, TradeType } from './trade-type.js';
 

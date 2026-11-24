@@ -57,6 +57,7 @@ const KEYRING_TYPES_SUPPORTING_7702 = [
   'HD Key Tree',
   'Simple Key Pair',
   'Money Keyring',
+  'MPC Money Keyring',
 ];
 
 /**

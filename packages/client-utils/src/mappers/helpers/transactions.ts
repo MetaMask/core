@@ -4,20 +4,17 @@ import {
   isEqualCaseInsensitive as equalsIgnoreCase,
 } from '@metamask/controller-utils';
 import type { V1TransactionByHashResponse } from '@metamask/core-backend';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionReceipt,
+} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import type {
-  AssetType,
-  Fee,
-  Status,
-  TokenAmount,
-  ValueTransfer,
-} from '../../types.js';
+import type { AssetType, Fee, Status, TokenAmount } from '../../types.js';
 import { nativeTokenDecimals } from '../constants.js';
 import {
   formatAddressToAssetId,
@@ -25,6 +22,7 @@ import {
   getNativeAsset,
   resolveNativeAssetId,
 } from './caip.js';
+import type { IndexedValueTransfer } from './indexed-transaction.js';
 import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
@@ -49,6 +47,58 @@ function calculateNetworkFee(
     return String(BigInt(gasUsed) * BigInt(gasPrice));
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Calculates the OP Stack / Mantle operator fee from the receipt.
+ *
+ * Jovian receipts (with `daFootprintGasScalar`):
+ * `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`.
+ * Isthmus receipts: `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`.
+ *
+ * @param txReceipt - Transaction receipt.
+ * @returns Operator fee in wei, or 0 when the receipt has no operator fee fields.
+ */
+function calculateOperatorFee(
+  txReceipt: TransactionReceipt | undefined,
+): bigint {
+  const {
+    daFootprintGasScalar,
+    gasUsed,
+    operatorFeeConstant,
+    operatorFeeScalar,
+  } = txReceipt ?? {};
+
+  if (!gasUsed || !operatorFeeScalar || !operatorFeeConstant) {
+    return 0n;
+  }
+
+  const fee = BigInt(gasUsed) * BigInt(operatorFeeScalar);
+  const scaledFee =
+    daFootprintGasScalar === undefined ? fee / 1_000_000n : fee * 100n;
+
+  return scaledFee + BigInt(operatorFeeConstant);
+}
+
+/**
+ * Sums the L2, L1, and operator fees from the receipt.
+ *
+ * @param l2Fee - L2 network fee in decimal wei.
+ * @param txReceipt - Transaction receipt.
+ * @returns Total fee in decimal wei, or the L2 fee if a receipt value is invalid.
+ */
+function calculateTotalFee(
+  l2Fee: string,
+  txReceipt: TransactionReceipt | undefined,
+): string {
+  try {
+    const l1Fee = BigInt(txReceipt?.l1Fee ?? 0);
+    const operatorFee = calculateOperatorFee(txReceipt);
+
+    return String(BigInt(l2Fee) + l1Fee + operatorFee);
+  } catch {
+    return l2Fee;
   }
 }
 
@@ -133,6 +183,15 @@ export function getFees(
   return networkFee ? [networkFee] : undefined;
 }
 
+/**
+ * Builds the base network fee (in the chain's native token) for a local
+ * transaction from its receipt (`gasUsed × effectiveGasPrice`), plus the
+ * L1 and operator fees from the receipt. Falls back to `txParams.gasPrice`
+ * while pending.
+ *
+ * @param transactionGroup - Transaction group with the primary transaction.
+ * @returns Activity fee list with a single base network fee, or undefined.
+ */
 export function getLocalTransactionFees(
   transactionGroup: Pick<TransactionGroup, 'primaryTransaction'> & {
     nativeAssetSymbol?: string;
@@ -145,15 +204,18 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  const amount = calculateNetworkFee(
-    primaryTransaction.txReceipt?.gasUsed,
-    primaryTransaction.txReceipt?.effectiveGasPrice ??
-      primaryTransaction.txParams?.gasPrice,
+  const { txReceipt } = primaryTransaction;
+
+  const l2Fee = calculateNetworkFee(
+    txReceipt?.gasUsed,
+    txReceipt?.effectiveGasPrice ?? primaryTransaction.txParams?.gasPrice,
   );
 
-  if (!amount) {
+  if (!l2Fee) {
     return undefined;
   }
+
+  const amount = calculateTotalFee(l2Fee, txReceipt);
 
   return [toNetworkFee(amount, chainId, nativeAssetSymbol)];
 }
@@ -260,15 +322,15 @@ export function getNftPaymentTransfer({
   subjectAddress,
 }: {
   side: 'buy' | 'sell';
-  sentTransfer?: ValueTransfer;
-  receivedTransfer?: ValueTransfer;
-  sentNativeTransfer?: ValueTransfer;
+  sentTransfer?: IndexedValueTransfer;
+  receivedTransfer?: IndexedValueTransfer;
+  sentNativeTransfer?: IndexedValueTransfer;
   nftCounterparty: string;
   transactionFrom?: string;
   transactionTo?: string;
   subjectAddress: string;
-}): ValueTransfer | undefined {
-  const isFungible = (transfer?: ValueTransfer): boolean =>
+}): IndexedValueTransfer | undefined {
+  const isFungible = (transfer?: IndexedValueTransfer): boolean =>
     Boolean(transfer && !isNftStandard(transfer.transferType));
 
   if (side === 'buy') {
@@ -327,14 +389,14 @@ const resolveAssetId = (
  * @returns The primary sent and received transfers for the account.
  */
 export function parseValueTransfers(
-  valueTransfers: ValueTransfer[] | undefined,
+  valueTransfers: IndexedValueTransfer[] | undefined,
   subjectAddress: string,
 ): {
-  sentTransfer: ValueTransfer | undefined;
-  receivedTransfer: ValueTransfer | undefined;
-  sentNativeTransfer: ValueTransfer | undefined;
-  sentNftTransfer: ValueTransfer | undefined;
-  receivedNftTransfer: ValueTransfer | undefined;
+  sentTransfer: IndexedValueTransfer | undefined;
+  receivedTransfer: IndexedValueTransfer | undefined;
+  sentNativeTransfer: IndexedValueTransfer | undefined;
+  sentNftTransfer: IndexedValueTransfer | undefined;
+  receivedNftTransfer: IndexedValueTransfer | undefined;
 } {
   const sent = valueTransfers?.filter(({ from }) =>
     equalsIgnoreCase(from, subjectAddress),
@@ -395,7 +457,7 @@ export type GetKnownTokenDecimals = (
  * @returns A token amount, or undefined when nothing useful can be derived.
  */
 export function getTokenAmountFromTransfer(
-  transfer: ValueTransfer | undefined,
+  transfer: IndexedValueTransfer | undefined,
   direction: TokenAmount['direction'],
   chainId: CaipChainId,
   getKnownTokenDecimals?: GetKnownTokenDecimals,
@@ -439,10 +501,10 @@ export function getTokenAmountFromTransfer(
   // NFT amounts are counts, not base units — keep them even without decimals.
   const hasNftAmount = isNftTransfer && amount !== null && amount !== undefined;
 
-  let assetId: string | undefined;
-  if (isNative) {
+  let { assetId } = transfer;
+  if (!assetId && isNative) {
     assetId = resolveNativeAssetId(chainId, symbol);
-  } else if (!isNftTransfer) {
+  } else if (!assetId && !isNftTransfer) {
     assetId = resolveAssetId(chainId, transfer.contractAddress);
   }
 

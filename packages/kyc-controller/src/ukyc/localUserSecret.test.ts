@@ -1,4 +1,6 @@
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
@@ -18,16 +20,16 @@ const SECRET_BASE64 = bytesToBase64(SECRET_BYTES);
  * Builds a stateful in-memory store adapter backed by a single value.
  *
  * @param initial - The initial stored base64 value.
- * @returns The store plus jest spies for `get` / `set`.
+ * @returns The store plus mock functions for `get` / `set`.
  */
 function makeStore(initial: string | null = null): {
   store: UkycLocalUserSecretStore;
-  get: jest.Mock;
-  set: jest.Mock;
+  get: Mock;
+  set: Mock;
 } {
   let value = initial;
-  const get = jest.fn(async () => value);
-  const set = jest.fn(async (_path: string, next: string) => {
+  const get = vi.fn(async () => value);
+  const set = vi.fn(async (_path: string, next: string) => {
     value = next;
   });
   return { store: { get, set }, get, set };
@@ -36,7 +38,7 @@ function makeStore(initial: string | null = null): {
 describe('UKYC localUserSecret', () => {
   describe('UkycLocalUserSecretStore', () => {
     it('delegates get and set to User Storage messenger actions', async () => {
-      const call = jest
+      const call = vi
         .fn()
         .mockResolvedValueOnce('stored')
         .mockResolvedValueOnce(undefined);
@@ -126,11 +128,11 @@ describe('UKYC localUserSecret', () => {
       );
       // First read (existence check) misses; the re-read after our write sees a
       // value another writer landed first.
-      const get = jest
+      const get = vi
         .fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(bytesToBase64(competing));
-      const set = jest.fn().mockResolvedValue(undefined);
+      const set = vi.fn().mockResolvedValue(undefined);
 
       const result = await getOrCreateLocalUserSecret({ get, set });
 
@@ -152,8 +154,8 @@ describe('UKYC localUserSecret', () => {
     it('falls back to the generated secret if the re-read returns nothing', async () => {
       // `get` always misses, even after the write, so the helper falls back to
       // the value it just generated.
-      const get = jest.fn().mockResolvedValue(null);
-      const set = jest.fn().mockResolvedValue(undefined);
+      const get = vi.fn().mockResolvedValue(null);
+      const set = vi.fn().mockResolvedValue(undefined);
 
       const result = await getOrCreateLocalUserSecret({ get, set });
 

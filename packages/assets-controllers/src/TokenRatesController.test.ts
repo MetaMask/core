@@ -16,8 +16,9 @@ import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { add0x, KnownCaipNamespace } from '@metamask/utils';
 import type { Patch } from 'immer';
+import { describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
 import type {
   AbstractTokenPricesService,
@@ -92,7 +93,7 @@ describe('TokenRatesController', () => {
     });
 
     it('should call setNativeAssetIdentifiers on tokenPricesService if available', async () => {
-      const setNativeAssetIdentifiers = jest.fn();
+      const setNativeAssetIdentifiers = vi.fn();
       const tokenPricesService = buildMockTokenPricesService({
         setNativeAssetIdentifiers,
       });
@@ -183,7 +184,7 @@ describe('TokenRatesController', () => {
   describe('updateExchangeRates', () => {
     it('does not fetch when disabled', async () => {
       const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -207,7 +208,7 @@ describe('TokenRatesController', () => {
 
     it('does not fetch or update state when isDeprecated returns true', async () => {
       const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -234,7 +235,7 @@ describe('TokenRatesController', () => {
 
     it('clears stale marketData when isDeprecated toggles to true at runtime', async () => {
       const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
       let deprecated = false;
       const initialMarketData = {
         '0x1': {
@@ -278,7 +279,7 @@ describe('TokenRatesController', () => {
       const tokenPricesService = buildMockTokenPricesService({
         fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -347,7 +348,7 @@ describe('TokenRatesController', () => {
       const tokenPricesService = buildMockTokenPricesService({
         fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
@@ -411,7 +412,7 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
         validateChainIdSupported: (_chainId: unknown): _chainId is Hex => false,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -495,7 +496,7 @@ describe('TokenRatesController', () => {
         validateCurrencySupported: (_currency: unknown): _currency is string =>
           false,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -656,7 +657,7 @@ describe('TokenRatesController', () => {
         validateCurrencySupported: (_currency: unknown): _currency is string =>
           false,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -743,7 +744,7 @@ describe('TokenRatesController', () => {
         validateCurrencySupported: (_currency: unknown): _currency is string =>
           false,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -798,7 +799,7 @@ describe('TokenRatesController', () => {
   describe('_executePoll', () => {
     it('fetches rates for the given chains', async () => {
       await withController({}, async ({ controller }) => {
-        jest.spyOn(controller, 'updateExchangeRates');
+        vi.spyOn(controller, 'updateExchangeRates');
 
         await controller._executePoll({ chainIds: ['0x1'] });
 
@@ -819,7 +820,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           await controller._executePoll({ chainIds: ['0x1'] });
 
@@ -836,7 +837,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           await controller._executePoll({ chainIds: ['0x1'] });
 
@@ -864,7 +865,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
           expect(controller.state.marketData).toStrictEqual(initialMarketData);
 
           deprecated = true;
@@ -880,14 +881,14 @@ describe('TokenRatesController', () => {
 
   describe('TokensController:stateChange', () => {
     it('fetches rates for all updated chains', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const chainId = '0x1';
       const nativeCurrency = 'ETH';
 
       const tokenPricesService = buildMockTokenPricesService({
         fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
       });
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices');
 
       await withController(
         {
@@ -927,7 +928,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
@@ -973,7 +974,7 @@ describe('TokenRatesController', () => {
     });
 
     it('does not fetch when disabled', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const chainId = '0x1';
 
       await withController(
@@ -983,7 +984,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           triggerTokensStateChange({
             allTokens: {
@@ -1001,7 +1002,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).not.toHaveBeenCalled();
@@ -1010,7 +1011,7 @@ describe('TokenRatesController', () => {
     });
 
     it('does not fetch when isDeprecated returns true', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const chainId = '0x1';
 
       await withController(
@@ -1020,7 +1021,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           triggerTokensStateChange({
             allTokens: {
@@ -1038,7 +1039,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).not.toHaveBeenCalled();
@@ -1047,7 +1048,7 @@ describe('TokenRatesController', () => {
     });
 
     it('does not include chains when tokens are not updated', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const chainId = '0x1';
 
       await withController(
@@ -1069,7 +1070,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           triggerTokensStateChange({
             allTokens: {
@@ -1087,7 +1088,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).toHaveBeenCalledWith([]);
@@ -1096,7 +1097,7 @@ describe('TokenRatesController', () => {
     });
 
     it('does not include chains with no network configuration', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const chainId = '0x1';
 
       await withController(
@@ -1106,7 +1107,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           triggerTokensStateChange({
             allTokens: {
@@ -1124,7 +1125,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).toHaveBeenCalledWith([]);
@@ -1161,7 +1162,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerNetworkStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           triggerNetworkStateChange(
             {
@@ -1181,7 +1182,7 @@ describe('TokenRatesController', () => {
             ],
           );
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.state.marketData).toStrictEqual({
@@ -1239,7 +1240,7 @@ describe('TokenRatesController', () => {
 
   describe('enable', () => {
     it('enables events', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const chainId = '0x1';
       await withController(
@@ -1249,7 +1250,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           controller.enable();
 
@@ -1269,7 +1270,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).toHaveBeenCalledWith([
@@ -1285,7 +1286,7 @@ describe('TokenRatesController', () => {
 
   describe('disable', () => {
     it('disables events', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const chainId = '0x1';
       await withController(
@@ -1295,7 +1296,7 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
-          jest.spyOn(controller, 'updateExchangeRates');
+          vi.spyOn(controller, 'updateExchangeRates');
 
           controller.disable();
 
@@ -1315,7 +1316,7 @@ describe('TokenRatesController', () => {
             allIgnoredTokens: {},
           });
 
-          jest.advanceTimersToNextTimer();
+          vi.advanceTimersToNextTimer();
           await flushPromises();
 
           expect(controller.updateExchangeRates).not.toHaveBeenCalled();
@@ -1478,7 +1479,7 @@ async function withController<ReturnValue>(
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const mockTokensState = jest.fn<TokensControllerState, []>();
+  const mockTokensState = vi.fn<(...args: []) => TokensControllerState>();
   messenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({
@@ -1487,7 +1488,7 @@ async function withController<ReturnValue>(
     }),
   );
 
-  const networkStateMock = jest.fn<NetworkState, []>();
+  const networkStateMock = vi.fn<(...args: []) => NetworkState>();
   messenger.registerActionHandler(
     'NetworkController:getState',
     networkStateMock.mockReturnValue({
@@ -1499,7 +1500,7 @@ async function withController<ReturnValue>(
   // Register NetworkEnablementController:getState handler
   messenger.registerActionHandler(
     'NetworkEnablementController:getState',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       enabledNetworkMap: {},
       nativeAssetIdentifiers: {
         'eip155:1': 'eip155:1/slip44:60',
@@ -1554,7 +1555,7 @@ function buildMockTokenPricesService(
     validateCurrencySupported(_currency: unknown): _currency is string {
       return true;
     },
-    setNativeAssetIdentifiers: jest.fn(),
+    setNativeAssetIdentifiers: vi.fn(),
     ...overrides,
   };
 }

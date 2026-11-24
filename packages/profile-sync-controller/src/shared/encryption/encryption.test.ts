@@ -1,5 +1,15 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants.js';
 import encryption, { createSHA256Hash } from './encryption.js';
+
+// Lower the scrypt cost used for encryption, which is very slow when running
+// with coverage enabled. Decryption uses the cost stored in the encrypted
+// data, so the fixtures below also use a lower cost.
+vi.mock(import('./constants.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  SCRYPT_N: 2 ** 10,
+}));
 
 describe('encryption tests', () => {
   const PASSWORD = '123';
@@ -9,7 +19,7 @@ describe('encryption tests', () => {
   const ACCOUNTS_PASSWORD =
     '0d55d30da233959674d14076737198c05ae3fb8631a17e20d3c28c60dddd82f7';
   const ACCOUNTS_ENCRYPTED_DATA_WITH_SALT =
-    '{"v":"1","t":"scrypt","d":"1yC/ZXarV57HbqEZ46nH0JWgXfPl86nTHD7kai2g5gm290FM9tw5QjOaAAwIuQESEE8TIM/J9pIj7nmlGi+BZrevTtK3DXWXwnUQsCP7amKd5Q4gs3EEQgXpA0W+WJUgyElj869rwIv/C6tl5E2pK4j/0EAjMSIm1TGoj9FPohyRgZsOIt8VhZfb7w0GODsjPwPIkN6zazvJ3gAFYFPh7yRtebFs86z3fzqCWZ9zakdCHntchC2oZiaApXR9yzaPlGgnPg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}';
+    '{"v":"1","t":"scrypt","d":"1yC/ZXarV57HbqEZ46nH0G5hrhhwvcTnPqtLUhgSgxxE38VQs3Nrbp2AgO/8mUMty/lR6rBsO3/xbkWVaGQjEHnVCiSquVn9fk8MXkCARGfSjqMPr0ESBzg/kvLeaghh3Owyx4MZtMyev7/icGX8LzUtq6ZBLNYiUbIZsyP8z66GMj//GIOZ1jB6PUsv7j5bZ76ZUBTkeuBvSFekTdNTvbBvldGQYsza0ykmTkwfPU28QzF8fcw6IrqEvw8C8gWQg7ZFew==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}';
   const ACCOUNTS_DECRYPTED_DATA =
     '{"v":"1","a":"0xd2a4afe5c2ff0a16bf81f77ba4201a8107aa874b","i":"c590ab50-add6-4de4-8af7-9b696b5e9c6a","n":"My Second Synced Account","nlu":1729234343749}';
 
@@ -28,7 +38,7 @@ describe('encryption tests', () => {
   });
 
   it('should decrypt some existing data', async () => {
-    const encryptedData = `{"v":"1","t":"scrypt","d":"WNEp1QXUZsxCfW9b27uzZ18CtsMvKP6+cqLq8NLAItXeYcFcUjtKprfvedHxf5JN9Q7pe50qnA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
+    const encryptedData = `{"v":"1","t":"scrypt","d":"WNEp1QXUZsxCfW9b27uzZ9k+Dx9FI5A7jiHzIAknGEZnFSYy7RdTryF6wD64QZj9aFZibqDOVg==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
     const result = await encryption.decryptString(encryptedData, PASSWORD);
     expect(result).toBe(DATA1);
   });

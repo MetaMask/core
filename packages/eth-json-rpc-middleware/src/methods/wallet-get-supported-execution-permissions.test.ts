@@ -1,4 +1,6 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
@@ -28,7 +30,7 @@ const REQUEST_MOCK = {
 
 describe('wallet_getSupportedExecutionPermissions', () => {
   let request: JsonRpcRequest;
-  let processGetSupportedExecutionPermissionsMock: jest.MockedFunction<ProcessGetSupportedExecutionPermissionsHook>;
+  let processGetSupportedExecutionPermissionsMock: MockedFunction<ProcessGetSupportedExecutionPermissionsHook>;
   let context: WalletMiddlewareParams['context'];
 
   const callMethod = async (): Promise<Readonly<Json> | undefined> => {
@@ -40,7 +42,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = { ...REQUEST_MOCK };
 
@@ -48,7 +50,7 @@ describe('wallet_getSupportedExecutionPermissions', () => {
       ['origin', 'test-origin'],
     ]) as WalletMiddlewareParams['context'];
 
-    processGetSupportedExecutionPermissionsMock = jest.fn();
+    processGetSupportedExecutionPermissionsMock = vi.fn();
     processGetSupportedExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);
   });
 

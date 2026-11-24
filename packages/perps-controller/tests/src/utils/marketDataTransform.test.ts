@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
@@ -209,6 +211,34 @@ describe('transformMarketData - human-readable names', () => {
 
     expect(result[0].name).toBe('Bitcoin');
     expect(result[0].volume).toBe('$1000000');
+    expect(result[0].numericValues).toStrictEqual({
+      price: 50000,
+      change24hPercent: expect.closeTo(2.0408, 4),
+      volume: 1000000,
+      openInterest: 50_000_000,
+    });
+  });
+
+  it('leaves values the venue did not report out of numericValues', () => {
+    const result = transformMarketData(
+      { universe: [makeUniverseEntry('BTC')], assetCtxs: [], allMids: {} },
+      mockFormatters,
+    );
+
+    expect(result[0].numericValues).toStrictEqual({});
+  });
+
+  it('leaves change24hPercent out of numericValues without a previous day price', () => {
+    const result = transformMarketData(
+      {
+        universe: [makeUniverseEntry('BTC')],
+        assetCtxs: [],
+        allMids: { BTC: '50000' },
+      },
+      mockFormatters,
+    );
+
+    expect(result[0].numericValues).toStrictEqual({ price: 50000 });
   });
 });
 

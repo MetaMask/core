@@ -7,9 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [28.2.2]
+
+### Changed
+
+- Bump `@metamask/eth-hd-keyring` from `^15.0.0` to `^16.0.0` ([#11532](https://github.com/MetaMask/core/pull/11532))
+- Bump `@metamask/eth-simple-keyring` from `^13.0.0` to `^13.0.3` ([#11532](https://github.com/MetaMask/core/pull/11532))
+
+## [28.2.1]
+
 ### Added
 
-- Add `KeyringTypes.mpc` ([#10577](https://github.com/MetaMask/core/pull/10577))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/eth-sig-util` from `^9.0.0` to `^10.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [28.2.0]
+
+### Added
+
+- Add `KeyringTypes.mpcMoney` and `KeyringTypes.mpc` keyring types ([#10577](https://github.com/MetaMask/core/pull/10577), [#10849](https://github.com/MetaMask/core/pull/10849))
 
 ### Changed
 
@@ -17,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `ethereumjs-wallet` from `^1.0.1` to `^1.0.2` ([#10486](https://github.com/MetaMask/core/pull/10486))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `ulid` from `^2.3.0` to `^2.4.0` ([#10533](https://github.com/MetaMask/core/pull/10533))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 
 ## [28.1.0]
 
@@ -1093,7 +1121,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.2...HEAD
+[28.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.1...@metamask/keyring-controller@28.2.2
+[28.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...@metamask/keyring-controller@28.2.1
+[28.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...@metamask/keyring-controller@28.2.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0
 [27.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...@metamask/keyring-controller@27.1.1

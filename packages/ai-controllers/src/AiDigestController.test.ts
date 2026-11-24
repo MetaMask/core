@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   AiDigestController,
@@ -51,9 +52,9 @@ const createMessenger = (): AiDigestControllerMessenger =>
   });
 
 const createService = (overrides?: Partial<DigestService>): DigestService => ({
-  searchDigest: jest.fn().mockResolvedValue(mockReport),
-  fetchMarketOverview: jest.fn().mockResolvedValue(mockOverview),
-  fetchFrontPageItem: jest.fn().mockResolvedValue(mockFrontPage),
+  searchDigest: vi.fn().mockResolvedValue(mockReport),
+  fetchMarketOverview: vi.fn().mockResolvedValue(mockOverview),
+  fetchFrontPageItem: vi.fn().mockResolvedValue(mockFrontPage),
   ...overrides,
 });
 
@@ -135,7 +136,7 @@ describe('AiDigestController (market insights)', () => {
 
   it('returns null when the service returns null', async () => {
     const digestService = createService({
-      searchDigest: jest.fn().mockResolvedValue(null),
+      searchDigest: vi.fn().mockResolvedValue(null),
     });
     const controller = new AiDigestController({
       messenger: createMessenger(),
@@ -177,7 +178,7 @@ describe('AiDigestController (market overview)', () => {
 
   it('returns null when the service returns null', async () => {
     const digestService = createService({
-      fetchMarketOverview: jest.fn().mockResolvedValue(null),
+      fetchMarketOverview: vi.fn().mockResolvedValue(null),
     });
     const controller = new AiDigestController({
       messenger: createMessenger(),
@@ -222,7 +223,7 @@ describe('AiDigestController (front page)', () => {
 
   it('returns null when the service returns null', async () => {
     const digestService = createService({
-      fetchFrontPageItem: jest.fn().mockResolvedValue(null),
+      fetchFrontPageItem: vi.fn().mockResolvedValue(null),
     });
     const controller = new AiDigestController({
       messenger: createMessenger(),

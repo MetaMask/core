@@ -304,11 +304,33 @@ export function hydrateFromDiskSync(
                 }
                 delete structuralMarket.dataSource;
                 delete structuralMarket.sourceExpiresAt;
+                if (structuralMarket.numericValues) {
+                  // Price and change are shown as placeholders below, so
+                  // their stale sort values go too. Volume and OI stay.
+                  const structuralValues = {
+                    ...structuralMarket.numericValues,
+                  };
+                  delete structuralValues.price;
+                  delete structuralValues.change24hPercent;
+                  structuralMarket.numericValues = structuralValues;
+                }
                 return {
                   ...structuralMarket,
                   price: PERPS_CONSTANTS.FallbackPriceDisplay,
                   change24h: PERPS_CONSTANTS.FallbackDataDisplay,
                   change24hPercent: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  ...(structuralMarket.change5m !== undefined && {
+                    change5m: PERPS_CONSTANTS.FallbackDataDisplay,
+                  }),
+                  ...(structuralMarket.changePercent5m !== undefined && {
+                    changePercent5m: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  }),
+                  ...(structuralMarket.change1h !== undefined && {
+                    change1h: PERPS_CONSTANTS.FallbackDataDisplay,
+                  }),
+                  ...(structuralMarket.changePercent1h !== undefined && {
+                    changePercent1h: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  }),
                 };
               });
               marketUpdates[entry.providerNetworkKey] = {

@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   composeSubscriptionApiErrorMessage,
   createSentryError,
@@ -24,11 +26,11 @@ function createMockResponse({
   jsonThrowsWithString = false,
   data,
 }: MockResponseOptions): Response {
-  let json = jest.fn().mockResolvedValue(jsonData);
+  let json = vi.fn().mockResolvedValue(jsonData);
   if (jsonThrows) {
-    json = jest.fn().mockRejectedValue(new Error('bad json'));
+    json = vi.fn().mockRejectedValue(new Error('bad json'));
   } else if (jsonThrowsWithString) {
-    json = jest.fn().mockRejectedValue('string error');
+    json = vi.fn().mockRejectedValue('string error');
   }
   return {
     status,
@@ -37,7 +39,7 @@ function createMockResponse({
         key.toLowerCase() === 'content-type' ? contentType : null,
     },
     json,
-    text: jest.fn().mockResolvedValue(textData),
+    text: vi.fn().mockResolvedValue(textData),
     data,
   } as unknown as Response;
 }

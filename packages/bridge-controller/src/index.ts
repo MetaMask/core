@@ -11,6 +11,7 @@ export {
   PollingStatus,
   FailurePhase,
   SwapBridgeErrorCode,
+  MoneyAccountAction,
 } from './utils/metrics/constants.js';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';
@@ -76,6 +77,9 @@ export type {
   BridgeControllerGetStateAction,
   BridgeControllerStateChangeEvent,
   DeepPartial,
+  SwapTraceRequest,
+  SwapTraceFunction,
+  SwapRelatedTraceName,
 } from './types.js';
 
 export {
@@ -271,9 +275,17 @@ export {
   selectTokenWarnings,
 } from './selectors.js';
 
+export {
+  BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
+  TraceFeatureTag as SwapFeatureTag,
+} from './constants/traces.js';
+
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';
 
-export { getBridgeFeatureFlags } from './utils/feature-flags.js';
+export {
+  getBridgeFeatureFlags,
+  getQuoteRefreshRate,
+} from './utils/feature-flags.js';
 
 export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage.js';
 
@@ -283,3 +295,6 @@ export {
   fetchTokens,
   type SwapsToken,
 } from './utils/swaps.js';
+
+export { getAccountByAddress } from './utils/controllers/accounts.js';
+export { getFeatureFlags } from './utils/controllers/remote-feature-flags.js';

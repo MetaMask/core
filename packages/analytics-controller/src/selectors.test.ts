@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AnalyticsControllerState } from './AnalyticsController.js';
 import type { AnalyticsEventFragment } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
@@ -147,6 +149,34 @@ describe('analyticsControllerSelectors', () => {
 
       expect(
         analyticsControllerSelectors.selectMarketingConsentDecisionMade(state),
+      ).toBe(false);
+    });
+  });
+
+  describe('selectMarketingConsentSyncPending', () => {
+    it.each([[true], [false]])(
+      'returns %s when marketingConsentSyncPending is %s',
+      (marketingConsentSyncPending) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          marketingConsentSyncPending,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        expect(
+          analyticsControllerSelectors.selectMarketingConsentSyncPending(state),
+        ).toBe(marketingConsentSyncPending);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      expect(
+        analyticsControllerSelectors.selectMarketingConsentSyncPending(state),
       ).toBe(false);
     });
   });

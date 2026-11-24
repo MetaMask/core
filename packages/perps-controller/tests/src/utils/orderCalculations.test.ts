@@ -1,3 +1,6 @@
+import { describe, expect, it } from 'vitest';
+
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   calculateFinalPositionSize,
@@ -511,15 +514,60 @@ describe('calculateFinalPositionSize', () => {
     });
 
     it('throws when the price moved beyond the allowed slippage', () => {
-      expect(() =>
+      const calculate = (): ReturnType<typeof calculateFinalPositionSize> =>
         calculateFinalPositionSize({
           usdAmount: '5000',
           currentPrice: 45000,
           priceAtCalculation: 50000,
           maxSlippageBps: 300,
           szDecimals: 3,
+        });
+
+      let thrownError: unknown;
+      try {
+        calculate();
+      } catch (error: unknown) {
+        thrownError = error;
+      }
+
+      expect(thrownError).toBeInstanceOf(PerpsControllerError);
+      if (!(thrownError instanceof PerpsControllerError)) {
+        throw new Error('Expected calculate() to throw a PerpsControllerError');
+      }
+
+      expect(thrownError.errorCode).toBe(PERPS_ERROR_CODES.PRICE_MOVED);
+      expect(thrownError.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.PRICE_MOVED,
+        priceDeltaBps: 1000,
+        maxSlippageBps: 300,
+        expectedPrice: 50000,
+        currentPrice: 45000,
+      });
+    });
+
+    it('does not reject an exact-size close when the snapshot is stale', () => {
+      const result = calculateFinalPositionSize({
+        size: '0.123',
+        currentPrice: 45000,
+        priceAtCalculation: 50000,
+        maxSlippageBps: 300,
+        szDecimals: 3,
+        reduceOnly: true,
+      });
+
+      expect(result.finalPositionSize).toBeCloseTo(0.123, 10);
+    });
+
+    it('formats sub-cent price movement without collapsing prices to zero', () => {
+      expect(() =>
+        calculateFinalPositionSize({
+          usdAmount: '100',
+          currentPrice: 0.021,
+          priceAtCalculation: 0.017,
+          maxSlippageBps: 300,
+          szDecimals: 0,
         }),
-      ).toThrow('Price moved too much');
+      ).toThrow('Expected: 0.017, Current: 0.021');
     });
   });
 
@@ -712,6 +760,21 @@ describe('validateOrderPrecision', () => {
       });
     },
   );
+
+  it('refuses a limit price that formats to zero at the asset tick', () => {
+    expect(
+      validateOrderPrecision({ price: '0.0000001', szDecimals: 3 }),
+    ).toStrictEqual({
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+    });
+  });
+
+  it('accepts a limit price on the asset tick', () => {
+    expect(
+      validateOrderPrecision({ price: '44900', szDecimals: 3 }),
+    ).toStrictEqual({ isValid: true });
+  });
 
   it('accepts a size of exactly one increment, the smallest submittable size', () => {
     expect(

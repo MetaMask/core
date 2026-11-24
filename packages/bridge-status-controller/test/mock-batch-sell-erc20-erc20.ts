@@ -4,11 +4,11 @@ import {
   MetaMetricsSwapsEventSource,
   BatchSellTradesResponse,
   Quote,
-  QuoteResponse,
   StatusTypes,
   TxData,
   FeatureId,
 } from '@metamask/bridge-controller';
+import type { QuoteResponseV1 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import {
   TransactionMeta,
@@ -18,7 +18,7 @@ import {
 
 import { BridgeHistoryItem } from '../src/index.js';
 
-export const mockBatchSellErc20Erc20: QuoteResponse<TxData, TxData>[] = [
+export const mockBatchSellErc20Erc20: QuoteResponseV1<TxData, TxData>[] = [
   {
     featureId: FeatureId.BATCH_SELL,
     quote: {
@@ -160,7 +160,7 @@ export const mockBatchSellTradesErc20Erc20: BatchSellTradesResponse = {
       } as const,
       approval
         ? ({
-            ...(approval as TxData),
+            ...approval,
             type: BatchSellTransactionType.APPROVAL,
             maxFeePerGas: '0x2',
             maxPriorityFeePerGas: '0x1',
@@ -295,7 +295,7 @@ export const getHistoryItem = (
     status: {
       srcChain: {
         chainId: 10,
-        txHash: isStxEnabled ? undefined : `0x${txMetaId}hash`,
+        txHash: `0x${txMetaId}hash`,
       },
       status: StatusTypes.PENDING,
     },

@@ -1,4 +1,5 @@
 import { JsonRpcError, serializeError } from '@metamask/rpc-errors';
+import { describe, expect, it } from 'vitest';
 
 import {
   CredentialAlreadyEnrolledError,

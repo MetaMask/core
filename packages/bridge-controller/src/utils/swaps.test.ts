@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants/chains.js';
 import {
@@ -19,10 +20,6 @@ import {
 import type { SwapsToken } from './swaps.js';
 
 describe('Swaps utils', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('isValidSwapsContractAddress', () => {
     it('returns true for valid swaps contract address', () => {
       const contract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
@@ -158,7 +155,7 @@ describe('Swaps utils', () => {
     ];
 
     it('fetches and returns tokens with native token', async () => {
-      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+      const mockFetchFn = vi.fn().mockResolvedValue(mockTokens);
 
       const result = await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn);
 
@@ -183,7 +180,7 @@ describe('Swaps utils', () => {
     });
 
     it('includes client ID header when provided', async () => {
-      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+      const mockFetchFn = vi.fn().mockResolvedValue(mockTokens);
       const clientId = 'test-client-id';
 
       await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn, clientId);
@@ -197,7 +194,7 @@ describe('Swaps utils', () => {
     });
 
     it('does not include client ID header when not provided', async () => {
-      const mockFetchFn = jest.fn().mockResolvedValue(mockTokens);
+      const mockFetchFn = vi.fn().mockResolvedValue(mockTokens);
 
       await fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn);
 
@@ -211,7 +208,7 @@ describe('Swaps utils', () => {
 
     it('propagates fetch errors', async () => {
       const mockError = new Error('Network error');
-      const mockFetchFn = jest.fn().mockRejectedValue(mockError);
+      const mockFetchFn = vi.fn().mockRejectedValue(mockError);
 
       await expect(
         fetchTokens(CHAIN_IDS.MAINNET, mockFetchFn as unknown as FetchFunction),

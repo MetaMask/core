@@ -1,43 +1,42 @@
-import { jest } from '@jest/globals';
 import * as commentJson from 'comment-json';
+import { execa } from 'execa';
+import fs from 'fs';
 import type { Stats } from 'fs';
 import path from 'path';
+import { format } from 'prettier';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { MonorepoFiles } from './constants.ts';
+import { MONOREPO_FILES } from './constants.ts';
+import * as fsUtils from './fs-utils.ts';
+import { finalizeAndWriteData, readMonorepoFiles } from './utils.ts';
 import type { PackageData } from './utils.ts';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards. `utils.ts` reaches for the default and the named
-// exports of `fs`, so the mock exposes the same object as both.
-const fsMock = {
-  existsSync: jest.fn(),
+// `utils.ts` reaches for the default and the named exports of `fs`, so the
+// mock exposes the same object as both. It is hoisted so the `vi.mock` factory
+// below can reach it.
+const fsMock = vi.hoisted(() => ({
+  existsSync: vi.fn(),
   promises: {
-    mkdir: jest.fn(),
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
-    stat: jest.fn(),
+    mkdir: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    stat: vi.fn(),
   },
-};
-
-jest.unstable_mockModule('fs', () => ({ ...fsMock, default: fsMock }));
-
-jest.unstable_mockModule('execa', () => ({ execa: jest.fn() }));
-
-jest.unstable_mockModule('prettier', () => ({
-  format: jest.fn(),
 }));
 
-jest.unstable_mockModule('./fs-utils.js', () => ({
-  readAllFiles: jest.fn(),
-  writeFiles: jest.fn(),
+vi.mock('fs', () => ({ ...fsMock, default: fsMock }));
+
+vi.mock(import('execa'), () => ({ execa: vi.fn() }));
+
+vi.mock(import('prettier'), () => ({
+  format: vi.fn(),
 }));
 
-const { default: fs } = await import('fs');
-const { execa } = await import('execa');
-const { format } = await import('prettier');
-const fsUtils = await import('./fs-utils.js');
-const { finalizeAndWriteData, readMonorepoFiles } = await import('./utils.js');
+vi.mock(import('./fs-utils.ts'), () => ({
+  readAllFiles: vi.fn(),
+  writeFiles: vi.fn(),
+}));
 
 describe('create-package/utils', () => {
   describe('readMonorepoFiles', () => {
@@ -54,17 +53,17 @@ describe('create-package/utils', () => {
     it('should read the expected monorepo files', async () => {
       // `readFile` is overloaded, which `mockImplementation` cannot match, so
       // it is narrowed to the single signature `utils.ts` relies on.
-      const readFile = jest.mocked(
-        fs.promises.readFile,
-      ) as unknown as jest.Mock<(filePath: string) => Promise<string>>;
+      const readFile = vi.mocked(fs.promises.readFile) as unknown as Mock<
+        (filePath: string) => Promise<string>
+      >;
 
       readFile.mockImplementation(async (filePath) => {
         switch (path.basename(filePath)) {
-          case MonorepoFiles.TsConfig:
+          case MONOREPO_FILES.TsConfig:
             return tsConfig;
-          case MonorepoFiles.TsConfigBuild:
+          case MONOREPO_FILES.TsConfigBuild:
             return tsConfigBuild;
-          case MonorepoFiles.PackageJson:
+          case MONOREPO_FILES.PackageJson:
             return packageJson;
           default:
             throw new Error(`Unexpected file: ${path.basename(filePath)}`);
@@ -104,9 +103,9 @@ describe('create-package/utils', () => {
       const mockError = new Error('Not found') as NodeJS.ErrnoException;
       mockError.code = 'ENOENT';
 
-      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+      vi.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
-      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+      vi.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
@@ -115,7 +114,7 @@ describe('create-package/utils', () => {
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
-      jest.mocked(format).mockImplementation(async (input) => input);
+      vi.mocked(format).mockImplementation(async (input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -194,9 +193,9 @@ describe('create-package/utils', () => {
 
       const mockError = new Error('Not found') as NodeJS.ErrnoException;
       mockError.code = 'ENOENT';
-      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+      vi.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
-      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+      vi.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
         'package.json': JSON.stringify({
           name: '@metamask/package-template',
           private: true,
@@ -204,7 +203,7 @@ describe('create-package/utils', () => {
         }),
       });
 
-      jest.mocked(format).mockImplementation(async (input) => input);
+      vi.mocked(format).mockImplementation(async (input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -237,9 +236,9 @@ describe('create-package/utils', () => {
 
       const mockError = new Error('Not found') as NodeJS.ErrnoException;
       mockError.code = 'ENOENT';
-      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+      vi.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
-      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+      vi.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
         'dist/index.js': 'export default 42;',
         'dist/index.d.ts': 'export default 42;',
@@ -247,7 +246,7 @@ describe('create-package/utils', () => {
         'tsconfig.tsbuildinfo': '{}',
       });
 
-      jest.mocked(format).mockImplementation(async (input) => input);
+      vi.mocked(format).mockImplementation(async (input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -275,7 +274,7 @@ describe('create-package/utils', () => {
         nodeVersions: '20.0.0',
       };
 
-      jest.mocked(fs.promises.stat).mockResolvedValue({} as Stats);
+      vi.mocked(fs.promises.stat).mockResolvedValue({} as Stats);
 
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),
@@ -289,7 +288,7 @@ describe('create-package/utils', () => {
       const mockError = new Error('Permission denied') as NodeJS.ErrnoException;
       mockError.code = 'EACCES';
 
-      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+      vi.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
       const packageData: PackageData = {
         name: '@metamask/foo',

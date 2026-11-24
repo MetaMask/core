@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { QuoteStatusUpdateBackendErrorType } from './constants.js';
 import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
 

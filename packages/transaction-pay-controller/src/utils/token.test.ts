@@ -4,30 +4,47 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { hexToBigInt } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import type { TransactionPaymentToken } from '../types.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
   computeTokenAmounts,
+  getAssetBalance,
+  getAssetFiatRate,
+  getAssetInfo,
+  getEvmAsset,
+  getEvmPaymentToken,
+  getEvmQuoteSource,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
+  isEvmQuoteRequest,
+  isNonEvmPaymentToken,
   isSameToken,
   getLiveTokenBalance,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token.js';
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
+const DUPLICATE_TOKEN_ADDRESS_MOCK =
+  '0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Hex;
+const LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK =
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
+const DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK =
+  '0x6B175474E89094C44Da98b954EedeAC495271d0F' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DECIMALS_MOCK = 6;
 const FROM_MOCK = '0x456' as Hex;
@@ -38,7 +55,30 @@ const TICKER_MOCK = 'TST';
 const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
-const PROVIDER_MOCK = { request: jest.fn() };
+const PROVIDER_MOCK = { request: vi.fn() };
+const SOLANA_ASSET_ID_MOCK: CaipAssetType =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+const SOLANA_WALLET_ACCOUNT_ID_MOCK = 'solana-account-uuid';
+
+const EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: DECIMALS_MOCK,
+  symbol: SYMBOL_MOCK,
+};
+
+const NON_EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: SOLANA_ASSET_ID_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: 9,
+  symbol: 'SOL',
+};
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -75,7 +115,7 @@ describe('Token Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -220,6 +260,84 @@ describe('Token Utils', () => {
         decimals: DECIMALS_MOCK,
         symbol: SYMBOL_MOCK,
       });
+    });
+
+    it('prefers the checksummed asset over a lowercase duplicate for a lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, DUPLICATE_TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId.toLowerCase()]: {
+            decimals: 18,
+            name: 'STUB',
+            symbol: 'STUB',
+            type: 'erc20',
+          },
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        DUPLICATE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
+    it('resolves a lowercase-only asset without caching it', () => {
+      const assetId = buildAssetId(
+        CHAIN_ID_MOCK,
+        LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK,
+      );
+      const lowercaseAssetId = assetId.toLowerCase();
+      const lowercaseInfo = {
+        decimals: 18,
+        name: 'STUB',
+        symbol: 'STUB',
+        type: 'erc20',
+      };
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: { [lowercaseAssetId]: lowercaseInfo },
+      });
+
+      expect(
+        getTokenInfo(
+          messenger,
+          LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+          CHAIN_ID_MOCK,
+        ),
+      ).toStrictEqual({ decimals: 18, symbol: 'STUB' });
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [lowercaseAssetId]: lowercaseInfo,
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      expect(
+        getTokenInfo(
+          messenger,
+          LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+          CHAIN_ID_MOCK,
+        ),
+      ).toStrictEqual({ decimals: DECIMALS_MOCK, symbol: SYMBOL_MOCK });
     });
 
     it('returns normalized decimals', () => {
@@ -734,6 +852,47 @@ describe('Token Utils', () => {
       const result = getTokenFiatRate(
         messenger,
         TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        fiatRate: '6',
+        usdRate: '8',
+      });
+    });
+
+    it('uses the checksummed asset price when a lowercase duplicate without price exists', () => {
+      const assetId = buildAssetId(
+        CHAIN_ID_MOCK,
+        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK,
+      );
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId.toLowerCase()]: {
+            decimals: DECIMALS_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 6,
+            usdPrice: 8,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
         CHAIN_ID_MOCK,
       );
 
@@ -1298,6 +1457,52 @@ describe('Token Utils', () => {
     });
   });
 
+  describe('getLiveTokenBalanceOrUndefined', () => {
+    it('returns the balance when the RPC request succeeds', async () => {
+      PROVIDER_MOCK.request.mockResolvedValue('0x4C4B40');
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBe('5000000');
+    });
+
+    it('returns undefined when the RPC request fails', async () => {
+      // Both the `pending` and the `latest` attempt fail.
+      PROVIDER_MOCK.request.mockRejectedValue(
+        new Error('Request is being rate limited.'),
+      );
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns a zero balance rather than undefined', async () => {
+      // A successful read of an empty account is real data, not an unknown
+      // balance, so it must still be returned and still gate the caller.
+      PROVIDER_MOCK.request.mockResolvedValue('0x0');
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBe('0');
+    });
+  });
+
   describe('computeTokenAmounts', () => {
     it('computes amount fields from raw value, decimals, and fiat rates', () => {
       const result = computeTokenAmounts('1230000', 6, {
@@ -1428,6 +1633,244 @@ describe('Token Utils', () => {
       const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: '0x89' as Hex };
 
       expect(isSameToken(token1, token2)).toBe(false);
+    });
+  });
+
+  describe('isNonEvmPaymentToken', () => {
+    it('returns true for a non-EVM asset ID', () => {
+      expect(isNonEvmPaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK)).toBe(true);
+    });
+
+    it('returns false for an EVM asset ID', () => {
+      expect(isNonEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toBe(false);
+    });
+  });
+
+  describe('getEvmAsset', () => {
+    it('derives the chain ID and address of an ERC-20 asset', () => {
+      expect(
+        getEvmAsset(`eip155:59144/erc20:${TOKEN_ADDRESS_MOCK}`),
+      ).toStrictEqual({ address: TOKEN_ADDRESS_MOCK, chainId: '0xe708' });
+    });
+
+    it('derives the native token address of a slip44 asset', () => {
+      expect(getEvmAsset('eip155:1/slip44:60')).toStrictEqual({
+        address: NATIVE_TOKEN_ADDRESS,
+        chainId: CHAIN_ID_MOCK,
+      });
+    });
+
+    it('derives the Polygon native token address of a slip44 asset', () => {
+      expect(getEvmAsset('eip155:137/slip44:966')).toStrictEqual({
+        address: getNativeToken(CHAIN_ID_POLYGON),
+        chainId: CHAIN_ID_POLYGON,
+      });
+    });
+
+    it('returns undefined for a non-EVM asset', () => {
+      expect(getEvmAsset(SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+  });
+
+  describe('isEvmQuoteRequest', () => {
+    it('returns true for an EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: 'eip155:1/slip44:60' })).toBe(
+        true,
+      );
+    });
+
+    it('returns false for a non-EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('getEvmQuoteSource', () => {
+    it('derives the chain ID and token address of an EVM source asset', () => {
+      expect(
+        getEvmQuoteSource({
+          sourceAssetId: `eip155:59144/erc20:${TOKEN_ADDRESS_MOCK}`,
+        }),
+      ).toStrictEqual({ chainId: '0xe708', tokenAddress: TOKEN_ADDRESS_MOCK });
+    });
+
+    it('throws for a non-EVM source asset', () => {
+      expect(() =>
+        getEvmQuoteSource({ sourceAssetId: SOLANA_ASSET_ID_MOCK }),
+      ).toThrow(`Unsupported non-EVM source asset: ${SOLANA_ASSET_ID_MOCK}`);
+    });
+  });
+
+  describe('getEvmPaymentToken', () => {
+    it('adds the derived chain ID and address to an EVM payment token', () => {
+      expect(getEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toStrictEqual({
+        ...EVM_PAYMENT_TOKEN_MOCK,
+        address: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+    });
+
+    it('returns undefined for a non-EVM payment token', () => {
+      expect(getEvmPaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK)).toBeUndefined();
+    });
+
+    it('returns undefined if no payment token is provided', () => {
+      expect(getEvmPaymentToken(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('getAssetBalance', () => {
+    it('returns the raw balance for the account and asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('1500000000');
+    });
+
+    it('returns zero if the account has no balance for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+
+    it('returns zero if the asset metadata is missing', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+  });
+
+  describe('getAssetInfo', () => {
+    it('returns decimals and symbol for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        decimals: 9,
+        symbol: 'SOL',
+      });
+    });
+
+    it('returns undefined if the asset is not found', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+  });
+
+  describe('getAssetFiatRate', () => {
+    it('returns fiat and USD rates for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 85,
+            usdPrice: 100,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        fiatRate: '85',
+        usdRate: '100',
+      });
+    });
+
+    it('returns undefined if the asset has no fungible price', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsPrice: {} });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+
+    it('returns a fixed USD rate for an EVM stablecoin', () => {
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 0.85,
+            usdPrice: 0.999,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, assetId)).toStrictEqual({
+        fiatRate: '0.85',
+        usdRate: '1',
+      });
+    });
+
+    it('returns the USD price for an EVM asset that is not a stablecoin', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 2,
+            usdPrice: 3,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, assetId)).toStrictEqual({
+        fiatRate: '2',
+        usdRate: '3',
+      });
     });
   });
 

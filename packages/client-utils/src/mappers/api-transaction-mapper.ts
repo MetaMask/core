@@ -2,15 +2,12 @@ import {
   isEqualCaseInsensitive as equalsIgnoreCase,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import type { V1TransactionByHashResponse } from '@metamask/core-backend';
-import { KnownCaipNamespace, toCaipChainId } from '@metamask/utils';
-
 import type {
-  ActivityItem,
-  Status,
-  TokenAmount,
-  ValueTransfer,
-} from '../types.js';
+  V1TransactionByHashResponse,
+  V5TransactionRecord,
+} from '@metamask/core-backend';
+
+import type { ActivityItem, TokenAmount } from '../types.js';
 import {
   nativeTokenAddress,
   supplyMethodIds,
@@ -20,13 +17,27 @@ import {
 } from './constants.js';
 import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
 import {
-  getFees,
+  fromV1Transaction,
+  fromV5TransactionRecord,
+  toHexChainId,
+} from './helpers/indexed-transaction.js';
+import type {
+  IndexedTransaction,
+  IndexedValueTransfer,
+} from './helpers/indexed-transaction.js';
+import {
   getNftPaymentTransfer,
   getTokenAmountFromTransfer,
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
 } from './helpers/transactions.js';
 import type { GetKnownTokenDecimals } from './helpers/transactions.js';
+
+type MapIndexedTransactionOptions = {
+  transaction: IndexedTransaction;
+  subjectAddress: string;
+  getKnownTokenDecimals?: GetKnownTokenDecimals;
+};
 
 /**
  * Maps an indexed API transaction into the shared activity item shape.
@@ -51,17 +62,45 @@ export function mapApiTransaction({
   subjectAddress: string;
   getKnownTokenDecimals?: GetKnownTokenDecimals;
 }): ActivityItem {
-  const { hash, transactionCategory, valueTransfers, from, methodId } =
-    transaction;
+  return mapIndexedTransaction({
+    transaction: fromV1Transaction(transaction),
+    subjectAddress,
+    getKnownTokenDecimals,
+  });
+}
+
+export function mapV5ApiTransaction({
+  transaction,
+  getKnownTokenDecimals,
+}: {
+  transaction: V5TransactionRecord;
+  getKnownTokenDecimals?: GetKnownTokenDecimals;
+}): ActivityItem {
+  return mapIndexedTransaction({
+    ...fromV5TransactionRecord(transaction),
+    getKnownTokenDecimals,
+  });
+}
+
+function mapIndexedTransaction({
+  transaction,
+  subjectAddress,
+  getKnownTokenDecimals,
+}: MapIndexedTransactionOptions): ActivityItem {
+  const {
+    hash,
+    chainId,
+    status,
+    timestamp,
+    transactionCategory,
+    valueTransfers,
+    from,
+    methodId,
+    fees,
+  } = transaction;
   const normalizedMethodId = methodId?.toLowerCase() ?? '';
-  const status: Status = transaction.isError ? 'failed' : 'success';
-  const timestamp = new Date(transaction.timestamp).getTime();
-  const chainId = toCaipChainId(
-    KnownCaipNamespace.Eip155,
-    transaction.chainId.toString(),
-  );
   const getToken = (
-    transfer: ValueTransfer | undefined,
+    transfer: IndexedValueTransfer | undefined,
     direction: TokenAmount['direction'],
   ): TokenAmount | undefined =>
     getTokenAmountFromTransfer(
@@ -88,7 +127,7 @@ export function mapApiTransaction({
       data: {
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
         from,
       },
     };
@@ -126,7 +165,7 @@ export function mapApiTransaction({
       data: {
         from,
         token,
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -266,7 +305,7 @@ export function mapApiTransaction({
         from: transfer?.from ?? from,
         to: transfer?.to ?? transaction.to,
         token,
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -303,7 +342,7 @@ export function mapApiTransaction({
       data: {
         from,
         sourceToken: getToken(sentTransfer, 'out'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -319,7 +358,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -333,16 +372,14 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
 
   const wrappedNativeAddress =
     swapsWrappedTokensAddresses[
-      `0x${transaction.chainId.toString(
-        16,
-      )}` as keyof typeof swapsWrappedTokensAddresses
+      toHexChainId(chainId) as keyof typeof swapsWrappedTokensAddresses
     ];
 
   if (
@@ -358,7 +395,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -371,7 +408,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -390,7 +427,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction),
+        fees,
       },
     };
   }
@@ -421,6 +458,7 @@ export function mapApiTransaction({
       transactionCategory,
       transactionProtocol: transaction.transactionProtocol,
       ...(token ? { token } : {}),
+      fees,
     },
   };
 }

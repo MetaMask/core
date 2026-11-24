@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import { RECURRING_INTERVALS } from '../types.js';
 import {

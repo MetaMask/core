@@ -5,6 +5,8 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import type { Mocked, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -14,10 +16,10 @@ import { rpcRequest } from '../utils/provider.js';
 import { bnFromHex, padHexToEvenLength } from '../utils/utils.js';
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow.js';
 
-jest.mock('../utils/provider');
+vi.mock('../utils/provider');
 
-jest.mock('../utils/layer1-gas-fee-flow', () => ({
-  buildUnserializedTransaction: jest.fn(),
+vi.mock('../utils/layer1-gas-fee-flow', () => ({
+  buildUnserializedTransaction: vi.fn(),
 }));
 
 const ORACLE_INTERFACE = new Interface([
@@ -58,15 +60,15 @@ const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
  */
 function createMockTypedTransaction(
   serializedBuffer: Buffer,
-): jest.Mocked<TypedTransaction> {
+): Mocked<TypedTransaction> {
   const instance = {
     serialize: (): Buffer => serializedBuffer,
-    sign: jest.fn(),
+    sign: vi.fn(),
   };
 
-  jest.spyOn(instance, 'sign').mockReturnValue(instance);
+  vi.spyOn(instance, 'sign').mockReturnValue(instance);
 
-  return instance as unknown as jest.Mocked<TypedTransaction>;
+  return instance as unknown as Mocked<TypedTransaction>;
 }
 
 /**
@@ -122,9 +124,9 @@ class DefaultOracleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
 }
 
 describe('OracleLayer1GasFeeFlow', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
-  const getL1FeeMock: jest.MockedFn<() => Promise<unknown>> = jest.fn();
-  const getOperatorFeeMock: jest.MockedFn<() => Promise<unknown>> = jest.fn();
+  const rpcRequestMock = vi.mocked(rpcRequest);
+  const getL1FeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
+  const getOperatorFeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
 
   let request: Layer1GasFeeFlowRequest;
 
@@ -160,7 +162,7 @@ describe('OracleLayer1GasFeeFlow', () => {
         'hex',
       );
 
-      const transactionFactoryMock = jest
+      const transactionFactoryMock = vi
         .spyOn(TransactionFactory, 'fromTxData')
         .mockReturnValueOnce(
           createMockTypedTransaction(serializedTransactionMock),
@@ -211,9 +213,9 @@ describe('OracleLayer1GasFeeFlow', () => {
         serializedTransactionMock,
       );
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(typedTransactionMock);
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        typedTransactionMock,
+      );
 
       const flow = new MockOracleLayer1GasFeeFlow(true);
       const response = await flow.getLayer1Fee(request);
@@ -268,9 +270,9 @@ describe('OracleLayer1GasFeeFlow', () => {
         serializedTransactionMock,
       );
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(typedTransactionMock);
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        typedTransactionMock,
+      );
 
       const flow = new DefaultOracleLayer1GasFeeFlow();
       await flow.getLayer1Fee(request);
@@ -377,13 +379,11 @@ describe('OracleLayer1GasFeeFlow', () => {
       const multiplier = new BN(2);
       getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       class TransformingFlow extends OracleLayer1GasFeeFlow {
         async matchesTransaction(): Promise<boolean> {

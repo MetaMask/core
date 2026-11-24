@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from './constants.js';
 import {
   selectSmartTransactionsFeatureFlags,
@@ -7,11 +9,7 @@ import type { SmartTransactionsFeatureFlagsState } from './selectors.js';
 
 describe('selectors', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation();
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   const createMockState = (

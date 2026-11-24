@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { generateCodeownersFileContent } from './generate.ts';
 import type { CodeownersConfig } from './types.ts';
 
@@ -13,10 +15,10 @@ describe('generateCodeownersFileContent', () => {
         wallet: { teams: ['@MetaMask/core-platform'] },
       },
       overrides: [
-        { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+        { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
         {
           pattern: '/packages/b-controller/src/special',
-          owners: ['@MetaMask/a-team', '@MetaMask/core-platform'],
+          primaryOwners: ['@MetaMask/a-team', '@MetaMask/core-platform'],
         },
       ],
     };
@@ -31,18 +33,20 @@ describe('generateCodeownersFileContent', () => {
 # --------
 
 ### a-controller
-/packages/a-controller                 @MetaMask/a-team @MetaMask/b-team
-/packages/a-controller/CHANGELOG.md    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/package.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/tsconfig.*      @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/typedoc.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller                    @MetaMask/a-team @MetaMask/b-team
+/packages/a-controller/CHANGELOG.md       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/a-controller/package.json       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/a-controller/tsconfig.*         @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/a-controller/typedoc.json       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/a-controller/vitest.config.*    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
 
 ### b-controller
-/packages/b-controller                 @MetaMask/b-team
-/packages/b-controller/CHANGELOG.md    @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/package.json    @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/tsconfig.*      @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/typedoc.json    @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller                    @MetaMask/b-team
+/packages/b-controller/CHANGELOG.md       @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/b-controller/package.json       @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/b-controller/tsconfig.*         @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/b-controller/typedoc.json       @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
+/packages/b-controller/vitest.config.*    @MetaMask/b-team @MetaMask/core-platform    # maintenance-owner: @MetaMask/core-platform
 
 ### wallet
 /packages/wallet                                               @MetaMask/core-platform
@@ -51,6 +55,7 @@ describe('generateCodeownersFileContent', () => {
 /packages/wallet/package.json                                  @MetaMask/core-platform
 /packages/wallet/tsconfig.*                                    @MetaMask/core-platform
 /packages/wallet/typedoc.json                                  @MetaMask/core-platform
+/packages/wallet/vitest.config.*                               @MetaMask/core-platform
 
 # Overrides
 # ---------

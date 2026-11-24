@@ -56,17 +56,6 @@ export function buildEmptyAssetsState(
   };
 }
 
-export function getIgnoringCase(
-  record: Record<string, unknown>,
-  assetId: string,
-): unknown {
-  const lowerId = assetId.toLowerCase();
-  const match = Object.keys(record).find(
-    (key) => key.toLowerCase() === lowerId,
-  );
-  return match === undefined ? undefined : record[match];
-}
-
 /** A seeded USDC spot price, as a wallet that has already priced USDC holds it. */
 export const SEEDED_USDC_PRICE = {
   assetPriceType: 'fungible' as const,
@@ -117,6 +106,8 @@ export function buildUsdcHeldAndPricedState(): AssetsControllerState {
         decimals: 6,
         image:
           'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/1/erc20/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
+        aggregators: ['metamask'],
+        occurrences: 5,
       },
     },
     assetsPrice: {

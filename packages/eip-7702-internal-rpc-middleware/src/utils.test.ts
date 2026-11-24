@@ -1,6 +1,7 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { object, string, number } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { validateParams, validateAndNormalizeAddress } from './utils.js';
 
@@ -63,7 +64,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('validates and normalizes a valid address', async () => {
     const validAddress = '0x1234567890123456789012345678901234567890';
-    const getPermittedAccountsForOrigin = jest
+    const getPermittedAccountsForOrigin = vi
       .fn()
       .mockResolvedValue([validAddress]);
 
@@ -79,7 +80,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for invalid address format', async () => {
     const invalidAddress = '0xinvalid' as unknown as Hex;
-    const getPermittedAccountsForOrigin = jest.fn();
+    const getPermittedAccountsForOrigin = vi.fn();
 
     await expect(
       validateAndNormalizeAddress(
@@ -96,7 +97,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for unauthorized account access', async () => {
     const address = '0x1234567890123456789012345678901234567890';
-    const getPermittedAccountsForOrigin = jest
+    const getPermittedAccountsForOrigin = vi
       .fn()
       .mockResolvedValue(['0x9999999999999999999999999999999999999999']);
 
@@ -111,7 +112,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for empty string address', async () => {
     const address = '' as unknown as Hex;
-    const getPermittedAccountsForOrigin = jest.fn();
+    const getPermittedAccountsForOrigin = vi.fn();
 
     await expect(
       validateAndNormalizeAddress(
@@ -128,7 +129,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for non-string address', async () => {
     const address = 123 as unknown as Hex;
-    const getPermittedAccountsForOrigin = jest.fn();
+    const getPermittedAccountsForOrigin = vi.fn();
 
     await expect(
       validateAndNormalizeAddress(
@@ -145,7 +146,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for null address', async () => {
     const address = null as unknown as Hex;
-    const getPermittedAccountsForOrigin = jest.fn();
+    const getPermittedAccountsForOrigin = vi.fn();
 
     await expect(
       validateAndNormalizeAddress(
@@ -162,7 +163,7 @@ describe('validateAndNormalizeAddress', () => {
 
   it('throws error for undefined address', async () => {
     const address = undefined as unknown as Hex;
-    const getPermittedAccountsForOrigin = jest.fn();
+    const getPermittedAccountsForOrigin = vi.fn();
 
     await expect(
       validateAndNormalizeAddress(

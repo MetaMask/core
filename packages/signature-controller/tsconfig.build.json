@@ -34,6 +34,9 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-sig-util/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

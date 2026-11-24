@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
+
 import {
   BUILDER_FEE_CONFIG,
   REFERRAL_CONFIG,
@@ -38,18 +41,18 @@ import {
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
 // cancel errors against its error class.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 
 // The client and subscription services are mocked: they own the SDK's
 // REST/exchange/info clients and the WebSocket subscriptions. The wallet
 // service, the signing caches and the validation run for real.
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
-  let loggerError: jest.SpyInstance;
+  let loggerError: MockInstance;
 
   beforeEach(() => {
     ({ loggerError } = setUpAccountSignerSuite());
@@ -156,9 +159,8 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       let lookupsWhileHeld = 0;
       const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
       // Only observes the lookup: the lock and its answer are real.
-      jest
-        .spyOn(PerpsSigningCache, 'isInFlight')
-        .mockImplementation((operationType, network, userAddress) => {
+      vi.spyOn(PerpsSigningCache, 'isInFlight').mockImplementation(
+        function (operationType, network, userAddress) {
           const pending = isInFlight(operationType, network, userAddress);
           if (operationType === 'referral' && pending) {
             lookupsWhileHeld += 1;
@@ -167,7 +169,8 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
             }
           }
           return pending;
-        });
+        },
+      );
       return {
         waiting: waiting.promise,
         lookupsWhileHeld: (): number => lookupsWhileHeld,
@@ -273,7 +276,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
     });
 
     it('signs nothing more when called again', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(NOW);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW);
       const { accountSignerProvider, accountSigner } =
         createAccountSignerProvider({
           signer: { requiresSignatureConfirmation: () => true },
@@ -357,6 +360,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(initialize).not.toHaveBeenCalled();
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
@@ -377,11 +385,19 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
 
       expect(result).toStrictEqual({
         ready: false,
-        error: 'transport unavailable',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(loggerError.mock.calls).toStrictEqual([
         [
-          failure,
+          expect.objectContaining({
+            message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            cause: failure,
+          }),
           {
             tags: {
               feature: PERPS_CONSTANTS.FeatureName,
@@ -420,6 +436,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(infoClient.userNonFundingLedgerUpdates).toHaveBeenCalledTimes(4);
       expect(loggerError).not.toHaveBeenCalled();
@@ -440,6 +461,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
@@ -477,6 +503,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         expect(result).toStrictEqual({
           ready: false,
           error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            provider: 'hyperliquid',
+          },
         });
         expect(loggerError).not.toHaveBeenCalled();
       },
@@ -540,6 +571,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(lockedResult).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(referralAfterLock).toBe(false);
       expect(retriedResult).toStrictEqual({ ready: true });
@@ -566,6 +602,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -588,6 +629,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(accountSigner.signTypedData.mock.calls).toStrictEqual([
         [MAIN_ADDRESS, L1_PAYLOAD],
@@ -618,9 +664,9 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         createAccountSignerProvider({
           abstraction: 'default',
           info: {
-            userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
+            userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([]),
             // Not approved: the venue would reject the approval anyway.
-            maxBuilderFee: jest.fn().mockResolvedValue(0),
+            maxBuilderFee: vi.fn().mockResolvedValue(0),
           },
         });
 
@@ -629,6 +675,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(exchangeClient.setReferrer).not.toHaveBeenCalled();
@@ -643,7 +694,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           info: {
-            userNonFundingLedgerUpdates: jest.fn(async () =>
+            userNonFundingLedgerUpdates: vi.fn(async () =>
               deposited
                 ? [{ delta: { type: 'deposit', usdc: '100' }, time: NOW }]
                 : [],
@@ -658,6 +709,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(beforeDeposit).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          provider: 'hyperliquid',
+        },
       });
       expect(afterDeposit).toStrictEqual({ ready: true });
       // Not attempted and not recorded, so the next provider attempts it.
@@ -674,7 +730,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
           signer: { isReady: () => signerReady },
           info: {
             // The signer locks while the account is being looked up.
-            userNonFundingLedgerUpdates: jest.fn(async () => {
+            userNonFundingLedgerUpdates: vi.fn(async () => {
               signerReady = false;
               return [];
             }),
@@ -686,6 +742,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
@@ -718,7 +779,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           info: {
-            referral: jest.fn(async () => ({
+            referral: vi.fn(async () => ({
               referrerState: codeReady
                 ? {
                     stage: 'ready',
@@ -743,7 +804,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
 
     it('leaves the referral to the next preparation, not to an order, when a preparation fails before its setup', async () => {
       let codeReady = false;
-      const referral = jest.fn(async () => ({
+      const referral = vi.fn(async () => ({
         referrerState: codeReady
           ? { stage: 'ready', data: { code: REFERRAL_CONFIG.MainnetCode } }
           : { stage: 'not_ready', data: null },
@@ -778,6 +839,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(failed).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorCode: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+          provider: 'hyperliquid',
+        },
       });
       expect(order.success).toBe(true);
       expect(referralCallsAfterOrder).toStrictEqual([]);
@@ -789,7 +855,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
     });
 
     it('checks a referral code that is not ready again at the next preparation, not before every order', async () => {
-      const referral = jest.fn().mockResolvedValue({
+      const referral = vi.fn().mockResolvedValue({
         referrerState: { stage: 'not_ready', data: null },
       });
       const { accountSignerProvider, exchangeClient } =
@@ -823,7 +889,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
 
     it('logs a failed referral code lookup once, without looking it up again before orders or preparation', async () => {
       const lookupError = new Error('Network request failed');
-      const referral = jest.fn().mockRejectedValue(lookupError);
+      const referral = vi.fn().mockRejectedValue(lookupError);
       const { accountSignerProvider, exchangeClient } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
@@ -852,7 +918,7 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',
           // Not approved yet.
-          info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+          info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
         });
       // The signer reports ready, but rejects the approval as locked.
       accountSigner.signTypedData.mockImplementation(
@@ -869,6 +935,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.approveBuilderFee.mock.calls).toStrictEqual([
         BUILDER_FEE_WRITE,
@@ -887,6 +958,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorCode: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+          provider: 'hyperliquid',
+        },
       });
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
@@ -907,6 +983,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(lockedResult).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
     });
   });

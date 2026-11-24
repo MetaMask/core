@@ -6,12 +6,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
+import type { SpotClearinghouseStateResponse } from '@nktkas/hyperliquid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
+  PerpsProvider,
+  PerpsProviderType,
+  SubscribeAccountParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
@@ -21,16 +28,28 @@ import {
   adaptAccountStateFromSDK,
   parseAssetName,
 } from '../../../src/utils/hyperLiquidAdapter.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import { calculateOrderBookSpread } from '../../../src/utils/orderBookGrouping.js';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
+
+const validPositionBalances = {
+  unrealizedPnl: '100',
+  marginUsed: '500',
+  returnOnEquity: '0.2',
+};
 
 // Mock HyperLiquid SDK types
 interface MockSubscription {
-  unsubscribe: jest.Mock;
+  unsubscribe: Mock;
 }
 
 // Mock adapter
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
-  adaptPositionFromSDK: jest.fn((assetPos: any) => ({
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => ({
+  adaptPositionFromSDK: vi.fn((assetPos: any) => ({
     symbol: 'BTC',
     size: assetPos.position.szi,
     entryPrice: '50000',
@@ -45,7 +64,7 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     takeProfitCount: 0,
     stopLossCount: 0,
   })),
-  adaptOrderFromSDK: jest.fn((order: any) => ({
+  adaptOrderFromSDK: vi.fn((order: any) => ({
     orderId: order.oid.toString(),
     symbol: order.coin,
     side: order.side === 'B' ? 'buy' : 'sell',
@@ -65,7 +84,7 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
       ? { isPositionTpsl: order.isPositionTpsl }
       : {}),
   })),
-  adaptAccountStateFromSDK: jest.fn(() => ({
+  adaptAccountStateFromSDK: vi.fn(() => ({
     spendableBalance: '1000.00',
     withdrawableBalance: '1000.00',
     marginUsed: '500.00',
@@ -73,71 +92,62 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     returnOnEquity: '20.0',
     totalBalance: '10100.00',
   })),
-  parseAssetName: jest.fn((symbol: string) => ({
+  parseAssetName: vi.fn((symbol: string) => ({
     symbol,
     dex: null,
   })),
-  buildHyperLiquidFillId: jest.requireActual(
-    '../../../src/utils/hyperLiquidAdapter',
+  buildHyperLiquidFillId: (
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >()
   ).buildHyperLiquidFillId,
 }));
 
 // Mock DevLogger
-jest.mock(
-  '../../../../core/SDKConnect/utils/DevLogger',
-  () => ({
-    DevLogger: {
-      log: jest.fn(),
-    },
-  }),
-  { virtual: true },
-);
+vi.mock('../../../../core/SDKConnect/utils/DevLogger', () => ({
+  DevLogger: {
+    log: vi.fn(),
+  },
+}));
 
 // Mock trace utilities
-jest.mock(
-  '../../../../util/trace',
-  () => ({
-    trace: jest.fn(),
-    TraceName: {
-      PerpsWebSocketConnected: 'Perps WebSocket Connected',
-      PerpsWebSocketDisconnected: 'Perps WebSocket Disconnected',
-    },
-    TraceOperation: {
-      PerpsMarketData: 'perps.market_data',
-    },
-  }),
-  { virtual: true },
-);
+vi.mock('../../../../util/trace', () => ({
+  trace: vi.fn(),
+  TraceName: {
+    PerpsWebSocketConnected: 'Perps WebSocket Connected',
+    PerpsWebSocketDisconnected: 'Perps WebSocket Disconnected',
+  },
+  TraceOperation: {
+    PerpsMarketData: 'perps.market_data',
+  },
+}));
 
 // Mock Sentry
-jest.mock(
-  '@sentry/react-native',
-  () => ({
-    setMeasurement: jest.fn(),
-  }),
-  { virtual: true },
-);
+vi.mock('@sentry/react-native', () => ({
+  setMeasurement: vi.fn(),
+}));
 
 describe('HyperLiquidSubscriptionService', () => {
   let service: HyperLiquidSubscriptionService;
-  let mockClientService: jest.Mocked<HyperLiquidClientService>;
-  let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
   let mockSubscriptionClient: any;
   let mockWalletAdapter: any;
   let mockDeps: ReturnType<typeof createMockInfrastructure>;
-  let mockSpotClearinghouseState: jest.Mock;
+  let mockSpotClearinghouseState: Mock;
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.clearAllMocks();
+    vi.useFakeTimers();
+    vi.clearAllMocks();
     mockDeps = createMockInfrastructure();
-    jest.mocked(parseAssetName).mockImplementation((symbol: string) => ({
+    vi.mocked(parseAssetName).mockImplementation((symbol: string) => ({
       symbol,
       dex: null,
     }));
-    const hyperLiquidAdapter = jest.requireMock(
-      '../../../src/utils/hyperLiquidAdapter',
-    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
     hyperLiquidAdapter.adaptPositionFromSDK.mockImplementation(
       (assetPos: any) => ({
         symbol: 'BTC',
@@ -186,11 +196,11 @@ describe('HyperLiquidSubscriptionService', () => {
 
     // Mock subscription client
     const mockSubscription: MockSubscription = {
-      unsubscribe: jest.fn().mockResolvedValue(undefined),
+      unsubscribe: vi.fn().mockResolvedValue(undefined),
     };
 
     mockSubscriptionClient = {
-      allMids: jest.fn((paramsOrCallback: any, maybeCallback?: any) => {
+      allMids: vi.fn((paramsOrCallback: any, maybeCallback?: any) => {
         const callback =
           typeof paramsOrCallback === 'function'
             ? paramsOrCallback
@@ -206,7 +216,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      activeAssetCtx: jest.fn((params: any, callback: any) => {
+      activeAssetCtx: vi.fn((params: any, callback: any) => {
         // Simulate activeAssetCtx data
         setTimeout(() => {
           callback({
@@ -223,7 +233,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      webData3: jest.fn((_params: any, callback: any) => {
+      webData3: vi.fn((_params: any, callback: any) => {
         // Simulate webData3 data with perpDexStates structure
         // First callback immediately
         setTimeout(() => {
@@ -233,7 +243,7 @@ describe('HyperLiquidSubscriptionService', () => {
                 clearinghouseState: {
                   assetPositions: [
                     {
-                      position: { szi: '0.1' },
+                      position: { ...validPositionBalances, szi: '0.1' },
                       coin: 'BTC',
                     },
                   ],
@@ -266,7 +276,7 @@ describe('HyperLiquidSubscriptionService', () => {
                 clearinghouseState: {
                   assetPositions: [
                     {
-                      position: { szi: '0.2' }, // Changed position size
+                      position: { ...validPositionBalances, szi: '0.2' }, // Changed position size
                       coin: 'BTC',
                     },
                   ],
@@ -293,14 +303,14 @@ describe('HyperLiquidSubscriptionService', () => {
 
         return Promise.resolve(mockSubscription);
       }),
-      webData2: jest.fn((_params: any, callback: any) => {
+      webData2: vi.fn((_params: any, callback: any) => {
         // Simulate webData2 data with clearinghouseState (HIP-3 disabled)
         setTimeout(() => {
           callback({
             clearinghouseState: {
               assetPositions: [
                 {
-                  position: { szi: '0.1' },
+                  position: { ...validPositionBalances, szi: '0.1' },
                   coin: 'BTC',
                 },
               ],
@@ -329,7 +339,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      userFills: jest.fn((_params: any, callback: any) => {
+      userFills: vi.fn((_params: any, callback: any) => {
         // Simulate order fill data
         setTimeout(() => {
           callback({
@@ -348,7 +358,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      l2Book: jest.fn((_params: any, callback: any) => {
+      l2Book: vi.fn((_params: any, callback: any) => {
         // Simulate l2Book data
         setTimeout(() => {
           callback({
@@ -358,7 +368,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      bbo: jest.fn((_params: any, callback: any) => {
+      bbo: vi.fn((_params: any, callback: any) => {
         // Simulate BBO data
         setTimeout(() => {
           callback({
@@ -372,7 +382,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      activeAsset: jest.fn((params: any, callback: any) => {
+      activeAsset: vi.fn((params: any, callback: any) => {
         // Simulate activeAsset data (similar to activeAssetCtx)
         setTimeout(() => {
           callback({
@@ -382,7 +392,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      clearinghouseState: jest.fn((_params: any, callback: any) => {
+      clearinghouseState: vi.fn((_params: any, callback: any) => {
         // Simulate clearinghouseState data for individual subscription
         setTimeout(() => {
           callback({
@@ -390,7 +400,7 @@ describe('HyperLiquidSubscriptionService', () => {
             clearinghouseState: {
               assetPositions: [
                 {
-                  position: { szi: '0.1' },
+                  position: { ...validPositionBalances, szi: '0.1' },
                   coin: 'BTC',
                 },
               ],
@@ -404,7 +414,7 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      openOrders: jest.fn((_params: any, callback: any) => {
+      openOrders: vi.fn((_params: any, callback: any) => {
         // Simulate openOrders data for individual subscription
         setTimeout(() => {
           callback({
@@ -433,45 +443,49 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
-      fastAssetCtxs: jest.fn((_callback: any) =>
+      assetCtxs: vi.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: vi.fn((_callback: any) =>
         Promise.resolve(mockSubscription),
       ),
-      spotState: jest.fn((_params: any, _callback: any) =>
+      spotState: vi.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
     };
 
     mockWalletAdapter = {
-      request: jest.fn(),
+      request: vi.fn(),
     };
 
     // Mock client service
-    mockSpotClearinghouseState = jest.fn().mockResolvedValue({
-      balances: [{ coin: 'USDC', total: '100.76531791' }],
+    mockSpotClearinghouseState = vi.fn().mockResolvedValue({
+      balances: [{ coin: 'USDC', total: '100.76531791', hold: '0' }],
     });
 
     mockClientService = {
-      ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
-      getSubscriptionClient: jest.fn(() => mockSubscriptionClient),
-      getInfoClient: jest.fn(() => ({
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(() => mockSubscriptionClient),
+      getInfoClient: vi.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
         // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
         // so existing spot-fold assertions behave as before the gate was added.
-        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
       })),
-      isTestnetMode: jest.fn(() => false),
-      ensureTransportReady: jest.fn().mockResolvedValue(undefined),
-      getConnectionState: jest.fn(() => 'connected'),
+      isTestnetMode: vi.fn(() => false),
+      ensureTransportReady: vi.fn().mockResolvedValue(undefined),
+      getConnectionState: vi.fn(() => 'connected'),
       // Connection epoch: bumped by the client service on every raw socket
       // close, including SDK-internal automatic reconnects.
-      getConnectionEpoch: jest.fn(() => 1),
+      getConnectionEpoch: vi.fn(() => 1),
     } as any;
 
     // Mock wallet service
     mockWalletService = {
-      createWalletAdapter: jest.fn(() => mockWalletAdapter),
-      getUserAddressWithDefault: jest.fn().mockResolvedValue('0x123' as Hex),
+      createWalletAdapter: vi.fn(() => mockWalletAdapter),
+      getUserAddressWithDefault: vi.fn().mockResolvedValue('0x123' as Hex),
+      getAccountStreamAddress: vi.fn(
+        (accountId?: CaipAccountId) =>
+          (accountId?.split(':').at(-1) ?? '0x123') as Hex,
+      ),
     } as any;
 
     service = new HyperLiquidSubscriptionService(
@@ -483,29 +497,29 @@ describe('HyperLiquidSubscriptionService', () => {
       [],
       [],
       undefined,
-      jest.fn().mockResolvedValue([]),
+      vi.fn().mockResolvedValue([]),
     );
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
   describe('OI Cap Subscriptions', () => {
     it('subscribes to OI cap updates successfully', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       const unsubscribe = service.subscribeToOICaps({
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.webData3).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
     });
 
     it('immediately provides cached OI caps if available', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3 to provide OI caps data
       mockSubscriptionClient.webData3.mockImplementation(
@@ -522,14 +536,14 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
       // First subscription to populate cache
-      const unsubscribe1 = service.subscribeToOICaps({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe1 = service.subscribeToOICaps({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       // Second subscription should get cached data immediately
       const unsubscribe2 = service.subscribeToOICaps({
@@ -544,14 +558,66 @@ describe('HyperLiquidSubscriptionService', () => {
   });
 
   describe('Account Subscriptions', () => {
+    it('review: reserves wallet before reentrant client initialization', async () => {
+      const callback = vi.fn();
+      const result: unknown[] = [];
+      mockClientService.ensureSubscriptionClient.mockImplementationOnce(
+        async () => {
+          try {
+            result.push(
+              service.subscribeToAccount({
+                accountId: 'eip155:1:0x456',
+                callback: vi.fn(),
+              }),
+            );
+          } catch (error) {
+            result.push(error);
+          }
+        },
+      );
+      const stopA = service.subscribeToAccount({ callback });
+      await vi.runAllTimersAsync();
+      expect({
+        rejected: result[0] instanceof Error,
+        called: callback.mock.calls.length > 0,
+      }).toEqual({ rejected: true, called: true });
+      stopA();
+    });
+    it('review: allows a new wallet after replay disconnects the old stream', async () => {
+      const stopA = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
+      const stopReplay = service.subscribeToAccount({
+        callback: () => service.clearAll(),
+      });
+
+      const callback = vi.fn();
+      const stopB = service.subscribeToAccount({
+        accountId: 'eip155:1:0x456',
+        callback,
+      });
+      stopA();
+      stopReplay();
+      await vi.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.webData3).toHaveBeenNthCalledWith(
+        2,
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      expect(callback).toHaveBeenCalled();
+      stopB();
+      service.subscribeToAccount({ callback: vi.fn() })();
+      await vi.runAllTimersAsync();
+    });
+
     it('subscribes to account updates successfully', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       const unsubscribe = service.subscribeToAccount({
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.webData3).toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalled();
@@ -559,13 +625,13 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('immediately provides cached account state if available', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // First subscription to populate cache
       const unsubscribe1 = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Second subscription should get cached data immediately
       const unsubscribe2 = service.subscribeToAccount({
@@ -578,14 +644,735 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe2();
     });
 
+    it('reserves the first wallet while the shared feed is opening', async () => {
+      let selectedAddress: Hex = '0x123';
+      mockWalletService.getAccountStreamAddress.mockImplementation(
+        (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      const first = vi.fn();
+      const stopFirst = service.subscribeToAccount({
+        callback: first,
+        requireCompleteAccount: true,
+      });
+
+      selectedAddress = '0x456';
+      expect(() => service.subscribeToAccount({ callback: vi.fn() })).toThrow(
+        'PROVIDER_NOT_AVAILABLE',
+      );
+      await vi.runAllTimersAsync();
+
+      expect(first).toHaveBeenLastCalledWith(expect.any(Object));
+      expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
+        { user: '0x123' },
+        expect.any(Function),
+      );
+      expect(mockSpotClearinghouseState).toHaveBeenCalledExactlyOnceWith({
+        user: '0x123',
+      });
+      stopFirst();
+    });
+
+    it('reports an incompatible HyperLiquid wallet as unavailable in aggregation', async () => {
+      const stopOriginal = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          [
+            'hyperliquid',
+            {
+              ...createMockHyperLiquidProvider(),
+              protocolId: 'hyperliquid',
+              subscribeToAccount: service.subscribeToAccount.bind(service),
+            },
+          ],
+          [
+            'lighter',
+            {
+              ...createMockHyperLiquidProvider(),
+              protocolId: 'lighter',
+              subscribeToAccount: ({ callback }: SubscribeAccountParams) => {
+                callback({
+                  totalBalance: '250',
+                  spendableBalance: '250',
+                  withdrawableBalance: '250',
+                  marginUsed: '0',
+                  unrealizedPnl: '0',
+                  returnOnEquity: '0',
+                });
+                return vi.fn();
+              },
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockDeps,
+      });
+      const callback = vi.fn();
+      const stopAggregate = aggregate.subscribeToAccount({
+        accountId: 'eip155:1:0x456',
+        callback,
+      });
+
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ totalBalance: '250' }),
+        expect.objectContaining({ unavailableProviders: ['hyperliquid'] }),
+      );
+      stopAggregate();
+      stopOriginal();
+    });
+
+    it('keeps its bound wallet while refusing a replay for another wallet', async () => {
+      let selectedAddress: Hex = '0x123';
+      mockWalletService.getAccountStreamAddress.mockImplementation(
+        (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async () => selectedAddress,
+      );
+      const original = vi.fn();
+      const stopOriginal = service.subscribeToAccount({
+        callback: original,
+        requireCompleteAccount: true,
+      });
+      await vi.runAllTimersAsync();
+      const initialAccount = original.mock.lastCall?.[0];
+      expect(initialAccount).toEqual(expect.any(Object));
+
+      const sameWallet = vi.fn();
+      const stopSame = service.subscribeToAccount({ callback: sameWallet });
+      expect(sameWallet).toHaveBeenLastCalledWith(initialAccount);
+
+      selectedAddress = '0x456';
+      const otherWallet = vi.fn();
+      expect(() =>
+        service.subscribeToAccount({ callback: otherWallet }),
+      ).toThrow('PROVIDER_NOT_AVAILABLE');
+      expect(otherWallet).not.toHaveBeenCalled();
+      await vi.runAllTimersAsync();
+      expect(original).toHaveBeenLastCalledWith(initialAccount);
+      expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
+        { user: '0x123' },
+        expect.any(Function),
+      );
+      expect(mockSubscriptionClient.spotState).not.toHaveBeenCalledWith(
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      const oldSpotFrame = mockSubscriptionClient.spotState.mock.calls[0][1];
+      stopSame();
+      stopOriginal();
+
+      const reopened = vi.fn();
+      const stopReopened = service.subscribeToAccount({ callback: reopened });
+      await vi.runAllTimersAsync();
+      expect(mockSubscriptionClient.webData3).toHaveBeenLastCalledWith(
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      const reopenedAccount = reopened.mock.lastCall?.[0];
+      expect(reopenedAccount).toEqual(
+        expect.objectContaining({ spendableBalance: '100.765317' }),
+      );
+
+      oldSpotFrame({
+        user: '0x123',
+        spotState: { balances: [{ coin: 'USDC', total: '500', hold: '0' }] },
+      });
+      expect(reopened).toHaveBeenLastCalledWith(reopenedAccount);
+      stopReopened();
+    });
+
+    it('publishes scaled display margin on cross positions from clearinghouse updates', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementationOnce(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToPositions({ callback });
+      const publish = await frames.promise;
+      const actualAdapter = await vi.importActual<
+        typeof hyperLiquidAdapterModule
+      >('../../../src/utils/hyperLiquidAdapter.js');
+      vi.mocked(
+        hyperLiquidAdapterModule.adaptPositionFromSDK,
+      ).mockImplementationOnce(actualAdapter.adaptPositionFromSDK);
+
+      publish({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            {
+              type: 'oneWay',
+              position: {
+                coin: 'BTC',
+                szi: '0.1',
+                entryPx: '50000',
+                positionValue: '5000',
+                unrealizedPnl: '0',
+                returnOnEquity: '0',
+                marginUsed: '30',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+              },
+            },
+          ],
+          marginSummary: { accountValue: '50', totalMarginUsed: '120' },
+          crossMarginSummary: {
+            accountValue: '50',
+            totalMarginUsed: '120',
+            totalNtlPos: '5000',
+            totalRawUsd: '0',
+          },
+          withdrawable: '0',
+        },
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          symbol: 'BTC',
+          marginUsed: '30',
+          displayMarginUsed: '12.5',
+        }),
+      ]);
+      unsubscribe();
+    });
+
+    it("reads a DEX's live open orders only for the bound wallet on the current connection", async () => {
+      const orderFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          orderFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const unsubscribe = service.subscribeToOrders({ callback: vi.fn() });
+      const onOrders = await orderFrames.promise;
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toBeNull();
+
+      const order = {
+        oid: 7,
+        coin: 'ETH',
+        side: 'B',
+        orderType: 'Limit',
+        isTrigger: false,
+        isPositionTpsl: false,
+        reduceOnly: false,
+        sz: '1',
+        origSz: '1',
+        limitPx: '1000',
+        triggerPx: '0',
+      };
+      onOrders({ dex: '', orders: [order] });
+
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toStrictEqual([
+        order,
+      ]);
+      expect(service.getCachedOpenOrdersForDex('', '0x456')).toBeNull();
+      expect(service.getCachedOpenOrdersForDex('xyz', '0x123')).toBeNull();
+      mockClientService.getConnectionEpoch.mockReturnValue(2);
+      expect(service.getCachedOpenOrdersForDex('', '0x123')).toBeNull();
+      unsubscribe();
+    });
+
+    it('clears unavailable balances without reporting positions as flat', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const orderFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          orderFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const account = vi.fn();
+      const positions = vi.fn();
+      const unsubscribeAccount = service.subscribeToAccount({
+        callback: account,
+      });
+      let unsubscribePositions = service.subscribeToPositions({
+        callback: positions,
+      });
+      const onAccount = await accountFrames.promise;
+      const onOrders = await orderFrames.promise;
+      const healthyAccount = vi.fn();
+      const unsubscribeHealthyAccount = service.subscribeToAccount({
+        callback: healthyAccount,
+      });
+      const failure = new Error('account listener failed');
+      account.mockImplementationOnce(() => {
+        throw failure;
+      });
+
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(account).toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: expect.any(String) }),
+      );
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.1' }),
+      ]);
+      expect(healthyAccount).toHaveBeenCalledOnce();
+      expect(service.getCachedPositionsForDex('', '0x123')).toMatchObject([
+        { size: '0.1' },
+      ]);
+      expect(service.getCachedPositionsForDex('', '0x456')).toBeNull();
+      expect(service.getFreshPositionsForAllDexs(false, '0x456')).toBeNull();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        failure,
+        expect.anything(),
+      );
+      unsubscribeHealthyAccount();
+
+      const order = {
+        oid: 1,
+        coin: 'BTC',
+        side: 'A',
+        orderType: 'Trigger',
+        isTrigger: true,
+        isPositionTpsl: true,
+        reduceOnly: true,
+        sz: '0',
+        origSz: '0',
+        limitPx: '40000',
+        triggerPx: '40000',
+      };
+      onOrders({ dex: '', orders: [order] });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ stopLossCount: 1 }),
+      ]);
+
+      const survivor = vi.fn();
+      const unsubscribeSurvivor = service.subscribeToPositions({
+        callback: survivor,
+      });
+      const callbackFailure = new Error('position listener failed');
+      let callsAfterInvalidation = 0;
+      positions.mockImplementation(() => {
+        callsAfterInvalidation += 1;
+        if (callsAfterInvalidation > 1) {
+          throw callbackFailure;
+        }
+      });
+      account.mockImplementationOnce(() => {
+        unsubscribePositions();
+        unsubscribePositions = service.subscribeToPositions({
+          callback: positions,
+        });
+      });
+      expect(() =>
+        onAccount({ dex: '', clearinghouseState: {} }),
+      ).not.toThrow();
+      expect(account).toHaveBeenLastCalledWith(null);
+      expect(callsAfterInvalidation).toBe(1);
+      expect(survivor).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          stopLossOrders: [
+            expect.objectContaining({ coverageUnavailable: true }),
+          ],
+        }),
+      ]);
+      unsubscribeSurvivor();
+      positions.mockImplementation(() => undefined);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          stopLossOrders: [
+            expect.objectContaining({
+              orderId: '1',
+              triggerPrice: '40000',
+              coverageUnavailable: true,
+            }),
+          ],
+        }),
+      ]);
+      onOrders({ dex: '', orders: [order] });
+      expect(hyperLiquidAdapterModule.adaptOrderFromSDK).toHaveBeenCalledWith(
+        order,
+        undefined,
+      );
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.1' }),
+      ]);
+
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          stopLossCount: 1,
+          takeProfitCount: 0,
+          stopLossOrders: [
+            expect.objectContaining({
+              size: '0',
+              isPartial: false,
+              coverageUnavailable: true,
+            }),
+          ],
+        }),
+      ]);
+      const shortStop = {
+        ...order,
+        oid: 2,
+        side: 'B',
+        orderType: 'Stop Market',
+      };
+      onOrders({ dex: '', orders: [shortStop] });
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+        }),
+      ).toMatchObject([{ orderId: '2' }]);
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x456',
+        }),
+      ).toBeNull();
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+          requirePositionSizes: true,
+        }),
+      ).toBeNull();
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ stopLossCount: 0, takeProfitCount: 0 }),
+      ]);
+
+      onOrders({ dex: '', orders: [] });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          size: '0.1',
+          stopLossCount: 0,
+          stopLossOrders: [],
+        }),
+      ]);
+
+      onOrders({ dex: '', orders: [order] });
+      const actualAdapter = await vi.importActual<
+        typeof hyperLiquidAdapterModule
+      >('../../../src/utils/hyperLiquidAdapter.js');
+      vi.mocked(
+        hyperLiquidAdapterModule.adaptOrderFromSDK,
+      ).mockImplementationOnce(actualAdapter.adaptOrderFromSDK);
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.25' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(
+        service.getOrdersCacheIfInitialized(true, {
+          userAddress: '0x123',
+          requirePositionSizes: true,
+        }),
+      ).toMatchObject([{ orderId: '1', size: '0.25' }]);
+
+      const recoveredProtection =
+        positions.mock.lastCall?.[0][0].stopLossOrders[0];
+      expect(recoveredProtection).toMatchObject({ size: '0.25' });
+      expect(recoveredProtection).not.toHaveProperty('coverageUnavailable');
+
+      const restoredFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementationOnce(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          restoredFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      await service.restoreSubscriptions();
+      const onRestoredAccount = await restoredFrames.promise;
+      onRestoredAccount({ dex: '', clearinghouseState: {} });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          size: '0.25',
+          stopLossOrders: [
+            expect.objectContaining({ coverageUnavailable: true }),
+          ],
+        }),
+      ]);
+
+      unsubscribePositions();
+      unsubscribeAccount();
+    });
+
+    it('removes a position registration if the cached replay throws', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const livePositions = vi.fn();
+      const survivor = vi.fn();
+      const cleanup = service.subscribeToPositions({ callback: livePositions });
+      const cleanupSurvivor = service.subscribeToPositions({
+        callback: survivor,
+      });
+      const onAccount = await accountFrames.promise;
+      const emit = (size: string) => {
+        onAccount({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [
+              { position: { ...validPositionBalances, szi: size } },
+            ],
+            marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+            withdrawable: '90',
+          },
+        });
+      };
+      emit('0.1');
+      expect(livePositions).toHaveBeenCalledOnce();
+
+      const callbackFailure = new Error('cached positions callback failed');
+      livePositions.mockImplementationOnce(() => {
+        throw callbackFailure;
+      });
+      expect(() =>
+        service.subscribeToPositions({ callback: livePositions }),
+      ).toThrow(callbackFailure);
+      cleanup();
+      emit('0.25');
+      expect(livePositions).toHaveBeenCalledTimes(2);
+      expect(survivor).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.25' }),
+      ]);
+      cleanupSurvivor();
+    });
+
+    it('tears down the stream if cached replay removes its last other listener and throws', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const unsubscribeStream = vi.fn().mockResolvedValue(undefined);
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({ unsubscribe: unsubscribeStream });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToPositions({ callback });
+      const onAccount = await accountFrames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      const replayError = new Error('cached positions callback failed');
+      callback.mockImplementationOnce(() => {
+        unsubscribe();
+        throw replayError;
+      });
+      expect(() => service.subscribeToPositions({ callback })).toThrow(
+        replayError,
+      );
+      expect(unsubscribeStream).toHaveBeenCalledOnce();
+      expect(service.getCachedPositions()).toBeNull();
+    });
+
+    it('does not republish a snapshot after a listener retires the stream', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const unsubscribeStream = vi.fn().mockResolvedValue(undefined);
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({ unsubscribe: unsubscribeStream });
+        },
+      );
+      const account = vi.fn();
+      const unsubscribe = service.subscribeToAccount({ callback: account });
+      const onAccount = await accountFrames.promise;
+      await vi.runAllTimersAsync();
+      const emit = () => {
+        onAccount({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [
+              { position: { ...validPositionBalances, szi: '0.1' } },
+            ],
+            marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+            withdrawable: '90',
+          },
+        });
+      };
+      emit();
+
+      const replayError = new Error('cached replay failed');
+      account.mockImplementationOnce(() => {
+        expect(() =>
+          service.subscribeToPositions({
+            callback: () => {
+              unsubscribe();
+              throw replayError;
+            },
+          }),
+        ).toThrow(replayError);
+      });
+      vi.mocked(adaptAccountStateFromSDK).mockReturnValueOnce({
+        spendableBalance: '1001.00',
+        withdrawableBalance: '1001.00',
+        marginUsed: '500.00',
+        unrealizedPnl: '100.00',
+        returnOnEquity: '20.0',
+        totalBalance: '10101.00',
+      });
+      emit();
+      expect(unsubscribeStream).toHaveBeenCalledOnce();
+      const next = vi.fn();
+      const unsubscribeNext = service.subscribeToPositions({ callback: next });
+      expect(next).not.toHaveBeenCalled();
+      unsubscribeNext();
+    });
+
+    it('does not replay orders after the position callback retires the stream', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockResolvedValue({
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      });
+      const unsubscribe = service.subscribeToPositions({
+        callback: () => unsubscribe(),
+      });
+      const onAccount = await accountFrames.promise;
+      await vi.runAllTimersAsync();
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+
+      const orders = vi.fn();
+      const unsubscribeOrders = service.subscribeToOrders({ callback: orders });
+      expect(orders).not.toHaveBeenCalled();
+      expect(service.getOrdersCacheIfInitialized()).toBeNull();
+      unsubscribeOrders();
+    });
+
+    it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockResolvedValue({
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      });
+      const orders = vi.fn();
+      const unsubscribe = service.subscribeToOrders({ callback: orders });
+      const onAccount = await frames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+      onAccount({ dex: '', clearinghouseState: {} });
+
+      expect(orders).not.toHaveBeenCalled();
+      expect(service.getOrdersCacheIfInitialized()).toBeNull();
+      unsubscribe();
+    });
+
+    it('invalidates a balance replayed after an OI-only subscription warmed the cache', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const unsubscribeOi = service.subscribeToOICaps({ callback: vi.fn() });
+      const onAccount = await frames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+
+      const callback = vi.fn();
+      const unsubscribeAccount = service.subscribeToAccount({ callback });
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalBalance: expect.any(String),
+        }),
+      );
+      onAccount({ dex: '', clearinghouseState: {} });
+      expect(callback).toHaveBeenLastCalledWith(null);
+
+      unsubscribeAccount();
+      unsubscribeOi();
+    });
+
     it('reports DEX coverage for positions only once that DEX has published', async () => {
       // closePosition treats a cache miss as "position closed" only for a
       // covered DEX, so coverage must be false until data arrives
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
@@ -595,13 +1382,612 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    describe('requireCompleteAccount', () => {
+      const publishAccount = (
+        callbacks: Map<string, (payload: unknown) => void>,
+        dex: string,
+        accountValue: string,
+      ): void => {
+        callbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue, totalMarginUsed: '0' },
+            withdrawable: accountValue,
+          },
+        });
+      };
+
+      const createHip3Service = async (
+        failingDex?: string,
+      ): Promise<{
+        hip3Service: HyperLiquidSubscriptionService;
+        callbacks: Map<string, (payload: unknown) => void>;
+      }> => {
+        const callbacks = new Map<string, (payload: unknown) => void>();
+        mockSubscriptionClient.clearinghouseState.mockImplementation(
+          (params: any, callback: (payload: unknown) => void) => {
+            const dex = params.dex || '';
+            if (dex === failingDex) {
+              return Promise.reject(new Error(`${dex} unavailable`));
+            }
+            callbacks.set(dex, callback);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+        );
+        await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        return { hip3Service, callbacks };
+      };
+
+      const crossSpotState = (
+        total: string,
+      ): SpotClearinghouseStateResponse => ({
+        balances: [{ coin: 'USDC', token: 0, total, hold: '0', entryNtl: '0' }],
+      });
+
+      const mockCrossAccount = (): void => {
+        vi.mocked(adaptAccountStateFromSDK).mockReturnValue({
+          totalBalance: '400',
+          spendableBalance: '370',
+          withdrawableBalance: '370',
+          marginUsed: '30',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          crossMarginSummary: {
+            accountValue: '400',
+            maintenanceMargin: '10',
+            marginUsed: '30',
+            notional: '1200',
+          },
+        });
+      };
+
+      it.each([
+        { scenario: 'uses current', newEpoch: false },
+        { scenario: 'rejects old-connection', newEpoch: true },
+      ])(
+        '$scenario initial REST spot for Unified Cross',
+        async ({ newEpoch }) => {
+          const spot = createDeferred<SpotClearinghouseStateResponse>();
+          mockSpotClearinghouseState.mockReturnValueOnce(spot.promise);
+          mockClientService.getInfoClient.mockReturnValue({
+            userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+            spotClearinghouseState: mockSpotClearinghouseState,
+          } as never);
+          mockCrossAccount();
+          const { hip3Service, callbacks } = await createHip3Service();
+          const user = '0x123';
+          const unsubscribe = hip3Service.subscribeToAccount({
+            callback: vi.fn(),
+          });
+          await vi.runAllTimersAsync();
+          expect(mockSpotClearinghouseState.mock.calls).toStrictEqual([
+            [{ user }],
+          ]);
+
+          if (newEpoch) {
+            mockClientService.getConnectionEpoch.mockReturnValue(2);
+          }
+          mockSubscriptionClient.webData3.mock.lastCall[1]({
+            userState: { user, abstraction: 'unifiedAccount' },
+            perpDexStates: [],
+          });
+          publishAccount(callbacks, '', '400');
+          publishAccount(callbacks, 'xyz', '400');
+          expect(
+            hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+          ).toBeNull();
+
+          spot.resolve(crossSpotState('175'));
+          await vi.runAllTimersAsync();
+          const context = hip3Service.getFreshCrossMarginContext(user, 'BTC');
+          if (newEpoch) {
+            expect(context).toBeNull();
+          } else {
+            expect(context).toMatchObject({ spotCollateral: '175' });
+          }
+          expect(mockSpotClearinghouseState).toHaveBeenCalledTimes(1);
+          unsubscribe();
+        },
+      );
+
+      const startStandardCrossStream = async () => {
+        const refresh = createDeferred<SpotClearinghouseStateResponse>();
+        mockSpotClearinghouseState
+          .mockResolvedValueOnce(crossSpotState('100'))
+          .mockReturnValueOnce(refresh.promise);
+        const userAbstraction = vi.fn().mockResolvedValue('disabled');
+        mockClientService.getInfoClient.mockReturnValue({
+          userAbstraction,
+          spotClearinghouseState: mockSpotClearinghouseState,
+        } as never);
+        mockCrossAccount();
+        const { hip3Service, callbacks } = await createHip3Service();
+        const user = '0x123';
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: vi.fn(),
+        });
+        await vi.runAllTimersAsync();
+        const publishMode = (abstraction: string, address = user) =>
+          mockSubscriptionClient.webData3.mock.lastCall[1]({
+            userState: { user: address, abstraction },
+            perpDexStates: [],
+          });
+        const publishSpot = mockSubscriptionClient.spotState.mock.lastCall[1];
+        publishMode('disabled');
+        publishSpot({ user, spotState: crossSpotState('100') });
+        publishAccount(callbacks, '', '400');
+        publishAccount(callbacks, 'xyz', '400');
+        await vi.runAllTimersAsync();
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toMatchObject({
+          spotCollateral: '0',
+        });
+
+        return {
+          hip3Service,
+          callbacks,
+          user,
+          userAbstraction,
+          refresh,
+          publishMode,
+          publishSpot,
+          unsubscribe,
+        };
+      };
+
+      it('refreshes spot once when Unified account slices arrive without a spot tick', async () => {
+        const {
+          hip3Service,
+          callbacks,
+          user,
+          userAbstraction,
+          refresh,
+          publishMode,
+          unsubscribe,
+        } = await startStandardCrossStream();
+        const priorModeReads = userAbstraction.mock.calls.length;
+
+        publishMode('unifiedAccount');
+        publishMode('unifiedAccount');
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishAccount(callbacks, '', '400');
+        refresh.resolve(crossSpotState('175'));
+        await vi.runAllTimersAsync();
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishAccount(callbacks, 'xyz', '400');
+
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toMatchObject({
+          spotCollateral: '175',
+        });
+        expect(mockSpotClearinghouseState.mock.calls).toStrictEqual([
+          [{ user }],
+          [{ user }],
+        ]);
+        expect(userAbstraction).toHaveBeenCalledTimes(priorModeReads);
+        unsubscribe();
+      });
+
+      it.each(['mode', 'wallet', 'connection', 'spot tick'] as const)(
+        'rejects an overtaken mode-transition spot result after a %s change',
+        async (change) => {
+          const {
+            hip3Service,
+            callbacks,
+            user,
+            userAbstraction,
+            refresh,
+            publishMode,
+            publishSpot,
+            unsubscribe,
+          } = await startStandardCrossStream();
+          const nextRefresh = createDeferred<SpotClearinghouseStateResponse>();
+          let currentUser = user;
+          let stop = unsubscribe;
+          publishMode('unifiedAccount');
+          expect(mockSpotClearinghouseState).toHaveBeenCalledTimes(2);
+
+          if (change === 'mode') {
+            mockSpotClearinghouseState.mockReturnValueOnce(nextRefresh.promise);
+            publishMode('disabled');
+            publishMode('unifiedAccount');
+          } else if (change === 'wallet') {
+            unsubscribe();
+            currentUser = '0x456';
+            userAbstraction.mockResolvedValue('unifiedAccount');
+            stop = hip3Service.subscribeToAccount({
+              accountId: 'eip155:1:0x456',
+              callback: vi.fn(),
+            });
+            await vi.runAllTimersAsync();
+            publishMode('unifiedAccount', currentUser);
+            mockSubscriptionClient.spotState.mock.lastCall[1]({
+              user: currentUser,
+              spotState: crossSpotState('230'),
+            });
+            publishSpot({ user, spotState: crossSpotState('999') });
+          } else if (change === 'connection') {
+            mockClientService.getConnectionEpoch.mockReturnValue(2);
+            publishMode('unifiedAccount');
+          } else {
+            publishSpot({ user, spotState: crossSpotState('220') });
+          }
+          publishAccount(callbacks, '', '400');
+          publishAccount(callbacks, 'xyz', '400');
+
+          refresh.resolve(crossSpotState('175'));
+          await vi.runAllTimersAsync();
+          const current = hip3Service.getFreshCrossMarginContext(
+            currentUser,
+            'BTC',
+          );
+          if (change === 'spot tick') {
+            expect(current).toMatchObject({ spotCollateral: '220' });
+          } else if (change === 'wallet') {
+            expect(current).toMatchObject({ spotCollateral: '230' });
+          } else {
+            expect(current).toBeNull();
+          }
+          if (change === 'mode') {
+            nextRefresh.resolve(crossSpotState('250'));
+            await vi.runAllTimersAsync();
+            expect(
+              hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+            ).toMatchObject({
+              spotCollateral: '250',
+            });
+          }
+          stop();
+        },
+      );
+
+      it('uses only current, mode-compatible Cross inputs from the required DEXs', async () => {
+        const staleMode = createDeferred<'disabled'>();
+        const staleSpot = createDeferred<SpotClearinghouseStateResponse>();
+        mockClientService.getInfoClient.mockReturnValue({
+          userAbstraction: vi
+            .fn()
+            .mockReturnValueOnce(staleMode.promise)
+            .mockResolvedValue('unifiedAccount'),
+          spotClearinghouseState: vi.fn().mockReturnValue(staleSpot.promise),
+        } as never);
+        vi.mocked(parseAssetName).mockImplementation((symbol) => ({
+          symbol,
+          dex: symbol.split(':').length > 1 ? symbol.split(':')[0] : null,
+        }));
+        const crossSummary = {
+          accountValue: '400',
+          maintenanceMargin: '10',
+          marginUsed: '30',
+          notional: '1200',
+        };
+        vi.mocked(adaptAccountStateFromSDK).mockReturnValue({
+          totalBalance: '400',
+          spendableBalance: '370',
+          withdrawableBalance: '370',
+          marginUsed: '30',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          crossMarginSummary: crossSummary,
+        });
+
+        const { hip3Service, callbacks } = await createHip3Service();
+        const onAccount = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: onAccount,
+        });
+        await vi.runAllTimersAsync();
+        const user = '0x123';
+        const publishMode = mockSubscriptionClient.webData3.mock.calls[0][1];
+        const publishSpot = mockSubscriptionClient.spotState.mock.calls[0][1];
+        const spot = {
+          user,
+          spotState: {
+            balances: [{ coin: 'USDC', token: 0, total: '150', hold: '50' }],
+          },
+        };
+        publishMode({
+          userState: { user, abstraction: 'unifiedAccount' },
+          perpDexStates: [],
+        });
+        publishAccount(callbacks, '', '400');
+        publishSpot(spot);
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toBeNull();
+        publishAccount(callbacks, 'xyz', '400');
+
+        const unified = {
+          summary: {
+            accountValue: '800',
+            maintenanceMargin: '20',
+            marginUsed: '60',
+            notional: '2400',
+          },
+          spotCollateral: '100',
+          hasPosition: false,
+        };
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toStrictEqual(unified);
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'other:TSLA'),
+        ).toBeNull();
+        expect(
+          hip3Service.getFreshCrossMarginContext('0x456', 'BTC'),
+        ).toBeNull();
+
+        staleMode.resolve('disabled');
+        staleSpot.resolve({ balances: [] });
+        await vi.runAllTimersAsync();
+        expect(onAccount).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            accountMode: 'unifiedAccount',
+            spotCollateral: '100',
+          }),
+        );
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual(unified);
+
+        publishMode({
+          userState: { user, abstraction: 'default' },
+          perpDexStates: [],
+        });
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishAccount(callbacks, '', '400');
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual({
+          summary: crossSummary,
+          spotCollateral: '0',
+          hasPosition: false,
+        });
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'xyz:TSLA'),
+        ).toBeNull();
+
+        mockClientService.getConnectionEpoch.mockReturnValue(2);
+        publishAccount(callbacks, '', '400');
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishMode({
+          userState: { user, abstraction: 'unifiedAccount' },
+          perpDexStates: [],
+        });
+        publishAccount(callbacks, '', '400');
+        publishAccount(callbacks, 'xyz', '400');
+        expect(hip3Service.getFreshCrossMarginContext(user, 'BTC')).toBeNull();
+        publishSpot(spot);
+        expect(
+          hip3Service.getFreshCrossMarginContext(user, 'BTC'),
+        ).toStrictEqual(unified);
+        unsubscribe();
+      });
+
+      it('emits null while a configured DEX account subscription has failed', async () => {
+        const { hip3Service, callbacks } = await createHip3Service('xyz');
+        const strict = vi.fn();
+        const lenient = vi.fn();
+        const unsubscribeStrict = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        const unsubscribeLenient = hip3Service.subscribeToAccount({
+          callback: lenient,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        await vi.runAllTimersAsync();
+
+        // A lenient caller keeps the reachable DEX total; a strict caller
+        // never sees it as the venue's balance.
+        expect(
+          Object.keys(lenient.mock.lastCall?.[0].subAccountBreakdown),
+        ).toStrictEqual(['main']);
+        expect(strict).toHaveBeenCalled();
+        expect(strict.mock.calls.every(([account]) => account === null)).toBe(
+          true,
+        );
+
+        unsubscribeStrict();
+        unsubscribeLenient();
+      });
+
+      it('keeps an aggregate incomplete while one HyperLiquid DEX subscription has failed', async () => {
+        const { hip3Service, callbacks } = await createHip3Service('xyz');
+        const lighterAccount = {
+          totalBalance: '250',
+          spendableBalance: '250',
+          withdrawableBalance: '250',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        };
+        const aggregatedProvider = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            [
+              'hyperliquid',
+              {
+                protocolId: 'hyperliquid',
+                subscribeToAccount: (params: SubscribeAccountParams) =>
+                  hip3Service.subscribeToAccount(params),
+              } as unknown as PerpsProvider,
+            ],
+            [
+              'lighter',
+              {
+                protocolId: 'lighter',
+                subscribeToAccount: ({ callback }: SubscribeAccountParams) => {
+                  callback(lighterAccount);
+                  return () => undefined;
+                },
+              } as unknown as PerpsProvider,
+            ],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: createMockInfrastructure(),
+        });
+        const callback = vi.fn();
+        const unsubscribe = aggregatedProvider.subscribeToAccount({
+          callback,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        await vi.runAllTimersAsync();
+
+        // The main DEX alone is not HyperLiquid's balance, so the total is
+        // Lighter's and the aggregate says it is not the whole portfolio.
+        const [account, aggregate] = callback.mock.lastCall ?? [];
+        expect(aggregate).toMatchObject({
+          status: 'partial',
+          availableProviders: ['lighter'],
+        });
+        expect(account?.providerStates?.hyperliquid?.status).not.toBe(
+          'available',
+        );
+        expect(account?.totalBalance).toBe('250');
+
+        unsubscribe();
+      });
+
+      it('emits the account once every configured DEX and the spot balance have loaded', async () => {
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+
+        expect(strict).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            subAccountBreakdown: expect.objectContaining({
+              main: expect.anything(),
+              xyz: expect.anything(),
+            }),
+          }),
+        );
+
+        // A late subscriber replays the cached complete account.
+        const late = vi.fn();
+        const unsubscribeLate = hip3Service.subscribeToAccount({
+          callback: late,
+          requireCompleteAccount: true,
+        });
+        expect(late).toHaveBeenCalledWith(strict.mock.lastCall?.[0]);
+
+        unsubscribe();
+        unsubscribeLate();
+      });
+
+      it('does not replay a pre-reconnect account as complete until every DEX republishes', async () => {
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        await vi.runAllTimersAsync();
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+        expect(strict.mock.lastCall?.[0]).not.toBeNull();
+
+        // A reconnect retires the epoch; the per-DEX caches survive it.
+        mockClientService.getConnectionEpoch = vi.fn(() => 2);
+        const late = vi.fn();
+        const unsubscribeLate = hip3Service.subscribeToAccount({
+          callback: late,
+          requireCompleteAccount: true,
+        });
+        expect(late).toHaveBeenCalledWith(null);
+
+        // Only the main DEX has published on the new connection.
+        publishAccount(callbacks, '', '10001');
+        await vi.runAllTimersAsync();
+        expect(late.mock.calls.every(([account]) => account === null)).toBe(
+          true,
+        );
+
+        publishAccount(callbacks, 'xyz', '501');
+        await vi.runAllTimersAsync();
+        expect(late).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            subAccountBreakdown: expect.objectContaining({
+              main: expect.anything(),
+              xyz: expect.anything(),
+            }),
+          }),
+        );
+
+        unsubscribe();
+        unsubscribeLate();
+      });
+
+      it('emits null until the spot balance loads, then the account', async () => {
+        mockSpotClearinghouseState.mockRejectedValue(new Error('spot down'));
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const lenient = vi.fn();
+        const unsubscribeStrict = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        const unsubscribeLenient = hip3Service.subscribeToAccount({
+          callback: lenient,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+
+        expect(lenient).toHaveBeenLastCalledWith(expect.any(Object));
+        expect(strict).toHaveBeenLastCalledWith(null);
+
+        const spotListener = mockSubscriptionClient.spotState.mock.calls[0][1];
+        spotListener({
+          user: '0x123',
+          spotState: { balances: [] },
+        });
+        await vi.runAllTimersAsync();
+
+        // An empty spot balance changes no total, but the account is now
+        // complete, so the strict subscriber still receives it.
+        expect(strict).toHaveBeenLastCalledWith(
+          expect.objectContaining({ withdrawableBalance: expect.any(String) }),
+        );
+
+        unsubscribeStrict();
+        unsubscribeLenient();
+      });
+    });
+
     it('requires every configured position DEX even when an order subscription fails', async () => {
       const callbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(
         (params: any, callback: (payload: unknown) => void) => {
           callbacks.set(params.dex || '', callback);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -610,7 +1996,7 @@ describe('HyperLiquidSubscriptionService', () => {
           (params.dex || '') === 'xyz'
             ? Promise.reject(new Error('xyz orders unavailable'))
             : Promise.resolve({
-                unsubscribe: jest.fn().mockResolvedValue(undefined),
+                unsubscribe: vi.fn().mockResolvedValue(undefined),
               }),
       );
       const hip3Service = new HyperLiquidSubscriptionService(
@@ -622,9 +2008,9 @@ describe('HyperLiquidSubscriptionService', () => {
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
 
       const unsubscribe = hip3Service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       callbacks.get('')?.({
         dex: '',
@@ -634,7 +2020,7 @@ describe('HyperLiquidSubscriptionService', () => {
           withdrawable: '10000',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
 
       callbacks.get('xyz')?.({
@@ -645,11 +2031,327 @@ describe('HyperLiquidSubscriptionService', () => {
           withdrawable: '0',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
 
       unsubscribe();
     });
+
+    it('marks the account partial until a DEX that only sent orders publishes its account state', async () => {
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribeOrders = hip3Service.subscribeToOrders({
+        callback: vi.fn(),
+      });
+      await vi.runAllTimersAsync();
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+
+      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
+      accountCallbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: {
+          ...clearinghouseState,
+          marginSummary: { accountValue: 'bad', totalMarginUsed: '' },
+        },
+      });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+
+      accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      vi.mocked(adaptAccountStateFromSDK).mockImplementationOnce(() => ({
+        spendableBalance: '1000.00',
+        withdrawableBalance: '1000.00',
+        marginUsed: '500.00',
+        unrealizedPnl: '100.00',
+        returnOnEquity: '40.0',
+        totalBalance: '10100.00',
+      }));
+      accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        returnOnEquity: '30',
+      });
+
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toStrictEqual([]);
+
+      mockClientService.getConnectionEpoch = vi.fn(() => 2);
+      const newAccountCallback = vi.fn();
+      const unsubscribeNew = hip3Service.subscribeToAccount({
+        callback: newAccountCallback,
+      });
+      expect(newAccountCallback).not.toHaveBeenCalled();
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      unsubscribeNew();
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
+      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toStrictEqual([]);
+
+      unsubscribeOrders();
+      unsubscribeAccount();
+    });
+
+    it.each([
+      ['delivers late', false],
+      ['fails to subscribe', true],
+    ])(
+      'marks the account partial when a DEX enabled at runtime %s',
+      async (_label, xyzFails) => {
+        const accountCallbacks = new Map<string, (payload: unknown) => void>();
+        mockSubscriptionClient.clearinghouseState.mockImplementation(
+          (params: any, callback: (payload: unknown) => void) => {
+            const dex = params.dex || '';
+            if (xyzFails && dex === 'xyz') {
+              return Promise.reject(new Error('xyz account unavailable'));
+            }
+            accountCallbacks.set(dex, callback);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+        );
+        await hip3Service.updateFeatureFlags(true, [], [], []);
+        const accountCallback = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: accountCallback,
+        });
+        await vi.runAllTimersAsync();
+        accountCallbacks.get('')?.({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+            withdrawable: '100',
+          },
+        });
+        await vi.runAllTimersAsync();
+        expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+          'unavailableSubAccounts',
+        );
+
+        await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        await vi.runAllTimersAsync();
+
+        expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+          unavailableSubAccounts: ['xyz'],
+        });
+        unsubscribe();
+      },
+    );
+
+    it('clears a partial main DEX when its zero account arrives last', async () => {
+      // Zero accounts on every DEX, so main arriving leaves the totals as
+      // they were and only completeness changes.
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        totalBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      }));
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribeOrders = hip3Service.subscribeToOrders({
+        callback: vi.fn(),
+      });
+      await vi.runAllTimersAsync();
+      const emptyAccount = {
+        assetPositions: [],
+        marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+        withdrawable: '0',
+      };
+
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      accountCallbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: emptyAccount,
+      });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: [''],
+      });
+
+      // Main's account adds nothing to the totals; only completeness changes.
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState: emptyAccount });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      unsubscribeOrders();
+      unsubscribeAccount();
+    });
+
+    it('marks the account partial when a DEX account subscription fails', async () => {
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          if ((params.dex || '') === 'xyz') {
+            return Promise.reject(new Error('xyz account unavailable'));
+          }
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await vi.runAllTimersAsync();
+
+      accountCallbacks.get('')?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      unsubscribe();
+    });
+
+    it.each(['clearinghouseState', 'openOrders'] as const)(
+      'reopens %s when a DEX returns while the old subscription is retiring',
+      async (channel) => {
+        const oldOpen = createDeferred<MockSubscription>();
+        const oldClose = createDeferred<void>();
+        const unsubscribeOld = vi.fn(() => oldClose.promise);
+        const openDexs: string[] = [];
+        mockSubscriptionClient[channel].mockImplementation(
+          ({ dex }: { dex?: string }) => {
+            openDexs.push(dex ?? '');
+            if (
+              dex === 'xyz' &&
+              openDexs.filter((name) => name === 'xyz').length === 1
+            ) {
+              return oldOpen.promise;
+            }
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+          ['xyz'],
+        );
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: vi.fn(),
+        });
+        await vi.runAllTimersAsync();
+        expect(openDexs).toContain('xyz');
+
+        await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
+        oldOpen.resolve({ unsubscribe: unsubscribeOld });
+        await vi.runAllTimersAsync();
+        expect(unsubscribeOld).toHaveBeenCalledOnce();
+        const reenable = hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        await vi.runAllTimersAsync();
+        oldClose.resolve();
+        await reenable;
+
+        expect(openDexs.filter((dex) => dex === 'xyz')).toHaveLength(2);
+        unsubscribe();
+      },
+    );
 
     it('requires a newly enabled DEX before certifying a complete position snapshot', async () => {
       const callbacks = new Map<string, (payload: unknown) => void>();
@@ -657,7 +2359,16 @@ describe('HyperLiquidSubscriptionService', () => {
         (params: any, callback: (payload: unknown) => void) => {
           callbacks.set(params.dex || '', callback);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: { dex?: string }, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex ?? '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -669,10 +2380,15 @@ describe('HyperLiquidSubscriptionService', () => {
       );
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
 
+      const accountCallback = vi.fn();
       const unsubscribe = hip3Service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: accountCallback,
       });
-      await jest.runAllTimersAsync();
+      const positionCallback = vi.fn();
+      const unsubscribePositions = hip3Service.subscribeToPositions({
+        callback: positionCallback,
+      });
+      await vi.runAllTimersAsync();
 
       for (const dex of ['', 'xyz']) {
         callbacks.get(dex)?.({
@@ -684,11 +2400,11 @@ describe('HyperLiquidSubscriptionService', () => {
           },
         });
       }
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
 
       await hip3Service.updateFeatureFlags(true, ['xyz', 'flx'], [], []);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // The old main + xyz set is no longer complete once flx is enabled.
       expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
@@ -696,32 +2412,106 @@ describe('HyperLiquidSubscriptionService', () => {
       callbacks.get('flx')?.({
         dex: 'flx',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '1' }, coin: 'flx:ABC' }],
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '1' },
+              coin: 'flx:ABC',
+            },
+          ],
           marginSummary: { accountValue: '100', totalMarginUsed: '10' },
           withdrawable: '90',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(hip3Service.getFreshPositionsForAllDexs()).toMatchObject([
         { size: '1' },
       ]);
+      expect(hip3Service.getFreshPositionsForAllDexs(true)).toBeNull();
+      orderCallbacks.get('flx')?.({ dex: 'flx', orders: [] });
+      expect(hip3Service.getFreshPositionsForAllDexs(true)).toMatchObject([
+        { size: '1' },
+      ]);
 
+      expect(positionCallback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '1' }),
+      ]);
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+      expect(positionCallback).toHaveBeenLastCalledWith([]);
+      callbacks.get('flx')?.({
+        dex: 'flx',
+        clearinghouseState: {
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '2' },
+              coin: 'flx:ABC',
+            },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(positionCallback).toHaveBeenLastCalledWith([]);
+      expect(
+        accountCallback.mock.lastCall?.[0].subAccountBreakdown,
+      ).not.toHaveProperty('flx');
 
       await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+      expect(
+        accountCallback.mock.lastCall?.[0].subAccountBreakdown,
+      ).not.toHaveProperty('xyz');
+
+      // A retained stream can deliver another update after the DEX is disabled.
+      callbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+          withdrawable: '0',
+        },
+      });
+      const opensBeforeReenable =
+        mockSubscriptionClient.clearinghouseState.mock.calls.length;
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        opensBeforeReenable + 1,
+      );
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
 
       await hip3Service.updateFeatureFlags(true, [], [], [], false);
       expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
 
+      unsubscribePositions();
       unsubscribe();
     });
 
     it('does not certify a main-only snapshot after DEX discovery times out', async () => {
-      const discoverEnabledDexs = jest.fn(
-        () => new Promise<string[]>(() => undefined),
+      const accountId = 'eip155:1:0x0000000000000000000000000000000000000001';
+      const userAddress = '0x0000000000000000000000000000000000000001';
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async (id) =>
+          id === accountId
+            ? userAddress
+            : '0x0000000000000000000000000000000000000002',
+      );
+      const discovery = createDeferred<string[]>();
+      const rediscovery = createDeferred<string[]>();
+      const discoverEnabledDexs = vi
+        .fn<() => Promise<string[]>>()
+        .mockReturnValueOnce(discovery.promise)
+        .mockReturnValue(rediscovery.promise);
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: { dex?: string }, callback: (payload: unknown) => void) => {
+          callbacks.set(params.dex ?? '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
       );
       const discoveryService = new HyperLiquidSubscriptionService(
         mockClientService,
@@ -735,14 +2525,217 @@ describe('HyperLiquidSubscriptionService', () => {
         discoverEnabledDexs,
       );
 
-      const unsubscribe = discoveryService.subscribeToPositions({
-        callback: jest.fn(),
+      const accountCallback = vi.fn();
+      const unsubscribe = discoveryService.subscribeToAccount({
+        callback: accountCallback,
+        accountId,
       });
-      await jest.advanceTimersByTimeAsync(5000);
-
+      await vi.advanceTimersByTimeAsync(5000);
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+      callbacks.get('')?.({ dex: '', clearinghouseState });
       expect(discoveryService.getFreshPositionsForAllDexs()).toBeNull();
+      expect(accountCallback).not.toHaveBeenCalled();
+
+      discovery.resolve(['xyz']);
+      await vi.runAllTimersAsync();
+      expect(
+        mockSubscriptionClient.clearinghouseState,
+      ).toHaveBeenLastCalledWith(
+        { user: userAddress, dex: 'xyz' },
+        expect.any(Function),
+      );
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      callbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      await discoveryService.updateFeatureFlags(true, [], [], [], false);
+      const newAccountCallback = vi.fn();
+      const unsubscribeNew = discoveryService.subscribeToAccount({
+        accountId,
+        callback: newAccountCallback,
+      });
+      expect(newAccountCallback).not.toHaveBeenCalled();
+      await discoveryService.updateFeatureFlags(true, [], [], []);
+      expect(newAccountCallback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      unsubscribeNew();
+      unsubscribe();
+    });
+
+    it('retries transient DEX discovery while the account is subscribed', async () => {
+      const discoverEnabledDexs = vi
+        .fn<() => Promise<string[]>>()
+        .mockRejectedValueOnce(new Error('discovery unavailable'))
+        .mockResolvedValueOnce(['xyz']);
+      const discoveryService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+        [],
+        [],
+        [],
+        undefined,
+        discoverEnabledDexs,
+      );
+      const unsubscribe = discoveryService.subscribeToAccount({
+        callback: vi.fn(),
+      });
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(discoverEnabledDexs).toHaveBeenCalledTimes(2);
+      expect(
+        mockSubscriptionClient.clearinghouseState,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({ dex: 'xyz' }),
+        expect.any(Function),
+      );
 
       unsubscribe();
+    });
+
+    it('disposes a DEX subscription that opens after its wallet unsubscribes', async () => {
+      const firstAddress = '0x0000000000000000000000000000000000000001';
+      const secondAddress = '0x0000000000000000000000000000000000000002';
+      const discovery = createDeferred<string[]>();
+      const lateDex = createDeferred<MockSubscription>();
+      const unsubscribeLateDex = vi.fn().mockResolvedValue(undefined);
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (
+          params: { user: string; dex?: string },
+          callback: (payload: unknown) => void,
+        ) => {
+          callbacks.set(`${params.user}:${params.dex ?? ''}`, callback);
+          if (params.user === firstAddress && params.dex === 'xyz') {
+            return lateDex.promise;
+          }
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        firstAddress,
+      );
+      mockWalletService.getAccountStreamAddress.mockReturnValue(firstAddress);
+      const discoveryService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+        [],
+        [],
+        [],
+        undefined,
+        () => discovery.promise,
+      );
+      const unsubscribeFirst = discoveryService.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      discovery.resolve(['xyz']);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(callbacks.get(`${firstAddress}:xyz`)).toBeTypeOf('function');
+
+      unsubscribeFirst();
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        secondAddress,
+      );
+      mockWalletService.getAccountStreamAddress.mockReturnValue(secondAddress);
+      const callback = vi.fn();
+      const unsubscribeSecond = discoveryService.subscribeToAccount({
+        callback,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+
+      lateDex.resolve({ unsubscribe: unsubscribeLateDex });
+      await vi.advanceTimersByTimeAsync(0);
+      callbacks.get(`${firstAddress}:xyz`)?.({
+        dex: 'xyz',
+        clearinghouseState,
+      });
+      expect(callback).not.toHaveBeenCalled();
+      callbacks.get(`${secondAddress}:`)?.({ dex: '', clearinghouseState });
+      expect(unsubscribeLateDex).toHaveBeenCalledOnce();
+      expect(callback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+
+      callbacks.get(`${secondAddress}:xyz`)?.({
+        dex: 'xyz',
+        clearinghouseState,
+      });
+      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+      unsubscribeSecond();
+    });
+
+    it('restores DEX subscriptions without waiting for a retired transport', async () => {
+      const pending = createDeferred<MockSubscription>();
+      const replacement = {
+        ...mockSubscriptionClient,
+        clearinghouseState: vi.fn().mockResolvedValue({
+          unsubscribe: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+      mockSubscriptionClient.clearinghouseState.mockReturnValueOnce(
+        pending.promise,
+      );
+      const unsubscribe = service.subscribeToPositions({ callback: vi.fn() });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledOnce();
+
+      vi.mocked(mockClientService.getSubscriptionClient).mockReturnValue(
+        replacement,
+      );
+      await service.restoreSubscriptions();
+      expect(replacement.clearinghouseState).toHaveBeenCalledOnce();
+
+      pending.reject(new Error('retired socket'));
+      await vi.advanceTimersByTimeAsync(0);
+      unsubscribe();
+    });
+
+    it('reopens the account stream after clearing the provider for reinitialization', async () => {
+      const pending = createDeferred<MockSubscription>();
+      mockSubscriptionClient.clearinghouseState.mockReturnValueOnce(
+        pending.promise,
+      );
+      service.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        1,
+      );
+      service.clearAll();
+
+      const unsubscribeAfter = service.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        2,
+      );
+      unsubscribeAfter();
     });
 
     it('stops treating a DEX slice as live after a reconnect until it republishes', async () => {
@@ -762,7 +2755,7 @@ describe('HyperLiquidSubscriptionService', () => {
             publish = callback;
           }
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -770,7 +2763,7 @@ describe('HyperLiquidSubscriptionService', () => {
         (_params: any, callback: any) => {
           ordersCallback = callback;
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -784,19 +2777,21 @@ describe('HyperLiquidSubscriptionService', () => {
         ordersCallback?.({ dex, orders: [] });
       };
 
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       // The pre-reconnect connection publishes a slice
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
@@ -804,7 +2799,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // The socket closes and reopens: the client service retires the epoch.
       // #dexPositionsCache still holds the pre-reconnect slice — that is the
       // hazard — but its stamp no longer matches.
-      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+      mockClientService.getConnectionEpoch = vi.fn(() => 2);
 
       // The stale slice is still cached, but must not be served as live
       expect(service.getCachedPositionsForDex('')).toBeNull();
@@ -813,19 +2808,24 @@ describe('HyperLiquidSubscriptionService', () => {
       // An openOrders payload must NOT restore it: its handler writes the
       // positions cache but carries no sizes or sides
       publishOrdersFor('');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       expect(service.getCachedPositionsForDex('')).toBeNull();
 
       // Only clearinghouseState restores it, with the post-reconnect size
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.04' }, coin: 'BTC' }],
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '0.04' },
+              coin: 'BTC',
+            },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
           withdrawable: '9800',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
@@ -841,30 +2841,32 @@ describe('HyperLiquidSubscriptionService', () => {
             publish = callback;
           }
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
 
-      mockClientService.getSubscriptionClient = jest.fn(() => ({
-        clearinghouseState: jest.fn(),
+      mockClientService.getSubscriptionClient = vi.fn(() => ({
+        clearinghouseState: vi.fn(),
       }));
-      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+      mockClientService.getConnectionEpoch = vi.fn(() => 2);
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
@@ -872,12 +2874,14 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
@@ -892,8 +2896,8 @@ describe('HyperLiquidSubscriptionService', () => {
       // SDK itself. The only trace is the raw socket close, which the client
       // service turns into a new epoch. Without that, positions from before the
       // silent reconnect would keep reading as live indefinitely.
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
@@ -901,7 +2905,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // The SDK reconnects silently. Connection state never leaves 'connected'
       // from this service's point of view — only the epoch moves.
       expect(mockClientService.getConnectionState()).toBe('connected');
-      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+      mockClientService.getConnectionEpoch = vi.fn(() => 2);
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
@@ -928,7 +2932,12 @@ describe('HyperLiquidSubscriptionService', () => {
             callback({
               dex: '',
               clearinghouseState: {
-                assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+                assetPositions: [
+                  {
+                    position: { ...validPositionBalances, szi: '0.1' },
+                    coin: 'BTC',
+                  },
+                ],
                 marginSummary: {
                   accountValue: '10000',
                   totalMarginUsed: '500',
@@ -938,7 +2947,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -956,13 +2965,13 @@ describe('HyperLiquidSubscriptionService', () => {
             return Promise.reject(new Error('webData3 transport failure'));
           }
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsubscribe = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       // The clearinghouse subscription established and published despite the
       // webData3 failure, so its slice is live
@@ -971,8 +2980,8 @@ describe('HyperLiquidSubscriptionService', () => {
       const callsAfterInitialSetup = clearinghouseCalls;
 
       // The webData3-only retry
-      const retrying = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const retrying = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
 
       expect(webData3Attempts).toBeGreaterThan(1);
       // The live clearinghouse subscriptions were reused, not re-established,
@@ -992,39 +3001,43 @@ describe('HyperLiquidSubscriptionService', () => {
         (_params: any, callback: (payload: unknown) => void) => {
           publish = callback;
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
       const unsubscribeAccount = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const unsubscribeOrders = service.subscribeToOrders({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' } }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
       unsubscribeAccount();
 
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.04' } }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.04' } },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
           withdrawable: '9800',
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).toMatchObject([
         { size: '0.04' },
@@ -1037,9 +3050,9 @@ describe('HyperLiquidSubscriptionService', () => {
   describe('spotState WebSocket Subscription', () => {
     it('establishes a spotState subscription on subscribeToAccount', async () => {
       const unsubscribe = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.spotState).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.stringMatching(/^0x/) }),
@@ -1054,12 +3067,12 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('does not re-subscribe spotState for the same user', async () => {
       const unsubscribe1 = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const unsubscribe2 = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.spotState).toHaveBeenCalledTimes(1);
 
@@ -1068,17 +3081,17 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('re-notifies account subscribers when a spotState push arrives', async () => {
-      const firstCallback = jest.fn();
+      const firstCallback = vi.fn();
       const firstUnsubscribe = service.subscribeToAccount({
         callback: firstCallback,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
-      const notifyCallback = jest.fn();
+      const notifyCallback = vi.fn();
       const unsubscribe = service.subscribeToAccount({
         callback: notifyCallback,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const callsBefore = notifyCallback.mock.calls.length;
 
@@ -1109,21 +3122,21 @@ describe('HyperLiquidSubscriptionService', () => {
       // This simulates a slow REST response while the WS spot subscription
       // pushes a snapshot first, bumping #spotStateGeneration so the in-flight
       // refresh would otherwise discard the abstraction result.
-      let resolveAbstraction: (mode: 'unifiedAccount') => void = jest.fn();
+      let resolveAbstraction: (mode: 'unifiedAccount') => void = vi.fn();
       const abstractionPromise = new Promise<'unifiedAccount'>((resolve) => {
         resolveAbstraction = resolve;
       });
-      let resolveAbstractionStarted: () => void = jest.fn();
+      let resolveAbstractionStarted: () => void = vi.fn();
       const abstractionStarted = new Promise<void>((resolve) => {
         resolveAbstractionStarted = resolve;
       });
-      const userAbstractionMock = jest.fn().mockImplementationOnce(() => {
+      const userAbstractionMock = vi.fn().mockImplementationOnce(() => {
         resolveAbstractionStarted();
         return abstractionPromise;
       });
 
       let spotListener: ((event: any) => void) | undefined;
-      let resolveSpotStateSubscribed: () => void = jest.fn();
+      let resolveSpotStateSubscribed: () => void = vi.fn();
       const spotStateSubscribed = new Promise<void>((resolve) => {
         resolveSpotStateSubscribed = resolve;
       });
@@ -1132,17 +3145,17 @@ describe('HyperLiquidSubscriptionService', () => {
           spotListener = callback;
           resolveSpotStateSubscribed();
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
-      mockClientService.getInfoClient = jest.fn(() => ({
+      mockClientService.getInfoClient = vi.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
         userAbstraction: userAbstractionMock,
       })) as never;
 
-      const accountCallback = jest.fn();
+      const accountCallback = vi.fn();
       const unsubscribe = service.subscribeToAccount({
         callback: accountCallback,
       });
@@ -1168,7 +3181,15 @@ describe('HyperLiquidSubscriptionService', () => {
           ],
         },
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
+
+      // Spot is known, but the abstraction mode is still in flight. The
+      // collateral amount stays unset so the ratio is hidden rather than
+      // computed as if this were a Standard account.
+      expect(accountCallback).toHaveBeenCalled();
+      expect(
+        accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+      ).toBeUndefined();
 
       // Resolve the REST userAbstraction. The refresh path must record the
       // mode (it's user-keyed, independent of spot generation) and trigger
@@ -1176,25 +3197,26 @@ describe('HyperLiquidSubscriptionService', () => {
       // not wait for another subscribe/action to repair the state.
       accountCallback.mockClear();
       resolveAbstraction('unifiedAccount');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(accountCallback).toHaveBeenCalled();
       const recoveredCall = accountCallback.mock.calls.at(-1)?.[0];
-      // unifiedAccount → fold=true → spot USDC ($123.45) folds into
-      // spendable/withdrawable (default $1000 perps + $123.45 spot ≈ $1123.45).
+      // unifiedAccount → fold=true → spendable/withdrawable are the free
+      // spot USDC ($123.45), which already holds the perps account value.
       expect(parseFloat(recoveredCall?.spendableBalance)).toBeCloseTo(
-        1123.45,
+        123.45,
         2,
       );
       expect(parseFloat(recoveredCall?.withdrawableBalance)).toBeCloseTo(
-        1123.45,
+        123.45,
         2,
       );
+      expect(recoveredCall?.spotCollateral).toBe('123.45');
 
       // A subsequent subscribe must take the fast path — the cache is now
       // sealed for this user, so no redundant userAbstraction REST round-trip.
-      service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
       expect(userAbstractionMock).toHaveBeenCalledTimes(1);
 
       unsubscribe();
@@ -1202,15 +3224,15 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('ignores spotState events for a different user', async () => {
       const unsubscribe = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
-      const observerCallback = jest.fn();
+      const observerCallback = vi.fn();
       const observerUnsubscribe = service.subscribeToAccount({
         callback: observerCallback,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const callsBefore = observerCallback.mock.calls.length;
 
@@ -1247,7 +3269,7 @@ describe('HyperLiquidSubscriptionService', () => {
         undefined;
       let userACalls = 0;
       let userBCalls = 0;
-      const userAbstraction = jest.fn(({ user }: { user: string }) => {
+      const userAbstraction = vi.fn(({ user }: { user: string }) => {
         const normalizedUser = user.toLowerCase();
 
         if (normalizedUser === userA) {
@@ -1271,7 +3293,7 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve('unifiedAccount');
       });
 
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '1000.00',
         withdrawableBalance: '1000.00',
         totalBalance: '10100.00',
@@ -1292,49 +3314,49 @@ describe('HyperLiquidSubscriptionService', () => {
         (_params: any, callback: any) => {
           spotListeners.set(_params.user.toLowerCase(), callback);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
 
       const unsubscribeA = service.subscribeToAccount({
         accountId: accountA,
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
-      jest.advanceTimersByTime(ABSTRACTION_MODE_REFRESH_THROTTLE_MS + 1);
+      vi.advanceTimersByTime(ABSTRACTION_MODE_REFRESH_THROTTLE_MS + 1);
       spotListeners.get(userA)?.({ user: userA, spotState });
       expect(userACalls).toBe(2);
 
-      const callbackB = jest.fn();
+      unsubscribeA();
+      const callbackB = vi.fn();
       const unsubscribeB = service.subscribeToAccount({
         accountId: accountB,
         callback: callbackB,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const bCallsBeforeTick = userBCalls;
       spotListeners.get(userB)?.({ user: userB, spotState });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(bCallsBeforeTick).toBe(1);
       expect(userBCalls).toBe(2);
       expect(userAbstraction).toHaveBeenLastCalledWith({ user: userB });
-      expect(callbackB.mock.calls.at(-1)[0].spendableBalance).toBe('1000');
-      expect(callbackB.mock.calls.at(-1)[0].withdrawableBalance).toBe('1000');
+      expect(callbackB.mock.calls.at(-1)?.[0].spendableBalance).toBe('1000');
+      expect(callbackB.mock.calls.at(-1)?.[0].withdrawableBalance).toBe('1000');
 
       resolveUserARefresh('unifiedAccount');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       unsubscribeB();
-      unsubscribeA();
     });
 
     it('refreshes abstraction mode on the first spotState tick even inside the throttle window', async () => {
       const user = '0xaaa';
       const accountId = 'eip155:42161:0xaaa' as CaipAccountId;
-      const callback = jest.fn();
+      const callback = vi.fn();
       const spotState = {
         balances: [
           {
@@ -1346,12 +3368,12 @@ describe('HyperLiquidSubscriptionService', () => {
           },
         ],
       };
-      const userAbstraction = jest
+      const userAbstraction = vi
         .fn()
         .mockResolvedValueOnce('unifiedAccount')
         .mockResolvedValueOnce('disabled');
 
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '1000.00',
         withdrawableBalance: '1000.00',
         totalBalance: '10100.00',
@@ -1369,31 +3391,89 @@ describe('HyperLiquidSubscriptionService', () => {
       );
 
       service.subscribeToAccount({ accountId, callback });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(userAbstraction).toHaveBeenCalledTimes(1);
 
       const spotListener = mockSubscriptionClient.spotState.mock.calls[0][1];
       spotListener({ user, spotState });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(userAbstraction).toHaveBeenCalledTimes(2);
       expect(userAbstraction).toHaveBeenLastCalledWith({ user });
     });
 
+    it.each(['disabled', 'default'] as const)(
+      'republishes spotCollateral when a delayed abstraction resolve is %s',
+      async (resolvedMode) => {
+        // The subscribe-time userAbstraction fails, so the mode stays
+        // unknown and spotCollateral is unset. A later spot tick resolves
+        // it to Standard. Unknown and Standard both skip the spot fold, so
+        // the stream must still notify: clients are waiting on '0'.
+        const userAbstraction = vi
+          .fn()
+          .mockRejectedValueOnce(new Error('abstraction unavailable'))
+          .mockResolvedValueOnce(resolvedMode);
+        mockClientService.getInfoClient = vi.fn(() => ({
+          spotClearinghouseState: mockSpotClearinghouseState,
+          userAbstraction,
+        })) as never;
+
+        const accountCallback = vi.fn();
+        const unsubscribe = service.subscribeToAccount({
+          callback: accountCallback,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(1);
+        expect(accountCallback).toHaveBeenCalled();
+        expect(
+          accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+        ).toBeUndefined();
+
+        accountCallback.mockClear();
+        const spotListener =
+          mockSubscriptionClient.spotState.mock.calls.at(-1)?.[1];
+        spotListener({
+          user: '0x123',
+          spotState: {
+            balances: [
+              {
+                coin: 'USDC',
+                token: 0,
+                hold: '0',
+                total: '100.76531791',
+                entryNtl: '100.76531791',
+              },
+            ],
+          },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(accountCallback).toHaveBeenCalled();
+        const published = accountCallback.mock.calls.at(-1)?.[0];
+        // Spot is present, but Standard does not count it as collateral.
+        expect(published?.spotCollateral).toBe('0');
+        expect(parseFloat(published?.spendableBalance)).toBe(1000);
+
+        unsubscribe();
+      },
+    );
+
     it('unsubscribes spotState when the last account subscriber leaves', async () => {
-      const unsubSpot = jest.fn().mockResolvedValue(undefined);
+      const unsubSpot = vi.fn().mockResolvedValue(undefined);
       mockSubscriptionClient.spotState.mockResolvedValueOnce({
         unsubscribe: unsubSpot,
       });
 
       const unsubscribe = service.subscribeToAccount({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       unsubscribe();
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(unsubSpot).toHaveBeenCalled();
     });
@@ -1421,16 +3501,16 @@ describe('HyperLiquidSubscriptionService', () => {
       // resolves userAbstraction = 'unifiedAccount' so the initial subscribe
       // already records that mode and folds spot. Setting back to
       // disabled should flip the fold off and re-notify.
-      mockClientService.getInfoClient = jest.fn(() => ({
+      mockClientService.getInfoClient = vi.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
-        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
       })) as never;
 
-      const accountCallback = jest.fn();
+      const accountCallback = vi.fn();
       const unsubscribe = service.subscribeToAccount({
         callback: accountCallback,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(accountCallback).toHaveBeenCalled();
       accountCallback.mockClear();
@@ -1438,7 +3518,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // Switch the recorded mode to disabled (no fold). Account state
       // hash flips because spendable/withdrawable drop the folded spot.
       service.setUserAbstractionMode('0x123', 'disabled');
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(accountCallback).toHaveBeenCalled();
       const lastCall = accountCallback.mock.calls.at(-1)?.[0];
@@ -1456,24 +3536,24 @@ describe('HyperLiquidSubscriptionService', () => {
       // takes the fast path forever, and Standard / default users
       // keep seeing spot folded into availableToTradeBalance via the
       // fail-open Unified default.
-      const userAbstractionMock = jest
+      const userAbstractionMock = vi
         .fn()
         .mockRejectedValueOnce(new Error('transient HL outage'))
         .mockResolvedValueOnce('disabled');
 
-      mockClientService.getInfoClient = jest.fn(() => ({
+      mockClientService.getInfoClient = vi.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
         userAbstraction: userAbstractionMock,
       })) as never;
 
-      const unsub1 = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsub1 = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
       expect(userAbstractionMock).toHaveBeenCalledTimes(1);
 
       // Second subscribe (same user) must trigger another refresh because
       // the prior failure left the cache unsealed.
-      const unsub2 = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsub2 = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
       expect(userAbstractionMock).toHaveBeenCalledTimes(2);
 
       unsub1();
@@ -1483,24 +3563,24 @@ describe('HyperLiquidSubscriptionService', () => {
     it('seals the cache normally once a prior abstraction mode has been resolved', async () => {
       // Sanity check: when userAbstraction has already resolved successfully,
       // a subsequent refresh failure must not force pointless retries.
-      const userAbstractionMock = jest
+      const userAbstractionMock = vi
         .fn()
         .mockResolvedValueOnce('disabled')
         .mockRejectedValueOnce(new Error('transient HL outage'));
 
-      mockClientService.getInfoClient = jest.fn(() => ({
+      mockClientService.getInfoClient = vi.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
         userAbstraction: userAbstractionMock,
       })) as never;
 
-      const unsub1 = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsub1 = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
       expect(userAbstractionMock).toHaveBeenCalledTimes(1);
 
       // Subsequent subscribe takes the early-return path; the second mock
       // entry (the rejection) is never consumed.
-      const unsub2 = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
+      const unsub2 = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
       expect(userAbstractionMock).toHaveBeenCalledTimes(1);
 
       unsub1();
@@ -1510,7 +3590,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
   describe('spot-adjusted account balance parity', () => {
     it('includes spot balance exactly once in streamed totalBalance across multiple DEXs', async () => {
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '0',
         withdrawableBalance: '0',
         totalBalance: '0',
@@ -1535,7 +3615,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -1543,7 +3623,7 @@ describe('HyperLiquidSubscriptionService', () => {
         (_params: any, callback: any) => {
           setTimeout(() => callback({ dex: _params.dex || '', orders: [] }), 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -1557,22 +3637,23 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       const unsubscribe = hip3Service.subscribeToAccount({
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
-      const accountState = mockCallback.mock.calls.at(-1)[0];
+      const accountState = mockCallback.mock.calls.at(-1)?.[0];
       // Unified-mode default: spot USDC folds into total, spendable, and
       // withdrawable (all three carry the same value when perps balances
       // are zero). Per-DEX subAccountBreakdown entries stay perps-only —
       // the fold is applied once at the aggregation level, not per DEX.
-      expect(accountState.totalBalance).toBe('100.76531791');
-      expect(accountState.spendableBalance).toBe('100.76531791');
-      expect(accountState.withdrawableBalance).toBe('100.76531791');
+      // Emitted USDC balances are canonicalized down to six decimals.
+      expect(accountState.totalBalance).toBe('100.765317');
+      expect(accountState.spendableBalance).toBe('100.765317');
+      expect(accountState.withdrawableBalance).toBe('100.765317');
       expect(accountState.subAccountBreakdown).toEqual({
         main: {
           spendableBalance: '0',
@@ -1590,8 +3671,86 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('sums per-DEX cross margin summaries in the streamed account', async () => {
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation((state) => ({
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        totalBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        crossMarginSummary: {
+          accountValue: state.withdrawable,
+          maintenanceMargin: state.crossMaintenanceMarginUsed,
+          marginUsed: '2',
+          notional: '3',
+        },
+      }));
+
+      const clearinghouseCallbacks = new Map<string, (data: any) => void>();
+      const emitClearinghouse = (dex: string, maintenance: string): void =>
+        clearinghouseCallbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: dex ? '20' : '100',
+            crossMaintenanceMarginUsed: maintenance,
+          },
+        });
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          const dex = _params.dex || '';
+          clearinghouseCallbacks.set(dex, callback);
+          setTimeout(() => emitClearinghouse(dex, '1'), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => callback({ dex: _params.dex || '', orders: [] }), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+
+      const mockCallback = vi.fn();
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: mockCallback,
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary).toEqual({
+        accountValue: '120',
+        maintenanceMargin: '2',
+        marginUsed: '4',
+        notional: '6',
+      });
+
+      // A later event that changes only the summary still reaches subscribers.
+      emitClearinghouse('', '5');
+      await vi.runAllTimersAsync();
+
+      expect(
+        mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary,
+      ).toStrictEqual(expect.objectContaining({ maintenanceMargin: '6' }));
+
+      unsubscribe();
+    });
+
     it('does not use non-USDC spot coins in streamed spendable/withdrawable', async () => {
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '0',
         withdrawableBalance: '0',
         totalBalance: '0',
@@ -1601,15 +3760,15 @@ describe('HyperLiquidSubscriptionService', () => {
       }));
 
       const infoClient = {
-        spotClearinghouseState: jest.fn().mockResolvedValue({
+        spotClearinghouseState: vi.fn().mockResolvedValue({
           balances: [
             { coin: 'mUSD', hold: '10', total: '100' },
             { coin: 'HYPE', hold: '0', total: '999' },
           ],
         }),
-        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
       };
-      mockClientService.getInfoClient = jest.fn(() => infoClient) as never;
+      mockClientService.getInfoClient = vi.fn(() => infoClient) as never;
 
       mockSubscriptionClient.clearinghouseState.mockImplementation(
         (_params: any, callback: any) => {
@@ -1627,7 +3786,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -1635,7 +3794,7 @@ describe('HyperLiquidSubscriptionService', () => {
         (_params: any, callback: any) => {
           setTimeout(() => callback({ dex: _params.dex || '', orders: [] }), 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -1649,14 +3808,14 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       const unsubscribe = hip3Service.subscribeToAccount({
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
-      const accountState = mockCallback.mock.calls.at(-1)[0];
+      const accountState = mockCallback.mock.calls.at(-1)?.[0];
       expect(accountState.spendableBalance).toBe('0');
       expect(accountState.withdrawableBalance).toBe('0');
       expect(accountState.totalBalance).toBe('0');
@@ -1665,7 +3824,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('includes spot balance in single-DEX account updates without flickering', async () => {
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '50',
         withdrawableBalance: '50',
         totalBalance: '200',
@@ -1694,7 +3853,7 @@ describe('HyperLiquidSubscriptionService', () => {
           clearinghouseCallback = callback;
           setTimeout(() => callback(clearinghouseData), 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -1706,24 +3865,21 @@ describe('HyperLiquidSubscriptionService', () => {
         false,
       );
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       const unsubscribe = singleDexService.subscribeToAccount({
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.webData2).not.toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalled();
-      const firstUpdate = mockCallback.mock.calls.at(-1)[0];
-      // Unified-mode default: freeSpot ($100.77) folds into spendable and
-      // withdrawable on top of perps-side values, and into total.
-      //   total       = perps.accountValue (200) + spot (100.77) = 300.77
-      //   spendable   = perps.withdrawable (50)  + spot (100.77) = 150.77
-      //   withdrawable = perps.withdrawable (50) + spot (100.77) = 150.77
-      expect(firstUpdate.totalBalance).toBe('300.76531791');
-      expect(firstUpdate.spendableBalance).toBe('150.76531791');
-      expect(firstUpdate.withdrawableBalance).toBe('150.76531791');
+      const firstUpdate = mockCallback.mock.calls.at(-1)?.[0];
+      // Unified-mode default: the spot USDC ledger ($100.77, no hold)
+      // already holds the perps account value, so it is all three balances.
+      expect(firstUpdate.totalBalance).toBe('100.765317');
+      expect(firstUpdate.spendableBalance).toBe('100.765317');
+      expect(firstUpdate.withdrawableBalance).toBe('100.765317');
 
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
@@ -1732,11 +3888,11 @@ describe('HyperLiquidSubscriptionService', () => {
 
       clearinghouseCallback!(clearinghouseData);
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       if (mockCallback.mock.calls.length > 0) {
-        const secondUpdate = mockCallback.mock.calls.at(-1)[0];
-        expect(secondUpdate.totalBalance).toBe('300.76531791');
+        const secondUpdate = mockCallback.mock.calls.at(-1)?.[0];
+        expect(secondUpdate.totalBalance).toBe('100.765317');
       }
 
       unsubscribe();
@@ -1746,7 +3902,7 @@ describe('HyperLiquidSubscriptionService', () => {
   describe('aggregateAccountStates - returnOnEquity calculation', () => {
     it('calculates positive ROE when unrealizedPnl is positive', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '100',
         withdrawableBalance: '100',
         totalBalance: '1100',
@@ -1755,7 +3911,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '10.0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3
       mockSubscriptionClient.webData3.mockImplementation(
@@ -1771,7 +3927,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -1779,7 +3935,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -1792,7 +3948,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('calculates negative ROE when unrealizedPnl is negative', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '0',
         withdrawableBalance: '0',
         totalBalance: '950',
@@ -1801,7 +3957,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '-5.0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3
       mockSubscriptionClient.webData3.mockImplementation(
@@ -1817,7 +3973,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -1825,7 +3981,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -1838,7 +3994,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('returns zero ROE when marginUsed is zero', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '1000',
         withdrawableBalance: '1000',
         totalBalance: '1000',
@@ -1847,7 +4003,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3
       mockSubscriptionClient.webData3.mockImplementation(
@@ -1863,7 +4019,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -1871,7 +4027,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -1884,7 +4040,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('calculates correct ROE with mixed profit and loss positions', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '75',
         withdrawableBalance: '75',
         totalBalance: '1575',
@@ -1893,7 +4049,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '5.0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3 - simulates account with multiple positions
       // marginUsed=1500, unrealizedPnl=75 → ROE=5.0%
@@ -1910,7 +4066,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -1918,7 +4074,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -1931,7 +4087,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('calculates high ROE with large percentage gains', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '200',
         withdrawableBalance: '200',
         totalBalance: '300',
@@ -1940,7 +4096,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '200.0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3
       mockSubscriptionClient.webData3.mockImplementation(
@@ -1956,7 +4112,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -1964,7 +4120,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -1977,7 +4133,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     it('stores raw ROE without rounding', async () => {
       // Override the adapter mock
-      jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '100',
         withdrawableBalance: '100',
         totalBalance: '433',
@@ -1986,7 +4142,7 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '30.0',
       }));
 
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       // Mock webData3
       mockSubscriptionClient.webData3.mockImplementation(
@@ -2002,7 +4158,7 @@ describe('HyperLiquidSubscriptionService', () => {
           };
 
           setTimeout(() => callback(mockData), 10);
-          return { unsubscribe: jest.fn() };
+          return { unsubscribe: vi.fn() };
         },
       );
 
@@ -2010,7 +4166,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalled();
       const accountState = mockCallback.mock.calls[0][0];
@@ -2024,8 +4180,8 @@ describe('HyperLiquidSubscriptionService', () => {
 
   describe('restoreSubscriptions', () => {
     it('restores allMids subscription when price subscribers exist', async () => {
-      const callback = jest.fn();
-      const mockUnsubscribe = jest.fn();
+      const callback = vi.fn();
+      const mockUnsubscribe = vi.fn();
       const mockSubscription = { unsubscribe: mockUnsubscribe };
 
       // Subscribe to prices first
@@ -2041,7 +4197,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Clear the subscription reference to simulate reconnection
       (service as any).globalAllMidsSubscription = undefined;
@@ -2066,14 +4222,14 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('restores fastAssetCtxs subscription when price subscribers exist (TAT-3387)', async () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       const unsubscribe = await service.subscribeToPrices({
         symbols: ['BTC'],
         callback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
 
@@ -2097,8 +4253,8 @@ describe('HyperLiquidSubscriptionService', () => {
     // TODO: Refactor to test restoreSubscriptions through public disconnect/reconnect API
 
     it.skip('restores webData3 subscription when user data subscribers exist', async () => {
-      const positionCallback = jest.fn();
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+      const positionCallback = vi.fn();
+      const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
 
       // Simulate DEX discovery to skip the wait
       await service.updateFeatureFlags(true, [''], [], []);
@@ -2124,7 +4280,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: positionCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Clear subscription references to simulate reconnection
       (service as any).webData3Subscriptions.clear();
@@ -2143,8 +4299,8 @@ describe('HyperLiquidSubscriptionService', () => {
     // TODO: Refactor to test through public disconnect/reconnect API
 
     it.skip('restores activeAsset subscriptions for all market data subscribers', async () => {
-      const marketDataCallback = jest.fn();
-      const mockUnsubscribe = jest.fn();
+      const marketDataCallback = vi.fn();
+      const mockUnsubscribe = vi.fn();
       const mockSubscription = { unsubscribe: mockUnsubscribe };
 
       mockSubscriptionClient.activeAssetCtx.mockImplementation(
@@ -2178,7 +4334,7 @@ describe('HyperLiquidSubscriptionService', () => {
         includeMarketData: true,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Clear subscriptions to simulate reconnection
       (service as any).globalActiveAssetSubscriptions.clear();
@@ -2196,7 +4352,7 @@ describe('HyperLiquidSubscriptionService', () => {
     // TODO: Refactor to test through public disconnect/reconnect API
 
     it.skip('clears BBO subscriptions during restoration', async () => {
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+      const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
       const mockSubscription = { unsubscribe: mockUnsubscribe };
       let subscriptionCallCount = 0;
 
@@ -2219,24 +4375,24 @@ describe('HyperLiquidSubscriptionService', () => {
 
       const unsubscribe = await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeOrderBook: true,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Verify initial subscription was created
       expect((service as any).globalBboSubscriptions.size).toBe(1);
       const initialCallCount = subscriptionCallCount;
 
       // Set up a different subscription reference to verify it's cleared
-      const oldSubscription = { unsubscribe: jest.fn() };
+      const oldSubscription = { unsubscribe: vi.fn() };
       (service as any).globalBboSubscriptions.set('BTC', oldSubscription);
 
       // Restore subscriptions
       await service.restoreSubscriptions();
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Verify old subscription was cleared and new one was re-established
       // The map should have the new subscription, not the old one
@@ -2252,42 +4408,42 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('schedules retry when assetCtxs restoration fails', async () => {
-      jest.mocked(parseAssetName).mockImplementation((symbol: string) => ({
+      vi.mocked(parseAssetName).mockImplementation((symbol: string) => ({
         symbol,
         dex: symbol === 'BTC:UNISWAP' ? 'UNISWAP' : null,
       }));
 
-      mockClientService.getInfoClient = jest.fn(
+      mockClientService.getInfoClient = vi.fn(
         () =>
           ({
-            meta: jest.fn().mockResolvedValue({
+            meta: vi.fn().mockResolvedValue({
               universe: [{ name: 'BTC:UNISWAP' }],
             }),
           }) as any,
       );
 
-      mockSubscriptionClient.assetCtxs = jest
+      mockSubscriptionClient.assetCtxs = vi
         .fn()
         .mockResolvedValueOnce({
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
+          unsubscribe: vi.fn().mockResolvedValue(undefined),
         })
         .mockRejectedValueOnce(new Error('Subscription failed'))
         .mockResolvedValueOnce({
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
+          unsubscribe: vi.fn().mockResolvedValue(undefined),
         });
 
       const unsubscribe = await service.subscribeToPrices({
         symbols: ['BTC:UNISWAP'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       await expect(service.restoreSubscriptions()).resolves.not.toThrow();
       expect(mockSubscriptionClient.assetCtxs).toHaveBeenCalledTimes(2);
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(mockSubscriptionClient.assetCtxs).toHaveBeenCalledTimes(3);
       expect(mockDeps.logger.error).toHaveBeenCalled();
@@ -2298,10 +4454,10 @@ describe('HyperLiquidSubscriptionService', () => {
     // TODO: Refactor to test through public disconnect/reconnect API
 
     it.skip('restores all subscription types when multiple subscriber types exist', async () => {
-      const priceCallback = jest.fn();
-      const positionCallback = jest.fn();
-      const allTypesMarketDataCallback = jest.fn();
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+      const priceCallback = vi.fn();
+      const positionCallback = vi.fn();
+      const allTypesMarketDataCallback = vi.fn();
+      const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
       const mockSubscription = { unsubscribe: mockUnsubscribe };
 
       // Simulate DEX discovery to skip the wait
@@ -2364,7 +4520,7 @@ describe('HyperLiquidSubscriptionService', () => {
         includeMarketData: true,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Clear all subscription references
       (service as any).globalAllMidsSubscription = undefined;
@@ -2389,9 +4545,9 @@ describe('HyperLiquidSubscriptionService', () => {
 
   describe('subscribeToOrderBook (L2Book)', () => {
     it('should subscribe to L2Book with correct params', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       const mockL2BookSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
 
       mockSubscriptionClient.l2Book.mockImplementation(
@@ -2418,7 +4574,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       const unsubscribe = service.subscribeToOrderBook(params);
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         { coin: 'BTC', nSigFigs: 5, mantissa: undefined, fast: undefined },
@@ -2429,9 +4585,9 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should process L2Book data and call callback with OrderBookData', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       const mockL2BookSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
 
       mockSubscriptionClient.l2Book.mockImplementation(
@@ -2461,7 +4617,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2477,9 +4633,13 @@ describe('HyperLiquidSubscriptionService', () => {
               size: '1.5',
             }),
           ]),
-          spread: expect.any(String),
-          spreadPercentage: expect.any(String),
-          midPrice: expect.any(String),
+          // The shared helper's numbers in the stream's string format.
+          spread: '200.00000',
+          spreadPercentage: calculateOrderBookSpread({
+            bestBid: '49900',
+            bestAsk: '50100',
+          })?.spreadPercentage.toFixed(4),
+          midPrice: '50000.00000',
           lastUpdated: expect.any(Number),
           maxTotal: expect.any(String),
         }),
@@ -2487,8 +4647,8 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should unsubscribe when cleanup function is called', async () => {
-      const mockCallback = jest.fn();
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+      const mockCallback = vi.fn();
+      const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2510,19 +4670,19 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Unsubscribe
       unsubscribe();
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockUnsubscribe).toHaveBeenCalled();
     });
 
     it('should call onError callback when subscription fails', async () => {
-      const mockCallback = jest.fn();
-      const mockOnError = jest.fn();
+      const mockCallback = vi.fn();
+      const mockOnError = vi.fn();
 
       mockSubscriptionClient.l2Book.mockRejectedValue(
         new Error('L2Book subscription failed'),
@@ -2534,7 +4694,7 @@ describe('HyperLiquidSubscriptionService', () => {
         onError: mockOnError,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockOnError).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2546,8 +4706,8 @@ describe('HyperLiquidSubscriptionService', () => {
     it('should handle subscription client not available', async () => {
       mockClientService.getSubscriptionClient.mockReturnValue(undefined);
 
-      const mockCallback = jest.fn();
-      const mockOnError = jest.fn();
+      const mockCallback = vi.fn();
+      const mockOnError = vi.fn();
 
       const unsubscribe = service.subscribeToOrderBook({
         symbol: 'BTC',
@@ -2555,7 +4715,7 @@ describe('HyperLiquidSubscriptionService', () => {
         onError: mockOnError,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Should call onError with appropriate message
       expect(mockOnError).toHaveBeenCalledWith(
@@ -2570,7 +4730,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should handle missing levels gracefully', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2581,7 +4741,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2591,7 +4751,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Should not crash - callback should not be called for invalid data
       // (the implementation checks for data?.levels being truthy)
@@ -2599,7 +4759,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should ignore data for different coins', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2624,7 +4784,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 10);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2634,7 +4794,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Should only receive data for BTC, not ETH
       expect(mockCallback).toHaveBeenCalledTimes(1);
@@ -2648,7 +4808,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should pass mantissa parameter when provided', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2662,7 +4822,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2674,7 +4834,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         { coin: 'BTC', nSigFigs: 5, mantissa: 2 },
@@ -2683,7 +4843,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should calculate cumulative totals correctly', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2704,7 +4864,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2715,7 +4875,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const orderBookData = mockCallback.mock.calls[0][0];
 
@@ -2733,7 +4893,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('should limit levels based on the levels parameter', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
@@ -2759,7 +4919,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2770,7 +4930,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const orderBookData = mockCallback.mock.calls[0][0];
 
@@ -2780,7 +4940,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('forwards fast: true to the SDK l2Book call', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
           setTimeout(() => {
@@ -2793,7 +4953,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2804,7 +4964,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
         expect.objectContaining({ coin: 'BTC', fast: true }),
@@ -2813,7 +4973,7 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('does not send fast flag when fast is omitted', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
       mockSubscriptionClient.l2Book.mockImplementation(
         (_params: any, callback: any) => {
           setTimeout(() => {
@@ -2826,7 +4986,7 @@ describe('HyperLiquidSubscriptionService', () => {
             });
           }, 0);
           return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
         },
       );
@@ -2836,7 +4996,7 @@ describe('HyperLiquidSubscriptionService', () => {
         callback: mockCallback,
       });
 
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       const calledWith = mockSubscriptionClient.l2Book.mock.calls[0][0];
       expect(calledWith.fast).toBeUndefined();
@@ -2845,7 +5005,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
   describe('Subscription Race Guards (#28141)', () => {
     it('unsubscribes stale assetCtxs when a newer pending promise exists', async () => {
-      jest.mocked(parseAssetName).mockImplementation((symbol: string) => ({
+      vi.mocked(parseAssetName).mockImplementation((symbol: string) => ({
         symbol,
         dex: symbol === 'BTC:UNISWAP' ? 'UNISWAP' : null,
       }));
@@ -2855,13 +5015,13 @@ describe('HyperLiquidSubscriptionService', () => {
 
       let resolveFirst: (sub: MockSubscription) => void = () => undefined;
       const firstMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
       const secondMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
       mockSubscriptionClient.allMids.mockResolvedValue({
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       });
 
       let callCount = 0;
@@ -2877,22 +5037,22 @@ describe('HyperLiquidSubscriptionService', () => {
 
       const unsubscribe = await service.subscribeToPrices({
         symbols: ['BTC:UNISWAP'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       unsubscribe();
 
       await service.subscribeToPrices({
         symbols: ['BTC:UNISWAP'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       resolveFirst(firstMockSub);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(firstMockSub.unsubscribe).toHaveBeenCalled();
       expect(secondMockSub.unsubscribe).not.toHaveBeenCalled();
@@ -2901,10 +5061,10 @@ describe('HyperLiquidSubscriptionService', () => {
     it('unsubscribes stale BBO when a newer pending promise exists', async () => {
       let resolveFirst: (sub: MockSubscription) => void = () => undefined;
       const firstMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
       const secondMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
 
       let callCount = 0;
@@ -2921,22 +5081,22 @@ describe('HyperLiquidSubscriptionService', () => {
 
       const unsubscribe1 = await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeOrderBook: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       unsubscribe1();
 
       await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeOrderBook: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       resolveFirst(firstMockSub);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       expect(firstMockSub.unsubscribe).toHaveBeenCalled();
       expect(secondMockSub.unsubscribe).not.toHaveBeenCalled();
@@ -2946,10 +5106,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // Arrange: make first activeAssetCtx return a deferred promise
       let resolveFirst: (sub: MockSubscription) => void = () => undefined;
       const firstMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
       const secondMockSub: MockSubscription = {
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
       };
 
       let callCount = 0;
@@ -2968,10 +5128,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act: first subscription
       const unsubscribe1 = await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Cleanup first subscription (decrements count, clears pending)
       unsubscribe1();
@@ -2979,14 +5139,14 @@ describe('HyperLiquidSubscriptionService', () => {
       // Second subscription for same symbol (creates new pending promise)
       await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Now resolve the first (stale) promise
       resolveFirst(firstMockSub);
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Assert: stale subscription was unsubscribed
       expect(firstMockSub.unsubscribe).toHaveBeenCalled();
@@ -3003,10 +5163,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act: subscribe with market data — should not throw
       const unsubscribe = await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Assert: error was logged, service still functional
       expect(mockDeps.logger.error).toHaveBeenCalled();
@@ -3024,10 +5184,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // Act
       await service.subscribeToPrices({
         symbols: ['BTC'],
-        callback: jest.fn(),
+        callback: vi.fn(),
         includeMarketData: true,
       });
-      await jest.runAllTimersAsync();
+      await vi.runAllTimersAsync();
 
       // Assert: debugLogger received method context, not the class name
       expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(

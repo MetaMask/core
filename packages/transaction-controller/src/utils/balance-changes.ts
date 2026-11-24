@@ -3,19 +3,19 @@ import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type {
+  SentinelSimulationCallTrace,
+  SentinelSimulationLog,
+  SentinelSimulationRequest,
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+  SentinelSimulationTransaction,
+} from '@metamask/sentinel-api-service';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
-import type {
-  SimulationResponseLog,
-  SimulationRequestTransaction,
-  SimulationResponse,
-  SimulationResponseCallTrace,
-  SimulationResponseTransaction,
-  SimulationRequest,
-} from '../api/simulation-api.js';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -56,9 +56,9 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
-  getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
 };
@@ -106,7 +106,10 @@ const SUPPORTED_TOKEN_ABIS = {
 
 const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
-type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
+type BalanceTransactionMap = Map<
+  SimulationToken,
+  SentinelSimulationTransaction
+>;
 
 /**
  * Generate simulation data for a transaction.
@@ -117,7 +120,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
- * @param request.getSimulationConfig - Optional transaction simulation parameters.
+ * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @returns The simulation data.
  */
 export async function getBalanceChanges(
@@ -198,13 +201,17 @@ export async function getBalanceChanges(
 /**
  * Extract the native balance change from a simulation response.
  *
+ * The simulated gas cost is added back only when the sender was charged it, and
+ * the unused gas refund is removed only when the simulation created native
+ * balance without charging the sender; the two adjustments never apply together.
+ *
  * @param request - Simulation request.
  * @param response - Simulation response.
  * @returns Native balance change or undefined if unchanged.
  */
 function getNativeBalanceChange(
   request: GetBalanceChangesRequest,
-  response: SimulationResponse,
+  response: SentinelSimulationResponse,
 ): SimulationBalanceChange | undefined {
   const transactionResponse = response.transactions[0];
 
@@ -223,16 +230,34 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  const gasCost = isGasCostDeductedFromSender(
+  const isBalanceCreated = isNativeBalanceCreated(stateDiff);
+
+  const senderGainExcludingValue = getNativeBalanceChangeExcludingValue(
     txParams,
     previousBalance,
     newBalance,
-    stateDiff,
+    request.nestedTransactions,
+  );
+
+  const gasCost = isGasCostDeductedFromSender(
+    txParams,
+    senderGainExcludingValue,
+    isBalanceCreated,
   )
     ? transactionResponse.gasCost
     : undefined;
 
-  return getSimulationBalanceChange(previousBalance, newBalance, gasCost);
+  const unusedGasRefund = isBalanceCreated
+    ? getUnusedGasRefund(txParams, transactionResponse)
+    : new BN(0);
+
+  const refund = BN.min(
+    unusedGasRefund,
+    BN.max(senderGainExcludingValue, new BN(0)),
+  );
+  const offset = new BN(String(gasCost ?? 0)).sub(refund);
+
+  return getSimulationBalanceChange(previousBalance, newBalance, offset);
 }
 
 /**
@@ -243,21 +268,20 @@ function getNativeBalanceChange(
  *
  * - The sender is only charged when the simulated transaction specifies a fee
  * per gas.
- * - If the sender lost exactly the transaction value, gas was not charged.
+ * - If the sender lost exactly the transferred value, gas was not charged.
  * - Some chains credit the fee recipient without debiting the sender, which is
  * detectable because it increases the total native balance.
  *
  * @param txParams - Parameters of the simulated transaction.
- * @param previousBalance - Sender native balance before the simulation.
- * @param newBalance - Sender native balance after the simulation.
- * @param stateDiff - Native balances before and after the simulation.
+ * @param balanceChangeExcludingValue - Sender native balance change excluding the transferred value.
+ * @param isBalanceCreated - Whether the simulation increased the total native
+ * balance.
  * @returns Whether the gas cost was deducted from the sender.
  */
 function isGasCostDeductedFromSender(
   txParams: TransactionParams,
-  previousBalance: Hex,
-  newBalance: Hex,
-  stateDiff: SimulationResponseTransaction['stateDiff'],
+  balanceChangeExcludingValue: BN,
+  isBalanceCreated: boolean,
 ): boolean {
   const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
     | Hex
@@ -267,15 +291,11 @@ function isGasCostDeductedFromSender(
     return false;
   }
 
-  const extraLoss = hexToBN(previousBalance)
-    .sub(hexToBN(newBalance))
-    .sub(hexToBN(txParams.value ?? '0x0'));
-
-  if (extraLoss.isZero()) {
+  if (balanceChangeExcludingValue.isZero()) {
     return false;
   }
 
-  return !isNativeBalanceCreated(stateDiff);
+  return !isBalanceCreated;
 }
 
 /**
@@ -288,7 +308,7 @@ function isGasCostDeductedFromSender(
  * @returns Whether the total native balance increased.
  */
 function isNativeBalanceCreated(
-  stateDiff: SimulationResponseTransaction['stateDiff'],
+  stateDiff: SentinelSimulationResponseTransaction['stateDiff'],
 ): boolean {
   const previousState = stateDiff?.pre ?? {};
   const newState = stateDiff?.post ?? {};
@@ -308,12 +328,48 @@ function isNativeBalanceCreated(
 }
 
 /**
+ * Calculate the unused gas refund credited to the sender when the simulation
+ * reports gas fees without debiting the sender.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param transactionResponse - Simulation response for the transaction.
+ * @returns The refund in wei, or zero if it cannot be derived.
+ */
+function getUnusedGasRefund(
+  txParams: TransactionParams,
+  transactionResponse: SentinelSimulationResponseTransaction,
+): BN {
+  const { gasCost, gasUsed } = transactionResponse;
+  const gasLimit = txParams.gas as Hex | undefined;
+
+  if (!gasLimit || !gasUsed || gasCost === undefined || gasCost === null) {
+    return new BN(0);
+  }
+
+  const gasUsedBN = hexToBN(gasUsed);
+
+  if (gasUsedBN.isZero()) {
+    return new BN(0);
+  }
+
+  const unusedGas = hexToBN(gasLimit).sub(gasUsedBN);
+
+  if (unusedGas.lte(new BN(0))) {
+    return new BN(0);
+  }
+
+  const price = new BN(String(gasCost)).add(gasUsedBN.shrn(1)).div(gasUsedBN);
+
+  return unusedGas.mul(price);
+}
+
+/**
  * Extract events from a simulation response.
  *
  * @param response - The simulation response.
  * @returns The parsed events.
  */
-function getEvents(response: SimulationResponse): ParsedEvent[] {
+function getEvents(response: SentinelSimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
   const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
 
@@ -528,7 +584,7 @@ function getTokenBalanceTransactions(
         tokenId,
       );
 
-      const transaction: SimulationRequestTransaction = {
+      const transaction: SentinelSimulationTransaction = {
         from,
         to: event.contractAddress,
         data,
@@ -621,7 +677,7 @@ function getContractInterface(
 function getAmountFromBalanceTransactionResult(
   from: Hex,
   token: SimulationToken,
-  response: SimulationResponseTransaction,
+  response: SentinelSimulationResponseTransaction,
 ): Hex {
   const contract = getContractInterface(token.standard);
 
@@ -678,7 +734,7 @@ function getBalanceTransactionData(
  * @returns The parsed event log or undefined if it could not be parsed.
  */
 function parseLog(
-  eventLog: SimulationResponseLog,
+  eventLog: SentinelSimulationLog,
   interfaces: Map<SupportedToken, Interface>,
 ):
   | (LogDescription & { abi: ABI; standard: SimulationTokenStandard })
@@ -710,8 +766,8 @@ function parseLog(
  * @returns An array of logs.
  */
 function extractLogs(
-  call: SimulationResponseCallTrace,
-): SimulationResponseLog[] {
+  call: SentinelSimulationCallTrace,
+): SentinelSimulationLog[] {
   /* istanbul ignore next */
   const logs = call.logs ?? [];
 
@@ -730,7 +786,7 @@ function extractLogs(
  * @param call - The root call trace.
  * @returns An array of error messages.
  */
-function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+function extractCallTraceErrors(call?: SentinelSimulationCallTrace): string[] {
   if (!call) {
     return [];
   }
@@ -755,7 +811,7 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
  * otherwise `undefined`.
  */
 function extractRootRevert(
-  call?: SimulationResponseCallTrace,
+  call?: SentinelSimulationCallTrace,
 ): Revert | undefined {
   if (!call?.error) {
     return undefined;
@@ -774,9 +830,9 @@ function extractRootRevert(
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
-  offset: number = 0,
+  offset: BN = new BN(0),
 ): SimulationBalanceChange | undefined {
-  const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
+  const newBalanceBN = hexToBN(newBalance).add(offset);
   const previousBalanceBN = hexToBN(previousBalance);
   const differenceBN = newBalanceBN.sub(previousBalanceBN);
   const isDecrease = differenceBN.isNeg();
@@ -829,16 +885,16 @@ async function baseRequest({
   after = [],
 }: {
   request: GetBalanceChangesRequest;
-  params?: Partial<SimulationRequest>;
-  before?: SimulationRequestTransaction[];
-  after?: SimulationRequestTransaction[];
-}): Promise<SimulationResponse> {
+  params?: Partial<SentinelSimulationRequest>;
+  before?: SentinelSimulationTransaction[];
+  after?: SentinelSimulationTransaction[];
+}): Promise<SentinelSimulationResponse> {
   const {
     blockTime,
     chainId,
+    getSimulationConfig,
     messenger,
     networkClientId,
-    getSimulationConfig,
     txParams,
   } = request;
   const { authorizationList } = txParams;
@@ -849,7 +905,7 @@ async function baseRequest({
     from,
   }));
 
-  const userTransaction: SimulationRequestTransaction = {
+  const userTransaction: SentinelSimulationTransaction = {
     authorizationList: authorizationListFinal,
     data: txParams.data as Hex,
     from: txParams.from as Hex,
@@ -879,28 +935,32 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(chainId, {
-    ...params,
-    getSimulationConfig,
-    transactions,
-    withGas: true,
-    withDefaultBlockOverrides: true,
-    ...(blockTime && {
-      blockOverrides: {
-        ...params?.blockOverrides,
-        time: toHex(blockTime),
-      },
-    }),
-    ...(isInsufficientBalance && {
-      overrides: {
-        ...params?.overrides,
-        [from]: {
-          ...params?.overrides?.[from],
-          balance: requiredBalanceHex,
+  return await simulateTransactions(
+    messenger,
+    chainId,
+    {
+      ...params,
+      transactions,
+      withGas: true,
+      withDefaultBlockOverrides: true,
+      ...(blockTime && {
+        blockOverrides: {
+          ...params?.blockOverrides,
+          time: toHex(blockTime),
         },
-      },
-    }),
-  });
+      }),
+      ...(isInsufficientBalance && {
+        overrides: {
+          ...params?.overrides,
+          [from]: {
+            ...params?.overrides?.[from],
+            balance: requiredBalanceHex,
+          },
+        },
+      }),
+    },
+    { getSimulationConfig },
+  );
 }
 
 /**
@@ -915,9 +975,42 @@ function getRequiredBalance(request: GetBalanceChangesRequest): BN {
   const gasPrice = hexToBN(txParams.maxFeePerGas ?? txParams.gasPrice ?? '0x0');
   const value = hexToBN(txParams.value ?? '0x0');
 
-  const nestedValue = (request.nestedTransactions ?? [])
-    .map((tx) => hexToBN(tx.value ?? '0x0'))
-    .reduce((acc, val) => acc.add(val), new BN(0));
+  const nestedValue = getNestedValue(request.nestedTransactions);
 
   return gasLimit.mul(gasPrice).add(value).add(nestedValue);
+}
+
+/**
+ * Sum the native values of nested transactions.
+ *
+ * @param nestedTransactions - The nested transactions of a batch.
+ * @returns The total native value as a BN.
+ */
+function getNestedValue(nestedTransactions?: NestedTransactionMetadata[]): BN {
+  return (nestedTransactions ?? [])
+    .map((tx) => hexToBN(tx.value ?? '0x0'))
+    .reduce((acc, val) => acc.add(val), new BN(0));
+}
+
+/**
+ * Calculate the sender's native balance change excluding the value sent by
+ * the transaction and any nested transactions.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param previousBalance - Sender native balance before the simulation.
+ * @param newBalance - Sender native balance after the simulation.
+ * @param nestedTransactions - Nested transactions of a batch, if any.
+ * @returns The balance change excluding the transferred value. Positive when
+ * the sender gained, negative when the sender lost.
+ */
+function getNativeBalanceChangeExcludingValue(
+  txParams: TransactionParams,
+  previousBalance: Hex,
+  newBalance: Hex,
+  nestedTransactions?: NestedTransactionMetadata[],
+): BN {
+  return hexToBN(newBalance)
+    .sub(hexToBN(previousBalance))
+    .add(hexToBN(txParams.value ?? '0x0'))
+    .add(getNestedValue(nestedTransactions));
 }

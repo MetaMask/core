@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { IdMap } from './id-map.js';
 import type {
   AccountWalletMnemonicPayload,

@@ -2,7 +2,10 @@ import { Interface } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   NATIVE_TOKEN_ADDRESS,
   TransactionPayStrategy,
@@ -20,12 +23,14 @@ import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
 import type { FiatQuote } from './types.js';
 import { deriveFiatAssetForFiatPayment } from './utils.js';
 
-jest.mock('../../utils/provider');
-jest.mock('../../utils/token');
-jest.mock('../../utils/transaction');
-jest.mock('./utils', () => ({
-  ...jest.requireActual('./utils'),
-  deriveFiatAssetForFiatPayment: jest.fn(),
+vi.mock(import('../../utils/provider.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['getEvmQuoteSource']),
+);
+vi.mock(import('../../utils/transaction.js'));
+vi.mock(import('./utils.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  deriveFiatAssetForFiatPayment: vi.fn(),
 }));
 
 const CHAIN_ID_MOCK = '0x8f' as Hex;
@@ -82,9 +87,9 @@ function getFiatQuoteMock({
       from: RECIPIENT_ADDRESS_MOCK,
       isDirectMusdMoneyAccount,
       recipient: MONEY_ACCOUNT_ADDRESS_MOCK,
+      sourceAccountId: `eip155:143:${RECIPIENT_ADDRESS_MOCK}`,
+      sourceAssetId: `eip155:143/erc20:${sourceTokenAddress}`,
       sourceBalanceRaw: '12340000',
-      sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress,
       sourceTokenAmount: '12340000',
       targetAmountMinimum: '12340000',
       targetChainId: CHAIN_ID_MOCK,
@@ -97,10 +102,10 @@ function getFiatQuoteMock({
 }
 
 function getMessengerMock(): {
-  addTransactionMock: jest.Mock;
+  addTransactionMock: Mock;
   messenger: never;
 } {
-  const addTransactionMock = jest.fn().mockResolvedValue({
+  const addTransactionMock = vi.fn().mockResolvedValue({
     result: Promise.resolve(TX_HASH_MOCK),
     transactionMeta: { id: TX_ID_MOCK },
   });
@@ -108,7 +113,7 @@ function getMessengerMock(): {
   return {
     addTransactionMock,
     messenger: {
-      call: jest.fn((action: string, ...args: unknown[]) => {
+      call: vi.fn((action: string, ...args: unknown[]) => {
         if (action === 'TransactionController:addTransaction') {
           return addTransactionMock(...args);
         }
@@ -120,20 +125,20 @@ function getMessengerMock(): {
 }
 
 describe('fundFiatOrderFromTestSource', () => {
-  const deriveFiatAssetForFiatPaymentMock = jest.mocked(
+  const deriveFiatAssetForFiatPaymentMock = vi.mocked(
     deriveFiatAssetForFiatPayment,
   );
-  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
-  const getNativeTokenMock = jest.mocked(getNativeToken);
-  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
-  const getTokenInfoMock = jest.mocked(getTokenInfo);
-  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
-  const waitForTransactionConfirmedMock = jest.mocked(
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getNativeTokenMock = vi.mocked(getNativeToken);
+  const getNetworkClientIdMock = vi.mocked(getNetworkClientId);
+  const getTokenInfoMock = vi.mocked(getTokenInfo);
+  const buildCaipAssetTypeMock = vi.mocked(buildCaipAssetType);
+  const waitForTransactionConfirmedMock = vi.mocked(
     waitForTransactionConfirmed,
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     deriveFiatAssetForFiatPaymentMock.mockReturnValue({
       address: FIAT_ASSET_ADDRESS_MOCK,

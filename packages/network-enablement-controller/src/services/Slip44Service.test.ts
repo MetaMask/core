@@ -1,19 +1,22 @@
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { Slip44Service } from './Slip44Service.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  fetchWithErrorHandling: jest.fn(),
+vi.mock('@metamask/controller-utils', () => ({
+  fetchWithErrorHandling: vi.fn(),
 }));
 
-const mockFetchWithErrorHandling =
-  fetchWithErrorHandling as jest.MockedFunction<typeof fetchWithErrorHandling>;
+const mockFetchWithErrorHandling = fetchWithErrorHandling as MockedFunction<
+  typeof fetchWithErrorHandling
+>;
 
 describe('Slip44Service', () => {
   beforeEach(() => {
     // Clear cache before each test to ensure clean state
     Slip44Service.clearCache();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getSlip44BySymbol', () => {

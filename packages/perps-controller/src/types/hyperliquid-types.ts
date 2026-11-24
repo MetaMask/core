@@ -19,6 +19,7 @@ import type {
   OrderParameters,
   SpotMetaResponse,
   UserAbstractionResponse,
+  RecentTradesResponse,
 } from '@nktkas/hyperliquid';
 
 /**
@@ -78,6 +79,19 @@ export function hyperLiquidModeFoldsSpot(
   return mode === 'unifiedAccount' || mode === 'portfolioMargin';
 }
 
+/**
+ * True for a Standard HL account (`disabled`, or `default` while unset):
+ * spot and perps are separate ledgers. Unknown or other modes are false.
+ *
+ * @param mode - Abstraction mode, or `AccountState.accountMode`.
+ * @returns Whether the account keeps separate spot and perps ledgers.
+ */
+export function isHyperLiquidStandardMode(
+  mode?: string | null,
+): mode is 'disabled' | 'default' {
+  return mode === 'disabled' || mode === 'default';
+}
+
 // Clearinghouse (Account) Types
 export type AssetPosition =
   ClearinghouseStateResponse['assetPositions'][number];
@@ -87,6 +101,10 @@ export type SpotBalance = SpotClearinghouseStateResponse['balances'][number];
 export type PerpsUniverse = MetaResponse['universe'][number];
 export type PerpsAssetCtx = MetaAndAssetCtxsResponse[1][number];
 export type PredictedFunding = PredictedFundingsResponse[number];
+
+// Public trade from `recentTrades` (REST) and the `trades` subscription (WS);
+// the SDK types both with the same shape.
+export type HyperLiquidPublicTrade = RecentTradesResponse[number];
 
 // Order Types
 export type FrontendOrder = FrontendOpenOrdersResponse[number];

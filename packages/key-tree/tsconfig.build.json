@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "./dist",
+    "resolveJsonModule": true,
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../byte-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

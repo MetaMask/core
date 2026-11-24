@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { RampsOrderLike } from './ramps-order-mapper.js';
 import { mapRampsOrder } from './ramps-order-mapper.js';
 

@@ -5,6 +5,7 @@ import {
 } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
+import { describe, expect, it } from 'vitest';
 
 import { createMockJWTToken } from '../../tests/mocks/utils.js';
 import {
@@ -166,6 +167,48 @@ describe('utils', () => {
       expect(result.aud).toBe('https://example.com/audience');
       expect(result.iss).toBe('https://issuer.example.com');
       expect(result.sub).toBe('user-123@example.com');
+    });
+
+    it('should decode a base64url JWT payload', () => {
+      // `~~~?` lands on both base64 alphabets (`+`/`/` and `-`/`_`).
+      const payload = {
+        exp: 1234567890,
+        iat: 1234567800,
+        aud: 'test_audience',
+        iss: 'test_issuer',
+        sub: 'user-1',
+        nonce: '~~~?',
+      };
+      const encode = (value: Record<string, unknown>): string =>
+        bytesToBase64(utf8ToBytes(JSON.stringify(value)))
+          .replace(/\+/gu, '-')
+          .replace(/\//gu, '_')
+          .replace(/=+$/u, '');
+      const encodedPayload = encode(payload);
+      expect(encodedPayload).toMatch(/-/u);
+      expect(encodedPayload).toMatch(/_/u);
+      const token = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encodedPayload}.signature`;
+
+      expect(decodeJWTToken(token)).toStrictEqual(payload);
+    });
+
+    it('should decode a standard base64 JWT payload that contains + and /', () => {
+      const payload = {
+        exp: 1234567890,
+        iat: 1234567800,
+        aud: 'test_audience',
+        iss: 'test_issuer',
+        sub: 'user-1',
+        nonce: '~~~?',
+      };
+      const encode = (value: Record<string, unknown>): string =>
+        bytesToBase64(utf8ToBytes(JSON.stringify(value))).replace(/=+$/u, '');
+      const encodedPayload = encode(payload);
+      expect(encodedPayload).toMatch(/\+/u);
+      expect(encodedPayload).toMatch(/\//u);
+      const token = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encodedPayload}.signature`;
+
+      expect(decodeJWTToken(token)).toStrictEqual(payload);
     });
   });
 

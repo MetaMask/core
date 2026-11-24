@@ -1,7 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import {
-  timeoutFetch,
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,
   ERC721_ENUMERABLE_INTERFACE_ID,
@@ -10,7 +9,7 @@ import {
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 
-import { getFormattedIpfsUrl } from '../../../assetsUtil.js';
+import { getFormattedIpfsUrl, getTokenUriImage } from '../../../assetsUtil.js';
 
 export class ERC721Standard {
   private readonly provider: Web3Provider;
@@ -198,16 +197,7 @@ export class ERC721Standard {
 
     let image;
     if (tokenURI) {
-      try {
-        const response = await timeoutFetch(tokenURI);
-        const object = await response.json();
-        image = object?.image;
-        if (image?.startsWith('ipfs://')) {
-          image = await getFormattedIpfsUrl(ipfsGateway, image, true);
-        }
-      } catch {
-        // ignore
-      }
+      image = await getTokenUriImage(tokenURI, ipfsGateway);
     }
 
     return {

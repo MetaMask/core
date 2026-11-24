@@ -16,11 +16,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   HYPERCORE_USDC_ADDRESS,
-  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
-  PERPS_DEPOSIT_TYPES,
-  USDC_DECIMALS,
-  PaymentOverride,
 } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { projectLogger } from '../../logger.js';
@@ -32,13 +28,12 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { withNonAtomicRequests } from '../../utils/account.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
-  getFeatureFlags,
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
-  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -48,9 +43,33 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
-import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
 import {
+  getMaxQuotes,
+  isAtomicMaxQuote,
+  isAtomicMaxSupported,
+} from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
+import {
+  normalizePerpsDepositRequest,
+  normalizePerpsWithdrawRequest,
+} from '../../utils/perps.js';
+import {
+  getPolymarketDepositWalletOverrides,
+  getPredictWithdrawFeeTokenAccount,
+  getPredictWithdrawSafeAddress,
+} from '../../utils/polymarket/withdraw.js';
+import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
+import { reservePostQuoteGas } from '../../utils/post-quote.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
+import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
+import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
+import {
+  buildCaipAssetType,
+  getEvmQuoteSource,
   getNativeToken,
   getTokenFiatRate,
   normalizeTokenAddress,
@@ -58,18 +77,9 @@ import {
 } from '../../utils/token.js';
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
-import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import {
-  applyPolymarketDepositWalletOverrides,
-  getPredictWithdrawSafeAddress,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
+import { hasRelayDepositStep } from './deposit-step.js';
 import { fetchRelayQuote } from './relay-api.js';
-import {
-  getRelayMaxQuote,
-  isSubsidizedAtomicMaxQuote,
-  throwAtomicPromotionFailed,
-} from './relay-max.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -80,34 +90,23 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
-// Buffer applied to the gas cost when reserving native tokens for gas in
-// post-quote flows, accounting for gas limit re-estimation variance.
-const POST_QUOTE_GAS_BUFFER = 1.1;
-
-// Hardcoded gas allowance for the prepended payment override transaction(s).
-const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
 type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
   Partial<Pick<RelayQuoteRequest, 'amount'>>;
-type RelayStepData = RelayTransactionStep['items'][0]['data'];
-
-type RelayGasResult = {
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-  is7702: boolean;
-};
 
 /**
  * Fetches Relay quotes.
  *
- * @param request - Request object.
+ * @param fullRequest - Request object.
  * @returns Array of quotes.
  */
 export async function getRelayQuotes(
-  request: PayStrategyGetQuotesRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>[]> {
+  // Fiat estimation and submit build a fresh request and call here directly,
+  // so they never pass through the dispatch in `getQuotes`.
+  const request = withNonAtomicRequests(fullRequest);
   const { requests } = request;
 
   log('Fetching quotes', requests);
@@ -145,31 +144,16 @@ export async function getRelayQuotes(
       ),
     );
 
-    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
-    const otherQuotes = quotes.filter(
-      (quote) => !isSubsidizedAtomicMaxQuote(quote),
-    );
+    // Atomic max quotes are validated as part of the max flow.
+    const quotesToValidate = quotes.filter((quote) => !isAtomicMaxQuote(quote));
 
-    if (otherQuotes.length > 0) {
+    if (quotesToValidate.length > 0) {
       await validateRelayQuotes({
         messenger: request.messenger,
-        quotes: otherQuotes,
+        quotes: quotesToValidate,
         signal: request.signal,
         transaction: request.transaction,
       });
-    }
-
-    if (atomicMaxQuotes.length > 0) {
-      try {
-        await validateRelayQuotes({
-          messenger: request.messenger,
-          quotes: atomicMaxQuotes,
-          signal: request.signal,
-          transaction: request.transaction,
-        });
-      } catch (error) {
-        throwAtomicPromotionFailed(error);
-      }
     }
 
     return quotes;
@@ -189,7 +173,25 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
+  const [maxQuote] = await getMaxQuotes({
+    fullRequest,
+    getQuoteDetails: getRelayMaxQuoteDetails,
+    getQuotes: async (maxRequest, transaction) => [
+      await getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    ],
+    request,
+    requote: (_quote, maxRequest, transaction) =>
+      getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    validateAtomicQuote: (quote) =>
+      validateRelayQuotes({
+        messenger: fullRequest.messenger,
+        quotes: [quote],
+        signal: fullRequest.signal,
+        transaction: fullRequest.transaction,
+      }),
+  });
+
+  return maxQuote;
 }
 
 /**
@@ -217,78 +219,10 @@ async function getQuoteWithPostQuoteGasHandling(
     return phase1Quote;
   }
 
-  // Gas must be subtracted from the source amount when the user's balance
-  // is fully committed to the swap. This applies when gas is paid via an
-  // ERC-20 fee token (isSourceGasFeeToken) OR when the source itself is
-  // the native gas token (gas comes from the same pool as the swap value).
-  const isSourceNative =
-    request.sourceTokenAddress.toLowerCase() ===
-      getNativeToken(request.sourceChainId).toLowerCase() ||
-    request.sourceTokenAddress.toLowerCase() ===
-      NATIVE_TOKEN_ADDRESS.toLowerCase();
-
-  if (!phase1Quote.fees.isSourceGasFeeToken && !isSourceNative) {
-    return phase1Quote;
-  }
-
-  const gasCostRaw = new BigNumber(phase1Quote.fees.sourceNetwork.max.raw)
-    .multipliedBy(POST_QUOTE_GAS_BUFFER)
-    .integerValue(BigNumber.ROUND_UP);
-
-  const existingHeadroom = new BigNumber(request.sourceBalanceRaw).minus(
-    request.sourceTokenAmount,
-  );
-
-  if (existingHeadroom.isGreaterThanOrEqualTo(gasCostRaw)) {
-    log('Sufficient existing balance for gas, skipping subtraction', {
-      existingHeadroom: existingHeadroom.toString(10),
-      gasCostRaw: gasCostRaw.toString(10),
-    });
-    return phase1Quote;
-  }
-
-  const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
-    .minus(gasCostRaw)
-    .integerValue(BigNumber.ROUND_DOWN);
-
-  log('Subtracting gas from source for post-quote two-call', {
-    originalSourceAmount: request.sourceTokenAmount,
-    gasCostRaw,
-    adjustedSourceAmount: adjustedSourceAmount.toString(10),
+  return await reservePostQuoteGas({
+    quote: phase1Quote,
+    requote: (adjustedRequest) => getSingleQuote(adjustedRequest, fullRequest),
   });
-
-  if (!adjustedSourceAmount.isGreaterThan(0)) {
-    log(
-      'Insufficient balance after gas subtraction for post-quote, using phase 1',
-    );
-    return phase1Quote;
-  }
-
-  try {
-    const phase2Quote = await getSingleQuote(
-      {
-        ...request,
-        sourceTokenAmount: adjustedSourceAmount.toFixed(
-          0,
-          BigNumber.ROUND_DOWN,
-        ),
-      },
-      fullRequest,
-    );
-
-    if (
-      phase1Quote.fees.isSourceGasFeeToken &&
-      !phase2Quote.fees.isSourceGasFeeToken
-    ) {
-      log('Phase 2 lost gas fee token eligibility, falling back to phase 1');
-      return phase1Quote;
-    }
-
-    return phase2Quote;
-  } catch (error) {
-    log('Phase 2 quote failed, falling back to phase 1', { error });
-    return phase1Quote;
-  }
 }
 
 /**
@@ -311,13 +245,13 @@ async function getSingleQuote(
 
   const {
     from,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
   const slippageDecimal = getSlippage(
     messenger,
@@ -335,16 +269,11 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
-    const nonAtomicRecipient = await resolveNonAtomicRecipient(
-      transaction,
-      request,
+    const recipient = await resolveQuoteRecipient({
       messenger,
-    );
-
-    const effectiveRequest = nonAtomicRecipient
-      ? { ...request, recipient: nonAtomicRecipient }
-      : request;
-
+      request,
+      transaction,
+    });
     const body: RelayQuoteRequestDraft = {
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
@@ -356,45 +285,55 @@ async function getSingleQuote(
             metamask: { executeVersion: 2 },
           }
         : {}),
-      recipient: effectiveRequest.recipient ?? from,
+      recipient,
       slippageTolerance,
       user: from,
     };
 
-    if (effectiveRequest.isPolymarketDepositWallet) {
-      await applyPolymarketDepositWalletOverrides(
-        body,
-        effectiveRequest,
+    if (request.isPolymarketDepositWallet) {
+      const overrides = await getPolymarketDepositWalletOverrides(
+        from,
         messenger,
       );
-    }
+      const { depositWallet } = overrides;
 
-    const isAtomic = effectiveRequest.atomic !== false;
+      body.originCurrency = overrides.sourceTokenAddress;
+      body.user = depositWallet;
+      body.refundTo = depositWallet;
+      body.useDepositAddress = true;
+      body.strict = true;
+    }
 
     const processedTransactions = await processTransactions(
       transaction,
-      effectiveRequest,
+      request,
       body,
       messenger,
     );
 
-    if (
-      !processedTransactions &&
-      isAtomic &&
-      effectiveRequest.isPostQuote &&
-      effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
-    ) {
-      await processMoneyAccountPostQuote(
-        transaction,
-        effectiveRequest,
-        body,
+    if (!processedTransactions) {
+      const override = await processPostQuotePaymentOverride({
         messenger,
-      );
-    } else if (!processedTransactions && effectiveRequest.refundTo) {
-      // For post-quote flows, honour the caller-specified refund address so that
-      // failed Relay transactions refund to the correct account (e.g. the Predict
-      // Safe proxy) rather than defaulting to the EOA.
-      body.refundTo = effectiveRequest.refundTo;
+        request,
+        transaction,
+      });
+
+      if (override) {
+        body.amount = override.amount;
+        body.authorizationList = normalizeAuthorizationList(
+          override.authorizationList,
+        );
+        body.txs = [
+          {
+            data: buildTokenTransferData(override.recipient, override.amount),
+            to: targetTokenAddress,
+            value: '0x0',
+          },
+          ...override.calls,
+        ];
+      } else if (request.refundTo) {
+        body.refundTo = request.refundTo;
+      }
     }
 
     const pricing = getQuotePricing({
@@ -418,7 +357,11 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, effectiveRequest, fullRequest);
+    return await normalizeQuote(
+      quote,
+      { ...request, recipient: body.recipient },
+      fullRequest,
+    );
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -436,54 +379,6 @@ function normalizeAuthorizationList(
     s: a.s as Hex,
     yParity: Number(a.yParity),
   }));
-}
-
-/**
- * Derives the Relay quote recipient for non-atomic flows, where the second leg
- * runs after settlement so funds must land directly on the account submitting
- * that leg.
- *
- * Post-quote flows (e.g. Perps/Predict withdraw to Money Account) ask the
- * client `getPaymentOverrideData` callback, which knows the Money Account
- * address that cannot be derived from the request. Non-post-quote flows (e.g.
- * max-amount Money Account deposit) use the parent transaction's own `from`,
- * which is the Money Account rather than the funding EOA in `request.from`.
- *
- * @param transaction - Transaction metadata.
- * @param request - Quote request.
- * @param messenger - Controller messenger.
- * @returns The recipient address, or `undefined` for atomic flows.
- */
-async function resolveNonAtomicRecipient(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  messenger: TransactionPayControllerMessenger,
-): Promise<Hex | undefined> {
-  if (request.atomic !== false) {
-    return undefined;
-  }
-
-  if (!request.isPostQuote) {
-    return (transaction.txParams?.from as Hex | undefined) ?? request.from;
-  }
-
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const { recipient } = await messenger.call(
-    'TransactionPayController:getPaymentOverrideData',
-    {
-      amount: amountHuman,
-      transaction,
-      transactionData,
-    },
-  );
-
-  return recipient;
 }
 
 /**
@@ -545,8 +440,7 @@ async function processTransactions(
   // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
   if (
     isMaxAmount &&
-    (request.isPostQuote === true ||
-      !isAtomicMaxEnabled(messenger, transaction))
+    !isAtomicMaxSupported({ messenger, request, transaction })
   ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
@@ -571,13 +465,11 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
-  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
-
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
       data: buildTokenTransferData(
-        fundingRecipient,
+        transaction.txParams.from as Hex,
         request.targetAmountMinimum,
       ),
       value: '0x0',
@@ -592,121 +484,52 @@ async function processTransactions(
   return true;
 }
 
-async function processMoneyAccountPostQuote(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  requestBody: RelayQuoteRequestDraft,
-  messenger: TransactionPayControllerMessenger,
-): Promise<void> {
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const {
-    calls: overrideCalls,
-    recipient,
-    authorizationList,
-  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
-    amount: amountHuman,
-    transaction,
-    transactionData,
-  });
-
-  if (!overrideCalls.length) {
-    log('No payment override calls for money account post-quote');
-    return;
-  }
-
-  const fundingRecipient = recipient ?? request.from;
-  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
-
-  requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.amount = rawAmount;
-  requestBody.txs = [
-    {
-      to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, rawAmount),
-      value: '0x0',
-    },
-    ...overrideCalls.map((call) => ({
-      to: call.to as Hex,
-      data: call.data as Hex,
-      value: (call.value as Hex) ?? '0x0',
-    })),
-  ];
-
-  log('Added money account deposit calls to quote body', {
-    callCount: overrideCalls.length,
-  });
-}
-
 /**
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
- * @param transaction - Parent transaction metadata, used to gate
- * Hyperliquid-specific rewrites on transaction type.
+ * @param transaction - Parent transaction metadata, inspected to detect
+ * Hyperliquid perps deposits.
  * @returns Normalized request.
  */
 function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
 ): QuoteRequest {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
+
   const newRequest = {
     ...request,
+    sourceAssetId: buildCaipAssetType(
+      sourceChainId,
+      normalizeTokenAddress(
+        sourceTokenAddress,
+        sourceChainId,
+        TokenAddressTarget.Relay,
+      ),
+    ),
+    targetTokenAddress: normalizeTokenAddress(
+      request.targetTokenAddress,
+      request.targetChainId,
+      TokenAddressTarget.Relay,
+    ),
   };
 
-  const isPerpsDeposit =
-    transaction.type !== undefined &&
-    PERPS_DEPOSIT_TYPES.includes(transaction.type);
-
-  const isHyperliquidDeposit =
-    isPerpsDeposit &&
-    !request.isPostQuote &&
-    request.targetChainId === CHAIN_ID_ARBITRUM &&
-    request.targetTokenAddress.toLowerCase() ===
-      ARBITRUM_USDC_ADDRESS.toLowerCase();
-
-  newRequest.sourceTokenAddress = normalizeTokenAddress(
-    newRequest.sourceTokenAddress,
-    newRequest.sourceChainId,
-    TokenAddressTarget.Relay,
-  );
-  newRequest.targetTokenAddress = normalizeTokenAddress(
-    newRequest.targetTokenAddress,
-    newRequest.targetChainId,
-    TokenAddressTarget.Relay,
+  const depositRequest = normalizePerpsDepositRequest(
+    newRequest,
+    transaction,
+    HYPERCORE_USDC_ADDRESS,
   );
 
-  if (isHyperliquidDeposit) {
-    newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
-    newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-      .toString(10);
-
+  if (depositRequest !== newRequest) {
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
-      normalizedRequest: newRequest,
+      normalizedRequest: depositRequest,
     });
   }
 
-  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
-  if (request.isHyperliquidSource) {
-    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
-    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
-
-    if (newRequest.sourceTokenAmount) {
-      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
-        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-        .toString(10);
-    }
-  }
-
-  return newRequest;
+  return normalizePerpsWithdrawRequest(depositRequest, HYPERCORE_USDC_ADDRESS);
 }
 
 /**
@@ -853,12 +676,13 @@ function getFiatRates(
   // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
   // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
   // is pegged 1:1.
+  const quoteSource = getEvmQuoteSource(request);
   const sourceChainId = request.isHyperliquidSource
     ? CHAIN_ID_ARBITRUM
-    : request.sourceChainId;
+    : quoteSource.chainId;
   const sourceTokenAddress = request.isHyperliquidSource
     ? ARBITRUM_USDC_ADDRESS
-    : request.sourceTokenAddress;
+    : quoteSource.tokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -915,17 +739,22 @@ async function calculateSourceNetworkCost(
     is7702: boolean;
   }
 > {
-  const { from, sourceChainId, sourceTokenAddress } = request;
+  const { from } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
-  // Neither flow bills origin gas to the user: the execute flow has a relayer
-  // redeem a signed delegation, and a HyperLiquid withdrawal's "deposit" step
-  // is an off-chain HL sendAsset signature rather than an on-chain
-  // transaction.
+  // None of these flows bill origin gas to the user: the execute flow has a
+  // relayer redeem a signed delegation, a HyperLiquid withdrawal's "deposit"
+  // step is an off-chain HL sendAsset signature rather than an on-chain
+  // transaction, and a Polymarket deposit-wallet withdraw is submitted by the
+  // Polymarket relayer.
   const isExecuteFlow = Boolean(quote.metamask?.isExecute);
   const isHyperliquidWithdrawal = Boolean(request.isHyperliquidSource);
+  const isPolymarketDepositWallet = Boolean(request.isPolymarketDepositWallet);
 
   const gasPayment = resolveGasPayment({
-    isDelegated: isExecuteFlow || isHyperliquidWithdrawal,
+    isDelegated:
+      isExecuteFlow || isHyperliquidWithdrawal || isPolymarketDepositWallet,
     sourceTokenAddress,
     sponsorship: {
       accountSupports7702,
@@ -938,6 +767,7 @@ async function calculateSourceNetworkCost(
     log('Zeroing network fees as the user does not pay origin gas', {
       isExecuteFlow,
       isHyperliquidWithdrawal,
+      isPolymarketDepositWallet,
     });
 
     return {
@@ -968,10 +798,8 @@ async function calculateSourceNetworkCost(
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-    relayParams[0];
-
-  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
+  const { chainId, maxFeePerGas, maxPriorityFeePerGas } = relayParams[0];
+  const quoteTransactions = relayParams.map(toQuoteGasTransaction);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
@@ -983,33 +811,18 @@ async function calculateSourceNetworkCost(
   // EOA `from` so simulation succeeds.
   const fromOverride = getPredictWithdrawSafeAddress(
     request,
-    quote.steps,
     transaction,
+    hasRelayDepositStep(quote.steps),
   );
 
-  // For post-quote flows the original transaction will be prepended to the
-  // batch at submission time. Include it in the gas estimation so
-  // estimateGasBatch sees the full batch and can detect EIP-7702 support.
-  // Without this, a single relay step is estimated alone, gets is7702=false,
-  // and the batch falls back to separate type-0x2 transactions that each
-  // need native gas — breaking zero-balance fiat-funded accounts.
-  const originalTxGasParams = getOriginalTxGasParams(request, transaction);
-  const allGasParams = originalTxGasParams
-    ? [originalTxGasParams, ...relayParams]
-    : relayParams;
-
-  const gasResult = await calculateSourceNetworkGasLimit(
-    allGasParams,
-    messenger,
-    fromOverride,
-  );
-
-  // When the original tx was NOT included in gas estimation (no gas params
-  // available), fall back to the legacy prepend-after-the-fact approach.
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
-    originalTxGasParams
-      ? gasResult
-      : combinePrependedGas(gasResult, request, transaction);
+    await estimateSourceGas({
+      fromOverride,
+      messenger,
+      request,
+      transaction,
+      transactions: quoteTransactions,
+    });
 
   log('Gas limit', {
     is7702,
@@ -1044,18 +857,14 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  const proxyFeeTokenAccount = isPredictWithdrawFlow
-    ? request.refundTo
-    : undefined;
+  const proxyFeeTokenAccount = getPredictWithdrawFeeTokenAccount(
+    request,
+    transaction,
+  );
 
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,
     feeTokenAccount: proxyFeeTokenAccount,
-    firstStepData: {
-      data,
-      to,
-      value,
-    },
     messenger,
     nativeGasCostRaw: max.raw,
     request: {
@@ -1064,9 +873,13 @@ async function calculateSourceNetworkCost(
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: proxyFeeTokenAccount
-      ? relayParams.length + 1
-      : Math.max(relayParams.length, gasLimits.length),
+    transactions: proxyFeeTokenAccount
+      ? quoteTransactions
+      : getSourceTransactions({
+          request,
+          transaction,
+          transactions: quoteTransactions,
+        }),
   });
 
   if (!gasStationCost.amount) {
@@ -1087,175 +900,16 @@ async function calculateSourceNetworkCost(
   };
 }
 
-/**
- * Calculate the total gas limit for the source network.
- *
- * @param params - Array of relay transaction parameters.
- * @param messenger - Controller messenger.
- * @param fromOverride - Optional address to use as `from` in gas estimation
- * instead of the address in the relay params. Used in predict withdraw flows
- * to estimate with the proxy/Safe address that holds the source token balance.
- * @returns Total gas estimates and per-transaction gas limits.
- */
-async function calculateSourceNetworkGasLimit(
-  params: RelayTransactionStep['items'][0]['data'][],
-  messenger: TransactionPayControllerMessenger,
-  fromOverride?: Hex,
-): Promise<{
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-  is7702: boolean;
-}> {
-  const transactions = params.map((singleParams) =>
-    toRelayQuoteGasTransaction(singleParams, fromOverride),
-  );
-
-  const relayGasResult = await estimateQuoteGasLimits({
-    fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
-    fallbackOnSimulationFailure: true,
-    messenger,
-    transactions,
-  });
-
-  return {
-    gasLimits: relayGasResult.gasLimits.map((gasLimit) => gasLimit.max),
-    is7702: relayGasResult.is7702,
-    totalGasEstimate: relayGasResult.totalGasEstimate,
-    totalGasLimit: relayGasResult.totalGasLimit,
-  };
-}
-
-function toRelayQuoteGasTransaction(
+function toQuoteGasTransaction(
   singleParams: RelayTransactionStep['items'][0]['data'],
-  fromOverride?: Hex,
 ): QuoteGasTransaction {
   return {
     chainId: toHex(singleParams.chainId),
     data: singleParams.data,
-    from: fromOverride ?? singleParams.from,
-    gas: fromOverride ? undefined : singleParams.gas,
+    from: singleParams.from,
+    gas: singleParams.gas,
     to: singleParams.to,
     value: singleParams.value ?? '0',
-  };
-}
-
-function getOriginalTxGasParams(
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-): RelayStepData | undefined {
-  if (!request.isPostQuote) {
-    return undefined;
-  }
-
-  const { txParams } = transaction;
-  const to = txParams.to as Hex | undefined;
-
-  if (!to) {
-    return undefined;
-  }
-
-  const hasAccountOverride =
-    request.from.toLowerCase() !== (txParams.from as Hex).toLowerCase();
-
-  if (hasAccountOverride) {
-    return undefined;
-  }
-
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
-  const gas = nestedGas ?? txParams.gas;
-
-  return {
-    chainId: Number(transaction.chainId),
-    data: (txParams.data as Hex) ?? '0x',
-    from: txParams.from as Hex,
-    gas: gas ? String(gas) : undefined,
-    maxFeePerGas: '0',
-    maxPriorityFeePerGas: '0',
-    to,
-    value: txParams.value ?? '0',
-  };
-}
-
-function combinePrependedGas(
-  relayOnlyGas: RelayGasResult,
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-): RelayGasResult {
-  const gas = request.isPostQuote
-    ? combinePostQuoteGas(relayOnlyGas, transaction)
-    : relayOnlyGas;
-
-  return request.paymentOverride ? addPaymentOverrideGas(gas) : gas;
-}
-
-/**
- * Combine the original transaction's gas with relay gas for post-quote flows.
- *
- * Prefers gas from `nestedTransactions` (preserves the caller-provided value)
- * since TransactionController may re-estimate `txParams.gas` during batch
- * creation.
- *
- * @param relayGas - Gas estimates from relay transactions.
- * @param relayGas.totalGasEstimate - Estimated gas total.
- * @param relayGas.totalGasLimit - Maximum gas total.
- * @param relayGas.gasLimits - Per-transaction gas limits.
- * @param relayGas.is7702 - Whether the relay gas came from a combined 7702 batch estimate.
- * @param transaction - Original transaction metadata.
- * @returns Combined gas estimates including the original transaction.
- */
-function combinePostQuoteGas(
-  relayGas: RelayGasResult,
-  transaction: TransactionMeta,
-): RelayGasResult {
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
-  const rawGas = nestedGas ?? transaction.txParams.gas;
-  const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
-
-  if (originalTxGas === undefined) {
-    return relayGas;
-  }
-
-  let { gasLimits } = relayGas;
-
-  if (relayGas.is7702) {
-    // Combined 7702 gas limit — add the original tx gas so the batch
-    // keeps using a single 7702 limit.
-    gasLimits = [gasLimits[0] + originalTxGas];
-  } else {
-    // Multiple individual gas limits — prepend the original tx gas
-    // so the list order matches relay-submit's transaction order.
-    gasLimits = [originalTxGas, ...gasLimits];
-  }
-
-  const totalGasEstimate = relayGas.totalGasEstimate + originalTxGas;
-  const totalGasLimit = relayGas.totalGasLimit + originalTxGas;
-
-  log('Combined original tx gas with relay gas', {
-    originalTxGas,
-    is7702: relayGas.is7702,
-    gasLimits,
-    totalGasLimit,
-  });
-
-  return {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits,
-    is7702: relayGas.is7702,
-  };
-}
-
-function addPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
-  const gasLimits = relayGas.is7702
-    ? [relayGas.gasLimits[0] + PAYMENT_OVERRIDE_GAS]
-    : [PAYMENT_OVERRIDE_GAS, ...relayGas.gasLimits];
-
-  return {
-    totalGasEstimate: relayGas.totalGasEstimate + PAYMENT_OVERRIDE_GAS,
-    totalGasLimit: relayGas.totalGasLimit + PAYMENT_OVERRIDE_GAS,
-    gasLimits,
-    is7702: relayGas.is7702,
   };
 }
 
@@ -1324,4 +978,23 @@ function isStablecoin(
       tokenAddress.toLowerCase() as Hex,
     ),
   );
+}
+
+function getRelayMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<RelayQuote>): MaxQuoteDetails {
+  const gasStationTransactions = original.steps
+    .filter((step): step is RelayTransactionStep => step.kind === 'transaction')
+    .flatMap((step) => step.items)
+    .map((item) => item.data);
+
+  return {
+    gasLimits: original.metamask.gasLimits,
+    gasStationTransactions: gasStationTransactions.length
+      ? gasStationTransactions
+      : undefined,
+    isGasless: original.metamask.isExecute === true,
+    isSubsidized: isSubsidizedRelayQuote(original),
+    targetAmountRaw: original.details.currencyOut.amount,
+  };
 }

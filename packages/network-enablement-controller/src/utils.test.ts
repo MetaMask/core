@@ -1,4 +1,5 @@
 import { KnownCaipNamespace } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 import { deriveKeys, isOnlyNetworkEnabledInNamespace } from './utils.js';

@@ -1,5 +1,5 @@
 import { SolScope } from '@metamask/keyring-api';
-import type { CaipChainId } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { toQuoteResponseV2 } from '../../coercers/quote-response-v1-to-v2.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
@@ -20,10 +20,6 @@ import {
 } from './properties.js';
 
 describe('properties', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('quoteRequestToInputChangedProperties', () => {
     it('should map quote request properties to input keys', () => {
       expect(toInputChangedPropertyKey.srcTokenAddress).toBe('token_source');
@@ -241,10 +237,6 @@ describe('properties', () => {
   });
 
   describe('getRequestParams', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('should format request params correctly with all values provided', () => {
       const result = getRequestParams(
         {

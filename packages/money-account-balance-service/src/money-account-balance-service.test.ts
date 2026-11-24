@@ -1,4 +1,5 @@
 import { Contract } from '@ethersproject/contracts';
+import type { ContractInterface } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
 import type {
@@ -14,13 +15,16 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Json } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Mock, MockedClass, MockedFunction } from 'vitest';
 
 import {
   LENS_ABI,
   MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
+  PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
 } from './constants.js';
 import {
@@ -37,11 +41,11 @@ import {
   serviceName,
 } from './money-account-balance-service.js';
 
-jest.mock('@ethersproject/contracts');
-jest.mock('@ethersproject/providers');
+vi.mock('@ethersproject/contracts');
+vi.mock('@ethersproject/providers');
 
-const MockContract = Contract as jest.MockedClass<typeof Contract>;
-const MockWeb3Provider = Web3Provider as jest.MockedClass<typeof Web3Provider>;
+const MockContract = Contract as MockedClass<typeof Contract>;
+const MockWeb3Provider = Web3Provider as MockedClass<typeof Web3Provider>;
 
 // ============================================================
 // Fixtures
@@ -71,6 +75,14 @@ const MOCK_VAULT_CONFIG = {
 const MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
   ...MOCK_VAULT_CONFIG,
   underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+};
+
+const MOCK_PREMIUM_VAULT_CONFIG = {
+  boringVault: '0x7777777777777777777777777777777777777777',
+  accountantAddress: '0x8888888888888888888888888888888888888888',
+  tellerAddress: '0x9999999999999999999999999999999999999999',
+  lensAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  chainId: MOCK_VAULT_CONFIG.chainId,
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -210,35 +222,35 @@ function publishRFFCStateChange(
 function createService({
   rffcFlags = { [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG },
   callInit = true,
-  captureException = jest.fn(),
+  captureException = vi.fn(),
   options = {},
-  mockFetchPositions = jest.fn(),
+  mockFetchPositions = vi.fn(),
 }: {
   rffcFlags?: Record<string, Json>;
   callInit?: boolean;
-  captureException?: jest.Mock;
+  captureException?: Mock;
   options?: Partial<
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
-  mockFetchPositions?: jest.Mock;
+  mockFetchPositions?: Mock;
 } = {}): {
   service: MoneyAccountBalanceService;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountBalanceServiceMessenger;
-  mockGetNetworkConfig: jest.Mock;
-  mockGetNetworkClient: jest.Mock;
-  mockGetRFFCState: jest.Mock;
-  mockFetchPositions: jest.Mock;
-  captureException: jest.Mock;
+  mockGetNetworkConfig: Mock;
+  mockGetNetworkClient: Mock;
+  mockGetRFFCState: Mock;
+  mockFetchPositions: Mock;
+  captureException: Mock;
 } {
   const rootMessenger = createRootMessenger(captureException);
   const messenger = createServiceMessenger(rootMessenger);
 
-  const mockGetNetworkConfig = jest.fn().mockReturnValue(MOCK_NETWORK_CONFIG);
-  const mockGetNetworkClient = jest.fn().mockReturnValue({
+  const mockGetNetworkConfig = vi.fn().mockReturnValue(MOCK_NETWORK_CONFIG);
+  const mockGetNetworkClient = vi.fn().mockReturnValue({
     provider: MOCK_PROVIDER,
   });
-  const mockGetRFFCState = jest
+  const mockGetRFFCState = vi
     .fn()
     .mockReturnValue({ remoteFeatureFlags: rffcFlags, cacheTimestamp: 0 });
 
@@ -297,12 +309,11 @@ function createService({
  * @param balance - The raw uint256 balance string to return.
  */
 function mockErc20BalanceOf(balance: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        balanceOf: jest.fn().mockResolvedValue({ toString: () => balance }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      balanceOf: vi.fn().mockResolvedValue({ toString: () => balance }),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -313,12 +324,11 @@ function mockErc20BalanceOf(balance: string): void {
  * is instantiated to read the balance.
  */
 function mockAccountantBase(): void {
-  MockContract.mockImplementationOnce(
-    () =>
-      ({
-        base: jest.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementationOnce(function () {
+    return {
+      base: vi.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -328,12 +338,11 @@ function mockAccountantBase(): void {
  * @param rate - The raw uint256 rate string to return.
  */
 function mockAccountantGetRate(rate: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        getRate: jest.fn().mockResolvedValue({ toString: () => rate }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      getRate: vi.fn().mockResolvedValue({ toString: () => rate }),
+    } as unknown as Contract;
+  });
 }
 
 /**
@@ -345,14 +354,13 @@ function mockAccountantGetRate(rate: string): void {
  * @param balanceOfInAssets - The raw uint256 asset balance string to return.
  */
 function mockLensBalanceOfInAssets(balanceOfInAssets: string): void {
-  MockContract.mockImplementation(
-    () =>
-      ({
-        balanceOfInAssets: jest
-          .fn()
-          .mockResolvedValue({ toString: () => balanceOfInAssets }),
-      }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function () {
+    return {
+      balanceOfInAssets: vi
+        .fn()
+        .mockResolvedValue({ toString: () => balanceOfInAssets }),
+    } as unknown as Contract;
+  });
 }
 
 function makeMockBN(value: string): {
@@ -376,14 +384,14 @@ function mockMoneyAccountBalanceMulticall({
 }: {
   musdBalance?: string;
   vmusdValueInMusd?: string;
-  aggregate3?: jest.Mock;
-} = {}): jest.Mock {
+  aggregate3?: Mock;
+} = {}): Mock {
   const MUSD_RETURN_DATA = '0xMUSD';
   const SHFVD_RETURN_DATA = '0xSHFVD';
 
   const aggregate3Mock =
     aggregate3 ??
-    jest.fn().mockResolvedValue([
+    vi.fn().mockResolvedValue([
       { success: true, returnData: MUSD_RETURN_DATA },
       { success: true, returnData: SHFVD_RETURN_DATA },
     ]);
@@ -391,30 +399,29 @@ function mockMoneyAccountBalanceMulticall({
   const multicall3Address =
     MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
 
-  MockContract.mockImplementation(
-    (address: string) =>
-      (address === multicall3Address
-        ? { callStatic: { aggregate3: aggregate3Mock } }
-        : {
-            base: jest.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
-            interface: {
-              encodeFunctionData: jest.fn().mockReturnValue('0xcalldata'),
-              decodeFunctionResult: jest
-                .fn()
-                .mockImplementation((_functionFragment: string, data: string) =>
-                  data === MUSD_RETURN_DATA
-                    ? [makeMockBN(musdBalance)]
-                    : [makeMockBN(vmusdValueInMusd)],
-                ),
-            },
-          }) as unknown as Contract,
-  );
+  MockContract.mockImplementation(function (address: string) {
+    return (address === multicall3Address
+      ? { callStatic: { aggregate3: aggregate3Mock } }
+      : {
+          base: vi.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0xcalldata'),
+            decodeFunctionResult: vi
+              .fn()
+              .mockImplementation((_functionFragment: string, data: string) =>
+                data === MUSD_RETURN_DATA
+                  ? [makeMockBN(musdBalance)]
+                  : [makeMockBN(vmusdValueInMusd)],
+              ),
+          },
+        }) as unknown as Contract;
+  });
 
   return aggregate3Mock;
 }
 
-function createTraceCallback(): jest.MockedFunction<TraceCallback> {
-  return jest
+function createTraceCallback(): MockedFunction<TraceCallback> {
+  return vi
     .fn()
     .mockImplementation(
       async <ReturnType>(
@@ -426,11 +433,11 @@ function createTraceCallback(): jest.MockedFunction<TraceCallback> {
         }
         return await Promise.resolve(fn());
       },
-    ) as jest.MockedFunction<TraceCallback>;
+    ) as MockedFunction<TraceCallback>;
 }
 
 function expectTraceRequest(
-  traceCallback: jest.MockedFunction<TraceCallback>,
+  traceCallback: MockedFunction<TraceCallback>,
   {
     errorName,
     name,
@@ -469,12 +476,10 @@ function expectTraceRequest(
 describe('MoneyAccountBalanceService', () => {
   beforeEach(() => {
     MockContract.mockReset();
-    MockWeb3Provider.mockImplementation(() => ({}) as unknown as Web3Provider);
-    nockCleanAll();
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
+    MockWeb3Provider.mockImplementation(function () {
+      return {} as unknown as Web3Provider;
+    });
+    nock.cleanAll();
   });
 
   // ----------------------------------------------------------
@@ -520,11 +525,11 @@ describe('MoneyAccountBalanceService', () => {
       // Do NOT register RemoteFeatureFlagController:getState or delegate it.
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkConfigurationByChainId',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.delegate({
         actions: [
@@ -601,7 +606,7 @@ describe('MoneyAccountBalanceService', () => {
       });
 
       it('clears vault config and routes VaultConfigValidationError when a malformed config arrives after valid config', async () => {
-        const captureException = jest.fn();
+        const captureException = vi.fn();
         const { service, rootMessenger } = createService({ captureException });
 
         publishRFFCStateChange(rootMessenger, {
@@ -620,7 +625,7 @@ describe('MoneyAccountBalanceService', () => {
       });
 
       it('routes VaultConfigValidationError to captureException when malformed config arrives with no prior config', () => {
-        const captureException = jest.fn();
+        const captureException = vi.fn();
         const { rootMessenger } = createService({
           rffcFlags: {},
           captureException,
@@ -639,7 +644,7 @@ describe('MoneyAccountBalanceService', () => {
     describe('cache invalidation', () => {
       it('does NOT invalidate queries when config is set for the first time via subscription', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
@@ -650,7 +655,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when config changes to a different valid config', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         const updatedConfig = {
           ...MOCK_VAULT_CONFIG,
@@ -665,7 +670,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when the same config arrives again', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { ...MOCK_VAULT_CONFIG },
@@ -676,7 +681,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when the flag key is removed after valid config was set', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {});
 
@@ -685,7 +690,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when absent flag key arrives with no prior config', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {});
 
@@ -694,7 +699,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('invalidates queries when a malformed config arrives after valid config was set', () => {
         const { service, rootMessenger } = createService();
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
@@ -705,7 +710,7 @@ describe('MoneyAccountBalanceService', () => {
 
       it('does NOT invalidate queries when a malformed config arrives with no prior config', () => {
         const { service, rootMessenger } = createService({ rffcFlags: {} });
-        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateQueriesSpy = vi.spyOn(service, 'invalidateQueries');
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
@@ -914,17 +919,17 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('does not fail or refetch when the trace callback rejects', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
-      const trace = jest
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
+      const trace = vi
         .fn()
         .mockRejectedValue(
           new Error('trace boom'),
-        ) as jest.MockedFunction<TraceCallback>;
+        ) as MockedFunction<TraceCallback>;
       const { service } = createService({ options: { trace } });
 
       expect(await service.getExchangeRate()).toStrictEqual({
@@ -940,9 +945,9 @@ describe('MoneyAccountBalanceService', () => {
 
     it('does not fail when the trace callback returns undefined', async () => {
       mockAccountantGetRate('1050000');
-      const trace = jest
+      const trace = vi
         .fn()
-        .mockReturnValue(undefined) as jest.MockedFunction<TraceCallback>;
+        .mockReturnValue(undefined) as MockedFunction<TraceCallback>;
       const { service } = createService({ options: { trace } });
 
       expect(await service.getExchangeRate()).toStrictEqual({
@@ -957,15 +962,15 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('does not fail when the trace callback throws synchronously', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
-      const trace = jest.fn().mockImplementation(() => {
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
+      const trace = vi.fn().mockImplementation(() => {
         throw new Error('trace boom');
-      }) as jest.MockedFunction<TraceCallback>;
+      }) as MockedFunction<TraceCallback>;
       const { service } = createService({ options: { trace } });
 
       expect(await service.getExchangeRate()).toStrictEqual({
@@ -980,7 +985,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('propagates aggregate3 rejections after emitting a failed trace', async () => {
-      const aggregate3 = jest
+      const aggregate3 = vi
         .fn()
         .mockRejectedValue(new Error('execution reverted'));
       mockMoneyAccountBalanceMulticall({ aggregate3 });
@@ -1005,7 +1010,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('traces non-Error aggregate3 rejections with the thrown value type', async () => {
-      const aggregate3 = jest.fn().mockRejectedValue('execution reverted');
+      const aggregate3 = vi.fn().mockRejectedValue('execution reverted');
       mockMoneyAccountBalanceMulticall({ aggregate3 });
       const trace = createTraceCallback();
       const { service } = createService({
@@ -1172,12 +1177,12 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('reads the ERC-20 balance at the pending block tag', async () => {
-      const mockBalanceOf = jest
+      const mockBalanceOf = vi
         .fn()
         .mockResolvedValue({ toString: () => '5000000' });
-      MockContract.mockImplementation(
-        () => ({ balanceOf: mockBalanceOf }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { balanceOf: mockBalanceOf } as unknown as Contract;
+      });
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
@@ -1292,12 +1297,12 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('returns the cached rate when called without options within the default stale window', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
       const { service } = createService();
 
       // Seed the cache.
@@ -1313,12 +1318,12 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('refetches when called with staleTime: 0 even if a cached value exists', async () => {
-      const mockGetRate = jest
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
       const { service } = createService();
 
       // Seed the cache.
@@ -1361,15 +1366,14 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('instantiates the Lens contract with lensAddress and calls balanceOfInAssets with (accountAddress, boringVault, accountantAddress)', async () => {
-      const mockBalanceOfInAssets = jest
+      const mockBalanceOfInAssets = vi
         .fn()
         .mockResolvedValue({ toString: () => '1000000' });
-      MockContract.mockImplementation(
-        () =>
-          ({
-            balanceOfInAssets: mockBalanceOfInAssets,
-          }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return {
+          balanceOfInAssets: mockBalanceOfInAssets,
+        } as unknown as Contract;
+      });
 
       const { service } = createService();
 
@@ -1411,6 +1415,248 @@ describe('MoneyAccountBalanceService', () => {
   // getMoneyAccountBalance
   // ----------------------------------------------------------
 
+  describe('getMoneyAccountBalance with a premium vault', () => {
+    type BatchedCall = {
+      target: string;
+      allowFailure: boolean;
+      callData: string;
+    };
+
+    const getBatchedCalls = (aggregate3: Mock): BatchedCall[] =>
+      (aggregate3.mock.calls[0] as [BatchedCall[]])[0];
+
+    async function setUpRealAbiMulticall(returns: string[]): Promise<{
+      aggregate3: Mock;
+      lensIface: Contract['interface'];
+    }> {
+      const { Contract: RealContract } = await vi.importActual<
+        typeof import('@ethersproject/contracts')
+      >('@ethersproject/contracts');
+      const erc20Iface = new RealContract(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        abiERC20 as ContractInterface,
+      ).interface;
+      const lensIface = new RealContract(MOCK_LENS_ADDRESS, LENS_ABI).interface;
+
+      const [musd, ...lensValues] = returns;
+      const aggregate3 = vi.fn().mockResolvedValue([
+        {
+          success: true,
+          returnData: erc20Iface.encodeFunctionResult('balanceOf', [musd]),
+        },
+        ...lensValues.map((value) => ({
+          success: true,
+          returnData: lensIface.encodeFunctionResult('balanceOfInAssets', [
+            value,
+          ]),
+        })),
+      ]);
+
+      const multicall3Address =
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+      MockContract.mockImplementation(function (address: string) {
+        if (address === multicall3Address) {
+          return { callStatic: { aggregate3 } } as unknown as Contract;
+        }
+        return new RealContract(
+          address,
+          address === MOCK_UNDERLYING_TOKEN_ADDRESS
+            ? (abiERC20 as ContractInterface)
+            : LENS_ABI,
+        );
+      });
+
+      return { aggregate3, lensIface };
+    }
+
+    it('adds the premium vault value to vmusdValueInMusd and totalBalance', async () => {
+      const { aggregate3, lensIface } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '3000000',
+        totalBalance: '8000000',
+      });
+      const calls = getBatchedCalls(aggregate3);
+      expect(calls).toHaveLength(3);
+      expect(calls[2]).toStrictEqual({
+        target: MOCK_PREMIUM_VAULT_CONFIG.lensAddress,
+        allowFailure: false,
+        callData: lensIface.encodeFunctionData('balanceOfInAssets', [
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_PREMIUM_VAULT_CONFIG.boringVault,
+          MOCK_PREMIUM_VAULT_CONFIG.accountantAddress,
+        ]),
+      });
+    });
+
+    it('ignores a malformed premium config', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('ignores a premium config with a truncated address', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_PREMIUM_VAULT_CONFIG,
+            boringVault: '0x7777',
+          },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('excludes a premium vault on a different chain', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_PREMIUM_VAULT_CONFIG,
+            chainId: '0x1',
+          },
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(getBatchedCalls(aggregate3)).toHaveLength(2);
+    });
+
+    it('refetches without premium after the premium flag is removed', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(2);
+      expect((aggregate3.mock.calls[1] as [BatchedCall[]])[0]).toHaveLength(2);
+    });
+
+    it('refetches with premium after the premium flag appears', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+      ]);
+      const { service, rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+      });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(2);
+      expect((aggregate3.mock.calls[1] as [BatchedCall[]])[0]).toHaveLength(3);
+    });
+
+    it('does not invalidate the cache when the premium config is unchanged', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      const flags = {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+      };
+      const { service, rootMessenger } = createService({ rffcFlags: flags });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      publishRFFCStateChange(rootMessenger, { ...flags });
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects when the batched call fails because the premium lens reverts', async () => {
+      const { aggregate3 } = await setUpRealAbiMulticall([
+        '5000000',
+        '2200000',
+        '800000',
+      ]);
+      aggregate3.mockRejectedValue(new Error('execution reverted'));
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [PREMIUM_VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_PREMIUM_VAULT_CONFIG,
+        },
+        options: { policyOptions: { maxRetries: 0 } },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+    });
+  });
+
   describe('getMoneyAccountBalance', () => {
     it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {
       const aggregate3 = mockMoneyAccountBalanceMulticall({
@@ -1435,7 +1681,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('exercises real ABI encode/decode through the multicall path', async () => {
-      const { Contract: RealContract } = jest.requireActual<
+      const { Contract: RealContract } = await vi.importActual<
         typeof import('@ethersproject/contracts')
       >('@ethersproject/contracts');
       const erc20Iface = new RealContract(
@@ -1452,7 +1698,7 @@ describe('MoneyAccountBalanceService', () => {
         ['2200000'],
       );
 
-      const aggregate3Mock = jest.fn().mockResolvedValue([
+      const aggregate3Mock = vi.fn().mockResolvedValue([
         { success: true, returnData: musdReturnData },
         { success: true, returnData: vmusdReturnData },
       ]);
@@ -1460,12 +1706,11 @@ describe('MoneyAccountBalanceService', () => {
       const multicall3Address =
         MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
 
-      MockContract.mockImplementation(
-        (address, abi) =>
-          (address === multicall3Address
-            ? { callStatic: { aggregate3: aggregate3Mock } }
-            : new RealContract(address, abi)) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function (address, abi) {
+        return (address === multicall3Address
+          ? { callStatic: { aggregate3: aggregate3Mock } }
+          : new RealContract(address, abi)) as unknown as Contract;
+      });
 
       const { service } = createService({
         rffcFlags: {
@@ -1586,7 +1831,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('rejects without reporting a partial balance when the aggregate3 multicall reverts', async () => {
-      const aggregate3 = jest
+      const aggregate3 = vi
         .fn()
         .mockRejectedValue(new Error('execution reverted'));
       mockMoneyAccountBalanceMulticall({ aggregate3 });
@@ -1650,7 +1895,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest.fn();
+      const mockFetchPositions = vi.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -1673,9 +1918,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('returns API balance when the flag is set to api', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1704,11 +1947,11 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: null,
       });
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1737,10 +1980,10 @@ describe('MoneyAccountBalanceService', () => {
       });
       const { balance: _omittedBalance, ...positionsWithoutBalance } =
         MOCK_API_POSITIONS;
-      const mockFetchPositions = jest
+      const mockFetchPositions = vi
         .fn()
         .mockResolvedValue(positionsWithoutBalance);
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1767,10 +2010,10 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '7',
         vmusdValueInMusd: '3',
       });
-      const mockFetchPositions = jest
+      const mockFetchPositions = vi
         .fn()
         .mockRejectedValue(new Error('network down'));
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1795,7 +2038,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '1',
         vmusdValueInMusd: '2',
       });
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: {
           musd_balance: '1',
@@ -1803,7 +2046,7 @@ describe('MoneyAccountBalanceService', () => {
           total_balance: '999',
         },
       });
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1832,7 +2075,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5',
         vmusdValueInMusd: '5',
       });
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: {
           musd_balance: '1.5',
@@ -1840,7 +2083,7 @@ describe('MoneyAccountBalanceService', () => {
           total_balance: '3.5',
         },
       });
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1865,9 +2108,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('falls back to API when RPC primary fails', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -1876,20 +2117,19 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      MockContract.mockImplementation(
-        () =>
-          ({
-            callStatic: {
-              aggregate3: jest
-                .fn()
-                .mockRejectedValue(new Error('execution reverted')),
-            },
-            interface: {
-              encodeFunctionData: jest.fn().mockReturnValue('0x'),
-              decodeFunctionResult: jest.fn(),
-            },
-          }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
 
       const result =
         await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
@@ -1913,10 +2153,8 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
-      const captureException = jest.fn();
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1943,9 +2181,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('accepts API balance when as_of_block meets minBlock', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1962,9 +2198,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('forwards fresh: true to fetchPositions', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
@@ -1980,7 +2214,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('maps musd_balance_updated_at through to musdBalanceUpdatedAt', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: {
           ...MOCK_API_BALANCE,
@@ -1999,10 +2233,8 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('does not captureException when api-only rejects a stale minBlock read', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
-      const captureException = jest.fn();
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
@@ -2022,11 +2254,11 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('does not fall back when the flag is api-only', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: null,
       });
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
@@ -2054,23 +2286,20 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('does not fall back when the flag is rpc-only', async () => {
-      MockContract.mockImplementation(
-        () =>
-          ({
-            callStatic: {
-              aggregate3: jest
-                .fn()
-                .mockRejectedValue(new Error('execution reverted')),
-            },
-            interface: {
-              encodeFunctionData: jest.fn().mockReturnValue('0x'),
-              decodeFunctionResult: jest.fn(),
-            },
-          }) as unknown as Contract,
-      );
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -2087,25 +2316,24 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('throws MoneyAccountBalanceFetchError with both causes when primary and fallback fail', async () => {
-      MockContract.mockImplementation(
-        () =>
-          ({
-            callStatic: {
-              aggregate3: jest
-                .fn()
-                .mockRejectedValue(new Error('execution reverted')),
-            },
-            interface: {
-              encodeFunctionData: jest.fn().mockReturnValue('0x'),
-              decodeFunctionResult: jest.fn(),
-            },
-          }) as unknown as Contract,
-      );
-      const mockFetchPositions = jest.fn().mockResolvedValue({
+      MockContract.mockImplementation(function () {
+        return {
+          callStatic: {
+            aggregate3: vi
+              .fn()
+              .mockRejectedValue(new Error('execution reverted')),
+          },
+          interface: {
+            encodeFunctionData: vi.fn().mockReturnValue('0x'),
+            decodeFunctionResult: vi.fn(),
+          },
+        } as unknown as Contract;
+      });
+      const mockFetchPositions = vi.fn().mockResolvedValue({
         ...MOCK_API_POSITIONS,
         balance: null,
       });
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -2138,7 +2366,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest.fn();
+      const mockFetchPositions = vi.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -2161,9 +2389,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = vi.fn().mockResolvedValue(MOCK_API_POSITIONS);
       const { service, rootMessenger } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -2191,7 +2417,7 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest.fn();
+      const mockFetchPositions = vi.fn();
       const { rootMessenger, service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -2398,13 +2624,13 @@ describe('MoneyAccountBalanceService', () => {
      *
      * @returns The `getRate` mock.
      */
-    function mockAccountantGetRateSpy(): jest.Mock {
-      const mockGetRate = jest
+    function mockAccountantGetRateSpy(): Mock {
+      const mockGetRate = vi
         .fn()
         .mockResolvedValue({ toString: () => '1050000' });
-      MockContract.mockImplementation(
-        () => ({ getRate: mockGetRate }) as unknown as Contract,
-      );
+      MockContract.mockImplementation(function () {
+        return { getRate: mockGetRate } as unknown as Contract;
+      });
       return mockGetRate;
     }
 
@@ -2471,7 +2697,7 @@ describe('MoneyAccountBalanceService', () => {
       // receives a stateChange with both flags, it processes BOTH — even when
       // #applyVaultConfig throws. #applyBalanceStaleTimeFlag runs first and is
       // never blocked by a vault config error.
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const mockGetRate = mockAccountantGetRateSpy();
       const { service, rootMessenger } = createService({
         rffcFlags: {},
