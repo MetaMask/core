@@ -7,6 +7,7 @@ import {
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { LoggingController, LogType } from '@metamask/logging-controller';
 import { Messenger } from '@metamask/messenger';
+import ObjectMultiplex from '@metamask/object-multiplex';
 import {
   PermissionController,
   SubjectMetadataController,
@@ -19,6 +20,7 @@ import {
 } from '@metamask/shield-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
+import { Duplex, pipeline } from 'readable-stream';
 import { describe, expect, it, vi } from 'vitest';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
@@ -69,6 +71,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    permissionController: {
+      unrestrictedMethods: ['eth_chainId'],
+    },
   };
 }
 
@@ -261,6 +266,58 @@ describe('Wallet', () => {
           'Validation of "NetworkController" state failed. Not throwing because strict mode is not enabled. The reported error is: At path: selectedNetworkClientId -- Expected a string, but received: undefined',
       }),
     );
+  });
+
+  describe('connectProviderRpc', () => {
+    function createStreamPair(): [Duplex, Duplex] {
+      const createEnd = (getReceiver: () => Duplex): Duplex =>
+        new Duplex({
+          objectMode: true,
+          read: (): void => undefined,
+          write(chunk, _encoding, callback): void {
+            getReceiver().push(chunk);
+            callback();
+          },
+        });
+
+      const streamA = createEnd(() => streamB);
+      const streamB = createEnd(() => streamA);
+
+      return [streamA, streamB];
+    }
+
+    it('responds to JSON-RPC requests sent over the provider stream', async () => {
+      const wallet = await setupWallet();
+      await wallet.init();
+
+      const [clientStream, walletStream] = createStreamPair();
+
+      wallet.connectProviderRpc({
+        origin: 'https://example.com',
+        stream: walletStream,
+      });
+
+      const clientMux = new ObjectMultiplex();
+      pipeline(clientStream, clientMux, clientStream, () => undefined);
+      const providerChannel = clientMux.createStream('metamask-provider');
+
+      const response = new Promise((resolve) => {
+        providerChannel.once('data', resolve);
+      });
+
+      providerChannel.write({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(await response).toStrictEqual({
+        jsonrpc: '2.0',
+        id: 1,
+        result: expect.stringMatching(/^0x[0-9a-f]+$/u),
+      });
+    });
   });
 
   describe('AccountsController', () => {
