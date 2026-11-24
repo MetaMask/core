@@ -20,20 +20,47 @@ export type VendorOnboardingControllerRefreshStepAction = {
 };
 
 /**
- * Records the user's acceptance of the vendor's terms with kyc-api right
- * away. Nothing is kept on the phone, so there is no draft that the server
- * does not know about.
+ * Records that the user finished MetaMask's MFA on this device, then reads
+ * the step. Call it when MFA succeeds, before any session exists: kyc-api
+ * cannot see MFA until the session is created, and without this it would
+ * ask for MFA again.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @returns The next step.
+ */
+export type VendorOnboardingControllerRecordMfaCompletedAction = {
+  type: `VendorOnboardingController:recordMfaCompleted`;
+  handler: VendorOnboardingController['recordMfaCompleted'];
+};
+
+/**
+ * Records the user's acceptance of the vendor's terms, then reads the step.
+ *
+ * Kalshi keeps the acceptance and the idOS and identity provider consents on
+ * the phone until the session exists. Nothing goes to kyc-api yet, because
+ * kyc-api only takes consents on a session. If a session already exists the
+ * consents are posted to it straight away.
+ *
+ * Other vendors send the acceptance to kyc-api right away.
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
  * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
- * @param params.country - ISO 3166-1 alpha-3 country the terms were
- * fetched for.
+ * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+ * for.
+ * @param params.idOS - Kalshi only. Accepted idOS documents (`key` and
+ * `version` from {@link KycService.fetchSessionDisclaimersByCountry}).
+ * @param params.kycProvider - Kalshi only. Accepted identity provider
+ * documents.
+ * @param params.credentialReusabilityConsentGiven - Kalshi only. Whether the
+ * user lets idOS reuse their existing credentials. The screen asks for it,
+ * so it is an argument and never a default.
  * @returns The step the user is on once the terms are recorded.
  */
-export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
-  type: `VendorOnboardingController:recordVendorDisclaimers`;
-  handler: VendorOnboardingController['recordVendorDisclaimers'];
+export type VendorOnboardingControllerSubmitTermsAction = {
+  type: `VendorOnboardingController:submitTerms`;
+  handler: VendorOnboardingController['submitTerms'];
 };
 
 /**
@@ -42,8 +69,10 @@ export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
  * (`mfa`), with the token MFA returned.
  *
  * A new session creates the user's `local_user_secret` when it is missing,
- * then wraps the encryption key and a capability token for idOS. An existing
- * session is picked up as it is: its authorizations are left alone.
+ * then wraps the encryption key and a capability token for idOS. The
+ * consents the user gave on the terms pages are posted to the new session,
+ * then cleared from the phone. An existing session is picked up as it is:
+ * its authorizations are left alone.
  *
  * This does not create a vendor customer. A vendor that needs one before
  * its session (Iron) adds that when it moves to this controller.
@@ -51,19 +80,32 @@ export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
  * @param params - The parameters.
  * @param params.vendor - The vendor.
  * @param params.aal2Token - AAL2 token from MFA. Required only when a new
- * session has to be created. Omit it to pick up an existing session.
+ * session has to be created. Omit it to pick up an existing session. Held
+ * in memory by the caller and never saved here.
  * @param params.email - The Kalshi email the phone signs into `users/link`.
- * Required when creating a Kalshi session. kyc-api does not receive it: the
- * relay is given the verified email from the partner identity token, so
- * this must be that address. A resumed session ignores it.
- * @param params.intentOpen - Whether the user already has an open Kalshi
- * enrollment intent. The phone then signs `users/link` alone, where a new
- * session signs `enrollment/intents` first.
+ * Required when creating a Kalshi session, and when resuming one to send a
+ * code to a new address. kyc-api does not receive it: the relay is given the
+ * verified email from the partner identity token, so this must be that
+ * address.
  * @returns The step the user is on once the session exists.
  */
 export type VendorOnboardingControllerStartSessionAction = {
   type: `VendorOnboardingController:startSession`;
   handler: VendorOnboardingController['startSession'];
+};
+
+/**
+ * The verified MetaMask email the vendor's session is opened with: the
+ * address a screen should start its email field with. Reads it from a
+ * partner identity token minted for the vendor.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @returns The email, or `undefined` when the token carries none.
+ */
+export type VendorOnboardingControllerGetPartnerEmailAction = {
+  type: `VendorOnboardingController:getPartnerEmail`;
+  handler: VendorOnboardingController['getPartnerEmail'];
 };
 
 /**
@@ -191,8 +233,10 @@ export type VendorOnboardingControllerResetAction = {
  */
 export type VendorOnboardingControllerMethodActions =
   | VendorOnboardingControllerRefreshStepAction
-  | VendorOnboardingControllerRecordVendorDisclaimersAction
+  | VendorOnboardingControllerRecordMfaCompletedAction
+  | VendorOnboardingControllerSubmitTermsAction
   | VendorOnboardingControllerStartSessionAction
+  | VendorOnboardingControllerGetPartnerEmailAction
   | VendorOnboardingControllerFetchSessionDisclaimersAction
   | VendorOnboardingControllerRecordSessionDisclaimersAction
   | VendorOnboardingControllerLaunchProviderFlowAction

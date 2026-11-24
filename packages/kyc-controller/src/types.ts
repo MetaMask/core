@@ -562,9 +562,21 @@ export type KycStepInfo = { step: KycStep; status: KycStepStatus };
  */
 export type KycClientContext = {
   /**
-   * The user accepted the vendor's terms on this device, before kyc-api
-   * could record them. Needed where a vendor cannot be told about an
-   * acceptance until an account exists.
+   * The disclaimer ids the user accepted on this device, from the vendor's
+   * catalog. kyc-api decides from them whether the terms still need
+   * accepting, so a catalog that gained an id asks the user again.
+   */
+  acceptedDisclaimerIds?: string[];
+  /** ISO 3166-1 alpha-3 country the terms were fetched for. */
+  country?: string;
+  /**
+   * The user finished MetaMask MFA on this device. Sent before a session
+   * exists, when kyc-api cannot see MFA yet.
+   */
+  mfaCompleted?: boolean;
+  /**
+   * The user accepted the vendor's terms on this device, before kyc-api could
+   * record them. Iron needs this until its customer exists.
    */
   vendorTermsAcceptedLocally?: boolean;
 };

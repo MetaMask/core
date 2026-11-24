@@ -175,9 +175,13 @@ touches `KycController` state.
 - **kyc-api decides the step.** Each action sends its change to kyc-api, then
   reads `GET /vendors/{vendor}/step` and saves the answer. The client maps each
   `KycStep` to a screen; it never works out where the user is.
-- **State is a cache.** `vendors[vendor] = { step, status, sessionId }`. Terms,
-  consents and account link state stay on the server, so a reinstall or a
-  second device picks up where the user left off.
+- **State is a cache.** `vendors[vendor] = { step, status, sessionId, mfaCompleted,
+  acceptedDisclaimerIds, termsCountry, pendingConsents }`. Once a session exists,
+  its terms, consents and account link state stay on the server, so a reinstall or
+  a second device picks up where the user left off. Before a session exists, the
+  phone holds what kyc-api cannot see yet: MFA done, the Kalshi terms and the idOS
+  and identity provider consents. They are sent with each step read or posted when
+  the session is created, and forgotten only after kyc-api has them.
 - **Step reads are ordered.** A plain `refreshStep` joins a read already in
   flight; an action always starts its own. An answer that arrives after a newer
   read started (or after `reset`) is dropped.
@@ -190,8 +194,7 @@ touches `KycController` state.
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
   key into `{ path, headers, body }` objects, where `body` is the exact signed
   string. The controller sends them as `signedRequests` on session creation
-  (`[intents, link]`, or `[link]` when the intent is
-  already open), and as `signedRequest` on the email calls on
+  (`[intents, link]`), and as `signedRequest` on the email calls on
   `kalshi_email_link` (`sendEmailOtp` signs a fresh `users/link`,
   `verifyEmailOtp` signs `users/link/verify` with the code in its body and
   sends no `otp`). It signs right before each call, because a signature lasts
@@ -206,20 +209,21 @@ touches `KycController` state.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`refreshStep`, `recordVendorDisclaimers`, `startSession`, `fetchSessionDisclaimers`,
-`recordSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
+`refreshStep`, `recordMfaCompleted`, `submitTerms`, `startSession`,
+`fetchSessionDisclaimers`, `recordSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
 `verifyPhoneOtp`, `verifyEmailOtp`, `sendEmailOtp`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
 
-| Method              | HTTP   | Endpoint                                     | Purpose                                     |
-| ------------------- | ------ | -------------------------------------------- | ------------------------------------------- |
-| `getStep`           | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status        |
-| `acceptVendorTerms` | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor terms acceptance (no session) |
-| `sendEmailOtp`      | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again          |
-| `verifyEmailOtp`    | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code              |
-| `sendPhoneOtp`      | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                  |
-| `verifyPhoneOtp`    | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code                |
+| Method                     | HTTP   | Endpoint                                     | Purpose                                    |
+| -------------------------- | ------ | -------------------------------------------- | ------------------------------------------ |
+| `getStep`                  | `GET`  | `/vendors/{vendor}/step`                     | The vendor's current step and status       |
+| `acceptVendorTerms`        | `POST` | `/vendors/{vendor}/disclaimers`              | Iron terms acceptance (no session)         |
+| `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record idOS and identity provider consents |
+| `sendEmailOtp`             | `POST` | `/sessions/{id}/onboarding/email/resend-otp` | Send the vendor's email code again         |
+| `verifyEmailOtp`           | `POST` | `/sessions/{id}/onboarding/email/verify-otp` | Verify the vendor's email code             |
+| `sendPhoneOtp`             | `POST` | `/sessions/{id}/onboarding/phone/send-otp`   | Send the vendor's SMS code                 |
+| `verifyPhoneOtp`           | `POST` | `/sessions/{id}/onboarding/phone/verify-otp` | Verify the vendor's SMS code               |
 
 ---
 

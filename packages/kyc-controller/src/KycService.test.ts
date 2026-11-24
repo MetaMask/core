@@ -1114,7 +1114,37 @@ describe('KycService', () => {
       });
     });
 
-    it('sends what only the device knows as a query parameter', async () => {
+    it('sends the accepted terms and their country as query parameters', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/kalshi/step')
+        .query({
+          acceptedDisclaimerIds: 'tos-v1,privacy-v1',
+          country: 'USA',
+        })
+        .reply(200, {
+          vendor: 'kalshi',
+          step: 'mfa',
+          status: 'none',
+        });
+      const { service } = getService();
+
+      expect(
+        await service.getStep('kalshi', {
+          acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
+          country: 'USA',
+        }),
+      ).toStrictEqual({ step: 'mfa', status: 'none' });
+    });
+
+    it('sends the MFA and Iron terms flags as query parameters', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/kalshi/step')
+        .query({ mfaCompleted: 'true' })
+        .reply(200, {
+          vendor: 'kalshi',
+          step: 'terms',
+          status: 'none',
+        });
       nock(MOCK_API_URL)
         .get('/vendors/iron/step')
         .query({ vendorTermsAcceptedLocally: 'true' })
@@ -1125,6 +1155,9 @@ describe('KycService', () => {
         });
       const { service } = getService();
 
+      expect(
+        await service.getStep('kalshi', { mfaCompleted: true }),
+      ).toStrictEqual({ step: 'terms', status: 'none' });
       expect(
         await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
       ).toStrictEqual({ step: 'mfa', status: 'none' });
