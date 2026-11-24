@@ -225,6 +225,20 @@ describe('EnvelopeStore', () => {
       );
     });
 
+    it('throws InvalidEnvelope when KeyEnvelope items only belong to another path', async () => {
+      const { store, toprfClient } = createStore();
+      const wrongPath = packEnvelope('recovery-secret', vaultKeySet);
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        createItem(serializeEnvelope(wrongPath)),
+      ]);
+
+      await expect(
+        store.fetchEnvelopes(envelopeKeys, 'password'),
+      ).rejects.toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+      );
+    });
+
     it('returns no envelopes when only non-envelope items exist', async () => {
       const { store, toprfClient } = createStore();
       toprfClient.fetchAllSecretDataItems.mockResolvedValue([

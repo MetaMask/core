@@ -32,13 +32,19 @@ import type {
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
- * Parse every envelope item, skipping malformed ones.
+ * Parse every envelope item for `path`, skipping malformed or mismatched-path
+ * ones.
  *
  * @param items - The fetched items, newest first.
- * @returns The parsed envelopes, in the order of `items`.
- * @throws `InvalidEnvelope` if `KeyEnvelope` items are present but none parse.
+ * @param path - The expected path of the envelopes.
+ * @returns The parsed envelopes for `path`, in the order of `items`.
+ * @throws `InvalidEnvelope` if `KeyEnvelope` items are present but none parse
+ * for `path`.
  */
-function parseEnvelopeItems(items: FetchedSecretDataItem[]): Envelope[] {
+function parseEnvelopeItems(
+  items: FetchedSecretDataItem[],
+  path: EnvelopePath,
+): Envelope[] {
   const envelopes: Envelope[] = [];
   let hasEnvelopeItem = false;
   for (const item of items) {
@@ -47,7 +53,15 @@ function parseEnvelopeItems(items: FetchedSecretDataItem[]): Envelope[] {
     }
     hasEnvelopeItem = true;
     try {
-      envelopes.push(parseEnvelope(item.data));
+      const envelope = parseEnvelope(item.data);
+      if (envelope.path === path) {
+        envelopes.push(envelope);
+      } else {
+        log('Ignoring envelope item for unexpected path', {
+          expectedPath: path,
+          actualPath: envelope.path,
+        });
+      }
     } catch (error) {
       log('Ignoring malformed envelope item', error);
     }
@@ -88,16 +102,14 @@ export class EnvelopeStore {
    * @param path - The path of the envelopes.
    * @returns The well-formed envelopes of the path, newest first.
    * @throws The auth token error as-is, `InvalidEnvelope` if `KeyEnvelope`
-   * items are present but none parse, or `FailedToFetchSecretMetadata`.
+   * items are present but none parse for `path`, or `FailedToFetchSecretMetadata`.
    */
   async fetchEnvelopes(
     keys: EnvelopeKeys,
     path: EnvelopePath,
   ): Promise<Envelope[]> {
     const items = await this.#fetchItems(keys.wrapKey, keys.authKeyPair);
-    return parseEnvelopeItems(sortNewestFirst(items)).filter(
-      (envelope) => envelope.path === path,
-    );
+    return parseEnvelopeItems(sortNewestFirst(items), path);
   }
 
   /**
