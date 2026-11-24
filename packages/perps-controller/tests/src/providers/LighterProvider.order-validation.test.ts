@@ -38,6 +38,24 @@ vi.mock(
 );
 vi.mock('../../../src/services/LighterWalletService');
 
+const writeBytes =
+  (bytes: readonly number[]) =>
+  <TView extends ArrayBufferView | null>(array: TView): TView => {
+    (array as Uint8Array).set(bytes);
+    return array;
+  };
+
+const tagOf = (
+  clientOrderIndex: number,
+): 'stopLoss' | 'takeProfit' | 'untagged' => {
+  if (Math.floor(clientOrderIndex / 2 ** 32) !== 0xa5c3) {
+    return 'untagged';
+  }
+  return Math.floor(clientOrderIndex / 2 ** 31) % 2 === 0
+    ? 'stopLoss'
+    : 'takeProfit';
+};
+
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
@@ -1783,6 +1801,62 @@ describe('LighterProvider', () => {
       }
     });
 
+    it('redraws an untagged id that would carry the MetaMask tag prefix', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = vi
+        .spyOn(ensureWebCrypto(), 'getRandomValues')
+        .mockImplementationOnce(
+          writeBytes([0xa5, 0xc3, 0x12, 0x34, 0x56, 0x78]),
+        )
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x40)));
+      try {
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        expect(result.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        expect(ids).toStrictEqual([0x4040_4040_4040]);
+        expect(randomSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('redraws a tagged stop loss id that collides with one already issued', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = vi
+        .spyOn(ensureWebCrypto(), 'getRandomValues')
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x80)))
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x80)))
+        .mockImplementationOnce(writeBytes(Array(6).fill(0x40)));
+      const stopLimit = {
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.001',
+        orderType: 'stop_limit',
+        triggerPrice: '80000',
+        price: '79900',
+      } as const;
+      try {
+        expect((await provider.placeOrder(stopLimit)).success).toBe(true);
+        expect((await provider.placeOrder(stopLimit)).success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        // Tag 0xa5c3, bit 31 clear, then the low 31 bits of each draw.
+        expect(ids).toStrictEqual([0xa5c3_0080_8080, 0xa5c3_4040_4040]);
+        expect(randomSpy).toHaveBeenCalledTimes(3);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('grouped TP/SL ids are unique against each other and prior placements', async () => {
       const { provider, calls } = buildProvider();
       await provider.placeOrder({
@@ -1815,7 +1889,74 @@ describe('LighterProvider', () => {
         expect(id).toBeLessThan(2 ** 48);
       }
       expect(new Set(allIds).size).toBe(3);
+      expect(tagOf(orderId)).toBe('untagged');
+      expect(tagOf(takeProfitId)).toBe('takeProfit');
+      expect(tagOf(stopLossId)).toBe('stopLoss');
     });
+
+    it('tags a single position stop loss placed as an ordinary trigger order', async () => {
+      const { provider, calls, clientInstance, bridge } = buildProvider();
+      setupTriggerVenue(clientInstance, bridge);
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '80000',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      const ids = calls
+        .filter((call) => call.function === '_signCreateOrder')
+        .map((call) => call.params[2]);
+      expect(ids).toHaveLength(1);
+      expect(tagOf(ids[0])).toBe('stopLoss');
+    });
+
+    it('tags attached take profit and stop loss children but not their parent', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        takeProfitPrice: '110000',
+        stopLossPrice: '80000',
+      });
+
+      expect(result.success).toBe(true);
+      const groupedParams = calls.find(
+        (call) => call.function === '_signCreateGroupedOrders',
+      )?.params as (string | number)[];
+      // Orders are 10 elements from offset 3, client id at offset 1:
+      // parent, take profit, stop loss.
+      expect(tagOf(groupedParams[4] as number)).toBe('untagged');
+      expect(tagOf(groupedParams[14] as number)).toBe('takeProfit');
+      expect(tagOf(groupedParams[24] as number)).toBe('stopLoss');
+    });
+
+    it.each([
+      ['stop_limit', 'stopLoss', { triggerPrice: '80000', price: '79900' }],
+      ['take_profit_market', 'takeProfit', { triggerPrice: '110000' }],
+    ] as const)(
+      'tags a standalone %s order as %s',
+      async (orderType, expectedTag, prices) => {
+        const { provider, calls } = buildProvider();
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.001',
+          orderType,
+          ...prices,
+        });
+
+        expect(result.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2]);
+        expect(ids).toHaveLength(1);
+        expect(tagOf(ids[0])).toBe(expectedTag);
+      },
+    );
   });
 
   describe('full-close precision and validate/execute parity', () => {
