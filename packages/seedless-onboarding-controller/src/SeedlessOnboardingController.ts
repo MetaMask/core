@@ -819,6 +819,7 @@ export class SeedlessOnboardingController<
   }): Promise<SecretMetadata[]> {
     assertIsValidPassword(password);
     return await this.#withControllerLock(async () => {
+      const sessionGeneration = this.#sessionGeneration;
       this.#assertIsAuthenticatedUser(this.state);
 
       return await this.#executeWithTokenRefresh(async () => {
@@ -879,6 +880,7 @@ export class SeedlessOnboardingController<
           rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
+          sessionGeneration,
           // the vault was replaced, so `isLocalPassword` and `envelope`
           // describe the old password and key set
           onStateUpdate: (state) => {
@@ -2195,6 +2197,7 @@ export class SeedlessOnboardingController<
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
    * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
    * @param params.onStateUpdate - Optional callback to apply additional state changes in the same atomic update.
+   * @param params.sessionGeneration - Session generation to assert before and after vault encryption; defaults to the current generation.
    */
   async #createNewVaultWithAuthData({
     password,
@@ -2202,13 +2205,16 @@ export class SeedlessOnboardingController<
     rawToprfPwEncryptionKey,
     rawToprfAuthKeyPair,
     onStateUpdate,
+    sessionGeneration = this.#sessionGeneration,
   }: {
     password: string;
     rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
     onStateUpdate?: (state: SeedlessOnboardingControllerState) => void;
+    sessionGeneration?: number;
   }): Promise<void> {
+    this.#assertSessionGeneration(sessionGeneration);
     this.#assertIsAuthenticatedUser(this.state);
 
     const { accessToken, revokeToken } =
@@ -2226,6 +2232,7 @@ export class SeedlessOnboardingController<
       password,
       vaultData,
       pwEncKey: rawToprfPwEncryptionKey,
+      sessionGeneration,
       onStateUpdate: (state) => {
         state.authPubKey = bytesToBase64(rawToprfAuthKeyPair.pk);
         onStateUpdate?.(state);
@@ -2971,6 +2978,7 @@ export class SeedlessOnboardingController<
     assertIsRecoverySecret(recoverySecret);
     assertIsValidPassword(password);
     return await this.#withControllerLock(async () => {
+      const sessionGeneration = this.#sessionGeneration;
       this.#assertIsAuthenticatedUser(this.state);
       this.#recoverySession.require();
 
@@ -3029,6 +3037,7 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey:
             vaultKeySet.localWrapKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: vaultKeySet.authKeyPair,
+          sessionGeneration,
           onStateUpdate: (state) => {
             state.isLocalPassword = true;
             state.envelope = createEnvelopeState(vaultKeySet, authPubKey);

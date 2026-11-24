@@ -421,6 +421,32 @@ describe('SeedlessOnboardingController', () => {
     }
 
     /**
+     * Pauses the next call of a TOPRF client method until `resume` is called.
+     *
+     * @param spy - The spied method.
+     * @returns A promise that resolves when the call starts and a callback to resume it.
+     */
+    function pauseOnce<Fn extends (...params: never[]) => Promise<unknown>>(
+      spy: MockInstance<Fn>,
+    ): { paused: Promise<void>; resume: () => void } {
+      const implementation = spy.getMockImplementation() as unknown as (
+        ...params: Parameters<Fn>
+      ) => Promise<unknown>;
+      let resume!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+      const paused = new Promise<void>((resolve) => {
+        spy.mockImplementationOnce((async (...params: Parameters<Fn>) => {
+          resolve();
+          await gate;
+          return await implementation(...params);
+        }) as unknown as Parameters<MockInstance<Fn>['mockImplementation']>[0]);
+      });
+      return { paused, resume };
+    }
+
+    /**
      * @param network - The mock network.
      * @param index - The index of the `createLocalKey` call.
      * @returns The result of the call.
@@ -4156,6 +4182,59 @@ describe('SeedlessOnboardingController', () => {
           });
         },
       );
+
+      it('does not write a vault into a new session when clearState and authenticate run while restoring', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+          });
+          const login = socialLoginOf(controller.state);
+          const { paused, resume } = pauseOnce(
+            network.spies.fetchAllSecretDataItems,
+          );
+
+          const restorePromise = controller.restoreVaultWithPassword({
+            password: NEW_PASSWORD,
+          });
+          await paused;
+
+          controller.clearState();
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              ...login,
+              userId: 'other-user@example.com',
+              idTokens: [createMockJWTToken({ sub: 'other-user@example.com' })],
+              accessToken: 'other-access-token',
+              metadataAccessToken: 'other-metadata-access-token',
+              refreshToken: 'other-refresh-token',
+              revokeToken: 'other-revoke-token',
+              skipLock: true,
+            },
+          );
+
+          resume();
+          await expect(restorePromise).rejects.toThrow(
+            'Session was cleared during token refresh',
+          );
+
+          expect(controller.state.userId).toBe('other-user@example.com');
+          expect(controller.state.accessToken).toBe('other-access-token');
+          expect(controller.state.revokeToken).toBe('other-revoke-token');
+          expect(controller.state.vault).toBeUndefined();
+          expect(controller.state.authPubKey).toBeUndefined();
+          expect(controller.state.envelope).toBeUndefined();
+          expect(controller.state.isLocalPassword).toBeUndefined();
+        });
+      });
     });
 
     describe('control records in the vault partition', () => {
@@ -5059,6 +5138,63 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
           expect(controller.state.vault).toBeUndefined();
+        });
+      });
+
+      it('does not write a vault into a new session when clearState and authenticate run while recovering', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const login = socialLoginOf(controller.state);
+          await authenticateAal2(args, { hasRecoveryShare: true });
+          const { paused, resume } = pauseOnce(network.spies.fetchAuthPubKey);
+
+          const recoverPromise = baseMessenger.call(
+            'SeedlessOnboardingController:recoverWithRecoverySecret',
+            {
+              recoverySecret: RECOVERY_SECRET,
+              password: RECOVERED_PASSWORD,
+            },
+          );
+          await paused;
+
+          controller.clearState();
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              ...login,
+              userId: 'other-user@example.com',
+              idTokens: [createMockJWTToken({ sub: 'other-user@example.com' })],
+              accessToken: 'other-access-token',
+              metadataAccessToken: 'other-metadata-access-token',
+              refreshToken: 'other-refresh-token',
+              revokeToken: 'other-revoke-token',
+              skipLock: true,
+            },
+          );
+
+          resume();
+          await expect(recoverPromise).rejects.toThrow(
+            'Session was cleared during token refresh',
+          );
+
+          expect(controller.state.userId).toBe('other-user@example.com');
+          expect(controller.state.accessToken).toBe('other-access-token');
+          expect(controller.state.revokeToken).toBe('other-revoke-token');
+          expect(controller.state.vault).toBeUndefined();
+          expect(controller.state.authPubKey).toBeUndefined();
+          expect(controller.state.envelope).toBeUndefined();
+          expect(controller.state.isLocalPassword).toBeUndefined();
         });
       });
     });
