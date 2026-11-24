@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SocialService.fetchSupportedNetworks` (and the `SocialService:fetchSupportedNetworks` messenger action) for `GET /v1/supportedNetworks` ([#11743](https://github.com/MetaMask/core/pull/11743))
+  - Returns the CAIP-2 ids social-api supports as `{ fullSupport, partialSupport }`, validated by `SupportedNetworksResponseStruct`.
+  - Also exports the `SupportedNetworksResponse` type and `SocialServiceFetchSupportedNetworksAction`.
+
 ## [3.23.0]
 
 ### Added
