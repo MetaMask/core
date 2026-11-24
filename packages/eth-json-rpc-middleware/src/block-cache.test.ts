@@ -273,6 +273,42 @@ describe('block cache middleware', () => {
   });
 
   describe('cache strategy edge cases', () => {
+    it.each([
+      { blockHash: `0x${'ab'.repeat(32)}`, requireCanonical: true },
+      { blockNumber: '0x123' },
+    ])(
+      'does not cache or query the block tracker for EIP-1898 selector %o',
+      async (selector) => {
+        const requestSpy = stubProviderRequests(provider, [
+          {
+            request: { method: 'eth_blockNumber' },
+            result: (): Promise<Hex> => Promise.resolve('0x1'),
+          },
+        ]);
+
+        let hitCount = 0;
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createBlockCacheMiddleware({ blockTracker }),
+            (): string => {
+              hitCount += 1;
+              return '0x1234';
+            },
+          ],
+        });
+
+        const request = createRequest({
+          method: 'eth_call',
+          params: [{ to: '0x1234' }, selector],
+        });
+
+        expect(await engine.handle(request)).toBe('0x1234');
+        expect(await engine.handle(request)).toBe('0x1234');
+        expect(hitCount).toBe(2);
+        expect(requestSpy).not.toHaveBeenCalled();
+      },
+    );
+
     // `undefined` is also an empty value, but returning that causes the engine to throw
     it.each([null, '\u003cnil\u003e'])(
       'skips caching "empty" result values: %s',

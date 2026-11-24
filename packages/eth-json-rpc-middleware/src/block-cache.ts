@@ -90,6 +90,12 @@ class BlockCacheStrategy {
     // check blockTag
     const blockTag = blockTagForRequest(request);
 
+    // EIP-1898 object selectors (`{ blockHash }` / `{ blockNumber }`) must not
+    // share a numeric or "latest" cache bucket.
+    if (blockTag !== undefined && typeof blockTag !== 'string') {
+      return false;
+    }
+
     if (blockTag === 'pending') {
       return false;
     }
