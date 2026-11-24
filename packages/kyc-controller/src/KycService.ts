@@ -1158,6 +1158,15 @@ export class KycService extends BaseDataService<
     if (client.vendorTermsAcceptedLocally) {
       url.searchParams.set('vendorTermsAcceptedLocally', 'true');
     }
+    if (client.acceptedDisclaimerIds?.length) {
+      url.searchParams.set(
+        'acceptedDisclaimerIds',
+        client.acceptedDisclaimerIds.join(','),
+      );
+    }
+    if (client.mfaCompleted) {
+      url.searchParams.set('mfaCompleted', 'true');
+    }
     const data = await this.#requestJson(url, { method: 'GET' });
     const { step, status, sessionId } = this.#validateResponse(
       data,

@@ -50,6 +50,9 @@ export type {
   VendorOnboardingControllerActions,
   VendorOnboardingControllerEvents,
   OnboardingProviderOutcome,
+  PendingSessionConsents,
+  SubmitKalshiTermsParams,
+  SubmitVendorTermsParams,
   VendorOnboardingControllerGetStateAction,
   VendorOnboardingControllerMessenger,
   VendorOnboardingControllerOptions,
@@ -59,7 +62,9 @@ export type {
 } from './VendorOnboardingController.js';
 export type {
   VendorOnboardingControllerRecordSessionDisclaimersAction,
-  VendorOnboardingControllerRecordVendorDisclaimersAction,
+  VendorOnboardingControllerGetPartnerEmailAction,
+  VendorOnboardingControllerRecordMfaCompletedAction,
+  VendorOnboardingControllerSubmitTermsAction,
   VendorOnboardingControllerFetchSessionDisclaimersAction,
   VendorOnboardingControllerLaunchProviderFlowAction,
   VendorOnboardingControllerRefreshStepAction,
