@@ -210,7 +210,12 @@ describe('VendorOnboardingController', () => {
           options: {
             state: {
               vendors: {
-                kalshi: { step: null, status: null, sessionId: 'sid-1' },
+                kalshi: {
+                  ...VENDOR_DEFAULTS,
+                  step: null,
+                  status: null,
+                  sessionId: 'sid-1',
+                },
               },
             },
           },
@@ -223,6 +228,7 @@ describe('VendorOnboardingController', () => {
           ).rejects.toThrow('step unavailable');
 
           expect(controller.state.vendors.kalshi).toStrictEqual({
+            ...VENDOR_DEFAULTS,
             step: null,
             status: null,
             sessionId: 'sid-1',
@@ -1329,7 +1335,12 @@ describe('VendorOnboardingController', () => {
           options: {
             state: {
               vendors: {
-                kalshi: { step: 'terms', status: 'none', sessionId: 'sid-1' },
+                kalshi: {
+                  ...VENDOR_DEFAULTS,
+                  step: 'terms',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
               },
             },
           },
@@ -1387,7 +1398,12 @@ describe('VendorOnboardingController', () => {
           options: {
             state: {
               vendors: {
-                kalshi: { step: 'terms', status: 'none', sessionId: 'sid-1' },
+                kalshi: {
+                  ...VENDOR_DEFAULTS,
+                  step: 'terms',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
               },
             },
           },
