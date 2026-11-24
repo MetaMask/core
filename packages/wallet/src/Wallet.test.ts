@@ -17,6 +17,7 @@ import {
   getDefaultShieldControllerState,
   ShieldController,
 } from '@metamask/shield-controller';
+import { SignatureController } from '@metamask/signature-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { describe, expect, it, vi } from 'vitest';
@@ -616,6 +617,61 @@ describe('Wallet', () => {
 
       expect(messenger.call('LoggingController:getState').logs).toStrictEqual(
         {},
+      );
+    });
+  });
+
+  describe('SignatureController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SignatureController')).toBeInstanceOf(
+        SignatureController,
+      );
+      expect(
+        wallet.messenger.call('SignatureController:getState').signatureRequests,
+      ).toStrictEqual({});
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const { address: from } = messenger.call(
+        'AccountsController:getSelectedAccount',
+      );
+      const { selectedNetworkClientId } = messenger.call(
+        'NetworkController:getState',
+      );
+
+      const origin = 'https://metamask.io';
+
+      const data = '0xFFFFFF';
+
+      const signaturePromise = messenger.call(
+        'SignatureController:newUnsignedPersonalMessage',
+        { from, data, origin },
+        {
+          method: 'personal_sign',
+          params: [data, from],
+          origin,
+          networkClientId: selectedNetworkClientId,
+        },
+      );
+
+      const [requestId] = Object.keys(
+        wallet.state.SignatureController.signatureRequests,
+      );
+
+      await vi.waitFor(() =>
+        expect(
+          messenger.call('ApprovalController:hasRequest', { id: requestId }),
+        ).toBe(true),
+      );
+
+      await messenger.call('ApprovalController:acceptRequest', requestId, {});
+
+      expect(await signaturePromise).toBe(
+        '0x04a77377da6d0c98fe09d8293dc2d8eb712049799bdd4244007af6016f17b2641e053dc911dec1d920fc2a4e9dba45deaacaad97374bb049e07438d479833c2d1c',
       );
     });
   });

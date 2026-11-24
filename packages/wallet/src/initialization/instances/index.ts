@@ -23,6 +23,7 @@ export { seedlessOnboardingController } from './seedless-onboarding-controller/s
 export { selectedNetworkController } from './selected-network-controller/selected-network-controller.js';
 export { shieldApiService } from './shield-api-service/shield-api-service.js';
 export { shieldController } from './shield-controller/shield-controller.js';
+export { signatureController } from './signature-controller/signature-controller.js';
 export { storageService } from './storage-service/storage-service.js';
 export { subscriptionController } from './subscription-controller/subscription-controller.js';
 export { subscriptionDelegationService } from './subscription-delegation-service/subscription-delegation-service.js';
