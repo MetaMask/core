@@ -879,8 +879,19 @@ export class SeedlessOnboardingController<
    * in which case the caller manages locking).
    *
    * @param globalPassword - The latest global password.
+   * @param globalKeys - The keys recovered from the latest global password.
+   * @param globalKeys.encKey - The latest TOPRF encryption key.
+   * @param globalKeys.pwEncKey - The latest TOPRF password encryption key.
+   * @param globalKeys.authKeyPair - The latest TOPRF authentication key pair.
    */
-  async #syncLatestGlobalPasswordInner(globalPassword: string): Promise<void> {
+  async #syncLatestGlobalPasswordInner(
+    globalPassword: string,
+    {
+      encKey,
+      pwEncKey,
+      authKeyPair,
+    }: Omit<RecoverEncryptionKeyResult, 'rateLimitResetResult'>,
+  ): Promise<void> {
     // Decrypt under the old wrapping key before the vault rewrite so the
     // ciphertext can be persisted under the new `toprfPwEncryptionKey`.
     let keyringEncryptionKey: string | undefined;
@@ -888,8 +899,6 @@ export class SeedlessOnboardingController<
       keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
     }
 
-    const { encKey, pwEncKey, authKeyPair } =
-      await this.#recoverEncKey(globalPassword);
     this.#resetPasswordOutdatedCache();
     await this.#commitPasswordChangeState({
       password: globalPassword,
@@ -911,8 +920,9 @@ export class SeedlessOnboardingController<
    * @param params.targetAuthPubKey - The target public key of the keyring
    * encryption key to recover.
    * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the keyring encryption key
-   * corresponding to the current authPubKey in state.
+   * @returns A promise that resolves to the keys recovered from the latest
+   * global password, so the password-sync flow can rewrite the vault without
+   * recovering them again.
    */
   async #submitGlobalPassword({
     targetAuthPubKey,
@@ -922,9 +932,10 @@ export class SeedlessOnboardingController<
     targetAuthPubKey: SEC1EncodedPublicKey;
     globalPassword: string;
     maxKeyChainLength: number;
-  }): Promise<void> {
+  }): Promise<Omit<RecoverEncryptionKeyResult, 'rateLimitResetResult'>> {
+    const globalKeys = await this.#recoverEncKey(globalPassword);
     const { pwEncKey: globalPwEncKey, authKeyPair: globalAuthKeyPair } =
-      await this.#recoverEncKey(globalPassword);
+      globalKeys;
 
     try {
       // Recover vault encryption key.
@@ -956,6 +967,8 @@ export class SeedlessOnboardingController<
         accessTokenBeforeUnlock,
         decryptedVaultData.accessToken,
       );
+
+      return globalKeys;
     } catch (error) {
       if (isAuthTokenError(error)) {
         throw error;
@@ -2318,18 +2331,15 @@ export class SeedlessOnboardingController<
     globalPassword: string,
     maxKeyChainLength: number = 5,
   ): Promise<void> {
-    await this.#executeWithTokenRefresh(async () => {
+    const globalKeys = await this.#executeWithTokenRefresh(async () => {
       const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-      await this.#submitGlobalPassword({
+      return await this.#submitGlobalPassword({
         targetAuthPubKey: currentDeviceAuthPubKey,
         globalPassword,
         maxKeyChainLength,
       });
     }, 'submitGlobalPassword');
-    await this.#executeWithTokenRefresh(
-      async () => await this.#syncLatestGlobalPasswordInner(globalPassword),
-      'syncLatestGlobalPassword',
-    );
+    await this.#syncLatestGlobalPasswordInner(globalPassword, globalKeys);
   }
 
   #assertIsUnlocked(): void {

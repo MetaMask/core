@@ -5706,20 +5706,22 @@ describe('SeedlessOnboardingController', () => {
             base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
           );
 
-          // Mock the password-sync flow for the new password. recoverEncKey
-          // is called by both chain unlock and local vault rewrite.
+          // Mock the password-sync flow for the new password. The keys
+          // recovered for the chain unlock are reused for the vault rewrite.
           const mockToprfEncryptor = createMockToprfEncryptor();
           const encKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
           const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
           const authKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
-          vi.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
-            encKey,
-            authKeyPair,
-            pwEncKey,
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
+          const recoverEncKeySpy = vi
+            .spyOn(toprfClient, 'recoverEncKey')
+            .mockResolvedValue({
+              encKey,
+              authKeyPair,
+              pwEncKey,
+              rateLimitResetResult: Promise.resolve(),
+              keyShareIndex: 1,
+            });
           // recoverPwEncKey recovers the vault key the existing vault was
           // encrypted with, so it must return the OLD password's pwEncKey.
           vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
@@ -5748,6 +5750,7 @@ describe('SeedlessOnboardingController', () => {
           });
 
           expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(recoverEncKeySpy).toHaveBeenCalledTimes(1);
           expect(observedPhases).toStrictEqual([
             SeedlessOnboardingCheckpoint.LocalStatePending,
             SeedlessOnboardingCheckpoint.LocalPasswordPending,
@@ -5788,8 +5791,8 @@ describe('SeedlessOnboardingController', () => {
             OLD_PASSWORD,
           );
 
-          // Mock the password-sync flow for the new password. recoverEncKey
-          // is called by both chain unlock and local vault rewrite.
+          // Mock the password-sync flow for the new password. The keys
+          // recovered for the chain unlock are reused for the vault rewrite.
           const mockToprfEncryptor = createMockToprfEncryptor();
           const encKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
           const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
