@@ -272,15 +272,18 @@ export type AddressScanResult = {
    * Additional label or description for the result
    */
   label: string;
+  /**
+   * Opaque attribution codes returned by the Security Alerts API, forwarded
+   * to analytics unchanged. Omitted when the API did not return attribution
+   * (e.g. errors, non-EVM chains, older API versions).
+   */
+  address_alert_response_flagged_by?: number[];
 };
 
 /**
  * Address data stored in cache (minimal data needed)
  */
-export type AddressScanCacheData = {
-  result_type: AddressScanResultType;
-  label: string;
-};
+export type AddressScanCacheData = AddressScanResult;
 
 /**
  * Similar address match metadata for address poisoning detection.

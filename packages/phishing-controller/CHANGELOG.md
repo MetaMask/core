@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `flow` parameter to `scanAddress` and optional `address_alert_response_flagged_by` to `AddressScanResult` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+  - `flow` is sent with the client platform in the `x-request-source` header so the Security Alerts API can attribute address scans by flow.
+  - `address_alert_response_flagged_by` carries opaque attribution codes returned by the Security Alerts API. It is preserved in the address scan cache, non-integer values are dropped, and it is omitted when the API does not return it.
+
 ## [18.3.2]
 
 ### Changed

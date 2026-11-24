@@ -3907,6 +3907,155 @@ describe('PhishingController', () => {
       expect(cachedResult1).toMatchObject(mockResponse1);
       expect(cachedResult2).toMatchObject(mockResponse2);
     });
+
+    it('sends the request source header with the platform and flow', async () => {
+      const { rootMessenger: messenger } = getPhishingController({
+        platform: RequestSourcePlatform.Extension,
+      });
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .matchHeader('x-request-source', 'extension-confirmations')
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      await messenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+        RequestSourceFlow.Confirmations,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends an unknown flow in the request source header when no flow is given', async () => {
+      const { rootMessenger: messenger } = getPhishingController({
+        platform: RequestSourcePlatform.Mobile,
+      });
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .matchHeader('x-request-source', 'mobile-unknown')
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      await messenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('returns and caches address_alert_response_flagged_by from the API', async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch');
+      const apiResponse: AddressScanResult = {
+        result_type: AddressScanResultType.Benign,
+        label: '',
+        address_alert_response_flagged_by: [1],
+      };
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, apiResponse);
+
+      const result = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+      const cachedResult = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(result).toStrictEqual(apiResponse);
+      expect(cachedResult).toStrictEqual(apiResponse);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      fetchSpy.mockRestore();
+    });
+
+    it('omits address_alert_response_flagged_by when the API does not return it', async () => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, {
+          result_type: AddressScanResultType.Malicious,
+          label: 'Malicious address',
+        });
+
+      const result = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(result).toStrictEqual({
+        result_type: AddressScanResultType.Malicious,
+        label: 'Malicious address',
+      });
+    });
+
+    it.each([
+      [
+        [0, 1],
+        [0, 1],
+      ],
+      [[], []],
+      [
+        [0, 7, -1, 1.5, '0', null],
+        [0, 7],
+      ],
+    ])('keeps only integer codes from %j', async (flaggedBy, expected) => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, {
+          result_type: AddressScanResultType.Malicious,
+          label: 'Malicious address',
+          address_alert_response_flagged_by: flaggedBy,
+        });
+
+      const result = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(result.address_alert_response_flagged_by).toStrictEqual(expected);
+    });
+
+    it('ignores a non-array address_alert_response_flagged_by', async () => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, {
+          result_type: AddressScanResultType.Benign,
+          label: '',
+          address_alert_response_flagged_by: 'not-an-array',
+        });
+
+      const result = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(result).not.toHaveProperty('address_alert_response_flagged_by');
+    });
   });
 
   describe('getApprovals', () => {

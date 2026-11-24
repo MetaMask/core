@@ -278,6 +278,43 @@ export const phishingListKeyNameMap = {
 
 const controllerName = 'PhishingController';
 
+/**
+ * Keeps only non-negative integer codes from an API
+ * `address_alert_response_flagged_by` value, so malformed values never reach
+ * state or analytics.
+ *
+ * @param flaggedBy - The raw value from the API response.
+ * @returns The integer codes, or undefined if the value is not an array.
+ */
+function sanitizeAddressScanFlaggedBy(
+  flaggedBy: unknown,
+): number[] | undefined {
+  if (!Array.isArray(flaggedBy)) {
+    return undefined;
+  }
+  return flaggedBy.filter(
+    (code): code is number => Number.isInteger(code) && code >= 0,
+  );
+}
+
+/**
+ * Builds the public address scan result from cached scan data.
+ *
+ * @param data - The cached address scan data.
+ * @returns The address scan result.
+ */
+function toAddressScanResult(data: AddressScanCacheData): AddressScanResult {
+  return {
+    result_type: data.result_type,
+    label: data.label,
+    ...(data.address_alert_response_flagged_by && {
+      address_alert_response_flagged_by: [
+        ...data.address_alert_response_flagged_by,
+      ],
+    }),
+  };
+}
+
 const metadata: StateMetadata<PhishingControllerState> = {
   phishingLists: {
     includeInStateLogs: false,
@@ -1471,11 +1508,15 @@ export class PhishingController extends BaseController<
    *
    * @param chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
    * @param address - The address to scan.
+   * @param flow - Product flow used to attribute a network scan in the
+   * `x-request-source` header. If omitted, the header uses an unknown flow.
+   * Cached results do not make a network scan or emit a header.
    * @returns The address scan result.
    */
   async scanAddress(
     chainId: string,
     address: string,
+    flow?: RequestSourceFlow,
   ): Promise<AddressScanResult> {
     if (!address || !chainId) {
       return {
@@ -1498,10 +1539,7 @@ export class PhishingController extends BaseController<
     const cacheKey = buildCacheKey(normalizedChainId, normalizedAddress);
     const cachedResult = this.#addressScanCache.get(cacheKey);
     if (cachedResult) {
-      return {
-        result_type: cachedResult.result_type,
-        label: cachedResult.label,
-      };
+      return toAddressScanResult(cachedResult);
     }
 
     const apiResponse = await safelyExecuteWithTimeout(
@@ -1513,6 +1551,7 @@ export class PhishingController extends BaseController<
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
+              [REQUEST_SOURCE_HEADER]: buildRequestSource(this.#platform, flow),
             },
             body: JSON.stringify({
               chain,
@@ -1545,17 +1584,18 @@ export class PhishingController extends BaseController<
     }
 
     const scanResult = apiResponse as AddressScanResult;
+    const flaggedBy = sanitizeAddressScanFlaggedBy(
+      scanResult.address_alert_response_flagged_by,
+    );
     const result: AddressScanCacheData = {
       result_type: scanResult.result_type,
       label: scanResult.label,
+      ...(flaggedBy && { address_alert_response_flagged_by: flaggedBy }),
     };
 
     this.#addressScanCache.set(cacheKey, result);
 
-    return {
-      result_type: scanResult.result_type,
-      label: scanResult.label,
-    };
+    return toAddressScanResult(result);
   }
 
   /**

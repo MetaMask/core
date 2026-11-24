@@ -105,6 +105,9 @@ export type PhishingControllerBulkScanUrlsAction = {
  *
  * @param chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
  * @param address - The address to scan.
+ * @param flow - Product flow used to attribute a network scan in the
+ * `x-request-source` header. If omitted, the header uses an unknown flow.
+ * Cached results do not make a network scan or emit a header.
  * @returns The address scan result.
  */
 export type PhishingControllerScanAddressAction = {
