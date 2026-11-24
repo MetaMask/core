@@ -1639,7 +1639,7 @@ describe('VendorOnboardingController', () => {
       );
     });
 
-    it('posts consents a failed create left behind before the next email code', async () => {
+    it('leaves consents a failed create left behind for the next start, and does not post them with the email code', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.submitTerms(KALSHI_TERMS);
         handlers.getStep
@@ -1665,11 +1665,30 @@ describe('VendorOnboardingController', () => {
           email: KALSHI_EMAIL,
         });
 
-        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledTimes(2);
-        expect(
-          handlers.submitSessionDisclaimers.mock.invocationCallOrder[1],
-        ).toBeLessThan(handlers.sendEmailOtp.mock.invocationCallOrder[0]);
-        expect(controller.state.vendors.kalshi?.pendingConsents).toBeNull();
+        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledTimes(1);
+        expect(handlers.sendEmailOtp).toHaveBeenCalledTimes(1);
+        expect(controller.state.vendors.kalshi?.pendingConsents).not.toBeNull();
+      });
+    });
+
+    it('does not post the waiting consents with the email or phone codes', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.submitTerms(KALSHI_TERMS);
+        handlers.getStep.mockResolvedValue({
+          step: 'kalshi_phone_link',
+          status: 'none',
+          sessionId: 'sid-1',
+        });
+
+        await controller.verifyEmailOtp({ vendor: 'kalshi', code: '123456' });
+        await controller.sendPhoneOtp({
+          vendor: 'kalshi',
+          phoneNumber: '+15555550123',
+        });
+        await controller.verifyPhoneOtp({ vendor: 'kalshi', code: '654321' });
+
+        expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
+        expect(controller.state.vendors.kalshi?.pendingConsents).not.toBeNull();
       });
     });
 

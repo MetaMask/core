@@ -599,6 +599,15 @@ export class VendorOnboardingController extends BaseController<
    * them. Does nothing when nothing is waiting. The accepted terms ids stay:
    * they are the only record of the vendor's terms the user accepted.
    *
+   * Kyc-api only takes consents on a session, so they are posted at the
+   * moments a session and consents meet, and nowhere else:
+   * - a session is created or picked up (`startSession`);
+   * - consents are accepted while a session already exists (`submitTerms`);
+   * - the identity provider is about to open, which cannot run without them
+   * (`launchProviderFlow`). This is the last chance after a failed post
+   * and an app restart, because the user can reach it without calling
+   * `startSession` again.
+   *
    * Forgetting the consents only after kyc-api has them means a failed post
    * is tried again. A post the relay rejects as invalid (`400` or `422`, for
    * example a document version that is no longer current) would fail the
@@ -795,7 +804,6 @@ export class VendorOnboardingController extends BaseController<
     phoneNumber: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
-    await this.#postPendingConsents(params.vendor, sessionId);
     await this.messenger.call('KycService:sendPhoneOtp', {
       sessionId,
       phoneNumber: params.phoneNumber,
@@ -819,7 +827,6 @@ export class VendorOnboardingController extends BaseController<
     code: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
-    await this.#postPendingConsents(params.vendor, sessionId);
     await this.messenger.call('KycService:verifyPhoneOtp', {
       sessionId,
       otp: params.code,
@@ -843,7 +850,6 @@ export class VendorOnboardingController extends BaseController<
     code: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
-    await this.#postPendingConsents(params.vendor, sessionId);
     if (params.vendor !== 'kalshi') {
       await this.messenger.call('KycService:verifyEmailOtp', {
         sessionId,
@@ -883,7 +889,6 @@ export class VendorOnboardingController extends BaseController<
     email?: string;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(params.vendor);
-    await this.#postPendingConsents(params.vendor, sessionId);
     if (params.vendor !== 'kalshi') {
       await this.messenger.call('KycService:sendEmailOtp', { sessionId });
       const { step } = await this.#readStepInfo(params.vendor, {
