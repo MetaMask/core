@@ -5,12 +5,11 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { createModuleLogger, isStrictHexString } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
   CHAIN_ID_HYPERCORE,
-  PaymentOverride,
   TransactionPayStrategy,
 } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
@@ -60,7 +59,12 @@ import {
   SERVER_LIGHTER_PERPS_USDC_ASSET,
 } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
-import { getLighterAccountIndex } from './lighter.js';
+import {
+  getLighterAccountIndex,
+  LighterNormalizer,
+  SERVER_LIGHTER_CHAIN_ID,
+  SERVER_LIGHTER_PERPS_USDC_ADDRESS,
+} from './lighter.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import { validateServerQuotes } from './server-validation.js';
@@ -212,8 +216,13 @@ async function fetchQuotes(
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
 
+  // Normalize Lighter requests up front before other normalization
+  const lighterNormalized = LighterNormalizer.normalizeLighterRequest(
+    quoteRequest,
+  );
+
   const normalizedRequest = await applyHyperliquidActivationFee(
-    normalizeServerPerpsRequest(quoteRequest, transaction),
+    normalizeServerPerpsRequest(lighterNormalized, transaction),
     messenger,
     transaction,
     signal,
@@ -245,6 +254,7 @@ async function fetchQuotes(
       isUsableDepositAddressQuote(body, result),
   );
 
+  const executionAccount = transaction.txParams.from as Hex;
   const normalized = await Promise.all(
     fulfilledResults.map((result) =>
       normalizeQuote(
@@ -252,10 +262,11 @@ async function fetchQuotes(
         {
           ...quoteRequest,
           hyperliquidActivationFeeUsd,
-          // The Lighter account index is not an address, so keep the original.
-          recipient: isStrictHexString(body.recipient)
-            ? body.recipient
-            : quoteRequest.recipient,
+          // Preserve original recipient for Lighter (account index is not Hex).
+          // Fall back to execution account when no explicit recipient is set.
+          recipient: LighterNormalizer.isLighterRequest(quoteRequest)
+            ? (quoteRequest.recipient ?? executionAccount)
+            : (body.recipient as Hex),
         },
         messenger,
         body,
@@ -316,18 +327,18 @@ async function buildServerQuoteRequest(
     request: normalizedRequest,
     transaction,
   });
+
   // Lighter takes the account index as the recipient, not an address.
-  const recipient =
-    normalizedRequest.paymentOverride === PaymentOverride.PerpsLighter
-      ? await getLighterAccountIndex(executionAccount)
-      : await resolveQuoteRecipient({
-          messenger,
-          request: {
-            ...normalizedRequest,
-            recipient: override?.recipient ?? tokenTransferRecipient,
-          },
-          transaction,
-        });
+  const recipient = LighterNormalizer.isLighterRequest(normalizedRequest)
+    ? await getLighterAccountIndex(executionAccount)
+    : await resolveQuoteRecipient({
+        messenger,
+        request: {
+          ...normalizedRequest,
+          recipient: override?.recipient ?? tokenTransferRecipient,
+        },
+        transaction,
+      });
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
 
@@ -342,10 +353,7 @@ async function buildServerQuoteRequest(
 
   const body: ServerQuoteRequestDraft = {
     sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
-    targetAsset:
-      normalizedRequest.paymentOverride === PaymentOverride.PerpsLighter
-        ? SERVER_LIGHTER_PERPS_USDC_ASSET
-        : buildServerAsset(targetChainId, targetTokenAddress),
+    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
     sender: from,
     recipient,
     slippage: Math.round(
@@ -359,11 +367,13 @@ async function buildServerQuoteRequest(
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
+  const isLighter = LighterNormalizer.isLighterRequest(normalizedRequest);
   const skipDelegation =
     hasNoData ||
     isTokenTransfer ||
     isHypercore ||
     isHypercoreSource ||
+    isLighter ||
     // Explicitly non-atomic requests want the calls run after settlement, so
     // they must not be embedded in the quote.
     atomic === false ||
@@ -526,7 +536,8 @@ async function applyDepositWalletOverrides(
  * Build the CAIP-19 asset ID the server intents API expects for a token.
  *
  * HyperCore is only used for the Hyperliquid perps margin account, which has
- * no standard CAIP-19 asset ID.
+ * no standard CAIP-19 asset ID. Similarly, Lighter perps use a placeholder
+ * chain and address that map to a Lighter-specific asset ID.
  *
  * @param chainId - Chain ID of the token.
  * @param tokenAddress - Token address, or the native token address.
@@ -535,6 +546,14 @@ async function applyDepositWalletOverrides(
 function buildServerAsset(chainId: Hex, tokenAddress: Hex): CaipAssetType {
   if (chainId === CHAIN_ID_HYPERCORE) {
     return SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
+  }
+
+  if (
+    chainId === SERVER_LIGHTER_CHAIN_ID &&
+    tokenAddress.toLowerCase() ===
+      SERVER_LIGHTER_PERPS_USDC_ADDRESS.toLowerCase()
+  ) {
+    return SERVER_LIGHTER_PERPS_USDC_ASSET;
   }
 
   return buildCaipAssetType(chainId, tokenAddress);
@@ -594,10 +613,13 @@ function isSecondLegRequired(
     return false;
   }
 
-  // HyperCore settles off-chain, so there is no target-chain transfer to read
-  // a settled amount from. Checks the built body rather than the original
-  // request, since perps deposits are only rewritten to HyperCore there.
-  if (body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
+  // HyperCore and Lighter settle off-chain, so there is no target-chain
+  // transfer to read a settled amount from. Checks the built body rather than
+  // the original request, since perps deposits are only rewritten there.
+  if (
+    body.targetAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET ||
+    body.targetAsset === SERVER_LIGHTER_PERPS_USDC_ASSET
+  ) {
     return false;
   }
 
@@ -608,7 +630,10 @@ function isSecondLegRequired(
     return quoteRequest.atomic === false;
   }
 
-  if (body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET) {
+  if (
+    body.sourceAsset === SERVER_HYPERLIQUID_PERPS_USDC_ASSET ||
+    body.sourceAsset === SERVER_LIGHTER_PERPS_USDC_ASSET
+  ) {
     return false;
   }
 
