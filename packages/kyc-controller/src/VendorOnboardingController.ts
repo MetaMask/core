@@ -54,8 +54,9 @@ export const vendorOnboardingControllerName = 'VendorOnboardingController';
 /**
  * What the phone keeps for one vendor. Everything else is decided by kyc-api,
  * so nothing here can disagree with it: the step is a copy for the first
- * paint, and the session id is only a handle. `step` and `status` are `null`
- * until kyc-api has answered, so a saved session id never reads as a step.
+ * paint. The vendor's session id is not kept: it is read from kyc-api's step
+ * answer whenever a call needs it. `step` and `status` are `null` until
+ * kyc-api has answered.
  */
 export type OnboardingVendorState = {
   /** The last step kyc-api answered with, or `null` before it has answered. */
@@ -67,8 +68,6 @@ export type OnboardingVendorState = {
    * banner keys off. `null` until kyc-api has answered.
    */
   status: KycStepStatus | null;
-  /** The vendor's UKYC session id, once one exists. */
-  sessionId: string | null;
   /**
    * Whether the user finished MetaMask's MFA on this device. It comes before
    * any session exists, so kyc-api cannot see it yet. Sent with every step
@@ -109,7 +108,6 @@ function getDefaultVendorState(): OnboardingVendorState {
   return {
     step: null,
     status: null,
-    sessionId: null,
     mfaCompleted: false,
     acceptedDisclaimerIds: [],
     pendingConsents: null,
@@ -438,15 +436,13 @@ export class VendorOnboardingController extends BaseController<
     intentOpen?: boolean;
   }): Promise<KycStep> {
     const { vendor } = params;
-    // A saved id, or the one the step reports when the phone has none (a
-    // reinstall). Either way the session already exists, so it is resumed.
-    const sessionId =
-      this.state.vendors[vendor]?.sessionId ??
-      (await this.#readStepInfo(vendor)).sessionId;
+    // The step reports the session id when kyc-api already has a session for
+    // the vendor, in which case it is resumed.
+    const { sessionId } = await this.#readStepInfo(vendor);
 
     if (sessionId) {
       // The step does not say whether the capability authorization is still
-      // valid, so a reinstall or a second device refreshes it every time.
+      // valid, so an existing session refreshes it every time.
       await refreshAuthorizations({
         messenger: this.messenger,
         localUserSecretStore: this.#localUserSecretStore,
@@ -495,9 +491,10 @@ export class VendorOnboardingController extends BaseController<
       partnerIdentityToken,
       ...(signedRequests && { signedRequests }),
     });
-    // Saved before the consents are posted, so a failed post can be retried
-    // against this session instead of opening a second one.
-    this.#write(vendor, { sessionId: session.id, mfaCompleted: false });
+    // The session id is not saved: kyc-api reports it in the step, so a
+    // failed consent post below is retried against this session instead of
+    // opening a second one.
+    this.#write(vendor, { mfaCompleted: false });
     await this.#postPendingConsents(vendor, session.id);
     return this.#readStep(vendor, { supersede: true });
   }
@@ -547,7 +544,6 @@ export class VendorOnboardingController extends BaseController<
     sessionId: string,
     email: string | undefined,
   ): Promise<KycStep> {
-    this.#write(vendor, { sessionId });
     await this.#postPendingConsents(vendor, sessionId);
     if (vendor === 'kalshi' && email !== undefined) {
       await this.messenger.call('KycService:sendEmailOtp', {
@@ -897,17 +893,13 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Gets the vendor's session id from what the phone saved, or from the step
-   * kyc-api answers with when the phone has none (a reinstall).
+   * Gets the vendor's session id from the step kyc-api answers with. The
+   * phone does not save it.
    *
    * @param vendor - The vendor.
    * @returns The session id.
    */
   async #getSessionId(vendor: OnboardingVendor): Promise<string> {
-    const saved = this.state.vendors[vendor]?.sessionId;
-    if (saved) {
-      return saved;
-    }
     const { sessionId } = await this.#readStepInfo(vendor);
     if (!sessionId) {
       throw new Error(
@@ -1058,7 +1050,8 @@ export class VendorOnboardingController extends BaseController<
 
   /**
    * Asks kyc-api for the step, how verification is going and the vendor's
-   * session id, and saves all three. A read joins one already in flight
+   * session id, and saves the step and status. The session id is returned
+   * but not saved. A read joins one already in flight
    * unless it supersedes it, as described for `#readStep`.
    *
    * @param vendor - The vendor.
@@ -1091,7 +1084,6 @@ export class VendorOnboardingController extends BaseController<
           this.#write(vendor, {
             step: info.step,
             status: info.status,
-            sessionId: info.sessionId ?? null,
           });
         }
         return info;
