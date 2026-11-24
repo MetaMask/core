@@ -1164,9 +1164,6 @@ export class KycService extends BaseDataService<
         client.acceptedDisclaimerIds.join(','),
       );
     }
-    if (client.country) {
-      url.searchParams.set('country', client.country);
-    }
     if (client.mfaCompleted) {
       url.searchParams.set('mfaCompleted', 'true');
     }

@@ -1116,12 +1116,11 @@ describe('KycService', () => {
       });
     });
 
-    it('sends the accepted terms and their country as query parameters', async () => {
+    it('sends the accepted terms as a query parameter', async () => {
       nock(MOCK_API_URL)
         .get('/vendors/kalshi/step')
         .query({
           acceptedDisclaimerIds: 'tos-v1,privacy-v1',
-          country: 'USA',
         })
         .reply(200, {
           vendor: 'kalshi',
@@ -1133,7 +1132,6 @@ describe('KycService', () => {
       expect(
         await service.getStep('kalshi', {
           acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
-          country: 'USA',
         }),
       ).toStrictEqual({ step: 'mfa', status: 'none', sessionId: null });
     });

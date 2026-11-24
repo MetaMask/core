@@ -37,18 +37,18 @@ export type VendorOnboardingControllerRecordMfaCompletedAction = {
 /**
  * Records the user's acceptance of the vendor's terms, then reads the step.
  *
- * Kalshi keeps the acceptance and the idOS and identity provider consents on
- * the phone until the session exists. Nothing goes to kyc-api yet, because
- * kyc-api only takes consents on a session. If a session already exists the
- * consents are posted to it straight away.
+ * Kalshi keeps the acceptance on the phone and sends it with every step
+ * read. The idOS and identity provider consents wait on the phone until
+ * the session exists, because kyc-api only takes consents on a session. If
+ * a session already exists they are posted to it straight away.
  *
  * Other vendors send the acceptance to kyc-api right away.
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
  * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
- * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
- * for.
+ * @param params.country - Iron only. ISO 3166-1 alpha-3 country the terms
+ * were fetched for.
  * @param params.idOS - Kalshi only. Accepted idOS documents (`key` and
  * `version` from {@link KycService.fetchSessionDisclaimersByCountry}).
  * @param params.kycProvider - Kalshi only. Accepted identity provider

@@ -97,7 +97,6 @@ function partnerTokenFor(email: string): string {
 const VENDOR_DEFAULTS = {
   mfaCompleted: false,
   acceptedDisclaimerIds: [],
-  termsCountry: null,
   pendingConsents: null,
 };
 
@@ -371,7 +370,6 @@ describe('VendorOnboardingController', () => {
           const step = await controller.submitTerms({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
-            country: 'USA',
             idOS: [],
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -397,7 +395,6 @@ describe('VendorOnboardingController', () => {
           const action = controller.submitTerms({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
-            country: 'USA',
             idOS: [],
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -433,7 +430,6 @@ describe('VendorOnboardingController', () => {
           await controller.submitTerms({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
-            country: 'USA',
             idOS: [],
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -464,7 +460,6 @@ describe('VendorOnboardingController', () => {
           await controller.submitTerms({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
-            country: 'USA',
             idOS: [],
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -537,7 +532,6 @@ describe('VendorOnboardingController', () => {
     const KALSHI_TERMS = {
       vendor: 'kalshi' as const,
       disclaimerIds: ['tos-v1', 'privacy-v1'],
-      country: 'USA',
       idOS: [{ key: 'idos-tos', version: '1' }],
       kycProvider: [{ key: 'sumsub-tos', version: '2' }],
       credentialReusabilityConsentGiven: false,
@@ -557,7 +551,6 @@ describe('VendorOnboardingController', () => {
         expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
         expect(handlers.getStep).toHaveBeenCalledWith('kalshi', {
           acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
-          country: 'USA',
         });
         expect(controller.state.vendors.kalshi).toStrictEqual({
           ...VENDOR_DEFAULTS,
@@ -565,7 +558,6 @@ describe('VendorOnboardingController', () => {
           status: 'none',
           sessionId: null,
           acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
-          termsCountry: 'USA',
           pendingConsents: {
             idOS: [{ key: 'idos-tos', version: '1' }],
             kycProvider: [{ key: 'sumsub-tos', version: '2' }],
@@ -575,7 +567,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('posts the consents to a session that already exists, then forgets them', async () => {
+    it('posts the consents to a session that already exists, then forgets them and keeps the terms', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
           step: 'kalshi_email_link',
@@ -596,6 +588,7 @@ describe('VendorOnboardingController', () => {
           step: 'kalshi_email_link',
           status: 'none',
           sessionId: 'sid-1',
+          acceptedDisclaimerIds: ['tos-v1', 'privacy-v1'],
         });
       });
     });
@@ -1502,13 +1495,12 @@ describe('VendorOnboardingController', () => {
     const KALSHI_TERMS = {
       vendor: 'kalshi' as const,
       disclaimerIds: ['tos-v1'],
-      country: 'USA',
       idOS: [{ key: 'idos-tos', version: '1' }],
       kycProvider: [{ key: 'sumsub-tos', version: '2' }],
       credentialReusabilityConsentGiven: false,
     };
 
-    it('posts the consents to the new session after it is created, then forgets them', async () => {
+    it('posts the consents to the new session after it is created, then forgets them and keeps the terms', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.submitTerms(KALSHI_TERMS);
         handlers.getStep
@@ -1545,6 +1537,7 @@ describe('VendorOnboardingController', () => {
           step: 'kalshi_email_link',
           status: 'none',
           sessionId: 'sid-1',
+          acceptedDisclaimerIds: ['tos-v1'],
         });
       });
     });

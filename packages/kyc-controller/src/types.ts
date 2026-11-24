@@ -572,8 +572,6 @@ export type KycClientContext = {
    * accepting, so a catalog that gained an id asks the user again.
    */
   acceptedDisclaimerIds?: string[];
-  /** ISO 3166-1 alpha-3 country the terms were fetched for. */
-  country?: string;
   /**
    * The user finished MetaMask MFA on this device. Sent before a session
    * exists, when kyc-api cannot see MFA yet.

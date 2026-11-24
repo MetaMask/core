@@ -76,11 +76,11 @@ export type OnboardingVendorState = {
   mfaCompleted: boolean;
   /**
    * Catalog ids of the vendor terms the user accepted on this device. Sent
-   * with every step read, and dropped once the session holds its consents.
+   * with every step read, before and after the session exists: kyc-api
+   * compares them with the vendor's current catalog, so new terms are asked
+   * for again.
    */
   acceptedDisclaimerIds: string[];
-  /** ISO 3166-1 alpha-3 country the accepted terms were fetched for. */
-  termsCountry: string | null;
   /**
    * The idOS and identity provider consents the user gave on the terms
    * pages. They wait here until a session exists to receive them.
@@ -111,7 +111,6 @@ function getDefaultVendorState(): OnboardingVendorState {
     sessionId: null,
     mfaCompleted: false,
     acceptedDisclaimerIds: [],
-    termsCountry: null,
     pendingConsents: null,
   };
 }
@@ -209,7 +208,6 @@ export type OnboardingProviderOutcome = 'submitted' | 'abandoned' | 'failed';
 export type SubmitKalshiTermsParams = {
   vendor: 'kalshi';
   disclaimerIds: string[];
-  country: string;
   idOS: KycConsentRecord[];
   kycProvider: KycConsentRecord[];
   credentialReusabilityConsentGiven: boolean;
@@ -347,18 +345,18 @@ export class VendorOnboardingController extends BaseController<
   /**
    * Records the user's acceptance of the vendor's terms, then reads the step.
    *
-   * Kalshi keeps the acceptance and the idOS and identity provider consents on
-   * the phone until the session exists. Nothing goes to kyc-api yet, because
-   * kyc-api only takes consents on a session. If a session already exists the
-   * consents are posted to it straight away.
+   * Kalshi keeps the acceptance on the phone and sends it with every step
+   * read. The idOS and identity provider consents wait on the phone until
+   * the session exists, because kyc-api only takes consents on a session. If
+   * a session already exists they are posted to it straight away.
    *
    * Other vendors send the acceptance to kyc-api right away.
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
    * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
-   * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
-   * for.
+   * @param params.country - Iron only. ISO 3166-1 alpha-3 country the terms
+   * were fetched for.
    * @param params.idOS - Kalshi only. Accepted idOS documents (`key` and
    * `version` from {@link KycService.fetchSessionDisclaimersByCountry}).
    * @param params.kycProvider - Kalshi only. Accepted identity provider
@@ -374,7 +372,6 @@ export class VendorOnboardingController extends BaseController<
     if (params.vendor === 'kalshi') {
       this.#write('kalshi', {
         acceptedDisclaimerIds: [...params.disclaimerIds],
-        termsCountry: params.country,
         pendingConsents: {
           idOS: params.idOS,
           kycProvider: params.kycProvider,
@@ -545,12 +542,12 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Posts the consents waiting on the phone to the session, then forgets the
-   * terms and consents that were kept for the session. Does nothing when
-   * nothing is waiting.
+   * Posts the consents waiting on the phone to the session, then forgets
+   * them. Does nothing when nothing is waiting. The accepted terms ids stay:
+   * they are the only record of the vendor's terms the user accepted.
    *
-   * Forgetting them only after kyc-api has them means a failed post is tried
-   * again, and the terms phase keeps counting the ids until then.
+   * Forgetting the consents only after kyc-api has them means a failed post
+   * is tried again.
    *
    * @param vendor - The vendor.
    * @param sessionId - The session to post the consents to.
@@ -570,11 +567,7 @@ export class VendorOnboardingController extends BaseController<
       credentialReusabilityConsentGiven:
         pending.credentialReusabilityConsentGiven,
     });
-    this.#write(vendor, {
-      acceptedDisclaimerIds: [],
-      termsCountry: null,
-      pendingConsents: null,
-    });
+    this.#write(vendor, { pendingConsents: null });
   }
 
   /**
@@ -972,7 +965,6 @@ export class VendorOnboardingController extends BaseController<
     const acceptedDisclaimerIds = entry?.acceptedDisclaimerIds ?? [];
     return {
       ...(acceptedDisclaimerIds.length > 0 && { acceptedDisclaimerIds }),
-      ...(entry?.termsCountry && { country: entry.termsCountry }),
       ...(entry?.mfaCompleted === true && { mfaCompleted: true }),
     };
   }
