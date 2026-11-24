@@ -451,64 +451,81 @@ export class VendorOnboardingController extends BaseController<
     const { vendor } = params;
     // The step reports the session id when kyc-api already has a session for
     // the vendor, in which case it is resumed.
-    const { sessionId } = await this.#readStepInfo(vendor);
+    const existingSessionId = (await this.#readStepInfo(vendor)).sessionId;
 
-    if (sessionId) {
+    let sessionId: string;
+    if (existingSessionId) {
       // The step does not say whether the capability authorization is still
       // valid, so an existing session refreshes it every time.
       await refreshAuthorizations({
         messenger: this.messenger,
         localUserSecretStore: this.#localUserSecretStore,
-        sessionId,
+        sessionId: existingSessionId,
       });
-      return this.#resumeSession(vendor, sessionId, params.email);
+      sessionId = existingSessionId;
+    } else {
+      if (!params.aal2Token) {
+        throw new Error(
+          'VendorOnboardingController.startSession: aal2Token is required to create a KYC session.',
+        );
+      }
+      const typedEmail =
+        vendor === 'kalshi'
+          ? this.#requireKalshiEmail(params.email?.trim())
+          : undefined;
+      const residenceCountry = await this.messenger.call(
+        'KycService:getGeoCountry',
+      );
+      // kyc-api takes the session's email from this token's verified `ext.email`.
+      // The phone signs that same address into `users/link`; it is not sent
+      // beside the signed calls.
+      const partnerIdentityToken = await this.#mintPartnerIdentityToken(vendor);
+      const email =
+        typedEmail === undefined
+          ? undefined
+          : this.#matchVerifiedEmail(typedEmail, partnerIdentityToken);
+      // A signature lasts 60 seconds, so this is the last thing before the
+      // call that carries it.
+      const signedRequests =
+        email === undefined
+          ? undefined
+          : await this.#signKalshiRequests([
+              ...(params.intentOpen
+                ? []
+                : [{ operation: 'enrollment/intents' as const }]),
+              { operation: 'users/link' as const, email },
+            ]);
+      const session = await createUkycSession({
+        messenger: this.messenger,
+        localUserSecretStore: this.#localUserSecretStore,
+        vendor,
+        residenceCountry,
+        aal2Token: params.aal2Token,
+        partnerIdentityToken,
+        ...(signedRequests && { signedRequests }),
+      });
+      // The session id is not saved: kyc-api reports it in the step, so a
+      // failed consent post below is retried against this session instead of
+      // opening a second one.
+      this.#write(vendor, { mfaCompleted: false });
+      sessionId = session.id;
     }
 
-    if (!params.aal2Token) {
-      throw new Error(
-        'VendorOnboardingController.startSession: aal2Token is required to create a KYC session.',
-      );
+    // Consents are posted here and nowhere else in the start path, so a new
+    // session and a resumed one get the same handling.
+    await this.#postPendingConsents(vendor, sessionId);
+    // A resumed session gets a code sent to the address the user gave. A new
+    // session's email code is sent by kyc-api when the link is forwarded.
+    if (
+      existingSessionId &&
+      vendor === 'kalshi' &&
+      params.email !== undefined
+    ) {
+      await this.messenger.call('KycService:sendEmailOtp', {
+        sessionId,
+        signedRequest: await this.#signKalshiLink(vendor, params.email),
+      });
     }
-    const typedEmail =
-      vendor === 'kalshi'
-        ? this.#requireKalshiEmail(params.email?.trim())
-        : undefined;
-    const residenceCountry = await this.messenger.call(
-      'KycService:getGeoCountry',
-    );
-    // kyc-api takes the session's email from this token's verified `ext.email`.
-    // The phone signs that same address into `users/link`; it is not sent
-    // beside the signed calls.
-    const partnerIdentityToken = await this.#mintPartnerIdentityToken(vendor);
-    const email =
-      typedEmail === undefined
-        ? undefined
-        : this.#matchVerifiedEmail(typedEmail, partnerIdentityToken);
-    // A signature lasts 60 seconds, so this is the last thing before the
-    // call that carries it.
-    const signedRequests =
-      email === undefined
-        ? undefined
-        : await this.#signKalshiRequests([
-            ...(params.intentOpen
-              ? []
-              : [{ operation: 'enrollment/intents' as const }]),
-            { operation: 'users/link' as const, email },
-          ]);
-    const session = await createUkycSession({
-      messenger: this.messenger,
-      localUserSecretStore: this.#localUserSecretStore,
-      vendor,
-      residenceCountry,
-      aal2Token: params.aal2Token,
-      partnerIdentityToken,
-      ...(signedRequests && { signedRequests }),
-    });
-    // The session id is not saved: kyc-api reports it in the step, so a
-    // failed consent post below is retried against this session instead of
-    // opening a second one.
-    this.#write(vendor, { mfaCompleted: false });
-    await this.#postPendingConsents(vendor, session.id);
     const { step } = await this.#readStepInfo(vendor, { supersede: true });
     return step;
   }
@@ -542,31 +559,6 @@ export class VendorOnboardingController extends BaseController<
     } catch {
       return undefined;
     }
-  }
-
-  /**
-   * Picks up a session kyc-api already has. Posts any consents still waiting
-   * on the phone. When an email is given, sends a code to that address.
-   *
-   * @param vendor - The vendor.
-   * @param sessionId - The existing session's id.
-   * @param email - The Kalshi email to send a code to, if the user gave one.
-   * @returns The next step.
-   */
-  async #resumeSession(
-    vendor: OnboardingVendor,
-    sessionId: string,
-    email: string | undefined,
-  ): Promise<KycStep> {
-    await this.#postPendingConsents(vendor, sessionId);
-    if (vendor === 'kalshi' && email !== undefined) {
-      await this.messenger.call('KycService:sendEmailOtp', {
-        sessionId,
-        signedRequest: await this.#signKalshiLink(vendor, email),
-      });
-    }
-    const { step } = await this.#readStepInfo(vendor, { supersede: true });
-    return step;
   }
 
   /**
