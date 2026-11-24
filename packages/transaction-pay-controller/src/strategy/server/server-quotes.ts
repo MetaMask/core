@@ -8,10 +8,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  CHAIN_ID_HYPERCORE,
-  TransactionPayStrategy,
-} from '../../constants.js';
+import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -217,9 +214,8 @@ async function fetchQuotes(
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
 
   // Normalize Lighter requests up front before other normalization
-  const lighterNormalized = LighterNormalizer.normalizeLighterRequest(
-    quoteRequest,
-  );
+  const lighterNormalized =
+    LighterNormalizer.normalizeLighterRequest(quoteRequest);
 
   const normalizedRequest = await applyHyperliquidActivationFee(
     normalizeServerPerpsRequest(lighterNormalized, transaction),
@@ -352,8 +348,16 @@ async function buildServerQuoteRequest(
     isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequestDraft = {
-    sourceAsset: buildServerAsset(sourceChainId, sourceTokenAddress),
-    targetAsset: buildServerAsset(targetChainId, targetTokenAddress),
+    sourceAsset: buildServerAsset(
+      sourceChainId,
+      sourceTokenAddress,
+      normalizedRequest,
+    ),
+    targetAsset: buildServerAsset(
+      targetChainId,
+      targetTokenAddress,
+      normalizedRequest,
+    ),
     sender: from,
     recipient,
     slippage: Math.round(
@@ -363,7 +367,13 @@ async function buildServerQuoteRequest(
   };
 
   if (isPolymarketDepositWallet) {
-    await applyDepositWalletOverrides(body, from, sourceChainId, messenger);
+    await applyDepositWalletOverrides(
+      body,
+      from,
+      sourceChainId,
+      messenger,
+      normalizedRequest,
+    );
   }
 
   const hasNoData = singleData === undefined || singleData === '0x';
@@ -516,17 +526,23 @@ function canDeferCalls({
  * @param from - The user EOA that owns the deposit wallet.
  * @param sourceChainId - Chain the deposit wallet funds the quote from.
  * @param messenger - Controller messenger.
+ * @param request - The normalized quote request.
  */
 async function applyDepositWalletOverrides(
   body: ServerQuoteRequestDraft,
   from: Hex,
   sourceChainId: Hex,
   messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
 ): Promise<void> {
   const { depositWallet, sourceTokenAddress } =
     await getPolymarketDepositWalletOverrides(from, messenger);
 
-  body.sourceAsset = buildServerAsset(sourceChainId, sourceTokenAddress);
+  body.sourceAsset = buildServerAsset(
+    sourceChainId,
+    sourceTokenAddress,
+    request,
+  );
   body.sender = depositWallet;
   body.refundTo = depositWallet;
   body.useDepositAddress = true;
@@ -536,19 +552,28 @@ async function applyDepositWalletOverrides(
  * Build the CAIP-19 asset ID the server intents API expects for a token.
  *
  * HyperCore is only used for the Hyperliquid perps margin account, which has
- * no standard CAIP-19 asset ID. Similarly, Lighter perps use a placeholder
- * chain and address that map to a Lighter-specific asset ID.
+ * no standard CAIP-19 asset ID. Lighter perps requests are normalized with
+ * placeholder chain/address values that are mapped to the Lighter asset only
+ * when the request is confirmed to be a Lighter request.
  *
  * @param chainId - Chain ID of the token.
  * @param tokenAddress - Token address, or the native token address.
+ * @param request - The normalized quote request (used to verify Lighter).
  * @returns CAIP-19 asset ID.
  */
-function buildServerAsset(chainId: Hex, tokenAddress: Hex): CaipAssetType {
+function buildServerAsset(
+  chainId: Hex,
+  tokenAddress: Hex,
+  request: QuoteRequest,
+): CaipAssetType {
   if (chainId === CHAIN_ID_HYPERCORE) {
     return SERVER_HYPERLIQUID_PERPS_USDC_ASSET;
   }
 
+  // Only map the Lighter placeholder to the Lighter asset if this is actually
+  // a Lighter request, preventing accidental collisions.
   if (
+    LighterNormalizer.isLighterRequest(request) &&
     chainId === SERVER_LIGHTER_CHAIN_ID &&
     tokenAddress.toLowerCase() ===
       SERVER_LIGHTER_PERPS_USDC_ADDRESS.toLowerCase()

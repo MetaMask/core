@@ -44,10 +44,7 @@ import {
   SERVER_HYPERLIQUID_PERPS_USDC_ASSET,
   SERVER_LIGHTER_PERPS_USDC_ASSET,
 } from './constants.js';
-import {
-  getLighterAccountIndex,
-  LighterNormalizer,
-} from './lighter.js';
+import { getLighterAccountIndex } from './lighter.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 import { validateServerQuotes } from './server-validation.js';
