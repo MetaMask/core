@@ -57,6 +57,12 @@ type CoreState = {
   /** SLB scoping flag — activates Strategy C (bulk back-fill) pagination. */
   slbMode: boolean;
   /**
+   * Opt-in. When true, the per-interval visible-range pin is clamped so its
+   * start never predates the oldest loaded bar. Off by default so non-opt-in
+   * consumers keep today's unclamped framing.
+   */
+  atomicIntervalWindow: boolean;
+  /**
    * Set to true when SLB data arrives and the viewport hasn't been
    * centered yet. Cleared after the first successful setVisibleRange
    * so re-centering only happens on a fresh SET_OHLCV_DATA.
@@ -107,6 +113,7 @@ const state: CoreState = {
   hasExplicitCurrentPriceLine: false,
   hotReloadSeq: 0,
   slbMode: false,
+  atomicIntervalWindow: false,
   slbCenteringPending: false,
   legendOwnsLayoutSettle: false,
 };
@@ -388,6 +395,16 @@ export function setSlbMode(enabled: boolean): void {
   state.slbMode = enabled;
 }
 
+// ----- Atomic interval window (opt-in) ---------------------------------------
+
+export function getAtomicIntervalWindow(): boolean {
+  return state.atomicIntervalWindow;
+}
+
+export function setAtomicIntervalWindow(enabled: boolean): void {
+  state.atomicIntervalWindow = enabled;
+}
+
 export function isSlbCenteringPending(): boolean {
   return state.slbCenteringPending;
 }
@@ -447,6 +464,7 @@ export function _resetStateForTests(): void {
   state.hasExplicitCurrentPriceLine = false;
   state.hotReloadSeq = 0;
   state.slbMode = false;
+  state.atomicIntervalWindow = false;
   state.slbCenteringPending = false;
   state.legendOwnsLayoutSettle = false;
 }

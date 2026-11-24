@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
+
+## [15.4.0]
+
 ### Added
 
 - Add optional `benefitPeriodId`, `benefitPeriodStart`, and `benefitPeriodEnd` to `SubscriptionBenefitsResponse` and `SubscriptionBenefitsState` (monthly reset window from the benefits API); keep `billingPeriodId` as a deprecated alias on the response ([#11666](https://github.com/MetaMask/core/pull/11666))
@@ -747,7 +753,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.4.0...HEAD
+[15.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.3.0...@metamask/subscription-controller@15.4.0
 [15.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.2...@metamask/subscription-controller@15.3.0
 [15.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.1...@metamask/subscription-controller@15.2.2
 [15.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.0...@metamask/subscription-controller@15.2.1

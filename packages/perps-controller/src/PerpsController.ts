@@ -61,6 +61,7 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import { LighterNotificationEnrollmentService } from './services/LighterNotificationEnrollmentService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
@@ -1445,6 +1446,8 @@ export class PerpsController extends BaseController<
 
   readonly #dataLakeService: DataLakeService;
 
+  readonly #lighterNotificationEnrollmentService: LighterNotificationEnrollmentService;
+
   readonly #depositService: DepositService;
 
   readonly #featureFlagConfigurationService: FeatureFlagConfigurationService;
@@ -1508,6 +1511,8 @@ export class PerpsController extends BaseController<
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
+    this.#lighterNotificationEnrollmentService =
+      new LighterNotificationEnrollmentService(infrastructure, messenger);
     this.#depositService = new DepositService(infrastructure, messenger);
     this.#featureFlagConfigurationService = new FeatureFlagConfigurationService(
       infrastructure,
@@ -4044,7 +4049,7 @@ export class PerpsController extends BaseController<
         ) => this.saveTradeConfiguration(symbol, leverage, providerId),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
 
     if (result.success) {
@@ -4454,7 +4459,7 @@ export class PerpsController extends BaseController<
         getPositions: () => this.getPositions(),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
-        this.reportOrderToDataLake(dataLakeParams),
+        this.reportOrderToDataLake(dataLakeParams, provider),
     });
   }
 
@@ -10453,26 +10458,46 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Report order events to data lake API with retry (non-blocking)
-   * Thin delegation to DataLakeService
+   * Report an order to notify-perps with retry (non-blocking).
+   * Hyperliquid orders go to the orders endpoint (DataLakeService). Lighter
+   * orders enroll the account for notifications instead and never reach it.
    *
    * @param params - The operation parameters.
    * @param params.action - The order action.
    * @param params.symbol - The trading pair symbol.
+   * @param params.providerId - The venue that executed the order, when known.
    * @param params.slPrice - The stop loss price.
    * @param params.tpPrice - The take profit price.
    * @param params.retryCount - Internal retry counter.
    * @param params._traceId - Internal trace ID.
+   * @param provider - The provider that executed the order.
    * @returns Whether the report was sent successfully, with an optional error message.
    */
-  protected async reportOrderToDataLake(params: {
-    action: 'open' | 'close';
-    symbol: string;
-    slPrice?: number;
-    tpPrice?: number;
-    retryCount?: number;
-    _traceId?: string;
-  }): Promise<{ success: boolean; error?: string }> {
+  protected async reportOrderToDataLake(
+    params: {
+      action: 'open' | 'close';
+      symbol: string;
+      providerId?: PerpsProviderType;
+      slPrice?: number;
+      tpPrice?: number;
+      retryCount?: number;
+      _traceId?: string;
+    },
+    provider: PerpsProvider,
+  ): Promise<{ success: boolean; error?: string }> {
+    if (params.providerId === 'lighter') {
+      return this.#lighterNotificationEnrollmentService.enroll({
+        isTestnet: isProviderOnTestnet('lighter', this.state.isTestnet),
+        getAccountIndex: async () => {
+          if (!provider.getNotificationAccountIndex) {
+            throw new Error(
+              'Provider does not support notification enrollment',
+            );
+          }
+          return provider.getNotificationAccountIndex();
+        },
+      });
+    }
     return this.#dataLakeService.reportOrder({
       action: params.action,
       symbol: params.symbol,
