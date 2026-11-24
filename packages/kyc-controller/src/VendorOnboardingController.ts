@@ -594,11 +594,7 @@ export class VendorOnboardingController extends BaseController<
    * Kyc-api only takes consents on a session, so they are posted at the
    * moments a session and consents meet, and nowhere else:
    * - a session is created or picked up (`startSession`);
-   * - consents are accepted while a session already exists (`submitTerms`);
-   * - the identity provider is about to open, which cannot run without them
-   * (`launchProviderFlow`). This is the last chance after a failed post
-   * and an app restart, because the user can reach it without calling
-   * `startSession` again.
+   * - consents are accepted while a session already exists (`submitTerms`).
    *
    * Forgetting the consents only after kyc-api has them means a failed post
    * is tried again. A post the relay rejects as invalid (`400` or `422`, for
@@ -729,9 +725,6 @@ export class VendorOnboardingController extends BaseController<
     }
     try {
       const sessionId = await this.#getSessionId(params.vendor);
-      // The identity provider must not open without the idOS and identity
-      // provider consents, so any still on the phone go first.
-      await this.#postPendingConsents(params.vendor, sessionId);
       const { applicantAccessToken } = await this.messenger.call(
         'KycService:createJourney',
         sessionId,

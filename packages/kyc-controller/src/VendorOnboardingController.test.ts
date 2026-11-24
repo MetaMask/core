@@ -1924,19 +1924,21 @@ describe('VendorOnboardingController', () => {
       launch,
     });
 
-    it('posts consents still on the phone before SumSub opens', async () => {
+    it('does not post consents when SumSub opens', async () => {
       const launcher = getLauncher();
-      const pendingConsents = {
-        idOS: [{ key: 'idos-tos', version: '1' }],
-        kycProvider: [{ key: 'sumsub-tos', version: '2' }],
-        credentialReusabilityConsentGiven: false,
-      };
       await withController(
         {
           options: {
             state: {
               vendors: {
-                kalshi: { ...saved.state.vendors.kalshi, pendingConsents },
+                kalshi: {
+                  ...saved.state.vendors.kalshi,
+                  pendingConsents: {
+                    idOS: [{ key: 'idos-tos', version: '1' }],
+                    kycProvider: [{ key: 'sumsub-tos', version: '2' }],
+                    credentialReusabilityConsentGiven: false,
+                  },
+                },
               },
             },
             sumsubLauncher: launcher,
@@ -1950,47 +1952,8 @@ describe('VendorOnboardingController', () => {
 
           await controller.launchProviderFlow({ vendor: 'kalshi' });
 
-          expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
-            sessionId: 'sid-1',
-            ...pendingConsents,
-          });
-          expect(
-            handlers.submitSessionDisclaimers.mock.invocationCallOrder[0],
-          ).toBeLessThan(handlers.createJourney.mock.invocationCallOrder[0]);
-        },
-      );
-    });
-
-    it('does not open SumSub when the consents cannot be posted', async () => {
-      const launcher = getLauncher();
-      await withController(
-        {
-          options: {
-            state: {
-              vendors: {
-                kalshi: {
-                  ...saved.state.vendors.kalshi,
-                  pendingConsents: {
-                    idOS: [],
-                    kycProvider: [],
-                    credentialReusabilityConsentGiven: false,
-                  },
-                },
-              },
-            },
-            sumsubLauncher: launcher,
-          },
-        },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue(SUMSUB_STEP);
-          handlers.submitSessionDisclaimers.mockRejectedValue(
-            new Error('offline'),
-          );
-
-          expect(
-            await controller.launchProviderFlow({ vendor: 'kalshi' }),
-          ).toBe('failed');
-          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
+          expect(handlers.createJourney).toHaveBeenCalledTimes(1);
         },
       );
     });
