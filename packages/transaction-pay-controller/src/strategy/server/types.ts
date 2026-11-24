@@ -67,7 +67,9 @@ export type ServerQuoteRequest = {
   amount: string;
   tradeType: TradeType;
   sender: Hex;
-  recipient: Hex;
+
+  /** Address of the recipient, or another identifier such as a Lighter account index. */
+  recipient: string;
   refundTo?: Hex;
   slippage?: number;
   providers?: string[];
